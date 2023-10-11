@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-BFMDYSTN1L"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', 'G-BFMDYSTN1L');
+    </script>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+    <title>MemGPT</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro">
+    <link rel="stylesheet" href="assets/css/Highlight-Clean.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="assets/css/Team-Clean.css">
+</head>
+
+<body>
+    <div class="highlight-clean" style="padding-bottom: 10px;">
+        <div class="container">
+            <h1 class="text-center">MemGPT: Towards An OS For LLMs</h1>
+        </div>
+        <div><p></p></div>
+        <div class="container" style="max-width: 768px;">
+            <div class="row">
+                <div class="col-md-12">
+                    <h4 class="text-center" style="margin: 0px;">
+                        <a class="text-center" href="https://people.eecs.berkeley.edu/~cpacker/">Charles Avery Packer</a> 
+                    </h4>
+                    <h4></h4>
+                    <h5 class="text-center">UC Berkeley</h5>
+                </div>
+            </div>
+        </div>
+        <div><p></p></div>
+        <div class="buttons" style="margin-bottom: 8px;">
+            <a class="btn btn-primary" role="button" href="https://memgpt.ai">Paper (Coming Soon)</a>
+            <a class="btn btn-primary" role="button" href="https://memgpt.ai">Discord  (Coming Soon)</a>
+            <a class="btn btn-primary" role="button" href="https://github.com/cpacker/MemGPT">GitHub</a>
+        </div>
+        <div><p></p></div>
+        <div>
+            <div class="container" style="max-width: 768px;">
+                <div class="row">
+                    <div class="col-md-12">
+                        <h3 class="text-center">Teach LLMs to manage their own memory and achieve unbounded context!</h3>
+                    </div>
+                </div>
+            
+            </div>
+        </div>
+        <div><p></p></div>
+        <div class="container" style="max-width: 768px;">
+            <div class="row">
+                <div class="col-md-12 text-center"><img src="assets/img/memgpt-system-diagram.png" 
+                    style="width: 100%;margin-bottom: 8px;" alt="MemGPT system overview">
+                    <em>In MemGPT (components shaded), a fixed-context LLM is augmented with a tiered memory system and a set of functions 
+                        that allow it to manage its own memory.
+                        The LLM inputs the text (tokens) in main memory, and outputs text that is interpreted by a parser, 
+                        resulting either in a yield or a function call. 
+                        MemGPT uses functions to move data between main memory and disk memory. 
+                        When the LLM generates a function call, it can request immediate return of execution to chain together functions. 
+                        In the case of a yield, the LLM will not be run again until the next external event trigger 
+                        (e.g. a user message or scheduled interrupt).
+                    </em>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div><p></p></div>
+    <hr style="max-width: 768px;">
+    <div class="container" style="max-width: 768px;">
+        <div class="row">
+            <div class="col-md-12">
+                <h2>Overview</h2>
+                <ul>
+                    <li>LLMs are increasingly being used for perpetual chats. </li>
+                    <li>Challenge: Limited context length makes perpetual chat challenging.</li>
+                    <li>Inspired by memory management in OS, MemGPT uses RAM (in-context), and Disk (Archival) memory to effeciently manage 
+                        the limited context length. </li>
+                   <li><mark>With MemGPT, we demonstrate that LLMs can be taught to manage their own memory!</mark>
+                    </li>
+                </ul>
+        </div>
+    </div>
+    <div><p></p></div>
+    <hr style="max-width: 768px;">
+    <div class="container" style="max-width: 768px;">
+        <div class="row">
+            <div class="col-md-12">
+                <h2>Abstract</h2>
+                <p>
+                    Large language models (LLMs) have revolutionized AI but are constrained by limited context windows, 
+                    hindering their utility in tasks like extended conversations and document analysis. 
+                    Drawing inspiration from the hierarchical memory systems in traditional operating systems, 
+                    we introduce MemGPT (Memory-GPT).
+                    Similar to how an operating system (OS) provides the illusion of large memory resources through 
+                    data movement between fast and slow memory,
+                    MemGPT manages tiers of memory to effectively manage extended context within the language model's 
+                    limited context window, and utilizes interrupts to manage control flow between itself and the user.
+                    We evaluate our OS-inspired design in two domains where the limited context windows of modern LLMs 
+                    severely handicaps their performance: document analysis, where MemGPT is able to analyze large documents 
+                    that far exceed the underlying LLM's context limit, and multi-session chat, where MemGPT enables 
+                    conversational agents to remember, reflect, and evolve dynamically through long-term interactions with their users.
+                <br>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <hr style="max-width: 768px;">
+    <div class="container" style="max-width: 768px;">
+        <div class="row">
+            <div class="col-md-12">
+                <h2>Citation</h2>
+                <code>
+                    @inproceedings{pacher2023memgpt,<br>
+                        &nbsp; 	title={MemGPT: Towards an OS for LLMs} <br>
+                        &nbsp; 	author={Packer, Charles Avery} <br>
+                        &nbsp; 	year={2023},<br>
+                    }
+                </code></div>
+        </div>
+    </div>
+</body>
+
+</html>
