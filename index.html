@@ -42,7 +42,7 @@
         <div><p></p></div>
         <div class="buttons" style="margin-bottom: 8px;">
             <a class="btn btn-primary" role="button" href="https://memgpt.ai">Paper (Coming Soon)</a>
-            <a class="btn btn-primary" role="button" href="https://memgpt.ai">Discord  (Coming Soon)</a>
+            <a class="btn btn-primary" role="button" href="https://memgpt.ai">Discord</a>
             <a class="btn btn-primary" role="button" href="https://github.com/cpacker/MemGPT">GitHub</a>
         </div>
         <div><p></p></div>
@@ -50,7 +50,7 @@
             <div class="container" style="max-width: 768px;">
                 <div class="row">
                     <div class="col-md-12">
-                        <h3 class="text-center">Teach LLMs to manage their own memory and achieve unbounded context!</h3>
+                        <h3 class="text-center">Teach LLMs to manage their own memory for unbounded context!</h3>
                     </div>
                 </div>
             
@@ -61,14 +61,12 @@
             <div class="row">
                 <div class="col-md-12 text-center"><img src="assets/img/memgpt-system-diagram.png" 
                     style="width: 100%;margin-bottom: 8px;" alt="MemGPT system overview">
-                    <em>In MemGPT (components shaded), a fixed-context LLM is augmented with a tiered memory system and a set of functions 
-                        that allow it to manage its own memory.
-                        The LLM inputs the text (tokens) in main memory, and outputs text that is interpreted by a parser, 
-                        resulting either in a yield or a function call. 
-                        MemGPT uses functions to move data between main memory and disk memory. 
-                        When the LLM generates a function call, it can request immediate return of execution to chain together functions. 
-                        In the case of a yield, the LLM will not be run again until the next external event trigger 
-                        (e.g. a user message or scheduled interrupt).
+                    <em>In MemGPT, a fixed-context LLM is augmented with a tiered memory system and a set of functions that allow it to manage its own memory. 
+                        The LLM takes as input the text in main context (capped at the size of the standard LLM context window), and outputs text that 
+                        is interpreted by a parser, resulting either in a yield or a function call. MemGPT uses functions to move data between main 
+                        context and external context. When the LLM generates a function call, it can request immediate return of 
+                        execution to chain together functions. In the case of a yield, the LLM will not be run again until the next external 
+                        event trigger (e.g. a user message or scheduled interrupt).
                     </em>
                 </div>
             </div>
@@ -97,18 +95,20 @@
             <div class="col-md-12">
                 <h2>Abstract</h2>
                 <p>
-                    Large language models (LLMs) have revolutionized AI but are constrained by limited context windows, 
-                    hindering their utility in tasks like extended conversations and document analysis. 
-                    Drawing inspiration from the hierarchical memory systems in traditional operating systems, 
-                    we introduce MemGPT (Memory-GPT).
-                    Similar to how an operating system (OS) provides the illusion of large memory resources through 
-                    data movement between fast and slow memory,
-                    MemGPT manages tiers of memory to effectively manage extended context within the language model's 
-                    limited context window, and utilizes interrupts to manage control flow between itself and the user.
-                    We evaluate our OS-inspired design in two domains where the limited context windows of modern LLMs 
-                    severely handicaps their performance: document analysis, where MemGPT is able to analyze large documents 
-                    that far exceed the underlying LLM's context limit, and multi-session chat, where MemGPT enables 
-                    conversational agents to remember, reflect, and evolve dynamically through long-term interactions with their users.
+                    Large language models (LLMs) have revolutionized AI but are constrained by
+                    limited context windows, hindering their utility in tasks like extended conversa-
+                    tions and document analysis. Drawing inspiration from the hierarchical memory
+                    systems in traditional operating systems, we introduce MemGPT (Memory-GPT).
+                    Similar to how an operating system (OS) provides the illusion of large memory
+                    resources through data movement between fast and slow memory, MemGPT man-
+                    ages tiers of memory to effectively manage extended context within the language
+                    model's limited context window, and utilizes interrupts to manage control flow
+                    between itself and the user. We evaluate our OS-inspired design in two domains
+                    where the limited context windows of modern LLMs severely handicaps their per-
+                    formance: document analysis, where MemGPT is able to analyze large documents
+                    that far exceed the underlying LLM's context limit, and multi-session chat, where
+                    MemGPT enables conversational agents to remember, reflect, and evolve dynam-
+                    ically through long-term interactions with their users. Code and Data is available at https://memgpt.ai
                 <br>
                 </p>
             </div>
@@ -121,10 +121,11 @@
             <div class="col-md-12">
                 <h2>Citation</h2>
                 <code>
-                    @inproceedings{pacher2023memgpt,<br>
-                        &nbsp; 	title={MemGPT: Towards an OS for LLMs} <br>
-                        &nbsp; 	author={Packer, Charles Avery} <br>
-                        &nbsp; 	year={2023},<br>
+                    @inproceedings{packer2023memgpt,<br>
+                        &nbsp; 	title={{MemGPT}: Towards LLMs as Operating Systems} <br>
+                        &nbsp; 	author={Packer, Charles and Fang, Vivian and Patil, Shishir G. <br>
+                        &nbsp;  and Lin, Kevin and Wooders, Sarah and Gonzalez, Joseph E.} <br>
+                        &nbsp; 	year={2023}<br>
                     }
                 </code></div>
         </div>
