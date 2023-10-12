@@ -36,7 +36,7 @@
                         <a class="text-center" href="https://www.vivi.sh/">Vivian Fang</a>, 
                         <a class="text-center" href="https://shishirpatil.github.io/">Shishir G. Patil</a>, <br>
                         <a class="text-center" href="https://people.eecs.berkeley.edu/~kevinlin/">Kevin Lin</a>, 
-                        <a class="text-center" href="http://sarahwooders.com">Sarah Wooders</a>, 
+                        <a class="text-center" href="https://www.linkedin.com/in/sarah-wooders-9243b0aa/">Sarah Wooders</a>, 
                         <a class="text-center" href="https://people.eecs.berkeley.edu/~jegonzal/">Joseph E. Gonzalez</a>
                         
                     </h4>
@@ -53,7 +53,7 @@
         </div>
         <div><p></p></div>
         <div>
-            <div class="container" style="max-width: 768px;">
+            <div class="container" style="max-width: 850px;">
                 <div class="row">
                     <div class="col-md-12">
                         <h3 class="text-center">Teach LLMs to manage their own memory for unbounded context!</h3>
@@ -67,12 +67,12 @@
             <div class="row">
                 <div class="col-md-12 text-center"><img src="assets/img/memgpt-system-diagram.png" 
                     style="width: 100%;margin-bottom: 8px;" alt="MemGPT system overview">
-                    <em>In MemGPT, a fixed-context LLM is augmented with a tiered memory system and a set of functions that allow it to manage its own memory. 
-                        The LLM inputs text in it's main context (capped at the size of the standard LLM context window), and outputs text that 
-                        is interpreted by a parser, resulting either in a yield or a function call. MemGPT uses functions to move data between main 
-                        context and external context. When the LLM generates a function call, it can request immediate return of 
-                        execution to chain together functions. In the case of a yield, the LLM will not be run again until the next external 
-                        event trigger (e.g. a user message or scheduled interrupt).
+                    <em>
+                        In MemGPT, a fixed-context LLM processor is augmented with a tiered memory system and a set of functions that allow it to manage its own memory. 
+                        Main context is the (fixed-length) LLM input.
+                        MemGPT parses the LLM text ouputs at each processing cycle, and either yields control or executes a function call, which can be used to move data between main and external context.
+                        When the LLM generates a function call, it can request immediate return of execution to chain together functions.
+                        In the case of a yield, the LLM will not be run again until the next external event trigger (e.g. a user message or scheduled interrupt).
                     </em>
                 </div>
             </div>
@@ -85,10 +85,9 @@
             <div class="col-md-12">
                 <h2>Overview</h2>
                 <ul>
-                    <li>LLMs are increasingly being used for perpetual chats. </li>
-                    <li>Challenge: Limited context length makes perpetual chat challenging.</li>
-                    <li>Inspired by memory management in OS, MemGPT uses RAM (in-context), and Disk (Archival) memory to effeciently manage 
-                        the limited context length. </li>
+                    <li>LLMs are increasingly being used for perpetual chats </li>
+                    <li>Limited context lengths makes perpetual chat challenging</li>
+                    <li>MemGPT manages a <mark>virtual context</mark> (inspired by virtual memory in operating systems) to create unbounded LLM context</li>
                    <li><mark>With MemGPT, we demonstrate that LLMs can be taught to manage their own memory!</mark>
                     </li>
                 </ul>
@@ -101,20 +100,7 @@
             <div class="col-md-12">
                 <h2>Abstract</h2>
                 <p>
-                    Large language models (LLMs) have revolutionized AI but are constrained by
-                    limited context windows, hindering their utility in tasks like extended conversa-
-                    tions and document analysis. Drawing inspiration from the hierarchical memory
-                    systems in traditional operating systems, we introduce MemGPT (Memory-GPT).
-                    Similar to how an operating system (OS) provides the illusion of large memory
-                    resources through data movement between fast and slow memory, MemGPT man-
-                    ages tiers of memory to effectively manage extended context within the language
-                    model's limited context window, and utilizes interrupts to manage control flow
-                    between itself and the user. We evaluate our OS-inspired design in two domains
-                    where the limited context windows of modern LLMs severely handicaps their per-
-                    formance: document analysis, where MemGPT is able to analyze large documents
-                    that far exceed the underlying LLM's context limit, and multi-session chat, where
-                    MemGPT enables conversational agents to remember, reflect, and evolve dynam-
-                    ically through long-term interactions with their users. Code and Data is available at https://memgpt.ai
+                    Large language models (LLMs) have revolutionized AI, but are constrained by limited context windows, hindering their utility in tasks like extended conversations and document analysis. To enable using context beyond limited context windows, we propose virtual context management, a technique drawing inspiration from hierarchical memory systems in traditional operating systems that provide the appearance of large memory resources through data movement between fast and slow memory. Using this technique, we introduce MemGPT (Memory-GPT), a system that intelligently manages different memory tiers in order to effectively provide extended context within the LLM's limited context window, and utilizes interrupts to manage control flow between itself and the user. We evaluate our OS-inspired design in two domains where the limited context windows of modern LLMs severely handicaps their performance: document analysis, where MemGPT is able to analyze large documents that far exceed the underlying LLM's context window, and multi-session chat, where MemGPT can create conversational agents that remember, reflect, and evolve dynamically through long-term interactions with their users. We release MemGPT code and data for our experiments at <a href="https://memgpt.ai" style="color: inherit;">https://memgpt.ai</a>.
                 <br>
                 </p>
             </div>
