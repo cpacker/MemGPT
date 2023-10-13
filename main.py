@@ -1,5 +1,6 @@
 import asyncio
 from absl import app, flags
+import logging
 import os
 import sys
 import pickle
@@ -21,6 +22,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string("persona", default=personas.DEFAULT, required=False, help="Specify persona")
 flags.DEFINE_string("human", default=humans.DEFAULT, required=False, help="Specify human")
 flags.DEFINE_boolean("first", default=False, required=False, help="Use -first to send the first message in the sequence")
+flags.DEFINE_boolean("debug", default=False, required=False, help="Use -debug to enable debugging output")
 
 
 def clear_line():
@@ -34,6 +36,10 @@ def clear_line():
 
 
 async def main():
+    utils.DEBUG = FLAGS.debug
+    logging.getLogger().setLevel(logging.CRITICAL)
+    if FLAGS.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
     print("Running... [exit by typing 'exit']")
 
     memgpt_agent = presets.use_preset(presets.DEFAULT, personas.get_persona_text(FLAGS.persona), humans.get_human_text(), interface, persistence_manager())

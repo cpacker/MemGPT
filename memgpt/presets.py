@@ -2,6 +2,7 @@
 from .prompts import gpt_functions
 from .prompts import gpt_system
 from .agent import AgentAsync
+from .utils import printd
 
 
 DEFAULT = 'memgpt_chat'
@@ -19,7 +20,7 @@ def use_preset(preset_name, persona, human, interface, persistence_manager):
             'archival_memory_insert', 'archival_memory_search',
         ]
         available_functions = [v for k,v in gpt_functions.FUNCTIONS_CHAINING.items() if k in functions]
-        print(f"Available functions:\n", [x['name'] for x in available_functions])
+        printd(f"Available functions:\n", [x['name'] for x in available_functions])
         assert len(functions) == len(available_functions)
 
         return AgentAsync(
