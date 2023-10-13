@@ -53,7 +53,7 @@ async def main():
     USER_GOES_FIRST = FLAGS.first
 
     if not USER_GOES_FIRST:
-        console.input('[bold cyan]Hit enter to begin (will request first assistant message)[/bold cyan]')
+        console.input('[bold cyan]Hit enter to begin (will request first MemGPT message)[/bold cyan]')
         clear_line()
         print()
 
