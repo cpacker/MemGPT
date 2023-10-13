@@ -34,7 +34,7 @@ To run MemGPT for as a conversation agent in CLI mode, simply run `main.py`:
 python3 main.py
 ```
 
-To create a new starter user or starter persona (that MemGPT gets initialized with), create a new `.txt` file in [/memgpt/humans/examples](/memgpt/humans/examples) or [/memgpt/personas](/memgpt/personas/examples), then use the `--persona` or `--human` flag when running `main.py`. For example:
+To create a new starter user or starter persona (that MemGPT gets initialized with), create a new `.txt` file in [/memgpt/humans/examples](/memgpt/humans/examples) or [/memgpt/personas/examples](/memgpt/personas/examples), then use the `--persona` or `--human` flag when running `main.py`. For example:
 
 ```sh
 # assuming you created a new file /memgpt/humans/examples/me.txt
