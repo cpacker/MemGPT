@@ -4,7 +4,7 @@
 
 # [MemGPT](https://memgpt.ai)
 
-[![Discord](https://img.shields.io/discord/1161736243340640419?label=Discord&logo=discord&logoColor=green&style=flat-square)](https://discord.gg/9GEQrxmVyE)
+[![Discord](https://img.shields.io/discord/1161736243340640419?label=Discord&logo=discord&logoColor=5865F2&style=flat-square&color=5865F2)](https://discord.gg/9GEQrxmVyE)
 
 Teaching LLMs memory management for unbounded context
 
