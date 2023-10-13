@@ -8,7 +8,7 @@ Teaching LLMs memory management for unbounded context
 
 </div>
 
-## Quick Setup
+## Quick setup
 
 Install dependencies:
 
