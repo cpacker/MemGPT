@@ -1,4 +1,4 @@
-<a href="https://memgpt.ai" target="_blank"><img src="https://memgpt.ai/assets/img/memgpt_logo_circle.png" alt="MemGPT logo" width="75" align="right"></a>
+<a href="#user-content-memgpt"><img src="https://memgpt.ai/assets/img/memgpt_logo_circle.png" alt="MemGPT logo" width="75" align="right"></a>
 
 # [MemGPT](https://memgpt.ai)
 
