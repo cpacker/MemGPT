@@ -3,11 +3,12 @@ import re
 
 from colorama import Fore, Style, init
 
+from memgpt.utils import printd
+
 init(autoreset=True)
 
 # DEBUG = True  # puts full message outputs in the terminal
 DEBUG = False  # only dumps important messages in the terminal
-
 
 async def internal_monologue(msg):
     # ANSI escape code for italic is '\x1B[3m'
@@ -20,65 +21,76 @@ async def memory_message(msg):
     print(f'{Fore.LIGHTMAGENTA_EX}{Style.BRIGHT}🧠 {Fore.LIGHTMAGENTA_EX}{msg}{Style.RESET_ALL}')
 
 async def system_message(msg):
-    print(f'{Fore.MAGENTA}{Style.BRIGHT}🖥️ [system] {Fore.MAGENTA}{msg}{Style.RESET_ALL}')
+    printd(f'{Fore.MAGENTA}{Style.BRIGHT}🖥️ [system] {Fore.MAGENTA}{msg}{Style.RESET_ALL}')
 
 async def user_message(msg, raw=False):
     if isinstance(msg, str):
         if raw:
-            print(f'{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg}{Style.RESET_ALL}')
+            printd(f'{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg}{Style.RESET_ALL}')
             return
         else:
             try:
                 msg_json = json.loads(msg)
             except:
-                print(f"Warning: failed to parse user message into json")
-                print(f'{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg}{Style.RESET_ALL}')
+                printd(f"Warning: failed to parse user message into json")
+                printd(f'{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg}{Style.RESET_ALL}')
                 return
 
     if msg_json['type'] == 'user_message':
         msg_json.pop('type')
-        print(f'{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg_json}{Style.RESET_ALL}')
+        printd(f'{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg_json}{Style.RESET_ALL}')
     elif msg_json['type'] == 'heartbeat':
         if DEBUG:
             msg_json.pop('type')
-            print(f'{Fore.GREEN}{Style.BRIGHT}💓 {Fore.GREEN}{msg_json}{Style.RESET_ALL}')
+            printd(f'{Fore.GREEN}{Style.BRIGHT}💓 {Fore.GREEN}{msg_json}{Style.RESET_ALL}')
     elif msg_json['type'] == 'system_message':
         msg_json.pop('type')
-        print(f'{Fore.GREEN}{Style.BRIGHT}🖥️ {Fore.GREEN}{msg_json}{Style.RESET_ALL}')
+        printd(f'{Fore.GREEN}{Style.BRIGHT}🖥️ {Fore.GREEN}{msg_json}{Style.RESET_ALL}')
     else:
-        print(f'{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg_json}{Style.RESET_ALL}')
+        printd(f'{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg_json}{Style.RESET_ALL}')
 
 async def function_message(msg):
 
     if isinstance(msg, dict):
-        print(f'{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}')
+        printd(f'{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}')
         return
 
     if msg.startswith('Success: '):
-        if DEBUG:
-            print(f'{Fore.RED}{Style.BRIGHT}⚡🟢 [function] {Fore.RED}{msg}{Style.RESET_ALL}')
+        printd(f'{Fore.RED}{Style.BRIGHT}⚡🟢 [function] {Fore.RED}{msg}{Style.RESET_ALL}')
     elif msg.startswith('Error: '):
-        print(f'{Fore.RED}{Style.BRIGHT}⚡🔴 [function] {Fore.RED}{msg}{Style.RESET_ALL}')
+        printd(f'{Fore.RED}{Style.BRIGHT}⚡🔴 [function] {Fore.RED}{msg}{Style.RESET_ALL}')
     elif msg.startswith('Running '):
         if DEBUG:
-            print(f'{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}')
+            printd(f'{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}')
         else:
             if 'memory' in msg:
-                match = re.search(r'Running (\w+)\(', msg)
+                match = re.search(r'Running (\w+)\((.*)\)', msg)
                 if match:
                     function_name = match.group(1)
-                    print(f'{Fore.RED}{Style.BRIGHT}⚡🧠 [function] {Fore.RED}updating memory with {function_name}{Style.RESET_ALL}')
+                    function_args = match.group(2)
+                    print(f'{Fore.RED}{Style.BRIGHT}⚡🧠 [function] {Fore.RED}updating memory with {function_name}{Style.RESET_ALL}:')
+                    try:
+                        msg_dict = eval(function_args)
+                        print(f'{Fore.RED}{Style.BRIGHT}\t{Fore.RED} {msg_dict["old_content"]}\n\t→ {msg_dict["new_content"]}')
+                    except Exception as e:
+                        print(e)
+                        pass
                 else:
-                    print(f"Warning: did not recognize function message")
-                    print(f'{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}')
+                    printd(f"Warning: did not recognize function message")
+                    printd(f'{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}')
             elif 'send_message' in msg:
                 # ignore in debug mode
                 pass
             else:
-                print(f'{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}')
+                printd(f'{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}')
     else:
-        print(f"Warning: did not recognize function message")
-        print(f'{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}')
+        try:
+            msg_dict = json.loads(msg)
+            if "status" in msg_dict and msg_dict["status"] == "OK":
+                printd(f'{Fore.GREEN}{Style.BRIGHT}⚡ [function] {Fore.GREEN}{msg}{Style.RESET_ALL}')
+        except Exception:
+            printd(f"Warning: did not recognize function message {type(msg)} {msg}")
+            printd(f'{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}')
 
 async def print_messages(message_sequence):
     for msg in message_sequence:
