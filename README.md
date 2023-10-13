@@ -1,6 +1,6 @@
 <div align="center">
   
-# 🧠 [MemGPT](https://memgpt.ai)
+# 🧠💾 [MemGPT](https://memgpt.ai)
 
 [![Discord](https://img.shields.io/discord/1161736243340640419?label=Discord&logo=discord&logoColor=green&style=flat-square)](https://discord.gg/9GEQrxmVyE)
 
