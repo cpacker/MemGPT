@@ -1,4 +1,8 @@
-# [MemGPT](https://memgpt.ai)
+<div align="center">
+  
+# [MemGPT](https://memgpt.ai) (MemoryGPT)
+
+</div>
 
 ## Setup
 
