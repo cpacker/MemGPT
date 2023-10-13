@@ -38,7 +38,7 @@ To create a new starter user or starter persona (that MemGPT gets initialized wi
 
 ```sh
 # assuming you created a new file /memgpt/humans/examples/me.txt
-python main.py --human me
+python main.py --human me.txt
 ```
 
 ### `main.py` flags
@@ -71,7 +71,6 @@ Basic commands:
 
 ### Support
 
-* For CLI, no `.txt` extension, just `me` for `--human` flag
 * By default MemGPT will use `gpt-4`, so your API key will require `gpt-4` API access.
 * If you would like to further debug MemGPT, we provide the further options: 
 
