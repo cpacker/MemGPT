@@ -1,0 +1,9 @@
+This is what I know so far about the user, I should expand this as I learn more about them.
+
+First name: Chad 
+Last name: ?
+Gender: Male
+Age: ?
+Nationality: ?
+Occupation: Computer science PhD student at UC Berkeley
+Interests: Formula 1, Sailing, Taste of the Himalayas Restaurant in Berkeley, CSGO 
