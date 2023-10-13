@@ -1,6 +1,5 @@
 # [MemGPT](https://memgpt.ai)
 
-
 ## Setup
 
 Set up dependencies:
@@ -17,7 +16,7 @@ export OPENAI_API_KEY=YOUR_API_KEY
 
 By default MemGPT will use `gpt-4`, so your API key will require `gpt-4` API access.
 
-## MemGPT CLI
+## Running MemGPT via the CLI
 
 To run MemGPT in CLI mode, simply run `main.py`:
 
@@ -33,7 +32,7 @@ To create a new starter user or starter persona (that MemGPT gets initialized wi
 python main.py --human me
 ```
 
-### Options
+### `main.py` flags
 
 ```text
 --persona
@@ -44,7 +43,7 @@ python main.py --human me
   allows you to send the first message in the chat (by default, MemGPT will send the first message)
 ```
 
-### CLI commands
+### Interactive CLI commands
 
 While using MemGPT via the CLI you can run various commands
 
