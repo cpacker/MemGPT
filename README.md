@@ -1,6 +1,6 @@
 <img src="https://memgpt.ai/assets/img/memgpt_logo_circle.png" alt="MemGPT logo" width="75" align="right">
 
-# [MemGPT](https://memgpt.)
+# [MemGPT](https://memgpt.ai)
 
 <div align="center">
   
