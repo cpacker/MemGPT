@@ -87,3 +87,6 @@ While using MemGPT via the CLI you can run various commands:
 If you have any further questions, or have anything to share, we are excited to hear your feedback!
 
 * For issues and feature requests, please [open a GitHub issue](https://github.com/cpacker/MemGPT/issues).
+
+### Datasets
+Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded at [HuggingFace](https://huggingface.co/MemGPT).
