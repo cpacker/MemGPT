@@ -1,4 +1,4 @@
-<img src="https://memgpt.ai/assets/img/memgpt_logo_circle.png" alt="MemGPT logo" width="75" align="right">
+<a href="https://memgpt.ai" target="_blank"><img src="https://memgpt.ai/assets/img/memgpt_logo_circle.png" alt="MemGPT logo" width="75" align="right"></a>
 
 # [MemGPT](https://memgpt.ai)
 
@@ -55,6 +55,8 @@ python main.py --human me.txt
   load a specific human file
 --first
   allows you to send the first message in the chat (by default, MemGPT will send the first message)
+--debug
+  enables debugging output
 ```
 
 ### Interactive CLI commands
