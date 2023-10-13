@@ -59,9 +59,7 @@ python main.py --human me.txt
 
 ### Interactive CLI commands
 
-While using MemGPT via the CLI you can run various commands
-
-Basic commands:
+While using MemGPT via the CLI you can run various commands:
 
 ```text
 /save
@@ -72,21 +70,17 @@ Basic commands:
   view the current message log (see the contents of main context)
 /memory
   print the current contents of agent memory
+/pop
+  undo the last message in the conversation
+/heartbeat
+  send a heartbeat system message to the agent
+/memorywarning
+  send a memory warning system message to the agent
 ```
 
 ### Support
 
 * By default MemGPT will use `gpt-4`, so your API key will require `gpt-4` API access.
-* If you would like to further debug MemGPT, we provide the further options: 
-
-  ```text
-  /pop
-    undo the last message in the conversation
-  /heartbeat
-    send a heartbeat system message to the agent
-  /memorywarning
-    send a memory warning system message to the agent
-  ```
 
 If you have any further questions, or have anything to share, we are excited to hear your feedback!
 
