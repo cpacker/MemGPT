@@ -10,7 +10,7 @@
 
 ## Quick Setup
 
-Set up dependencies:
+Install dependencies:
 
 ```sh
 pip install -r requirements.txt
