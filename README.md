@@ -24,7 +24,7 @@ export OPENAI_API_KEY=YOUR_API_KEY
 
 ## What is MemGPT? 
 
-MemoryGPT (or MemGPT in short) is a system that intelligently manages different memory tiers in LLMs in order to effectively provide extended context within the LLM's limited context window. For example, MemGPT knows when to push critical information to a vector database and when to retrieve it later in the chat for perpetual conversations. Learn more about MemGPT in our [paper](https://arxiv.org/abs/2310.08560). 
+MemoryGPT (or MemGPT in short) is a system that intelligently manages different memory tiers in LLMs in order to effectively provide extended context within the LLM's limited context window. For example, MemGPT knows when to push critical information to a vector database and when to retrieve it later in the chat, enabling perpetual conversations. Learn more about MemGPT in our [paper](https://arxiv.org/abs/2310.08560). 
 
 ## Try MemGPT in your CLI
 
