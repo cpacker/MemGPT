@@ -82,6 +82,7 @@ async def main():
 
             if user_input == "":
                 # no empty messages allowed
+                print("Empty input received. Try again!")
                 continue
 
             # Handle CLI commands
