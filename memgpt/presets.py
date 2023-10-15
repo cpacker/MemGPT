@@ -6,9 +6,8 @@ from .utils import printd
 
 
 DEFAULT = 'memgpt_chat'
-DEFAULT_MODEL = 'gpt-4'
 
-def use_preset(preset_name, persona, human, interface, persistence_manager):
+def use_preset(preset_name, model, persona, human, interface, persistence_manager):
     """Storing combinations of SYSTEM + FUNCTION prompts"""
 
     if preset_name == 'memgpt_chat':
@@ -24,13 +23,15 @@ def use_preset(preset_name, persona, human, interface, persistence_manager):
         assert len(functions) == len(available_functions)
 
         return AgentAsync(
-            model=DEFAULT_MODEL,
+            model=model,
             system=gpt_system.get_system_text(preset_name),
             functions=available_functions,
             interface=interface,
             persistence_manager=persistence_manager,
             persona_notes=persona,
             human_notes=human,
+            # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+            first_message_verify_mono=True if 'gpt-4' in model else False,
         )
 
     else:
