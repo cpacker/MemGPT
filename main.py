@@ -41,7 +41,7 @@ async def main():
     logging.getLogger().setLevel(logging.CRITICAL)
     if FLAGS.debug:
         logging.getLogger().setLevel(logging.DEBUG)
-    print("Running... [exit by typing 'exit']")
+    print("Running... [exit by typing '/exit']")
 
     memgpt_agent = presets.use_preset(presets.DEFAULT, FLAGS.model, personas.get_persona_text(FLAGS.persona), humans.get_human_text(), interface, persistence_manager())
     print_messages = interface.print_messages
