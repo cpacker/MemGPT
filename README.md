@@ -122,6 +122,35 @@ While using MemGPT via the CLI you can run various commands:
   send a memory warning system message to the agent
 ```
 
+## Use MemGPT to talk to your Database!
+
+MemGPT's archival memory let's you load your database and talk to it! To motivate this use-case, we have included a toy example. 
+
+Consider the `test.db` already included in the repository.
+
+id	| name |	age
+--- | --- | ---
+1	| Alice |	30
+2	| Bob	 | 25
+3	| Charlie |	35
+
+To talk to this database, run:
+
+```sh
+python main_db.py 
+```
+
+And then you can input the path to your database, and your query.
+
+```python
+Please enter the path to the database. test.db
+...
+Enter your message: How old is Bob?
+...
+🤖 Bob is 25 years old.
+```
+
+
 ### Support
 
 * By default MemGPT will use `gpt-4`, so your API key will require `gpt-4` API access.
