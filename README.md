@@ -64,6 +64,8 @@ python main.py --human me.txt
 While using MemGPT via the CLI you can run various commands:
 
 ```text
+/exit
+  exit the CLI
 /save
   save a checkpoint of the current agent/conversation state
 /load
