@@ -9,9 +9,21 @@
 [![arXiv 2310.08560](https://img.shields.io/badge/arXiv-2310.08560-B31B1B?logo=arxiv&style=flat-square)](https://arxiv.org/abs/2310.08560)
 
 Teaching LLMs memory management for unbounded context
-
-<img src="https://memgpt.ai/assets/img/demo.gif" alt="MemGPT demo video" width="800">
 </div>
+
+<details open>
+  <summary><h2>Self-editing memory</h1></summary>
+  <div align="center">
+    <img src="https://memgpt.ai/assets/img/demo.gif" alt="MemGPT demo video" width="800">
+  </div>
+</details>
+
+<details open>
+  <summary><h2>LlamaIndex API Docs Search</h1></summary>
+  <div align="center">
+    <img src="https://memgpt.ai/assets/img/docqa_demo.gif" alt="MemGPT demo video for llamaindex api docs search" width="800">
+  </div>
+</details>
 
 ## Quick setup
 
