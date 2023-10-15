@@ -71,9 +71,13 @@ async def function_message(msg):
                     print(f'{Fore.RED}{Style.BRIGHT}⚡🧠 [function] {Fore.RED}updating memory with {function_name}{Style.RESET_ALL}:')
                     try:
                         msg_dict = eval(function_args)
-                        print(f'{Fore.RED}{Style.BRIGHT}\t{Fore.RED} {msg_dict["old_content"]}\n\t→ {msg_dict["new_content"]}')
+                        if function_name == 'archival_memory_search':
+                            print(f'{Fore.RED}\tquery: {msg_dict["query"]}, page: {msg_dict["page"]}')
+                        else:
+                            print(f'{Fore.RED}{Style.BRIGHT}\t{Fore.RED} {msg_dict["old_content"]}\n\t{Fore.GREEN}→ {msg_dict["new_content"]}')
                     except Exception as e:
-                        print(e)
+                        printd(e)
+                        printd(msg_dict)
                         pass
                 else:
                     printd(f"Warning: did not recognize function message")

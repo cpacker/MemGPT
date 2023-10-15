@@ -624,7 +624,7 @@ class AgentAsync(object):
         return None
 
     async def recall_memory_search(self, query, count=5, page=0):
-        results, total = await self.persistence_manager.recall_memory.text_search(query, count=count, start=page)
+        results, total = await self.persistence_manager.recall_memory.text_search(query, count=count, start=page*count)
         num_pages = math.ceil(total / count) - 1  # 0 index
         if len(results) == 0:
             results_str = f"No results found."
@@ -635,7 +635,7 @@ class AgentAsync(object):
         return results_str
 
     async def recall_memory_search_date(self, start_date, end_date, count=5, page=0):
-        results, total = await self.persistence_manager.recall_memory.date_search(start_date, end_date, count=count, start=page)
+        results, total = await self.persistence_manager.recall_memory.date_search(start_date, end_date, count=count, start=page*count)
         num_pages = math.ceil(total / count) - 1  # 0 index
         if len(results) == 0:
             results_str = f"No results found."
@@ -650,7 +650,7 @@ class AgentAsync(object):
         return None
 
     async def archival_memory_search(self, query, count=5, page=0):
-        results, total = await self.persistence_manager.archival_memory.search(query, count=count, start=page)
+        results, total = await self.persistence_manager.archival_memory.search(query, count=count, start=page*count)
         num_pages = math.ceil(total / count) - 1  # 0 index
         if len(results) == 0:
             results_str = f"No results found."
