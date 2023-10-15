@@ -11,3 +11,4 @@ numpy
 absl-py
 pybars3
 faiss-cpu
+sqlite3
