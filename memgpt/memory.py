@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 import datetime
 import re
+import faiss
+import numpy as np
 
 from .utils import cosine_similarity, get_local_time, printd
 from .prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
@@ -227,6 +229,85 @@ class DummyArchivalMemoryWithEmbeddings(DummyArchivalMemory):
 
         # Extract the sorted archive without the scores
         matches = [item[0] for item in sorted_archive_with_scores]
+
+        # start/count support paging through results
+        if start is not None and count is not None:
+            return matches[start:start+count], len(matches)
+        elif start is None and count is not None:
+            return matches[:count], len(matches)
+        elif start is not None and count is None:
+            return matches[start:], len(matches)
+        else:
+            return matches, len(matches)
+
+
+class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
+    """Dummy in-memory version of an archival memory database, using a FAISS
+    index for fast nearest-neighbors embedding search.
+    
+    Archival memory is effectively "infinite" overflow for core memory,
+    and is read-only via string queries.
+
+    Archival Memory: A more structured and deep storage space for the AI's reflections,
+    insights, or any other data that doesn't fit into the active memory but
+    is essential enough not to be left only to the recall memory.
+    """
+
+    def __init__(self, index=None, archival_memory_database=None, embedding_model='text-embedding-ada-002', k=100):
+        if index is None:
+            self.index = faiss.IndexFlatL2(1536)    # openai embedding vector size.
+        else:
+            self.index = index
+        self.k = k
+        self._archive = [] if archival_memory_database is None else archival_memory_database # consists of {'content': str} dicts
+        self.embedding_model = embedding_model
+        self.embeddings_dict = {}
+        self.search_results = {}
+
+    def __len__(self):
+        return len(self._archive)
+
+    async def insert(self, memory_string, embedding=None):
+        if embedding is None:
+            # Get the embedding
+            embedding = await async_get_embedding_with_backoff(memory_string, model=self.embedding_model)
+        print(f"Got an embedding, type {type(embedding)}, len {len(embedding)}")
+
+        self._archive.append({
+            # can eventually upgrade to adding semantic tags, etc
+            'timestamp': get_local_time(),
+            'content': memory_string,
+        })
+        embedding = np.array([embedding]).astype('float32')
+        self.index.add(embedding)
+
+    async def search(self, query_string, count=None, start=None):
+        """Simple embedding-based search (inefficient, no caching)"""
+        # see: https://github.com/openai/openai-cookbook/blob/main/examples/Semantic_text_search_using_embeddings.ipynb
+
+        # query_embedding = get_embedding(query_string, model=self.embedding_model) 
+        # our wrapped version supports backoff/rate-limits
+        if query_string in self.embeddings_dict:
+            query_embedding = self.embeddings_dict[query_string]
+            search_result = self.search_results[query_string]
+        else:
+            query_embedding = await async_get_embedding_with_backoff(query_string, model=self.embedding_model)
+            _, indices = self.index.search(np.array([np.array(query_embedding, dtype=np.float32)]), self.k)
+            search_result = [self._archive[idx] if idx < len(self._archive) else "" for idx in indices[0]]
+            self.embeddings_dict[query_string] = query_embedding
+            self.search_results[query_string] = search_result
+
+        if start is not None and count is not None:
+            toprint = search_result[start:start+count]
+        else:
+            if len(search_result) >= 5:
+                toprint = search_result[:5]
+            else:
+                toprint = search_result
+        printd(f"archive_memory.search (vector-based): search for query '{query_string}' returned the following results ({start}--{start+5}/{len(search_result)}) and scores:\n{str([t[:60] if len(t) > 60 else t for t in toprint])}")
+
+        # Extract the sorted archive without the scores
+        matches = search_result
 
         # start/count support paging through results
         if start is not None and count is not None:
