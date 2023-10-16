@@ -16,7 +16,7 @@ import memgpt.presets as presets
 import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
-from memgpt.persistence_manager import InMemoryStateManager as persistence_manager
+from memgpt.persistence_manager import InMemoryStateManager, InMemoryStateManagerWithFaiss
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string("persona", default=personas.DEFAULT, required=False, help="Specify persona")
@@ -24,6 +24,7 @@ flags.DEFINE_string("human", default=humans.DEFAULT, required=False, help="Speci
 flags.DEFINE_string("model", default=constants.DEFAULT_MEMGPT_MODEL, required=False, help="Specify the LLM model")
 flags.DEFINE_boolean("first", default=False, required=False, help="Use -first to send the first message in the sequence")
 flags.DEFINE_boolean("debug", default=False, required=False, help="Use -debug to enable debugging output")
+flags.DEFINE_string("archival_storage_faiss_path", default="", required=False, help="Specify archival storage to load (a folder with a .index and .json describing documents to be loaded)")
 
 
 def clear_line():
@@ -43,7 +44,12 @@ async def main():
         logging.getLogger().setLevel(logging.DEBUG)
     print("Running... [exit by typing '/exit']")
 
-    memgpt_agent = presets.use_preset(presets.DEFAULT, FLAGS.model, personas.get_persona_text(FLAGS.persona), humans.get_human_text(), interface, persistence_manager())
+    if FLAGS.archival_storage_faiss_path:
+        index, archival_database = utils.prepare_archival_index(FLAGS.archival_storage_faiss_path)
+        persistence_manager = InMemoryStateManagerWithFaiss(index, archival_database)
+    else:
+        persistence_manager = InMemoryStateManager()
+    memgpt_agent = presets.use_preset(presets.DEFAULT, FLAGS.model, personas.get_persona_text(FLAGS.persona), humans.get_human_text(FLAGS.human), interface, persistence_manager)
     print_messages = interface.print_messages
     await print_messages(memgpt_agent.messages)
 
