@@ -27,7 +27,7 @@ MemGPT enables you to chat with your data -- try running this example to talk to
     ```
     where `ARCHIVAL_STORAGE_FAISS_PATH` is the directory where `all_docs.jsonl` and `all_docs.index` are located.
    If you downloaded from HuggingFace, it will be `memgpt/personas/docqa/llamaindex-api-docs`.
-   If you built the index yourself, it will be `memgpt/personas/docqa/`.
+   If you built the index yourself, it will be `memgpt/personas/docqa`.
 
 ## Demo
 <div align="center">
