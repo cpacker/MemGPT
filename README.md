@@ -3,15 +3,26 @@
 # [MemGPT](https://memgpt.ai)
 
 <div align="center">
-  
+
 [![Website](https://img.shields.io/badge/Website-Visit-008000?logo=firefox-browser&style=flat-square)](https://memgpt.ai)
 [![Discord](https://img.shields.io/discord/1161736243340640419?label=Discord&logo=discord&logoColor=5865F2&style=flat-square&color=5865F2)](https://discord.gg/9GEQrxmVyE)
 [![arXiv 2310.08560](https://img.shields.io/badge/arXiv-2310.08560-B31B1B?logo=arxiv&style=flat-square)](https://arxiv.org/abs/2310.08560)
 
-Teaching LLMs memory management for unbounded context
-
-<img src="https://memgpt.ai/assets/img/demo.gif" alt="MemGPT demo video" width="800">
 </div>
+
+<details open>
+  <summary><h2>Create perpetual chatbots 🤖 with self-editing memory!</h1></summary>
+  <div align="center">
+    <img src="https://memgpt.ai/assets/img/demo.gif" alt="MemGPT demo video" width="800">
+  </div>
+</details>
+
+<details open>
+  <summary><h2>Chat with your data 🗃️ - try talking to the <a href="memgpt/personas/examples/docqa">LlamaIndex API docs</a>!</h1></summary>
+  <div align="center">
+    <img src="https://memgpt.ai/assets/img/docqa_demo.gif" alt="MemGPT demo video for llamaindex api docs search" width="800">
+  </div>
+</details>
 
 ## Quick setup
 

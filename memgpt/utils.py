@@ -4,6 +4,8 @@ import demjson3 as demjson
 import numpy as np
 import json
 import pytz
+import os
+import faiss
 
 
 # DEBUG = True
@@ -61,3 +63,20 @@ def parse_json(string):
     except demjson.JSONDecodeError as e:
         print(f"Error parsing json with demjson package: {e}")
         raise e
+
+def prepare_archival_index(folder):
+    index_file = os.path.join(folder, "all_docs.index")
+    index = faiss.read_index(index_file)
+
+    archival_database_file = os.path.join(folder, "all_docs.jsonl")
+    archival_database = []
+    with open(archival_database_file, 'rt') as f:
+        all_data = [json.loads(line) for line in f]
+    for doc in all_data:
+        total = len(doc)
+        for i, passage in enumerate(doc):
+            archival_database.append({
+                'content': f"[Title: {passage['title']}, {i}/{total}] {passage['text']}",
+                'timestamp': get_local_time(),
+            })  
+    return index, archival_database
