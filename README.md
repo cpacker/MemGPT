@@ -74,6 +74,8 @@ python main.py --human me.txt
   allows you to send the first message in the chat (by default, MemGPT will send the first message)
 --debug
   enables debugging output
+--archival_storage_faiss_path=<ARCHIVAL_STORAGE_FAISS_PATH>
+  load in document database (backed by FAISS index)
 ```
 
 ### Interactive CLI commands
