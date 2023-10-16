@@ -18,7 +18,7 @@
 </details>
 
 <details open>
-  <summary><h2>Chat with your data 🗃️ - try using MemGPT to talk to the <a href="memgpt/personas/examples/docqa">LlamaIndex API docs</a>!</h1></summary>
+  <summary><h2>Chat with your data 🗃️ - try talking to the <a href="memgpt/personas/examples/docqa">LlamaIndex API docs</a>!</h1></summary>
   <div align="center">
     <img src="https://memgpt.ai/assets/img/docqa_demo.gif" alt="MemGPT demo video for llamaindex api docs search" width="800">
   </div>
