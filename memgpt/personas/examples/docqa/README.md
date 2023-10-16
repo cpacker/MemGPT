@@ -3,7 +3,7 @@
 MemGPT enables you to chat with your data -- try running this example to talk to the LlamaIndex API docs!
 
 1. 
-    a. Download embeddings and docs index from [HuggingFace](https://huggingface.co/datasets/MemGPT/llamaindex-api-docs).
+    a. Download LlamaIndex API docs and FAISS index from [HuggingFace](https://huggingface.co/datasets/MemGPT/llamaindex-api-docs).
    ```bash
    # Make sure you have git-lfs installed (https://git-lfs.com)
    git lfs install
