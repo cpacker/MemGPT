@@ -23,7 +23,7 @@
     <img src="https://memgpt.ai/assets/img/docqa_demo.gif" alt="MemGPT demo video for llamaindex api docs search" width="800">
   </div>
   <details>
-  <summary><h3>GPT-4 when asked the same question:</h3></summary>
+  <summary><h3>ChatGPT (GPT-4) when asked the same question:</h3></summary>
     <div align="center">
       <img src="https://memgpt.ai/assets/img/llama_index_gpt4.png" alt="GPT-4 when asked about llamaindex api docs" width="800">
     </div>
