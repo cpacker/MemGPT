@@ -36,10 +36,10 @@
 
 Join <a href="https://discord.gg/9GEQrxmVyE">Discord</a></strong> and message the MemGPT bot (in the `#memgpt` channel). Then run the following commands (messaged to "MemGPT Bot"): 
 * `/profile` (to create your profile)
-* `key` (to enter your OpenAI key)
+* `/key` (to enter your OpenAI key)
 * `/create` (to create a MemGPT chatbot)
 
-You can see the full list of available commands when you enter `\` into the message box. 
+You can see the full list of available commands when you enter `/` into the message box. 
 
 ## What is MemGPT? 
 
