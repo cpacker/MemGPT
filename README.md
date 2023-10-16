@@ -13,7 +13,7 @@
 <details open>
   <summary><h2>Create perpetual chatbots 🤖 with self-editing memory!</h1></summary>
   <div align="center">
-    <strong>Try it out on <a href="https://discord.gg/9GEQrxmVyE">Discord</a>!</strong>
+    <strong>Try out our MemGPT chatbot on <a href="https://discord.gg/9GEQrxmVyE">Discord</a>!</strong>
     <br>
     <img src="https://memgpt.ai/assets/img/demo.gif" alt="MemGPT demo video" width="800">
   </div>
