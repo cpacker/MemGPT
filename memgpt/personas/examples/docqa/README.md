@@ -13,7 +13,7 @@ MemGPT enables you to chat with your data -- try running this example to talk to
     **-- OR --**
    
     b. Build the index:
-    1. Build llama_index API docs with `make text`. Instructions [here](https://github.com/run-llama/llama_index/blob/main/docs/DOCS_README.md). Copy over the generated `_build/text` folder to this directory.
+    1. Build `llama_index` API docs with `make text`. Instructions [here](https://github.com/run-llama/llama_index/blob/main/docs/DOCS_README.md). Copy over the generated `_build/text` folder to this directory.
     2. Generate embeddings and FAISS index.
         ```bash
         python3 scrape_docs.py
