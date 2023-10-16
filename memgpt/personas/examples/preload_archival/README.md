@@ -14,3 +14,6 @@ To run our example where you can search over the SEC 10-K filings of Uber, Lyft,
 If you would like to load your own local files into MemGPT's archival memory, run the command above but replace `--archival_storage_files="memgpt/personas/examples/preload_archival/*.txt"` with your own file glob expression (enclosed in quotes).
 
 ## Demo
+<div align="center">
+    <img src="https://memgpt.ai/assets/img/preload_archival_demo.gif" alt="MemGPT demo video for searching through preloaded files" width="800">
+</div>
