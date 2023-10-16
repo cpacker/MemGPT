@@ -27,6 +27,7 @@
     <div align="center">
       <img src="https://memgpt.ai/assets/img/llama_index_gpt4.png" alt="GPT-4 when asked about llamaindex api docs" width="800">
     </div>
+    (Question from https://github.com/run-llama/llama_index/issues/7756)
   </details>
 </details>
 
