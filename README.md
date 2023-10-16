@@ -32,7 +32,20 @@
   </details>
 </details>
 
-## Quick setup
+## Quick setup 
+
+Join <a href="https://discord.gg/9GEQrxmVyE">Discord</a></strong> and message the MemGPT bot (in the `#memgpt` channel). Then run the following commands (messaged to "MemGPT Bot"): 
+* `/profile` (to create your profile)
+* `/key` (to enter your OpenAI key)
+* `/create` (to create a MemGPT chatbot)
+
+You can see the full list of available commands when you enter `/` into the message box. 
+
+## What is MemGPT? 
+
+MemoryGPT (or MemGPT in short) is a system that intelligently manages different memory tiers in LLMs in order to effectively provide extended context within the LLM's limited context window. For example, MemGPT knows when to push critical information to a vector database and when to retrieve it later in the chat, enabling perpetual conversations. Learn more about MemGPT in our [paper](https://arxiv.org/abs/2310.08560). 
+
+## Running MemGPT Locally 
 
 Install dependencies:
 
@@ -45,12 +58,6 @@ Add your OpenAI API key to your environment:
 ```sh
 export OPENAI_API_KEY=YOUR_API_KEY
 ```
-
-## What is MemGPT? 
-
-MemoryGPT (or MemGPT in short) is a system that intelligently manages different memory tiers in LLMs in order to effectively provide extended context within the LLM's limited context window. For example, MemGPT knows when to push critical information to a vector database and when to retrieve it later in the chat, enabling perpetual conversations. Learn more about MemGPT in our [paper](https://arxiv.org/abs/2310.08560). 
-
-## Try MemGPT in your CLI
 
 To run MemGPT for as a conversation agent in CLI mode, simply run `main.py`:
 
