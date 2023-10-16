@@ -12,7 +12,6 @@ STARTUP_QUOTES = [
 INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG = STARTUP_QUOTES[2]
 
 # Constants to do with summarization / conversation length window
-MESSAGE_SUMMARY_CUTOFF_FRAC = 0.5
 MESSAGE_SUMMARY_WARNING_TOKENS = 7000 # the number of tokens consumed in a call before a system warning goes to the agent
 MESSAGE_SUMMARY_WARNING_STR = f"Warning: the conversation history will soon reach its maximum length and be trimmed. Make sure to save any important information from the conversation to your memory before it is removed."
 

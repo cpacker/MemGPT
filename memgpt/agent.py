@@ -10,9 +10,9 @@ import openai
 from .system import get_heartbeat, get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from .memory import CoreMemory as Memory, summarize_messages
 from .openai_tools import acompletions_with_backoff as acreate
-from .utils import get_local_time, parse_json, united_diff, printd
+from .utils import get_local_time, parse_json, united_diff, printd, count_tokens
 from .constants import \
-    FIRST_MESSAGE_ATTEMPTS, MESSAGE_SUMMARY_CUTOFF_FRAC, MAX_PAUSE_HEARTBEATS, \
+    FIRST_MESSAGE_ATTEMPTS, MAX_PAUSE_HEARTBEATS, \
     MESSAGE_CHATGPT_FUNCTION_MODEL, MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE, MESSAGE_SUMMARY_WARNING_TOKENS, \
     CORE_MEMORY_HUMAN_CHAR_LIMIT, CORE_MEMORY_PERSONA_CHAR_LIMIT
 
@@ -539,7 +539,14 @@ class AgentAsync(object):
 
     async def summarize_messages_inplace(self, cutoff=None):
         if cutoff is None:
-            cutoff = round((len(self.messages) - 1) * MESSAGE_SUMMARY_CUTOFF_FRAC)  # by default, trim the first 50% of messages
+            tokens_so_far = 0   # Smart cutoff -- just below the max.
+            cutoff = len(self.messages) - 1
+            for m in reversed(self.messages):
+                tokens_so_far += count_tokens(str(m), self.model)
+                if tokens_so_far >= MESSAGE_SUMMARY_WARNING_TOKENS*0.2:
+                    break
+                cutoff -= 1
+            cutoff = min(len(self.messages) - 3, cutoff) # Always keep the last two messages too
 
         # Try to make an assistant message come after the cutoff
         try:

@@ -54,7 +54,7 @@ class InMemoryStateManager(PersistenceManager):
 
     def trim_messages(self, num):
         # printd(f"InMemoryStateManager.trim_messages")
-        self.messages = self.messages[num:]
+        self.messages = [self.messages[0]] + self.messages[num:]
 
     def prepend_to_messages(self, added_messages):
         # first tag with timestamps

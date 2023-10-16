@@ -6,7 +6,11 @@ import json
 import pytz
 import os
 import faiss
+import tiktoken
 
+def count_tokens(s: str, model: str = "gpt-4") -> int:
+    encoding = tiktoken.encoding_for_model(model)
+    return len(encoding.encode(s))
 
 # DEBUG = True
 DEBUG = False
