@@ -36,6 +36,7 @@ def extract_text_from_sphinx_txt(file_path):
             })
             continue
         curr_token_ct += line_token_ct
+        curr_passage.append(line)
         if curr_token_ct > PASSAGE_TOKEN_LEN:
             passages.append({
                 'title': title,
