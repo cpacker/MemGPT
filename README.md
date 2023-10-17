@@ -171,7 +171,7 @@ Enter your message: How old is Bob?
 
 To run our example where you can search over the SEC 10-K filings of Uber, Lyft, and Airbnb,
 
-1. Download the .txt files from [HuggingFace](https://huggingface.co/datasets/MemGPT/example-sec-filings/tree/main) and place them in `memgpt/personas/examples/preload_archival`.
+1. Download the .txt files from [Hugging Face](https://huggingface.co/datasets/MemGPT/example-sec-filings/tree/main) and place them in `memgpt/personas/examples/preload_archival`.
 
 2. In the root `MemGPT` directory, run
     ```bash
@@ -186,7 +186,7 @@ If you would like to load your own local files into MemGPT's archival memory, ru
 MemGPT also enables you to chat with docs -- try running this example to talk to the LlamaIndex API docs!
 
 1. 
-    a. Download LlamaIndex API docs and FAISS index from [HuggingFace](https://huggingface.co/datasets/MemGPT/llamaindex-api-docs).
+    a. Download LlamaIndex API docs and FAISS index from [Hugging Face](https://huggingface.co/datasets/MemGPT/llamaindex-api-docs).
    ```bash
    # Make sure you have git-lfs installed (https://git-lfs.com)
    git lfs install
@@ -210,7 +210,7 @@ MemGPT also enables you to chat with docs -- try running this example to talk to
     python3 main.py --archival_storage_faiss_path=<ARCHIVAL_STORAGE_FAISS_PATH> --persona=memgpt_doc --human=basic
     ```
     where `ARCHIVAL_STORAGE_FAISS_PATH` is the directory where `all_docs.jsonl` and `all_docs.index` are located.
-   If you downloaded from HuggingFace, it will be `memgpt/personas/docqa/llamaindex-api-docs`.
+   If you downloaded from Hugging Face, it will be `memgpt/personas/docqa/llamaindex-api-docs`.
    If you built the index yourself, it will be `memgpt/personas/docqa`.
 </details>
 

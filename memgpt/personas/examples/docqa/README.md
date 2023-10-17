@@ -3,7 +3,7 @@
 MemGPT enables you to chat with your data -- try running this example to talk to the LlamaIndex API docs!
 
 1. 
-    a. Download LlamaIndex API docs and FAISS index from [HuggingFace](https://huggingface.co/datasets/MemGPT/llamaindex-api-docs).
+    a. Download LlamaIndex API docs and FAISS index from [Hugging Face](https://huggingface.co/datasets/MemGPT/llamaindex-api-docs).
    ```bash
    # Make sure you have git-lfs installed (https://git-lfs.com)
    git lfs install
@@ -26,7 +26,7 @@ MemGPT enables you to chat with your data -- try running this example to talk to
     python3 main.py --archival_storage_faiss_path=<ARCHIVAL_STORAGE_FAISS_PATH> --persona=memgpt_doc --human=basic
     ```
     where `ARCHIVAL_STORAGE_FAISS_PATH` is the directory where `all_docs.jsonl` and `all_docs.index` are located.
-   If you downloaded from HuggingFace, it will be `memgpt/personas/docqa/llamaindex-api-docs`.
+   If you downloaded from Hugging Face, it will be `memgpt/personas/docqa/llamaindex-api-docs`.
    If you built the index yourself, it will be `memgpt/personas/docqa`.
 
 ## Demo

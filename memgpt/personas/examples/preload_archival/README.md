@@ -3,7 +3,7 @@ MemGPT enables you to chat with your data locally -- this example gives the work
 
 To run our example where you can search over the SEC 10-K filings of Uber, Lyft, and Airbnb,
 
-1. Download the .txt files from [HuggingFace](https://huggingface.co/datasets/MemGPT/example-sec-filings/tree/main) and place them in this directory.
+1. Download the .txt files from [Hugging Face](https://huggingface.co/datasets/MemGPT/example-sec-filings/tree/main) and place them in this directory.
 
 2. In the root `MemGPT` directory, run
     ```bash
