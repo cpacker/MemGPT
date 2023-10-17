@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import pickle
+import readline
 
 from rich.console import Console
 console = Console()
