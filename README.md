@@ -95,6 +95,8 @@ python main.py --human me.txt
   enables debugging output
 --archival_storage_faiss_path=<ARCHIVAL_STORAGE_FAISS_PATH>
   load in document database (backed by FAISS index)
+--archival_storage_files="<ARCHIVAL_STORAGE_FILES_GLOB>"
+  pre-load files into archival memory
 ```
 
 ### Interactive CLI commands

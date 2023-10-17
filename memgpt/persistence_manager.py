@@ -85,10 +85,28 @@ class InMemoryStateManager(PersistenceManager):
         self.memory = new_memory
 
 
-class InMemoryStateManagerWithEmbeddings(InMemoryStateManager):
+class InMemoryStateManagerWithPreloadedArchivalMemory(InMemoryStateManager):
+    archival_memory_cls = DummyArchivalMemory
+    recall_memory_cls = DummyRecallMemory
 
+    def __init__(self, archival_memory_db):
+        self.archival_memory_db = archival_memory_db
+    
+    def init(self, agent):
+        print(f"Initializing InMemoryStateManager with agent object")
+        self.all_messages = [{'timestamp': get_local_time(), 'message': msg} for msg in agent.messages.copy()]
+        self.messages = [{'timestamp': get_local_time(), 'message': msg} for msg in agent.messages.copy()]
+        self.memory = agent.memory
+        print(f"InMemoryStateManager.all_messages.len = {len(self.all_messages)}")
+        print(f"InMemoryStateManager.messages.len = {len(self.messages)}")
+        self.recall_memory = self.recall_memory_cls(message_database=self.all_messages)
+        self.archival_memory = self.archival_memory_cls(archival_memory_database=self.archival_memory_db)
+
+
+class InMemoryStateManagerWithEmbeddings(InMemoryStateManager):
     archival_memory_cls = DummyArchivalMemoryWithEmbeddings
     recall_memory_cls = DummyRecallMemoryWithEmbeddings
+
 
 class InMemoryStateManagerWithFaiss(InMemoryStateManager):
     archival_memory_cls = DummyArchivalMemoryWithFaiss
