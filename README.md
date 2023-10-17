@@ -12,20 +12,32 @@
 </div>
 
 <details open>
-  <summary><h2>Create perpetual chatbots 🤖 with self-editing memory!</h1></summary>
+  <summary><h2>🤖 Create perpetual chatbots with self-editing memory!</h1></summary>
   <div align="center">
     <br>
     <img src="https://memgpt.ai/assets/img/demo.gif" alt="MemGPT demo video" width="800">
   </div>
 </details>
 
-<details open>
-  <summary><h2>Chat with your data 🗃️ - try talking to the <a href="memgpt/personas/examples/docqa">LlamaIndex API docs</a>!</h1></summary>
+<details>
+ <summary><h2>🗃️ Chat with your data - talk to your SQL database or your local files!</strong></h2></summary>
+  <strong>SQL Database</strong>
+  <div align="center">
+    <img src="https://memgpt.ai/assets/img/sql_demo.gif" alt="MemGPT demo video for sql search" width="800">
+  </div>
+  <strong>Local files</strong>
+  <div align="center">
+    <img src="https://memgpt.ai/assets/img/preload_archival_demo.gif" alt="MemGPT demo video for sql search" width="800">
+  </div>
+</details>
+
+<details>
+  <summary><h2>📄 You can also talk to docs - for example ask about <a href="memgpt/personas/examples/docqa">LlamaIndex</a>!</h1></summary>
   <div align="center">
     <img src="https://memgpt.ai/assets/img/docqa_demo.gif" alt="MemGPT demo video for llamaindex api docs search" width="800">
   </div>
   <details>
-  <summary><h3>ChatGPT (GPT-4) when asked the same question:</h3></summary>
+  <summary><b>ChatGPT (GPT-4) when asked the same question:</b></summary>
     <div align="center">
       <img src="https://memgpt.ai/assets/img/llama_index_gpt4.png" alt="GPT-4 when asked about llamaindex api docs" width="800">
     </div>
@@ -97,6 +109,8 @@ python main.py --human me.txt
   load in document database (backed by FAISS index)
 --archival_storage_files="<ARCHIVAL_STORAGE_FILES_GLOB>"
   pre-load files into archival memory
+--archival_storage_sqldb=<SQLDB_PATH>
+  load in SQL database
 ```
 
 ### Interactive CLI commands
@@ -137,7 +151,7 @@ id	| name |	age
 To talk to this database, run:
 
 ```sh
-python main_db.py 
+python main_db.py  --archival_storage_sqldb=memgpt/personas/examples/sqldb/test.db
 ```
 
 And then you can input the path to your database, and your query.
