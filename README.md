@@ -12,7 +12,7 @@
 </div>
 
 <details open>
-  <summary><h2>🤖 Create perpetual chatbots with self-editing memory!</h1></summary>
+  <summary><h1>🤖 Create perpetual chatbots with self-editing memory!</h1></summary>
   <div align="center">
     <br>
     <img src="https://memgpt.ai/assets/img/demo.gif" alt="MemGPT demo video" width="800">
