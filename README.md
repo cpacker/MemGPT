@@ -12,7 +12,7 @@
 </div>
 
 <details open>
-  <summary><h1>🤖 Create perpetual chatbots with self-editing memory!</h1></summary>
+  <summary><h2>🤖 Create perpetual chatbots with self-editing memory!</h2></summary>
   <div align="center">
     <br>
     <img src="https://memgpt.ai/assets/img/demo.gif" alt="MemGPT demo video" width="800">
@@ -135,8 +135,9 @@ While using MemGPT via the CLI you can run various commands:
 /memorywarning
   send a memory warning system message to the agent
 ```
-
-## Use MemGPT to talk to your Database!
+## Example applications
+<details open>
+<summary><h3>Use MemGPT to talk to your Database!</h3></summary>
 
 MemGPT's archival memory let's you load your database and talk to it! To motivate this use-case, we have included a toy example. 
 
@@ -151,7 +152,7 @@ id	| name |	age
 To talk to this database, run:
 
 ```sh
-python main_db.py  --archival_storage_sqldb=memgpt/personas/examples/sqldb/test.db
+python main.py  --archival_storage_sqldb=memgpt/personas/examples/sqldb/test.db
 ```
 
 And then you can input the path to your database, and your query.
@@ -163,7 +164,55 @@ Enter your message: How old is Bob?
 ...
 🤖 Bob is 25 years old.
 ```
+</details>
+<details>
+ <summary><h3>Loading local files into archival memory</h3></summary>
+ MemGPT enables you to chat with your data locally -- this example gives the workflow for loading documents into MemGPT's archival memory.
 
+To run our example where you can search over the SEC 10-K filings of Uber, Lyft, and Airbnb,
+
+1. Download the .txt files from [HuggingFace](https://huggingface.co/datasets/MemGPT/example-sec-filings/tree/main) and place them in `memgpt/personas/examples/preload_archival`.
+
+2. In the root `MemGPT` directory, run
+    ```bash
+    python3 main.py --archival_storage_files="memgpt/personas/examples/preload_archival/*.txt" --persona=memgpt_doc --human=basic
+    ```
+
+If you would like to load your own local files into MemGPT's archival memory, run the command above but replace `--archival_storage_files="memgpt/personas/examples/preload_archival/*.txt"` with your own file glob expression (enclosed in quotes).
+</details>
+<details>
+<summary><h3>Talking to LlamaIndex API Docs</h3></summary>
+
+MemGPT also enables you to chat with docs -- try running this example to talk to the LlamaIndex API docs!
+
+1. 
+    a. Download LlamaIndex API docs and FAISS index from [HuggingFace](https://huggingface.co/datasets/MemGPT/llamaindex-api-docs).
+   ```bash
+   # Make sure you have git-lfs installed (https://git-lfs.com)
+   git lfs install
+   git clone https://huggingface.co/datasets/MemGPT/llamaindex-api-docs
+   mv llamaindex-api-docs
+   ```
+   
+    **-- OR --**
+   
+   b. Build the index:
+    1. Build `llama_index` API docs with `make text`. Instructions [here](https://github.com/run-llama/llama_index/blob/main/docs/DOCS_README.md). Copy over the generated `_build/text` folder to `memgpt/personas/docqa`.
+    2. Generate embeddings and FAISS index.
+        ```bash
+        cd memgpt/personas/docqa
+        python3 scrape_docs.py
+        python3 generate_embeddings_for_docs.py all_docs.jsonl
+        python3 build_index.py --embedding_files all_docs.embeddings.jsonl --output_index_file all_docs.index
+
+3. In the root `MemGPT` directory, run
+    ```bash
+    python3 main.py --archival_storage_faiss_path=<ARCHIVAL_STORAGE_FAISS_PATH> --persona=memgpt_doc --human=basic
+    ```
+    where `ARCHIVAL_STORAGE_FAISS_PATH` is the directory where `all_docs.jsonl` and `all_docs.index` are located.
+   If you downloaded from HuggingFace, it will be `memgpt/personas/docqa/llamaindex-api-docs`.
+   If you built the index yourself, it will be `memgpt/personas/docqa`.
+</details>
 
 ### Support
 
