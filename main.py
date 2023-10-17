@@ -26,6 +26,7 @@ flags.DEFINE_boolean("first", default=False, required=False, help="Use -first to
 flags.DEFINE_boolean("debug", default=False, required=False, help="Use -debug to enable debugging output")
 flags.DEFINE_string("archival_storage_faiss_path", default="", required=False, help="Specify archival storage with FAISS index to load (a folder with a .index and .json describing documents to be loaded)")
 flags.DEFINE_string("archival_storage_files", default="", required=False, help="Specify files to pre-load into archival memory (glob pattern)")
+flags.DEFINE_string("archival_storage_sqldb", default="", required=False, help="Specify SQL database to pre-load into archival memory")
 
 
 def clear_line():
@@ -58,11 +59,25 @@ async def main():
     print_messages = interface.print_messages
     await print_messages(memgpt_agent.messages)
 
+
     counter = 0
     user_input = None
     skip_next_user_input = False
     user_message = None
     USER_GOES_FIRST = FLAGS.first
+
+    if FLAGS.archival_storage_sqldb:
+        if not os.path.exists(FLAGS.archival_storage_sqldb):
+            print(f"File {user_input} does not exist")
+            return
+        # Ingest data from file into archival storage
+        else:
+            print(f"Database found! Loading database into archival memory")
+            data_list = utils.read_database_as_list(FLAGS.archival_storage_sqldb)
+            user_message = f"Your archival memory has been loaded with a SQL database called {data_list[0]}, which contains schema {data_list[1]}. Remember to refer to this first while answering any user questions!"
+            for row in data_list:
+                await memgpt_agent.persistence_manager.archival_memory.insert(row)
+            print(f"Database loaded into archival memory.")
 
     if not USER_GOES_FIRST:
         console.input('[bold cyan]Hit enter to begin (will request first MemGPT message)[/bold cyan]')
@@ -82,6 +97,7 @@ async def main():
 
             if user_input == "":
                 # no empty messages allowed
+                print("Empty input received. Try again!")
                 continue
 
             # Handle CLI commands

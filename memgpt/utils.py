@@ -8,6 +8,7 @@ import os
 import faiss
 import tiktoken
 import glob
+import sqlite3
 
 def count_tokens(s: str, model: str = "gpt-4") -> int:
     encoding = tiktoken.encoding_for_model(model)
@@ -137,3 +138,30 @@ def prepare_archival_index_from_files(glob_pattern, tkns_per_chunk=300, model='g
                 'timestamp': formatted_time,
             })
     return archival_database
+
+def read_database_as_list(database_name):
+    result_list = [] 
+
+    try:
+        conn = sqlite3.connect(database_name)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        table_names = cursor.fetchall()
+        for table_name in table_names:
+            cursor.execute(f"PRAGMA table_info({table_name[0]});")
+            schema_rows = cursor.fetchall()
+            columns = [row[1] for row in schema_rows]
+            cursor.execute(f"SELECT * FROM {table_name[0]};")
+            rows = cursor.fetchall()
+            result_list.append(f"Table: {table_name[0]}")  # Add table name to the list
+            schema_row = "\t".join(columns)
+            result_list.append(schema_row)
+            for row in rows:
+                data_row = "\t".join(map(str, row))
+                result_list.append(data_row)
+        conn.close()
+    except sqlite3.Error as e:
+        result_list.append(f"Error reading database: {str(e)}")
+    except Exception as e:
+        result_list.append(f"Error: {str(e)}")
+    return result_list
