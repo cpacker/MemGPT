@@ -7,6 +7,7 @@ import pytz
 import os
 import faiss
 import tiktoken
+import glob
 
 def count_tokens(s: str, model: str = "gpt-4") -> int:
     encoding = tiktoken.encoding_for_model(model)
@@ -84,3 +85,55 @@ def prepare_archival_index(folder):
                 'timestamp': get_local_time(),
             })  
     return index, archival_database
+
+def read_in_chunks(file_object, chunk_size):
+    while True:
+        data = file_object.read(chunk_size)
+        if not data:
+            break
+        yield data
+
+def prepare_archival_index_from_files(glob_pattern, tkns_per_chunk=300, model='gpt-4'):
+    encoding = tiktoken.encoding_for_model(model)
+    files = glob.glob(glob_pattern)
+    archival_database = []
+    for file in files:
+        timestamp = os.path.getmtime(file)
+        formatted_time = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
+        with open(file, 'r') as f:
+            lines = [l for l in read_in_chunks(f, tkns_per_chunk*4)]
+        chunks = [] 
+        curr_chunk = []
+        curr_token_ct = 0
+        for line in lines:
+            line = line.rstrip()
+            line = line.lstrip()
+            try:
+                line_token_ct = len(encoding.encode(line))
+            except Exception as e:
+                line_token_ct = len(line.split(' ')) / .75
+                print(f"Could not encode line {line}, estimating it to be {line_token_ct} tokens") 
+            if line_token_ct > tkns_per_chunk:
+                if len(curr_chunk) > 0:
+                    chunks.append(''.join(curr_chunk))
+                    curr_chunk = []
+                    curr_token_ct = 0
+                chunks.append(line[:3200])
+                continue
+            curr_token_ct += line_token_ct
+            curr_chunk.append(line)
+            if curr_token_ct > tkns_per_chunk:
+                chunks.append(''.join(curr_chunk))
+                curr_chunk = []
+                curr_token_ct = 0
+
+        if len(curr_chunk) > 0:
+            chunks.append(''.join(curr_chunk))
+
+        file_stem = file.split('/')[-1]
+        for i, chunk in enumerate(chunks):
+            archival_database.append({
+                'content': f"[File: {file_stem} Part {i}/{len(chunks)}] {chunk}",
+                'timestamp': formatted_time,
+            })
+    return archival_database

@@ -16,7 +16,7 @@ import memgpt.presets as presets
 import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
-from memgpt.persistence_manager import InMemoryStateManager, InMemoryStateManagerWithFaiss
+from memgpt.persistence_manager import InMemoryStateManager, InMemoryStateManagerWithPreloadedArchivalMemory, InMemoryStateManagerWithFaiss
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string("persona", default=personas.DEFAULT, required=False, help="Specify persona")
@@ -24,7 +24,8 @@ flags.DEFINE_string("human", default=humans.DEFAULT, required=False, help="Speci
 flags.DEFINE_string("model", default=constants.DEFAULT_MEMGPT_MODEL, required=False, help="Specify the LLM model")
 flags.DEFINE_boolean("first", default=False, required=False, help="Use -first to send the first message in the sequence")
 flags.DEFINE_boolean("debug", default=False, required=False, help="Use -debug to enable debugging output")
-flags.DEFINE_string("archival_storage_faiss_path", default="", required=False, help="Specify archival storage to load (a folder with a .index and .json describing documents to be loaded)")
+flags.DEFINE_string("archival_storage_faiss_path", default="", required=False, help="Specify archival storage with FAISS index to load (a folder with a .index and .json describing documents to be loaded)")
+flags.DEFINE_string("archival_storage_files", default="", required=False, help="Specify files to pre-load into archival memory (glob pattern)")
 
 
 def clear_line():
@@ -47,6 +48,10 @@ async def main():
     if FLAGS.archival_storage_faiss_path:
         index, archival_database = utils.prepare_archival_index(FLAGS.archival_storage_faiss_path)
         persistence_manager = InMemoryStateManagerWithFaiss(index, archival_database)
+    elif FLAGS.archival_storage_files:
+        archival_database = utils.prepare_archival_index_from_files(FLAGS.archival_storage_files)
+        print(f"Preloaded {len(archival_database)} chunks into archival memory.")
+        persistence_manager = InMemoryStateManagerWithPreloadedArchivalMemory(archival_database)
     else:
         persistence_manager = InMemoryStateManager()
     memgpt_agent = presets.use_preset(presets.DEFAULT, FLAGS.model, personas.get_persona_text(FLAGS.persona), humans.get_human_text(FLAGS.human), interface, persistence_manager)
