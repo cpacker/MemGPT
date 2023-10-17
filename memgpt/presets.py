@@ -22,6 +22,13 @@ def use_preset(preset_name, model, persona, human, interface, persistence_manage
         printd(f"Available functions:\n", [x['name'] for x in available_functions])
         assert len(functions) == len(available_functions)
 
+        if 'gpt-4' not in model:
+            # use a simpler system message for gpt-3.5
+            # preset_name = 'memgpt_gpt35_chat'
+            # preset_name = 'memgpt_gpt35_literal'
+            preset_name = 'memgpt_gpt35_extralong'
+            # pass
+
         return AgentAsync(
             model=model,
             system=gpt_system.get_system_text(preset_name),

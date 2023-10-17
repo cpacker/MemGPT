@@ -64,7 +64,8 @@ def initialize_message_sequence(
     first_user_message = get_login_event()  # event letting MemGPT know the user just logged in
 
     if include_initial_boot_message:
-        initial_boot_messages = get_initial_boot_messages('startup_with_send_message')
+        # initial_boot_messages = get_initial_boot_messages('startup_with_send_message')
+        initial_boot_messages = get_initial_boot_messages('startup_with_send_message_gpt35')
         messages = [
             {"role": "system", "content": full_system_message},
         ] + initial_boot_messages + [
@@ -445,7 +446,8 @@ class AgentAsync(object):
             if contains_special_characters(monologue):
                 printd(f"First message internal monologue contained special characters: {response_message}")
                 return False
-            if 'functions' in monologue or 'send_message' in monologue or 'inner thought' in monologue.lower():
+            # if 'functions' in monologue or 'send_message' in monologue or 'inner thought' in monologue.lower():
+            if 'functions' in monologue or 'send_message' in monologue:
                 # Sometimes the syntax won't be correct and internal syntax will leak into message.context
                 printd(f"First message internal monologue contained reserved words: {response_message}")
                 return False
