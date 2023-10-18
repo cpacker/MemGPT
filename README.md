@@ -224,3 +224,11 @@ If you have any further questions, or have anything to share, we are excited to 
 
 ## Datasets
 Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded at [Hugging Face](https://huggingface.co/MemGPT).
+
+## Project Roadmap
+- [x] Release MemGPT Discord bot demo (perpetual chatbot)
+- [x] Add additional workflows (load SQL/text into MemGPT external context)
+- [ ] CLI UI improvements
+- [ ] Integrate with AutoGen
+- [ ] Add official gpt-3.5-turbo support
+- [ ] Release MemGPT using open models (eg finetuned Mistral)
