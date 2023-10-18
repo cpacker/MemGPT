@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import pickle
 
 from .memory import DummyRecallMemory, DummyRecallMemoryWithEmbeddings, DummyArchivalMemory, DummyArchivalMemoryWithEmbeddings, DummyArchivalMemoryWithFaiss
 from .utils import get_local_time, printd
@@ -38,6 +39,15 @@ class InMemoryStateManager(PersistenceManager):
         self.memory = None
         self.messages = []
         self.all_messages = []
+
+    @staticmethod
+    def load(filename):
+        with open(filename, 'rb') as f:
+            return pickle.load(f)
+
+    def save(self, filename):
+        with open(filename, 'wb') as fh:
+            pickle.dump(self, fh, protocol=pickle.HIGHEST_PROTOCOL)
 
     def init(self, agent):
         printd(f"Initializing InMemoryStateManager with agent object")
@@ -91,7 +101,7 @@ class InMemoryStateManagerWithPreloadedArchivalMemory(InMemoryStateManager):
 
     def __init__(self, archival_memory_db):
         self.archival_memory_db = archival_memory_db
-    
+
     def init(self, agent):
         print(f"Initializing InMemoryStateManager with agent object")
         self.all_messages = [{'timestamp': get_local_time(), 'message': msg} for msg in agent.messages.copy()]
@@ -117,7 +127,10 @@ class InMemoryStateManagerWithFaiss(InMemoryStateManager):
         self.archival_index = archival_index
         self.archival_memory_db = archival_memory_db
         self.a_k = a_k
-    
+
+    def save(self, _filename):
+        raise NotImplementedError
+
     def init(self, agent):
         print(f"Initializing InMemoryStateManager with agent object")
         self.all_messages = [{'timestamp': get_local_time(), 'message': msg} for msg in agent.messages.copy()]

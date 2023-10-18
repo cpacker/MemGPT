@@ -132,6 +132,18 @@ async def main():
                         print(f"Saved checkpoint to: {filename}")
                     except Exception as e:
                         print(f"Saving state to {filename} failed with: {e}")
+
+                    # save the persistence manager too
+                    filename = filename.replace('.json', '.persistence.pickle')
+                    try:
+                        memgpt_agent.persistence_manager.save(filename)
+                        # with open(filename, 'wb') as fh:
+                            # p_dump = memgpt_agent.persistence_manager.save()
+                            # pickle.dump(p_dump, fh, protocol=pickle.HIGHEST_PROTOCOL)
+                        print(f"Saved persistence manager to: {filename}")
+                    except Exception as e:
+                        print(f"Saving persistence manager to {filename} failed with: {e}")
+
                     continue
 
                 elif user_input.lower() == "/load" or user_input.lower().startswith("/load "):
@@ -145,6 +157,15 @@ async def main():
                             print(f"Loading {filename} failed with: {e}")
                     else:
                         print(f"/load error: no checkpoint specified")
+
+                    # need to load persistence manager too
+                    filename = filename.replace('.json', '.persistence.pickle')
+                    try:
+                        memgpt_agent.persistence_manager = InMemoryStateManager.load(filename)  # TODO(fixme):for different types of persistence managers that require different load/save methods
+                        print(f"Loaded persistence manager from: {filename}")
+                    except Exception as e:
+                        print(f"/load error: loading persistence manager from {filename} failed with: {e}")
+
                     continue
 
                 elif user_input.lower() == "/dump":

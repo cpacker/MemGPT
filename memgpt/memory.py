@@ -250,7 +250,7 @@ class DummyArchivalMemoryWithEmbeddings(DummyArchivalMemory):
 class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
     """Dummy in-memory version of an archival memory database, using a FAISS
     index for fast nearest-neighbors embedding search.
-    
+
     Archival memory is effectively "infinite" overflow for core memory,
     and is read-only via string queries.
 
@@ -291,7 +291,7 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
         """Simple embedding-based search (inefficient, no caching)"""
         # see: https://github.com/openai/openai-cookbook/blob/main/examples/Semantic_text_search_using_embeddings.ipynb
 
-        # query_embedding = get_embedding(query_string, model=self.embedding_model) 
+        # query_embedding = get_embedding(query_string, model=self.embedding_model)
         # our wrapped version supports backoff/rate-limits
         if query_string in self.embeddings_dict:
             query_embedding = self.embeddings_dict[query_string]
