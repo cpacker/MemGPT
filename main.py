@@ -137,9 +137,6 @@ async def main():
                     filename = filename.replace('.json', '.persistence.pickle')
                     try:
                         memgpt_agent.persistence_manager.save(filename)
-                        # with open(filename, 'wb') as fh:
-                            # p_dump = memgpt_agent.persistence_manager.save()
-                            # pickle.dump(p_dump, fh, protocol=pickle.HIGHEST_PROTOCOL)
                         print(f"Saved persistence manager to: {filename}")
                     except Exception as e:
                         print(f"Saving persistence manager to {filename} failed with: {e}")
