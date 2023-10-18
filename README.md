@@ -231,4 +231,5 @@ Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded
 - [ ] CLI UI improvements
 - [ ] Integrate with AutoGen
 - [ ] Add official gpt-3.5-turbo support
-- [ ] Release MemGPT using open models (eg finetuned Mistral)
+- [ ] Add support for other LLM backends
+- [ ] Release MemGPT family of open models (eg finetuned Mistral)
