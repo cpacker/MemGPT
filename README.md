@@ -118,6 +118,8 @@ python main.py --human me.txt
 While using MemGPT via the CLI you can run various commands:
 
 ```text
+//
+  enter multiline input mode (type // again when done)
 /exit
   exit the CLI
 /save
