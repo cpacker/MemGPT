@@ -105,7 +105,20 @@ async def main():
             # Commands to not get passed as input to MemGPT
             if user_input.startswith('/'):
 
-                if user_input.lower() == "/exit":
+                if user_input == "//":
+                    user_input_list = []
+                    while True:
+                        user_input = console.input("[bold cyan]>[/bold cyan] ")
+                        clear_line()
+                        if user_input == "//":
+                            break
+                        else:
+                            user_input_list.append(user_input)
+
+                    # pass multiline inputs to MemGPT
+                    user_message = system.package_user_message("\n".join(user_input_list))
+
+                elif user_input.lower() == "/exit":
                     break
 
                 elif user_input.lower() == "/savechat":
