@@ -2,16 +2,6 @@
 
 Thank you for investing time in contributing to our project! Here's a guide to get you started.
 
-## 📋 Table of Contents
-
-1. [🚀 Getting Started](#getting-started)
-2. [🛠️ Making Changes](#making-changes)
-3. [✅ Testing](#testing)
-4. [🚀 Submitting Changes](#submitting-changes)
-5. [🔍 Review and Approval](#review-and-approval)
-6. [📜 Code of Conduct](#code-of-conduct)
-7. [📫 Contact](#contact)
-
 ## 1. 🚀 Getting Started
 
 ### 🍴 Fork the Repository
