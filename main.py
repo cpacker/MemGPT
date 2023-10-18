@@ -106,6 +106,7 @@ async def main():
             if user_input.startswith('/'):
 
                 if user_input == "//":
+                    print("Entering multiline mode, type // when done")
                     user_input_list = []
                     while True:
                         user_input = console.input("[bold cyan]>[/bold cyan] ")
