@@ -67,7 +67,7 @@ You can see the full list of available commands when you enter `/` into the mess
 
 Memory-GPT (or MemGPT in short) is a system that intelligently manages different memory tiers in LLMs in order to effectively provide extended context within the LLM's limited context window. For example, MemGPT knows when to push critical information to a vector database and when to retrieve it later in the chat, enabling perpetual conversations. Learn more about MemGPT in our [paper](https://arxiv.org/abs/2310.08560). 
 
-## Running MemGPT Locally 
+## Running MemGPT locally
 
 Install dependencies:
 
@@ -75,10 +75,23 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+Extra step for Windows:
+
+```sh
+# only needed on Windows
+pip install pyreadline
+```
+
 Add your OpenAI API key to your environment:
 
 ```sh
+# on Linux/Mac
 export OPENAI_API_KEY=YOUR_API_KEY
+```
+
+```sh
+# on Windows
+set OPENAI_API_KEY=YOUR_API_KEY
 ```
 
 To run MemGPT for as a conversation agent in CLI mode, simply run `main.py`:
