@@ -11,3 +11,4 @@ pytz
 rich
 tiktoken
 timezonefinder
+tqdm
