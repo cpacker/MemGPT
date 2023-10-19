@@ -86,6 +86,10 @@ async def main():
                 await memgpt_agent.persistence_manager.archival_memory.insert(row)
             print(f"Database loaded into archival memory.")
 
+    # auto-exit for 
+    if "GITHUB_ACTIONS" in os.environ:
+        return
+
     if not USER_GOES_FIRST:
         console.input('[bold cyan]Hit enter to begin (will request first MemGPT message)[/bold cyan]')
         clear_line()
