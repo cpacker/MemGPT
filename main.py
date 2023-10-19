@@ -169,6 +169,8 @@ async def main():
                     command = user_input.strip().split()
                     filename = command[1] if len(command) > 1 else None
                     if filename is not None:
+                        if filename[-5:] != '.json':
+                            filename += '.json'
                         try:
                             memgpt_agent.load_from_json_file_inplace(filename)
                             print(f"Loaded checkpoint {filename}")
