@@ -25,6 +25,7 @@ flags.DEFINE_string("human", default=humans.DEFAULT, required=False, help="Speci
 flags.DEFINE_string("model", default=constants.DEFAULT_MEMGPT_MODEL, required=False, help="Specify the LLM model")
 flags.DEFINE_boolean("first", default=False, required=False, help="Use -first to send the first message in the sequence")
 flags.DEFINE_boolean("debug", default=False, required=False, help="Use -debug to enable debugging output")
+flags.DEFINE_boolean("no_verify", default=False, required=False, help="Bypass message verification")
 flags.DEFINE_string("archival_storage_faiss_path", default="", required=False, help="Specify archival storage with FAISS index to load (a folder with a .index and .json describing documents to be loaded)")
 flags.DEFINE_string("archival_storage_files", default="", required=False, help="Specify files to pre-load into archival memory (glob pattern)")
 flags.DEFINE_string("archival_storage_files_compute_embeddings", default="", required=False, help="Specify files to pre-load into archival memory (glob pattern), and compute embeddings over them")
@@ -243,7 +244,7 @@ async def main():
         skip_next_user_input = False
 
         with console.status("[bold cyan]Thinking...") as status:
-            new_messages, heartbeat_request, function_failed, token_warning = await memgpt_agent.step(user_message, first_message=False)
+            new_messages, heartbeat_request, function_failed, token_warning = await memgpt_agent.step(user_message, first_message=False, skip_verify=FLAGS.no_verify)
 
             # Skip user inputs if there's a memory warning, function execution failed, or the agent asked for control
             if token_warning:
