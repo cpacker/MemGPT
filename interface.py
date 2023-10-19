@@ -10,6 +10,9 @@ init(autoreset=True)
 # DEBUG = True  # puts full message outputs in the terminal
 DEBUG = False  # only dumps important messages in the terminal
 
+def important_message(msg):
+    print(f'{Fore.MAGENTA}{Style.BRIGHT}{msg}{Style.RESET_ALL}')
+
 async def internal_monologue(msg):
     # ANSI escape code for italic is '\x1B[3m'
     print(f'\x1B[3m{Fore.LIGHTBLACK_EX}💭 {msg}{Style.RESET_ALL}')
