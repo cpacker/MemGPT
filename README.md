@@ -1,6 +1,10 @@
 <a href="#user-content-memgpt"><img src="https://memgpt.ai/assets/img/memgpt_logo_circle.png" alt="MemGPT logo" width="75" align="right"></a>
 
+
 # [MemGPT](https://memgpt.ai)
+
+
+![MemGPT](https://github.com/Nishu0/MemGPT/assets/89217455/45a3053d-2edc-41b5-aa01-5e24f1c8d16a)
 
 <div align="center">
 
@@ -10,6 +14,18 @@
 [![arXiv 2310.08560](https://img.shields.io/badge/arXiv-2310.08560-B31B1B?logo=arxiv&style=flat-square)](https://arxiv.org/abs/2310.08560)
 
 </div>
+
+## Summary
+
+- [Quick setup](#quick-setup)
+- [What is MemGPT?](#what-is-memgpt)
+- [Architecture](#architecture)
+- [Running MemGPT Locall](#running-memgpt-locally)
+- [Example applications](#example-applications)
+- [Support](#support)
+- [Datasets](#datasets)
+- [Project Roadmap](#-project-roadmap)
+
 
 <details open>
   <summary><h2>🤖 Create perpetual chatbots with self-editing memory!</h2></summary>
@@ -45,7 +61,7 @@
   </details>
 </details>
 
-## Quick setup 
+## Quick setup
 
 Join <a href="https://discord.gg/9GEQrxmVyE">Discord</a></strong> and message the MemGPT bot (in the `#memgpt` channel). Then run the following commands (messaged to "MemGPT Bot"): 
 * `/profile` (to create your profile)
@@ -67,21 +83,26 @@ You can see the full list of available commands when you enter `/` into the mess
 
 Memory-GPT (or MemGPT in short) is a system that intelligently manages different memory tiers in LLMs in order to effectively provide extended context within the LLM's limited context window. For example, MemGPT knows when to push critical information to a vector database and when to retrieve it later in the chat, enabling perpetual conversations. Learn more about MemGPT in our [paper](https://arxiv.org/abs/2310.08560). 
 
+## Architecture
+
+![image](https://github.com/Nishu0/MemGPT/assets/89217455/3aa1f360-05f6-4c06-9026-6ea3261d4de4)
+
+
 ## Running MemGPT Locally 
 
-Install dependencies:
+**1.** Install dependencies:
 
 ```sh
 pip install -r requirements.txt
 ```
 
-Add your OpenAI API key to your environment:
+**2.** Add your OpenAI API key to your environment:
 
 ```sh
 export OPENAI_API_KEY=YOUR_API_KEY
 ```
 
-To run MemGPT for as a conversation agent in CLI mode, simply run `main.py`:
+**3.** To run MemGPT for as a conversation agent in CLI mode, simply run `main.py`:
 
 ```sh
 python3 main.py
