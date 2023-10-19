@@ -107,8 +107,10 @@ python main.py --human me.txt
   enables debugging output
 --archival_storage_faiss_path=<ARCHIVAL_STORAGE_FAISS_PATH>
   load in document database (backed by FAISS index)
---archival_storage_files="<ARCHIVAL_STORAGE_FILES_GLOB>"
+--archival_storage_files="<ARCHIVAL_STORAGE_FILES_GLOB_PATTERN>"
   pre-load files into archival memory
+--archival_storage_files_compute_embeddings="<ARCHIVAL_STORAGE_FILES_GLOB_PATTERN>"
+  pre-load files into archival memory and also compute embeddings for embedding search
 --archival_storage_sqldb=<SQLDB_PATH>
   load in SQL database
 ```
@@ -181,6 +183,25 @@ To run our example where you can search over the SEC 10-K filings of Uber, Lyft,
     ```
 
 If you would like to load your own local files into MemGPT's archival memory, run the command above but replace `--archival_storage_files="memgpt/personas/examples/preload_archival/*.txt"` with your own file glob expression (enclosed in quotes).
+
+#### Enhance with embeddings search
+In the root `MemGPT` directory, run
+  ```bash
+  python3 main.py --archival_storage_files_compute_embeddings="<GLOB_PATTERN>" --persona=memgpt_doc --human=basic
+  ```
+
+This will generate embeddings, stick them into a FAISS index, and write the index to a directory, and then output:
+```
+  To avoid computing embeddings next time, replace --archival_storage_files_compute_embeddings=<GLOB_PATTERN> with
+    --archival_storage_faiss_path=<DIRECTORY_WITH_EMBEDDINGS> (if your files haven't changed).
+```
+
+If you want to reuse these embeddings, run 
+```bash
+python3 main.py --archival_storage_faiss_path="<DIRECTORY_WITH_EMBEDDINGS>" --persona=memgpt_doc --human=basic
+```
+
+
 </details>
 <details>
 <summary><h3>Talking to LlamaIndex API Docs</h3></summary>

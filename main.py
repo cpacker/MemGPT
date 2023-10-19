@@ -27,6 +27,7 @@ flags.DEFINE_boolean("first", default=False, required=False, help="Use -first to
 flags.DEFINE_boolean("debug", default=False, required=False, help="Use -debug to enable debugging output")
 flags.DEFINE_string("archival_storage_faiss_path", default="", required=False, help="Specify archival storage with FAISS index to load (a folder with a .index and .json describing documents to be loaded)")
 flags.DEFINE_string("archival_storage_files", default="", required=False, help="Specify files to pre-load into archival memory (glob pattern)")
+flags.DEFINE_string("archival_storage_files_compute_embeddings", default="", required=False, help="Specify files to pre-load into archival memory (glob pattern), and compute embeddings over them")
 flags.DEFINE_string("archival_storage_sqldb", default="", required=False, help="Specify SQL database to pre-load into archival memory")
 
 
@@ -54,6 +55,11 @@ async def main():
         archival_database = utils.prepare_archival_index_from_files(FLAGS.archival_storage_files)
         print(f"Preloaded {len(archival_database)} chunks into archival memory.")
         persistence_manager = InMemoryStateManagerWithPreloadedArchivalMemory(archival_database)
+    elif FLAGS.archival_storage_files_compute_embeddings:
+        faiss_save_dir = await utils.prepare_archival_index_from_files_compute_embeddings(FLAGS.archival_storage_files_compute_embeddings)
+        interface.important_message(f"To avoid computing embeddings next time, replace --archival_storage_files_compute_embeddings={FLAGS.archival_storage_files_compute_embeddings} with\n\t --archival_storage_faiss_path={faiss_save_dir} (if your files haven't changed).")
+        index, archival_database = utils.prepare_archival_index(faiss_save_dir)
+        persistence_manager = InMemoryStateManagerWithFaiss(index, archival_database)
     else:
         persistence_manager = InMemoryStateManager()
     memgpt_agent = presets.use_preset(presets.DEFAULT, FLAGS.model, personas.get_persona_text(FLAGS.persona), humans.get_human_text(FLAGS.human), interface, persistence_manager)
