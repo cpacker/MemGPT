@@ -1,6 +1,7 @@
 import asyncio
 from absl import app, flags
 import logging
+import glob
 import os
 import sys
 import pickle
@@ -168,21 +169,37 @@ async def main():
                     command = user_input.strip().split()
                     filename = command[1] if len(command) > 1 else None
                     if filename is not None:
+                        if filename[-5:] != '.json':
+                            filename += '.json'
                         try:
                             memgpt_agent.load_from_json_file_inplace(filename)
                             print(f"Loaded checkpoint {filename}")
                         except Exception as e:
                             print(f"Loading {filename} failed with: {e}")
                     else:
-                        print(f"/load error: no checkpoint specified")
+                        # Load the latest file 
+                        print(f"/load warning: no checkpoint specified, loading most recent checkpoint instead")
+                        json_files = glob.glob("saved_state/*.json")  # This will list all .json files in the current directory.
+        
+                        # Check if there are any json files.
+                        if not json_files:
+                            print(f"/load error: no .json checkpoint files found")
+                        else:
+                            # Sort files based on modified timestamp, with the latest file being the first.
+                            filename = max(json_files, key=os.path.getmtime)
+                            try:
+                                memgpt_agent.load_from_json_file_inplace(filename)
+                                print(f"Loaded checkpoint {filename}")
+                            except Exception as e:
+                                print(f"Loading {filename} failed with: {e}")
 
                     # need to load persistence manager too
                     filename = filename.replace('.json', '.persistence.pickle')
                     try:
                         memgpt_agent.persistence_manager = InMemoryStateManager.load(filename)  # TODO(fixme):for different types of persistence managers that require different load/save methods
-                        print(f"Loaded persistence manager from: {filename}")
+                        print(f"Loaded persistence manager from {filename}")
                     except Exception as e:
-                        print(f"/load error: loading persistence manager from {filename} failed with: {e}")
+                        print(f"/load warning: loading persistence manager from {filename} failed with: {e}")
 
                     continue
 
