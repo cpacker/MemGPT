@@ -264,6 +264,7 @@ Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded
 - [x] Release MemGPT Discord bot demo (perpetual chatbot)
 - [x] Add additional workflows (load SQL/text into MemGPT external context)
 - [ ] CLI UI improvements
+- [ ] Integration tests
 - [ ] Integrate with AutoGen
 - [ ] Add official gpt-3.5-turbo support
 - [ ] Add support for other LLM backends
