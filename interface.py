@@ -10,6 +10,9 @@ init(autoreset=True)
 # DEBUG = True  # puts full message outputs in the terminal
 DEBUG = False  # only dumps important messages in the terminal
 
+def important_message(msg):
+    print(f'{Fore.MAGENTA}{Style.BRIGHT}{msg}{Style.RESET_ALL}')
+
 async def internal_monologue(msg):
     # ANSI escape code for italic is '\x1B[3m'
     print(f'\x1B[3m{Fore.LIGHTBLACK_EX}💭 {msg}{Style.RESET_ALL}')
@@ -71,9 +74,13 @@ async def function_message(msg):
                     print(f'{Fore.RED}{Style.BRIGHT}⚡🧠 [function] {Fore.RED}updating memory with {function_name}{Style.RESET_ALL}:')
                     try:
                         msg_dict = eval(function_args)
-                        print(f'{Fore.RED}{Style.BRIGHT}\t{Fore.RED} {msg_dict["old_content"]}\n\t→ {msg_dict["new_content"]}')
+                        if function_name == 'archival_memory_search':
+                            print(f'{Fore.RED}\tquery: {msg_dict["query"]}, page: {msg_dict["page"]}')
+                        else:
+                            print(f'{Fore.RED}{Style.BRIGHT}\t{Fore.RED} {msg_dict["old_content"]}\n\t{Fore.GREEN}→ {msg_dict["new_content"]}')
                     except Exception as e:
-                        print(e)
+                        printd(e)
+                        printd(msg_dict)
                         pass
                 else:
                     printd(f"Warning: did not recognize function message")
