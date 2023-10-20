@@ -250,6 +250,20 @@ MemGPT also enables you to chat with docs -- try running this example to talk to
    If you built the index yourself, it will be `memgpt/personas/docqa`.
 </details>
 
+## Using Docker
+
+1, Build the docker image
+
+```bash
+docker build -t memgpt . 
+```
+
+2, Run memGPT with env
+
+```bash
+docker run -it -e OPENAI_API_KEY=sk-3232... memgpt --debug
+```
+
 ## Support
 
 If you have any further questions, or have anything to share, we are excited to hear your feedback!
