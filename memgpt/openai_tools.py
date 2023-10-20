@@ -76,7 +76,7 @@ def aretry_with_exponential_backoff(
 
             # Retry on specified errors
             except errors as e:
-                print(f"createa (backoff): caught error: {e}")
+                print(f"acreate (backoff): caught error: {e}")
                 # Increment retries
                 num_retries += 1
 
