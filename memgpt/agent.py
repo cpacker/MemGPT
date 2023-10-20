@@ -50,6 +50,7 @@ def construct_system_with_memory(
 
 
 def initialize_message_sequence(
+        model,
         system,
         memory,
         archival_memory=None,
@@ -64,7 +65,10 @@ def initialize_message_sequence(
     first_user_message = get_login_event()  # event letting MemGPT know the user just logged in
 
     if include_initial_boot_message:
-        initial_boot_messages = get_initial_boot_messages('startup_with_send_message')
+        if 'gpt-3.5' in model:
+            initial_boot_messages = get_initial_boot_messages('startup_with_send_message_gpt35')
+        else:
+            initial_boot_messages = get_initial_boot_messages('startup_with_send_message')
         messages = [
             {"role": "system", "content": full_system_message},
         ] + initial_boot_messages + [
@@ -125,6 +129,7 @@ class AgentAsync(object):
         self.memory = initialize_memory(persona_notes, human_notes)
         # Once the memory object is initialize, use it to "bake" the system message
         self._messages = initialize_message_sequence(
+            self.model,
             self.system,
             self.memory,
         )
@@ -211,6 +216,7 @@ class AgentAsync(object):
         """Rebuilds the system message with the latest memory object"""
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
         new_system_message = initialize_message_sequence(
+            self.model,
             self.system,
             self.memory,
             archival_memory=self.persistence_manager.archival_memory,
@@ -445,7 +451,8 @@ class AgentAsync(object):
             if contains_special_characters(monologue):
                 printd(f"First message internal monologue contained special characters: {response_message}")
                 return False
-            if 'functions' in monologue or 'send_message' in monologue or 'inner thought' in monologue.lower():
+            # if 'functions' in monologue or 'send_message' in monologue or 'inner thought' in monologue.lower():
+            if 'functions' in monologue or 'send_message' in monologue:
                 # Sometimes the syntax won't be correct and internal syntax will leak into message.context
                 printd(f"First message internal monologue contained reserved words: {response_message}")
                 return False
