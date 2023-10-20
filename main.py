@@ -75,7 +75,7 @@ async def main():
 
     if FLAGS.archival_storage_sqldb:
         if not os.path.exists(FLAGS.archival_storage_sqldb):
-            print(f"File {user_input} does not exist")
+            print(f"File {FLAGS.archival_storage_sqldb} does not exist")
             return
         # Ingest data from file into archival storage
         else:
