@@ -1,7 +1,7 @@
 import os
 
 DEFAULT = 'sam'
-GPT35_DEFAULT = 'sam'
+GPT35_DEFAULT = 'sam_simple_pov_gpt35'
 
 
 def get_persona_text(key=DEFAULT):
