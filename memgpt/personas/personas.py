@@ -1,6 +1,6 @@
 import os
 
-DEFAULT = 'sam'
+DEFAULT = 'sam_pov'
 
 
 def get_persona_text(key=DEFAULT):
