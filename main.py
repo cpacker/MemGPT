@@ -70,7 +70,7 @@ async def main():
     chosen_human = FLAGS.human if FLAGS.human is not None else humans.DEFAULT
     chosen_persona = FLAGS.persona if FLAGS.persona is not None else (personas.GPT35_DEFAULT if 'gpt-3.5' in FLAGS.model else personas.DEFAULT)
 
-    memgpt_agent = presets.use_preset(presets.DEFAULT, FLAGS.model, chosen_persona, chosen_human, interface, persistence_manager)
+    memgpt_agent = presets.use_preset(presets.DEFAULT, FLAGS.model, personas.get_persona_text(chosen_persona), humans.get_human_text(chosen_human), interface, persistence_manager)
     print_messages = interface.print_messages
     await print_messages(memgpt_agent.messages)
 
