@@ -47,9 +47,9 @@ async def main():
     if FLAGS.debug:
         logging.getLogger().setLevel(logging.DEBUG)
     print("Running... [exit by typing '/exit']")
-  
+
     if FLAGS.model != constants.DEFAULT_MEMGPT_MODEL:
-      print(f"Warning - you are running MemGPT with {FLAGS.model}, which is not officially supported (yet). Expect bugs!")
+      interface.important_message(f"Warning - you are running MemGPT with {FLAGS.model}, which is not officially supported (yet). Expect bugs!")
 
     if FLAGS.archival_storage_faiss_path:
         index, archival_database = utils.prepare_archival_index(FLAGS.archival_storage_faiss_path)
