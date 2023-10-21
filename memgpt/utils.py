@@ -11,7 +11,6 @@ import faiss
 import tiktoken
 import glob
 import sqlite3
-import fitz
 from tqdm import tqdm
 from memgpt.openai_tools import async_get_embedding_with_backoff
 
@@ -99,12 +98,6 @@ def read_in_chunks(file_object, chunk_size):
             break
         yield data
 
-def read_pdf_in_chunks(file, chunk_size):
-    doc = fitz.open(file)
-    for page in doc:
-        text = page.get_text()
-        yield text
-
 def read_in_rows_csv(file_object, chunk_size):
     csvreader = csv.reader(file_object)
     header = next(csvreader)
@@ -130,11 +123,7 @@ def total_bytes(pattern):
 def chunk_file(file, tkns_per_chunk=300, model='gpt-4'):
     encoding = tiktoken.encoding_for_model(model)
     with open(file, 'r') as f:
-        if file.endswith('.pdf'):
-            lines = [l for l in read_pdf_in_chunks(file, tkns_per_chunk*8)]
-            if len(lines) == 0:
-                print(f"Warning: {file} did not have any extractable text.")
-        elif file.endswith('.csv'):
+        if file.endswith('.csv'):
             lines = [l for l in read_in_rows_csv(f, tkns_per_chunk*8)]
         else:
             lines = [l for l in read_in_chunks(f, tkns_per_chunk*4)]
