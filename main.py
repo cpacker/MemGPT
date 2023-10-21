@@ -31,6 +31,8 @@ flags.DEFINE_string("archival_storage_faiss_path", default="", required=False, h
 flags.DEFINE_string("archival_storage_files", default="", required=False, help="Specify files to pre-load into archival memory (glob pattern)")
 flags.DEFINE_string("archival_storage_files_compute_embeddings", default="", required=False, help="Specify files to pre-load into archival memory (glob pattern), and compute embeddings over them")
 flags.DEFINE_string("archival_storage_sqldb", default="", required=False, help="Specify SQL database to pre-load into archival memory")
+# Support for Azure OpenAI (see: https://github.com/openai/openai-python#microsoft-azure-endpoints)
+flags.DEFINE_boolean("use_azure_openai", default=False, required=False, help="Use Azure OpenAI (requires additional environment variables)")
 
 
 def clear_line():
@@ -47,6 +49,28 @@ async def main():
     if FLAGS.debug:
         logging.getLogger().setLevel(logging.DEBUG)
     print("Running... [exit by typing '/exit']")
+
+    # Azure OpenAI support
+    if FLAGS.use_azure_openai:
+        azure_openai_key = os.getenv('AZURE_OPENAI_KEY')
+        azure_openai_endpoint = os.getenv('AZURE_OPENAI_ENDPOINT')
+        azure_openai_version = os.getenv('AZURE_OPENAI_VERSION')
+        azure_openai_deployment = os.getenv('AZURE_OPENAI_DEPLOYMENT')
+        if None in [azure_openai_key, azure_openai_endpoint, azure_openai_version, azure_openai_deployment]:
+            print(f"Error: missing Azure OpenAI environment variables. Please see README section on Azure.")
+            return
+
+        import openai
+        openai.api_type = "azure"
+        openai.api_key = azure_openai_key
+        openai.api_base = azure_openai_endpoint
+        openai.api_version = azure_openai_version
+        # deployment gets passed into chatcompletion
+    else:
+        azure_openai_deployment = os.getenv('AZURE_OPENAI_DEPLOYMENT')
+        if azure_openai_deployment is not None:
+            print(f"Error: AZURE_OPENAI_DEPLOYMENT should not be set if --use_azure_openai is False")
+            return
 
     if FLAGS.model != constants.DEFAULT_MEMGPT_MODEL:
       interface.important_message(f"Warning - you are running MemGPT with {FLAGS.model}, which is not officially supported (yet). Expect bugs!")
@@ -94,7 +118,7 @@ async def main():
                 await memgpt_agent.persistence_manager.archival_memory.insert(row)
             print(f"Database loaded into archival memory.")
 
-    # auto-exit for 
+    # auto-exit for
     if "GITHUB_ACTIONS" in os.environ:
         return
 
@@ -187,10 +211,10 @@ async def main():
                         except Exception as e:
                             print(f"Loading {filename} failed with: {e}")
                     else:
-                        # Load the latest file 
+                        # Load the latest file
                         print(f"/load warning: no checkpoint specified, loading most recent checkpoint instead")
                         json_files = glob.glob("saved_state/*.json")  # This will list all .json files in the current directory.
-        
+
                         # Check if there are any json files.
                         if not json_files:
                             print(f"/load error: no .json checkpoint files found")
