@@ -4,12 +4,15 @@ FROM python:3.10-slim
 # Set the working directory in the container
 WORKDIR /usr/src/app
 
-# Copy the current directory contents into the container at the working directory
-COPY . .
-
+# Set default environment variables
 ENV OPENAI_API_KEY=""
 
-# Install any dependencies specified in requirements.txt
+# This ensures that the pip install layer is recreated only when there are changes in the requirements.txt
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+# After the dependencies have been installed, copy the rest of the application's files into the container
+COPY . .
+
+# Start CLI
 ENTRYPOINT ["python", "main.py"]
