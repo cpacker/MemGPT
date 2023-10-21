@@ -275,9 +275,9 @@ Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded
 ## 🚀 Project Roadmap
 - [x] Release MemGPT Discord bot demo (perpetual chatbot)
 - [x] Add additional workflows (load SQL/text into MemGPT external context)
+- [x] Integration tests
+- [x] Integrate with AutoGen ([discussion](https://github.com/cpacker/MemGPT/discussions/65))
+- [x] Add official gpt-3.5-turbo support ([discussion](https://github.com/cpacker/MemGPT/discussions/66))
 - [ ] CLI UI improvements
-- [ ] Integration tests
-- [ ] Integrate with AutoGen
-- [ ] Add official gpt-3.5-turbo support
 - [ ] Add support for other LLM backends
 - [ ] Release MemGPT family of open models (eg finetuned Mistral)
