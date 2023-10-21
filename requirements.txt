@@ -6,6 +6,7 @@ geopy
 numpy
 openai
 pybars3
+pymupdf
 python-dotenv
 pytz
 rich
