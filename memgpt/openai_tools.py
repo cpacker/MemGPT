@@ -1,5 +1,6 @@
 import asyncio
 import random
+import os
 import time
 
 import openai
@@ -101,13 +102,20 @@ def aretry_with_exponential_backoff(
 
 @aretry_with_exponential_backoff
 async def acompletions_with_backoff(**kwargs):
+    azure_openai_deployment = os.getenv('AZURE_OPENAI_DEPLOYMENT')
+    if azure_openai_deployment is not None:
+        kwargs['deployment_id'] = azure_openai_deployment
     return await openai.ChatCompletion.acreate(**kwargs)
 
 
 @aretry_with_exponential_backoff
 async def acreate_embedding_with_backoff(**kwargs):
     """Wrapper around Embedding.acreate w/ backoff"""
+    azure_openai_deployment = os.getenv('AZURE_OPENAI_DEPLOYMENT')
+    if azure_openai_deployment is not None:
+        kwargs['deployment_id'] = azure_openai_deployment
     return await openai.Embedding.acreate(**kwargs)
+
 
 async def async_get_embedding_with_backoff(text, model="text-embedding-ada-002"):
     """To get text embeddings, import/call this function
