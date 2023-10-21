@@ -107,9 +107,21 @@ To create a new starter user or starter persona (that MemGPT gets initialized wi
 python main.py --human me.txt
 ```
 
+### GPT-3.5 support
+You can run MemGPT with GPT-3.5 as the LLM instead of GPT-4:
+```sh
+python main.py --model gpt-3.5-turbo
+```
+
+**Note that this is experimental gpt-3.5-turbo support. It's quite buggy compared to gpt-4, but it should be runnable.**
+
+Please report any bugs you encounter regarding MemGPT running on GPT-3.5 to  https://github.com/cpacker/MemGPT/issues/59.
+
 ### `main.py` flags
 
 ```text
+--model
+  select which model to use ('gpt-4', 'gpt-3.5-turbo-0613', 'gpt-3.5-turbo')
 --persona
   load a specific persona file
 --human

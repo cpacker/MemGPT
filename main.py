@@ -21,8 +21,8 @@ import memgpt.humans.humans as humans
 from memgpt.persistence_manager import InMemoryStateManager, InMemoryStateManagerWithPreloadedArchivalMemory, InMemoryStateManagerWithFaiss
 
 FLAGS = flags.FLAGS
-flags.DEFINE_string("persona", default=personas.DEFAULT, required=False, help="Specify persona")
-flags.DEFINE_string("human", default=humans.DEFAULT, required=False, help="Specify human")
+flags.DEFINE_string("persona", default=None, required=False, help="Specify persona")
+flags.DEFINE_string("human", default=None, required=False, help="Specify human")
 flags.DEFINE_string("model", default=constants.DEFAULT_MEMGPT_MODEL, required=False, help="Specify the LLM model")
 flags.DEFINE_boolean("first", default=False, required=False, help="Use -first to send the first message in the sequence")
 flags.DEFINE_boolean("debug", default=False, required=False, help="Use -debug to enable debugging output")
@@ -48,6 +48,9 @@ async def main():
         logging.getLogger().setLevel(logging.DEBUG)
     print("Running... [exit by typing '/exit']")
 
+    if FLAGS.model != constants.DEFAULT_MEMGPT_MODEL:
+      interface.important_message(f"Warning - you are running MemGPT with {FLAGS.model}, which is not officially supported (yet). Expect bugs!")
+
     if FLAGS.archival_storage_faiss_path:
         index, archival_database = utils.prepare_archival_index(FLAGS.archival_storage_faiss_path)
         persistence_manager = InMemoryStateManagerWithFaiss(index, archival_database)
@@ -62,7 +65,12 @@ async def main():
         persistence_manager = InMemoryStateManagerWithFaiss(index, archival_database)
     else:
         persistence_manager = InMemoryStateManager()
-    memgpt_agent = presets.use_preset(presets.DEFAULT, FLAGS.model, personas.get_persona_text(FLAGS.persona), humans.get_human_text(FLAGS.human), interface, persistence_manager)
+
+    # Moved defaults out of FLAGS so that we can dynamically select the default persona based on model
+    chosen_human = FLAGS.human if FLAGS.human is not None else humans.DEFAULT
+    chosen_persona = FLAGS.persona if FLAGS.persona is not None else (personas.GPT35_DEFAULT if 'gpt-3.5' in FLAGS.model else personas.DEFAULT)
+
+    memgpt_agent = presets.use_preset(presets.DEFAULT, FLAGS.model, personas.get_persona_text(chosen_persona), humans.get_human_text(chosen_human), interface, persistence_manager)
     print_messages = interface.print_messages
     await print_messages(memgpt_agent.messages)
 
