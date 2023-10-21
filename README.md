@@ -1,10 +1,6 @@
 <a href="#user-content-memgpt"><img src="https://memgpt.ai/assets/img/memgpt_logo_circle.png" alt="MemGPT logo" width="75" align="right"></a>
 
-
 # [MemGPT](https://memgpt.ai)
-
-
-![MemGPT](https://github.com/Nishu0/MemGPT/assets/89217455/45a3053d-2edc-41b5-aa01-5e24f1c8d16a)
 
 <div align="center">
 
@@ -14,18 +10,6 @@
 [![arXiv 2310.08560](https://img.shields.io/badge/arXiv-2310.08560-B31B1B?logo=arxiv&style=flat-square)](https://arxiv.org/abs/2310.08560)
 
 </div>
-
-## Summary
-
-- [Quick setup](#quick-setup)
-- [What is MemGPT?](#what-is-memgpt)
-- [Architecture](#architecture)
-- [Running MemGPT Locall](#running-memgpt-locally)
-- [Example applications](#example-applications)
-- [Support](#support)
-- [Datasets](#datasets)
-- [Project Roadmap](#-project-roadmap)
-
 
 <details open>
   <summary><h2>🤖 Create perpetual chatbots with self-editing memory!</h2></summary>
@@ -61,7 +45,7 @@
   </details>
 </details>
 
-## Quick setup
+## Quick setup 
 
 Join <a href="https://discord.gg/9GEQrxmVyE">Discord</a></strong> and message the MemGPT bot (in the `#memgpt` channel). Then run the following commands (messaged to "MemGPT Bot"): 
 * `/profile` (to create your profile)
@@ -83,26 +67,34 @@ You can see the full list of available commands when you enter `/` into the mess
 
 Memory-GPT (or MemGPT in short) is a system that intelligently manages different memory tiers in LLMs in order to effectively provide extended context within the LLM's limited context window. For example, MemGPT knows when to push critical information to a vector database and when to retrieve it later in the chat, enabling perpetual conversations. Learn more about MemGPT in our [paper](https://arxiv.org/abs/2310.08560). 
 
-## Architecture
+## Running MemGPT locally
 
-![image](https://github.com/Nishu0/MemGPT/assets/89217455/3aa1f360-05f6-4c06-9026-6ea3261d4de4)
-
-
-## Running MemGPT Locally 
-
-**1.** Install dependencies:
+Install dependencies:
 
 ```sh
 pip install -r requirements.txt
 ```
 
-**2.** Add your OpenAI API key to your environment:
+Extra step for Windows:
 
 ```sh
+# only needed on Windows
+pip install pyreadline
+```
+
+Add your OpenAI API key to your environment:
+
+```sh
+# on Linux/Mac
 export OPENAI_API_KEY=YOUR_API_KEY
 ```
 
-**3.** To run MemGPT for as a conversation agent in CLI mode, simply run `main.py`:
+```sh
+# on Windows
+set OPENAI_API_KEY=YOUR_API_KEY
+```
+
+To run MemGPT for as a conversation agent in CLI mode, simply run `main.py`:
 
 ```sh
 python3 main.py
@@ -115,9 +107,21 @@ To create a new starter user or starter persona (that MemGPT gets initialized wi
 python main.py --human me.txt
 ```
 
+### GPT-3.5 support
+You can run MemGPT with GPT-3.5 as the LLM instead of GPT-4:
+```sh
+python main.py --model gpt-3.5-turbo
+```
+
+**Note that this is experimental gpt-3.5-turbo support. It's quite buggy compared to gpt-4, but it should be runnable.**
+
+Please report any bugs you encounter regarding MemGPT running on GPT-3.5 to  https://github.com/cpacker/MemGPT/issues/59.
+
 ### `main.py` flags
 
 ```text
+--model
+  select which model to use ('gpt-4', 'gpt-3.5-turbo-0613', 'gpt-3.5-turbo')
 --persona
   load a specific persona file
 --human
@@ -271,8 +275,9 @@ Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded
 ## 🚀 Project Roadmap
 - [x] Release MemGPT Discord bot demo (perpetual chatbot)
 - [x] Add additional workflows (load SQL/text into MemGPT external context)
-- [ ] CLI UI improvements
-- [ ] Integrate with AutoGen
-- [ ] Add official gpt-3.5-turbo support
-- [ ] Add support for other LLM backends
-- [ ] Release MemGPT family of open models (eg finetuned Mistral)
+- [x] Integration tests
+- [x] Integrate with AutoGen ([discussion](https://github.com/cpacker/MemGPT/discussions/65))
+- [x] Add official gpt-3.5-turbo support ([discussion](https://github.com/cpacker/MemGPT/discussions/66))
+- [ ] Release MemGPT family of open models (eg finetuned Mistral) ([discussion](https://github.com/cpacker/MemGPT/discussions/67))
+- [ ] CLI UI improvements ([issue](https://github.com/cpacker/MemGPT/issues/11))
+- [ ] Add support for other LLM backends ([issue](https://github.com/cpacker/MemGPT/issues/18))
