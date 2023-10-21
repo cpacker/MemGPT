@@ -269,7 +269,8 @@ async def main():
                     command = user_input.strip().split()
                     amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 2
                     print(f"Popping last {amount} messages from stack")
-                    memgpt_agent.messages = memgpt_agent.messages[:-amount]
+                    for _ in range(min(amount, len(memgpt_agent.messages))):
+                        memgpt_agent.messages.pop()
                     continue
 
                 # No skip options
