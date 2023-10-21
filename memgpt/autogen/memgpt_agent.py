@@ -20,7 +20,7 @@ def create_memgpt_autogen_agent_from_config(
     default_auto_reply: Optional[Union[str, Dict, None]] = "",
 ):
     """
-    TODO support AutoGen config workflow in a clean way with constructors 
+    TODO supports AutoGen config workflow in a clean way with constructors 
     """
     raise NotImplementedError
 
@@ -80,7 +80,7 @@ class MemGPTAgent(ConversableAgent):
     def pretty_concat(messages):
         """AutoGen expects a single response, but MemGPT may take many steps.
         
-        To accomadate AutoGen, concatenate all of MemGPT's steps into one and return as a single message.
+        To accommodate AutoGen, concatenate all of MemGPT's steps into one and return as a single message.
         """
         ret = {
             'role': 'assistant',
