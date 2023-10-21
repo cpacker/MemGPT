@@ -79,7 +79,7 @@ Extra step for Windows:
 
 ```sh
 # only needed on Windows
-pip install pyreadline
+pip install pyreadline3
 ```
 
 Add your OpenAI API key to your environment:
