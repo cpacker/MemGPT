@@ -202,7 +202,7 @@ async def process_chunk(i, chunk, model):
         print(chunk)
         raise e
 
-async def process_concurrently(archival_database, model, concurrency=5):
+async def process_concurrently(archival_database, model, concurrency=10):
     # Create a semaphore to limit the number of concurrent tasks
     semaphore = asyncio.Semaphore(concurrency)
 
