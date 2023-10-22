@@ -155,7 +155,9 @@ Please report any bugs you encounter regarding MemGPT running on GPT-3.5 to  htt
 
 ### Interactive CLI commands
 
-While using MemGPT via the CLI you can run various commands:
+These are the commands for the CLI, **not the Discord bot**! The Discord bot has separate commands you can see in Discord by typing `/`.
+
+While using MemGPT via the CLI (not Discord!) you can run various commands:
 
 ```text
 //
