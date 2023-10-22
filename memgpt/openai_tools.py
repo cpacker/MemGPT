@@ -4,6 +4,7 @@ import os
 import time
 
 import openai
+import litellm
 
 
 def retry_with_exponential_backoff(
@@ -52,7 +53,7 @@ def retry_with_exponential_backoff(
 
 @retry_with_exponential_backoff
 def completions_with_backoff(**kwargs):
-    return openai.ChatCompletion.create(**kwargs)
+    return litellm.completion(**kwargs)
 
 
 def aretry_with_exponential_backoff(
@@ -105,7 +106,7 @@ async def acompletions_with_backoff(**kwargs):
     azure_openai_deployment = os.getenv('AZURE_OPENAI_DEPLOYMENT')
     if azure_openai_deployment is not None:
         kwargs['deployment_id'] = azure_openai_deployment
-    return await openai.ChatCompletion.acreate(**kwargs)
+    return await litellm.acompletion(**kwargs)
 
 
 @aretry_with_exponential_backoff

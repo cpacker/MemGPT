@@ -13,3 +13,4 @@ rich
 tiktoken
 timezonefinder
 tqdm
+litellm
