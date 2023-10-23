@@ -58,7 +58,7 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
         }
         """
 ```
-See full file [here](llm_chat_completion_wrappers/airoboros.py).
+See full file [here](llm_chat_completion_wrappers/airoboros.py). WebUI exposes a lot of parameters that can dramatically change LLM outputs, to change these you can modify the [WebUI settings file](/memgpt/local_llm/webui/settings.py).
 
 ### Running the example
 
@@ -83,8 +83,6 @@ Enter your message: My name is Brad, not Chad...
          First name: Chad
         → First name: Brad
 ```
-
-WebUI exposes a lot of parameters that can dramatically change LLM outputs, to change these you can modify the [WebUI settings file](/memgpt/local_llm/webui/settings.py).
 
 ---
 
