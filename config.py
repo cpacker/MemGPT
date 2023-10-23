@@ -276,6 +276,3 @@ def indent(text, num_lines=5):
     if len(lines) > num_lines:
         lines = lines[: num_lines - 1] + ["... (truncated)", lines[-1]]
     return "     " + "\n     ".join(lines)
-
-
-config = Config()
