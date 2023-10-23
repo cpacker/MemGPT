@@ -60,13 +60,15 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
 ```
 See full file [here](llm_chat_completion_wrappers/airoboros.py).
 
-Example running the code (airoboros is able to properly call `send_message`:
+### Running the example
+
 ```sh
 # running airoboros behind a textgen webui server
 export OPENAI_API_BASE = <pointing at webui server>
 export BACKEND_TYPE = webui
 
 # using --no_verify because this airoboros example does not output inner monologue, just functions
+# airoboros is able to properly call `send_message`
 $ python3 main.py --no_verify
 
 Running... [exit by typing '/exit']
