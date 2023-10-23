@@ -7,6 +7,7 @@ import sys
 import pickle
 
 import questionary
+import typer
 
 from rich.console import Console
 
@@ -27,60 +28,9 @@ from memgpt.persistence_manager import (
 )
 
 from config import Config
-
-FLAGS = flags.FLAGS
-flags.DEFINE_string("persona", default=None, required=False, help="Specify persona")
-flags.DEFINE_string("human", default=None, required=False, help="Specify human")
-flags.DEFINE_string(
-    "model",
-    default=constants.DEFAULT_MEMGPT_MODEL,
-    required=False,
-    help="Specify the LLM model",
-)
-flags.DEFINE_boolean(
-    "first",
-    default=False,
-    required=False,
-    help="Use -first to send the first message in the sequence",
-)
-flags.DEFINE_boolean(
-    "debug", default=False, required=False, help="Use -debug to enable debugging output"
-)
-flags.DEFINE_boolean(
-    "no_verify", default=False, required=False, help="Bypass message verification"
-)
-flags.DEFINE_string(
-    "archival_storage_faiss_path",
-    default="",
-    required=False,
-    help="Specify archival storage with FAISS index to load (a folder with a .index and .json describing documents to be loaded)",
-)
-flags.DEFINE_string(
-    "archival_storage_files",
-    default="",
-    required=False,
-    help="Specify files to pre-load into archival memory (glob pattern)",
-)
-flags.DEFINE_string(
-    "archival_storage_files_compute_embeddings",
-    default="",
-    required=False,
-    help="Specify files to pre-load into archival memory (glob pattern), and compute embeddings over them",
-)
-flags.DEFINE_string(
-    "archival_storage_sqldb",
-    default="",
-    required=False,
-    help="Specify SQL database to pre-load into archival memory",
-)
-# Support for Azure OpenAI (see: https://github.com/openai/openai-python#microsoft-azure-endpoints)
-flags.DEFINE_boolean(
-    "use_azure_openai",
-    default=False,
-    required=False,
-    help="Use Azure OpenAI (requires additional environment variables)",
-)
-
+import asyncio
+ 
+app = typer.Typer()
 
 def clear_line():
     if os.name == "nt":  # for windows
@@ -156,56 +106,104 @@ def load(memgpt_agent, filename):
             f"/load warning: loading persistence manager from {filename} failed with: {e}"
         )
 
+@app.command()
+def run(
+    persona: str = typer.Option(None, help="Specify persona"),
+    human: str = typer.Option(None, help="Specify human"),
+    model: str = typer.Option(constants.DEFAULT_MEMGPT_MODEL, help="Specify the LLM model"),
+    first: bool = typer.Option(False, "--first",  help="Use --first to send the first message in the sequence"),
+    debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
+    no_verify: bool = typer.Option(False, "--no-verify", help="Bypass message verification"),
+    archival_storage_faiss_path: str = typer.Option("", help="Specify archival storage with FAISS index to load (a folder with a .index and .json describing documents to be loaded)"),
+    archival_storage_files: str = typer.Option("", help="Specify files to pre-load into archival memory (glob pattern)"),
+    archival_storage_files_compute_embeddings: str = typer.Option("", help="Specify files to pre-load into archival memory (glob pattern), and compute embeddings over them"),
+    archival_storage_sqldb: str = typer.Option("", help="Specify SQL database to pre-load into archival memory"),
+    use_azure_openai: bool = typer.Option(False, "--use-azure-openai", help="Use Azure OpenAI (requires additional environment variables)") # TODO: just pass in? 
+): 
 
-async def main():
-    utils.DEBUG = FLAGS.debug
+    print("COMMAND RUN", persona)
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(
+        main(
+            persona,
+            human,
+            model,
+            first,
+            debug,
+            no_verify,
+            archival_storage_faiss_path,
+            archival_storage_files,
+            archival_storage_files_compute_embeddings,
+            archival_storage_sqldb,
+            use_azure_openai,
+        )
+    )
+
+
+
+async def main(
+    persona,
+    human,
+    model,
+    first,
+    debug,
+    no_verify,
+    archival_storage_faiss_path,
+    archival_storage_files,
+    archival_storage_files_compute_embeddings,
+    archival_storage_sqldb,
+    use_azure_openai,
+):
+    print("RUN MAIN")
+    utils.DEBUG = debug
     logging.getLogger().setLevel(logging.CRITICAL)
-    if FLAGS.debug:
+    if debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
     if any(
         (
-            FLAGS.persona,
-            FLAGS.human,
-            FLAGS.model != constants.DEFAULT_MEMGPT_MODEL,
-            FLAGS.archival_storage_faiss_path,
-            FLAGS.archival_storage_files,
-            FLAGS.archival_storage_files_compute_embeddings,
-            FLAGS.archival_storage_sqldb,
+            persona,
+            human,
+            model != constants.DEFAULT_MEMGPT_MODEL,
+            archival_storage_faiss_path,
+            archival_storage_files,
+            archival_storage_files_compute_embeddings,
+            archival_storage_sqldb,
         )
     ):
         interface.important_message("⚙️ Using legacy command line arguments.")
-        model = FLAGS.model
+        model = model
         if model is None:
             model = constants.DEFAULT_MEMGPT_MODEL
-        memgpt_persona = FLAGS.persona
+        memgpt_persona = persona
         if memgpt_persona is None:
             memgpt_persona = (
                 personas.GPT35_DEFAULT if "gpt-3.5" in model else personas.DEFAULT
             )
-        human_persona = FLAGS.human
+        human_persona = human
         if human_persona is None:
             human_persona = humans.DEFAULT
 
-        if FLAGS.archival_storage_files:
+        print(persona, model, memgpt_persona)
+        if archival_storage_files:
             cfg = await Config.legacy_flags_init(
                 model,
                 memgpt_persona,
                 human_persona,
                 load_type="folder",
-                archival_storage_files=FLAGS.archival_storage_files,
+                archival_storage_files=archival_storage_files,
                 compute_embeddings=False,
             )
-        elif FLAGS.archival_storage_faiss_path:
+        elif archival_storage_faiss_path:
             cfg = await Config.legacy_flags_init(
                 model,
                 memgpt_persona,
                 human_persona,
                 load_type="folder",
-                archival_storage_index=FLAGS.archival_storage_index,
+                archival_storage_index=archival_storage_index,
                 compute_embeddings=False,
             )
-        elif FLAGS.archival_storage_files_compute_embeddings:
+        elif archival_storage_files_compute_embeddings:
             print(model)
             print(memgpt_persona)
             print(human_persona)
@@ -214,16 +212,16 @@ async def main():
                 memgpt_persona,
                 human_persona,
                 load_type="folder",
-                archival_storage_files=FLAGS.archival_storage_files_compute_embeddings,
+                archival_storage_files=archival_storage_files_compute_embeddings,
                 compute_embeddings=True,
             )
-        elif FLAGS.archival_storage_sqldb:
+        elif archival_storage_sqldb:
             cfg = await Config.legacy_flags_init(
                 model,
                 memgpt_persona,
                 human_persona,
                 load_type="sql",
-                archival_storage_files=FLAGS.archival_storage_sqldb,
+                archival_storage_files=archival_storage_sqldb,
                 compute_embeddings=False,
             )
         else:
@@ -242,7 +240,7 @@ async def main():
         )
 
     # Azure OpenAI support
-    if FLAGS.use_azure_openai:
+    if use_azure_openai:
         azure_openai_key = os.getenv("AZURE_OPENAI_KEY")
         azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         azure_openai_version = os.getenv("AZURE_OPENAI_VERSION")
@@ -285,9 +283,9 @@ async def main():
     else:
         persistence_manager = InMemoryStateManager()
 
-    if FLAGS.archival_storage_files_compute_embeddings:
+    if archival_storage_files_compute_embeddings:
         interface.important_message(
-            f"(legacy) To avoid computing embeddings next time, replace --archival_storage_files_compute_embeddings={FLAGS.archival_storage_files_compute_embeddings} with\n\t --archival_storage_faiss_path={cfg.archival_storage_index} (if your files haven't changed)."
+            f"(legacy) To avoid computing embeddings next time, replace --archival_storage_files_compute_embeddings={archival_storage_files_compute_embeddings} with\n\t --archival_storage_faiss_path={cfg.archival_storage_index} (if your files haven't changed)."
         )
 
     # Moved defaults out of FLAGS so that we can dynamically select the default persona based on model
@@ -309,7 +307,7 @@ async def main():
     user_input = None
     skip_next_user_input = False
     user_message = None
-    USER_GOES_FIRST = FLAGS.first
+    USER_GOES_FIRST = first
 
     if cfg.load_type == "sql":  # TODO: move this into config.py in a clean manner
         if not os.path.exists(cfg.archival_storage_files):
@@ -468,7 +466,7 @@ async def main():
                 function_failed,
                 token_warning,
             ) = await memgpt_agent.step(
-                user_message, first_message=False, skip_verify=FLAGS.no_verify
+                user_message, first_message=False, skip_verify=no_verify
             )
 
             # Skip user inputs if there's a memory warning, function execution failed, or the agent asked for control
@@ -491,8 +489,11 @@ async def main():
 
 if __name__ == "__main__":
 
-    def run(argv):
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(main())
+    app()
+    #typer.run(run)
 
-    app.run(run)
+    #def run(argv):
+    #    loop = asyncio.get_event_loop()
+    #    loop.run_until_complete(main())
+
+    #app.run(run)
