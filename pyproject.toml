@@ -2,7 +2,11 @@
 name = "memgpt"
 version = "0.1.0"
 description = "Teaching LLMs memory management for unbounded context"
-authors = ["Sarah Wooders <sarahwooders@gmail.com>"]
+authors = [
+    "Charles Packer <contact@charlespacker.com>",
+    "Vivian Fang <vivian@berkeley.edu>",
+    "Sarah Wooders <sarahwooders@gmail.com>"
+]
 license = "Apache License"
 readme = "README.md"
 
