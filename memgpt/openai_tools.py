@@ -3,7 +3,15 @@ import random
 import os
 import time
 
+from .local_llm.chat_completion_proxy import get_chat_completion
+
+HOST = os.getenv("OPENAI_API_BASE")
+HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
+
 import openai
+
+if HOST is not None:
+    openai.api_base = HOST
 
 
 def retry_with_exponential_backoff(
@@ -102,18 +110,24 @@ def aretry_with_exponential_backoff(
 
 @aretry_with_exponential_backoff
 async def acompletions_with_backoff(**kwargs):
-    azure_openai_deployment = os.getenv('AZURE_OPENAI_DEPLOYMENT')
-    if azure_openai_deployment is not None:
-        kwargs['deployment_id'] = azure_openai_deployment
-    return await openai.ChatCompletion.acreate(**kwargs)
+    # Local model
+    if HOST_TYPE is not None:
+        return await get_chat_completion(**kwargs)
+
+    # OpenAI / Azure model
+    else:
+        azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+        if azure_openai_deployment is not None:
+            kwargs["deployment_id"] = azure_openai_deployment
+        return await openai.ChatCompletion.acreate(**kwargs)
 
 
 @aretry_with_exponential_backoff
 async def acreate_embedding_with_backoff(**kwargs):
     """Wrapper around Embedding.acreate w/ backoff"""
-    azure_openai_deployment = os.getenv('AZURE_OPENAI_DEPLOYMENT')
+    azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
     if azure_openai_deployment is not None:
-        kwargs['deployment_id'] = azure_openai_deployment
+        kwargs["deployment_id"] = azure_openai_deployment
     return await openai.Embedding.acreate(**kwargs)
 
 
@@ -121,6 +135,6 @@ async def async_get_embedding_with_backoff(text, model="text-embedding-ada-002")
     """To get text embeddings, import/call this function
     It specifies defaults + handles rate-limiting + is async"""
     text = text.replace("\n", " ")
-    response = await acreate_embedding_with_backoff(input = [text], model=model)
-    embedding = response['data'][0]['embedding']
+    response = await acreate_embedding_with_backoff(input=[text], model=model)
+    embedding = response["data"][0]["embedding"]
     return embedding
