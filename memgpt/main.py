@@ -1,5 +1,4 @@
 import asyncio
-from absl import app, flags
 import logging
 import glob
 import os
@@ -13,7 +12,7 @@ from rich.console import Console
 
 console = Console()
 
-import interface  # for printing to terminal
+import memgpt.interface  # for printing to terminal
 import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.utils as utils
@@ -27,7 +26,7 @@ from memgpt.persistence_manager import (
     InMemoryStateManagerWithFaiss,
 )
 
-from config import Config
+from memgpt.config import Config
 import asyncio
  
 app = typer.Typer()
@@ -121,7 +120,6 @@ def run(
     use_azure_openai: bool = typer.Option(False, "--use-azure-openai", help="Use Azure OpenAI (requires additional environment variables)") # TODO: just pass in? 
 ): 
 
-    print("COMMAND RUN", persona)
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
         main(
@@ -154,7 +152,6 @@ async def main(
     archival_storage_sqldb,
     use_azure_openai,
 ):
-    print("RUN MAIN")
     utils.DEBUG = debug
     logging.getLogger().setLevel(logging.CRITICAL)
     if debug:
@@ -171,7 +168,7 @@ async def main(
             archival_storage_sqldb,
         )
     ):
-        interface.important_message("⚙️ Using legacy command line arguments.")
+        memgpt.interface.important_message("⚙️ Using legacy command line arguments.")
         model = model
         if model is None:
             model = constants.DEFAULT_MEMGPT_MODEL
@@ -233,9 +230,9 @@ async def main(
     else:
         cfg = await Config.config_init()
 
-    interface.important_message("Running... [exit by typing '/exit']")
+    memgpt.interface.important_message("Running... [exit by typing '/exit']")
     if cfg.model != constants.DEFAULT_MEMGPT_MODEL:
-        interface.warning_message(
+        memgpt.interface.warning_message(
             f"⛔️ Warning - you are running MemGPT with {cfg.model}, which is not officially supported (yet). Expect bugs!"
         )
 
@@ -284,7 +281,7 @@ async def main(
         persistence_manager = InMemoryStateManager()
 
     if archival_storage_files_compute_embeddings:
-        interface.important_message(
+        memgpt.interface.important_message(
             f"(legacy) To avoid computing embeddings next time, replace --archival_storage_files_compute_embeddings={archival_storage_files_compute_embeddings} with\n\t --archival_storage_faiss_path={cfg.archival_storage_index} (if your files haven't changed)."
         )
 
@@ -297,10 +294,10 @@ async def main(
         cfg.model,
         personas.get_persona_text(chosen_persona),
         humans.get_human_text(chosen_human),
-        interface,
+        memgpt.interface,
         persistence_manager,
     )
-    print_messages = interface.print_messages
+    print_messages = memgpt.interface.print_messages
     await print_messages(memgpt_agent.messages)
 
     counter = 0
@@ -400,7 +397,7 @@ async def main(
                     continue
 
                 elif user_input.lower() == "/dumpraw":
-                    await interface.print_messages_raw(memgpt_agent.messages)
+                    await memgpt.interface.print_messages_raw(memgpt_agent.messages)
                     continue
 
                 elif user_input.lower() == "/dump1":
@@ -439,7 +436,7 @@ async def main(
 
                 # No skip options
                 elif user_input.lower() == "/wipe":
-                    memgpt_agent = agent.AgentAsync(interface)
+                    memgpt_agent = agent.AgentAsync(memgpt.interface)
                     user_message = None
 
                 elif user_input.lower() == "/heartbeat":
@@ -487,13 +484,13 @@ async def main(
     print("Finished.")
 
 
-if __name__ == "__main__":
-
-    app()
-    #typer.run(run)
-
-    #def run(argv):
-    #    loop = asyncio.get_event_loop()
-    #    loop.run_until_complete(main())
-
-    #app.run(run)
+#if __name__ == "__main__":
+#
+#    app()
+#    #typer.run(run)
+#
+#    #def run(argv):
+#    #    loop = asyncio.get_event_loop()
+#    #    loop.run_until_complete(main())
+#
+#    #app.run(run)
