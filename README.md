@@ -130,6 +130,9 @@ python main.py --model gpt-3.5-turbo
 
 Please report any bugs you encounter regarding MemGPT running on GPT-3.5 to  https://github.com/cpacker/MemGPT/issues/59.
 
+### Local LLM support
+You can run MemGPT with local LLMs too. See [instructions here](/memgpt/local_llm) and report any bugs/improvements here https://github.com/cpacker/MemGPT/discussions/67.
+
 ### `main.py` flags
 
 ```text
