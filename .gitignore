@@ -79,3 +79,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# MemGPT config files
+configs/
