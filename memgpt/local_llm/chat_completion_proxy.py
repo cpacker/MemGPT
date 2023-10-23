@@ -40,7 +40,8 @@ async def get_chat_completion(
         if HOST_TYPE == "webui":
             result = get_webui_completion(prompt)
         else:
-            raise ValueError(HOST_TYPE)
+            print(f"Warning: HOST_TYPE was not set, defaulting to webui")
+            result = get_webui_completion(prompt)
     except requests.exceptions.ConnectionError as e:
         raise ValueError(f"Was unable to connect to host {HOST}")
 
