@@ -1,4 +1,4 @@
-## tl;dr - how to connect MemGPT to non-OpenAI LLMs
+## How to connect MemGPT to non-OpenAI LLMs
 
 **If you have a hosted ChatCompletion-compatible endpoint that works with function calling**:
   - simply set `OPENAI_API_BASE` to the IP+port of your endpoint:
@@ -7,7 +7,7 @@
 export OPENAI_API_BASE=...
 ```
 
-Note: for this to work, the endpoint MUST support function calls. As of 10/22/2023, most ChatCompletion endpoints do NOT support function calls, so if you want to play with MemGPT and open models, follow the instructions below.
+Note: for this to work, the endpoint **MUST** support function calls. As of 10/22/2023, most ChatCompletion endpoints do **NOT** support function calls, so if you want to play with MemGPT and open models, you probably need to follow the instructions below.
 
 ## Integrating a function-call finetuned LLM with MemGPT
 
