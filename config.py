@@ -1,4 +1,3 @@
-import asyncio
 import glob
 import json
 import os
@@ -8,10 +7,7 @@ import interface
 
 import questionary
 
-from colorama import Fore, Style, init
-from rich.console import Console
-
-console = Console()
+from colorama import Fore, Style
 
 from typing import List, Type
 
@@ -40,10 +36,11 @@ class Config:
         self.compute_embeddings = False
         self.agent_save_file = None
         self.persistence_manager_save_file = None
+        self.host = os.getenv("OPENAI_API_BASE")
 
     @classmethod
     async def legacy_flags_init(
-        cls: Type["config"],
+        cls: Type["Config"],
         model: str,
         memgpt_persona: str,
         human_persona: str,
@@ -162,11 +159,16 @@ class Config:
 
     async def configure_archival_storage(self, recompute_embeddings):
         if recompute_embeddings:
-            self.archival_storage_index = (
-                await utils.prepare_archival_index_from_files_compute_embeddings(
-                    self.archival_storage_files
+            if self.host:
+                interface.warning_message(
+                    "⛔️ Embeddings on a non-OpenAI endpoint are not yet supported, falling back to substring matching search."
                 )
-            )
+            else:
+                self.archival_storage_index = (
+                    await utils.prepare_archival_index_from_files_compute_embeddings(
+                        self.archival_storage_files
+                    )
+                )
         if self.compute_embeddings and self.archival_storage_index:
             self.index, self.archival_database = utils.prepare_archival_index(
                 self.archival_storage_index
@@ -188,6 +190,7 @@ class Config:
             "load_type": self.load_type,
             "agent_save_file": self.agent_save_file,
             "persistence_manager_save_file": self.persistence_manager_save_file,
+            "host": self.host,
         }
 
     def load_config(self, config_file):
@@ -203,6 +206,7 @@ class Config:
         self.load_type = cfg["load_type"]
         self.agent_save_file = cfg["agent_save_file"]
         self.persistence_manager_save_file = cfg["persistence_manager_save_file"]
+        self.host = cfg["host"]
 
     def write_config(self, configs_dir=None):
         if configs_dir is None:
