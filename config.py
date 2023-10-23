@@ -37,6 +37,7 @@ class Config:
         self.agent_save_file = None
         self.persistence_manager_save_file = None
         self.host = os.getenv("OPENAI_API_BASE")
+        self.index = None
 
     @classmethod
     async def legacy_flags_init(
@@ -59,10 +60,7 @@ class Config:
         self.compute_embeddings = compute_embeddings
         recompute_embeddings = self.compute_embeddings
         if self.archival_storage_index:
-            recompute_embeddings = questionary.confirm(
-                f"Would you like to recompute embeddings? Do this if your files have changed.\nFiles:{self.archival_storage_files}",
-                default=False,
-            )
+            recompute_embeddings = False  # TODO Legacy support -- can't recompute embeddings on a path that's not specified.
         if self.archival_storage_files:
             await self.configure_archival_storage(recompute_embeddings)
         return self
