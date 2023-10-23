@@ -32,6 +32,8 @@ class LLMChatCompletionWrapper(ABC):
         pass
 ```
 
+## Example with Airoboros LLM
+
 To help you get started, we've implemented an example wrapper class for a popular llama2 model finetuned on function calling (airoboros). We want MemGPT to run well on open models as much as you do, so we'll be actively updating this page with more examples. Additionally, we welcome contributions from the community! If you find an open LLM that works well with MemGPT, please open a PR with a model wrapper and we'll merge it ASAP.
 
 ```python
