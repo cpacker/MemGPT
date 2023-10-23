@@ -7,16 +7,18 @@
 export OPENAI_API_BASE=...
 ```
 
-Note: for this to work, the endpoint **MUST** support function calls. As of 10/22/2023, most ChatCompletion endpoints do **NOT** support function calls, so if you want to play with MemGPT and open models, you probably need to follow the instructions below.
+For this to work, the endpoint **MUST** support function calls.
+
+**As of 10/22/2023, most ChatCompletion endpoints do *NOT* support function calls, so if you want to play with MemGPT and open models, you probably need to follow the instructions below.**
 
 ## Integrating a function-call finetuned LLM with MemGPT
 
 **If you have a hosted local model that is function-call finetuned**:
-  - implement a wrapper class for that model
-    - the wrapper class needs to implement two functions:
-      - one to go from ChatCompletion messages/functions schema to a prompt string
-      - and one to go from raw LLM outputs to a ChatCompletion response
-  - put that model behind a server (e.g. using WebUI) and set `OPENAI_API_BASE`
+  - Implement a wrapper class for that model
+    - The wrapper class needs to implement two functions:
+      - One to go from ChatCompletion messages/functions schema to a prompt string
+      - And one to go from raw LLM outputs to a ChatCompletion response
+  - Put that model behind a server (e.g. using WebUI) and set `OPENAI_API_BASE`
 
 ```python
 class LLMChatCompletionWrapper(ABC):
@@ -61,18 +63,19 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
         }
         """
 ```
+See full file [here](llm_chat_completion_wrappers/airoboros.py).
 
 ---
 
 ## Status of ChatCompletion w/ function calling and open LLMs
 
-MemGPT uses function calling to do memory management. With OpenAI's ChatCompletion API, you can pass in a function schema in the ‘functions' keyword arg, and the API response will include a ‘function_call’ field that includes the function name and the function arguments (generated JSON). How this works under the hood is your ‘functions’ keyword is combined with the ‘messages’ and ‘system' to form one big string input to the transformer, and the output of the transformer is parsed to extract the JSON function call.
+MemGPT uses function calling to do memory management. With OpenAI's ChatCompletion API, you can pass in a function schema in the `functions` keyword arg, and the API response will include a `function_call` field that includes the function name and the function arguments (generated JSON). How this works under the hood is your `functions` keyword is combined with the `messages` and `system` to form one big string input to the transformer, and the output of the transformer is parsed to extract the JSON function call.
 
 In the future, more open LLMs and LLM servers (that can host OpenAI-compatable ChatCompletion endpoints) may start including parsing code to do this automatically as standard practice. However, in the meantime, when you see a model that says it supports “function calling”, like Airoboros, it doesn't mean that you can just load Airoboros into a ChatCompletion-compatable endpoint like FastChat, and then use the same OpenAI API call and it'll just work.
 
-(1) When an open LLM says it supports function calling, they probably mean that the model was finetuned on some function call data. Remember, transformers are just string-in-string-out, so there are many ways to format this function call data. Airoboros formats the function schema in YAML style (see https://huggingface.co/jondurbin/airoboros-l2-70b-3.1.2#agentfunction-calling)) and the output is in JSON style. To get this to work behind a ChatCompletion API, you still have to do the parsing from ‘functions’ keyword arg (containing the schema) to the model's expected schema style in the prompt (YAML for Airoboros), and you have to run some code to extract the function call (JSON for Airoboros) and package it cleanly as a ‘function_call’ field in the response.
+1. When an open LLM says it supports function calling, they probably mean that the model was finetuned on some function call data. Remember, transformers are just string-in-string-out, so there are many ways to format this function call data. Airoboros formats the function schema in YAML style (see https://huggingface.co/jondurbin/airoboros-l2-70b-3.1.2#agentfunction-calling) and the output is in JSON style. To get this to work behind a ChatCompletion API, you still have to do the parsing from ‘functions’ keyword arg (containing the schema) to the model's expected schema style in the prompt (YAML for Airoboros), and you have to run some code to extract the function call (JSON for Airoboros) and package it cleanly as a ‘function_call’ field in the response.
 
-(2) Partly because of how complex it is to support function calling, most (all?) of the community projects that do OpenAI ChatCompletion endpoints for arbitrary open LLMs do not support function calling, because if they did, they would need to write model-specific parsing code for each one.
+2. Partly because of how complex it is to support function calling, most (all?) of the community projects that do OpenAI ChatCompletion endpoints for arbitrary open LLMs do not support function calling, because if they did, they would need to write model-specific parsing code for each one.
 
 ## How can you run MemGPT with open LLMs that support function calling?
 
