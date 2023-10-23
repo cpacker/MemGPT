@@ -5,8 +5,8 @@ from .settings import SIMPLE
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
-WEBUI_API_SUFFIX = "/v1/generate"
-DEBUG = True
+WEBUI_API_SUFFIX = "/api/v1/generate"
+DEBUG = False
 
 
 def get_webui_completion(prompt, settings=SIMPLE):
@@ -25,7 +25,7 @@ def get_webui_completion(prompt, settings=SIMPLE):
             if DEBUG:
                 print(f"json API response.text: {result}")
         else:
-            raise Exception(f"API call got non-200 response code")
+            raise Exception(f"API call got non-200 response code for address: {URI}")
     except:
         # TODO handle gracefully
         raise
