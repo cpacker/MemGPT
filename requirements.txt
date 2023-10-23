@@ -9,6 +9,7 @@ pybars3
 pymupdf
 python-dotenv
 pytz
+questionary
 rich
 tiktoken
 timezonefinder
