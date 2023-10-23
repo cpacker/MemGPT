@@ -60,6 +60,30 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
 ```
 See full file [here](llm_chat_completion_wrappers/airoboros.py).
 
+Example running the code (airoboros is able to properly call `send_message`:
+```sh
+# running airoboros behind a textgen webui server
+export OPENAI_API_BASE = <pointing at webui server>
+export BACKEND_TYPE = webui
+
+# using --no_verify because this airoboros example does not output inner monologue, just functions
+$ python3 main.py --no_verify
+
+Running... [exit by typing '/exit']
+💭 Bootup sequence complete. Persona activated. Testing messaging functionality.
+
+💭 None
+🤖 Welcome! My name is Sam. How can I assist you today?
+Enter your message: My name is Brad, not Chad...
+
+💭 None
+⚡🧠 [function] updating memory with core_memory_replace:
+         First name: Chad
+        → First name: Brad
+```
+
+WebUI exposes a lot of parameters that can dramatically change LLM outputs, to change these you can modify the [WebUI settings file](/memgpt/local_llm/webui/settings.py).
+
 ---
 
 ## Status of ChatCompletion w/ function calling and open LLMs
