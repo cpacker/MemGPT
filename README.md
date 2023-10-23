@@ -307,6 +307,6 @@ Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded
 - [x] Integration tests
 - [x] Integrate with AutoGen ([discussion](https://github.com/cpacker/MemGPT/discussions/65))
 - [x] Add official gpt-3.5-turbo support ([discussion](https://github.com/cpacker/MemGPT/discussions/66))
+- [x] CLI UI improvements ([issue](https://github.com/cpacker/MemGPT/issues/11))
+- [x] Add support for other LLM backends ([issue](https://github.com/cpacker/MemGPT/issues/18), [discussion](https://github.com/cpacker/MemGPT/discussions/67))
 - [ ] Release MemGPT family of open models (eg finetuned Mistral) ([discussion](https://github.com/cpacker/MemGPT/discussions/67))
-- [ ] CLI UI improvements ([issue](https://github.com/cpacker/MemGPT/issues/11))
-- [ ] Add support for other LLM backends ([issue](https://github.com/cpacker/MemGPT/issues/18))
