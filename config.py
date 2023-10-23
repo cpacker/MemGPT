@@ -66,7 +66,8 @@ class Config:
                 f"Would you like to recompute embeddings? Do this if your files have changed.\nFiles:{self.archival_storage_files}",
                 default=False,
             )
-        await self.configure_archival_storage(recompute_embeddings)
+        if self.archival_storage_files:
+            await self.configure_archival_storage(recompute_embeddings)
         return self
 
     @classmethod
@@ -120,7 +121,7 @@ class Config:
         print(self.memgpt_persona)
 
         self.human_persona = await questionary.select(
-            "Which persona would you like to use?",
+            "Which user would you like to use?",
             Config.get_user_personas(),
         ).ask_async()
 
@@ -223,14 +224,40 @@ class Config:
         if dir_path is None:
             dir_path = Config.personas_dir
         all_personas = Config.get_personas(dir_path)
-        return Config.get_persona_choices([p for p in all_personas], get_persona_text)
+        default_personas = [
+            "sam",
+            "sam_pov",
+            "memgpt_starter",
+            "memgpt_doc",
+            "sam_simple_pov_gpt35",
+        ]
+        custom_personas = list(set(all_personas) - set(default_personas))
+        return Config.get_persona_choices(
+            [p for p in custom_personas + default_personas], get_persona_text
+        ) + [
+            questionary.Separator(),
+            questionary.Choice(
+                f"📝 You can create your own personas by adding .txt files to {dir_path}.",
+                disabled=True,
+            ),
+        ]
 
     @staticmethod
     def get_user_personas(dir_path=None):
         if dir_path is None:
             dir_path = Config.humans_dir
         all_personas = Config.get_personas(dir_path)
-        return Config.get_persona_choices([p for p in all_personas], get_human_text)
+        default_personas = ["basic", "cs_phd"]
+        custom_personas = list(set(all_personas) - set(default_personas))
+        return Config.get_persona_choices(
+            [p for p in custom_personas + default_personas], get_human_text
+        ) + [
+            questionary.Separator(),
+            questionary.Choice(
+                f"📝 You can create your own human profiles by adding .txt files to {dir_path}.",
+                disabled=True,
+            ),
+        ]
 
     @staticmethod
     def get_personas(dir_path) -> List[str]:
