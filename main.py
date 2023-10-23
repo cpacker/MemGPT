@@ -235,7 +235,11 @@ async def main():
     else:
         cfg = await Config.config_init()
 
-    print("Running... [exit by typing '/exit']")
+    interface.important_message("Running... [exit by typing '/exit']")
+    if cfg.model != constants.DEFAULT_MEMGPT_MODEL:
+        interface.warning_message(
+            f"⛔️ Warning - you are running MemGPT with {cfg.model}, which is not officially supported (yet). Expect bugs!"
+        )
 
     # Azure OpenAI support
     if FLAGS.use_azure_openai:
@@ -268,11 +272,6 @@ async def main():
                 f"Error: AZURE_OPENAI_DEPLOYMENT should not be set if --use_azure_openai is False"
             )
             return
-
-    if cfg.model != constants.DEFAULT_MEMGPT_MODEL:
-        interface.important_message(
-            f"Warning - you are running MemGPT with {cfg.model}, which is not officially supported (yet). Expect bugs!"
-        )
 
     if cfg.archival_storage_index:
         persistence_manager = InMemoryStateManagerWithFaiss(
