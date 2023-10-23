@@ -25,9 +25,10 @@ model_choices = [
 
 
 class Config:
-    personas_dir = os.path.join("memgpt", "personas", "examples")
-    humans_dir = os.path.join("memgpt", "humans", "examples")
-    configs_dir = "configs"
+    base_dir = os.path.expanduser("~/.memgpt")
+    personas_dir = os.path.join("memgpt", "personas", "examples") # TODO: move to .memgpt
+    humans_dir = os.path.join("memgpt", "humans", "examples") # TODO: move to .memgpt
+    configs_dir = os.path.join(base_dir, "configs")
 
     def __init__(self):
         self.load_type = None
