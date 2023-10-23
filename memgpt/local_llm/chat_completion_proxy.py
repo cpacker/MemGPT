@@ -13,8 +13,8 @@ import requests
 from .webui_settings import DETERMINISTIC, SIMPLE
 from .llm_chat_completion_wrappers import airoboros
 
-HOST = os.getenv('OPENAI_API_BASE')
-HOST_TYPE = os.getenv('BACKEND_TYPE')  # default None == ChatCompletion
+HOST = os.getenv("OPENAI_API_BASE")
+HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
 
 
 class DotDict(dict):
@@ -28,36 +28,35 @@ class DotDict(dict):
 
 
 async def get_chat_completion(
-        model,  # no model, since the model is fixed to whatever you set in your own backend
-        messages,
-        functions,
-        function_call="auto",
-    ):
+    model,  # no model, since the model is fixed to whatever you set in your own backend
+    messages,
+    functions,
+    function_call="auto",
+):
     if function_call != "auto":
         raise ValueError(f"function_call == {function_call} not supported (auto only)")
 
-    if True or model == 'airoboros_v2.1':
+    if True or model == "airoboros_v2.1":
         llm_wrapper = airoboros.Airoboros21Wrapper()
 
     # First step: turn the message sequence into a prompt that the model expects
     prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
     # print(prompt)
 
-    if HOST_TYPE != 'webui':
+    if HOST_TYPE != "webui":
         raise ValueError(HOST_TYPE)
 
     request = SIMPLE
-    request['prompt'] = prompt
+    request["prompt"] = prompt
 
     try:
-
-        URI = f'{HOST}/v1/generate'
+        URI = f"{HOST}/v1/generate"
         response = requests.post(URI, json=request)
         if response.status_code == 200:
             # result = response.json()['results'][0]['history']
             result = response.json()
             # print(f"raw API response: {result}")
-            result = result['results'][0]['text']
+            result = result["results"][0]["text"]
             print(f"json API response.text: {result}")
         else:
             raise Exception(f"API call got non-200 response code")
@@ -68,19 +67,27 @@ async def get_chat_completion(
         # print(cleaned_result)
 
         # unpack with response.choices[0].message.content
-        response = DotDict({
-            'model': None,
-            'choices': [DotDict({
-                'message': DotDict(chat_completion_result),
-                'finish_reason': 'stop',  # TODO vary based on webui response
-            })],
-            'usage': DotDict({
-                # TODO fix
-                'prompt_tokens': 0,
-                'completion_tokens': 0,
-                'total_tokens': 0,
-            })
-        })
+        response = DotDict(
+            {
+                "model": None,
+                "choices": [
+                    DotDict(
+                        {
+                            "message": DotDict(chat_completion_result),
+                            "finish_reason": "stop",  # TODO vary based on webui response
+                        }
+                    )
+                ],
+                "usage": DotDict(
+                    {
+                        # TODO fix
+                        "prompt_tokens": 0,
+                        "completion_tokens": 0,
+                        "total_tokens": 0,
+                    }
+                ),
+            }
+        )
         return response
 
     except Exception as e:

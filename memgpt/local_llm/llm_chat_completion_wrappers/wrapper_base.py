@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 
 
 class LLMChatCompletionWrapper(ABC):
-
     @abstractmethod
     def chat_completion_to_prompt(self, messages, functions):
         """Go from ChatCompletion to a single prompt string"""
