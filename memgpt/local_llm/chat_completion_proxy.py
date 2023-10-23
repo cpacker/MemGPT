@@ -45,6 +45,9 @@ async def get_chat_completion(
     except requests.exceptions.ConnectionError as e:
         raise ValueError(f"Was unable to connect to host {HOST}")
 
+    if result is None or result == "":
+        raise Exception(f"Got back an empty response string from {HOST}")
+
     chat_completion_result = llm_wrapper.output_to_chat_completion_response(result)
     if DEBUG:
         print(json.dumps(chat_completion_result, indent=2))
