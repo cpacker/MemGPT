@@ -17,7 +17,7 @@ def get_webui_completion(prompt, settings=SIMPLE):
     request["prompt"] = prompt
 
     try:
-        URI = f"{HOST}{WEBUI_API_SUFFIX}"
+        URI = f"{HOST.strip('/')}{WEBUI_API_SUFFIX}"
         response = requests.post(URI, json=request)
         if response.status_code == 200:
             result = response.json()
