@@ -80,7 +80,7 @@ class MemGPTAgent(ConversableAgent):
     def pretty_concat(messages):
         """AutoGen expects a single response, but MemGPT may take many steps.
         
-        To accomadate AutoGen, concatenate all of MemGPT's steps into one and return as a single message.
+        To accommodate AutoGen, concatenate all of MemGPT's steps into one and return as a single message.
         """
         ret = {
             'role': 'assistant',
