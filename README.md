@@ -75,13 +75,6 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-Extra step for Windows:
-
-```sh
-# only needed on Windows
-pip install pyreadline3
-```
-
 Add your OpenAI API key to your environment:
 
 ```sh
