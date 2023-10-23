@@ -12,12 +12,16 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
     def __init__(
         self,
         simplify_json_content=True,
-        include_assistant_prefix=True,
         clean_function_args=True,
+        include_assistant_prefix=True,
+        include_opening_brace_in_prefix=True,
+        include_section_separators=True,
     ):
         self.simplify_json_content = simplify_json_content
-        self.include_assistant_prefix = include_assistant_prefix
         self.clean_func_args = clean_function_args
+        self.include_assistant_prefix = include_assistant_prefix
+        self.include_opening_brance_in_prefix = include_opening_brace_in_prefix
+        self.include_section_separators = include_section_separators
 
     def chat_completion_to_prompt(self, messages, functions):
         """Example for airoboros: https://huggingface.co/jondurbin/airoboros-l2-70b-2.1#prompt-format
@@ -77,10 +81,40 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
             # TODO we're ignoring schema['parameters']['required']
             return func_str
 
-        prompt += f"\nPlease select the most suitable function and parameters from the list of available functions below, based on the user's input. Provide your response in JSON format."
+        # prompt += f"\nPlease select the most suitable function and parameters from the list of available functions below, based on the user's input. Provide your response in JSON format."
+        prompt += f"\nPlease select the most suitable function and parameters from the list of available functions below, based on the ongoing conversation. Provide your response in JSON format."
         prompt += f"\nAvailable functions:"
         for function_dict in functions:
             prompt += f"\n{create_function_description(function_dict)}"
+
+        def create_function_call(function_call):
+            """Go from ChatCompletion to Airoboros style function trace (in prompt)
+
+            ChatCompletion data (inside message['function_call']):
+                "function_call": {
+                    "name": ...
+                    "arguments": {
+                        "arg1": val1,
+                        ...
+                    }
+
+            Airoboros output:
+                {
+                  "function": "send_message",
+                  "params": {
+                    "message": "Hello there! I am Sam, an AI developed by Liminal Corp. How can I assist you today?"
+                  }
+                }
+            """
+            airo_func_call = {
+                "function": function_call["name"],
+                "params": json.loads(function_call["arguments"]),
+            }
+            return json.dumps(airo_func_call, indent=2)
+
+        # Add a sep for the conversation
+        if self.include_section_separators:
+            prompt += "\n### INPUT"
 
         # Last are the user/assistant messages
         for message in messages[1:]:
@@ -96,16 +130,25 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
                         prompt += f"\nUSER: {message['content']}"
             elif message["role"] == "assistant":
                 prompt += f"\nASSISTANT: {message['content']}"
+                # need to add the function call if there was one
+                if message["function_call"]:
+                    prompt += f"\n{create_function_call(message['function_call'])}"
             elif message["role"] == "function":
-                # TODO
-                continue
+                # TODO find a good way to add this
                 # prompt += f"\nASSISTANT: (function return) {message['content']}"
+                prompt += f"\nFUNCTION RETURN: {message['content']}"
+                continue
             else:
                 raise ValueError(message)
 
+        # Add a sep for the response
+        if self.include_section_separators:
+            prompt += "\n### RESPONSE"
+
         if self.include_assistant_prefix:
-            # prompt += f"\nPlease select the most suitable function and parameters from the list of available functions below, based on the user's input. Provide your response in JSON format."
             prompt += f"\nASSISTANT:"
+            if self.include_opening_brance_in_prefix:
+                prompt += "\n{"
 
         return prompt
 
@@ -135,7 +178,13 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
             }
         }
         """
-        function_json_output = json.loads(raw_llm_output)
+        if self.include_opening_brance_in_prefix and raw_llm_output[0] != "{":
+            raw_llm_output = "{" + raw_llm_output
+
+        try:
+            function_json_output = json.loads(raw_llm_output)
+        except Exception as e:
+            raise Exception(f"Failed to decode JSON from LLM output:\n{raw_llm_output}")
         function_name = function_json_output["function"]
         function_parameters = function_json_output["params"]
 
