@@ -1,6 +1,9 @@
 [tool.poetry]
-name = "memgpt"
+name = "pymemgpt"
 version = "0.1.0"
+packages = [
+    {include = "memgpt"}
+]
 description = "Teaching LLMs memory management for unbounded context"
 authors = [
     "Charles Packer <contact@charlespacker.com>",
