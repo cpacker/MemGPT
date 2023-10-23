@@ -110,11 +110,22 @@ To create a new starter user or starter persona (that MemGPT gets initialized wi
 
 ```sh
 # assuming you created a new file /memgpt/humans/examples/me.txt
+python main.py
+# Select me.txt during configuration process
+```
+-- OR --
+```sh
+# assuming you created a new file /memgpt/humans/examples/me.txt
 python main.py --human me.txt
 ```
 
 ### GPT-3.5 support
 You can run MemGPT with GPT-3.5 as the LLM instead of GPT-4:
+```sh
+python main.py
+# Select gpt-3.5 during configuration process
+```
+-- OR --
 ```sh
 python main.py --model gpt-3.5-turbo
 ```
@@ -124,6 +135,15 @@ python main.py --model gpt-3.5-turbo
 Please report any bugs you encounter regarding MemGPT running on GPT-3.5 to  https://github.com/cpacker/MemGPT/issues/59.
 
 ### `main.py` flags
+```text
+--first
+  allows you to send the first message in the chat (by default, MemGPT will send the first message)
+--debug
+  enables debugging output
+```
+
+<details>
+<summary>Configure via legacy flags</summary>
 
 ```text
 --model
@@ -132,10 +152,6 @@ Please report any bugs you encounter regarding MemGPT running on GPT-3.5 to  htt
   load a specific persona file
 --human
   load a specific human file
---first
-  allows you to send the first message in the chat (by default, MemGPT will send the first message)
---debug
-  enables debugging output
 --archival_storage_faiss_path=<ARCHIVAL_STORAGE_FAISS_PATH>
   load in document database (backed by FAISS index)
 --archival_storage_files="<ARCHIVAL_STORAGE_FILES_GLOB_PATTERN>"
@@ -145,6 +161,8 @@ Please report any bugs you encounter regarding MemGPT running on GPT-3.5 to  htt
 --archival_storage_sqldb=<SQLDB_PATH>
   load in SQL database
 ```
+</details>
+
 
 ### Interactive CLI commands
 
@@ -153,8 +171,6 @@ These are the commands for the CLI, **not the Discord bot**! The Discord bot has
 While using MemGPT via the CLI (not Discord!) you can run various commands:
 
 ```text
-//
-  enter multiline input mode (type // again when done)
 /exit
   exit the CLI
 /save
