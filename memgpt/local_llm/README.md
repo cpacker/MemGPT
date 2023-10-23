@@ -9,6 +9,8 @@ export OPENAI_API_BASE=...
 
 Note: for this to work, the endpoint MUST support function calls. As of 10/22/2023, most ChatCompletion endpoints do NOT support function calls, so if you want to play with MemGPT and open models, follow the instructions below.
 
+## Integrating a function-call finetuned LLM with MemGPT
+
 **If you have a hosted local model that is function-call finetuned**:
   - implement a wrapper class for that model
     - the wrapper class needs to implement two functions:
@@ -16,7 +18,49 @@ Note: for this to work, the endpoint MUST support function calls. As of 10/22/20
       - and one to go from raw LLM outputs to a ChatCompletion response
   - put that model behind a server (e.g. using WebUI) and set `OPENAI_API_BASE`
 
+```python
+class LLMChatCompletionWrapper(ABC):
+
+    @abstractmethod
+    def chat_completion_to_prompt(self, messages, functions):
+        """Go from ChatCompletion to a single prompt string"""
+        pass
+
+    @abstractmethod
+    def output_to_chat_completion_response(self, raw_llm_output):
+        """Turn the LLM output string into a ChatCompletion response"""
+        pass
+```
+
 To help you get started, we've implemented an example wrapper class for a popular llama2 model finetuned on function calling (airoboros). We want MemGPT to run well on open models as much as you do, so we'll be actively updating this page with more examples. Additionally, we welcome contributions from the community! If you find an open LLM that works well with MemGPT, please open a PR with a model wrapper and we'll merge it ASAP.
+
+```python
+class Airoboros21Wrapper(LLMChatCompletionWrapper):
+    """Wrapper for Airoboros 70b v2.1: https://huggingface.co/jondurbin/airoboros-l2-70b-2.1"""
+
+    def chat_completion_to_prompt(self, messages, functions):
+        """
+        Examples for how airoboros expects its prompt inputs: https://huggingface.co/jondurbin/airoboros-l2-70b-2.1#prompt-format
+        Examples for how airoboros expects to see function schemas: https://huggingface.co/jondurbin/airoboros-l2-70b-2.1#agentfunction-calling
+        """
+
+    def output_to_chat_completion_response(self, raw_llm_output):
+        """Turn raw LLM output into a ChatCompletion style response with:
+        "message" = {
+            "role": "assistant",
+            "content": ...,
+            "function_call": {
+                "name": ...
+                "arguments": {
+                    "arg1": val1,
+                    ...
+                }
+            }
+        }
+        """
+```
+
+---
 
 ## Status of ChatCompletion w/ function calling and open LLMs
 
