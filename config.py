@@ -259,6 +259,7 @@ class Config:
     def get_most_recent_config(configs_dir=None):
         if configs_dir is None:
             configs_dir = Config.configs_dir
+        os.makedirs(configs_dir, exist_ok=True)
         files = [
             os.path.join(configs_dir, f)
             for f in os.listdir(configs_dir)
