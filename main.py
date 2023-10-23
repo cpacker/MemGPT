@@ -5,7 +5,8 @@ import glob
 import os
 import sys
 import pickle
-import readline
+
+import questionary
 
 from rich.console import Console
 
@@ -24,6 +25,8 @@ from memgpt.persistence_manager import (
     InMemoryStateManagerWithPreloadedArchivalMemory,
     InMemoryStateManagerWithFaiss,
 )
+
+from config import Config
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string("persona", default=None, required=False, help="Specify persona")
@@ -87,7 +90,7 @@ def clear_line():
         sys.stdout.flush()
 
 
-def save(memgpt_agent):
+def save(memgpt_agent, cfg):
     filename = utils.get_local_time().replace(" ", "_").replace(":", "_")
     filename = f"{filename}.json"
     filename = os.path.join("saved_state", filename)
@@ -96,6 +99,7 @@ def save(memgpt_agent):
             os.makedirs("saved_state")
         memgpt_agent.save_to_json_file(filename)
         print(f"Saved checkpoint to: {filename}")
+        cfg.agent_save_file = filename
     except Exception as e:
         print(f"Saving state to {filename} failed with: {e}")
 
@@ -104,8 +108,10 @@ def save(memgpt_agent):
     try:
         memgpt_agent.persistence_manager.save(filename)
         print(f"Saved persistence manager to: {filename}")
+        cfg.persistence_manager_save_file = filename
     except Exception as e:
         print(f"Saving persistence manager to {filename} failed with: {e}")
+    cfg.write_config()
 
 
 def load(memgpt_agent, filename):
@@ -156,6 +162,79 @@ async def main():
     logging.getLogger().setLevel(logging.CRITICAL)
     if FLAGS.debug:
         logging.getLogger().setLevel(logging.DEBUG)
+
+    if any(
+        (
+            FLAGS.persona,
+            FLAGS.human,
+            FLAGS.model != constants.DEFAULT_MEMGPT_MODEL,
+            FLAGS.archival_storage_faiss_path,
+            FLAGS.archival_storage_files,
+            FLAGS.archival_storage_files_compute_embeddings,
+            FLAGS.archival_storage_sqldb,
+        )
+    ):
+        interface.important_message("⚙️ Using legacy command line arguments.")
+        model = FLAGS.model
+        if model is None:
+            model = constants.DEFAULT_MEMGPT_MODEL
+        memgpt_persona = FLAGS.persona
+        if memgpt_persona is None:
+            memgpt_persona = (
+                personas.GPT35_DEFAULT if "gpt-3.5" in model else personas.DEFAULT
+            )
+        human_persona = FLAGS.human
+        if human_persona is None:
+            human_persona = humans.DEFAULT
+
+        if FLAGS.archival_storage_files:
+            cfg = await Config.legacy_flags_init(
+                model,
+                memgpt_persona,
+                human_persona,
+                load_type="folder",
+                archival_storage_files=FLAGS.archival_storage_files,
+                compute_embeddings=False,
+            )
+        elif FLAGS.archival_storage_faiss_path:
+            cfg = await Config.legacy_flags_init(
+                model,
+                memgpt_persona,
+                human_persona,
+                load_type="folder",
+                archival_storage_index=FLAGS.archival_storage_index,
+                compute_embeddings=False,
+            )
+        elif FLAGS.archival_storage_files_compute_embeddings:
+            print(model)
+            print(memgpt_persona)
+            print(human_persona)
+            cfg = await Config.legacy_flags_init(
+                model,
+                memgpt_persona,
+                human_persona,
+                load_type="folder",
+                archival_storage_files=FLAGS.archival_storage_files_compute_embeddings,
+                compute_embeddings=True,
+            )
+        elif FLAGS.archival_storage_sqldb:
+            cfg = await Config.legacy_flags_init(
+                model,
+                memgpt_persona,
+                human_persona,
+                load_type="sql",
+                archival_storage_files=FLAGS.archival_storage_sqldb,
+                compute_embeddings=False,
+            )
+        else:
+            cfg = await Config.legacy_flags_init(
+                model,
+                memgpt_persona,
+                human_persona,
+            )
+    else:
+        cfg = await Config.config_init()
+
     print("Running... [exit by typing '/exit']")
 
     # Azure OpenAI support
@@ -190,49 +269,35 @@ async def main():
             )
             return
 
-    if FLAGS.model != constants.DEFAULT_MEMGPT_MODEL:
+    if cfg.model != constants.DEFAULT_MEMGPT_MODEL:
         interface.important_message(
-            f"Warning - you are running MemGPT with {FLAGS.model}, which is not officially supported (yet). Expect bugs!"
+            f"Warning - you are running MemGPT with {cfg.model}, which is not officially supported (yet). Expect bugs!"
         )
 
-    if FLAGS.archival_storage_faiss_path:
-        index, archival_database = utils.prepare_archival_index(
-            FLAGS.archival_storage_faiss_path
+    if cfg.archival_storage_index:
+        persistence_manager = InMemoryStateManagerWithFaiss(
+            cfg.index, cfg.archival_database
         )
-        persistence_manager = InMemoryStateManagerWithFaiss(index, archival_database)
-    elif FLAGS.archival_storage_files:
-        archival_database = utils.prepare_archival_index_from_files(
-            FLAGS.archival_storage_files
-        )
-        print(f"Preloaded {len(archival_database)} chunks into archival memory.")
+    elif cfg.archival_storage_files:
+        print(f"Preloaded {len(cfg.archival_database)} chunks into archival memory.")
         persistence_manager = InMemoryStateManagerWithPreloadedArchivalMemory(
-            archival_database
+            cfg.archival_database
         )
-    elif FLAGS.archival_storage_files_compute_embeddings:
-        faiss_save_dir = (
-            await utils.prepare_archival_index_from_files_compute_embeddings(
-                FLAGS.archival_storage_files_compute_embeddings
-            )
-        )
-        interface.important_message(
-            f"To avoid computing embeddings next time, replace --archival_storage_files_compute_embeddings={FLAGS.archival_storage_files_compute_embeddings} with\n\t --archival_storage_faiss_path={faiss_save_dir} (if your files haven't changed)."
-        )
-        index, archival_database = utils.prepare_archival_index(faiss_save_dir)
-        persistence_manager = InMemoryStateManagerWithFaiss(index, archival_database)
     else:
         persistence_manager = InMemoryStateManager()
 
+    if FLAGS.archival_storage_files_compute_embeddings:
+        interface.important_message(
+            f"(legacy) To avoid computing embeddings next time, replace --archival_storage_files_compute_embeddings={FLAGS.archival_storage_files_compute_embeddings} with\n\t --archival_storage_faiss_path={cfg.archival_storage_index} (if your files haven't changed)."
+        )
+
     # Moved defaults out of FLAGS so that we can dynamically select the default persona based on model
-    chosen_human = FLAGS.human if FLAGS.human is not None else humans.DEFAULT
-    chosen_persona = (
-        FLAGS.persona
-        if FLAGS.persona is not None
-        else (personas.GPT35_DEFAULT if "gpt-3.5" in FLAGS.model else personas.DEFAULT)
-    )
+    chosen_human = cfg.human_persona
+    chosen_persona = cfg.memgpt_persona
 
     memgpt_agent = presets.use_preset(
         presets.DEFAULT,
-        FLAGS.model,
+        cfg.model,
         personas.get_persona_text(chosen_persona),
         humans.get_human_text(chosen_human),
         interface,
@@ -247,18 +312,25 @@ async def main():
     user_message = None
     USER_GOES_FIRST = FLAGS.first
 
-    if FLAGS.archival_storage_sqldb:
-        if not os.path.exists(FLAGS.archival_storage_sqldb):
-            print(f"File {FLAGS.archival_storage_sqldb} does not exist")
+    if cfg.load_type == "sql":  # TODO: move this into config.py in a clean manner
+        if not os.path.exists(cfg.archival_storage_files):
+            print(f"File {cfg.archival_storage_files} does not exist")
             return
         # Ingest data from file into archival storage
         else:
             print(f"Database found! Loading database into archival memory")
-            data_list = utils.read_database_as_list(FLAGS.archival_storage_sqldb)
+            data_list = utils.read_database_as_list(cfg.archival_storage_files)
             user_message = f"Your archival memory has been loaded with a SQL database called {data_list[0]}, which contains schema {data_list[1]}. Remember to refer to this first while answering any user questions!"
             for row in data_list:
                 await memgpt_agent.persistence_manager.archival_memory.insert(row)
             print(f"Database loaded into archival memory.")
+
+    if cfg.agent_save_file:
+        load_save_file = await questionary.confirm(
+            f"Load in saved agent '{cfg.agent_save_file}'?"
+        ).ask_async()
+        if load_save_file:
+            load(memgpt_agent, cfg.agent_save_file)
 
     # auto-exit for
     if "GITHUB_ACTIONS" in os.environ:
@@ -274,7 +346,12 @@ async def main():
     while True:
         if not skip_next_user_input and (counter > 0 or USER_GOES_FIRST):
             # Ask for user input
-            user_input = console.input("[bold cyan]Enter your message:[/bold cyan] ")
+            # user_input = console.input("[bold cyan]Enter your message:[/bold cyan] ")
+            user_input = await questionary.text(
+                "Enter your message:",
+                multiline=True,
+                qmark=">",
+            ).ask_async()
             clear_line()
 
             if user_input.startswith("!"):
@@ -289,25 +366,9 @@ async def main():
             # Handle CLI commands
             # Commands to not get passed as input to MemGPT
             if user_input.startswith("/"):
-                if user_input == "//":
-                    print("Entering multiline mode, type // when done")
-                    user_input_list = []
-                    while True:
-                        user_input = console.input("[bold cyan]>[/bold cyan] ")
-                        clear_line()
-                        if user_input == "//":
-                            break
-                        else:
-                            user_input_list.append(user_input)
-
-                    # pass multiline inputs to MemGPT
-                    user_message = system.package_user_message(
-                        "\n".join(user_input_list)
-                    )
-
-                elif user_input.lower() == "/exit":
+                if user_input.lower() == "/exit":
                     # autosave
-                    save(memgpt_agent=memgpt_agent)
+                    save(memgpt_agent=memgpt_agent, cfg=cfg)
                     break
 
                 elif user_input.lower() == "/savechat":
@@ -326,7 +387,7 @@ async def main():
                     continue
 
                 elif user_input.lower() == "/save":
-                    save(memgpt_agent=memgpt_agent)
+                    save(memgpt_agent=memgpt_agent, cfg=cfg)
                     continue
 
                 elif user_input.lower() == "/load" or user_input.lower().startswith(
