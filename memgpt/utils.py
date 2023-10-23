@@ -15,6 +15,7 @@ import sqlite3
 import fitz
 from tqdm import tqdm
 from memgpt.openai_tools import async_get_embedding_with_backoff
+from memgpt.configs import memgpt_dir
 
 def count_tokens(s: str, model: str = "gpt-4") -> int:
     encoding = tiktoken.encoding_for_model(model)
@@ -222,7 +223,7 @@ async def process_concurrently(archival_database, model, concurrency=10):
 
 async def prepare_archival_index_from_files_compute_embeddings(glob_pattern, tkns_per_chunk=300, model='gpt-4', embeddings_model='text-embedding-ada-002'):
     files = sorted(glob.glob(glob_pattern))
-    save_dir = "archival_index_from_files_" + get_local_time().replace(' ', '_').replace(':', '_')
+    save_dir = os.path.join(memgpt_dir, "archival_index_from_files_" + get_local_time().replace(' ', '_').replace(':', '_'))
     os.makedirs(save_dir, exist_ok=True)
     total_tokens = total_bytes(glob_pattern) / 3
     price_estimate = total_tokens / 1000 * .0001

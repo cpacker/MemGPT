@@ -26,7 +26,7 @@ from memgpt.persistence_manager import (
     InMemoryStateManagerWithFaiss,
 )
 
-from memgpt.config import Config
+from memgpt.config import Config, memgpt_dir
 import asyncio
  
 app = typer.Typer()
@@ -42,10 +42,11 @@ def clear_line():
 def save(memgpt_agent, cfg):
     filename = utils.get_local_time().replace(" ", "_").replace(":", "_")
     filename = f"{filename}.json"
-    filename = os.path.join("saved_state", filename)
+    directory = os.path.join(memgpt_dir, "saved_state")
+    filename = os.path.join(directory, filename)
     try:
-        if not os.path.exists("saved_state"):
-            os.makedirs("saved_state")
+        if not os.path.exists(directory):
+            os.makedirs(directory)
         memgpt_agent.save_to_json_file(filename)
         print(f"Saved checkpoint to: {filename}")
         cfg.agent_save_file = filename
@@ -370,10 +371,11 @@ async def main(
                         utils.get_local_time().replace(" ", "_").replace(":", "_")
                     )
                     filename = f"{filename}.pkl"
+                    directory = os.path.join(memgpt_dir, "saved_chats")
                     try:
-                        if not os.path.exists("saved_chats"):
-                            os.makedirs("saved_chats")
-                        with open(os.path.join("saved_chats", filename), "wb") as f:
+                        if not os.path.exists(directory):
+                            os.makedirs(directory)
+                        with open(os.path.join(directory, filename), "wb") as f:
                             pickle.dump(memgpt_agent.messages, f)
                             print(f"Saved messages to: {filename}")
                     except Exception as e:
