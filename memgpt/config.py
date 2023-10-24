@@ -247,7 +247,8 @@ class Config:
             + Config.get_persona_choices(
                 [p for p in custom_personas_in_examples + default_personas],
                 get_persona_text,
-                Config.personas_dir,
+                None,
+                # Config.personas_dir,
             )
             + [
                 questionary.Separator(),
@@ -274,7 +275,8 @@ class Config:
             + Config.get_persona_choices(
                 [p for p in custom_personas_in_examples + default_personas],
                 get_human_text,
-                Config.humans_dir,
+                None,
+                # Config.humans_dir,
             )
             + [
                 questionary.Separator(),
