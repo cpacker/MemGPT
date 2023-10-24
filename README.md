@@ -112,7 +112,7 @@ python -m memgpt
 <details>
 <summary><strong>Building from source</strong></summary>
 
-Clone this repo: `git clone `
+Clone this repo: `git clone https://github.com/cpacker/MemGPT.git`
 
 Using poetry:
 1. Install poetry: `pip install poetry`
