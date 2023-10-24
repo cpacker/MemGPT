@@ -28,8 +28,9 @@ from memgpt.persistence_manager import (
 
 from memgpt.config import Config, memgpt_dir
 import asyncio
- 
+
 app = typer.Typer()
+
 
 def clear_line():
     if os.name == "nt":  # for windows
@@ -106,21 +107,43 @@ def load(memgpt_agent, filename):
             f"/load warning: loading persistence manager from {filename} failed with: {e}"
         )
 
+
 @app.command()
 def run(
     persona: str = typer.Option(None, help="Specify persona"),
     human: str = typer.Option(None, help="Specify human"),
-    model: str = typer.Option(constants.DEFAULT_MEMGPT_MODEL, help="Specify the LLM model"),
-    first: bool = typer.Option(False, "--first",  help="Use --first to send the first message in the sequence"),
-    debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
-    no_verify: bool = typer.Option(False, "--no-verify", help="Bypass message verification"),
-    archival_storage_faiss_path: str = typer.Option("", help="Specify archival storage with FAISS index to load (a folder with a .index and .json describing documents to be loaded)"),
-    archival_storage_files: str = typer.Option("", help="Specify files to pre-load into archival memory (glob pattern)"),
-    archival_storage_files_compute_embeddings: str = typer.Option("", help="Specify files to pre-load into archival memory (glob pattern), and compute embeddings over them"),
-    archival_storage_sqldb: str = typer.Option("", help="Specify SQL database to pre-load into archival memory"),
-    use_azure_openai: bool = typer.Option(False, "--use-azure-openai", help="Use Azure OpenAI (requires additional environment variables)") # TODO: just pass in? 
-): 
-
+    model: str = typer.Option(
+        constants.DEFAULT_MEMGPT_MODEL, help="Specify the LLM model"
+    ),
+    first: bool = typer.Option(
+        False, "--first", help="Use --first to send the first message in the sequence"
+    ),
+    debug: bool = typer.Option(
+        False, "--debug", help="Use --debug to enable debugging output"
+    ),
+    no_verify: bool = typer.Option(
+        False, "--no-verify", help="Bypass message verification"
+    ),
+    archival_storage_faiss_path: str = typer.Option(
+        "",
+        help="Specify archival storage with FAISS index to load (a folder with a .index and .json describing documents to be loaded)",
+    ),
+    archival_storage_files: str = typer.Option(
+        "", help="Specify files to pre-load into archival memory (glob pattern)"
+    ),
+    archival_storage_files_compute_embeddings: str = typer.Option(
+        "",
+        help="Specify files to pre-load into archival memory (glob pattern), and compute embeddings over them",
+    ),
+    archival_storage_sqldb: str = typer.Option(
+        "", help="Specify SQL database to pre-load into archival memory"
+    ),
+    use_azure_openai: bool = typer.Option(
+        False,
+        "--use-azure-openai",
+        help="Use Azure OpenAI (requires additional environment variables)",
+    ),  # TODO: just pass in?
+):
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
         main(
@@ -137,7 +160,6 @@ def run(
             use_azure_openai,
         )
     )
-
 
 
 async def main(
@@ -176,11 +198,27 @@ async def main(
         memgpt_persona = persona
         if memgpt_persona is None:
             memgpt_persona = (
-                personas.GPT35_DEFAULT if "gpt-3.5" in model else personas.DEFAULT
+                personas.GPT35_DEFAULT if "gpt-3.5" in model else personas.DEFAULT,
+                Config.personas_dir,
             )
+        else:
+            try:
+                personas.get_persona_text(memgpt_persona, Config.custom_personas_dir)
+                memgpt_persona = (memgpt_persona, Config.custom_personas_dir)
+            except FileNotFoundError:
+                personas.get_persona_text(memgpt_persona, Config.personas_dir)
+                memgpt_persona = (memgpt_persona, Config.personas_dir)
+
         human_persona = human
         if human_persona is None:
-            human_persona = humans.DEFAULT
+            human_persona = (humans.DEFAULT, Config.humans_dir)
+        else:
+            try:
+                humans.get_human_text(human_persona, Config.custom_humans_dir)
+                human_persona = (human_persona, Config.custom_humans_dir)
+            except FileNotFoundError:
+                humans.get_human_text(human_persona, Config.humans_dir)
+                human_persona = (human_persona, Config.humans_dir)
 
         print(persona, model, memgpt_persona)
         if archival_storage_files:
@@ -293,8 +331,8 @@ async def main(
     memgpt_agent = presets.use_preset(
         presets.DEFAULT,
         cfg.model,
-        personas.get_persona_text(chosen_persona),
-        humans.get_human_text(chosen_human),
+        personas.get_persona_text(*chosen_persona),
+        humans.get_human_text(*chosen_human),
         memgpt.interface,
         persistence_manager,
     )
@@ -486,7 +524,7 @@ async def main(
     print("Finished.")
 
 
-#if __name__ == "__main__":
+# if __name__ == "__main__":
 #
 #    app()
 #    #typer.run(run)
