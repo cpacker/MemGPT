@@ -26,11 +26,15 @@ memgpt_dir = os.path.expanduser("~/.memgpt")
 
 
 class Config:
-    personas_dir = os.path.join("memgpt", "personas", "examples") # TODO: move to .memgpt
-    humans_dir = os.path.join("memgpt", "humans", "examples") # TODO: move to .memgpt
+    personas_dir = os.path.join("memgpt", "personas", "examples")
+    custom_personas_dir = os.path.join(memgpt_dir, "personas")
+    humans_dir = os.path.join("memgpt", "humans", "examples")
+    custom_humans_dir = os.path.join(memgpt_dir, "humans")
     configs_dir = os.path.join(memgpt_dir, "configs")
 
     def __init__(self):
+        os.makedirs(Config.custom_personas_dir, exist_ok=True)
+        os.makedirs(Config.custom_humans_dir, exist_ok=True)
         self.load_type = None
         self.archival_storage_files = None
         self.compute_embeddings = False
@@ -224,9 +228,8 @@ class Config:
         )
 
     @staticmethod
-    def get_memgpt_personas(dir_path=None):
-        if dir_path is None:
-            dir_path = Config.personas_dir
+    def get_memgpt_personas():
+        dir_path = Config.personas_dir
         all_personas = Config.get_personas(dir_path)
         default_personas = [
             "sam",
@@ -235,33 +238,54 @@ class Config:
             "memgpt_doc",
             "sam_simple_pov_gpt35",
         ]
-        custom_personas = list(set(all_personas) - set(default_personas))
-        return Config.get_persona_choices(
-            [p for p in custom_personas + default_personas], get_persona_text
-        ) + [
-            questionary.Separator(),
-            questionary.Choice(
-                f"📝 You can create your own personas by adding .txt files to {dir_path}.",
-                disabled=True,
-            ),
-        ]
+        custom_personas_in_examples = list(set(all_personas) - set(default_personas))
+        custom_personas = Config.get_personas(Config.custom_personas_dir)
+        return (
+            Config.get_persona_choices(
+                [p for p in custom_personas],
+                get_persona_text,
+                Config.custom_personas_dir,
+            )
+            + Config.get_persona_choices(
+                [p for p in custom_personas_in_examples + default_personas],
+                get_persona_text,
+                Config.personas_dir,
+            )
+            + [
+                questionary.Separator(),
+                questionary.Choice(
+                    f"📝 You can create your own personas by adding .txt files to {Config.custom_personas_dir}.",
+                    disabled=True,
+                ),
+            ]
+        )
 
     @staticmethod
-    def get_user_personas(dir_path=None):
-        if dir_path is None:
-            dir_path = Config.humans_dir
+    def get_user_personas():
+        dir_path = Config.humans_dir
         all_personas = Config.get_personas(dir_path)
         default_personas = ["basic", "cs_phd"]
-        custom_personas = list(set(all_personas) - set(default_personas))
-        return Config.get_persona_choices(
-            [p for p in custom_personas + default_personas], get_human_text
-        ) + [
-            questionary.Separator(),
-            questionary.Choice(
-                f"📝 You can create your own human profiles by adding .txt files to {dir_path}.",
-                disabled=True,
-            ),
-        ]
+        custom_personas_in_examples = list(set(all_personas) - set(default_personas))
+        custom_personas = Config.get_personas(Config.custom_humans_dir)
+        return (
+            Config.get_persona_choices(
+                [p for p in custom_personas],
+                get_human_text,
+                Config.custom_humans_dir,
+            )
+            + Config.get_persona_choices(
+                [p for p in custom_personas_in_examples + default_personas],
+                get_human_text,
+                Config.humans_dir,
+            )
+            + [
+                questionary.Separator(),
+                questionary.Choice(
+                    f"📝 You can create your own human profiles by adding .txt files to {Config.custom_humans_dir}.",
+                    disabled=True,
+                ),
+            ]
+        )
 
     @staticmethod
     def get_personas(dir_path) -> List[str]:
@@ -274,14 +298,14 @@ class Config:
         return stems
 
     @staticmethod
-    def get_persona_choices(personas, text_getter):
+    def get_persona_choices(personas, text_getter, dir):
         return [
             questionary.Choice(
                 title=[
                     ("class:question", f"{p}"),
-                    ("class:text", f"\n{indent(text_getter(p))}"),
+                    ("class:text", f"\n{indent(text_getter(p, dir))}"),
                 ],
-                value=p,
+                value=(p, dir),
             )
             for p in personas
         ]
