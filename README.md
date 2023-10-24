@@ -82,21 +82,6 @@ To update the package, run
 pip install pymemgpt -U
 ```
 
-<details>
-<summary><strong>Building from source</strong></summary>
-
-Clone this repo: `git clone `
-
-Using poetry:
-1. Install poetry: `pip install poetry`
-2. Run `poetry install`
-3. Run `poetry run memgpt`
-
-Using pip:
-1. Run `pip install -r requirements.txt`
-2. Run `python3 main.py`
-</details>
-
 Add your OpenAI API key to your environment:
 
 ```sh
@@ -119,6 +104,22 @@ If you get `command not found` (Linux/MacOS), or a `CommandNotFoundException` (W
 ```sh
 python -m memgpt
 ```
+If that still doesn't work, try building from source:
+<details>
+<summary><strong>Building from source</strong></summary>
+
+Clone this repo: `git clone `
+
+Using poetry:
+1. Install poetry: `pip install poetry`
+2. Run `poetry install`
+3. Run `poetry run memgpt`
+
+Using pip:
+1. Run `pip install -r requirements.txt`
+2. Run `python3 main.py`
+</details>
+
 
 If you're using Azure OpenAI, set these variables instead:
 
@@ -133,18 +134,18 @@ export AZURE_OPENAI_DEPLOYMENT = ...
 memgpt --use_azure_openai
 ```
 
-To create a new starter user or starter persona (that MemGPT gets initialized with), create a new `.txt` file in [/memgpt/humans/examples](/memgpt/humans/examples) or [/memgpt/personas/examples](/memgpt/personas/examples), then use the `--persona` or `--human` flag when running `main.py`. For example:
-
+To create a new starter user or starter persona (that MemGPT gets initialized with), create a new `.txt` file in `~/.memgpt/humans` or `~/.memgpt/personas`, then use the `--persona` or `--human` flag when running `main.py`. For example:
 ```sh
-# assuming you created a new file /memgpt/humans/examples/me.txt
-python main.py
+# assuming you created a new file ~/.memgpt/humans/me.txt
+memgpt
 # Select me.txt during configuration process
 ```
 -- OR --
 ```sh
-# assuming you created a new file /memgpt/humans/examples/me.txt
-python main.py --human me.txt
+# assuming you created a new file ~/.memgpt/humans/me.txt
+memgpt --human me.txt
 ```
+You can also specify any of the starter users in [/memgpt/humans/examples](/memgpt/humans/examples) or any of the starter personas in [/memgpt/personas/examples](/memgpt/personas/examples).
 
 ### GPT-3.5 support
 You can run MemGPT with GPT-3.5 as the LLM instead of GPT-4:
@@ -277,7 +278,7 @@ This will generate embeddings, stick them into a FAISS index, and write the inde
 
 If you want to reuse these embeddings, run
 ```bash
-python3 main.py --archival_storage_faiss_path="<DIRECTORY_WITH_EMBEDDINGS>" --persona=memgpt_doc --human=basic
+memgpt --archival_storage_faiss_path="<DIRECTORY_WITH_EMBEDDINGS>" --persona=memgpt_doc --human=basic
 ```
 
 
@@ -309,7 +310,7 @@ MemGPT also enables you to chat with docs -- try running this example to talk to
 
 3. In the root `MemGPT` directory, run
     ```bash
-    python3 main.py --archival_storage_faiss_path=<ARCHIVAL_STORAGE_FAISS_PATH> --persona=memgpt_doc --human=basic
+    memgpt --archival_storage_faiss_path=<ARCHIVAL_STORAGE_FAISS_PATH> --persona=memgpt_doc --human=basic
     ```
     where `ARCHIVAL_STORAGE_FAISS_PATH` is the directory where `all_docs.jsonl` and `all_docs.index` are located.
    If you downloaded from Hugging Face, it will be `memgpt/personas/docqa/llamaindex-api-docs`.
