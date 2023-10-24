@@ -8,9 +8,9 @@ description = "Teaching LLMs memory management for unbounded context"
 authors = [
     "Charles Packer <contact@charlespacker.com>",
     "Vivian Fang <hi@vivi.sh>",
-    "Sarah Wooders <sarahwooders@gmail.com>"
+    "Sarah Wooders <sarahwooders@gmail.com>",
     "Shishir Patil <shishirpatil@berkeley.edu>",
-    "Kevin Lin <kevinlin@eecs.berkeley.edu>",
+    "Kevin Lin <kevinlin@eecs.berkeley.edu>"
 ]
 license = "Apache License"
 readme = "README.md"
