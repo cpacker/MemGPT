@@ -107,7 +107,6 @@ If you get `command not found` (Linux/MacOS), or a `CommandNotFoundException` (W
 ```sh
 python -m memgpt
 ```
-If that still doesn't work, try building from source:
 </details>
 
 <details>
