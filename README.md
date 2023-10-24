@@ -213,6 +213,11 @@ To talk to this database, run:
 python main.py  --archival_storage_sqldb=memgpt/personas/examples/sqldb/test.db
 ```
 
+Or to load a csv directly:
+```sh
+python main.py  --archival_storage_sqldb=memgpt/personas/examples/sqldb/test.csv
+```
+
 And then you can input the path to your database, and your query.
 
 ```python
