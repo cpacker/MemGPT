@@ -22,7 +22,7 @@ model_choices = [
         value="gpt-3.5-turbo",
     ),
 ]
-memgpt_dir = os.path.expanduser("~/.memgpt")
+memgpt_dir = os.path.join(os.path.expanduser("~"), ".memgpt")
 
 
 class Config:

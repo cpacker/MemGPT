@@ -115,6 +115,11 @@ To run MemGPT for as a conversation agent in CLI mode, simply run `memgpt`:
 memgpt
 ```
 
+If you get `command not found` (Linux/MacOS), or a `CommandNotFoundException` (Windows), the directory where pip installs scripts is not in your PATH. You can either add that directory to your path (`pip show pip | grep Scripts`) or instead just run:
+```sh
+python -m memgpt
+```
+
 If you're using Azure OpenAI, set these variables instead:
 
 ```sh
