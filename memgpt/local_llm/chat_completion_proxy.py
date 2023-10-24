@@ -5,12 +5,13 @@ import requests
 import json
 
 from .webui.api import get_webui_completion
-from .llm_chat_completion_wrappers import airoboros
+from .llm_chat_completion_wrappers import airoboros, dolphin
 from .utils import DotDict
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
-DEBUG = False
+# DEBUG = False
+DEBUG = True
 
 
 async def get_chat_completion(
@@ -22,8 +23,11 @@ async def get_chat_completion(
     if function_call != "auto":
         raise ValueError(f"function_call == {function_call} not supported (auto only)")
 
-    if model == "airoboros_v2.1":
-        llm_wrapper = airoboros.Airoboros21Wrapper()
+    if model == "airoboros-l2-70b-2.1":
+        # llm_wrapper = airoboros.Airoboros21Wrapper()
+        llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper()
+    elif model == "dolphin-2.1-mistral-7b":
+        llm_wrapper = dolphin.Dolphin21MistralWrapper()
     else:
         # Warn the user that we're using the fallback
         print(
