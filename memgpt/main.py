@@ -242,8 +242,9 @@ async def main(
                 memgpt_persona,
                 human_persona,
                 load_type="folder",
-                archival_storage_index=archival_storage_index,
-                compute_embeddings=False,
+                archival_storage_files=archival_storage_faiss_path,
+                archival_storage_index=archival_storage_faiss_path,
+                compute_embeddings=True,
             )
         elif archival_storage_files_compute_embeddings:
             print(model)
@@ -313,7 +314,7 @@ async def main(
             )
             return
 
-    if cfg.archival_storage_index:
+    if cfg.index:
         persistence_manager = InMemoryStateManagerWithFaiss(
             cfg.index, cfg.archival_database
         )
