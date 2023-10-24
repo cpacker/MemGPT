@@ -1,4 +1,3 @@
-absl-py
 colorama
 demjson3
 faiss-cpu
@@ -14,3 +13,4 @@ rich
 tiktoken
 timezonefinder
 tqdm
+typer
