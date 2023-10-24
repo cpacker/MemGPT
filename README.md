@@ -100,11 +100,16 @@ To run MemGPT for as a conversation agent in CLI mode, simply run `memgpt`:
 memgpt
 ```
 
+<details>
+<summary><strong>Debugging command not found</strong></summary>
+
 If you get `command not found` (Linux/MacOS), or a `CommandNotFoundException` (Windows), the directory where pip installs scripts is not in your PATH. You can either add that directory to your path (`pip show pip | grep Scripts`) or instead just run:
 ```sh
 python -m memgpt
 ```
 If that still doesn't work, try building from source:
+</details>
+
 <details>
 <summary><strong>Building from source</strong></summary>
 
@@ -116,7 +121,7 @@ Using poetry:
 3. Run `poetry run memgpt`
 
 Using pip:
-1. Run `pip install -r requirements.txt`
+1. Run `pip install -e .`
 2. Run `python3 main.py`
 </details>
 
