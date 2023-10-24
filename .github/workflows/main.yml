@@ -23,5 +23,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Run main.py
-      run: python main.py
+    - name: Run main.py with input
+      run: |
+        echo -e "\n\n\nn" | python main.py

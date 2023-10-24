@@ -5,7 +5,9 @@
 <div align="center">
 
  <strong>Try out our MemGPT chatbot on <a href="https://discord.gg/9GEQrxmVyE">Discord</a>!</strong>
-
+ 
+ <strong>⭐ NEW: You can now run MemGPT with <a href="https://github.com/cpacker/MemGPT/discussions/67">local LLMs</a> and <a href="https://github.com/cpacker/MemGPT/discussions/65">AutoGen</a>! ⭐ </strong>
+ 
 [![Discord](https://img.shields.io/discord/1161736243340640419?label=Discord&logo=discord&logoColor=5865F2&style=flat-square&color=5865F2)](https://discord.gg/9GEQrxmVyE)
 [![arXiv 2310.08560](https://img.shields.io/badge/arXiv-2310.08560-B31B1B?logo=arxiv&style=flat-square)](https://arxiv.org/abs/2310.08560)
 
@@ -75,13 +77,6 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-Extra step for Windows:
-
-```sh
-# only needed on Windows
-pip install pyreadline3
-```
-
 Add your OpenAI API key to your environment:
 
 ```sh
@@ -117,11 +112,22 @@ To create a new starter user or starter persona (that MemGPT gets initialized wi
 
 ```sh
 # assuming you created a new file /memgpt/humans/examples/me.txt
+python main.py
+# Select me.txt during configuration process
+```
+-- OR --
+```sh
+# assuming you created a new file /memgpt/humans/examples/me.txt
 python main.py --human me.txt
 ```
 
 ### GPT-3.5 support
 You can run MemGPT with GPT-3.5 as the LLM instead of GPT-4:
+```sh
+python main.py
+# Select gpt-3.5 during configuration process
+```
+-- OR --
 ```sh
 python main.py --model gpt-3.5-turbo
 ```
@@ -130,7 +136,19 @@ python main.py --model gpt-3.5-turbo
 
 Please report any bugs you encounter regarding MemGPT running on GPT-3.5 to  https://github.com/cpacker/MemGPT/issues/59.
 
+### Local LLM support
+You can run MemGPT with local LLMs too. See [instructions here](/memgpt/local_llm) and report any bugs/improvements here https://github.com/cpacker/MemGPT/discussions/67.
+
 ### `main.py` flags
+```text
+--first
+  allows you to send the first message in the chat (by default, MemGPT will send the first message)
+--debug
+  enables debugging output
+```
+
+<details>
+<summary>Configure via legacy flags</summary>
 
 ```text
 --model
@@ -139,10 +157,6 @@ Please report any bugs you encounter regarding MemGPT running on GPT-3.5 to  htt
   load a specific persona file
 --human
   load a specific human file
---first
-  allows you to send the first message in the chat (by default, MemGPT will send the first message)
---debug
-  enables debugging output
 --archival_storage_faiss_path=<ARCHIVAL_STORAGE_FAISS_PATH>
   load in document database (backed by FAISS index)
 --archival_storage_files="<ARCHIVAL_STORAGE_FILES_GLOB_PATTERN>"
@@ -152,6 +166,8 @@ Please report any bugs you encounter regarding MemGPT running on GPT-3.5 to  htt
 --archival_storage_sqldb=<SQLDB_PATH>
   load in SQL database
 ```
+</details>
+
 
 ### Interactive CLI commands
 
@@ -160,8 +176,6 @@ These are the commands for the CLI, **not the Discord bot**! The Discord bot has
 While using MemGPT via the CLI (not Discord!) you can run various commands:
 
 ```text
-//
-  enter multiline input mode (type // again when done)
 /exit
   exit the CLI
 /save
@@ -293,6 +307,6 @@ Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded
 - [x] Integration tests
 - [x] Integrate with AutoGen ([discussion](https://github.com/cpacker/MemGPT/discussions/65))
 - [x] Add official gpt-3.5-turbo support ([discussion](https://github.com/cpacker/MemGPT/discussions/66))
+- [x] CLI UI improvements ([issue](https://github.com/cpacker/MemGPT/issues/11))
+- [x] Add support for other LLM backends ([issue](https://github.com/cpacker/MemGPT/issues/18), [discussion](https://github.com/cpacker/MemGPT/discussions/67))
 - [ ] Release MemGPT family of open models (eg finetuned Mistral) ([discussion](https://github.com/cpacker/MemGPT/discussions/67))
-- [ ] CLI UI improvements ([issue](https://github.com/cpacker/MemGPT/issues/11))
-- [ ] Add support for other LLM backends ([issue](https://github.com/cpacker/MemGPT/issues/18))
