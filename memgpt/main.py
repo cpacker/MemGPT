@@ -122,25 +122,31 @@ def run(
         False, "--debug", help="Use --debug to enable debugging output"
     ),
     no_verify: bool = typer.Option(
-        False, "--no-verify", help="Bypass message verification"
+        False, "--no_verify", help="Bypass message verification"
     ),
     archival_storage_faiss_path: str = typer.Option(
         "",
+        "--archival_storage_faiss_path",
         help="Specify archival storage with FAISS index to load (a folder with a .index and .json describing documents to be loaded)",
     ),
     archival_storage_files: str = typer.Option(
-        "", help="Specify files to pre-load into archival memory (glob pattern)"
+        "",
+        "--archival_storage_files",
+        help="Specify files to pre-load into archival memory (glob pattern)",
     ),
     archival_storage_files_compute_embeddings: str = typer.Option(
         "",
+        "--archival_storage_files_compute_embeddings",
         help="Specify files to pre-load into archival memory (glob pattern), and compute embeddings over them",
     ),
     archival_storage_sqldb: str = typer.Option(
-        "", help="Specify SQL database to pre-load into archival memory"
+        "",
+        "--archival_storage_sqldb",
+        help="Specify SQL database to pre-load into archival memory",
     ),
     use_azure_openai: bool = typer.Option(
         False,
-        "--use-azure-openai",
+        "--use_azure_openai",
         help="Use Azure OpenAI (requires additional environment variables)",
     ),  # TODO: just pass in?
 ):
