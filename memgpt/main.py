@@ -395,6 +395,8 @@ async def main(
             ).ask_async()
             clear_line()
 
+            user_input = user_input.rstrip()
+
             if user_input.startswith("!"):
                 print(f"Commands for CLI begin with '/' not '!'")
                 continue
