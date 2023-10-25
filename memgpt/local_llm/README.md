@@ -87,7 +87,7 @@ Enter your message: My name is Brad, not Chad...
 <details>
  <summary><h2>🙋 Adding support for new LLMs + improving performance</strong></h2></summary>
 
-⁉️ When using open LLMs with MemGPT, **the main failure case will be your LLM outputting a string that cannot be understood by MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)` and interact with the user (`send_message`), so your LLM needs generate outputs that can be parsed into MemGPT function calls.
+⁉️ When using open LLMs with MemGPT, **the main failure case will be your LLM outputting a string that cannot be understood by MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)`) and interact with the user (`send_message(...)`), so your LLM needs generate outputs that can be parsed into MemGPT function calls.
 
 ### What is a "wrapper"?
 
