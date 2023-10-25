@@ -42,6 +42,8 @@ class Config:
         self.persistence_manager_save_file = None
         self.host = os.getenv("OPENAI_API_BASE")
         self.index = None
+        self.config_file = None
+        self.preload_archival = False
 
     @classmethod
     async def legacy_flags_init(
