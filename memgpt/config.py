@@ -14,7 +14,6 @@ import memgpt.utils as utils
 import memgpt.interface as interface
 from memgpt.personas.personas import get_persona_text
 from memgpt.humans.humans import get_human_text
-from memgpt.constants import MEMGPT_DIR
 
 model_choices = [
     questionary.Choice("gpt-4"),
@@ -23,14 +22,15 @@ model_choices = [
         value="gpt-3.5-turbo",
     ),
 ]
+memgpt_dir = os.path.join(os.path.expanduser("~"), ".memgpt")
 
 
 class Config:
     personas_dir = os.path.join("memgpt", "personas", "examples")
-    custom_personas_dir = os.path.join(MEMGPT_DIR, "personas")
+    custom_personas_dir = os.path.join(memgpt_dir, "personas")
     humans_dir = os.path.join("memgpt", "humans", "examples")
-    custom_humans_dir = os.path.join(MEMGPT_DIR, "humans")
-    configs_dir = os.path.join(MEMGPT_DIR, "configs")
+    custom_humans_dir = os.path.join(memgpt_dir, "humans")
+    configs_dir = os.path.join(memgpt_dir, "configs")
 
     def __init__(self):
         os.makedirs(Config.custom_personas_dir, exist_ok=True)
@@ -247,8 +247,7 @@ class Config:
             + Config.get_persona_choices(
                 [p for p in custom_personas_in_examples + default_personas],
                 get_persona_text,
-                None,
-                # Config.personas_dir,
+                Config.personas_dir,
             )
             + [
                 questionary.Separator(),
@@ -275,8 +274,7 @@ class Config:
             + Config.get_persona_choices(
                 [p for p in custom_personas_in_examples + default_personas],
                 get_human_text,
-                None,
-                # Config.humans_dir,
+                Config.humans_dir,
             )
             + [
                 questionary.Separator(),
