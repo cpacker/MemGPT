@@ -277,7 +277,9 @@ async def main(
     else:
         cfg = await Config.config_init()
 
-    memgpt.interface.important_message("Running... [exit by typing '/exit']")
+    memgpt.interface.important_message(
+        "Running... [exit by typing '/exit', list available commands with '/help']"
+    )
     if cfg.model != constants.DEFAULT_MEMGPT_MODEL:
         memgpt.interface.warning_message(
             f"⛔️ Warning - you are running MemGPT with {cfg.model}, which is not officially supported (yet). Expect bugs!"
@@ -384,13 +386,14 @@ async def main(
         clear_line()
         print()
 
+    multiline_input = False
     while True:
         if not skip_next_user_input and (counter > 0 or USER_GOES_FIRST):
             # Ask for user input
             # user_input = console.input("[bold cyan]Enter your message:[/bold cyan] ")
             user_input = await questionary.text(
                 "Enter your message:",
-                multiline=True,
+                multiline=multiline_input,
                 qmark=">",
             ).ask_async()
             clear_line()
@@ -495,6 +498,17 @@ async def main(
                 elif user_input.lower() == "/memorywarning":
                     user_message = system.get_token_limit_warning()
 
+                elif user_input.lower() == "//":
+                    multiline_input = not multiline_input
+                    continue
+
+                elif user_input.lower() == "/" or user_input.lower() == "/help":
+                    questionary.print("CLI commands", "bold")
+                    for cmd, desc in USER_COMMANDS:
+                        questionary.print(cmd, "bold")
+                        questionary.print(f" {desc}")
+                    continue
+
                 else:
                     print(f"Unrecognized command: {user_input}")
                     continue
@@ -534,6 +548,17 @@ async def main(
     print("Finished.")
 
 
+USER_COMMANDS = [
+    ("//", "toggle multiline input mode"),
+    ("/exit", "exit the CLI"),
+    ("/save", "save a checkpoint of the current agent/conversation state"),
+    ("/load", "load a saved checkpoint"),
+    ("/dump", "view the current message log (see the contents of main context)"),
+    ("/memory", "print the current contents of agent memory"),
+    ("/pop", "undo the last message in the conversation"),
+    ("/heartbeat", "send a heartbeat system message to the agent"),
+    ("/memorywarning", "send a memory warning system message to the agent"),
+]
 # if __name__ == "__main__":
 #
 #    app()
