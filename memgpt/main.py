@@ -26,8 +26,7 @@ from memgpt.persistence_manager import (
     InMemoryStateManagerWithFaiss,
 )
 
-from memgpt.config import Config
-from memgpt.constants import MEMGPT_DIR
+from memgpt.config import Config, memgpt_dir
 import asyncio
 
 app = typer.Typer()
@@ -44,7 +43,7 @@ def clear_line():
 def save(memgpt_agent, cfg):
     filename = utils.get_local_time().replace(" ", "_").replace(":", "_")
     filename = f"{filename}.json"
-    directory = os.path.join(MEMGPT_DIR, "saved_state")
+    directory = os.path.join(memgpt_dir, "saved_state")
     filename = os.path.join(directory, filename)
     try:
         if not os.path.exists(directory):
@@ -395,8 +394,6 @@ async def main(
             ).ask_async()
             clear_line()
 
-            user_input = user_input.rstrip()
-
             if user_input.startswith("!"):
                 print(f"Commands for CLI begin with '/' not '!'")
                 continue
@@ -419,7 +416,7 @@ async def main(
                         utils.get_local_time().replace(" ", "_").replace(":", "_")
                     )
                     filename = f"{filename}.pkl"
-                    directory = os.path.join(MEMGPT_DIR, "saved_chats")
+                    directory = os.path.join(memgpt_dir, "saved_chats")
                     try:
                         if not os.path.exists(directory):
                             os.makedirs(directory)
