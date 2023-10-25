@@ -5,7 +5,7 @@ import requests
 import json
 
 from .webui.api import get_webui_completion
-from .llm_chat_completion_wrappers import airoboros
+from .llm_chat_completion_wrappers import airoboros, dolphin
 from .utils import DotDict
 
 HOST = os.getenv("OPENAI_API_BASE")
