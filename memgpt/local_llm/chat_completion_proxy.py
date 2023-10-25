@@ -5,7 +5,7 @@ import requests
 import json
 
 from .webui.api import get_webui_completion
-from .llm_chat_completion_wrappers import airoboros, dolphin
+from .llm_chat_completion_wrappers import airoboros
 from .utils import DotDict
 
 HOST = os.getenv("OPENAI_API_BASE")
@@ -23,14 +23,14 @@ async def get_chat_completion(
     if function_call != "auto":
         raise ValueError(f"function_call == {function_call} not supported (auto only)")
 
-    if model == "airoboros-l2-70b-2.1":
-        llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper()
-    elif model == "dolphin-2.1-mistral-7b":
-        llm_wrapper = dolphin.Dolphin21MistralWrapper()
+    if model == "airoboros_v2.1":
+        llm_wrapper = airoboros.Airoboros21Wrapper()
     else:
         # Warn the user that we're using the fallback
-        print(f"Warning: no wrapper specified for local LLM, using the default wrapper")
-        llm_wrapper = DEFAULT_WRAPPER
+        print(
+            f"Warning: could not find an LLM wrapper for {model}, using the airoboros wrapper"
+        )
+        llm_wrapper = airoboros.Airoboros21Wrapper()
 
     # First step: turn the message sequence into a prompt that the model expects
     prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
