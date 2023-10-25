@@ -226,6 +226,17 @@ class Config:
         )
 
     @staticmethod
+    def is_valid_config_file(file: str):
+        cfg = Config()
+        try:
+            cfg.load_config(file)
+        except Exception:
+            return False
+        return (
+            cfg.memgpt_persona is not None and cfg.human_persona is not None
+        )  # TODO: more validation for configs
+
+    @staticmethod
     def get_memgpt_personas():
         dir_path = Config.personas_dir
         all_personas = Config.get_personas(dir_path)
@@ -319,6 +330,7 @@ class Config:
             os.path.join(configs_dir, f)
             for f in os.listdir(configs_dir)
             if os.path.isfile(os.path.join(configs_dir, f))
+            and Config.is_valid_config_file(os.path.join(configs_dir, f))
         ]
         # Return the file with the most recent modification time
         if len(files) == 0:
