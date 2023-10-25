@@ -11,7 +11,6 @@ from .utils import DotDict
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
 DEBUG = False
-DEFAULT_WRAPPER = airoboros.Airoboros21InnerMonologueWrapper()
 
 
 async def get_chat_completion(
