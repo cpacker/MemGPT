@@ -11,7 +11,7 @@ If you have a hosted ChatCompletion-compatible endpoint that works with function
 3. Run MemGPT with `python3 main.py --no_verify`, it should now use your LLM instead of OpenAI GPT
 4. If things aren't working, read the full instructions below
 
-When using open LLMs with MemGPT, **the main failure case will being your LLM outputting a string that cannot be understood by the MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)` and interact with the user (`send_message`), so your LLM needs generate outputs that can be parsed into MemGPT function calls.
+When using open LLMs with MemGPT, **the main failure case will being your LLM outputting a string that cannot be understood by the MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)` and interact with the user (`send_message(...)`), so your LLM needs generate outputs that can be parsed into MemGPT function calls.
 
 ---
 
