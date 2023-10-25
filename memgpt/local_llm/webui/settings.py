@@ -2,6 +2,7 @@ SIMPLE = {
     "stopping_strings": [
         "\nUSER:",
         "\nASSISTANT:",
+        "\nFUNCTION RETURN:",
         # '\n' +
         # '</s>',
         # '<|',
