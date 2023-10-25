@@ -6,7 +6,7 @@ If you have a hosted ChatCompletion-compatible endpoint that works with function
 
 # ⚡ Quick overview
 
-1. Put your own LLM behind a web server API of your choice
+1. Put your own LLM behind a web server API (e.g. [oobabooga web UI](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui))
 2. Set `OPENAI_API_BASE=YOUR_API_IP_ADDRESS` and `BACKEND_TYPE=webui`
 3. Run MemGPT with `python3 main.py --no_verify`, it should now use your LLM instead of OpenAI GPT
 4. If things aren't working, read the full instructions below
