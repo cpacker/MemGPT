@@ -71,10 +71,15 @@ Memory-GPT (or MemGPT in short) is a system that intelligently manages different
 
 ## Running MemGPT locally
 
-Install dependencies:
+Install MemGPT:
 
 ```sh
-pip install -r requirements.txt
+pip install pymemgpt
+```
+
+To update the package, run
+```sh
+pip install pymemgpt -U
 ```
 
 Add your OpenAI API key to your environment:
@@ -89,11 +94,36 @@ export OPENAI_API_KEY=YOUR_API_KEY
 set OPENAI_API_KEY=YOUR_API_KEY
 ```
 
-To run MemGPT for as a conversation agent in CLI mode, simply run `main.py`:
+To run MemGPT for as a conversation agent in CLI mode, simply run `memgpt`:
 
 ```sh
-python3 main.py
+memgpt
 ```
+
+<details>
+<summary><strong>Debugging command not found</strong></summary>
+
+If you get `command not found` (Linux/MacOS), or a `CommandNotFoundException` (Windows), the directory where pip installs scripts is not in your PATH. You can either add that directory to your path (`pip show pip | grep Scripts`) or instead just run:
+```sh
+python -m memgpt
+```
+</details>
+
+<details>
+<summary><strong>Building from source</strong></summary>
+
+Clone this repo: `git clone https://github.com/cpacker/MemGPT.git`
+
+Using poetry:
+1. Install poetry: `pip install poetry`
+2. Run `poetry install`
+3. Run `poetry run memgpt`
+
+Using pip:
+1. Run `pip install -e .`
+2. Run `python3 main.py`
+</details>
+
 
 If you're using Azure OpenAI, set these variables instead:
 
@@ -105,31 +135,31 @@ export AZURE_OPENAI_VERSION = ...
 export AZURE_OPENAI_DEPLOYMENT = ...
 
 # then use the --use_azure_openai flag
-python main.py --use_azure_openai
+memgpt --use_azure_openai
 ```
 
-To create a new starter user or starter persona (that MemGPT gets initialized with), create a new `.txt` file in [/memgpt/humans/examples](/memgpt/humans/examples) or [/memgpt/personas/examples](/memgpt/personas/examples), then use the `--persona` or `--human` flag when running `main.py`. For example:
-
+To create a new starter user or starter persona (that MemGPT gets initialized with), create a new `.txt` file in `~/.memgpt/humans` or `~/.memgpt/personas`, then use the `--persona` or `--human` flag when running `main.py`. For example:
 ```sh
-# assuming you created a new file /memgpt/humans/examples/me.txt
-python main.py
+# assuming you created a new file ~/.memgpt/humans/me.txt
+memgpt
 # Select me.txt during configuration process
 ```
 -- OR --
 ```sh
-# assuming you created a new file /memgpt/humans/examples/me.txt
-python main.py --human me.txt
+# assuming you created a new file ~/.memgpt/humans/me.txt
+memgpt --human me.txt
 ```
+You can also specify any of the starter users in [/memgpt/humans/examples](/memgpt/humans/examples) or any of the starter personas in [/memgpt/personas/examples](/memgpt/personas/examples).
 
 ### GPT-3.5 support
 You can run MemGPT with GPT-3.5 as the LLM instead of GPT-4:
 ```sh
-python main.py
+memgpt
 # Select gpt-3.5 during configuration process
 ```
 -- OR --
 ```sh
-python main.py --model gpt-3.5-turbo
+memgpt --model gpt-3.5-turbo
 ```
 
 **Note that this is experimental gpt-3.5-turbo support. It's quite buggy compared to gpt-4, but it should be runnable.**
@@ -210,7 +240,7 @@ id	| name |	age
 To talk to this database, run:
 
 ```sh
-python main.py  --archival_storage_sqldb=memgpt/personas/examples/sqldb/test.db
+memgpt --archival_storage_sqldb=memgpt/personas/examples/sqldb/test.db
 ```
 
 And then you can input the path to your database, and your query.
@@ -233,7 +263,7 @@ To run our example where you can search over the SEC 10-K filings of Uber, Lyft,
 
 2. In the root `MemGPT` directory, run
     ```bash
-    python3 main.py --archival_storage_files="memgpt/personas/examples/preload_archival/*.txt" --persona=memgpt_doc --human=basic
+    memgpt --archival_storage_files="memgpt/personas/examples/preload_archival/*.txt" --persona=memgpt_doc --human=basic
     ```
 
 If you would like to load your own local files into MemGPT's archival memory, run the command above but replace `--archival_storage_files="memgpt/personas/examples/preload_archival/*.txt"` with your own file glob expression (enclosed in quotes).
@@ -241,7 +271,7 @@ If you would like to load your own local files into MemGPT's archival memory, ru
 #### Enhance with embeddings search
 In the root `MemGPT` directory, run
   ```bash
-  python3 main.py --archival_storage_files_compute_embeddings="<GLOB_PATTERN>" --persona=memgpt_doc --human=basic
+  memgpt main.py --archival_storage_files_compute_embeddings="<GLOB_PATTERN>" --persona=memgpt_doc --human=basic
   ```
 
 This will generate embeddings, stick them into a FAISS index, and write the index to a directory, and then output:
@@ -252,7 +282,7 @@ This will generate embeddings, stick them into a FAISS index, and write the inde
 
 If you want to reuse these embeddings, run
 ```bash
-python3 main.py --archival_storage_faiss_path="<DIRECTORY_WITH_EMBEDDINGS>" --persona=memgpt_doc --human=basic
+memgpt --archival_storage_faiss_path="<DIRECTORY_WITH_EMBEDDINGS>" --persona=memgpt_doc --human=basic
 ```
 
 
@@ -284,7 +314,7 @@ MemGPT also enables you to chat with docs -- try running this example to talk to
 
 3. In the root `MemGPT` directory, run
     ```bash
-    python3 main.py --archival_storage_faiss_path=<ARCHIVAL_STORAGE_FAISS_PATH> --persona=memgpt_doc --human=basic
+    memgpt --archival_storage_faiss_path=<ARCHIVAL_STORAGE_FAISS_PATH> --persona=memgpt_doc --human=basic
     ```
     where `ARCHIVAL_STORAGE_FAISS_PATH` is the directory where `all_docs.jsonl` and `all_docs.index` are located.
    If you downloaded from Hugging Face, it will be `memgpt/personas/docqa/llamaindex-api-docs`.
