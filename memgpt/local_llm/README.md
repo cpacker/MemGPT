@@ -20,6 +20,8 @@ When using open LLMs with MemGPT, **the main failure case will be your LLM outpu
 <details>
  <summary><h2>🖥️ Serving your LLM from a web server (WebUI example)</strong></h2></summary>
 
+⁉️ Do **NOT** enable any extensions in web UI, including the openai extension! Just run web UI as-is
+
 To get MemGPT to work with a local LLM, you need to have the LLM running on a server that takes API requests.
 
 For the purposes of this example, we're going to serve (host) the LLMs using [oobabooga web UI](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui), but if you want to use something else you can! This also assumes your running web UI locally - if you're running on e.g. Runpod, you'll want to follow Runpod specific instructions (for example use [TheBloke's one-click UI and API](https://github.com/TheBlokeAI/dockerLLM/blob/main/README_Runpod_LocalLLMsUIandAPI.md))
