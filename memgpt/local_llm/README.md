@@ -11,7 +11,7 @@ If you have a hosted ChatCompletion-compatible endpoint that works with function
 3. Run MemGPT with `python3 main.py --no_verify`, it should now use your LLM instead of OpenAI GPT
 4. If things aren't working, read the full instructions below
 
-When using open LLMs with MemGPT, **the main failure case will being your LLM outputting a string that cannot be understood by the MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)` and interact with the user (`send_message(...)`), so your LLM needs generate outputs that can be parsed into MemGPT function calls.
+When using open LLMs with MemGPT, **the main failure case will be your LLM outputting a string that cannot be understood by MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)` and interact with the user (`send_message(...)`), so your LLM needs generate outputs that can be parsed into MemGPT function calls.
 
 ---
 
@@ -22,7 +22,7 @@ When using open LLMs with MemGPT, **the main failure case will being your LLM ou
 
 To get MemGPT to work with a local LLM, you need to have the LLM running on a server that takes API requests.
 
-For the purposes of this example, we're going to serve (host) the LLMs using [oobabooga web UI](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui), but if you want to use something else you can! This also assumes your running web UI locally - if you're running on eg Runpod, you'll want to follow Runpod specific instructions (for example use [TheBloke's one-click UI and API](https://github.com/TheBlokeAI/dockerLLM/blob/main/README_Runpod_LocalLLMsUIandAPI.md))
+For the purposes of this example, we're going to serve (host) the LLMs using [oobabooga web UI](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui), but if you want to use something else you can! This also assumes your running web UI locally - if you're running on e.g. Runpod, you'll want to follow Runpod specific instructions (for example use [TheBloke's one-click UI and API](https://github.com/TheBlokeAI/dockerLLM/blob/main/README_Runpod_LocalLLMsUIandAPI.md))
 
 1. Install oobabooga web UI using the instructions [here](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui)
 2. Once installed, launch the web server with `python server.py`
@@ -85,7 +85,7 @@ Enter your message: My name is Brad, not Chad...
 <details>
  <summary><h2>🙋 Adding support for new LLMs + improving performance</strong></h2></summary>
 
-⁉️ When using open LLMs with MemGPT, **the main failure case will being your LLM outputting a string that cannot be understood by the MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)` and interact with the user (`send_message`), so your LLM needs generate outputs that can be parsed into MemGPT function calls.
+⁉️ When using open LLMs with MemGPT, **the main failure case will be your LLM outputting a string that cannot be understood by MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)` and interact with the user (`send_message`), so your LLM needs generate outputs that can be parsed into MemGPT function calls.
 
 ### What is a "wrapper"?
 
@@ -187,4 +187,10 @@ Because of the poor state of function calling support in existing ChatCompletion
 
 To run the example of MemGPT with Airoboros, you'll need to host the model behind some LLM web server (for example [webui](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui)). Then, all you need to do is point MemGPT to this API endpoint by setting the environment variables `OPENAI_API_BASE` and `BACKEND_TYPE`. Now, instead of calling ChatCompletion on OpenAI's API, MemGPT will use it's own ChatCompletion wrapper that parses the system, messages, and function arguments into a format that Airoboros has been finetuned on, and once Airoboros generates a string output, MemGPT will parse the response to extract a potential function call (knowing what we know about Airoboros expected function call output).
 
+</details>
+
+<details open>
+ <summary><h3>Need more help?</h3></summary>
+
+ Ask for help on [our Discord](https://discord.gg/9GEQrxmVyE) or [post on the GitHub discussion](https://github.com/cpacker/MemGPT/discussions/67).
 </details>
