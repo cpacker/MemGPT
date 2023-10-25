@@ -188,7 +188,6 @@ class Dolphin21MistralWrapper(LLMChatCompletionWrapper):
             if self.include_opening_brance_in_prefix:
                 prompt += "\n{"
 
-        print(prompt)
         return prompt
 
     def clean_function_args(self, function_name, function_args):
