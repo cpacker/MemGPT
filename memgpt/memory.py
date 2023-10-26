@@ -1,13 +1,25 @@
 from abc import ABC, abstractmethod
+import os
 import datetime
 import re
 import faiss
 import numpy as np
+from typing import Optional, List, Tuple
 
-from .constants import MESSAGE_SUMMARY_WARNING_TOKENS
+from .constants import MESSAGE_SUMMARY_WARNING_TOKENS, MEMGPT_DIR
 from .utils import cosine_similarity, get_local_time, printd, count_tokens
 from .prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
 from .openai_tools import acompletions_with_backoff as acreate, async_get_embedding_with_backoff
+
+from llama_index import (
+    VectorStoreIndex,
+    get_response_synthesizer,
+    load_index_from_storage,
+    StorageContext,
+)
+from llama_index.retrievers import VectorIndexRetriever
+from llama_index.query_engine import RetrieverQueryEngine
+from llama_index.indices.postprocessor import SimilarityPostprocessor
 
 
 class CoreMemory(object):
@@ -130,10 +142,26 @@ class ArchivalMemory(ABC):
 
     @abstractmethod
     def insert(self, memory_string):
+        """ Insert new archival memory
+
+        :param memory_string: Memory string to insert
+        :type memory_string: str
+        """
         pass
 
     @abstractmethod
-    def search(self, query_string, count=None, start=None):
+    def search(self, query_string, count=None, start=None) -> Tuple[List[str], int]:
+        """ Search archival memory
+
+        :param query_string: Query string
+        :type query_string: str
+        :param count: Number of results to return (None for all)
+        :type count: Optional[int]
+        :param start: Offset to start returning results from (None if 0)
+        :type start: Optional[int]
+        
+        :return: Tuple of (list of results, total number of results)
+        """
         pass
 
     @abstractmethod
@@ -501,3 +529,72 @@ class DummyRecallMemoryWithEmbeddings(DummyRecallMemory):
             return matches[start:], len(matches)
         else:
             return matches, len(matches)
+
+
+class LocalArchivalMemory(ArchivalMemory): 
+    """ Archival memory built on top of Llama Index """
+
+    def __init__(self, archival_memory_database: Optional[str] = None, top_k: Optional[int] = 100): 
+        """ Init function for archival memory
+
+        :param archiva_memory_database: name of dataset to pre-fill archival with 
+        :type archival_memory_database: str
+        """
+
+        if archival_memory_database is not None: 
+            # TODO: load form ~/.memgpt/archival
+            directory = f"{MEMGPT_DIR}/archival/{archival_memory_database}"
+            assert os.path.exists(directory), f"Archival memory database {archival_memory_database} does not exist"
+            storage_context = StorageContext.from_defaults(persist_dir=directory)
+            self.index = load_index_from_storage(storage_context)
+        else:   
+            self.index = VectorIndex()
+        self.top_k = top_k
+        self.retriever = VectorIndexRetriever(
+            index=self.index, # does this get refreshed? 
+            similarity_top_k=self.top_k,
+        )
+
+        # configure response synthesizer
+        response_synthesizer = get_response_synthesizer()
+
+        # assemble query engine
+        self.query_engine = RetrieverQueryEngine(
+            retriever=self.retriever,
+            #response_synthesizer=response_synthesizer,
+            #node_postprocessors=[
+            #    SimilarityPostprocessor(similarity_cutoff=0) # TODO: tune this
+            #]
+        )
+
+        # cache for repeated queries
+        # TODO: have some mechanism for cleanup otherwise will lead to OOM
+        self.cache = {} 
+
+    async def insert(self, memory_string):
+        self.index.insert(memory_string)
+    
+    async def search(self, query_string, count=None, start=None):
+
+        start = start if start else 0 
+        count = count if count else self.top_k 
+        count = min(count + start, self.top_k)
+
+        if query_string not in self.cache:
+            #self.cache[query_string] = self.query_engine.query(query_string)
+            self.cache[query_string] = self.retriever.retrieve(query_string)
+
+        results = self.cache[query_string][start:start+count]
+        results = [
+            {'timestamp': get_local_time(), 'content': node.node.text}
+            for node in results
+        ]
+        #from pprint import pprint
+        #pprint(results)
+        return results, len(results)
+    
+    def __repr__(self) -> str:
+        print(self.index.ref_doc_info)
+        return ""
+            
+

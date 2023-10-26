@@ -13,7 +13,7 @@ from typing import List
 import os
 import typer
 from memgpt.constants import MEMGPT_DIR
-from memgpt.utils import estimate_openai_cost, index_docs, save_index
+from memgpt.utils import estimate_openai_cost, get_index, save_index
 
 app = typer.Typer()
 
@@ -45,7 +45,7 @@ def load_directory(
 
     # embed docs 
     print("Indexing documents...")
-    index = index_docs(docs)
+    index = get_index(name, docs)
     # save connector information into .memgpt metadata file
     save_index(index, name)
 
@@ -89,7 +89,7 @@ def load_database(
     # load data
     docs = db.load_data(query=query)
     
-    index = index_docs(docs)
+    index = get_index(name, docs)
     save_index(index, name)
 
 
