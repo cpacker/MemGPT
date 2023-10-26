@@ -94,6 +94,11 @@ export OPENAI_API_KEY=YOUR_API_KEY
 set OPENAI_API_KEY=YOUR_API_KEY
 ```
 
+```sh
+# on Windows (PowerShell)
+$Env:OPENAI_API_KEY = "YOUR_API_KEY"
+```
+
 To run MemGPT for as a conversation agent in CLI mode, simply run `memgpt`:
 
 ```sh
