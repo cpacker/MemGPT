@@ -13,7 +13,7 @@ First things first, let's get you a personal copy of MemGPT to play with. Think 
 
 ### 🚀 Clone the Repository
 
-Now, let's bring your new playground to your local machine. 
+Now, let's bring your new playground to your local machine.
 
 ```shell
 git clone https://github.com/your-username/MemGPT.git
@@ -70,7 +70,7 @@ The maintainers, will take a look and might suggest some cool upgrades or ask fo
 
 ## 6. 📜 Code of Conduct
 
-Please be sure to follow the project's Code of Conduct. 
+Please be sure to follow the project's Code of Conduct.
 
 ## 7. 📫 Contact
 
