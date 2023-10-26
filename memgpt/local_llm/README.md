@@ -50,7 +50,7 @@ Once you have an LLM web server set up, all you need to do to connect it to MemG
   - this controls how MemGPT packages the HTTP request to the webserver, see [this code](https://github.com/cpacker/MemGPT/blob/main/memgpt/local_llm/webui/api.py)
   - currently this is set up to work with web UI, but it might work with other backends / web servers too!
   - if you'd like to use a different web server and you need a different style of HTTP request, let us know on the discussion page (https://github.com/cpacker/MemGPT/discussions/67) and we'll try to add it ASAP
- 
+
 You can change the prompt format and output parser used with the `--model` flag. For example:
 
 ```sh
@@ -184,7 +184,7 @@ In the future, more open LLMs and LLM servers (that can host OpenAI-compatable C
 
 <details>
  <summary><h3>What is this all this extra code for?</strong></h3></summary>
-  
+
 Because of the poor state of function calling support in existing ChatCompletion API serving code, we instead provide a light wrapper on top of ChatCompletion that adds parsers to handle function calling support. These parsers need to be specific to the model you're using (or at least specific to the way it was trained on function calling). We hope that our example code will help the community add additional compatability of MemGPT with more function-calling LLMs - we will also add more model support as we test more models and find those that work well enough to run MemGPT's function set.
 
 To run the example of MemGPT with Airoboros, you'll need to host the model behind some LLM web server (for example [webui](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui)). Then, all you need to do is point MemGPT to this API endpoint by setting the environment variables `OPENAI_API_BASE` and `BACKEND_TYPE`. Now, instead of calling ChatCompletion on OpenAI's API, MemGPT will use it's own ChatCompletion wrapper that parses the system, messages, and function arguments into a format that Airoboros has been finetuned on, and once Airoboros generates a string output, MemGPT will parse the response to extract a potential function call (knowing what we know about Airoboros expected function call output).
