@@ -14,6 +14,7 @@ import memgpt.utils as utils
 import memgpt.interface as interface
 from memgpt.personas.personas import get_persona_text
 from memgpt.humans.humans import get_human_text
+from memgpt.constants import MEMGPT_DIR
 
 model_choices = [
     questionary.Choice("gpt-4"),
@@ -22,15 +23,14 @@ model_choices = [
         value="gpt-3.5-turbo",
     ),
 ]
-memgpt_dir = os.path.join(os.path.expanduser("~"), ".memgpt")
 
 
 class Config:
     personas_dir = os.path.join("memgpt", "personas", "examples")
-    custom_personas_dir = os.path.join(memgpt_dir, "personas")
+    custom_personas_dir = os.path.join(MEMGPT_DIR, "personas")
     humans_dir = os.path.join("memgpt", "humans", "examples")
-    custom_humans_dir = os.path.join(memgpt_dir, "humans")
-    configs_dir = os.path.join(memgpt_dir, "configs")
+    custom_humans_dir = os.path.join(MEMGPT_DIR, "humans")
+    configs_dir = os.path.join(MEMGPT_DIR, "configs")
 
     def __init__(self):
         os.makedirs(Config.custom_personas_dir, exist_ok=True)
@@ -42,6 +42,8 @@ class Config:
         self.persistence_manager_save_file = None
         self.host = os.getenv("OPENAI_API_BASE")
         self.index = None
+        self.config_file = None
+        self.preload_archival = False
 
     @classmethod
     async def legacy_flags_init(
@@ -226,6 +228,17 @@ class Config:
         )
 
     @staticmethod
+    def is_valid_config_file(file: str):
+        cfg = Config()
+        try:
+            cfg.load_config(file)
+        except Exception:
+            return False
+        return (
+            cfg.memgpt_persona is not None and cfg.human_persona is not None
+        )  # TODO: more validation for configs
+
+    @staticmethod
     def get_memgpt_personas():
         dir_path = Config.personas_dir
         all_personas = Config.get_personas(dir_path)
@@ -247,7 +260,8 @@ class Config:
             + Config.get_persona_choices(
                 [p for p in custom_personas_in_examples + default_personas],
                 get_persona_text,
-                Config.personas_dir,
+                None,
+                # Config.personas_dir,
             )
             + [
                 questionary.Separator(),
@@ -274,7 +288,8 @@ class Config:
             + Config.get_persona_choices(
                 [p for p in custom_personas_in_examples + default_personas],
                 get_human_text,
-                Config.humans_dir,
+                None,
+                # Config.humans_dir,
             )
             + [
                 questionary.Separator(),
@@ -317,6 +332,7 @@ class Config:
             os.path.join(configs_dir, f)
             for f in os.listdir(configs_dir)
             if os.path.isfile(os.path.join(configs_dir, f))
+            and Config.is_valid_config_file(os.path.join(configs_dir, f))
         ]
         # Return the file with the most recent modification time
         if len(files) == 0:
