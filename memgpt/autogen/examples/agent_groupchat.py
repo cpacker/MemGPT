@@ -1,10 +1,17 @@
 """Example of how to add MemGPT into an AutoGen groupchat
 
 Based on the official AutoGen example here: https://github.com/microsoft/autogen/blob/main/notebook/agentchat_groupchat.ipynb
+
+Begin by doing:
+  pip install "pyautogen[teachable]"
+  pip install pymemgpt
+  or
+  pip install -e . (inside the MemGPT home directory)
 """
 
 import os
 import autogen
+from memgpt.autogen.memgpt_agent import create_autogen_memgpt_agent
 
 config_list = [
     {
@@ -40,19 +47,20 @@ if not USE_MEMGPT:
         name="Coder",
         llm_config=llm_config,
     )
+
 else:
     # In our example, we swap this AutoGen agent with a MemGPT agent
     # This MemGPT agent will have all the benefits of MemGPT, ie persistent memory, etc.
-    from memgpt.autogen.memgpt_agent import create_autogen_memgpt_agent
-
     coder = create_autogen_memgpt_agent(
         "MemGPT_coder",
         persona_description="I am a 10x engineer, trained in Python. I was the first engineer at Uber (which I make sure to tell everyone I work with).",
         user_description="You are participating in a group chat with a user and a product manager (PM).",
+        # extra options
+        interface_kwargs={"debug": True},
     )
 
 # Initialize the group chat between the user and two LLM agents (PM and coder)
-groupchat = autogen.GroupChat(agents=[user_proxy, coder, pm], messages=[], max_round=12)
+groupchat = autogen.GroupChat(agents=[user_proxy, pm, coder], messages=[], max_round=12)
 manager = autogen.GroupChatManager(groupchat=groupchat, llm_config=llm_config)
 
 # Begin the group chat with a message from the user
