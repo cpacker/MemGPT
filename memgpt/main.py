@@ -110,7 +110,7 @@ def load(memgpt_agent, filename):
         print(f"/load warning: loading persistence manager from {filename} failed with: {e}")
 
 
-@app.command()
+@app.callback(invoke_without_command=True)  # make default command
 def run(
     persona: str = typer.Option(None, help="Specify persona"),
     human: str = typer.Option(None, help="Specify human"),
