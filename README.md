@@ -358,6 +358,12 @@ git clone git@github.com:cpacker/MemGPT.git
 poetry shell
 poetry install
 ```
+We recommend installing pre-commit to ensure proper formatting during development:
+```
+pip install pre-commit
+pre-commit install
+pre-commit run --all-files
+```
 
 ### Contributing
 We welcome pull requests! Please run the formatter before submitting a pull request:
