@@ -34,7 +34,7 @@
 </details>
 
 <details>
-  <summary><h2>📄 You can also talk to docs - for example ask about <a href="memgpt/personas/examples/docqa">LlamaIndex</a>!</h1></summary>
+  <summary><h2>📄 You can also talk to docs - for example, ask about <a href="memgpt/personas/examples/docqa">LlamaIndex</a>!</h1></summary>
   <div align="center">
     <img src="https://memgpt.ai/assets/img/docqa_demo.gif" alt="MemGPT demo video for llamaindex api docs search" width="800">
   </div>
@@ -162,7 +162,7 @@ memgpt
 memgpt --model gpt-3.5-turbo
 ```
 
-**Note that this is experimental gpt-3.5-turbo support. It's quite buggy compared to gpt-4, but it should be runnable.**
+**Note that this is experimental get-3.5-turbo support. It's quite buggy compared to gpt-4, but it should be runnable.**
 
 Please report any bugs you encounter regarding MemGPT running on GPT-3.5 to  https://github.com/cpacker/MemGPT/issues/59.
 
@@ -226,6 +226,7 @@ While using MemGPT via the CLI (not Discord!) you can run various commands:
   send a memory warning system message to the agent
 ```
 ## Example applications
+
 <details open>
 <summary><h3>Use MemGPT to talk to your Database!</h3></summary>
 
@@ -271,6 +272,7 @@ To run our example where you can search over the SEC 10-K filings of Uber, Lyft,
 If you would like to load your own local files into MemGPT's archival memory, run the command above but replace `--archival_storage_files="memgpt/personas/examples/preload_archival/*.txt"` with your own file glob expression (enclosed in quotes).
 
 #### Enhance with embeddings search
+
 In the root `MemGPT` directory, run
   ```bash
   memgpt main.py --archival_storage_files_compute_embeddings="<GLOB_PATTERN>" --persona=memgpt_doc --human=basic
@@ -327,13 +329,15 @@ MemGPT also enables you to chat with docs -- try running this example to talk to
 
 If you have any further questions, or have anything to share, we are excited to hear your feedback!
 
-* By default MemGPT will use `gpt-4`, so your API key will require `gpt-4` API access
-* For issues and feature requests, please [open a GitHub issue](https://github.com/cpacker/MemGPT/issues) or message us on our `#support` channel on [Discord](https://discord.gg/9GEQrxmVyE)
+* By default MemGPT will use `gpt-4`, so your API key will require `gpt-4` API access.
+* For issues and feature requests, please [open a GitHub issue](https://github.com/cpacker/MemGPT/issues) or message us on our `#support` channel on [Discord](https://discord.gg/9GEQrxmVyE).
 
 ## Datasets
+
 Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded at [Hugging Face](https://huggingface.co/MemGPT).
 
 ## 🚀 Project Roadmap
+
 - [x] Release MemGPT Discord bot demo (perpetual chatbot)
 - [x] Add additional workflows (load SQL/text into MemGPT external context)
 - [x] Integration tests
