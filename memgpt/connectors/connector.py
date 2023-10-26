@@ -59,32 +59,48 @@ def load_webpage(
 
     # embed docs 
     print("Indexing documents...")
-    index = index_docs(docs)
+    index = get_index(docs)
     # save connector information into .memgpt metadata file
     save_index(index, name)
-
 
 @app.command("database")
 def load_database(
     name: str = typer.Option(help="Name of dataset to load."),
-    scheme: str = typer.Option(help="Database scheme."),
-    host: str = typer.Option(help="Database host."),
-    port: int = typer.Option(help="Database port."),
-    user: str = typer.Option(help="Database user."),
-    password: str = typer.Option(help="Database password."),
-    dbname: str = typer.Option(help="Database name."),
-    query: str = typer.Option(None, help="Database query."),
+    query: str = typer.Option(help="Database query."),
+    dump_path: str = typer.Option(None, help="Path to dump file."),
+    scheme: str = typer.Option(None, help="Database scheme."),
+    host: str = typer.Option(None, help="Database host."),
+    port: int = typer.Option(None, help="Database port."),
+    user: str = typer.Option(None, help="Database user."),
+    password: str = typer.Option(None, help="Database password."),
+    dbname: str = typer.Option(None, help="Database name."),
 ):
     from llama_index.readers.database import DatabaseReader
-    
-    db = DatabaseReader(
-        scheme=scheme,  # Database Scheme
-        host=host,  # Database Host
-        port=port,  # Database Port
-        user=user,  # Database User
-        password=password,  # Database Password
-        dbname=dbname,  # Database Name
-    )
+    print(dump_path, scheme)
+
+    if dump_path is not None: 
+        # read from database dump file
+        from sqlalchemy import create_engine, MetaData
+        engine = create_engine(f'sqlite:///{dump_path}')
+
+        db = DatabaseReader(engine=engine)
+    else:
+        assert dump_path is None, "Cannot provide both dump_path and database connection parameters."
+        assert scheme is not None, "Must provide database scheme."
+        assert host is not None, "Must provide database host."
+        assert port is not None, "Must provide database port."
+        assert user is not None, "Must provide database user."
+        assert password is not None, "Must provide database password."
+        assert dbname is not None, "Must provide database name."
+
+        db = DatabaseReader(
+            scheme=scheme,  # Database Scheme
+            host=host,  # Database Host
+            port=port,  # Database Port
+            user=user,  # Database User
+            password=password,  # Database Password
+            dbname=dbname,  # Database Name
+        )
 
     # load data
     docs = db.load_data(query=query)

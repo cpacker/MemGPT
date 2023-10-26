@@ -554,20 +554,6 @@ class LocalArchivalMemory(ArchivalMemory):
             index=self.index, # does this get refreshed? 
             similarity_top_k=self.top_k,
         )
-
-        # configure response synthesizer
-        response_synthesizer = get_response_synthesizer()
-
-        # assemble query engine
-        self.query_engine = RetrieverQueryEngine(
-            retriever=self.retriever,
-            #response_synthesizer=response_synthesizer,
-            #node_postprocessors=[
-            #    SimilarityPostprocessor(similarity_cutoff=0) # TODO: tune this
-            #]
-        )
-
-        # cache for repeated queries
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {} 
 
@@ -581,7 +567,6 @@ class LocalArchivalMemory(ArchivalMemory):
         count = min(count + start, self.top_k)
 
         if query_string not in self.cache:
-            #self.cache[query_string] = self.query_engine.query(query_string)
             self.cache[query_string] = self.retriever.retrieve(query_string)
 
         results = self.cache[query_string][start:start+count]
