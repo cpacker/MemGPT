@@ -18,16 +18,31 @@ def create_memgpt_autogen_agent_from_config(
     system_message: Optional[str] = "You are a helpful AI Assistant.",
     is_termination_msg: Optional[Callable[[Dict], bool]] = None,
     max_consecutive_auto_reply: Optional[int] = None,
-    human_input_mode: Optional[str] = "TERMINATE",
+    human_input_mode: Optional[str] = "ALWAYS",
     function_map: Optional[Dict[str, Callable]] = None,
     code_execution_config: Optional[Union[Dict, bool]] = None,
     llm_config: Optional[Union[Dict, bool]] = None,
     default_auto_reply: Optional[Union[str, Dict, None]] = "",
 ):
-    """
-    TODO support AutoGen config workflow in a clean way with constructors
-    """
-    raise NotImplementedError
+    """Construct AutoGen config workflow in a clean way."""
+
+    model = constants.DEFAULT_MEMGPT_MODEL if llm_config is None else llm_config["config_list"][0]["model"]
+    persona_desc = personas.DEFAULT if system_message is "" else system_message
+    user_desc = humans.DEFAULT if default_auto_reply is "" else default_auto_reply
+
+    # TODO support auto mode of agents
+    if (max_consecutive_auto_reply is not None or human_input_mode is not "ALWAYS"
+            or function_map is not None or code_execution_config is not None):
+        raise NotImplementedError
+
+    return create_autogen_memgpt_agent(
+        name,
+        preset=presets.DEFAULT,
+        model=model,
+        persona_description=persona_desc,
+        user_description=user_desc,
+        is_termination_msg=is_termination_msg,
+    )
 
 
 def create_autogen_memgpt_agent(
@@ -40,6 +55,7 @@ def create_autogen_memgpt_agent(
     interface_kwargs={},
     persistence_manager=None,
     persistence_manager_kwargs={},
+    is_termination_msg: Optional[Callable[[Dict], bool]] = None,
 ):
     """
     See AutoGenInterface.__init__ for available options you can pass into
@@ -73,6 +89,7 @@ def create_autogen_memgpt_agent(
     autogen_memgpt_agent = MemGPTAgent(
         name=autogen_name,
         agent=memgpt_agent,
+        is_termination_msg=is_termination_msg,
     )
     return autogen_memgpt_agent
 
@@ -84,6 +101,7 @@ class MemGPTAgent(ConversableAgent):
         agent: AgentAsync,
         skip_verify=False,
         concat_other_agent_messages=False,
+        is_termination_msg: Optional[Callable[[Dict], bool]] = None,
     ):
         super().__init__(name)
         self.agent = agent
@@ -94,6 +112,10 @@ class MemGPTAgent(ConversableAgent):
         )
         self.register_reply([Agent, None], MemGPTAgent._generate_reply_for_user_message)
         self.messages_processed_up_to_idx = 0
+
+        self._is_termination_msg = (
+            is_termination_msg if is_termination_msg is not None else (lambda x: x.get("content") == "TERMINATE")
+        )
 
     def format_other_agent_message(self, msg):
         if "name" in msg:
@@ -171,6 +193,10 @@ class MemGPTAgent(ConversableAgent):
                 user_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
             else:
                 break
+
+        # Stop the conversation
+        if self._is_termination_msg(new_messages[-1]['content']):
+            return True, None
 
         # Pass back to AutoGen the pretty-printed calls MemGPT made to the interface
         pretty_ret = MemGPTAgent.pretty_concat(self.agent.interface.message_list)
