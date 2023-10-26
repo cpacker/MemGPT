@@ -42,12 +42,15 @@ def create_autogen_memgpt_agent(
     persistence_manager_kwargs={},
 ):
     """
-    See AutoGenInterface.__init__ for available options you can pass into `interface_kwargs`.
-    For example, MemGPT's inner monologue and functions are off by default so that they are not visible to the other agents. You can turn these on by passing in
+    See AutoGenInterface.__init__ for available options you can pass into
+    `interface_kwargs`.  For example, MemGPT's inner monologue and functions are
+    off by default so that they are not visible to the other agents. You can
+    turn these on by passing in
     ```
     interface_kwargs={
         "debug": True,  # to see all MemGPT activity
-        "show_inner_thoughts: True  # to print MemGPT inner thoughts "globally" (visible to all AutoGen agents)
+        "show_inner_thoughts: True  # to print MemGPT inner thoughts "globally"
+                                    # (visible to all AutoGen agents)
     }
     ```
     """
