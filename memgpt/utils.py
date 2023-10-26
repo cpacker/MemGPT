@@ -16,7 +16,7 @@ from tqdm import tqdm
 import typer
 from memgpt.openai_tools import async_get_embedding_with_backoff
 from memgpt.constants import MEMGPT_DIR
-from llama_index import set_global_service_context, ServiceContext, VectorStoreIndex
+from llama_index import set_global_service_context, ServiceContext, VectorStoreIndex, load_index_from_storage, StorageContext
 from llama_index.embeddings import OpenAIEmbedding
 
 def count_tokens(s: str, model: str = "gpt-4") -> int:
@@ -375,13 +375,23 @@ def estimate_openai_cost(docs):
     token_counter.reset_counts()
     return cost
 
-def index_docs(docs):
+
+def get_index(name, docs):
 
     """ Index documents
 
     :param docs: Documents to be embedded
     :type docs: List[Document]
     """
+
+    # check if directory exists
+    dir = f"{MEMGPT_DIR}/archival/{name}"
+    if os.path.exists(dir):
+        confirm = typer.confirm(typer.style(f"Index with name {name} already exists -- re-index?", fg="yellow"), default=False)
+        if not confirm:
+            # return existing index
+            storage_context = StorageContext.from_defaults(persist_dir=dir)
+            return load_index_from_storage(storage_context)
 
     # TODO: support configurable embeddings
     # TODO: read from config how to index (open ai vs. local): then embed_mode="local"
@@ -414,14 +424,17 @@ def save_index(index, name):
     # save 
     # TODO: load directory from config 
     # TODO: save to vectordb/local depending on config
+
     dir = f"{MEMGPT_DIR}/archival/{name}"
 
-    # check if directory exists
-    if os.path.exists(dir):
-        confirm = typer.confirm(typer.style(f"Index with name {name} already exists -- overwrite?", fg="red"), default=False)
-        if not confirm:
-            typer.secho("Aborting.", fg="red")
-            exit()
+    ## Avoid overwriting
+    ## check if directory exists
+    #if os.path.exists(dir):
+    #    confirm = typer.confirm(typer.style(f"Index with name {name} already exists -- overwrite?", fg="red"), default=False)
+    #    if not confirm:
+    #        typer.secho("Aborting.", fg="red")
+    #        exit()
+
     # create directory, even if it already exists
     os.makedirs(dir, exist_ok=True)
     index.storage_context.persist(dir)

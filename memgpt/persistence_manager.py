@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import pickle
 
-from .memory import DummyRecallMemory, DummyRecallMemoryWithEmbeddings, DummyArchivalMemory, DummyArchivalMemoryWithEmbeddings, DummyArchivalMemoryWithFaiss
+from .memory import DummyRecallMemory, DummyRecallMemoryWithEmbeddings, DummyArchivalMemory, DummyArchivalMemoryWithEmbeddings, DummyArchivalMemoryWithFaiss, LocalArchivalMemory
 from .utils import get_local_time, printd
 
 
@@ -32,13 +32,14 @@ class InMemoryStateManager(PersistenceManager):
     """In-memory state manager has nothing to manage, all agents are held in-memory"""
 
     recall_memory_cls = DummyRecallMemory
-    archival_memory_cls = DummyArchivalMemory
+    archival_memory_cls = LocalArchivalMemory 
 
-    def __init__(self):
+    def __init__(self, archival_memory_db=None):
         # Memory held in-state useful for debugging stateful versions
         self.memory = None
         self.messages = []
         self.all_messages = []
+        self.archival_memory = LocalArchivalMemory(archival_memory_database=archival_memory_db)
 
     @staticmethod
     def load(filename):
@@ -59,8 +60,8 @@ class InMemoryStateManager(PersistenceManager):
 
         # Persistence manager also handles DB-related state
         self.recall_memory = self.recall_memory_cls(message_database=self.all_messages)
-        self.archival_memory_db = []
-        self.archival_memory = self.archival_memory_cls(archival_memory_database=self.archival_memory_db)
+
+        # TODO: init archival memory here? 
 
     def trim_messages(self, num):
         # printd(f"InMemoryStateManager.trim_messages")
@@ -142,3 +143,4 @@ class InMemoryStateManagerWithFaiss(InMemoryStateManager):
         # Persistence manager also handles DB-related state
         self.recall_memory = self.recall_memory_cls(message_database=self.all_messages)
         self.archival_memory = self.archival_memory_cls(index=self.archival_index, archival_memory_database=self.archival_memory_db, k=self.a_k)
+
