@@ -78,12 +78,12 @@ def load_database(
     from llama_index.readers.database import DatabaseReader
     
     db = DatabaseReader(
-        scheme="postgresql",  # Database Scheme
-        host="localhost",  # Database Host
-        port="5432",  # Database Port
-        user="postgres",  # Database User
-        password="FakeExamplePassword",  # Database Password
-        dbname="postgres",  # Database Name
+        scheme=scheme,  # Database Scheme
+        host=host,  # Database Host
+        port=port,  # Database Port
+        user=user,  # Database User
+        password=password,  # Database Password
+        dbname=dbname,  # Database Name
     )
 
     # load data
