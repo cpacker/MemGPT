@@ -1,11 +1,20 @@
 from autogen.agentchat import ConversableAgent, Agent
 from ..agent import AgentAsync
 
-from .. import system
-from .. import constants
+# from .. import system
+# from .. import constants
 
 import asyncio
 from typing import Callable, Optional, List, Dict, Union, Any, Tuple
+
+
+from .interface import AutoGenInterface
+from ..persistence_manager import InMemoryStateManager
+from .. import system
+from .. import constants
+from .. import presets
+from ..personas import personas
+from ..humans import humans
 
 
 def create_memgpt_autogen_agent_from_config(
@@ -20,23 +29,49 @@ def create_memgpt_autogen_agent_from_config(
     default_auto_reply: Optional[Union[str, Dict, None]] = "",
 ):
     """
-    TODO support AutoGen config workflow in a clean way with constructors 
+    TODO support AutoGen config workflow in a clean way with constructors
     """
     raise NotImplementedError
 
 
-class MemGPTAgent(ConversableAgent):
+def create_autogen_memgpt_agent(
+    autogen_name,
+    preset=presets.DEFAULT,
+    model=constants.DEFAULT_MEMGPT_MODEL,
+    persona_description=personas.DEFAULT,
+    user_description=humans.DEFAULT,
+    interface=None,
+    persistence_manager=None,
+):
+    interface = AutoGenInterface() if interface is None else interface
+    persistence_manager = (
+        InMemoryStateManager() if persistence_manager is None else persistence_manager
+    )
 
-    def __init__(
-        self,
-        name: str,
-        agent: AgentAsync,
-        skip_verify=False
-    ):
+    memgpt_agent = presets.use_preset(
+        preset,
+        model,
+        persona_description,
+        user_description,
+        interface,
+        persistence_manager,
+    )
+
+    autogen_memgpt_agent = MemGPTAgent(
+        name=autogen_name,
+        agent=memgpt_agent,
+    )
+    return autogen_memgpt_agent
+
+
+class MemGPTAgent(ConversableAgent):
+    def __init__(self, name: str, agent: AgentAsync, skip_verify=False):
         super().__init__(name)
         self.agent = agent
         self.skip_verify = skip_verify
-        self.register_reply([Agent, None], MemGPTAgent._a_generate_reply_for_user_message)
+        self.register_reply(
+            [Agent, None], MemGPTAgent._a_generate_reply_for_user_message
+        )
         self.register_reply([Agent, None], MemGPTAgent._generate_reply_for_user_message)
 
     def _generate_reply_for_user_message(
@@ -45,7 +80,11 @@ class MemGPTAgent(ConversableAgent):
         sender: Optional[Agent] = None,
         config: Optional[Any] = None,
     ) -> Tuple[bool, Union[str, Dict, None]]:
-        return asyncio.run(self._a_generate_reply_for_user_message(messages=messages, sender=sender, config=config))
+        return asyncio.run(
+            self._a_generate_reply_for_user_message(
+                messages=messages, sender=sender, config=config
+            )
+        )
 
     async def _a_generate_reply_for_user_message(
         self,
@@ -58,15 +97,24 @@ class MemGPTAgent(ConversableAgent):
         self.agent.interface.reset_message_list()
 
         for msg in messages:
-            user_message = system.package_user_message(msg['content'])
+            user_message = system.package_user_message(msg["content"])
             while True:
-                new_messages, heartbeat_request, function_failed, token_warning = await self.agent.step(user_message, first_message=False, skip_verify=self.skip_verify)
+                (
+                    new_messages,
+                    heartbeat_request,
+                    function_failed,
+                    token_warning,
+                ) = await self.agent.step(
+                    user_message, first_message=False, skip_verify=self.skip_verify
+                )
                 ret.extend(new_messages)
                 # Skip user inputs if there's a memory warning, function execution failed, or the agent asked for control
                 if token_warning:
                     user_message = system.get_token_limit_warning()
                 elif function_failed:
-                    user_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
+                    user_message = system.get_heartbeat(
+                        constants.FUNC_FAILED_HEARTBEAT_MESSAGE
+                    )
                 elif heartbeat_request:
                     user_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
                 else:
@@ -79,15 +127,12 @@ class MemGPTAgent(ConversableAgent):
     @staticmethod
     def pretty_concat(messages):
         """AutoGen expects a single response, but MemGPT may take many steps.
-        
+
         To accommodate AutoGen, concatenate all of MemGPT's steps into one and return as a single message.
         """
-        ret = {
-            'role': 'assistant',
-            'content': ''
-        }
+        ret = {"role": "assistant", "content": ""}
         lines = []
         for m in messages:
             lines.append(f"{m}")
-        ret['content'] = '\n'.join(lines)
+        ret["content"] = "\n".join(lines)
         return ret
