@@ -187,6 +187,38 @@ async def main(
     if debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
+        # Azure OpenAI support
+    if use_azure_openai:
+        azure_openai_key = os.getenv("AZURE_OPENAI_KEY")
+        azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        azure_openai_version = os.getenv("AZURE_OPENAI_VERSION")
+        azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+        if None in [
+            azure_openai_key,
+            azure_openai_endpoint,
+            azure_openai_version,
+            azure_openai_deployment,
+        ]:
+            print(
+                f"Error: missing Azure OpenAI environment variables. Please see README section on Azure."
+            )
+            return
+
+        import openai
+
+        openai.api_type = "azure"
+        openai.api_key = azure_openai_key
+        openai.api_base = azure_openai_endpoint
+        openai.api_version = azure_openai_version
+        # deployment gets passed into chatcompletion
+    else:
+        azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+        if azure_openai_deployment is not None:
+            print(
+                f"Error: AZURE_OPENAI_DEPLOYMENT should not be set if --use_azure_openai is False"
+            )
+            return
+
     if any(
         (
             persona,
@@ -251,6 +283,7 @@ async def main(
             print(model)
             print(memgpt_persona)
             print(human_persona)
+
             cfg = await Config.legacy_flags_init(
                 model,
                 memgpt_persona,
@@ -283,37 +316,7 @@ async def main(
             f"⛔️ Warning - you are running MemGPT with {cfg.model}, which is not officially supported (yet). Expect bugs!"
         )
 
-    # Azure OpenAI support
-    if use_azure_openai:
-        azure_openai_key = os.getenv("AZURE_OPENAI_KEY")
-        azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-        azure_openai_version = os.getenv("AZURE_OPENAI_VERSION")
-        azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-        if None in [
-            azure_openai_key,
-            azure_openai_endpoint,
-            azure_openai_version,
-            azure_openai_deployment,
-        ]:
-            print(
-                f"Error: missing Azure OpenAI environment variables. Please see README section on Azure."
-            )
-            return
 
-        import openai
-
-        openai.api_type = "azure"
-        openai.api_key = azure_openai_key
-        openai.api_base = azure_openai_endpoint
-        openai.api_version = azure_openai_version
-        # deployment gets passed into chatcompletion
-    else:
-        azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-        if azure_openai_deployment is not None:
-            print(
-                f"Error: AZURE_OPENAI_DEPLOYMENT should not be set if --use_azure_openai is False"
-            )
-            return
 
     if cfg.index:
         persistence_manager = InMemoryStateManagerWithFaiss(

@@ -125,9 +125,10 @@ async def acompletions_with_backoff(**kwargs):
 @aretry_with_exponential_backoff
 async def acreate_embedding_with_backoff(**kwargs):
     """Wrapper around Embedding.acreate w/ backoff"""
-    azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-    if azure_openai_deployment is not None:
-        kwargs["deployment_id"] = azure_openai_deployment
+    azure_openai_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")
+    if azure_openai_embedding_deployment is not None:
+        kwargs["deployment_id"] = azure_openai_embedding_deployment
+    print("Creating embedding now")
     return await openai.Embedding.acreate(**kwargs)
 
 
