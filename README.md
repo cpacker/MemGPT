@@ -34,7 +34,7 @@
 </details>
 
 <details>
-  <summary><h2>📄 You can also talk to docs - for example ask about <a href="memgpt/personas/examples/docqa">LlamaIndex</a>!</h1></summary>
+  <summary><h2>📄 You can also talk to docs - for example, ask about <a href="memgpt/personas/examples/docqa">LlamaIndex</a>!</h1></summary>
   <div align="center">
     <img src="https://memgpt.ai/assets/img/docqa_demo.gif" alt="MemGPT demo video for llamaindex api docs search" width="800">
   </div>
@@ -67,7 +67,7 @@ You can see the full list of available commands when you enter `/` into the mess
 
 ## What is MemGPT?
 
-Memory-GPT (or MemGPT in short) is a system that intelligently manages different memory tiers in LLMs in order to effectively provide extended context within the LLM's limited context window. For example, MemGPT knows when to push critical information to a vector database and when to retrieve it later in the chat, enabling perpetual conversations. Learn more about MemGPT in our [paper](https://arxiv.org/abs/2310.08560).
+Memory-GPT (or MemGPT in short) is a system that intelligently manages different memory tiers in LLMs in order to effectively provide an extended context within the LLM's limited context window. For example, MemGPT knows when to push critical information to a vector database and when to retrieve it later in the chat, enabling perpetual conversations. Learn more about MemGPT in our [paper](https://arxiv.org/abs/2310.08560).
 
 ## Running MemGPT locally
 
@@ -94,7 +94,7 @@ export OPENAI_API_KEY=YOUR_API_KEY
 set OPENAI_API_KEY=YOUR_API_KEY
 ```
 
-To run MemGPT for as a conversation agent in CLI mode, simply run `memgpt`:
+To run MemGPT as a conversation agent in CLI mode, simply run `memgpt`:
 
 ```sh
 memgpt
@@ -268,7 +268,7 @@ To run our example where you can search over the SEC 10-K filings of Uber, Lyft,
     memgpt --archival_storage_files="memgpt/personas/examples/preload_archival/*.txt" --persona=memgpt_doc --human=basic
     ```
 
-If you would like to load your own local files into MemGPT's archival memory, run the command above but replace `--archival_storage_files="memgpt/personas/examples/preload_archival/*.txt"` with your own file glob expression (enclosed in quotes).
+If you would like to load your local files into MemGPT's archival memory, run the command above but replace `--archival_storage_files="memgpt/personas/examples/preload_archival/*.txt"` with your file glob expression (enclosed in quotes).
 
 #### Enhance with embeddings search
 In the root `MemGPT` directory, run
@@ -276,7 +276,7 @@ In the root `MemGPT` directory, run
   memgpt main.py --archival_storage_files_compute_embeddings="<GLOB_PATTERN>" --persona=memgpt_doc --human=basic
   ```
 
-This will generate embeddings, stick them into a FAISS index, and write the index to a directory, and then output:
+This will generate embeddings, stick them into a FAISS index, write the index to a directory, and then output:
 ```
   To avoid computing embeddings next time, replace --archival_storage_files_compute_embeddings=<GLOB_PATTERN> with
     --archival_storage_faiss_path=<DIRECTORY_WITH_EMBEDDINGS> (if your files haven't changed).
@@ -325,7 +325,7 @@ MemGPT also enables you to chat with docs -- try running this example to talk to
 
 ## Support
 
-If you have any further questions, or have anything to share, we are excited to hear your feedback!
+If you have any further questions or have anything to share, we are excited to hear your feedback!
 
 * By default MemGPT will use `gpt-4`, so your API key will require `gpt-4` API access
 * For issues and feature requests, please [open a GitHub issue](https://github.com/cpacker/MemGPT/issues) or message us on our `#support` channel on [Discord](https://discord.gg/9GEQrxmVyE)
