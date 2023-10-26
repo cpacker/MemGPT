@@ -1,4 +1,4 @@
-from autogen.agentchat import ConversableAgent, Agent
+from autogen.agentchat import Agent, ConversableAgent, UserProxyAgent, GroupChat, GroupChatManager
 from ..agent import AgentAsync
 
 import asyncio
@@ -28,14 +28,17 @@ def create_memgpt_autogen_agent_from_config(
 
     model = constants.DEFAULT_MEMGPT_MODEL if llm_config is None else llm_config["config_list"][0]["model"]
     persona_desc = personas.DEFAULT if system_message is "" else system_message
-    user_desc = humans.DEFAULT if default_auto_reply is "" else default_auto_reply
+    if human_input_mode is "ALWAYS":
+        user_desc = humans.DEFAULT
+    elif human_input_mode is "TERMINATE":
+        user_desc = "Output `TERMINATE` to end the conversation."
+    else:
+        user_desc = ""
 
-    # TODO support auto mode of agents
-    if (max_consecutive_auto_reply is not None or human_input_mode is not "ALWAYS"
-            or function_map is not None or code_execution_config is not None):
+    if function_map is not None or code_execution_config is not None:
         raise NotImplementedError
 
-    return create_autogen_memgpt_agent(
+    autogen_memgpt_agent = create_autogen_memgpt_agent(
         name,
         preset=presets.DEFAULT,
         model=model,
@@ -43,6 +46,25 @@ def create_memgpt_autogen_agent_from_config(
         user_description=user_desc,
         is_termination_msg=is_termination_msg,
     )
+
+    if human_input_mode is not "ALWAYS":
+        user_proxy = UserProxyAgent(
+            name="user_proxy",
+            system_message=humans.DEFAULT,
+            human_input_mode="NEVER",
+            default_auto_reply=default_auto_reply,
+        )
+
+        groupchat = GroupChat(
+            agents=[user_proxy, autogen_memgpt_agent],
+            messages=[],
+            max_round=12 if max_consecutive_auto_reply is None else max_consecutive_auto_reply
+        )
+        manager = GroupChatManager(groupchat=groupchat, llm_config=llm_config)
+        return manager
+
+    else:
+        return autogen_memgpt_agent
 
 
 def create_autogen_memgpt_agent(
