@@ -84,6 +84,7 @@ class MemGPTAgent(ConversableAgent):
             [Agent, None], MemGPTAgent._a_generate_reply_for_user_message
         )
         self.register_reply([Agent, None], MemGPTAgent._generate_reply_for_user_message)
+        self.messages_processed_up_to_idx = 0
 
     def format_other_agent_message(self, msg):
         if "name" in msg:
@@ -101,36 +102,7 @@ class MemGPTAgent(ConversableAgent):
 
     def find_new_messages(self, entire_message_list):
         """Extract the subset of messages that's actually new"""
-
-        if len(self.agent.messages) <= 1:
-            # if len == 1, it's only the system message, so everything must be new
-            return entire_message_list
-
-        # Find where the last message was in the message history
-        last_seen_message = self.find_last_user_message()
-        # print(
-        #     f"XXX there are {len(entire_message_list)} total messages, the last seen message was:\n{last_seen_message}"
-        # )
-        new_message_idx = 0
-        for i, msg in enumerate(entire_message_list):
-            user_message = system.package_user_message(
-                self.format_other_agent_message(msg)
-            )
-            # Once we see the "final message" in the entire message list, this is where the history stops
-            if self.concat_other_agent_messages:
-                # Check if the message is inside
-                # FIXME hacky, doesn't handle repeat message scenarios
-                if self.format_other_agent_message(msg) in last_seen_message:
-                    new_message_idx = i + 1
-            else:
-                if user_message == last_seen_message:
-                    new_message_idx = i + 1
-        # print(f"the new message index is {new_message_idx}")
-
-        # New messages
-        # TODO handle index error
-        new_messages = entire_message_list[new_message_idx:]
-        return new_messages
+        return entire_message_list[self.messages_processed_up_to_idx :]
 
     def _generate_reply_for_user_message(
         self,
@@ -197,6 +169,7 @@ class MemGPTAgent(ConversableAgent):
 
         # Pass back to AutoGen the pretty-printed calls MemGPT made to the interface
         pretty_ret = MemGPTAgent.pretty_concat(self.agent.interface.message_list)
+        self.messages_processed_up_to_idx += len(new_messages)
         return True, pretty_ret
 
     @staticmethod
