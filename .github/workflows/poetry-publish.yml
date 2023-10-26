@@ -1,8 +1,9 @@
-name: Python package
+name: poetry-publish
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  release:
+    types: [published]
+  workflow_dispatch:
+  
 jobs:
   build:
     runs-on: ubuntu-latest
