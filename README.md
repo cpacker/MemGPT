@@ -206,6 +206,8 @@ These are the commands for the CLI, **not the Discord bot**! The Discord bot has
 While using MemGPT via the CLI (not Discord!) you can run various commands:
 
 ```text
+//
+  toggle multiline input mode
 /exit
   exit the CLI
 /save
