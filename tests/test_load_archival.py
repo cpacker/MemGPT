@@ -10,7 +10,8 @@ import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
 from memgpt.persistence_manager import (
-    InMemoryStateManager
+    InMemoryStateManager,
+    LocalStateManager
 )
 from memgpt.config import Config
 from memgpt.constants import MEMGPT_DIR, DEFAULT_MEMGPT_MODEL
@@ -39,7 +40,7 @@ def test_archival():
     )
 
     # create state manager based off loaded data
-    persistence_manager = InMemoryStateManager(archival_memory_db="tmp_hf_dataset")
+    persistence_manager = LocalStateManager(archival_memory_db="tmp_hf_dataset")
 
     # create agent
     memgpt_agent = presets.use_preset(
