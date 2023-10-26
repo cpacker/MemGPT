@@ -41,9 +41,7 @@ def retry_with_exponential_backoff(
 
                 # Check if max retries has been reached
                 if num_retries > max_retries:
-                    raise Exception(
-                        f"Maximum number of retries ({max_retries}) exceeded."
-                    )
+                    raise Exception(f"Maximum number of retries ({max_retries}) exceeded.")
 
                 # Increment the delay
                 delay *= exponential_base * (1 + jitter * random.random())
@@ -91,9 +89,7 @@ def aretry_with_exponential_backoff(
 
                 # Check if max retries has been reached
                 if num_retries > max_retries:
-                    raise Exception(
-                        f"Maximum number of retries ({max_retries}) exceeded."
-                    )
+                    raise Exception(f"Maximum number of retries ({max_retries}) exceeded.")
 
                 # Increment the delay
                 delay *= exponential_base * (1 + jitter * random.random())
@@ -184,9 +180,7 @@ def configure_azure_support():
         azure_openai_endpoint,
         azure_openai_version,
     ]:
-        print(
-            f"Error: missing Azure OpenAI environment variables. Please see README section on Azure."
-        )
+        print(f"Error: missing Azure OpenAI environment variables. Please see README section on Azure.")
         return
 
     openai.api_type = "azure"
@@ -199,10 +193,7 @@ def configure_azure_support():
 def check_azure_embeddings():
     azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
     azure_openai_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")
-    if (
-        azure_openai_deployment is not None
-        and azure_openai_embedding_deployment is None
-    ):
+    if azure_openai_deployment is not None and azure_openai_embedding_deployment is None:
         raise ValueError(
             f"Error: It looks like you are using Azure deployment ids and computing embeddings, make sure you are setting one for embeddings as well. Please see README section on Azure"
         )
