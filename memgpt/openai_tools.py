@@ -134,7 +134,7 @@ async def acreate_embedding_with_backoff(**kwargs):
         if azure_openai_deployment is not None:
             kwargs["deployment_id"] = azure_openai_deployment
         else:
-            kwargs["engine"] = "text-embedding-ada-002"
+            kwargs["engine"] = kwargs["model"]
             kwargs.pop("model")
     return await openai.Embedding.acreate(**kwargs)
 
@@ -183,7 +183,6 @@ def configure_azure_support():
         azure_openai_key,
         azure_openai_endpoint,
         azure_openai_version,
-        # azure_openai_deployment,
     ]:
         print(
             f"Error: missing Azure OpenAI environment variables. Please see README section on Azure."
