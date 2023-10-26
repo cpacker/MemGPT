@@ -28,6 +28,12 @@ from memgpt.persistence_manager import (
 
 from memgpt.config import Config
 from memgpt.constants import MEMGPT_DIR
+from memgpt.openai_tools import (
+    configure_azure_support,
+    check_azure_embeddings,
+    get_set_azure_env_vars,
+)
+
 import asyncio
 
 app = typer.Typer()
@@ -187,6 +193,18 @@ async def main(
     if debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
+    # Azure OpenAI support
+    if use_azure_openai:
+        configure_azure_support()
+        check_azure_embeddings()
+    else:
+        azure_vars = get_set_azure_env_vars()
+        if len(azure_vars) > 0:
+            print(
+                f"Error: Environment variables {', '.join([x[0] for x in azure_vars])} should not be set if --use_azure_openai is False"
+            )
+            return
+
     if any(
         (
             persona,
@@ -284,38 +302,6 @@ async def main(
         memgpt.interface.warning_message(
             f"⛔️ Warning - you are running MemGPT with {cfg.model}, which is not officially supported (yet). Expect bugs!"
         )
-
-    # Azure OpenAI support
-    if use_azure_openai:
-        azure_openai_key = os.getenv("AZURE_OPENAI_KEY")
-        azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-        azure_openai_version = os.getenv("AZURE_OPENAI_VERSION")
-        azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-        if None in [
-            azure_openai_key,
-            azure_openai_endpoint,
-            azure_openai_version,
-            azure_openai_deployment,
-        ]:
-            print(
-                f"Error: missing Azure OpenAI environment variables. Please see README section on Azure."
-            )
-            return
-
-        import openai
-
-        openai.api_type = "azure"
-        openai.api_key = azure_openai_key
-        openai.api_base = azure_openai_endpoint
-        openai.api_version = azure_openai_version
-        # deployment gets passed into chatcompletion
-    else:
-        azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-        if azure_openai_deployment is not None:
-            print(
-                f"Error: AZURE_OPENAI_DEPLOYMENT should not be set if --use_azure_openai is False"
-            )
-            return
 
     if cfg.index:
         persistence_manager = InMemoryStateManagerWithFaiss(
