@@ -54,9 +54,9 @@ else:
     coder = create_autogen_memgpt_agent(
         "MemGPT_coder",
         persona_description="I am a 10x engineer, trained in Python. I was the first engineer at Uber (which I make sure to tell everyone I work with).",
-        user_description="You are participating in a group chat with a user and a product manager (PM).",
+        user_description=f"You are participating in a group chat with a user ({user_proxy.name}) and a product manager ({pm.name}).",
         # extra options
-        interface_kwargs={"debug": True},
+        # interface_kwargs={"debug": True},
     )
 
 # Initialize the group chat between the user and two LLM agents (PM and coder)
