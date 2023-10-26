@@ -152,9 +152,7 @@ class Dolphin21MistralWrapper(LLMChatCompletionWrapper):
                     try:
                         content_json = json.loads(message["content"])
                         content_simple = content_json["message"]
-                        prompt += (
-                            f"\n{IM_START_TOKEN}user\n{content_simple}{IM_END_TOKEN}"
-                        )
+                        prompt += f"\n{IM_START_TOKEN}user\n{content_simple}{IM_END_TOKEN}"
                         # prompt += f"\nUSER: {content_simple}"
                     except:
                         prompt += f"\n{IM_START_TOKEN}user\n{message['content']}{IM_END_TOKEN}"
@@ -227,9 +225,7 @@ class Dolphin21MistralWrapper(LLMChatCompletionWrapper):
         function_parameters = function_json_output["params"]
 
         if self.clean_func_args:
-            function_name, function_parameters = self.clean_function_args(
-                function_name, function_parameters
-            )
+            function_name, function_parameters = self.clean_function_args(function_name, function_parameters)
 
         message = {
             "role": "assistant",

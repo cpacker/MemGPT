@@ -24,6 +24,7 @@ model_choices = [
     ),
 ]
 
+
 class Config:
     personas_dir = os.path.join("memgpt", "personas", "examples")
     custom_personas_dir = os.path.join(MEMGPT_DIR, "personas")
@@ -78,12 +79,8 @@ class Config:
             cfg = Config.get_most_recent_config()
             use_cfg = False
             if cfg:
-                print(
-                    f"{Style.BRIGHT}{Fore.MAGENTA}⚙️ Found saved config file.{Style.RESET_ALL}"
-                )
-                use_cfg = await questionary.confirm(
-                    f"Use most recent config file '{cfg}'?"
-                ).ask_async()
+                print(f"{Style.BRIGHT}{Fore.MAGENTA}⚙️ Found saved config file.{Style.RESET_ALL}")
+                use_cfg = await questionary.confirm(f"Use most recent config file '{cfg}'?").ask_async()
             if use_cfg:
                 self.config_file = cfg
 
@@ -104,9 +101,7 @@ class Config:
             return self
 
         # print("No settings file found, configuring MemGPT...")
-        print(
-            f"{Style.BRIGHT}{Fore.MAGENTA}⚙️ No settings file found, configuring MemGPT...{Style.RESET_ALL}"
-        )
+        print(f"{Style.BRIGHT}{Fore.MAGENTA}⚙️ No settings file found, configuring MemGPT...{Style.RESET_ALL}")
 
         self.model = await questionary.select(
             "Which model would you like to use?",
@@ -126,9 +121,7 @@ class Config:
         ).ask_async()
 
         self.archival_storage_index = None
-        self.preload_archival = await questionary.confirm(
-            "Would you like to preload anything into MemGPT's archival memory?"
-        ).ask_async()
+        self.preload_archival = await questionary.confirm("Would you like to preload anything into MemGPT's archival memory?").ask_async()
         if self.preload_archival:
             self.load_type = await questionary.select(
                 "What would you like to load?",
@@ -139,19 +132,13 @@ class Config:
                 ],
             ).ask_async()
             if self.load_type == "folder" or self.load_type == "sql":
-                archival_storage_path = await questionary.path(
-                    "Please enter the folder or file (tab for autocomplete):"
-                ).ask_async()
+                archival_storage_path = await questionary.path("Please enter the folder or file (tab for autocomplete):").ask_async()
                 if os.path.isdir(archival_storage_path):
-                    self.archival_storage_files = os.path.join(
-                        archival_storage_path, "*"
-                    )
+                    self.archival_storage_files = os.path.join(archival_storage_path, "*")
                 else:
                     self.archival_storage_files = archival_storage_path
             else:
-                self.archival_storage_files = await questionary.path(
-                    "Please enter the glob pattern (tab for autocomplete):"
-                ).ask_async()
+                self.archival_storage_files = await questionary.path("Please enter the glob pattern (tab for autocomplete):").ask_async()
             self.compute_embeddings = await questionary.confirm(
                 "Would you like to compute embeddings over these files to enable embeddings search?"
             ).ask_async()
@@ -167,19 +154,11 @@ class Config:
                     "⛔️ Embeddings on a non-OpenAI endpoint are not yet supported, falling back to substring matching search."
                 )
             else:
-                self.archival_storage_index = (
-                    await utils.prepare_archival_index_from_files_compute_embeddings(
-                        self.archival_storage_files
-                    )
-                )
+                self.archival_storage_index = await utils.prepare_archival_index_from_files_compute_embeddings(self.archival_storage_files)
         if self.compute_embeddings and self.archival_storage_index:
-            self.index, self.archival_database = utils.prepare_archival_index(
-                self.archival_storage_index
-            )
+            self.index, self.archival_database = utils.prepare_archival_index(self.archival_storage_index)
         else:
-            self.archival_database = utils.prepare_archival_index_from_files(
-                self.archival_storage_files
-            )
+            self.archival_database = utils.prepare_archival_index_from_files(self.archival_storage_files)
 
     def to_dict(self):
         return {
@@ -216,15 +195,11 @@ class Config:
             configs_dir = Config.configs_dir
         os.makedirs(configs_dir, exist_ok=True)
         if self.config_file is None:
-            filename = os.path.join(
-                configs_dir, utils.get_local_time().replace(" ", "_").replace(":", "_")
-            )
+            filename = os.path.join(configs_dir, utils.get_local_time().replace(" ", "_").replace(":", "_"))
             self.config_file = f"{filename}.json"
         with open(self.config_file, "wt") as f:
             json.dump(self.to_dict(), f, indent=4)
-        print(
-            f"{Style.BRIGHT}{Fore.MAGENTA}⚙️ Saved config file to {self.config_file}.{Style.RESET_ALL}"
-        )
+        print(f"{Style.BRIGHT}{Fore.MAGENTA}⚙️ Saved config file to {self.config_file}.{Style.RESET_ALL}")
 
     @staticmethod
     def is_valid_config_file(file: str):
@@ -233,9 +208,7 @@ class Config:
             cfg.load_config(file)
         except Exception:
             return False
-        return (
-            cfg.memgpt_persona is not None and cfg.human_persona is not None
-        )  # TODO: more validation for configs
+        return cfg.memgpt_persona is not None and cfg.human_persona is not None  # TODO: more validation for configs
 
     @staticmethod
     def get_memgpt_personas():
@@ -330,8 +303,7 @@ class Config:
         files = [
             os.path.join(configs_dir, f)
             for f in os.listdir(configs_dir)
-            if os.path.isfile(os.path.join(configs_dir, f))
-            and Config.is_valid_config_file(os.path.join(configs_dir, f))
+            if os.path.isfile(os.path.join(configs_dir, f)) and Config.is_valid_config_file(os.path.join(configs_dir, f))
         ]
         # Return the file with the most recent modification time
         if len(files) == 0:
