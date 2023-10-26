@@ -41,11 +41,15 @@ def create_autogen_memgpt_agent(
     persona_description=personas.DEFAULT,
     user_description=humans.DEFAULT,
     interface=None,
+    interface_kwargs={},
     persistence_manager=None,
+    persistence_manager_kwargs={},
 ):
-    interface = AutoGenInterface() if interface is None else interface
+    interface = AutoGenInterface(**interface_kwargs) if interface is None else interface
     persistence_manager = (
-        InMemoryStateManager() if persistence_manager is None else persistence_manager
+        InMemoryStateManager(**persistence_manager_kwargs)
+        if persistence_manager is None
+        else persistence_manager
     )
 
     memgpt_agent = presets.use_preset(
@@ -92,12 +96,17 @@ class MemGPTAgent(ConversableAgent):
         sender: Optional[Agent] = None,
         config: Optional[Any] = None,
     ) -> Tuple[bool, Union[str, Dict, None]]:
-        ret = []
+        # ret = []
         # for the interface
+        # print(f"a_gen_reply messages:\n{messages}")
         self.agent.interface.reset_message_list()
 
         for msg in messages:
-            user_message = system.package_user_message(msg["content"])
+            if "name" in msg:
+                user_message_raw = f"{msg['name']}: {msg['content']}"
+            else:
+                user_message_raw = msg["content"]
+            user_message = system.package_user_message(user_message_raw)
             while True:
                 (
                     new_messages,
@@ -107,7 +116,7 @@ class MemGPTAgent(ConversableAgent):
                 ) = await self.agent.step(
                     user_message, first_message=False, skip_verify=self.skip_verify
                 )
-                ret.extend(new_messages)
+                # ret.extend(new_messages)
                 # Skip user inputs if there's a memory warning, function execution failed, or the agent asked for control
                 if token_warning:
                     user_message = system.get_token_limit_warning()
