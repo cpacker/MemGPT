@@ -131,7 +131,7 @@ def total_bytes(pattern):
 
 def chunk_file(file, tkns_per_chunk=300, model='gpt-4'):
     encoding = tiktoken.encoding_for_model(model)
-    if file.endswith('.db'):
+    if file.endswith(".db"):
         lines = read_database_as_list(file)
     else:
         with open(file, "r") as f:
