@@ -415,6 +415,13 @@ def save_index(index, name):
     # TODO: load directory from config 
     # TODO: save to vectordb/local depending on config
     dir = f"{MEMGPT_DIR}/archival/{name}"
+
+    # check if directory exists
+    if os.path.exists(dir):
+        confirm = typer.confirm(typer.style(f"Index with name {name} already exists -- overwrite?", fg="red"), default=False)
+        if not confirm:
+            typer.secho("Aborting.", fg="red")
+            exit()
     # create directory, even if it already exists
     os.makedirs(dir, exist_ok=True)
     index.storage_context.persist(dir)
