@@ -1,12 +1,8 @@
 from autogen.agentchat import ConversableAgent, Agent
 from ..agent import AgentAsync
 
-# from .. import system
-# from .. import constants
-
 import asyncio
 from typing import Callable, Optional, List, Dict, Union, Any, Tuple
-
 
 from .interface import AutoGenInterface
 from ..persistence_manager import InMemoryStateManager
@@ -122,9 +118,6 @@ class MemGPTAgent(ConversableAgent):
         sender: Optional[Agent] = None,
         config: Optional[Any] = None,
     ) -> Tuple[bool, Union[str, Dict, None]]:
-        # ret = []
-        # for the interface
-        # print(f"a_gen_reply messages:\n{messages}")
         self.agent.interface.reset_message_list()
 
         new_messages = self.find_new_messages(messages)
@@ -154,7 +147,6 @@ class MemGPTAgent(ConversableAgent):
             ) = await self.agent.step(
                 user_message, first_message=False, skip_verify=self.skip_verify
             )
-            # ret.extend(new_messages)
             # Skip user inputs if there's a memory warning, function execution failed, or the agent asked for control
             if token_warning:
                 user_message = system.get_token_limit_warning()
