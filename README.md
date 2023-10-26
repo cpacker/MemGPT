@@ -5,9 +5,9 @@
 <div align="center">
 
  <strong>Try out our MemGPT chatbot on <a href="https://discord.gg/9GEQrxmVyE">Discord</a>!</strong>
- 
+
  <strong>⭐ NEW: You can now run MemGPT with <a href="https://github.com/cpacker/MemGPT/discussions/67">local LLMs</a> and <a href="https://github.com/cpacker/MemGPT/discussions/65">AutoGen</a>! ⭐ </strong>
- 
+
 [![Discord](https://img.shields.io/discord/1161736243340640419?label=Discord&logo=discord&logoColor=5865F2&style=flat-square&color=5865F2)](https://discord.gg/9GEQrxmVyE)
 [![arXiv 2310.08560](https://img.shields.io/badge/arXiv-2310.08560-B31B1B?logo=arxiv&style=flat-square)](https://arxiv.org/abs/2310.08560)
 
@@ -351,16 +351,16 @@ Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded
 - [x] Add support for other LLM backends ([issue](https://github.com/cpacker/MemGPT/issues/18), [discussion](https://github.com/cpacker/MemGPT/discussions/67))
 - [ ] Release MemGPT family of open models (eg finetuned Mistral) ([discussion](https://github.com/cpacker/MemGPT/discussions/67))
 
-## Development 
-You can install MemGPT from source with: 
+## Development
+You can install MemGPT from source with:
 ```
 git clone git@github.com:cpacker/MemGPT.git
 poetry shell
 poetry install
 ```
 
-### Contributing 
-We welcome pull requests! Please run the formatter before submitting a pull request: 
+### Contributing
+We welcome pull requests! Please run the formatter before submitting a pull request:
 ```
 poetry run black . -l 140
 ```
