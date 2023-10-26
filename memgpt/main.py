@@ -28,9 +28,11 @@ from memgpt.persistence_manager import (
 
 from memgpt.config import Config
 from memgpt.constants import MEMGPT_DIR
+from memgpt.connectors import connector
 import asyncio
 
 app = typer.Typer()
+app.add_typer(connector.app, name="load")
 
 
 def clear_line():
