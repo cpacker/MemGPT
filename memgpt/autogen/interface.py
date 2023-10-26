@@ -68,41 +68,25 @@ class AutoGenInterface(object):
             print(f"inner thoughts :: {msg}")
         if not self.show_inner_thoughts:
             return
-        message = (
-            f"\x1B[3m{Fore.LIGHTBLACK_EX}💭 {msg}{Style.RESET_ALL}"
-            if self.fancy
-            else f"[inner thoughts] {msg}"
-        )
+        message = f"\x1B[3m{Fore.LIGHTBLACK_EX}💭 {msg}{Style.RESET_ALL}" if self.fancy else f"[inner thoughts] {msg}"
         self.message_list.append(message)
 
     async def assistant_message(self, msg):
         if self.debug:
             print(f"assistant :: {msg}")
-        message = (
-            f"{Fore.YELLOW}{Style.BRIGHT}🤖 {Fore.YELLOW}{msg}{Style.RESET_ALL}"
-            if self.fancy
-            else msg
-        )
+        message = f"{Fore.YELLOW}{Style.BRIGHT}🤖 {Fore.YELLOW}{msg}{Style.RESET_ALL}" if self.fancy else msg
         self.message_list.append(message)
 
     async def memory_message(self, msg):
         if self.debug:
             print(f"memory :: {msg}")
-        message = (
-            f"{Fore.LIGHTMAGENTA_EX}{Style.BRIGHT}🧠 {Fore.LIGHTMAGENTA_EX}{msg}{Style.RESET_ALL}"
-            if self.fancy
-            else f"[memory] {msg}"
-        )
+        message = f"{Fore.LIGHTMAGENTA_EX}{Style.BRIGHT}🧠 {Fore.LIGHTMAGENTA_EX}{msg}{Style.RESET_ALL}" if self.fancy else f"[memory] {msg}"
         self.message_list.append(message)
 
     async def system_message(self, msg):
         if self.debug:
             print(f"system :: {msg}")
-        message = (
-            f"{Fore.MAGENTA}{Style.BRIGHT}🖥️ [system] {Fore.MAGENTA}{msg}{Style.RESET_ALL}"
-            if self.fancy
-            else f"[system] {msg}"
-        )
+        message = f"{Fore.MAGENTA}{Style.BRIGHT}🖥️ [system] {Fore.MAGENTA}{msg}{Style.RESET_ALL}" if self.fancy else f"[system] {msg}"
         self.message_list.append(message)
 
     async def user_message(self, msg, raw=False):
@@ -113,11 +97,7 @@ class AutoGenInterface(object):
 
         if isinstance(msg, str):
             if raw:
-                message = (
-                    f"{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg}{Style.RESET_ALL}"
-                    if self.fancy
-                    else f"[user] {msg}"
-                )
+                message = f"{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg}{Style.RESET_ALL}" if self.fancy else f"[user] {msg}"
                 self.message_list.append(message)
                 return
             else:
@@ -125,42 +105,24 @@ class AutoGenInterface(object):
                     msg_json = json.loads(msg)
                 except:
                     print(f"Warning: failed to parse user message into json")
-                    message = (
-                        f"{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg}{Style.RESET_ALL}"
-                        if self.fancy
-                        else f"[user] {msg}"
-                    )
+                    message = f"{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg}{Style.RESET_ALL}" if self.fancy else f"[user] {msg}"
                     self.message_list.append(message)
                     return
 
         if msg_json["type"] == "user_message":
             msg_json.pop("type")
-            message = (
-                f"{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg_json}{Style.RESET_ALL}"
-                if self.fancy
-                else f"[user] {msg}"
-            )
+            message = f"{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg_json}{Style.RESET_ALL}" if self.fancy else f"[user] {msg}"
         elif msg_json["type"] == "heartbeat":
             if True or DEBUG:
                 msg_json.pop("type")
                 message = (
-                    f"{Fore.GREEN}{Style.BRIGHT}💓 {Fore.GREEN}{msg_json}{Style.RESET_ALL}"
-                    if self.fancy
-                    else f"[system heartbeat] {msg}"
+                    f"{Fore.GREEN}{Style.BRIGHT}💓 {Fore.GREEN}{msg_json}{Style.RESET_ALL}" if self.fancy else f"[system heartbeat] {msg}"
                 )
         elif msg_json["type"] == "system_message":
             msg_json.pop("type")
-            message = (
-                f"{Fore.GREEN}{Style.BRIGHT}🖥️ {Fore.GREEN}{msg_json}{Style.RESET_ALL}"
-                if self.fancy
-                else f"[system] {msg}"
-            )
+            message = f"{Fore.GREEN}{Style.BRIGHT}🖥️ {Fore.GREEN}{msg_json}{Style.RESET_ALL}" if self.fancy else f"[system] {msg}"
         else:
-            message = (
-                f"{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg_json}{Style.RESET_ALL}"
-                if self.fancy
-                else f"[user] {msg}"
-            )
+            message = f"{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg_json}{Style.RESET_ALL}" if self.fancy else f"[user] {msg}"
 
         self.message_list.append(message)
 
@@ -171,31 +133,19 @@ class AutoGenInterface(object):
             return
 
         if isinstance(msg, dict):
-            message = (
-                f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}"
-            )
+            message = f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}"
             self.message_list.append(message)
             return
 
         if msg.startswith("Success: "):
-            message = (
-                f"{Fore.RED}{Style.BRIGHT}⚡🟢 [function] {Fore.RED}{msg}{Style.RESET_ALL}"
-                if self.fancy
-                else f"[function - OK] {msg}"
-            )
+            message = f"{Fore.RED}{Style.BRIGHT}⚡🟢 [function] {Fore.RED}{msg}{Style.RESET_ALL}" if self.fancy else f"[function - OK] {msg}"
         elif msg.startswith("Error: "):
             message = (
-                f"{Fore.RED}{Style.BRIGHT}⚡🔴 [function] {Fore.RED}{msg}{Style.RESET_ALL}"
-                if self.fancy
-                else f"[function - error] {msg}"
+                f"{Fore.RED}{Style.BRIGHT}⚡🔴 [function] {Fore.RED}{msg}{Style.RESET_ALL}" if self.fancy else f"[function - error] {msg}"
             )
         elif msg.startswith("Running "):
             if DEBUG:
-                message = (
-                    f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}"
-                    if self.fancy
-                    else f"[function] {msg}"
-                )
+                message = f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}" if self.fancy else f"[function] {msg}"
             else:
                 if "memory" in msg:
                     match = re.search(r"Running (\w+)\((.*)\)", msg)
@@ -227,35 +177,25 @@ class AutoGenInterface(object):
                     else:
                         print(f"Warning: did not recognize function message")
                         message = (
-                            f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}"
-                            if self.fancy
-                            else f"[function] {msg}"
+                            f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}" if self.fancy else f"[function] {msg}"
                         )
                 elif "send_message" in msg:
                     # ignore in debug mode
                     message = None
                 else:
                     message = (
-                        f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}"
-                        if self.fancy
-                        else f"[function] {msg}"
+                        f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}" if self.fancy else f"[function] {msg}"
                     )
         else:
             try:
                 msg_dict = json.loads(msg)
                 if "status" in msg_dict and msg_dict["status"] == "OK":
                     message = (
-                        f"{Fore.GREEN}{Style.BRIGHT}⚡ [function] {Fore.GREEN}{msg}{Style.RESET_ALL}"
-                        if self.fancy
-                        else f"[function] {msg}"
+                        f"{Fore.GREEN}{Style.BRIGHT}⚡ [function] {Fore.GREEN}{msg}{Style.RESET_ALL}" if self.fancy else f"[function] {msg}"
                     )
             except Exception:
                 print(f"Warning: did not recognize function message {type(msg)} {msg}")
-                message = (
-                    f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}"
-                    if self.fancy
-                    else f"[function] {msg}"
-                )
+                message = f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}" if self.fancy else f"[function] {msg}"
 
         if message:
             self.message_list.append(message)

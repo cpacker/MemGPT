@@ -345,3 +345,17 @@ Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded
 - [x] CLI UI improvements ([issue](https://github.com/cpacker/MemGPT/issues/11))
 - [x] Add support for other LLM backends ([issue](https://github.com/cpacker/MemGPT/issues/18), [discussion](https://github.com/cpacker/MemGPT/discussions/67))
 - [ ] Release MemGPT family of open models (eg finetuned Mistral) ([discussion](https://github.com/cpacker/MemGPT/discussions/67))
+
+## Development 
+You can install MemGPT from source with: 
+```
+git clone git@github.com:cpacker/MemGPT.git
+poetry shell
+poetry install
+```
+
+### Contributing 
+We welcome pull requests! Please run the formatter before submitting a pull request: 
+```
+poetry run black . -l 140
+```

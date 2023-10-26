@@ -83,12 +83,8 @@ def load(memgpt_agent, filename):
             print(f"Loading {filename} failed with: {e}")
     else:
         # Load the latest file
-        print(
-            f"/load warning: no checkpoint specified, loading most recent checkpoint instead"
-        )
-        json_files = glob.glob(
-            "saved_state/*.json"
-        )  # This will list all .json files in the current directory.
+        print(f"/load warning: no checkpoint specified, loading most recent checkpoint instead")
+        json_files = glob.glob("saved_state/*.json")  # This will list all .json files in the current directory.
 
         # Check if there are any json files.
         if not json_files:
@@ -110,27 +106,17 @@ def load(memgpt_agent, filename):
         )  # TODO(fixme):for different types of persistence managers that require different load/save methods
         print(f"Loaded persistence manager from {filename}")
     except Exception as e:
-        print(
-            f"/load warning: loading persistence manager from {filename} failed with: {e}"
-        )
+        print(f"/load warning: loading persistence manager from {filename} failed with: {e}")
 
 
 @app.command()
 def run(
     persona: str = typer.Option(None, help="Specify persona"),
     human: str = typer.Option(None, help="Specify human"),
-    model: str = typer.Option(
-        constants.DEFAULT_MEMGPT_MODEL, help="Specify the LLM model"
-    ),
-    first: bool = typer.Option(
-        False, "--first", help="Use --first to send the first message in the sequence"
-    ),
-    debug: bool = typer.Option(
-        False, "--debug", help="Use --debug to enable debugging output"
-    ),
-    no_verify: bool = typer.Option(
-        False, "--no_verify", help="Bypass message verification"
-    ),
+    model: str = typer.Option(constants.DEFAULT_MEMGPT_MODEL, help="Specify the LLM model"),
+    first: bool = typer.Option(False, "--first", help="Use --first to send the first message in the sequence"),
+    debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
+    no_verify: bool = typer.Option(False, "--no_verify", help="Bypass message verification"),
     archival_storage_faiss_path: str = typer.Option(
         "",
         "--archival_storage_faiss_path",
@@ -200,9 +186,7 @@ async def main(
     else:
         azure_vars = get_set_azure_env_vars()
         if len(azure_vars) > 0:
-            print(
-                f"Error: Environment variables {', '.join([x[0] for x in azure_vars])} should not be set if --use_azure_openai is False"
-            )
+            print(f"Error: Environment variables {', '.join([x[0] for x in azure_vars])} should not be set if --use_azure_openai is False")
             return
 
     if any(
@@ -295,23 +279,17 @@ async def main(
     else:
         cfg = await Config.config_init()
 
-    memgpt.interface.important_message(
-        "Running... [exit by typing '/exit', list available commands with '/help']"
-    )
+    memgpt.interface.important_message("Running... [exit by typing '/exit', list available commands with '/help']")
     if cfg.model != constants.DEFAULT_MEMGPT_MODEL:
         memgpt.interface.warning_message(
             f"⛔️ Warning - you are running MemGPT with {cfg.model}, which is not officially supported (yet). Expect bugs!"
         )
 
     if cfg.index:
-        persistence_manager = InMemoryStateManagerWithFaiss(
-            cfg.index, cfg.archival_database
-        )
+        persistence_manager = InMemoryStateManagerWithFaiss(cfg.index, cfg.archival_database)
     elif cfg.archival_storage_files:
         print(f"Preloaded {len(cfg.archival_database)} chunks into archival memory.")
-        persistence_manager = InMemoryStateManagerWithPreloadedArchivalMemory(
-            cfg.archival_database
-        )
+        persistence_manager = InMemoryStateManagerWithPreloadedArchivalMemory(cfg.archival_database)
     else:
         persistence_manager = InMemoryStateManager()
 
@@ -355,9 +333,7 @@ async def main(
             print(f"Database loaded into archival memory.")
 
     if cfg.agent_save_file:
-        load_save_file = await questionary.confirm(
-            f"Load in saved agent '{cfg.agent_save_file}'?"
-        ).ask_async()
+        load_save_file = await questionary.confirm(f"Load in saved agent '{cfg.agent_save_file}'?").ask_async()
         if load_save_file:
             load(memgpt_agent, cfg.agent_save_file)
 
@@ -366,9 +342,7 @@ async def main(
         return
 
     if not USER_GOES_FIRST:
-        console.input(
-            "[bold cyan]Hit enter to begin (will request first MemGPT message)[/bold cyan]"
-        )
+        console.input("[bold cyan]Hit enter to begin (will request first MemGPT message)[/bold cyan]")
         clear_line()
         print()
 
@@ -404,9 +378,7 @@ async def main(
                     break
 
                 elif user_input.lower() == "/savechat":
-                    filename = (
-                        utils.get_local_time().replace(" ", "_").replace(":", "_")
-                    )
+                    filename = utils.get_local_time().replace(" ", "_").replace(":", "_")
                     filename = f"{filename}.pkl"
                     directory = os.path.join(MEMGPT_DIR, "saved_chats")
                     try:
@@ -423,9 +395,7 @@ async def main(
                     save(memgpt_agent=memgpt_agent, cfg=cfg)
                     continue
 
-                elif user_input.lower() == "/load" or user_input.lower().startswith(
-                    "/load "
-                ):
+                elif user_input.lower() == "/load" or user_input.lower().startswith("/load "):
                     command = user_input.strip().split()
                     filename = command[1] if len(command) > 1 else None
                     load(memgpt_agent=memgpt_agent, filename=filename)
@@ -458,16 +428,10 @@ async def main(
                     print(f"Updated model to:\n{str(memgpt_agent.model)}")
                     continue
 
-                elif user_input.lower() == "/pop" or user_input.lower().startswith(
-                    "/pop "
-                ):
+                elif user_input.lower() == "/pop" or user_input.lower().startswith("/pop "):
                     # Check if there's an additional argument that's an integer
                     command = user_input.strip().split()
-                    amount = (
-                        int(command[1])
-                        if len(command) > 1 and command[1].isdigit()
-                        else 2
-                    )
+                    amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 2
                     print(f"Popping last {amount} messages from stack")
                     for _ in range(min(amount, len(memgpt_agent.messages))):
                         memgpt_agent.messages.pop()
@@ -512,18 +476,14 @@ async def main(
                 heartbeat_request,
                 function_failed,
                 token_warning,
-            ) = await memgpt_agent.step(
-                user_message, first_message=False, skip_verify=no_verify
-            )
+            ) = await memgpt_agent.step(user_message, first_message=False, skip_verify=no_verify)
 
             # Skip user inputs if there's a memory warning, function execution failed, or the agent asked for control
             if token_warning:
                 user_message = system.get_token_limit_warning()
                 skip_next_user_input = True
             elif function_failed:
-                user_message = system.get_heartbeat(
-                    constants.FUNC_FAILED_HEARTBEAT_MESSAGE
-                )
+                user_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
                 skip_next_user_input = True
             elif heartbeat_request:
                 user_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)

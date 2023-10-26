@@ -11,10 +11,15 @@ from .system import get_heartbeat, get_login_event, package_function_response, p
 from .memory import CoreMemory as Memory, summarize_messages
 from .openai_tools import acompletions_with_backoff as acreate
 from .utils import get_local_time, parse_json, united_diff, printd, count_tokens
-from .constants import \
-    FIRST_MESSAGE_ATTEMPTS, MAX_PAUSE_HEARTBEATS, \
-    MESSAGE_CHATGPT_FUNCTION_MODEL, MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE, MESSAGE_SUMMARY_WARNING_TOKENS, \
-    CORE_MEMORY_HUMAN_CHAR_LIMIT, CORE_MEMORY_PERSONA_CHAR_LIMIT
+from .constants import (
+    FIRST_MESSAGE_ATTEMPTS,
+    MAX_PAUSE_HEARTBEATS,
+    MESSAGE_CHATGPT_FUNCTION_MODEL,
+    MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
+    MESSAGE_SUMMARY_WARNING_TOKENS,
+    CORE_MEMORY_HUMAN_CHAR_LIMIT,
+    CORE_MEMORY_PERSONA_CHAR_LIMIT,
+)
 
 
 def initialize_memory(ai_notes, human_notes):
@@ -28,52 +33,57 @@ def initialize_memory(ai_notes, human_notes):
     return memory
 
 
-def construct_system_with_memory(
-        system, memory, memory_edit_timestamp,
-        archival_memory=None, recall_memory=None
-    ):
-    full_system_message = "\n".join([
-        system,
-        "\n",
-        f"### Memory [last modified: {memory_edit_timestamp}",
-        f"{len(recall_memory) if recall_memory else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
-        f"{len(archival_memory) if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
-        "\nCore memory shown below (limited in size, additional information stored in archival / recall memory):",
-        "<persona>",
-        memory.persona,
-        "</persona>",
-        "<human>",
-        memory.human,
-        "</human>",
-    ])
+def construct_system_with_memory(system, memory, memory_edit_timestamp, archival_memory=None, recall_memory=None):
+    full_system_message = "\n".join(
+        [
+            system,
+            "\n",
+            f"### Memory [last modified: {memory_edit_timestamp}",
+            f"{len(recall_memory) if recall_memory else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
+            f"{len(archival_memory) if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
+            "\nCore memory shown below (limited in size, additional information stored in archival / recall memory):",
+            "<persona>",
+            memory.persona,
+            "</persona>",
+            "<human>",
+            memory.human,
+            "</human>",
+        ]
+    )
     return full_system_message
 
 
 def initialize_message_sequence(
-        model,
-        system,
-        memory,
-        archival_memory=None,
-        recall_memory=None,
-        memory_edit_timestamp=None,
-        include_initial_boot_message=True,
-    ):
+    model,
+    system,
+    memory,
+    archival_memory=None,
+    recall_memory=None,
+    memory_edit_timestamp=None,
+    include_initial_boot_message=True,
+):
     if memory_edit_timestamp is None:
         memory_edit_timestamp = get_local_time()
 
-    full_system_message = construct_system_with_memory(system, memory, memory_edit_timestamp, archival_memory=archival_memory, recall_memory=recall_memory)
+    full_system_message = construct_system_with_memory(
+        system, memory, memory_edit_timestamp, archival_memory=archival_memory, recall_memory=recall_memory
+    )
     first_user_message = get_login_event()  # event letting MemGPT know the user just logged in
 
     if include_initial_boot_message:
-        if 'gpt-3.5' in model:
-            initial_boot_messages = get_initial_boot_messages('startup_with_send_message_gpt35')
+        if "gpt-3.5" in model:
+            initial_boot_messages = get_initial_boot_messages("startup_with_send_message_gpt35")
         else:
-            initial_boot_messages = get_initial_boot_messages('startup_with_send_message')
-        messages = [
-            {"role": "system", "content": full_system_message},
-        ] + initial_boot_messages + [
-            {"role": "user", "content": first_user_message},
-        ]
+            initial_boot_messages = get_initial_boot_messages("startup_with_send_message")
+        messages = (
+            [
+                {"role": "system", "content": full_system_message},
+            ]
+            + initial_boot_messages
+            + [
+                {"role": "user", "content": first_user_message},
+            ]
+        )
 
     else:
         messages = [
@@ -85,11 +95,11 @@ def initialize_message_sequence(
 
 
 async def get_ai_reply_async(
-        model,
-        message_sequence,
-        functions,
-        function_call="auto",
-    ):
+    model,
+    message_sequence,
+    functions,
+    function_call="auto",
+):
     """Base call to GPT API w/ functions"""
 
     try:
@@ -101,11 +111,11 @@ async def get_ai_reply_async(
         )
 
         # special case for 'length'
-        if response.choices[0].finish_reason == 'length':
-            raise Exception('Finish reason was length (maximum context length)')
+        if response.choices[0].finish_reason == "length":
+            raise Exception("Finish reason was length (maximum context length)")
 
         # catches for soft errors
-        if response.choices[0].finish_reason not in ['stop', 'function_call']:
+        if response.choices[0].finish_reason not in ["stop", "function_call"]:
             raise Exception(f"API call finish with bad finish reason: {response}")
 
         # unpack with response.choices[0].message.content
@@ -118,7 +128,19 @@ async def get_ai_reply_async(
 class AgentAsync(object):
     """Core logic for a MemGPT agent"""
 
-    def __init__(self, model, system, functions, interface, persistence_manager, persona_notes, human_notes, messages_total=None, persistence_manager_init=True, first_message_verify_mono=True):
+    def __init__(
+        self,
+        model,
+        system,
+        functions,
+        interface,
+        persistence_manager,
+        persona_notes,
+        human_notes,
+        messages_total=None,
+        persistence_manager_init=True,
+        first_message_verify_mono=True,
+    ):
         # gpt-4, gpt-3.5-turbo
         self.model = model
         # Store the system instructions (used to rebuild memory)
@@ -173,7 +195,7 @@ class AgentAsync(object):
 
     @messages.setter
     def messages(self, value):
-        raise Exception('Modifying message list directly not allowed')
+        raise Exception("Modifying message list directly not allowed")
 
     def trim_messages(self, num):
         """Trim messages from the front, not including the system message"""
@@ -196,16 +218,16 @@ class AgentAsync(object):
 
         # strip extra metadata if it exists
         for msg in added_messages:
-            msg.pop('api_response', None)
-            msg.pop('api_args', None)
+            msg.pop("api_response", None)
+            msg.pop("api_args", None)
         new_messages = self.messages + added_messages  # append
 
         self._messages = new_messages
         self.messages_total += len(added_messages)
 
     def swap_system_message(self, new_system_message):
-        assert new_system_message['role'] == 'system', new_system_message
-        assert self.messages[0]['role'] == 'system', self.messages
+        assert new_system_message["role"] == "system", new_system_message
+        assert self.messages[0]["role"] == "system", self.messages
 
         self.persistence_manager.swap_system_message(new_system_message)
 
@@ -223,7 +245,7 @@ class AgentAsync(object):
             recall_memory=self.persistence_manager.recall_memory,
         )[0]
 
-        diff = united_diff(curr_system_message['content'], new_system_message['content'])
+        diff = united_diff(curr_system_message["content"], new_system_message["content"])
         printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
 
         # Store the memory change (if stateful)
@@ -235,32 +257,32 @@ class AgentAsync(object):
     ### Local state management
     def to_dict(self):
         return {
-            'model': self.model,
-            'system': self.system,
-            'functions': self.functions,
-            'messages': self.messages,
-            'messages_total': self.messages_total,
-            'memory': self.memory.to_dict(),
+            "model": self.model,
+            "system": self.system,
+            "functions": self.functions,
+            "messages": self.messages,
+            "messages_total": self.messages_total,
+            "memory": self.memory.to_dict(),
         }
 
     def save_to_json_file(self, filename):
-        with open(filename, 'w') as file:
+        with open(filename, "w") as file:
             json.dump(self.to_dict(), file)
 
     @classmethod
     def load(cls, state, interface, persistence_manager):
-        model = state['model']
-        system = state['system']
-        functions = state['functions']
-        messages = state['messages']
+        model = state["model"]
+        system = state["system"]
+        functions = state["functions"]
+        messages = state["messages"]
         try:
-            messages_total = state['messages_total']
+            messages_total = state["messages_total"]
         except KeyError:
             messages_total = len(messages) - 1
         # memory requires a nested load
-        memory_dict = state['memory']
-        persona_notes = memory_dict['persona']
-        human_notes = memory_dict['human']
+        memory_dict = state["memory"]
+        persona_notes = memory_dict["persona"]
+        human_notes = memory_dict["human"]
 
         # Two-part load
         new_agent = cls(
@@ -278,18 +300,18 @@ class AgentAsync(object):
         return new_agent
 
     def load_inplace(self, state):
-        self.model = state['model']
-        self.system = state['system']
-        self.functions = state['functions']
+        self.model = state["model"]
+        self.system = state["system"]
+        self.functions = state["functions"]
         # memory requires a nested load
-        memory_dict = state['memory']
-        persona_notes = memory_dict['persona']
-        human_notes = memory_dict['human']
+        memory_dict = state["memory"]
+        persona_notes = memory_dict["persona"]
+        human_notes = memory_dict["human"]
         self.memory = initialize_memory(persona_notes, human_notes)
         # messages also
-        self._messages = state['messages']
+        self._messages = state["messages"]
         try:
-            self.messages_total = state['messages_total']
+            self.messages_total = state["messages_total"]
         except KeyError:
             self.messages_total = len(self.messages) - 1  # -system
 
@@ -300,14 +322,14 @@ class AgentAsync(object):
 
     @classmethod
     def load_from_json_file(cls, json_file, interface, persistence_manager):
-        with open(json_file, 'r') as file:
+        with open(json_file, "r") as file:
             state = json.load(file)
         return cls.load(state, interface, persistence_manager)
 
     def load_from_json_file_inplace(self, json_file):
         # Load in-place
         # No interface arg needed, we can use the current one
-        with open(json_file, 'r') as file:
+        with open(json_file, "r") as file:
             state = json.load(file)
         self.load_inplace(state)
 
@@ -317,7 +339,6 @@ class AgentAsync(object):
 
         # Step 2: check if LLM wanted to call a function
         if response_message.get("function_call"):
-
             # The content if then internal monologue, not chat
             await self.interface.internal_monologue(response_message.content)
             messages.append(response_message)  # extend conversation with assistant's reply
@@ -348,7 +369,7 @@ class AgentAsync(object):
             try:
                 function_to_call = available_functions[function_name]
             except KeyError as e:
-                error_msg = f'No function named {function_name}'
+                error_msg = f"No function named {function_name}"
                 function_response = package_function_response(False, error_msg)
                 messages.append(
                     {
@@ -357,7 +378,7 @@ class AgentAsync(object):
                         "content": function_response,
                     }
                 )  # extend conversation with function response
-                await self.interface.function_message(f'Error: {error_msg}')
+                await self.interface.function_message(f"Error: {error_msg}")
                 return messages, None, True  # force a heartbeat to allow agent to handle error
 
             # Failure case 2: function name is OK, but function args are bad JSON
@@ -374,18 +395,20 @@ class AgentAsync(object):
                         "content": function_response,
                     }
                 )  # extend conversation with function response
-                await self.interface.function_message(f'Error: {error_msg}')
+                await self.interface.function_message(f"Error: {error_msg}")
                 return messages, None, True  # force a heartbeat to allow agent to handle error
 
             # (Still parsing function args)
             # Handle requests for immediate heartbeat
-            heartbeat_request = function_args.pop('request_heartbeat', None)
+            heartbeat_request = function_args.pop("request_heartbeat", None)
             if not (isinstance(heartbeat_request, bool) or heartbeat_request is None):
-                printd(f"Warning: 'request_heartbeat' arg parsed was not a bool or None, type={type(heartbeat_request)}, value={heartbeat_request}")
+                printd(
+                    f"Warning: 'request_heartbeat' arg parsed was not a bool or None, type={type(heartbeat_request)}, value={heartbeat_request}"
+                )
                 heartbeat_request = None
 
             # Failure case 3: function failed during execution
-            await self.interface.function_message(f'Running {function_name}({function_args})')
+            await self.interface.function_message(f"Running {function_name}({function_args})")
             try:
                 function_response_string = await function_to_call(**function_args)
                 function_response = package_function_response(True, function_response_string)
@@ -401,12 +424,12 @@ class AgentAsync(object):
                         "content": function_response,
                     }
                 )  # extend conversation with function response
-                await self.interface.function_message(f'Error: {error_msg}')
+                await self.interface.function_message(f"Error: {error_msg}")
                 return messages, None, True  # force a heartbeat to allow agent to handle error
 
             # If no failures happened along the way: ...
             # Step 4: send the info on the function call and function response to GPT
-            await self.interface.function_message(f'Success: {function_response_string}')
+            await self.interface.function_message(f"Success: {function_response_string}")
             messages.append(
                 {
                     "role": "function",
@@ -434,25 +457,29 @@ class AgentAsync(object):
             return False
 
         function_name = response_message["function_call"]["name"]
-        if require_send_message and function_name != 'send_message':
+        if require_send_message and function_name != "send_message":
             printd(f"First message function call wasn't send_message: {response_message}")
             return False
 
-        if require_monologue and (not response_message.get("content") or response_message["content"] is None or response_message["content"] == ""):
+        if require_monologue and (
+            not response_message.get("content") or response_message["content"] is None or response_message["content"] == ""
+        ):
             printd(f"First message missing internal monologue: {response_message}")
             return False
 
         if response_message.get("content"):
             ### Extras
             monologue = response_message.get("content")
+
             def contains_special_characters(s):
                 special_characters = '(){}[]"'
                 return any(char in s for char in special_characters)
+
             if contains_special_characters(monologue):
                 printd(f"First message internal monologue contained special characters: {response_message}")
                 return False
             # if 'functions' in monologue or 'send_message' in monologue or 'inner thought' in monologue.lower():
-            if 'functions' in monologue or 'send_message' in monologue:
+            if "functions" in monologue or "send_message" in monologue:
                 # Sometimes the syntax won't be correct and internal syntax will leak into message.context
                 printd(f"First message internal monologue contained reserved words: {response_message}")
                 return False
@@ -466,12 +493,12 @@ class AgentAsync(object):
             # Step 0: add user message
             if user_message is not None:
                 await self.interface.user_message(user_message)
-                packed_user_message = {'role': 'user', 'content': user_message}
+                packed_user_message = {"role": "user", "content": user_message}
                 input_message_sequence = self.messages + [packed_user_message]
             else:
                 input_message_sequence = self.messages
 
-            if len(input_message_sequence) > 1 and input_message_sequence[-1]['role'] != 'user':
+            if len(input_message_sequence) > 1 and input_message_sequence[-1]["role"] != "user":
                 printd(f"WARNING: attempting to run ChatCompletion without user as the last message in the queue")
 
             # Step 1: send the conversation and available functions to GPT
@@ -479,14 +506,13 @@ class AgentAsync(object):
                 printd(f"This is the first message. Running extra verifier on AI response.")
                 counter = 0
                 while True:
-
                     response = await get_ai_reply_async(model=self.model, message_sequence=input_message_sequence, functions=self.functions)
                     if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
 
                     counter += 1
                     if counter > first_message_retry_limit:
-                        raise Exception(f'Hit first message retry limit ({first_message_retry_limit})')
+                        raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
 
             else:
                 response = await get_ai_reply_async(model=self.model, message_sequence=input_message_sequence, functions=self.functions)
@@ -500,13 +526,13 @@ class AgentAsync(object):
 
             # Add the extra metadata to the assistant response
             # (e.g. enough metadata to enable recreating the API call)
-            assert 'api_response' not in all_response_messages[0]
-            all_response_messages[0]['api_response'] = response_message_copy
-            assert 'api_args' not in all_response_messages[0]
-            all_response_messages[0]['api_args'] = {
-                'model': self.model,
-                'messages': input_message_sequence,
-                'functions': self.functions,
+            assert "api_response" not in all_response_messages[0]
+            all_response_messages[0]["api_response"] = response_message_copy
+            assert "api_args" not in all_response_messages[0]
+            all_response_messages[0]["api_args"] = {
+                "model": self.model,
+                "messages": input_message_sequence,
+                "functions": self.functions,
             }
 
             # Step 4: extend the message history
@@ -516,7 +542,7 @@ class AgentAsync(object):
                 all_new_messages = all_response_messages
 
             # Check the memory pressure and potentially issue a memory pressure warning
-            current_total_tokens = response['usage']['total_tokens']
+            current_total_tokens = response["usage"]["total_tokens"]
             active_memory_warning = False
             if current_total_tokens > MESSAGE_SUMMARY_WARNING_TOKENS:
                 printd(f"WARNING: last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_TOKENS}")
@@ -534,7 +560,7 @@ class AgentAsync(object):
             printd(f"step() failed\nuser_message = {user_message}\nerror = {e}")
 
             # If we got a context alert, try trimming the messages length, then try again
-            if 'maximum context length' in str(e):
+            if "maximum context length" in str(e):
                 # A separate API call to run a summarizer
                 await self.summarize_messages_inplace()
 
@@ -546,21 +572,21 @@ class AgentAsync(object):
 
     async def summarize_messages_inplace(self, cutoff=None):
         if cutoff is None:
-            tokens_so_far = 0   # Smart cutoff -- just below the max.
+            tokens_so_far = 0  # Smart cutoff -- just below the max.
             cutoff = len(self.messages) - 1
             for m in reversed(self.messages):
                 tokens_so_far += count_tokens(str(m), self.model)
-                if tokens_so_far >= MESSAGE_SUMMARY_WARNING_TOKENS*0.2:
+                if tokens_so_far >= MESSAGE_SUMMARY_WARNING_TOKENS * 0.2:
                     break
                 cutoff -= 1
-            cutoff = min(len(self.messages) - 3, cutoff) # Always keep the last two messages too
+            cutoff = min(len(self.messages) - 3, cutoff)  # Always keep the last two messages too
 
         # Try to make an assistant message come after the cutoff
         try:
             printd(f"Selected cutoff {cutoff} was a 'user', shifting one...")
-            if self.messages[cutoff]['role'] == 'user':
+            if self.messages[cutoff]["role"] == "user":
                 new_cutoff = cutoff + 1
-                if self.messages[new_cutoff]['role'] == 'user':
+                if self.messages[new_cutoff]["role"] == "user":
                     printd(f"Shifted cutoff {new_cutoff} is still a 'user', ignoring...")
                 cutoff = new_cutoff
         except IndexError:
@@ -600,11 +626,11 @@ class AgentAsync(object):
 
         while limit is None or step_count < limit:
             if function_failed:
-                user_message = get_heartbeat('Function call failed')
+                user_message = get_heartbeat("Function call failed")
                 new_messages, heartbeat_request, function_failed = await self.step(user_message)
                 step_count += 1
             elif heartbeat_request:
-                user_message = get_heartbeat('AI requested')
+                user_message = get_heartbeat("AI requested")
                 new_messages, heartbeat_request, function_failed = await self.step(user_message)
                 step_count += 1
             else:
@@ -638,7 +664,7 @@ class AgentAsync(object):
         return None
 
     async def recall_memory_search(self, query, count=5, page=0):
-        results, total = await self.persistence_manager.recall_memory.text_search(query, count=count, start=page*count)
+        results, total = await self.persistence_manager.recall_memory.text_search(query, count=count, start=page * count)
         num_pages = math.ceil(total / count) - 1  # 0 index
         if len(results) == 0:
             results_str = f"No results found."
@@ -649,7 +675,7 @@ class AgentAsync(object):
         return results_str
 
     async def recall_memory_search_date(self, start_date, end_date, count=5, page=0):
-        results, total = await self.persistence_manager.recall_memory.date_search(start_date, end_date, count=count, start=page*count)
+        results, total = await self.persistence_manager.recall_memory.date_search(start_date, end_date, count=count, start=page * count)
         num_pages = math.ceil(total / count) - 1  # 0 index
         if len(results) == 0:
             results_str = f"No results found."
@@ -664,7 +690,7 @@ class AgentAsync(object):
         return None
 
     async def archival_memory_search(self, query, count=5, page=0):
-        results, total = await self.persistence_manager.archival_memory.search(query, count=count, start=page*count)
+        results, total = await self.persistence_manager.archival_memory.search(query, count=count, start=page * count)
         num_pages = math.ceil(total / count) - 1  # 0 index
         if len(results) == 0:
             results_str = f"No results found."
@@ -683,7 +709,7 @@ class AgentAsync(object):
         # And record how long the pause should go for
         self.pause_heartbeats_minutes = int(minutes)
 
-        return f'Pausing timed heartbeats for {minutes} min'
+        return f"Pausing timed heartbeats for {minutes} min"
 
     def heartbeat_is_paused(self):
         """Check if there's a requested pause on timed heartbeats"""
@@ -700,8 +726,8 @@ class AgentAsync(object):
         """Base call to GPT API w/ functions"""
 
         message_sequence = [
-            {'role': 'system', 'content': MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE},
-            {'role': 'user', 'content': str(message)},
+            {"role": "system", "content": MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE},
+            {"role": "user", "content": str(message)},
         ]
         response = await acreate(
             model=MESSAGE_CHATGPT_FUNCTION_MODEL,

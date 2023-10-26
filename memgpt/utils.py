@@ -168,9 +168,7 @@ def chunk_file(file, tkns_per_chunk=300, model="gpt-4"):
             line_token_ct = len(encoding.encode(line))
         except Exception as e:
             line_token_ct = len(line.split(" ")) / 0.75
-            print(
-                f"Could not encode line {i}, estimating it to be {line_token_ct} tokens"
-            )
+            print(f"Could not encode line {i}, estimating it to be {line_token_ct} tokens")
             print(e)
         if line_token_ct > tkns_per_chunk:
             if len(curr_chunk) > 0:
@@ -194,9 +192,7 @@ def chunk_files(files, tkns_per_chunk=300, model="gpt-4"):
     archival_database = []
     for file in files:
         timestamp = os.path.getmtime(file)
-        formatted_time = datetime.fromtimestamp(timestamp).strftime(
-            "%Y-%m-%d %I:%M:%S %p %Z%z"
-        )
+        formatted_time = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
         file_stem = file.split("/")[-1]
         chunks = [c for c in chunk_file(file, tkns_per_chunk, model)]
         for i, chunk in enumerate(chunks):
@@ -243,9 +239,7 @@ async def process_concurrently(archival_database, model, concurrency=10):
 
     # Create a list of tasks for chunks
     embedding_data = [0 for _ in archival_database]
-    tasks = [
-        bounded_process_chunk(i, chunk) for i, chunk in enumerate(archival_database)
-    ]
+    tasks = [bounded_process_chunk(i, chunk) for i, chunk in enumerate(archival_database)]
 
     for future in tqdm(
         asyncio.as_completed(tasks),
@@ -267,15 +261,12 @@ async def prepare_archival_index_from_files_compute_embeddings(
     files = sorted(glob.glob(glob_pattern))
     save_dir = os.path.join(
         MEMGPT_DIR,
-        "archival_index_from_files_"
-        + get_local_time().replace(" ", "_").replace(":", "_"),
+        "archival_index_from_files_" + get_local_time().replace(" ", "_").replace(":", "_"),
     )
     os.makedirs(save_dir, exist_ok=True)
     total_tokens = total_bytes(glob_pattern) / 3
     price_estimate = total_tokens / 1000 * 0.0001
-    confirm = input(
-        f"Computing embeddings over {len(files)} files. This will cost ~${price_estimate:.2f}. Continue? [y/n] "
-    )
+    confirm = input(f"Computing embeddings over {len(files)} files. This will cost ~${price_estimate:.2f}. Continue? [y/n] ")
     if confirm != "y":
         raise Exception("embeddings were not computed")
 
@@ -291,9 +282,7 @@ async def prepare_archival_index_from_files_compute_embeddings(
     archival_storage_file = os.path.join(save_dir, "all_docs.jsonl")
     chunks_by_file = chunk_files_for_jsonl(files, tkns_per_chunk, model)
     with open(archival_storage_file, "w") as f:
-        print(
-            f"Saving archival storage with preloaded files to {archival_storage_file}"
-        )
+        print(f"Saving archival storage with preloaded files to {archival_storage_file}")
         for c in chunks_by_file:
             json.dump(c, f)
             f.write("\n")
