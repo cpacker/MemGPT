@@ -55,11 +55,7 @@ def create_autogen_memgpt_agent(
     ```
     """
     interface = AutoGenInterface(**interface_kwargs) if interface is None else interface
-    persistence_manager = (
-        InMemoryStateManager(**persistence_manager_kwargs)
-        if persistence_manager is None
-        else persistence_manager
-    )
+    persistence_manager = InMemoryStateManager(**persistence_manager_kwargs) if persistence_manager is None else persistence_manager
 
     memgpt_agent = presets.use_preset(
         preset,
@@ -89,9 +85,7 @@ class MemGPTAgent(ConversableAgent):
         self.agent = agent
         self.skip_verify = skip_verify
         self.concat_other_agent_messages = concat_other_agent_messages
-        self.register_reply(
-            [Agent, None], MemGPTAgent._a_generate_reply_for_user_message
-        )
+        self.register_reply([Agent, None], MemGPTAgent._a_generate_reply_for_user_message)
         self.register_reply([Agent, None], MemGPTAgent._generate_reply_for_user_message)
         self.messages_processed_up_to_idx = 0
 
@@ -119,11 +113,7 @@ class MemGPTAgent(ConversableAgent):
         sender: Optional[Agent] = None,
         config: Optional[Any] = None,
     ) -> Tuple[bool, Union[str, Dict, None]]:
-        return asyncio.run(
-            self._a_generate_reply_for_user_message(
-                messages=messages, sender=sender, config=config
-            )
-        )
+        return asyncio.run(self._a_generate_reply_for_user_message(messages=messages, sender=sender, config=config))
 
     async def _a_generate_reply_for_user_message(
         self,
@@ -137,9 +127,7 @@ class MemGPTAgent(ConversableAgent):
         if len(new_messages) > 1:
             if self.concat_other_agent_messages:
                 # Combine all the other messages into one message
-                user_message = "\n".join(
-                    [self.format_other_agent_message(m) for m in new_messages]
-                )
+                user_message = "\n".join([self.format_other_agent_message(m) for m in new_messages])
             else:
                 # Extend the MemGPT message list with multiple 'user' messages, then push the last one with agent.step()
                 self.agent.messages.extend(new_messages[:-1])
@@ -159,16 +147,12 @@ class MemGPTAgent(ConversableAgent):
                 heartbeat_request,
                 function_failed,
                 token_warning,
-            ) = await self.agent.step(
-                user_message, first_message=False, skip_verify=self.skip_verify
-            )
+            ) = await self.agent.step(user_message, first_message=False, skip_verify=self.skip_verify)
             # Skip user inputs if there's a memory warning, function execution failed, or the agent asked for control
             if token_warning:
                 user_message = system.get_token_limit_warning()
             elif function_failed:
-                user_message = system.get_heartbeat(
-                    constants.FUNC_FAILED_HEARTBEAT_MESSAGE
-                )
+                user_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
             elif heartbeat_request:
                 user_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
             else:

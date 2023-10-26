@@ -7,9 +7,7 @@ DEFAULT_MEMGPT_MODEL = "gpt-4"
 FIRST_MESSAGE_ATTEMPTS = 10
 
 INITIAL_BOOT_MESSAGE = "Boot sequence complete. Persona activated."
-INITIAL_BOOT_MESSAGE_SEND_MESSAGE_THOUGHT = (
-    "Bootup sequence complete. Persona activated. Testing messaging functionality."
-)
+INITIAL_BOOT_MESSAGE_SEND_MESSAGE_THOUGHT = "Bootup sequence complete. Persona activated. Testing messaging functionality."
 STARTUP_QUOTES = [
     "I think, therefore I am.",
     "All those moments will be lost in time, like tears in rain.",
@@ -28,9 +26,7 @@ CORE_MEMORY_HUMAN_CHAR_LIMIT = 2000
 MAX_PAUSE_HEARTBEATS = 360  # in min
 
 MESSAGE_CHATGPT_FUNCTION_MODEL = "gpt-3.5-turbo"
-MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE = (
-    "You are a helpful assistant. Keep your responses short and concise."
-)
+MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE = "You are a helpful assistant. Keep your responses short and concise."
 
 #### Functions related
 

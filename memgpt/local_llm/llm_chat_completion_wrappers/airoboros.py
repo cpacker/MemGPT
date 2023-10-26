@@ -190,9 +190,7 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
         function_parameters = function_json_output["params"]
 
         if self.clean_func_args:
-            function_name, function_parameters = self.clean_function_args(
-                function_name, function_parameters
-            )
+            function_name, function_parameters = self.clean_function_args(function_name, function_parameters)
 
         message = {
             "role": "assistant",
@@ -275,9 +273,7 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
             func_str += f"\n  description: {schema['description']}"
             func_str += f"\n  params:"
             if add_inner_thoughts:
-                func_str += (
-                    f"\n    inner_thoughts: Deep inner monologue private to you only."
-                )
+                func_str += f"\n    inner_thoughts: Deep inner monologue private to you only."
             for param_k, param_v in schema["parameters"]["properties"].items():
                 # TODO we're ignoring type
                 func_str += f"\n    {param_k}: {param_v['description']}"
