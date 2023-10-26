@@ -19,6 +19,7 @@ from memgpt.constants import MEMGPT_DIR
 from llama_index import set_global_service_context, ServiceContext, VectorStoreIndex, load_index_from_storage, StorageContext
 from llama_index.embeddings import OpenAIEmbedding
 
+
 def count_tokens(s: str, model: str = "gpt-4") -> int:
     encoding = tiktoken.encoding_for_model(model)
     return len(encoding.encode(s))
@@ -169,9 +170,7 @@ def chunk_file(file, tkns_per_chunk=300, model="gpt-4"):
             line_token_ct = len(encoding.encode(line))
         except Exception as e:
             line_token_ct = len(line.split(" ")) / 0.75
-            print(
-                f"Could not encode line {i}, estimating it to be {line_token_ct} tokens"
-            )
+            print(f"Could not encode line {i}, estimating it to be {line_token_ct} tokens")
             print(e)
         if line_token_ct > tkns_per_chunk:
             if len(curr_chunk) > 0:
@@ -195,9 +194,7 @@ def chunk_files(files, tkns_per_chunk=300, model="gpt-4"):
     archival_database = []
     for file in files:
         timestamp = os.path.getmtime(file)
-        formatted_time = datetime.fromtimestamp(timestamp).strftime(
-            "%Y-%m-%d %I:%M:%S %p %Z%z"
-        )
+        formatted_time = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
         file_stem = file.split("/")[-1]
         chunks = [c for c in chunk_file(file, tkns_per_chunk, model)]
         for i, chunk in enumerate(chunks):
@@ -244,9 +241,7 @@ async def process_concurrently(archival_database, model, concurrency=10):
 
     # Create a list of tasks for chunks
     embedding_data = [0 for _ in archival_database]
-    tasks = [
-        bounded_process_chunk(i, chunk) for i, chunk in enumerate(archival_database)
-    ]
+    tasks = [bounded_process_chunk(i, chunk) for i, chunk in enumerate(archival_database)]
 
     for future in tqdm(
         asyncio.as_completed(tasks),
@@ -268,15 +263,12 @@ async def prepare_archival_index_from_files_compute_embeddings(
     files = sorted(glob.glob(glob_pattern))
     save_dir = os.path.join(
         MEMGPT_DIR,
-        "archival_index_from_files_"
-        + get_local_time().replace(" ", "_").replace(":", "_"),
+        "archival_index_from_files_" + get_local_time().replace(" ", "_").replace(":", "_"),
     )
     os.makedirs(save_dir, exist_ok=True)
     total_tokens = total_bytes(glob_pattern) / 3
     price_estimate = total_tokens / 1000 * 0.0001
-    confirm = input(
-        f"Computing embeddings over {len(files)} files. This will cost ~${price_estimate:.2f}. Continue? [y/n] "
-    )
+    confirm = input(f"Computing embeddings over {len(files)} files. This will cost ~${price_estimate:.2f}. Continue? [y/n] ")
     if confirm != "y":
         raise Exception("embeddings were not computed")
 
@@ -292,9 +284,7 @@ async def prepare_archival_index_from_files_compute_embeddings(
     archival_storage_file = os.path.join(save_dir, "all_docs.jsonl")
     chunks_by_file = chunk_files_for_jsonl(files, tkns_per_chunk, model)
     with open(archival_storage_file, "w") as f:
-        print(
-            f"Saving archival storage with preloaded files to {archival_storage_file}"
-        )
+        print(f"Saving archival storage with preloaded files to {archival_storage_file}")
         for c in chunks_by_file:
             json.dump(c, f)
             f.write("\n")
@@ -341,9 +331,8 @@ def read_database_as_list(database_name):
     return result_list
 
 
-
-def estimate_openai_cost(docs): 
-    """ Estimate OpenAI embedding cost
+def estimate_openai_cost(docs):
+    """Estimate OpenAI embedding cost
 
     :param docs: Documents to be embedded
     :type docs: List[Document]
@@ -356,18 +345,11 @@ def estimate_openai_cost(docs):
 
     embed_model = MockEmbedding(embed_dim=1536)
 
-    token_counter = TokenCountingHandler(
-        tokenizer=tiktoken.encoding_for_model("gpt-3.5-turbo").encode
-    )
+    token_counter = TokenCountingHandler(tokenizer=tiktoken.encoding_for_model("gpt-3.5-turbo").encode)
 
     callback_manager = CallbackManager([token_counter])
 
-    set_global_service_context(
-        ServiceContext.from_defaults(
-            embed_model=embed_model,
-            callback_manager=callback_manager
-        )
-    )
+    set_global_service_context(ServiceContext.from_defaults(embed_model=embed_model, callback_manager=callback_manager))
     index = VectorStoreIndex.from_documents(docs)
 
     # estimate cost
@@ -377,8 +359,7 @@ def estimate_openai_cost(docs):
 
 
 def get_index(name, docs):
-
-    """ Index documents
+    """Index documents
 
     :param docs: Documents to be embedded
     :type docs: List[Document]
@@ -398,38 +379,40 @@ def get_index(name, docs):
 
     estimated_cost = estimate_openai_cost(docs)
     # TODO: prettier cost formatting
-    confirm = typer.confirm(typer.style(f"Open AI embedding cost will be approximately ${estimated_cost} - continue?", fg="yellow"), default=True)
+    confirm = typer.confirm(
+        typer.style(f"Open AI embedding cost will be approximately ${estimated_cost} - continue?", fg="yellow"), default=True
+    )
 
     if not confirm:
         typer.secho("Aborting.", fg="red")
         exit()
-    
+
     embed_model = OpenAIEmbedding()
-    service_context = ServiceContext.from_defaults(embed_model=embed_model, chunk_size = 300)
+    service_context = ServiceContext.from_defaults(embed_model=embed_model, chunk_size=300)
     set_global_service_context(service_context)
 
     # index documents
     index = VectorStoreIndex.from_documents(docs)
     return index
 
-def save_index(index, name):
 
-    """ Save index to a specificed name in ~/.memgpt
+def save_index(index, name):
+    """Save index to a specificed name in ~/.memgpt
 
     :param index: Index to save
     :type index: VectorStoreIndex
     :param name: Name of index
     :type name: str
     """
-    # save 
-    # TODO: load directory from config 
+    # save
+    # TODO: load directory from config
     # TODO: save to vectordb/local depending on config
 
     dir = f"{MEMGPT_DIR}/archival/{name}"
 
     ## Avoid overwriting
     ## check if directory exists
-    #if os.path.exists(dir):
+    # if os.path.exists(dir):
     #    confirm = typer.confirm(typer.style(f"Index with name {name} already exists -- overwrite?", fg="red"), default=False)
     #    if not confirm:
     #        typer.secho("Aborting.", fg="red")

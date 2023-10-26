@@ -40,20 +40,17 @@ class CoreMemory(object):
         self.archival_memory_exists = archival_memory_exists
 
     def __repr__(self) -> str:
-        return \
-            f"\n### CORE MEMORY ###" + \
-            f"\n=== Persona ===\n{self.persona}" + \
-            f"\n\n=== Human ===\n{self.human}"
+        return f"\n### CORE MEMORY ###" + f"\n=== Persona ===\n{self.persona}" + f"\n\n=== Human ===\n{self.human}"
 
     def to_dict(self):
         return {
-            'persona': self.persona,
-            'human': self.human,
+            "persona": self.persona,
+            "human": self.human,
         }
 
     @classmethod
     def load(cls, state):
-        return cls(state['persona'], state['human'])
+        return cls(state["persona"], state["human"])
 
     def edit_persona(self, new_persona):
         if self.persona_char_limit and len(new_persona) > self.persona_char_limit:
@@ -76,53 +73,55 @@ class CoreMemory(object):
         return len(self.human)
 
     def edit(self, field, content):
-        if field == 'persona':
+        if field == "persona":
             return self.edit_persona(content)
-        elif field == 'human':
+        elif field == "human":
             return self.edit_human(content)
         else:
             raise KeyError
 
-    def edit_append(self, field, content, sep='\n'):
-        if field == 'persona':
+    def edit_append(self, field, content, sep="\n"):
+        if field == "persona":
             new_content = self.persona + sep + content
             return self.edit_persona(new_content)
-        elif field == 'human':
+        elif field == "human":
             new_content = self.human + sep + content
             return self.edit_human(new_content)
         else:
             raise KeyError
 
     def edit_replace(self, field, old_content, new_content):
-        if field == 'persona':
+        if field == "persona":
             if old_content in self.persona:
                 new_persona = self.persona.replace(old_content, new_content)
                 return self.edit_persona(new_persona)
             else:
-                raise ValueError('Content not found in persona (make sure to use exact string)')
-        elif field == 'human':
+                raise ValueError("Content not found in persona (make sure to use exact string)")
+        elif field == "human":
             if old_content in self.human:
                 new_human = self.human.replace(old_content, new_content)
                 return self.edit_human(new_human)
             else:
-                raise ValueError('Content not found in human (make sure to use exact string)')
+                raise ValueError("Content not found in human (make sure to use exact string)")
         else:
             raise KeyError
 
 
 async def summarize_messages(
-        model,
-        message_sequence_to_summarize,
-    ):
+    model,
+    message_sequence_to_summarize,
+):
     """Summarize a message sequence using GPT"""
 
     summary_prompt = SUMMARY_PROMPT_SYSTEM
     summary_input = str(message_sequence_to_summarize)
     summary_input_tkns = count_tokens(summary_input, model)
     if summary_input_tkns > MESSAGE_SUMMARY_WARNING_TOKENS:
-        trunc_ratio = (MESSAGE_SUMMARY_WARNING_TOKENS / summary_input_tkns) * 0.8   # For good measure...
+        trunc_ratio = (MESSAGE_SUMMARY_WARNING_TOKENS / summary_input_tkns) * 0.8  # For good measure...
         cutoff = int(len(message_sequence_to_summarize) * trunc_ratio)
-        summary_input = str([await summarize_messages(model, message_sequence_to_summarize[:cutoff])] + message_sequence_to_summarize[cutoff:])
+        summary_input = str(
+            [await summarize_messages(model, message_sequence_to_summarize[:cutoff])] + message_sequence_to_summarize[cutoff:]
+        )
     message_sequence = [
         {"role": "system", "content": summary_prompt},
         {"role": "user", "content": summary_input},
@@ -139,10 +138,9 @@ async def summarize_messages(
 
 
 class ArchivalMemory(ABC):
-
     @abstractmethod
     def insert(self, memory_string):
-        """ Insert new archival memory
+        """Insert new archival memory
 
         :param memory_string: Memory string to insert
         :type memory_string: str
@@ -151,7 +149,7 @@ class ArchivalMemory(ABC):
 
     @abstractmethod
     def search(self, query_string, count=None, start=None) -> Tuple[List[str], int]:
-        """ Search archival memory
+        """Search archival memory
 
         :param query_string: Query string
         :type query_string: str
@@ -159,7 +157,7 @@ class ArchivalMemory(ABC):
         :type count: Optional[int]
         :param start: Offset to start returning results from (None if 0)
         :type start: Optional[int]
-        
+
         :return: Tuple of (list of results, total number of results)
         """
         pass
@@ -178,7 +176,7 @@ class DummyArchivalMemory(ArchivalMemory):
     """
 
     def __init__(self, archival_memory_database=None):
-        self._archive = [] if archival_memory_database is None else archival_memory_database # consists of {'content': str} dicts
+        self._archive = [] if archival_memory_database is None else archival_memory_database  # consists of {'content': str} dicts
 
     def __len__(self):
         return len(self._archive)
@@ -187,31 +185,33 @@ class DummyArchivalMemory(ArchivalMemory):
         if len(self._archive) == 0:
             memory_str = "<empty>"
         else:
-            memory_str = "\n".join([d['content'] for d in self._archive])
-        return \
-            f"\n### ARCHIVAL MEMORY ###" + \
-            f"\n{memory_str}"
+            memory_str = "\n".join([d["content"] for d in self._archive])
+        return f"\n### ARCHIVAL MEMORY ###" + f"\n{memory_str}"
 
     async def insert(self, memory_string, embedding=None):
         if embedding is not None:
-            raise ValueError('Basic text-based archival memory does not support embeddings')
-        self._archive.append({
-            # can eventually upgrade to adding semantic tags, etc
-            'timestamp': get_local_time(),
-            'content': memory_string,
-        })
+            raise ValueError("Basic text-based archival memory does not support embeddings")
+        self._archive.append(
+            {
+                # can eventually upgrade to adding semantic tags, etc
+                "timestamp": get_local_time(),
+                "content": memory_string,
+            }
+        )
 
     async def search(self, query_string, count=None, start=None):
         """Simple text-based search"""
         # in the dummy version, run an (inefficient) case-insensitive match search
         # printd(f"query_string: {query_string}")
-        matches = [s for s in self._archive if query_string.lower() in s['content'].lower()]
+        matches = [s for s in self._archive if query_string.lower() in s["content"].lower()]
         # printd(f"archive_memory.search (text-based): search for query '{query_string}' returned the following results (limit 5):\n{[str(d['content']) d in matches[:5]]}")
-        printd(f"archive_memory.search (text-based): search for query '{query_string}' returned the following results (limit 5):\n{[matches[start:count]]}")
+        printd(
+            f"archive_memory.search (text-based): search for query '{query_string}' returned the following results (limit 5):\n{[matches[start:count]]}"
+        )
 
         # start/count support paging through results
         if start is not None and count is not None:
-            return matches[start:start+count], len(matches)
+            return matches[start : start + count], len(matches)
         elif start is None and count is not None:
             return matches[:count], len(matches)
         elif start is not None and count is None:
@@ -223,8 +223,8 @@ class DummyArchivalMemory(ArchivalMemory):
 class DummyArchivalMemoryWithEmbeddings(DummyArchivalMemory):
     """Same as dummy in-memory archival memory, but with bare-bones embedding support"""
 
-    def __init__(self, archival_memory_database=None, embedding_model='text-embedding-ada-002'):
-        self._archive = [] if archival_memory_database is None else archival_memory_database # consists of {'content': str} dicts
+    def __init__(self, archival_memory_database=None, embedding_model="text-embedding-ada-002"):
+        self._archive = [] if archival_memory_database is None else archival_memory_database  # consists of {'content': str} dicts
         self.embedding_model = embedding_model
 
     def __len__(self):
@@ -234,15 +234,17 @@ class DummyArchivalMemoryWithEmbeddings(DummyArchivalMemory):
         # Get the embedding
         if embedding is None:
             embedding = await async_get_embedding_with_backoff(memory_string, model=self.embedding_model)
-        embedding_meta = {'model': self.embedding_model}
+        embedding_meta = {"model": self.embedding_model}
         printd(f"Got an embedding, type {type(embedding)}, len {len(embedding)}")
 
-        self._archive.append({
-            'timestamp': get_local_time(),
-            'content': memory_string,
-            'embedding': embedding,
-            'embedding_metadata': embedding_meta,
-        })
+        self._archive.append(
+            {
+                "timestamp": get_local_time(),
+                "content": memory_string,
+                "embedding": embedding,
+                "embedding_metadata": embedding_meta,
+            }
+        )
 
     async def search(self, query_string, count=None, start=None):
         """Simple embedding-based search (inefficient, no caching)"""
@@ -251,22 +253,24 @@ class DummyArchivalMemoryWithEmbeddings(DummyArchivalMemory):
         # query_embedding = get_embedding(query_string, model=self.embedding_model)
         # our wrapped version supports backoff/rate-limits
         query_embedding = await async_get_embedding_with_backoff(query_string, model=self.embedding_model)
-        similarity_scores = [cosine_similarity(memory['embedding'], query_embedding) for memory in self._archive]
+        similarity_scores = [cosine_similarity(memory["embedding"], query_embedding) for memory in self._archive]
 
         # Sort the archive based on similarity scores
         sorted_archive_with_scores = sorted(
             zip(self._archive, similarity_scores),
             key=lambda pair: pair[1],  # Sort by the similarity score
-            reverse=True  # We want the highest similarity first
+            reverse=True,  # We want the highest similarity first
         )
-        printd(f"archive_memory.search (vector-based): search for query '{query_string}' returned the following results (limit 5) and scores:\n{str([str(t[0]['content']) + '- score ' + str(t[1]) for t in sorted_archive_with_scores[:5]])}")
+        printd(
+            f"archive_memory.search (vector-based): search for query '{query_string}' returned the following results (limit 5) and scores:\n{str([str(t[0]['content']) + '- score ' + str(t[1]) for t in sorted_archive_with_scores[:5]])}"
+        )
 
         # Extract the sorted archive without the scores
         matches = [item[0] for item in sorted_archive_with_scores]
 
         # start/count support paging through results
         if start is not None and count is not None:
-            return matches[start:start+count], len(matches)
+            return matches[start : start + count], len(matches)
         elif start is None and count is not None:
             return matches[:count], len(matches)
         elif start is not None and count is None:
@@ -287,13 +291,13 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
     is essential enough not to be left only to the recall memory.
     """
 
-    def __init__(self, index=None, archival_memory_database=None, embedding_model='text-embedding-ada-002', k=100):
+    def __init__(self, index=None, archival_memory_database=None, embedding_model="text-embedding-ada-002", k=100):
         if index is None:
-            self.index = faiss.IndexFlatL2(1536)    # openai embedding vector size.
+            self.index = faiss.IndexFlatL2(1536)  # openai embedding vector size.
         else:
             self.index = index
         self.k = k
-        self._archive = [] if archival_memory_database is None else archival_memory_database # consists of {'content': str} dicts
+        self._archive = [] if archival_memory_database is None else archival_memory_database  # consists of {'content': str} dicts
         self.embedding_model = embedding_model
         self.embeddings_dict = {}
         self.search_results = {}
@@ -307,12 +311,14 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
             embedding = await async_get_embedding_with_backoff(memory_string, model=self.embedding_model)
         print(f"Got an embedding, type {type(embedding)}, len {len(embedding)}")
 
-        self._archive.append({
-            # can eventually upgrade to adding semantic tags, etc
-            'timestamp': get_local_time(),
-            'content': memory_string,
-        })
-        embedding = np.array([embedding]).astype('float32')
+        self._archive.append(
+            {
+                # can eventually upgrade to adding semantic tags, etc
+                "timestamp": get_local_time(),
+                "content": memory_string,
+            }
+        )
+        embedding = np.array([embedding]).astype("float32")
         self.index.add(embedding)
 
     async def search(self, query_string, count=None, start=None):
@@ -332,20 +338,22 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
             self.search_results[query_string] = search_result
 
         if start is not None and count is not None:
-            toprint = search_result[start:start+count]
+            toprint = search_result[start : start + count]
         else:
             if len(search_result) >= 5:
                 toprint = search_result[:5]
             else:
                 toprint = search_result
-        printd(f"archive_memory.search (vector-based): search for query '{query_string}' returned the following results ({start}--{start+5}/{len(search_result)}) and scores:\n{str([t[:60] if len(t) > 60 else t for t in toprint])}")
+        printd(
+            f"archive_memory.search (vector-based): search for query '{query_string}' returned the following results ({start}--{start+5}/{len(search_result)}) and scores:\n{str([t[:60] if len(t) > 60 else t for t in toprint])}"
+        )
 
         # Extract the sorted archive without the scores
         matches = search_result
 
         # start/count support paging through results
         if start is not None and count is not None:
-            return matches[start:start+count], len(matches)
+            return matches[start : start + count], len(matches)
         elif start is None and count is not None:
             return matches[:count], len(matches)
         elif start is not None and count is None:
@@ -355,7 +363,6 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
 
 
 class RecallMemory(ABC):
-
     @abstractmethod
     def text_search(self, query_string, count=None, start=None):
         pass
@@ -393,42 +400,46 @@ class DummyRecallMemory(RecallMemory):
         # don't dump all the conversations, just statistics
         system_count = user_count = assistant_count = function_count = other_count = 0
         for msg in self._message_logs:
-            role = msg['message']['role']
-            if role == 'system':
+            role = msg["message"]["role"]
+            if role == "system":
                 system_count += 1
-            elif role == 'user':
+            elif role == "user":
                 user_count += 1
-            elif role == 'assistant':
+            elif role == "assistant":
                 assistant_count += 1
-            elif role == 'function':
+            elif role == "function":
                 function_count += 1
             else:
                 other_count += 1
-        memory_str = f"Statistics:" + \
-                     f"\n{len(self._message_logs)} total messages" + \
-                     f"\n{system_count} system" + \
-                     f"\n{user_count} user" + \
-                     f"\n{assistant_count} assistant" + \
-                     f"\n{function_count} function" + \
-                     f"\n{other_count} other"
-        return \
-            f"\n### RECALL MEMORY ###" + \
-            f"\n{memory_str}"
+        memory_str = (
+            f"Statistics:"
+            + f"\n{len(self._message_logs)} total messages"
+            + f"\n{system_count} system"
+            + f"\n{user_count} user"
+            + f"\n{assistant_count} assistant"
+            + f"\n{function_count} function"
+            + f"\n{other_count} other"
+        )
+        return f"\n### RECALL MEMORY ###" + f"\n{memory_str}"
 
     async def insert(self, message):
-        raise NotImplementedError('This should be handled by the PersistenceManager, recall memory is just a search layer on top')
+        raise NotImplementedError("This should be handled by the PersistenceManager, recall memory is just a search layer on top")
 
     async def text_search(self, query_string, count=None, start=None):
         # in the dummy version, run an (inefficient) case-insensitive match search
-        message_pool = [d for d in self._message_logs if d['message']['role'] not in ['system', 'function']]
+        message_pool = [d for d in self._message_logs if d["message"]["role"] not in ["system", "function"]]
 
-        printd(f"recall_memory.text_search: searching for {query_string} (c={count}, s={start}) in {len(self._message_logs)} total messages")
-        matches = [d for d in message_pool if d['message']['content'] is not None and query_string.lower() in d['message']['content'].lower()]
+        printd(
+            f"recall_memory.text_search: searching for {query_string} (c={count}, s={start}) in {len(self._message_logs)} total messages"
+        )
+        matches = [
+            d for d in message_pool if d["message"]["content"] is not None and query_string.lower() in d["message"]["content"].lower()
+        ]
         printd(f"recall_memory - matches:\n{matches[start:start+count]}")
 
         # start/count support paging through results
         if start is not None and count is not None:
-            return matches[start:start+count], len(matches)
+            return matches[start : start + count], len(matches)
         elif start is None and count is not None:
             return matches[:count], len(matches)
         elif start is not None and count is None:
@@ -439,7 +450,7 @@ class DummyRecallMemory(RecallMemory):
     def _validate_date_format(self, date_str):
         """Validate the given date string in the format 'YYYY-MM-DD'."""
         try:
-            datetime.datetime.strptime(date_str, '%Y-%m-%d')
+            datetime.datetime.strptime(date_str, "%Y-%m-%d")
             return True
         except ValueError:
             return False
@@ -451,25 +462,26 @@ class DummyRecallMemory(RecallMemory):
         return match.group(1) if match else None
 
     async def date_search(self, start_date, end_date, count=None, start=None):
-        message_pool = [d for d in self._message_logs if d['message']['role'] not in ['system', 'function']]
+        message_pool = [d for d in self._message_logs if d["message"]["role"] not in ["system", "function"]]
 
         # First, validate the start_date and end_date format
         if not self._validate_date_format(start_date) or not self._validate_date_format(end_date):
             raise ValueError("Invalid date format. Expected format: YYYY-MM-DD")
 
         # Convert dates to datetime objects for comparison
-        start_date_dt = datetime.datetime.strptime(start_date, '%Y-%m-%d')
-        end_date_dt = datetime.datetime.strptime(end_date, '%Y-%m-%d')
+        start_date_dt = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+        end_date_dt = datetime.datetime.strptime(end_date, "%Y-%m-%d")
 
         # Next, match items inside self._message_logs
         matches = [
-            d for d in message_pool
-            if start_date_dt <= datetime.datetime.strptime(self._extract_date_from_timestamp(d['timestamp']), '%Y-%m-%d') <= end_date_dt
+            d
+            for d in message_pool
+            if start_date_dt <= datetime.datetime.strptime(self._extract_date_from_timestamp(d["timestamp"]), "%Y-%m-%d") <= end_date_dt
         ]
 
         # start/count support paging through results
         if start is not None and count is not None:
-            return matches[start:start+count], len(matches)
+            return matches[start : start + count], len(matches)
         elif start is None and count is not None:
             return matches[:count], len(matches)
         elif start is not None and count is None:
@@ -484,17 +496,17 @@ class DummyRecallMemoryWithEmbeddings(DummyRecallMemory):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.embeddings = dict()
-        self.embedding_model = 'text-embedding-ada-002'
+        self.embedding_model = "text-embedding-ada-002"
         self.only_use_preloaded_embeddings = False
 
     async def text_search(self, query_string, count=None, start=None):
         # in the dummy version, run an (inefficient) case-insensitive match search
-        message_pool = [d for d in self._message_logs if d['message']['role'] not in ['system', 'function']]
+        message_pool = [d for d in self._message_logs if d["message"]["role"] not in ["system", "function"]]
 
         # first, go through and make sure we have all the embeddings we need
         message_pool_filtered = []
         for d in message_pool:
-            message_str = d['message']['content']
+            message_str = d["message"]["content"]
             if self.only_use_preloaded_embeddings:
                 if message_str not in self.embeddings:
                     printd(f"recall_memory.text_search -- '{message_str}' was not in embedding dict, skipping.")
@@ -505,24 +517,26 @@ class DummyRecallMemoryWithEmbeddings(DummyRecallMemory):
                 self.embeddings[message_str] = await async_get_embedding_with_backoff(message_str, model=self.embedding_model)
                 message_pool_filtered.append(d)
 
-       # our wrapped version supports backoff/rate-limits
+        # our wrapped version supports backoff/rate-limits
         query_embedding = await async_get_embedding_with_backoff(query_string, model=self.embedding_model)
-        similarity_scores = [cosine_similarity(self.embeddings[d['message']['content']], query_embedding) for d in message_pool_filtered]
+        similarity_scores = [cosine_similarity(self.embeddings[d["message"]["content"]], query_embedding) for d in message_pool_filtered]
 
         # Sort the archive based on similarity scores
         sorted_archive_with_scores = sorted(
             zip(message_pool_filtered, similarity_scores),
             key=lambda pair: pair[1],  # Sort by the similarity score
-            reverse=True  # We want the highest similarity first
+            reverse=True,  # We want the highest similarity first
         )
-        printd(f"recall_memory.text_search (vector-based): search for query '{query_string}' returned the following results (limit 5) and scores:\n{str([str(t[0]['message']['content']) + '- score ' + str(t[1]) for t in sorted_archive_with_scores[:5]])}")
+        printd(
+            f"recall_memory.text_search (vector-based): search for query '{query_string}' returned the following results (limit 5) and scores:\n{str([str(t[0]['message']['content']) + '- score ' + str(t[1]) for t in sorted_archive_with_scores[:5]])}"
+        )
 
         # Extract the sorted archive without the scores
         matches = [item[0] for item in sorted_archive_with_scores]
 
         # start/count support paging through results
         if start is not None and count is not None:
-            return matches[start:start+count], len(matches)
+            return matches[start : start + count], len(matches)
         elif start is None and count is not None:
             return matches[:count], len(matches)
         elif start is not None and count is None:
@@ -531,55 +545,49 @@ class DummyRecallMemoryWithEmbeddings(DummyRecallMemory):
             return matches, len(matches)
 
 
-class LocalArchivalMemory(ArchivalMemory): 
-    """ Archival memory built on top of Llama Index """
+class LocalArchivalMemory(ArchivalMemory):
+    """Archival memory built on top of Llama Index"""
 
-    def __init__(self, archival_memory_database: Optional[str] = None, top_k: Optional[int] = 100): 
-        """ Init function for archival memory
+    def __init__(self, archival_memory_database: Optional[str] = None, top_k: Optional[int] = 100):
+        """Init function for archival memory
 
-        :param archiva_memory_database: name of dataset to pre-fill archival with 
+        :param archiva_memory_database: name of dataset to pre-fill archival with
         :type archival_memory_database: str
         """
 
-        if archival_memory_database is not None: 
+        if archival_memory_database is not None:
             # TODO: load form ~/.memgpt/archival
             directory = f"{MEMGPT_DIR}/archival/{archival_memory_database}"
             assert os.path.exists(directory), f"Archival memory database {archival_memory_database} does not exist"
             storage_context = StorageContext.from_defaults(persist_dir=directory)
             self.index = load_index_from_storage(storage_context)
-        else:   
+        else:
             self.index = VectorIndex()
         self.top_k = top_k
         self.retriever = VectorIndexRetriever(
-            index=self.index, # does this get refreshed? 
+            index=self.index,  # does this get refreshed?
             similarity_top_k=self.top_k,
         )
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
-        self.cache = {} 
+        self.cache = {}
 
     async def insert(self, memory_string):
         self.index.insert(memory_string)
-    
-    async def search(self, query_string, count=None, start=None):
 
-        start = start if start else 0 
-        count = count if count else self.top_k 
+    async def search(self, query_string, count=None, start=None):
+        start = start if start else 0
+        count = count if count else self.top_k
         count = min(count + start, self.top_k)
 
         if query_string not in self.cache:
             self.cache[query_string] = self.retriever.retrieve(query_string)
 
-        results = self.cache[query_string][start:start+count]
-        results = [
-            {'timestamp': get_local_time(), 'content': node.node.text}
-            for node in results
-        ]
-        #from pprint import pprint
-        #pprint(results)
+        results = self.cache[query_string][start : start + count]
+        results = [{"timestamp": get_local_time(), "content": node.node.text} for node in results]
+        # from pprint import pprint
+        # pprint(results)
         return results, len(results)
-    
+
     def __repr__(self) -> str:
         print(self.index.ref_doc_info)
         return ""
-            
-
