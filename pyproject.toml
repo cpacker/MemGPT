@@ -30,6 +30,7 @@ tiktoken = "^0.5.1"
 pymupdf = "^1.23.5"
 tqdm = "^4.66.1"
 openai = "^0.28.1"
+black = "^23.10.1"
 
 
 [build-system]
