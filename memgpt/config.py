@@ -25,6 +25,27 @@ model_choices = [
 ]
 
 
+class MemGPTConfig: 
+
+    # Model configuration
+    openai_key: str = None
+    azure_key: str = None
+    azure_endpoint: str = None
+    model_endpoint: str = None
+
+    # Storage (archival/recall) configuration 
+    storage_type: str = "local" # ["local", "vectordb"]
+    storage_url: str = None 
+
+    # Persona configuration
+    default_person = ""
+
+    # Human configuration 
+    default_human = "" 
+
+
+
+
 class Config:
     personas_dir = os.path.join("memgpt", "personas", "examples")
     custom_personas_dir = os.path.join(MEMGPT_DIR, "personas")
