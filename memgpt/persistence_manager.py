@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import os
 import pickle
 from memgpt.config import AgentConfig
 from .memory import (
@@ -116,10 +117,12 @@ class LocalStateManager(PersistenceManager):
         self.agent_config = agent_config
 
     @staticmethod
-    def load(filename):
-        # TODO: fix this
+    def load(filename, agent_config: AgentConfig):
         with open(filename, "rb") as f:
-            return pickle.load(f)
+            manager = pickle.load(f)
+
+        manager.archival_memory = LocalArchivalMemory(agent_config=agent_config)
+        return agent_config
 
     def save(self, filename):
         with open(filename, "wb") as fh:

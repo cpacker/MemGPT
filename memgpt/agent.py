@@ -1,4 +1,5 @@
 import datetime
+import glob
 import pickle
 import math
 import os
@@ -6,7 +7,8 @@ import json
 import threading
 
 import openai
-
+from memgpt.persistence_manager import LocalStateManager
+from memgpt.config import AgentConfig
 from .system import get_heartbeat, get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from .memory import CoreMemory as Memory, summarize_messages
 from .openai_tools import acompletions_with_backoff as acreate
@@ -291,6 +293,44 @@ class AgentAsync(object):
         directory = os.path.join(MEMGPT_DIR, "agents", agent_name, "persistence_manager")
         os.makedirs(directory, exist_ok=True)
         self.persistence_manager.save(os.path.join(directory, filename))
+
+    @classmethod
+    def load_agent(cls, interface, agent_config: AgentConfig):
+        """Load saved agent state"""
+        # TODO: support loading from specific file
+        agent_name = agent_config.name
+
+        # load state
+        directory = os.path.join(MEMGPT_DIR, "agents", agent_name, "agent_state")
+        json_files = glob.glob(f"{directory}/*.json")  # This will list all .json files in the current directory.
+        if not json_files:
+            print(f"/load error: no .json checkpoint files found")
+            raise ValueError(f"Cannot load {agent_name}")
+
+        # Sort files based on modified timestamp, with the latest file being the first.
+        filename = max(json_files, key=os.path.getmtime)
+        state = json.load(open(filename, "r"))
+
+        # load persistence manager
+        filename = os.path.basename(filename).replace(".json", ".persistence.pickle")
+        directory = os.path.join(MEMGPT_DIR, "agents", agent_name, "persistence_manager")
+        persistence_manager = LocalStateManager.load(os.path.join(directory, filename), agent_config)
+
+        messages = state["messages"]
+        agent = cls(
+            name=agent_name,
+            model=state["model"],
+            system=state["system"],
+            functions=state["functions"],
+            interface=interface,
+            persistence_manager=persistence_manager,
+            persistence_manager_init=False,
+            persona_notes=state["memory"]["persona"],
+            human_notes=state["memory"]["human"],
+            messages_total=state["messages_total"] if "messages_total" in state else len(messages) - 1,
+        )
+        agent._messages = messages
+        return agent
 
     @classmethod
     def load(cls, state, interface, persistence_manager):

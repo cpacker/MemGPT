@@ -34,6 +34,7 @@ from memgpt.persistence_manager import (
 from memgpt.config import Config, MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
 from memgpt.connectors import connector
+from memgpt.agent import AgentAsync
 from memgpt.openai_tools import (
     configure_azure_support,
     check_azure_embeddings,
@@ -236,38 +237,42 @@ def run(
     if AgentConfig.exists(agent):  # use existing agent
         print(f"Using existing agent {agent}")
         agent_config = AgentConfig.load(agent)
-        persistence_manager = LocalStateManager(agent_config)
+        # persistence_manager = LocalStateManager(agent_config).load() # TODO: implement load
         # TODO: load prior agent state
         assert not any(
             [persona, human, model]
         ), f"Cannot override existing agent state with command line arguments: {persona}, {human}, {model}"
-    else:  # create new agent
-        # TODO: allow configrable state manager (only local is supported right now)
-        persistence_manager = LocalStateManager(data_source)  # TODO: insert dataset/pre-fill
 
+        # load existing agent
+        memgpt_agent = AgentAsync.load_agent(memgpt.interface, agent_config)
+    else:  # create new agent
         # create new agent config: override defaults with args if provided
         agent_config = AgentConfig(
             name=agent if agent else None,
             persona=persona if persona else config.default_persona,
             human=human if human else config.default_human,
-            model=model if model else config.default_model,
+            model=model if model else config.model,
         )
+
         # attach data source to agent
         agent_config.attach_data_source(data_source)
+
+        # TODO: allow configrable state manager (only local is supported right now)
+        persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
 
         # save new agent config
         agent_config.save()
 
-    # create agent
-    memgpt_agent = presets.use_preset(
-        presets.DEFAULT,
-        agent_config.name,
-        agent_config.model,
-        agent_config.persona,
-        agent_config.human,
-        memgpt.interface,
-        persistence_manager,
-    )
+        # create agent
+        memgpt_agent = presets.use_preset(
+            presets.DEFAULT,
+            agent_config.name,
+            agent_config.model,
+            agent_config.persona,
+            agent_config.human,
+            memgpt.interface,
+            persistence_manager,
+        )
 
     # start event loop
     loop = asyncio.get_event_loop()

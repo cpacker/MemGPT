@@ -39,7 +39,7 @@ class MemGPTConfig:
     anon_clientid: str = None
 
     # model parameters
-    model: str = "openai"  # openai, local, azure, ...
+    model: str = "gpt-4"  # gpt-4, gpt-3.5-turbo, local
 
     # model parameters: openai
     openai_key: str = None
@@ -194,7 +194,9 @@ class AgentConfig:
         self.create_time = create_time if create_time is not None else utils.get_local_time()
 
         # save agent config
-        self.agent_config_path = os.path.join(MEMGPT_DIR, "agents", f"{self.name}.json") if agent_config_path is None else agent_config_path
+        self.agent_config_path = (
+            os.path.join(MEMGPT_DIR, "agents", self.name, "config.json") if agent_config_path is None else agent_config_path
+        )
         # assert not os.path.exists(self.agent_config_path), f"Agent config file already exists at {self.agent_config_path}"
         self.save()
 
@@ -206,20 +208,20 @@ class AgentConfig:
 
     def save(self):
         # save state of persistence manager
-        os.makedirs(os.path.join(MEMGPT_DIR, "agents"), exist_ok=True)
+        os.makedirs(os.path.join(MEMGPT_DIR, "agents", self.name), exist_ok=True)
         with open(self.agent_config_path, "w") as f:
             json.dump(vars(self), f, indent=4)
 
     @staticmethod
     def exists(name: str):
         """Check if agent config exists"""
-        agent_config_path = os.path.join(MEMGPT_DIR, "agents", f"{name}.json")
+        agent_config_path = os.path.join(MEMGPT_DIR, "agents", name)
         return os.path.exists(agent_config_path)
 
     @classmethod
     def load(cls, name: str):
         """Load agent config from JSON file"""
-        agent_config_path = os.path.join(MEMGPT_DIR, "agents", f"{name}.json")
+        agent_config_path = os.path.join(MEMGPT_DIR, "agents", name, "config.json")
         assert os.path.exists(agent_config_path), f"Agent config file does not exist at {agent_config_path}"
         with open(agent_config_path, "r") as f:
             agent_config = json.load(f)
