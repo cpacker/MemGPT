@@ -210,6 +210,12 @@ class AgentConfig:
         with open(self.agent_config_path, "w") as f:
             json.dump(vars(self), f, indent=4)
 
+    @staticmethod
+    def exists(name: str):
+        """Check if agent config exists"""
+        agent_config_path = os.path.join(MEMGPT_DIR, "agents", f"{name}.json")
+        return os.path.exists(agent_config_path)
+
     @classmethod
     def load(cls, name: str):
         """Load agent config from JSON file"""

@@ -1,4 +1,5 @@
 import asyncio
+import shutil
 import configparser
 import uuid
 import logging
@@ -131,13 +132,25 @@ def list_agents():
 @metadata_app.command("humans")
 def list_humans():
     """List all humans"""
-    pass
+    table = PrettyTable()
+    table.field_names = ["Name", "Text"]
+    for human_file in os.listdir(os.path.join(MEMGPT_DIR, "humans")):
+        name = os.path.basename(human_file)
+        text = humans.get_human_text(name)
+        table.add_row([name, text])
+    print(table)
 
 
 @metadata_app.command("personas")
 def list_personas():
     """List all personas"""
-    pass
+    table = PrettyTable()
+    table.field_names = ["Name", "Text"]
+    for persona_file in os.listdir(os.path.join(MEMGPT_DIR, "personas")):
+        name = os.path.basename(persona_file)
+        text = personas.get_persona_text(name)
+        table.add_row([name, text])
+    print(table)
 
 
 @metadata_app.command()
@@ -149,6 +162,33 @@ def data_sources(data):
         name = os.path.basename(data_source_file)
         table.add_row([name, "TODO", "TODO"])
     print(table)
+
+
+@app.command()
+def add(
+    option: str,  # [human, persona]
+    name: str = typer.Option(help="Name of human/persona"),
+    text: str = typer.Option(None, help="Text of human/persona"),
+    filename: str = typer.Option(None, "-f", help="Specify filename"),
+):
+    """Add a person/human"""
+
+    if option == "persona":
+        directory = os.path.join(MEMGPT_DIR, "personas")
+    elif option == "human":
+        directory = os.path.join(MEMGPT_DIR, "humans")
+    else:
+        raise ValueError(f"Unknown kind {kind}")
+
+    if filename:
+        assert text is None, f"Cannot provide both filename and text"
+        # copy file to directory
+        shutil.copyfile(filename, os.path.join(directory, name))
+    if text:
+        assert filename is None, f"Cannot provide both filename and text"
+        # write text to file
+        with open(os.path.join(directory, name), "w") as f:
+            f.write(text)
 
 
 @app.command()
@@ -169,6 +209,18 @@ def run(
     no_verify: bool = typer.Option(False, "--no_verify", help="Bypass message verification"),
 ):
 
+    """Start chatting with an MemGPT agent
+
+    Example usage: `memgpt run --agent myagent --data-source mydata --persona mypersona --human myhuman --model gpt-3.5-turbo`
+
+    :param persona: Specify persona
+    :param agent: Specify agent name (will load existing state if the agent exists, or create a new one with that name)
+    :param human: Specify human
+    :param model: Specify the LLM model
+    :param data_source: Specify data source to attach to agent (if new agent is being created)
+
+    """
+
     print("Running new command")
 
     # load config defaults
@@ -181,7 +233,8 @@ def run(
         config.no_verify = no_verify
 
     # create agent config
-    if agent:  # use existing agent
+    if AgentConfig.exists(agent):  # use existing agent
+        print(f"Using existing agent {agent}")
         agent_config = AgentConfig.load(agent)
         persistence_manager = LocalStateManager(agent_config.data_source)
         # TODO: load prior agent state
@@ -192,6 +245,7 @@ def run(
 
         # create new agent config: override defaults with args if provided
         agent_config = AgentConfig(
+            name=agent if agent else None,
             persona=persona if persona else config.default_persona,
             human=human if human else config.default_human,
             model=model if model else config.default_model,
