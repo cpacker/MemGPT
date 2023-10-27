@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import pickle
-
+from memgpt.config import AgentConfig
 from .memory import (
     DummyRecallMemory,
     DummyRecallMemoryWithEmbeddings,
@@ -107,20 +107,26 @@ class LocalStateManager(PersistenceManager):
     recall_memory_cls = DummyRecallMemory
     archival_memory_cls = LocalArchivalMemory
 
-    def __init__(self, archival_memory_db=None):
+    def __init__(self, agent_config: AgentConfig):
         # Memory held in-state useful for debugging stateful versions
         self.memory = None
         self.messages = []
         self.all_messages = []
-        self.archival_memory = LocalArchivalMemory(archival_memory_database=archival_memory_db)
+        self.archival_memory = LocalArchivalMemory(agent_config=agent_config)
+        self.agent_config = agent_config
 
     @staticmethod
     def load(filename):
+        # TODO: fix this
         with open(filename, "rb") as f:
             return pickle.load(f)
 
     def save(self, filename):
         with open(filename, "wb") as fh:
+
+            # TODO: fix this hacky solution to pickle the retriever
+            self.archival_memory.save()
+            self.archival_memory = None
             pickle.dump(self, fh, protocol=pickle.HIGHEST_PROTOCOL)
 
     def init(self, agent):

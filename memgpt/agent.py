@@ -12,6 +12,7 @@ from .memory import CoreMemory as Memory, summarize_messages
 from .openai_tools import acompletions_with_backoff as acreate
 from .utils import get_local_time, parse_json, united_diff, printd, count_tokens
 from .constants import (
+    MEMGPT_DIR,
     FIRST_MESSAGE_ATTEMPTS,
     MAX_PAUSE_HEARTBEATS,
     MESSAGE_CHATGPT_FUNCTION_MODEL,
@@ -130,6 +131,7 @@ class AgentAsync(object):
 
     def __init__(
         self,
+        name,
         model,
         system,
         functions,
@@ -141,6 +143,8 @@ class AgentAsync(object):
         persistence_manager_init=True,
         first_message_verify_mono=True,
     ):
+        # agent name (id)
+        self.name = name
         # gpt-4, gpt-3.5-turbo
         self.model = model
         # Store the system instructions (used to rebuild memory)
@@ -268,6 +272,25 @@ class AgentAsync(object):
     def save_to_json_file(self, filename):
         with open(filename, "w") as file:
             json.dump(self.to_dict(), file)
+
+    def save(self):
+
+        """Save agent state locally"""
+
+        filename = get_local_time().replace(" ", "_").replace(":", "_")
+        agent_name = self.name  # TODO: fix
+
+        # save agent state
+        filename = f"{filename}.json"
+        directory = os.path.join(MEMGPT_DIR, "agents", agent_name, "agent_state")
+        os.makedirs(directory, exist_ok=True)
+        self.save_to_json_file(os.path.join(directory, filename))
+
+        # save the persistence manager too
+        filename = filename.replace(".json", ".persistence.pickle")
+        directory = os.path.join(MEMGPT_DIR, "agents", agent_name, "persistence_manager")
+        os.makedirs(directory, exist_ok=True)
+        self.persistence_manager.save(os.path.join(directory, filename))
 
     @classmethod
     def load(cls, state, interface, persistence_manager):

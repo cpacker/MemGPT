@@ -202,7 +202,7 @@ def run(
     persona: str = typer.Option(None, help="Specify persona"),
     agent: str = typer.Option(None, help="Specify agent save file"),
     human: str = typer.Option(None, help="Specify human"),
-    model: str = typer.Option(constants.DEFAULT_MEMGPT_MODEL, help="Specify the LLM model"),
+    model: str = typer.Option(None, help="Specify the LLM model"),
     data_source: str = typer.Option(None, help="Specify data source to attach to agent"),
     first: bool = typer.Option(False, "--first", help="Use --first to send the first message in the sequence"),
     debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
@@ -236,9 +236,11 @@ def run(
     if AgentConfig.exists(agent):  # use existing agent
         print(f"Using existing agent {agent}")
         agent_config = AgentConfig.load(agent)
-        persistence_manager = LocalStateManager(agent_config.data_source)
+        persistence_manager = LocalStateManager(agent_config)
         # TODO: load prior agent state
-        assert not any(persona, human, model), "Cannot override existing agent state with command line arguments"
+        assert not any(
+            [persona, human, model]
+        ), f"Cannot override existing agent state with command line arguments: {persona}, {human}, {model}"
     else:  # create new agent
         # TODO: allow configrable state manager (only local is supported right now)
         persistence_manager = LocalStateManager(data_source)  # TODO: insert dataset/pre-fill
@@ -259,6 +261,7 @@ def run(
     # create agent
     memgpt_agent = presets.use_preset(
         presets.DEFAULT,
+        agent_config.name,
         agent_config.model,
         agent_config.persona,
         agent_config.human,
@@ -466,6 +469,7 @@ async def main(
 
     memgpt_agent = presets.use_preset(
         presets.DEFAULT,
+        "legacy_agent",
         cfg.model,
         personas.get_persona_text(*chosen_persona),
         humans.get_human_text(*chosen_human),
@@ -494,10 +498,10 @@ async def main(
             load(memgpt_agent, cfg.agent_save_file)
 
     # run agent loop
-    await run_agent_loop(memgpt_agent, first, no_verify, cfg)
+    await run_agent_loop(memgpt_agent, first, no_verify, cfg, legacy=True)
 
 
-async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None):
+async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=False):
     counter = 0
     user_input = None
     skip_next_user_input = False
@@ -539,30 +543,41 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None):
             # Handle CLI commands
             # Commands to not get passed as input to MemGPT
             if user_input.startswith("/"):
-                if user_input.lower() == "/exit":
-                    # autosave
-                    save(memgpt_agent=memgpt_agent, cfg=cfg)
-                    break
 
-                elif user_input.lower() == "/savechat":
-                    filename = utils.get_local_time().replace(" ", "_").replace(":", "_")
-                    filename = f"{filename}.pkl"
-                    directory = os.path.join(MEMGPT_DIR, "saved_chats")
-                    try:
-                        if not os.path.exists(directory):
-                            os.makedirs(directory)
-                        with open(os.path.join(directory, filename), "wb") as f:
-                            pickle.dump(memgpt_agent.messages, f)
-                            print(f"Saved messages to: {filename}")
-                    except Exception as e:
-                        print(f"Saving chat to {filename} failed with: {e}")
-                    continue
+                if legacy:
+                    # legacy agent save functions (TODO: eventually remove)
+                    if user_input.lower() == "/exit":
+                        # autosave
+                        save(memgpt_agent=memgpt_agent, cfg=cfg)
+                        break
 
-                elif user_input.lower() == "/save":
-                    save(memgpt_agent=memgpt_agent, cfg=cfg)
-                    continue
+                    elif user_input.lower() == "/savechat":
+                        filename = utils.get_local_time().replace(" ", "_").replace(":", "_")
+                        filename = f"{filename}.pkl"
+                        directory = os.path.join(MEMGPT_DIR, "saved_chats")
+                        try:
+                            if not os.path.exists(directory):
+                                os.makedirs(directory)
+                            with open(os.path.join(directory, filename), "wb") as f:
+                                pickle.dump(memgpt_agent.messages, f)
+                                print(f"Saved messages to: {filename}")
+                        except Exception as e:
+                            print(f"Saving chat to {filename} failed with: {e}")
+                        continue
 
-                elif user_input.lower() == "/load" or user_input.lower().startswith("/load "):
+                    elif user_input.lower() == "/save":
+                        save(memgpt_agent=memgpt_agent, cfg=cfg)
+                        continue
+                else:
+                    # updated agent save functions
+                    if user_input.lower() == "/exit":
+                        memgpt_agent.save()
+                        break
+                    elif user_input.lower() == "/save" or user_input.lower() == "/savechat":
+                        memgpt_agent.save()
+                        continue
+
+                if user_input.lower() == "/load" or user_input.lower().startswith("/load "):
                     command = user_input.strip().split()
                     filename = command[1] if len(command) > 1 else None
                     load(memgpt_agent=memgpt_agent, filename=filename)

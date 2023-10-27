@@ -7,7 +7,7 @@ from .utils import printd
 DEFAULT = "memgpt_chat"
 
 
-def use_preset(preset_name, model, persona, human, interface, persistence_manager):
+def use_preset(preset_name, name, model, persona, human, interface, persistence_manager):
     """Storing combinations of SYSTEM + FUNCTION prompts"""
 
     if preset_name == "memgpt_chat":
@@ -30,6 +30,7 @@ def use_preset(preset_name, model, persona, human, interface, persistence_manage
             preset_name = "memgpt_gpt35_extralong"
 
         return AgentAsync(
+            name=name,
             model=model,
             system=gpt_system.get_system_text(preset_name),
             functions=available_functions,

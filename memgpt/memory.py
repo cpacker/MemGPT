@@ -10,6 +10,7 @@ from .constants import MESSAGE_SUMMARY_WARNING_TOKENS, MEMGPT_DIR
 from .utils import cosine_similarity, get_local_time, printd, count_tokens
 from .prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
 from .openai_tools import acompletions_with_backoff as acreate, async_get_embedding_with_backoff
+from memgpt import utils
 
 from llama_index import (
     VectorStoreIndex,
@@ -549,7 +550,7 @@ class DummyRecallMemoryWithEmbeddings(DummyRecallMemory):
 class LocalArchivalMemory(ArchivalMemory):
     """Archival memory built on top of Llama Index"""
 
-    def __init__(self, archival_memory_database: Optional[str] = None, top_k: Optional[int] = 100):
+    def __init__(self, agent_config, top_k: Optional[int] = 100):
         """Init function for archival memory
 
         :param archiva_memory_database: name of dataset to pre-fill archival with
@@ -557,10 +558,20 @@ class LocalArchivalMemory(ArchivalMemory):
         """
 
         self.top_k = top_k
-        if archival_memory_database is not None:
-            # TODO: load form ~/.memgpt/archival
-            directory = f"{MEMGPT_DIR}/archival/{archival_memory_database}"
-            assert os.path.exists(directory), f"Archival memory database {archival_memory_database} does not exist"
+        self.agent_config = agent_config
+
+        # locate saved index
+        if self.agent_config.data_source is not None:  # connected data source
+            directory = f"{MEMGPT_DIR}/archival/{self.agent_config.data_source}"
+            assert os.path.exists(directory), f"Archival memory database {self.agent_config.data_source} does not exist"
+        elif self.agent_config.name is not None:
+            directory = f"{MEMGPT_DIR}/archival/{self.agent_config.name}"
+            if not os.path.exists(directory):
+                # no existing archival storage
+                directory = None
+
+        # load/create index
+        if directory:
             storage_context = StorageContext.from_defaults(persist_dir=directory)
             self.index = load_index_from_storage(storage_context)
             self.retriever = VectorIndexRetriever(
@@ -573,6 +584,14 @@ class LocalArchivalMemory(ArchivalMemory):
 
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
+
+    def save(self):
+        """Save the index to disk"""
+        if self.agent_config.data_source:  # update original archival index
+            # TODO: this corrupts the originally loaded data. do we want to do this?
+            utils.save_index(self.index, self.agent_config.data_source)
+        else:
+            utils.save_agent_index(self.index, self.agent_config.name)
 
     async def insert(self, memory_string):
         self.index.insert(memory_string)

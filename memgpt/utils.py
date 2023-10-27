@@ -396,8 +396,21 @@ def get_index(name, docs):
     return index
 
 
+def save_agent_index(index, agent_config):
+    """Save agent index inside of ~/.memgpt/agents/<agent_name>
+
+    :param index: Index to save
+    :type index: VectorStoreIndex
+    :param agent_name: Name of agent that the archival memory belonds to
+    :type agent_name: str
+    """
+    dir = f"{MEMGPT_DIR}/archival/{agent_config.name}"
+    os.makedirs(dir, exist_ok=True)
+    index.storage_context.persist(dir)
+
+
 def save_index(index, name):
-    """Save index to a specificed name in ~/.memgpt
+    """Save index ~/.memgpt/archival/<name> to load into agents
 
     :param index: Index to save
     :type index: VectorStoreIndex
