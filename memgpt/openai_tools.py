@@ -108,7 +108,11 @@ def aretry_with_exponential_backoff(
 async def acompletions_with_backoff(**kwargs):
     # Local model
     if HOST_TYPE is not None:
-        return await get_chat_completion(**kwargs)
+        for i in range(5):  # Retry up to five times
+            try:
+                return await get_chat_completion(**kwargs)
+            except Exception as e:
+                raise e
 
     # OpenAI / Azure model
     else:
