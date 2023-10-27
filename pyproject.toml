@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pymemgpt"
-version = "0.1.5"
+version = "0.1.6"
 packages = [
     {include = "memgpt"}
 ]
@@ -19,7 +19,7 @@ readme = "README.md"
 memgpt = "memgpt.main:app"
 
 [tool.poetry.dependencies]
-python = "<3.13,>=3.9"
+python = "<3.12,>=3.9"
 typer = {extras = ["all"], version = "^0.9.0"}
 questionary = "^2.0.1"
 demjson3 = "^3.0.6"
@@ -32,6 +32,9 @@ tqdm = "^4.66.1"
 openai = "^0.28.1"
 black = "^23.10.1"
 pytest = "^7.4.3"
+llama-index = "^0.8.53.post3"
+setuptools = "^68.2.2"
+datasets = "^2.14.6"
 
 
 [build-system]

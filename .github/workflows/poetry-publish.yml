@@ -1,14 +1,30 @@
-name: Python package
+name: poetry-publish
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  release:
+    types: [published]
+  workflow_dispatch:
+  
 jobs:
-  build:
+  build-and-publish:
+    name: Build and Publish to PyPI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Build and publish to pypi
-        uses: JRubics/poetry-publish@v1.17
+      - name: Check out the repository
+        uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
         with:
-          pypi_token: ${{ secrets.PYPI_TOKEN }}
+          python-version: 3.9
+      - name: Install poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Configure poetry
+        run: |
+          poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+      - name: Build the Python package
+        run: poetry build
+      - name: Publish the package to PyPI
+        run: poetry publish
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
