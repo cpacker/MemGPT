@@ -352,7 +352,12 @@ Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded
 - [ ] Release MemGPT family of open models (eg finetuned Mistral) ([discussion](https://github.com/cpacker/MemGPT/discussions/67))
 
 ## Development
-You can install MemGPT from source with:
+
+_Reminder: if you do not plan on modifying the source code, simply install MemGPT with `pip install pymemgpt`!_
+
+First, install Poetry using [the official instructions here](https://python-poetry.org/docs/#installing-with-the-official-installer).
+
+Then, you can install MemGPT from source with:
 ```
 git clone git@github.com:cpacker/MemGPT.git
 poetry shell
