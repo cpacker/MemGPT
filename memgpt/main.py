@@ -28,15 +28,16 @@ from memgpt.persistence_manager import (
 
 from memgpt.config import Config
 from memgpt.constants import MEMGPT_DIR
+from memgpt.connectors import connector
 from memgpt.openai_tools import (
     configure_azure_support,
     check_azure_embeddings,
     get_set_azure_env_vars,
 )
-
 import asyncio
 
 app = typer.Typer()
+app.add_typer(connector.app, name="load")
 
 
 def clear_line():
@@ -109,7 +110,7 @@ def load(memgpt_agent, filename):
         print(f"/load warning: loading persistence manager from {filename} failed with: {e}")
 
 
-@app.command()
+@app.callback(invoke_without_command=True)  # make default command
 def run(
     persona: str = typer.Option(None, help="Specify persona"),
     human: str = typer.Option(None, help="Specify human"),
