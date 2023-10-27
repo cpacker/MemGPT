@@ -27,13 +27,13 @@ def create_memgpt_autogen_agent_from_config(
     """Construct AutoGen config workflow in a clean way."""
 
     model = constants.DEFAULT_MEMGPT_MODEL if llm_config is None else llm_config["config_list"][0]["model"]
-    persona_desc = personas.DEFAULT if system_message is "" else system_message
-    if human_input_mode is "ALWAYS":
+    persona_desc = personas.DEFAULT if system_message == "" else system_message
+    if human_input_mode == "ALWAYS":
         user_desc = humans.DEFAULT
-    elif human_input_mode is "TERMINATE":
-        user_desc = "Output `TERMINATE` to end the conversation."
+    elif human_input_mode == "TERMINATE":
+        user_desc = "Work by yourself, the user won't reply until you output `TERMINATE` to end the conversation."
     else:
-        user_desc = ""
+        user_desc = "Work by yourself, the user won't reply. Elaborate as much as possible."
 
     if function_map is not None or code_execution_config is not None:
         raise NotImplementedError
@@ -47,20 +47,37 @@ def create_memgpt_autogen_agent_from_config(
         is_termination_msg=is_termination_msg,
     )
 
-    if human_input_mode is not "ALWAYS":
-        user_proxy = UserProxyAgent(
-            name="user_proxy",
-            system_message=humans.DEFAULT,
-            human_input_mode="NEVER",
-            default_auto_reply=default_auto_reply,
+    if human_input_mode != "ALWAYS":
+        coop_agent1 = create_autogen_memgpt_agent(
+            name,
+            preset=presets.DEFAULT,
+            model=model,
+            persona_description=persona_desc,
+            user_description=user_desc,
+            is_termination_msg=is_termination_msg,
         )
+        if default_auto_reply != "":
+            coop_agent2 = UserProxyAgent(
+                name,
+                human_input_mode="NEVER",
+                default_auto_reply=default_auto_reply,
+            )
+        else:
+            coop_agent2 = create_autogen_memgpt_agent(
+                name,
+                preset=presets.DEFAULT,
+                model=model,
+                persona_description=persona_desc,
+                user_description=user_desc,
+                is_termination_msg=is_termination_msg,
+            )
 
         groupchat = GroupChat(
-            agents=[user_proxy, autogen_memgpt_agent],
+            agents=[autogen_memgpt_agent, coop_agent1, coop_agent2],
             messages=[],
             max_round=12 if max_consecutive_auto_reply is None else max_consecutive_auto_reply
         )
-        manager = GroupChatManager(groupchat=groupchat, llm_config=llm_config)
+        manager = GroupChatManager(name=name, groupchat=groupchat, llm_config=llm_config)
         return manager
 
     else:
@@ -136,7 +153,7 @@ class MemGPTAgent(ConversableAgent):
         self.messages_processed_up_to_idx = 0
 
         self._is_termination_msg = (
-            is_termination_msg if is_termination_msg is not None else (lambda x: x.get("content") == "TERMINATE")
+            is_termination_msg if is_termination_msg is not None else (lambda x: x == "TERMINATE")
         )
 
     def format_other_agent_message(self, msg):
@@ -188,6 +205,8 @@ class MemGPTAgent(ConversableAgent):
                 # Extend the MemGPT message list with multiple 'user' messages, then push the last one with agent.step()
                 self.agent.messages.extend(new_messages[:-1])
                 user_message = new_messages[-1]
+        elif len(new_messages) < 1:
+            user_message = ""
         else:
             user_message = new_messages[0]
 
