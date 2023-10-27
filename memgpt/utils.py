@@ -149,18 +149,19 @@ def total_bytes(pattern):
 
 def chunk_file(file, tkns_per_chunk=300, model="gpt-4"):
     encoding = tiktoken.encoding_for_model(model)
+
     if file.endswith(".db"):
-        lines = read_database_as_list(file)
-    else:
-        with open(file, "r") as f:
-            if file.endswith(".pdf"):
-                lines = [l for l in read_pdf_in_chunks(file, tkns_per_chunk * 8)]
-                if len(lines) == 0:
-                    print(f"Warning: {file} did not have any extractable text.")
-            elif file.endswith(".csv"):
-                lines = [l for l in read_in_rows_csv(f, tkns_per_chunk * 8)]
-            else:
-                lines = [l for l in read_in_chunks(f, tkns_per_chunk * 4)]
+        return # can't read the sqlite db this way, will get handled in main.py
+
+    with open(file, "r") as f:
+        if file.endswith(".pdf"):
+            lines = [l for l in read_pdf_in_chunks(file, tkns_per_chunk * 8)]
+            if len(lines) == 0:
+                print(f"Warning: {file} did not have any extractable text.")
+        elif file.endswith(".csv"):
+            lines = [l for l in read_in_rows_csv(f, tkns_per_chunk * 8)]
+        else:
+            lines = [l for l in read_in_chunks(f, tkns_per_chunk * 4)]
     curr_chunk = []
     curr_token_ct = 0
     for i, line in enumerate(lines):
