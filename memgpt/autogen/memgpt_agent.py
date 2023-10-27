@@ -205,10 +205,10 @@ class MemGPTAgent(ConversableAgent):
                 # Extend the MemGPT message list with multiple 'user' messages, then push the last one with agent.step()
                 self.agent.messages.extend(new_messages[:-1])
                 user_message = new_messages[-1]
-        elif len(new_messages) < 1:
-            user_message = ""
-        else:
+        elif len(new_messages) == 1:
             user_message = new_messages[0]
+        else:
+            return True, self._default_auto_reply
 
         # Package the user message
         user_message = system.package_user_message(user_message)
