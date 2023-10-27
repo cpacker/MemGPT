@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 import logging
 import glob
 import os
@@ -110,8 +111,84 @@ def load(memgpt_agent, filename):
         print(f"/load warning: loading persistence manager from {filename} failed with: {e}")
 
 
-@app.callback(invoke_without_command=True)  # make default command
+@dataclass
+class MemGPTConfig:
+
+    # model parameters: openai
+    openai_key: str = None
+    openai_model: str = constants.DEFAULT_MEMGPT_MODEL  # gpt-4, gpt-3.5-turbo
+
+    # model parameters: azure
+    azure_key: str = None
+    azure_endpoint: str = None
+    azure_version: str = None
+    azure_deployment: str = None
+    azure_embedding_deployment: str = None
+
+    # persona parameters
+    default_persona: str = personas.DEFAULT
+    default_human: str = humans.DEFAULT
+    default_agent: str = None
+
+    # embedding parameters
+    embedding_model: str = "openai"
+    embedding_dim: int = 768
+    embedding_tokens: int = 300
+
+    # database configs
+    archival_storage_type: str = "local"  # local, db
+    archival_storage_path: str = None  # TODO: set to memgpt dir
+    archival_storage_uri: str = None  # TODO: eventually allow external vector DB
+
+    @staticmethod
+    def generate_uuid() -> str:
+        return uuid.UUID(int=uuid.getnode()).hex
+
+    @classmethod
+    def load():
+        pass
+
+
+@dataclass
+class AgentConfig:
+    def __init__(self, agent_id):
+        self.agent_id = agent_id
+
+    def attach_source(self, source: str):
+        # TODO: add warning that only once source can be attached
+        pass
+
+    def save(self):
+        pass
+
+    @classmethod
+    def load(agent_id: str):
+        pass
+
+
+@app.command()
+def configure():
+    """Updates default MemGPT configurations"""
+    pass
+
+
+@app.command()
 def run(
+    persona: str = typer.Option(None, help="Specify persona"),
+    agent: str = typer.Option(None, help="Specify agent save file"),
+    human: str = typer.Option(None, help="Specify human"),
+    model: str = typer.Option(constants.DEFAULT_MEMGPT_MODEL, help="Specify the LLM model"),
+    first: bool = typer.Option(False, "--first", help="Use --first to send the first message in the sequence"),
+    debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
+    no_verify: bool = typer.Option(False, "--no_verify", help="Bypass message verification"),
+):
+
+    # load config defaults
+    config = load_config()
+
+
+@app.callback(invoke_without_command=True)  # make default command
+def legacy_run(
     persona: str = typer.Option(None, help="Specify persona"),
     human: str = typer.Option(None, help="Specify human"),
     model: str = typer.Option(constants.DEFAULT_MEMGPT_MODEL, help="Specify the LLM model"),

@@ -31,6 +31,7 @@ pymupdf = "^1.23.5"
 tqdm = "^4.66.1"
 openai = "^0.28.1"
 black = "^23.10.1"
+pytest = "^7.4.3"
 
 
 [build-system]
