@@ -105,7 +105,3 @@ def test_load_database():
     )
     print("Successfully loaded into index")
     assert True
-
-
-# test_load_directory()
-test_load_database()
