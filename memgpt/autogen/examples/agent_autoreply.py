@@ -23,7 +23,7 @@ config_list = [
 # If USE_MEMGPT is False, then this example will be the same as the official AutoGen repo
 # (https://github.com/microsoft/autogen/blob/main/notebook/agentchat_groupchat.ipynb)
 # If USE_MEMGPT is True, then we swap out the "coder" agent with a MemGPT agent
-USE_MEMGPT = False
+USE_MEMGPT = True
 
 llm_config = {"config_list": config_list, "seed": 42}
 
