@@ -13,6 +13,7 @@ from .openai_tools import acompletions_with_backoff as acreate, async_get_embedd
 
 from llama_index import (
     VectorStoreIndex,
+    EmptyIndex,
     get_response_synthesizer,
     load_index_from_storage,
     StorageContext,
@@ -555,26 +556,38 @@ class LocalArchivalMemory(ArchivalMemory):
         :type archival_memory_database: str
         """
 
+        self.top_k = top_k
         if archival_memory_database is not None:
             # TODO: load form ~/.memgpt/archival
             directory = f"{MEMGPT_DIR}/archival/{archival_memory_database}"
             assert os.path.exists(directory), f"Archival memory database {archival_memory_database} does not exist"
             storage_context = StorageContext.from_defaults(persist_dir=directory)
             self.index = load_index_from_storage(storage_context)
+            self.retriever = VectorIndexRetriever(
+                index=self.index,  # does this get refreshed?
+                similarity_top_k=self.top_k,
+            )
         else:
-            self.index = VectorIndex()
-        self.top_k = top_k
-        self.retriever = VectorIndexRetriever(
-            index=self.index,  # does this get refreshed?
-            similarity_top_k=self.top_k,
-        )
+            self.index = EmptyIndex()
+            self.retriever = None
+
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
 
     async def insert(self, memory_string):
         self.index.insert(memory_string)
 
+        # TODO: figure out if this needs to be refreshed (probably not)
+        self.retriever = VectorIndexRetriever(
+            index=self.index,
+            similarity_top_k=self.top_k,
+        )
+
     async def search(self, query_string, count=None, start=None):
+        if self.retriever is None:
+            print("Warning: archival memory is empty")
+            return [], 0
+
         start = start if start else 0
         count = count if count else self.top_k
         count = min(count + start, self.top_k)

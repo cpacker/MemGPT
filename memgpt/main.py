@@ -1,4 +1,5 @@
 import asyncio
+import configparser
 import uuid
 import logging
 import glob
@@ -22,12 +23,13 @@ import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
 from memgpt.persistence_manager import (
+    LocalStateManager,
     InMemoryStateManager,
     InMemoryStateManagerWithPreloadedArchivalMemory,
     InMemoryStateManagerWithFaiss,
 )
 
-from memgpt.config import Config
+from memgpt.config import Config, MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
 from memgpt.connectors import connector
 from memgpt.openai_tools import (
@@ -38,7 +40,9 @@ from memgpt.openai_tools import (
 import asyncio
 
 app = typer.Typer()
+metadata_app = typer.Typer()
 app.add_typer(connector.app, name="load")
+app.add_typer(metadata_app, name="list")
 
 
 def clear_line():
@@ -111,59 +115,28 @@ def load(memgpt_agent, filename):
         print(f"/load warning: loading persistence manager from {filename} failed with: {e}")
 
 
-@dataclass
-class MemGPTConfig:
-
-    # model parameters: openai
-    openai_key: str = None
-    openai_model: str = constants.DEFAULT_MEMGPT_MODEL  # gpt-4, gpt-3.5-turbo
-
-    # model parameters: azure
-    azure_key: str = None
-    azure_endpoint: str = None
-    azure_version: str = None
-    azure_deployment: str = None
-    azure_embedding_deployment: str = None
-
-    # persona parameters
-    default_persona: str = personas.DEFAULT
-    default_human: str = humans.DEFAULT
-    default_agent: str = None
-
-    # embedding parameters
-    embedding_model: str = "openai"
-    embedding_dim: int = 768
-    embedding_tokens: int = 300
-
-    # database configs
-    archival_storage_type: str = "local"  # local, db
-    archival_storage_path: str = None  # TODO: set to memgpt dir
-    archival_storage_uri: str = None  # TODO: eventually allow external vector DB
-
-    @staticmethod
-    def generate_uuid() -> str:
-        return uuid.UUID(int=uuid.getnode()).hex
-
-    @classmethod
-    def load():
-        pass
+@metadata_app.command("agents")
+def list_agents():
+    """List all agents"""
+    pass
 
 
-@dataclass
-class AgentConfig:
-    def __init__(self, agent_id):
-        self.agent_id = agent_id
+@metadata_app.command("humans")
+def list_humans():
+    """List all humans"""
+    pass
 
-    def attach_source(self, source: str):
-        # TODO: add warning that only once source can be attached
-        pass
 
-    def save(self):
-        pass
+@metadata_app.command("personas")
+def list_personas():
+    """List all personas"""
+    pass
 
-    @classmethod
-    def load(agent_id: str):
-        pass
+
+@metadata_app.command()
+def data_sources():
+    """List all data sources"""
+    pass
 
 
 @app.command()
@@ -178,16 +151,61 @@ def run(
     agent: str = typer.Option(None, help="Specify agent save file"),
     human: str = typer.Option(None, help="Specify human"),
     model: str = typer.Option(constants.DEFAULT_MEMGPT_MODEL, help="Specify the LLM model"),
+    data_source: str = typer.Option(None, help="Specify data source to attach to agent"),
     first: bool = typer.Option(False, "--first", help="Use --first to send the first message in the sequence"),
     debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
     no_verify: bool = typer.Option(False, "--no_verify", help="Bypass message verification"),
 ):
 
+    print("Running new command")
+
     # load config defaults
-    config = load_config()
+    config = MemGPTConfig.load()
+
+    # override with command line arguments
+    if debug:
+        config.debug = debug
+    if no_verify:
+        config.no_verify = no_verify
+
+    # create agent config
+    if agent:  # use existing agent
+        agent_config = AgentConfig.load(agent)
+        persistence_manager = LocalStateManager(agent_config.data_source)
+        # TODO: load prior agent state
+        assert not any(persona, human, model), "Cannot override existing agent state with command line arguments"
+    else:  # create new agent
+        # TODO: allow configrable state manager (only local is supported right now)
+        persistence_manager = LocalStateManager(data_source)  # TODO: insert dataset/pre-fill
+
+        # create new agent config: override defaults with args if provided
+        agent_config = AgentConfig(
+            persona=persona if persona else config.default_persona,
+            human=human if human else config.default_human,
+            model=model if model else config.default_model,
+        )
+        # attach data source to agent
+        agent_config.attach_data_source(data_source)
+
+        # save new agent config
+        agent_config.save()
+
+    # create agent
+    memgpt_agent = presets.use_preset(
+        presets.DEFAULT,
+        agent_config.model,
+        agent_config.persona,
+        agent_config.human,
+        memgpt.interface,
+        persistence_manager,
+    )
+
+    # start event loop
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(run_agent_loop(memgpt_agent, first, no_verify, config))
 
 
-@app.callback(invoke_without_command=True)  # make default command
+# @app.callback(invoke_without_command=True)  # make default command
 def legacy_run(
     persona: str = typer.Option(None, help="Specify persona"),
     human: str = typer.Option(None, help="Specify human"),
@@ -391,12 +409,6 @@ async def main(
     print_messages = memgpt.interface.print_messages
     await print_messages(memgpt_agent.messages)
 
-    counter = 0
-    user_input = None
-    skip_next_user_input = False
-    user_message = None
-    USER_GOES_FIRST = first
-
     if cfg.load_type == "sql":  # TODO: move this into config.py in a clean manner
         if not os.path.exists(cfg.archival_storage_files):
             print(f"File {cfg.archival_storage_files} does not exist")
@@ -414,6 +426,17 @@ async def main(
         load_save_file = await questionary.confirm(f"Load in saved agent '{cfg.agent_save_file}'?").ask_async()
         if load_save_file:
             load(memgpt_agent, cfg.agent_save_file)
+
+    # run agent loop
+    await run_agent_loop(memgpt_agent, first, no_verify, cfg)
+
+
+async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None):
+    counter = 0
+    user_input = None
+    skip_next_user_input = False
+    user_message = None
+    USER_GOES_FIRST = first
 
     # auto-exit for
     if "GITHUB_ACTIONS" in os.environ:

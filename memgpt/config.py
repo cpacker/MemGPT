@@ -1,7 +1,10 @@
 import glob
 import json
 import os
+import uuid
 import textwrap
+from dataclasses import dataclass
+import configparser
 
 
 import questionary
@@ -15,6 +18,10 @@ import memgpt.interface as interface
 from memgpt.personas.personas import get_persona_text
 from memgpt.humans.humans import get_human_text
 from memgpt.constants import MEMGPT_DIR
+import memgpt.constants as constants
+import memgpt.personas.personas as personas
+import memgpt.humans.humans as humans
+
 
 model_choices = [
     questionary.Choice("gpt-4"),
@@ -23,6 +30,175 @@ model_choices = [
         value="gpt-3.5-turbo",
     ),
 ]
+
+
+@dataclass
+class MemGPTConfig:
+
+    config_path: str = f"{MEMGPT_DIR}/config"
+    anon_clientid: str = None
+
+    # model parameters
+    model: str = "openai"  # openai, local, azure, ...
+
+    # model parameters: openai
+    openai_key: str = None
+    openai_model: str = constants.DEFAULT_MEMGPT_MODEL  # gpt-4, gpt-3.5-turbo
+
+    # model parameters: azure
+    azure_key: str = None
+    azure_endpoint: str = None
+    azure_version: str = None
+    azure_deployment: str = None
+    azure_embedding_deployment: str = None
+
+    # persona parameters
+    default_persona: str = personas.DEFAULT
+    default_human: str = humans.DEFAULT
+    default_agent: str = None
+
+    # embedding parameters
+    embedding_model: str = "openai"
+    embedding_dim: int = 768
+    embedding_chunk_size: int = 300  # number of tokens
+
+    # database configs: archival
+    archival_storage_type: str = "local"  # local, db
+    archival_storage_path: str = None  # TODO: set to memgpt dir
+    archival_storage_uri: str = None  # TODO: eventually allow external vector DB
+
+    # database configs: recall
+    recall_storage_type: str = "local"  # local, db
+    recall_storage_path: str = None  # TODO: set to memgpt dir
+    recall_storage_uri: str = None  # TODO: eventually allow external vector DB
+
+    # database configs: agent state
+    persistence_manager_type: str = None  # in-memory, db
+    persistence_manager_save_file: str = None  # local file
+    persistence_manager_uri: str = None  # db URI
+
+    @staticmethod
+    def generate_uuid() -> str:
+        return uuid.UUID(int=uuid.getnode()).hex
+
+    @classmethod
+    def load(cls) -> "MemGPTConfig":
+        config = configparser.ConfigParser()
+        if os.path.exists(MemGPTConfig.config_path):
+            config.read_path(MemGPTConfig.config_path)
+
+            # read config values
+            model = config.get("defaults", "model")
+            default_persona = config.get("defaults", "persona")
+            default_human = config.get("defaults", "human")
+            default_agent = config.get("defaults", "agent")
+
+            openai_key, openai_model = None, None
+            if "openai" in config:
+                openai_key = config.get("openai", "key")
+                openai_model = config.get("openai", "model")
+
+            azure_key, azure_endpoint, azure_version, azure_deployment, azure_embedding_deployment = None, None, None, None, None
+            if "azure" in config:
+                azure_key = config.get("azure", "key")
+                azure_endpoint = config.get("azure", "endpoint")
+                azure_version = config.get("azure", "version")
+                azure_deployment = config.get("azure", "deployment")
+                azure_embedding_deployment = config.get("azure", "embedding_deployment")
+
+            embedding_model = config.get("embedding", "model")
+            embedding_dim = config.get("embedding", "dim")
+            embedding_chunk_size = config.get("embedding", "chunk_size")
+
+            anon_clientid = config.get("client", "anon_clientid")
+
+            return cls(
+                model=model,
+                default_persona=default_persona,
+                default_human=default_human,
+                default_agent=default_agent,
+                openai_key=openai_key,
+                openai_model=openai_model,
+                azure_key=azure_key,
+                azure_endpoint=azure_endpoint,
+                azure_version=azure_version,
+                azure_deployment=azure_deployment,
+                azure_embedding_deployment=azure_embedding_deployment,
+                embedding_model=embedding_model,
+                embedding_dim=embedding_dim,
+                embedding_chunk_size=embedding_chunk_size,
+                anon_clientid=anon_clientid,
+            )
+
+        anon_clientid = MemGPTConfig.generate_uuid()
+        return cls(anon_clientid=anon_clientid)
+
+    def save(self):
+        config = configparser.ConfigParser()
+
+        # CLI defaults
+        config.add_section("defaults")
+        config.set("defaults", "model", self.model)
+        config.set("defaults", "persona", self.default_persona)
+        config.set("defaults", "human", self.default_human)
+        config.set("defaults", "agent", self.default_agent)
+
+        # security credentials
+        if self.openai_key:
+            config.add_section("openai")
+            config.set("openai", "key", self.openai_key)
+            config.set("openai", "model", self.openai_model)
+
+        if self.azure_key:
+            config.add_section("azure")
+            config.set("azure", "key", self.azure_key)
+            config.set("azure", "endpoint", self.azure_endpoint)
+            config.set("azure", "version", self.azure_version)
+            config.set("azure", "deployment", self.azure_deployment)
+            config.set("azure", "embedding_deployment", self.azure_embedding_deployment)
+
+        # embeddings
+        config.add_section("embedding")
+        config.set("embedding", "model", self.embedding_model)
+        config.set("embedding", "dim", self.embedding_dim)
+        config.set("embedding", "chunk_size", self.embedding_chunk_size)
+
+        # client
+        config.add_section("client")
+        if not self.anon_clientid:
+            self.anon_clientid = self.generate_uuid()
+        config.set("anon_clientid", "id", self.anon_clientid)
+
+        with open(self.config_path, "w") as f:
+            config.write(f)
+
+
+@dataclass
+class AgentConfig:
+    def __init__(self, persona, human, model, name=None):
+        if name is None:
+            self.name = f"agent_{uuid.UUID(int=uuid.getnode()).hex}"
+        else:
+            self.name = name
+        self.persona = persona
+        self.human = human
+        self.model = model
+        self.agent_id = uuid.UUID(int=uuid.getnode()).hex
+        self.persistence_manager_type = None
+        self.data_source = None
+
+    def attach_data_source(self, data_source: str):
+        # TODO: add warning that only once source can be attached
+        # i.e. previous source will be overriden
+        self.data_source = data_source
+
+    def save(self):
+        # save state of persistence manager
+        pass
+
+    @classmethod
+    def load(agent_id: str):
+        pass
 
 
 class Config:
