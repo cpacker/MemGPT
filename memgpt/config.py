@@ -182,7 +182,7 @@ class AgentConfig:
     Configuration for a specific instance of an agent
     """
 
-    def __init__(self, persona, human, model, name=None, data_source=None):
+    def __init__(self, persona, human, model, name=None, data_source=None, agent_config_path=None, create_time=None):
         if name is None:
             self.name = f"agent_{uuid.UUID(int=uuid.getnode()).hex}"
         else:
@@ -191,10 +191,11 @@ class AgentConfig:
         self.human = human
         self.model = model
         self.data_source = data_source
+        self.create_time = create_time if create_time is not None else utils.get_local_time()
 
         # save agent config
-        self.agent_config_path = os.path.join(MEMGPT_DIR, "agents", f"{self.name}.json")
-        assert not os.path.exists(self.agent_config_path), f"Agent config file already exists at {self.agent_config_path}"
+        self.agent_config_path = os.path.join(MEMGPT_DIR, "agents", f"{self.name}.json") if agent_config_path is None else agent_config_path
+        # assert not os.path.exists(self.agent_config_path), f"Agent config file already exists at {self.agent_config_path}"
         self.save()
 
     def attach_data_source(self, data_source: str):
@@ -207,7 +208,7 @@ class AgentConfig:
         # save state of persistence manager
         os.makedirs(os.path.join(MEMGPT_DIR, "agents"), exist_ok=True)
         with open(self.agent_config_path, "w") as f:
-            json.dump(self.to_dict(), f, indent=4)
+            json.dump(vars(self), f, indent=4)
 
     @classmethod
     def load(cls, name: str):

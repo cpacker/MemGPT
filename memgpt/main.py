@@ -11,6 +11,7 @@ import questionary
 import typer
 
 from rich.console import Console
+from prettytable import PrettyTable
 
 console = Console()
 
@@ -118,7 +119,13 @@ def load(memgpt_agent, filename):
 @metadata_app.command("agents")
 def list_agents():
     """List all agents"""
-    pass
+    table = PrettyTable()
+    table.field_names = ["Name", "Model", "Persona", "Human", "Data Source"]
+    for agent_file in os.listdir(os.path.join(MEMGPT_DIR, "agents")):
+        agent_name = os.path.basename(agent_file).replace(".json", "")
+        agent_config = AgentConfig.load(agent_name)
+        table.add_row([agent_name, agent_config.model, agent_config.persona, agent_config.human, agent_config.data_source])
+    print(table)
 
 
 @metadata_app.command("humans")
@@ -134,9 +141,14 @@ def list_personas():
 
 
 @metadata_app.command()
-def data_sources():
+def data_sources(data):
     """List all data sources"""
-    pass
+    table = PrettyTable()
+    table.field_names = ["Name", "Create Time", "Agents"]
+    for data_source_file in os.listdir(os.path.join(MEMGPT_DIR, "archival")):
+        name = os.path.basename(data_source_file)
+        table.add_row([name, "TODO", "TODO"])
+    print(table)
 
 
 @app.command()
