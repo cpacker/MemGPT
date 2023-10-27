@@ -85,13 +85,13 @@ class MemGPTConfig:
     def load(cls) -> "MemGPTConfig":
         config = configparser.ConfigParser()
         if os.path.exists(MemGPTConfig.config_path):
-            config.read_path(MemGPTConfig.config_path)
+            config.read(MemGPTConfig.config_path)
 
             # read config values
             model = config.get("defaults", "model")
             default_persona = config.get("defaults", "persona")
             default_human = config.get("defaults", "human")
-            default_agent = config.get("defaults", "agent")
+            default_agent = config.get("defaults", "agent") if config.has_option("defaults", "agent") else None
 
             openai_key, openai_model = None, None
             if "openai" in config:
@@ -107,8 +107,8 @@ class MemGPTConfig:
                 azure_embedding_deployment = config.get("azure", "embedding_deployment")
 
             embedding_model = config.get("embedding", "model")
-            embedding_dim = config.get("embedding", "dim")
-            embedding_chunk_size = config.get("embedding", "chunk_size")
+            embedding_dim = config.getint("embedding", "dim")
+            embedding_chunk_size = config.getint("embedding", "chunk_size")
 
             anon_clientid = config.get("client", "anon_clientid")
 
@@ -131,7 +131,9 @@ class MemGPTConfig:
             )
 
         anon_clientid = MemGPTConfig.generate_uuid()
-        return cls(anon_clientid=anon_clientid)
+        config = cls(anon_clientid=anon_clientid)
+        config.save()  # save updated config
+        return config
 
     def save(self):
         config = configparser.ConfigParser()
@@ -141,7 +143,8 @@ class MemGPTConfig:
         config.set("defaults", "model", self.model)
         config.set("defaults", "persona", self.default_persona)
         config.set("defaults", "human", self.default_human)
-        config.set("defaults", "agent", self.default_agent)
+        if self.default_agent:
+            config.set("defaults", "agent", self.default_agent)
 
         # security credentials
         if self.openai_key:
@@ -160,14 +163,14 @@ class MemGPTConfig:
         # embeddings
         config.add_section("embedding")
         config.set("embedding", "model", self.embedding_model)
-        config.set("embedding", "dim", self.embedding_dim)
-        config.set("embedding", "chunk_size", self.embedding_chunk_size)
+        config.set("embedding", "dim", str(self.embedding_dim))
+        config.set("embedding", "chunk_size", str(self.embedding_chunk_size))
 
         # client
         config.add_section("client")
         if not self.anon_clientid:
             self.anon_clientid = self.generate_uuid()
-        config.set("anon_clientid", "id", self.anon_clientid)
+        config.set("client", "anon_clientid", self.anon_clientid)
 
         with open(self.config_path, "w") as f:
             config.write(f)
@@ -175,7 +178,11 @@ class MemGPTConfig:
 
 @dataclass
 class AgentConfig:
-    def __init__(self, persona, human, model, name=None):
+    """
+    Configuration for a specific instance of an agent
+    """
+
+    def __init__(self, persona, human, model, name=None, data_source=None):
         if name is None:
             self.name = f"agent_{uuid.UUID(int=uuid.getnode()).hex}"
         else:
@@ -183,22 +190,33 @@ class AgentConfig:
         self.persona = persona
         self.human = human
         self.model = model
-        self.agent_id = uuid.UUID(int=uuid.getnode()).hex
-        self.persistence_manager_type = None
-        self.data_source = None
+        self.data_source = data_source
+
+        # save agent config
+        self.agent_config_path = os.path.join(MEMGPT_DIR, "agents", f"{self.name}.json")
+        assert not os.path.exists(self.agent_config_path), f"Agent config file already exists at {self.agent_config_path}"
+        self.save()
 
     def attach_data_source(self, data_source: str):
         # TODO: add warning that only once source can be attached
         # i.e. previous source will be overriden
         self.data_source = data_source
+        self.save()
 
     def save(self):
         # save state of persistence manager
-        pass
+        os.makedirs(os.path.join(MEMGPT_DIR, "agents"), exist_ok=True)
+        with open(self.agent_config_path, "w") as f:
+            json.dump(self.to_dict(), f, indent=4)
 
     @classmethod
-    def load(agent_id: str):
-        pass
+    def load(cls, name: str):
+        """Load agent config from JSON file"""
+        agent_config_path = os.path.join(MEMGPT_DIR, "agents", f"{name}.json")
+        assert os.path.exists(agent_config_path), f"Agent config file does not exist at {agent_config_path}"
+        with open(agent_config_path, "r") as f:
+            agent_config = json.load(f)
+        return cls(**agent_config)
 
 
 class Config:
