@@ -68,12 +68,6 @@ You're almost there! It's time to share your brilliance with the world. 🌍
 
 The maintainers, will take a look and might suggest some cool upgrades or ask for more details. Once they give the thumbs up, your creation becomes part of MemGPT!
 
-## 6. 📜 Code of Conduct
+## 6. HELLO WORLD
 
-Please be sure to follow the project's Code of Conduct.
-
-## 7. 📫 Contact
-
-Need help or just want to say hi? We're here for you. Reach out through filing an issue on this GitHub repository or message us on our [Discord server](https://discord.gg/9GEQrxmVyE).
-
-Thanks for making MemGPT even more fantastic!
+dio stand
