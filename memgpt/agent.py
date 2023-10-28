@@ -133,7 +133,7 @@ class AgentAsync(object):
 
     def __init__(
         self,
-        name,
+        config,
         model,
         system,
         functions,
@@ -145,8 +145,8 @@ class AgentAsync(object):
         persistence_manager_init=True,
         first_message_verify_mono=True,
     ):
-        # agent name (id)
-        self.name = name
+        # agent config
+        self.config = config
         # gpt-4, gpt-3.5-turbo
         self.model = model
         # Store the system instructions (used to rebuild memory)
@@ -279,20 +279,18 @@ class AgentAsync(object):
 
         """Save agent state locally"""
 
-        filename = get_local_time().replace(" ", "_").replace(":", "_")
-        agent_name = self.name  # TODO: fix
+        timestamp = get_local_time().replace(" ", "_").replace(":", "_")
+        agent_name = self.config.name  # TODO: fix
 
         # save agent state
-        filename = f"{filename}.json"
-        directory = os.path.join(MEMGPT_DIR, "agents", agent_name, "agent_state")
-        os.makedirs(directory, exist_ok=True)
-        self.save_to_json_file(os.path.join(directory, filename))
+        filename = f"{timestamp}.json"
+        os.makedirs(self.config.save_state_dir(), exist_ok=True)
+        self.save_to_json_file(os.path.join(self.config.save_state_dir(), filename))
 
         # save the persistence manager too
-        filename = filename.replace(".json", ".persistence.pickle")
-        directory = os.path.join(MEMGPT_DIR, "agents", agent_name, "persistence_manager")
-        os.makedirs(directory, exist_ok=True)
-        self.persistence_manager.save(os.path.join(directory, filename))
+        filename = f"{timestamp}.persistence.pickle"
+        os.makedirs(self.config.save_persistence_manager_dir(), exist_ok=True)
+        self.persistence_manager.save(os.path.join(self.config.save_persistence_manager_dir(), filename))
 
     @classmethod
     def load_agent(cls, interface, agent_config: AgentConfig):
@@ -301,7 +299,7 @@ class AgentAsync(object):
         agent_name = agent_config.name
 
         # load state
-        directory = os.path.join(MEMGPT_DIR, "agents", agent_name, "agent_state")
+        directory = agent_config.save_state_dir()
         json_files = glob.glob(f"{directory}/*.json")  # This will list all .json files in the current directory.
         if not json_files:
             print(f"/load error: no .json checkpoint files found")
@@ -313,12 +311,14 @@ class AgentAsync(object):
 
         # load persistence manager
         filename = os.path.basename(filename).replace(".json", ".persistence.pickle")
-        directory = os.path.join(MEMGPT_DIR, "agents", agent_name, "persistence_manager")
+        directory = agent_config.save_persistence_manager_dir()
         persistence_manager = LocalStateManager.load(os.path.join(directory, filename), agent_config)
+
+        print("persistence maanger", persistence_manager)
 
         messages = state["messages"]
         agent = cls(
-            name=agent_name,
+            config=agent_config,
             model=state["model"],
             system=state["system"],
             functions=state["functions"],
@@ -583,15 +583,16 @@ class AgentAsync(object):
             # Step 2: check if LLM wanted to call a function
             # (if yes) Step 3: call the function
             # (if yes) Step 4: send the info on the function call and function response to LLM
+            print("handle AI response")
             response_message = response.choices[0].message
             response_message_copy = response_message.copy()
             all_response_messages, heartbeat_request, function_failed = await self.handle_ai_response(response_message)
 
             # Add the extra metadata to the assistant response
             # (e.g. enough metadata to enable recreating the API call)
-            assert "api_response" not in all_response_messages[0]
+            assert "api_response" not in all_response_messages[0], f"api_response already in {all_response_messages[0]}"
             all_response_messages[0]["api_response"] = response_message_copy
-            assert "api_args" not in all_response_messages[0]
+            assert "api_args" not in all_response_messages[0], f"api_args already in {all_response_messages[0]}"
             all_response_messages[0]["api_args"] = {
                 "model": self.model,
                 "messages": input_message_sequence,
@@ -621,6 +622,7 @@ class AgentAsync(object):
 
         except Exception as e:
             printd(f"step() failed\nuser_message = {user_message}\nerror = {e}")
+            print(f"step() failed\nuser_message = {user_message}\nerror = {e}")
 
             # If we got a context alert, try trimming the messages length, then try again
             if "maximum context length" in str(e):
@@ -631,6 +633,7 @@ class AgentAsync(object):
                 return await self.step(user_message, first_message=first_message)
             else:
                 printd(f"step() failed with openai.InvalidRequestError, but didn't recognize the error message: '{str(e)}'")
+                print(e)
                 raise e
 
     async def summarize_messages_inplace(self, cutoff=None):

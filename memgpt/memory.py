@@ -565,7 +565,7 @@ class LocalArchivalMemory(ArchivalMemory):
             directory = f"{MEMGPT_DIR}/archival/{self.agent_config.data_source}"
             assert os.path.exists(directory), f"Archival memory database {self.agent_config.data_source} does not exist"
         elif self.agent_config.name is not None:
-            directory = f"{MEMGPT_DIR}/archival/{self.agent_config.name}"
+            directory = agent_config.save_agent_index_dir()
             if not os.path.exists(directory):
                 # no existing archival storage
                 directory = None
@@ -574,13 +574,17 @@ class LocalArchivalMemory(ArchivalMemory):
         if directory:
             storage_context = StorageContext.from_defaults(persist_dir=directory)
             self.index = load_index_from_storage(storage_context)
+        else:
+            self.index = EmptyIndex()
+
+        # create retriever
+        if isinstance(self.index, EmptyIndex):
+            self.retriever = None  # cant create retriever over empty indes
+        else:
             self.retriever = VectorIndexRetriever(
                 index=self.index,  # does this get refreshed?
                 similarity_top_k=self.top_k,
             )
-        else:
-            self.index = EmptyIndex()
-            self.retriever = None
 
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
@@ -591,7 +595,7 @@ class LocalArchivalMemory(ArchivalMemory):
             # TODO: this corrupts the originally loaded data. do we want to do this?
             utils.save_index(self.index, self.agent_config.data_source)
         else:
-            utils.save_agent_index(self.index, self.agent_config.name)
+            utils.save_agent_index(self.index, self.agent_config)
 
     async def insert(self, memory_string):
         self.index.insert(memory_string)

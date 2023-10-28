@@ -118,11 +118,12 @@ class LocalStateManager(PersistenceManager):
 
     @staticmethod
     def load(filename, agent_config: AgentConfig):
+        """ Load a LocalStateManager from a file. """ ""
         with open(filename, "rb") as f:
             manager = pickle.load(f)
 
         manager.archival_memory = LocalArchivalMemory(agent_config=agent_config)
-        return agent_config
+        return manager
 
     def save(self, filename):
         with open(filename, "wb") as fh:
@@ -131,6 +132,9 @@ class LocalStateManager(PersistenceManager):
             self.archival_memory.save()
             self.archival_memory = None
             pickle.dump(self, fh, protocol=pickle.HIGHEST_PROTOCOL)
+
+            # re-load archival (TODO: dont do this)
+            self.archival_memory = LocalArchivalMemory(agent_config=self.agent_config)
 
     def init(self, agent):
         printd(f"Initializing InMemoryStateManager with agent object")

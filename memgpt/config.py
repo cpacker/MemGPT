@@ -206,6 +206,18 @@ class AgentConfig:
         self.data_source = data_source
         self.save()
 
+    def save_state_dir(self):
+        # directory to save agent state
+        return os.path.join(MEMGPT_DIR, "agents", self.name, "agent_state")
+
+    def save_persistence_manager_dir(self):
+        # directory to save persistent manager state
+        return os.path.join(MEMGPT_DIR, "agents", self.name, "persistence_manager")
+
+    def save_agent_index_dir(self):
+        # save llama index inside of persistent manager directory
+        return os.path.join(self.save_persistence_manager_dir(), "index")
+
     def save(self):
         # save state of persistence manager
         os.makedirs(os.path.join(MEMGPT_DIR, "agents", self.name), exist_ok=True)

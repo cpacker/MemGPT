@@ -224,6 +224,12 @@ def run(
 
     print("Running new command")
 
+    # setup logger
+    utils.DEBUG = debug
+    logging.getLogger().setLevel(logging.CRITICAL)
+    if debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+
     # load config defaults
     config = MemGPTConfig.load()
 
@@ -234,9 +240,12 @@ def run(
         config.no_verify = no_verify
 
     # create agent config
-    if AgentConfig.exists(agent):  # use existing agent
+    if agent and AgentConfig.exists(agent):  # use existing agent
         print(f"Using existing agent {agent}")
         agent_config = AgentConfig.load(agent)
+        print("State path:", agent_config.save_state_dir())
+        print("Persistent manager path:", agent_config.save_persistence_manager_dir())
+        print("Index path:", agent_config.save_agent_index_dir())
         # persistence_manager = LocalStateManager(agent_config).load() # TODO: implement load
         # TODO: load prior agent state
         assert not any(
@@ -262,11 +271,12 @@ def run(
 
         # save new agent config
         agent_config.save()
+        print(f"Created new agent {agent_config.name}")
 
         # create agent
         memgpt_agent = presets.use_preset(
             presets.DEFAULT,
-            agent_config.name,
+            agent_config,
             agent_config.model,
             agent_config.persona,
             agent_config.human,
@@ -276,7 +286,7 @@ def run(
 
     # start event loop
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(run_agent_loop(memgpt_agent, first, no_verify, config))
+    loop.run_until_complete(run_agent_loop(memgpt_agent, first, False, config))  # TODO: add back no_verify
 
 
 # @app.callback(invoke_without_command=True)  # make default command
@@ -474,7 +484,7 @@ async def main(
 
     memgpt_agent = presets.use_preset(
         presets.DEFAULT,
-        "legacy_agent",
+        None,  # no agent config to provide
         cfg.model,
         personas.get_persona_text(*chosen_persona),
         humans.get_human_text(*chosen_human),
