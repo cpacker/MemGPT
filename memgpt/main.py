@@ -31,11 +31,10 @@ from memgpt.persistence_manager import (
     InMemoryStateManagerWithFaiss,
 )
 from memgpt.cli.cli import run
-from memgpt.cli.cli_config import configure
+from memgpt.cli.cli_config import configure, list, add
 from memgpt.cli.cli_load import app as load_app
 from memgpt.config import Config, MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
-from memgpt.connectors import connector
 from memgpt.agent import AgentAsync
 from memgpt.openai_tools import (
     configure_azure_support,
@@ -47,6 +46,8 @@ import asyncio
 app = typer.Typer()
 app.command(name="run")(run)
 app.command(name="configure")(configure)
+app.command(name="list")(list)
+app.command(name="add")(add)
 # load data commands
 app.add_typer(load_app, name="load")
 
