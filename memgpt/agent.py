@@ -163,7 +163,8 @@ class AgentAsync(object):
         )
         # Keep track of the total number of messages throughout all time
         self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
-        self.messages_total_init = self.messages_total
+        # self.messages_total_init = self.messages_total
+        self.messages_total_init = len(self._messages) - 1
         printd(f"AgentAsync initialized, self.messages_total={self.messages_total}")
 
         # Interface must implement:

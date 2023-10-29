@@ -25,6 +25,7 @@ import memgpt.utils as utils
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
+from memgpt.agent import AgentAsync
 
 
 # app = typer.Typer()
