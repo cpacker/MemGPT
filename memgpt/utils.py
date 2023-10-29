@@ -390,9 +390,9 @@ def get_index(name, docs):
         exit()
 
     # read embedding confirguration
-    # TODO: in the future, make an IngestData class that loads the config once, and allow overriding in CLI
+    # TODO: in the future, make an IngestData class that loads the config once
     config = MemGPTConfig.load()
-    chunk_size = config.embedding_chunk_size
+    chunk_size = config.chunk_size
     model = config.embedding_model  # TODO: actually use this
     dim = config.embedding_dim  # TODO: actually use this
 
