@@ -17,6 +17,7 @@ import typer
 import memgpt
 from memgpt.openai_tools import async_get_embedding_with_backoff
 from memgpt.constants import MEMGPT_DIR
+from memgpt.config import MemGPTConfig
 from llama_index import set_global_service_context, ServiceContext, VectorStoreIndex, load_index_from_storage, StorageContext
 from llama_index.embeddings import OpenAIEmbedding
 
@@ -388,8 +389,15 @@ def get_index(name, docs):
         typer.secho("Aborting.", fg="red")
         exit()
 
+    # read embedding confirguration
+    # TODO: in the future, make an IngestData class that loads the config once, and allow overriding in CLI
+    config = MemGPTConfig.load()
+    chunk_size = config.embedding_chunk_size
+    model = config.embedding_model  # TODO: actually use this
+    dim = config.embedding_dim  # TODO: actually use this
+
     embed_model = OpenAIEmbedding()
-    service_context = ServiceContext.from_defaults(embed_model=embed_model, chunk_size=300)
+    service_context = ServiceContext.from_defaults(embed_model=embed_model, chunk_size=chunk_size)
     set_global_service_context(service_context)
 
     # index documents
