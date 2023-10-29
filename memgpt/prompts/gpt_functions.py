@@ -235,4 +235,74 @@ FUNCTIONS_CHAINING = {
             "required": ["name", "query", "page", "request_heartbeat"],
         },
     },
+    "read_from_text_file": {
+        "name": "read_from_text_file",
+        "description": "Read lines from a text file.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string",
+                    "description": "The name of the file to read.",
+                },
+                "line_start": {
+                    "type": "integer",
+                    "description": "Line to start reading from.",
+                },
+                "num_lines": {
+                    "type": "integer",
+                    "description": "How many lines to read (defaults to 1).",
+                },
+                "request_heartbeat": {
+                    "type": "boolean",
+                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
+                },
+            },
+            "required": ["filename", "line_start", "request_heartbeat"],
+        },
+    },
+    "append_to_text_file": {
+        "name": "append_to_text_file",
+        "description": "Append to a text file.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string",
+                    "description": "The name of the file to read.",
+                },
+                "content": {
+                    "type": "string",
+                    "description": "Content to append to the file.",
+                },
+                "request_heartbeat": {
+                    "type": "boolean",
+                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
+                },
+            },
+            "required": ["filename", "content", "request_heartbeat"],
+        },
+    },
+    "archival_memory_search": {
+        "name": "archival_memory_search",
+        "description": "Search archival memory using semantic (embedding-based) search.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "String to search for.",
+                },
+                "page": {
+                    "type": "integer",
+                    "description": "Allows you to page through results. Only use on a follow-up query. Defaults to 0 (first page).",
+                },
+                "request_heartbeat": {
+                    "type": "boolean",
+                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
+                },
+            },
+            "required": ["name", "query", "page", "request_heartbeat"],
+        },
+    },
 }

@@ -247,7 +247,6 @@ class Agent(object):
             "edit_memory_append": self.edit_memory_append,
             "edit_memory_replace": self.edit_memory_replace,
             "pause_heartbeats": self.pause_heartbeats,
-            "message_chatgpt": self.message_chatgpt,
             "core_memory_append": self.edit_memory_append,
             "core_memory_replace": self.edit_memory_replace,
             "recall_memory_search": self.recall_memory_search,
@@ -256,6 +255,9 @@ class Agent(object):
             "conversation_search_date": self.recall_memory_search_date,
             "archival_memory_insert": self.archival_memory_insert,
             "archival_memory_search": self.archival_memory_search,
+            # extras
+            "read_from_text_file": self.read_from_text_file,
+            "append_to_text_file": self.append_to_text_file,
         }
 
     @property
@@ -796,6 +798,41 @@ class Agent(object):
 
         reply = response.choices[0].message.content
         return reply
+
+    def read_from_text_file(self, filename, line_start, num_lines=1, max_chars=500, trunc_message=True):
+        if not os.path.exists(filename):
+            raise FileNotFoundError(f"The file '{filename}' does not exist.")
+
+        if line_start < 1 or num_lines < 1:
+            raise ValueError("Both line_start and num_lines must be positive integers.")
+
+        lines = []
+        chars_read = 0
+        with open(filename, "r") as file:
+            for current_line_number, line in enumerate(file, start=1):
+                if line_start <= current_line_number < line_start + num_lines:
+                    chars_to_add = len(line)
+                    if max_chars is not None and chars_read + chars_to_add > max_chars:
+                        # If adding this line exceeds MAX_CHARS, truncate the line if needed and stop reading further.
+                        excess_chars = (chars_read + chars_to_add) - max_chars
+                        lines.append(line[:-excess_chars].rstrip("\n"))
+                        if trunc_message:
+                            lines.append(f"[SYSTEM ALERT - max chars ({max_chars}) reached during file read]")
+                        break
+                    else:
+                        lines.append(line.rstrip("\n"))
+                        chars_read += chars_to_add
+                if current_line_number >= line_start + num_lines - 1:
+                    break
+
+        return "\n".join(lines)
+
+    def append_to_text_file(self, filename, content):
+        if not os.path.exists(filename):
+            raise FileNotFoundError(f"The file '{filename}' does not exist.")
+
+        with open(filename, "a") as file:
+            file.write(content + "\n")
 
     def pause_heartbeats(self, minutes, max_pause=MAX_PAUSE_HEARTBEATS):
         """Pause timed heartbeats for N minutes"""
