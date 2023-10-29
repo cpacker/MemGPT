@@ -31,12 +31,13 @@ For the purposes of this example, we're going to serve (host) the LLMs using [oo
 3. Navigate to the web app (if local, this is probably [`http://127.0.0.1:7860`](http://localhost:7860)), select the model you want to use, adjust your GPU and CPU memory settings, and click "load"
 4. If the model was loaded successfully, you should be able to access it via the API (if local, this is probably on port `5000`)
 5. Assuming steps 1-4 went correctly, the LLM is now properly hosted on a port you can point MemGPT to!
-6. Copy the IP address + port that your server is running on
+
+In your terminal where you're running MemGPT, run:
 
 ```sh
 # if you are running web UI locally, the default port will be 5000
 export OPENAI_API_BASE=http://127.0.0.1:5000
-export BACKEND_TYPE=lmstudio
+export BACKEND_TYPE=webui
 ```
 
 WebUI exposes a lot of parameters that can dramatically change LLM outputs, to change these you can modify the [WebUI settings file](/memgpt/local_llm/webui/settings.py).
