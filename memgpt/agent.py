@@ -1,3 +1,5 @@
+import asyncio
+import inspect
 import datetime
 import pickle
 import math
@@ -152,6 +154,14 @@ async def get_ai_reply_async(
 
     except Exception as e:
         raise e
+
+
+# Assuming function_to_call is either sync or async
+async def call_function(function_to_call, **function_args):
+    if inspect.iscoroutinefunction(function_to_call):
+        return await function_to_call(**function_args)
+    else:
+        return function_to_call(**function_args)
 
 
 class Agent(object):
@@ -814,7 +824,7 @@ class AgentAsync(Agent):
             # Failure case 3: function failed during execution
             await self.interface.function_message(f"Running {function_name}({function_args})")
             try:
-                function_response_string = await function_to_call(**function_args)
+                function_response_string = await call_function(function_to_call, **function_args)
                 function_response = package_function_response(True, function_response_string)
                 function_failed = False
             except Exception as e:
