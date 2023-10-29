@@ -5,6 +5,7 @@ import requests
 import json
 
 from .webui.api import get_webui_completion
+from .lmstudio.api import get_lmstudio_completion
 from .llm_chat_completion_wrappers import airoboros, dolphin
 from .utils import DotDict
 
@@ -40,6 +41,8 @@ async def get_chat_completion(
     try:
         if HOST_TYPE == "webui":
             result = get_webui_completion(prompt)
+        elif HOST_TYPE == "lmstudio":
+            result = get_lmstudio_completion(prompt)
         else:
             print(f"Warning: BACKEND_TYPE was not set, defaulting to webui")
             result = get_webui_completion(prompt)
