@@ -51,7 +51,7 @@ WebUI exposes a lot of parameters that can dramatically change LLM outputs, to c
 
 ![image](https://github.com/cpacker/MemGPT/assets/5475622/abc8ce2d-4130-4c51-8169-83e682db625d)
 
-1. Download [LM STudio](https://lmstudio.ai/) and the model you want to test with
+1. Download [LM Studio](https://lmstudio.ai/) and the model you want to test with
 2. Go to the "local inference server" tab, load the model, and click "Start server"
 3. Copy the IP address + port that your server is running on (in the example screenshot, the address is `http://localhost:1234`)
 
