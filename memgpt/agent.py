@@ -5,6 +5,7 @@ import glob
 import pickle
 import math
 import os
+import requests
 import json
 import threading
 
@@ -258,6 +259,7 @@ class Agent(object):
             # extras
             "read_from_text_file": self.read_from_text_file,
             "append_to_text_file": self.append_to_text_file,
+            "http_request": self.http_request,
         }
 
     @property
@@ -833,6 +835,38 @@ class Agent(object):
 
         with open(filename, "a") as file:
             file.write(content + "\n")
+
+    def http_request(self, method, url, payload_json=None):
+        """
+        Makes an HTTP request based on the specified method, URL, and JSON payload.
+
+        Args:
+        method (str): The HTTP method (e.g., 'GET', 'POST').
+        url (str): The URL for the request.
+        payload_json (str): A JSON string representing the request payload.
+
+        Returns:
+        dict: The response from the HTTP request.
+        """
+        try:
+            headers = {"Content-Type": "application/json"}
+
+            # For GET requests, ignore the payload
+            if method.upper() == "GET":
+                print(f"[HTTP] launching GET request to {url}")
+                response = requests.get(url, headers=headers)
+            else:
+                # Validate and convert the payload for other types of requests
+                if payload_json:
+                    payload = json.loads(payload_json)
+                else:
+                    payload = {}
+                print(f"[HTTP] launching {method} request to {url}, payload=\n{json.dumps(payload, indent=2)}")
+                response = requests.request(method, url, json=payload, headers=headers)
+
+            return {"status_code": response.status_code, "headers": dict(response.headers), "body": response.text}
+        except Exception as e:
+            return {"error": str(e)}
 
     def pause_heartbeats(self, minutes, max_pause=MAX_PAUSE_HEARTBEATS):
         """Pause timed heartbeats for N minutes"""

@@ -283,26 +283,30 @@ FUNCTIONS_CHAINING = {
             "required": ["filename", "content", "request_heartbeat"],
         },
     },
-    "archival_memory_search": {
-        "name": "archival_memory_search",
-        "description": "Search archival memory using semantic (embedding-based) search.",
+    "http_request": {
+        "name": "http_request",
+        "description": "Generates an HTTP request and returns the response.",
         "parameters": {
             "type": "object",
             "properties": {
-                "query": {
+                "method": {
                     "type": "string",
-                    "description": "String to search for.",
+                    "description": "The HTTP method (e.g., 'GET', 'POST').",
                 },
-                "page": {
-                    "type": "integer",
-                    "description": "Allows you to page through results. Only use on a follow-up query. Defaults to 0 (first page).",
+                "url": {
+                    "type": "string",
+                    "description": "The URL for the request",
+                },
+                "payload": {
+                    "type": "string",
+                    "description": "A JSON string representing the request payload.",
                 },
                 "request_heartbeat": {
                     "type": "boolean",
                     "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
                 },
             },
-            "required": ["name", "query", "page", "request_heartbeat"],
+            "required": ["method", "url", "request_heartbeat"],
         },
     },
 }

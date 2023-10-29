@@ -45,7 +45,7 @@ def use_preset(preset_name, agent_config, model, persona, human, interface, pers
             first_message_verify_mono=True if "gpt-4" in model else False,
         )
 
-    if preset_name == "memgpt_chat_sync":  # TODO: remove me after we move the CLI to AgentSync
+    elif preset_name == "memgpt_chat_sync":  # TODO: remove me after we move the CLI to AgentSync
         functions = [
             "send_message",
             "pause_heartbeats",

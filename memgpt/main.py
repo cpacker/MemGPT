@@ -445,7 +445,7 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=
                     continue
 
                 elif user_input.lower() == "/dump":
-                    await print_messages(memgpt_agent.messages)
+                    await memgpt.interface.print_messages(memgpt_agent.messages)
                     continue
 
                 elif user_input.lower() == "/dumpraw":
@@ -453,7 +453,7 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=
                     continue
 
                 elif user_input.lower() == "/dump1":
-                    await print_messages(memgpt_agent.messages[-1])
+                    await memgpt.interface.print_messages(memgpt_agent.messages[-1])
                     continue
 
                 elif user_input.lower() == "/memory":
