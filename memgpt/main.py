@@ -244,16 +244,16 @@ def configure():
     ).ask()
 
     # defaults
-    personas = [os.path.basename(f).replace(".txt", "") for f in list_persona_files()]
+    personas = [os.path.basename(f).replace(".txt", "") for f in utils.list_persona_files()]
     print(personas)
     default_persona = questionary.select("Select default persona:", personas, default="sam_pov").ask()
-    humans = [os.path.basename(f).replace(".txt", "") for f in list_human_files()]
+    humans = [os.path.basename(f).replace(".txt", "") for f in utils.list_human_files()]
     print(humans)
     default_human = questionary.select("Select default human:", humans, default="cs_phd").ask()
 
     # TODO: figure out if we should set a default agent or not
     default_agent = None
-    # agents = [os.path.basename(f).replace(".json", "") for f in list_agent_config_files()]
+    # agents = [os.path.basename(f).replace(".json", "") for f in utils.list_agent_config_files()]
     # if len(agents) > 0: # agents have been created
     #    default_agent = questionary.select(
     #        "Select default agent:",
@@ -630,6 +630,10 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=
                 qmark=">",
             ).ask_async()
             clear_line()
+
+            # Gracefully exit on Ctrl-C/D
+            if user_input is None:
+                user_input = "/exit"
 
             user_input = user_input.rstrip()
 
