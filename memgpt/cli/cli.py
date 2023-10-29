@@ -28,14 +28,6 @@ from memgpt.constants import MEMGPT_DIR
 from memgpt.agent import AgentAsync
 
 
-# app = typer.Typer()
-# metadata_app = typer.Typer()
-# app.add_typer(metadata_app, name="list")
-# app.add_typer(memgpt.cli.cli_load.app, name="load")
-# app.add_typer(memgpt.cli.cli_config.app)
-
-
-# @app.command("run")
 def run(
     persona: str = typer.Option(None, help="Specify persona"),
     agent: str = typer.Option(None, help="Specify agent save file"),

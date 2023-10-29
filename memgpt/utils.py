@@ -453,16 +453,25 @@ def list_agent_config_files():
 
 def list_human_files():
     """List all humans files"""
-    memgpt_defaults = os.listdir(os.path.join(memgpt.__path__[0], "humans", "examples"))
-    memgpt_defaults = [f for f in memgpt_defaults if f.endswith(".txt")]
-    user_added = os.listdir(os.path.join(MEMGPT_DIR, "humans"))
+    defaults_dir = os.path.join(memgpt.__path__[0], "humans", "examples")
+    user_dir = os.path.join(MEMGPT_DIR, "humans")
+
+    memgpt_defaults = os.listdir(defaults_dir)
+    memgpt_defaults = [os.path.join(defaults_dir, f) for f in memgpt_defaults if f.endswith(".txt")]
+
+    user_added = os.listdir(user_dir)
+    user_added = [os.path.join(user_dir, f) for f in user_added]
     return memgpt_defaults + user_added
 
 
 def list_persona_files():
     """List all personas files"""
-    print(memgpt.__path__)
-    memgpt_defaults = os.listdir(os.path.join(memgpt.__path__[0], "personas", "examples"))
-    memgpt_defaults = [f for f in memgpt_defaults if f.endswith(".txt")]
-    user_added = os.listdir(os.path.join(MEMGPT_DIR, "personas"))
+    defaults_dir = os.path.join(memgpt.__path__[0], "personas", "examples")
+    user_dir = os.path.join(MEMGPT_DIR, "personas")
+
+    memgpt_defaults = os.listdir(defaults_dir)
+    memgpt_defaults = [os.path.join(defaults_dir, f) for f in memgpt_defaults if f.endswith(".txt")]
+
+    user_added = os.listdir(user_dir)
+    user_added = [os.path.join(user_dir, f) for f in user_added]
     return memgpt_defaults + user_added

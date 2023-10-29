@@ -122,9 +122,10 @@ def load(memgpt_agent, filename):
         print(f"/load warning: loading persistence manager from {filename} failed with: {e}")
 
 
-# @app.callback(invoke_without_command=True)  # make default command
-@app.command("legacy-run")
+@app.callback(invoke_without_command=True)  # make default command
+# @app.command("legacy-run")
 def legacy_run(
+    ctx: typer.Context,
     persona: str = typer.Option(None, help="Specify persona"),
     human: str = typer.Option(None, help="Specify human"),
     model: str = typer.Option(constants.DEFAULT_MEMGPT_MODEL, help="Specify the LLM model"),
@@ -157,6 +158,10 @@ def legacy_run(
         help="Use Azure OpenAI (requires additional environment variables)",
     ),  # TODO: just pass in?
 ):
+    if ctx.invoked_subcommand is not None:
+        return
+
+    typer.secho("Warning: Running legacy run command. Run `memgpt run` instead.")
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
         main(

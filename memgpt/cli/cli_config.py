@@ -7,7 +7,11 @@ import shutil
 
 # from memgpt.cli import app
 from memgpt import utils
+
+import memgpt.humans.humans as humans
+import memgpt.personas.personas as personas
 from memgpt.config import MemGPTConfig, AgentConfig
+from memgpt.constants import MEMGPT_DIR
 
 app = typer.Typer()
 
@@ -110,8 +114,6 @@ def configure():
 @app.command()
 def list(option: str):
 
-    print("new list")
-
     if option == "agents":
         """List all agents"""
         table = PrettyTable()
@@ -126,16 +128,18 @@ def list(option: str):
         table = PrettyTable()
         table.field_names = ["Name", "Text"]
         for human_file in utils.list_human_files():
-            name = os.path.basename(human_file)
-            text = humans.get_human_text(name)
+            text = open(human_file, "r").read()
+            name = os.path.basename(human_file).replace("txt", "")
             table.add_row([name, text])
         print(table)
     elif option == "personas":
         """List all personas"""
+        table = PrettyTable()
         table.field_names = ["Name", "Text"]
         for persona_file in utils.list_persona_files():
-            name = os.path.basename(persona_file)
-            text = personas.get_persona_text(name)
+            print(persona_file)
+            text = open(persona_file, "r").read()
+            name = os.path.basename(persona_file).replace(".txt", "")
             table.add_row([name, text])
         print(table)
     elif option == "sources":
