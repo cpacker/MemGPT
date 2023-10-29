@@ -118,34 +118,12 @@ def load(memgpt_agent, filename):
         print(f"/load warning: loading persistence manager from {filename} failed with: {e}")
 
 
-def list_agent_config_files():
-    """List all agents config files"""
-    return os.listdir(os.path.join(MEMGPT_DIR, "agents"))
-
-
-def list_human_files():
-    """List all humans files"""
-    memgpt_defaults = os.listdir(os.path.join(memgpt.__path__[0], "humans", "examples"))
-    memgpt_defaults = [f for f in memgpt_defaults if f.endswith(".txt")]
-    user_added = os.listdir(os.path.join(MEMGPT_DIR, "humans"))
-    return memgpt_defaults + user_added
-
-
-def list_persona_files():
-    """List all personas files"""
-    print(memgpt.__path__)
-    memgpt_defaults = os.listdir(os.path.join(memgpt.__path__[0], "personas", "examples"))
-    memgpt_defaults = [f for f in memgpt_defaults if f.endswith(".txt")]
-    user_added = os.listdir(os.path.join(MEMGPT_DIR, "personas"))
-    return memgpt_defaults + user_added
-
-
 @metadata_app.command("agents")
 def list_agents():
     """List all agents"""
     table = PrettyTable()
     table.field_names = ["Name", "Model", "Persona", "Human", "Data Source"]
-    for agent_file in list_agent_config_files():
+    for agent_file in utils.list_agent_config_files():
         agent_name = os.path.basename(agent_file).replace(".json", "")
         agent_config = AgentConfig.load(agent_name)
         table.add_row([agent_name, agent_config.model, agent_config.persona, agent_config.human, agent_config.data_source])
@@ -157,7 +135,7 @@ def list_humans():
     """List all humans"""
     table = PrettyTable()
     table.field_names = ["Name", "Text"]
-    for human_file in list_human_files():
+    for human_file in utils.list_human_files():
         name = os.path.basename(human_file)
         text = humans.get_human_text(name)
         table.add_row([name, text])
@@ -169,14 +147,14 @@ def list_personas():
     """List all personas"""
     table = PrettyTable()
     table.field_names = ["Name", "Text"]
-    for persona_file in list_persona_files():
+    for persona_file in utils.list_persona_files():
         name = os.path.basename(persona_file)
         text = personas.get_persona_text(name)
         table.add_row([name, text])
     print(table)
 
 
-@metadata_app.command()
+@metadata_app.command("sources")
 def data_sources(data):
     """List all data sources"""
     table = PrettyTable()
@@ -274,6 +252,7 @@ def configure():
     default_human = questionary.select("Select default human:", humans, default="cs_phd").ask()
 
     # TODO: figure out if we should set a default agent or not
+    default_agent = None
     # agents = [os.path.basename(f).replace(".json", "") for f in list_agent_config_files()]
     # if len(agents) > 0: # agents have been created
     #    default_agent = questionary.select(
@@ -326,13 +305,16 @@ def run(
 
     """
 
-    print("Running new command")
-
     # setup logger
     utils.DEBUG = debug
     logging.getLogger().setLevel(logging.CRITICAL)
     if debug:
         logging.getLogger().setLevel(logging.DEBUG)
+
+    # if no config, run configure
+    if not MemGPTConfig.exists():
+        print("No config found, running configure...")
+        configure()
 
     # load config defaults
     config = MemGPTConfig.load()

@@ -175,6 +175,10 @@ class MemGPTConfig:
         with open(self.config_path, "w") as f:
             config.write(f)
 
+    @staticmethod
+    def exists():
+        return os.path.exists(MemGPTConfig.config_path)
+
 
 @dataclass
 class AgentConfig:

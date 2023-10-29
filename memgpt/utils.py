@@ -14,6 +14,7 @@ import sqlite3
 import fitz
 from tqdm import tqdm
 import typer
+import memgpt
 from memgpt.openai_tools import async_get_embedding_with_backoff
 from memgpt.constants import MEMGPT_DIR
 from llama_index import set_global_service_context, ServiceContext, VectorStoreIndex, load_index_from_storage, StorageContext
@@ -435,3 +436,25 @@ def save_index(index, name):
     os.makedirs(dir, exist_ok=True)
     index.storage_context.persist(dir)
     print(dir)
+
+
+def list_agent_config_files():
+    """List all agents config files"""
+    return os.listdir(os.path.join(MEMGPT_DIR, "agents"))
+
+
+def list_human_files():
+    """List all humans files"""
+    memgpt_defaults = os.listdir(os.path.join(memgpt.__path__[0], "humans", "examples"))
+    memgpt_defaults = [f for f in memgpt_defaults if f.endswith(".txt")]
+    user_added = os.listdir(os.path.join(MEMGPT_DIR, "humans"))
+    return memgpt_defaults + user_added
+
+
+def list_persona_files():
+    """List all personas files"""
+    print(memgpt.__path__)
+    memgpt_defaults = os.listdir(os.path.join(memgpt.__path__[0], "personas", "examples"))
+    memgpt_defaults = [f for f in memgpt_defaults if f.endswith(".txt")]
+    user_added = os.listdir(os.path.join(MEMGPT_DIR, "personas"))
+    return memgpt_defaults + user_added
