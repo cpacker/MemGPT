@@ -40,7 +40,7 @@ import asyncio
 app = typer.Typer()
 
 ####
-AllowExternalInput = False
+AllowExternalInput = True
 
 if AllowExternalInput:
 
@@ -387,20 +387,25 @@ async def main(
     archival_storage_sqldb,
     use_azure_openai,
 ):
+    # AllowExternalInput = False
+    #message_queue = None
+    if AllowExternalInput:
+        message_queue = asyncio.Queue()
+        # Start a new thread and event loop for the WebSocket client
+        websocket_loop = asyncio.new_event_loop()
+        websocket_thread = threading.Thread(target=start_websocket_loop, args=(websocket_loop, uri, message_queue), daemon=True)
+        websocket_thread.start()
+
     
-    message_queue = asyncio.Queue()
-       # Start a new thread and event loop for the WebSocket client
-    websocket_loop = asyncio.new_event_loop()
-    websocket_thread = threading.Thread(target=start_websocket_loop, args=(websocket_loop, uri, message_queue), daemon=True)
-    websocket_thread.start()
 
     try:
         while True:  # Your application's main loop
-            if not message_queue.empty():
-                message = message_queue.get_nowait()
-                print(f"Processing received message: {message}")
-            else:
-                print("waiting")
+            if AllowExternalInput:
+                if not message_queue.empty():
+                    message = message_queue.get_nowait()
+                    print(f"Processing received message: {message}")
+                else:
+                    print("waiting")
 
             # ... the rest of your main loop code ...
             # This is a placeholder; your actual main loop logic will vary
@@ -618,35 +623,38 @@ async def main(
                 
                 if not skip_next_user_input and (counter > 0 or USER_GOES_FIRST):
                     message = None
-                    while not message:
-                        if not message_queue.empty():
-                            message = message_queue.get_nowait()
-                            print(f"Processing received message: {message}")
-                        else:
-                            print("waiting")
-                            time.sleep(1)  # Pause for a second to prevent busy-waiting.
-                        print(message_queue)
-                        # print("any news?")
-                        if message:
-                            print(message)
+                    #message_queue = None
+                    if AllowExternalInput:
+                        
+                        while not message:
+                            if not message_queue.empty():
+                                message = message_queue.get_nowait()
+                                print(f"Processing received message: {message}")
+                            else:
+                                print("waiting")
+                                time.sleep(1)  # Pause for a second to prevent busy-waiting.
+                            print(message_queue)
+                            # print("any news?")
+                            if message:
+                                print(message)
 
-                    # Outside the loop, process the received message.
-                    user_input = message if message else "This is default input. Do not respond."
+                        # Outside the loop, process the received message.
+                        user_input = message if message else "This is default input. Do not respond."
                     
 
-                # This has been commented out to allow Autogen to give input directly
+                # # This has been commented out to allow Autogen to give input directly
 
                 #      # Outside the loop, process the received message.
                 #     user_input = message if message else "This is default input. Do not respond."
                 #     # Ask for user input
-                #     # user_input = console.input("[bold cyan]Enter your message:[/bold cyan] ")
-                    
-                #     # user_input = await questionary.text(
-                #     #     "Enter your message:",
-                #     #     multiline=multiline_input,
-                    #     qmark=">",
-                    # ).ask_async()
-                    # clear_line()
+                #     user_input = console.input("[bold cyan]Enter your message:[/bold cyan] ")
+                    if not AllowExternalInput:
+                        user_input = await questionary.text(
+                            "Enter your message:",
+                            multiline=multiline_input,
+                            qmark=">",
+                        ).ask_async()
+                        clear_line()
 
 
                   
@@ -808,8 +816,9 @@ async def main(
         print("Application closed by user.")
     finally:
         # Cleanup and close websocket connection
-        websocket_loop.call_soon_threadsafe(websocket_loop.stop)
-        websocket_thread.join()
+        if AllowExternalInput:
+            websocket_loop.call_soon_threadsafe(websocket_loop.stop)
+            websocket_thread.join()
 
     
 
