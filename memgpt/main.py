@@ -36,6 +36,42 @@ from memgpt.openai_tools import (
 )
 import asyncio
 
+### webserver
+import uvicorn
+from threading import Thread
+from memgpt.webserver import web_app, agent_manager  # Assuming webserver.py is in the same directory
+from uvicorn.config import Config as UvicornConfig
+from uvicorn.server import Server
+
+webserver_thread = None
+server = None
+
+def start_webserver(agent):
+    global webserver_thread, server
+    agent_manager.set_agent(agent)
+
+    def run():
+        config = UvicornConfig(app=web_app, host="0.0.0.0", port=8000)
+        global server
+        server = Server(config)
+        server.run()
+
+    webserver_thread = Thread(target=run)
+    webserver_thread.start()
+
+def stop_webserver():
+    global webserver_thread, server
+    if webserver_thread is not None and server is not None:
+        server.should_exit = True
+        webserver_thread.join()
+        webserver_thread = None
+        server = None
+
+def webserver_status():
+    return "running" if webserver_thread is not None else "stopped"
+
+###
+
 app = typer.Typer()
 app.add_typer(connector.app, name="load")
 
@@ -437,6 +473,24 @@ async def main(
                     for _ in range(min(amount, len(memgpt_agent.messages))):
                         memgpt_agent.messages.pop()
                     continue
+                # webserver commands
+                elif user_input.lower() == "/webstart":
+                    start_webserver(memgpt_agent)
+                    continue
+
+                elif user_input.lower() == "/webstop":
+                    stop_webserver()
+                    continue
+
+                elif user_input.lower() == "/webstatus":
+                    print("Web server status:", webserver_status())
+                    continue
+
+                elif user_input.lower() == "/webreload":
+                    if webserver_status() == "running":
+                        stop_webserver()
+                        start_webserver(memgpt_agent)
+                    continue
 
                 # No skip options
                 elif user_input.lower() == "/wipe":
@@ -505,6 +559,9 @@ USER_COMMANDS = [
     ("/pop", "undo the last message in the conversation"),
     ("/heartbeat", "send a heartbeat system message to the agent"),
     ("/memorywarning", "send a memory warning system message to the agent"),
+    ("/webstart", "start the web server"),
+    ("/webstop", "stop the web server"),
+    ("/webstatus", "check the status of the web server"),
 ]
 # if __name__ == "__main__":
 #
