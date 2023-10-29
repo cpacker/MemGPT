@@ -260,7 +260,7 @@ async def prepare_archival_index_from_files_compute_embeddings(
     model="gpt-4",
     embeddings_model="text-embedding-ada-002",
 ):
-    files = sorted(glob.glob(glob_pattern))
+    files = sorted(glob.glob(glob_pattern, recursive=True))
     save_dir = os.path.join(
         MEMGPT_DIR,
         "archival_index_from_files_" + get_local_time().replace(" ", "_").replace(":", "_"),
