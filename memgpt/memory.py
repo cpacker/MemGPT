@@ -657,7 +657,7 @@ class LocalArchivalMemory(ArchivalMemory):
             storage_context = StorageContext.from_defaults(persist_dir=directory)
             self.index = load_index_from_storage(storage_context)
         else:
-            self.index = VectorIndex()
+            self.index = VectorStoreIndex()
         self.top_k = top_k
         self.retriever = VectorIndexRetriever(
             index=self.index,  # does this get refreshed?
