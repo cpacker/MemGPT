@@ -118,12 +118,34 @@ def load(memgpt_agent, filename):
         print(f"/load warning: loading persistence manager from {filename} failed with: {e}")
 
 
+def list_agent_config_files():
+    """List all agents config files"""
+    return os.listdir(os.path.join(MEMGPT_DIR, "agents"))
+
+
+def list_human_files():
+    """List all humans files"""
+    memgpt_defaults = os.listdir(os.path.join(memgpt.__path__[0], "humans", "examples"))
+    memgpt_defaults = [f for f in memgpt_defaults if f.endswith(".txt")]
+    user_added = os.listdir(os.path.join(MEMGPT_DIR, "humans"))
+    return memgpt_defaults + user_added
+
+
+def list_persona_files():
+    """List all personas files"""
+    print(memgpt.__path__)
+    memgpt_defaults = os.listdir(os.path.join(memgpt.__path__[0], "personas", "examples"))
+    memgpt_defaults = [f for f in memgpt_defaults if f.endswith(".txt")]
+    user_added = os.listdir(os.path.join(MEMGPT_DIR, "personas"))
+    return memgpt_defaults + user_added
+
+
 @metadata_app.command("agents")
 def list_agents():
     """List all agents"""
     table = PrettyTable()
     table.field_names = ["Name", "Model", "Persona", "Human", "Data Source"]
-    for agent_file in os.listdir(os.path.join(MEMGPT_DIR, "agents")):
+    for agent_file in list_agent_config_files():
         agent_name = os.path.basename(agent_file).replace(".json", "")
         agent_config = AgentConfig.load(agent_name)
         table.add_row([agent_name, agent_config.model, agent_config.persona, agent_config.human, agent_config.data_source])
@@ -135,7 +157,7 @@ def list_humans():
     """List all humans"""
     table = PrettyTable()
     table.field_names = ["Name", "Text"]
-    for human_file in os.listdir(os.path.join(MEMGPT_DIR, "humans")):
+    for human_file in list_human_files():
         name = os.path.basename(human_file)
         text = humans.get_human_text(name)
         table.add_row([name, text])
@@ -147,7 +169,7 @@ def list_personas():
     """List all personas"""
     table = PrettyTable()
     table.field_names = ["Name", "Text"]
-    for persona_file in os.listdir(os.path.join(MEMGPT_DIR, "personas")):
+    for persona_file in list_persona_files():
         name = os.path.basename(persona_file)
         text = personas.get_persona_text(name)
         table.add_row([name, text])
@@ -195,7 +217,89 @@ def add(
 @app.command()
 def configure():
     """Updates default MemGPT configurations"""
-    pass
+
+    default_provider = "openai"
+
+    # openai credentials
+    use_openai = questionary.confirm("Do you want to enable MemGPT with Open AI?").ask()
+    if use_openai:
+        # search for key in enviornment
+        openai_key = os.getenv("OPENAI_API_KEY")
+        if not openai_key:
+            openai_key = questionary.text("Open AI keys not found in enviornment - please enter:").ask()
+        default_openai = questionary.confirm("Use OpenAI as default provider?").ask()
+        if default_openai:
+            default_provider = "openai"
+
+    # azure credentials
+    use_azure = questionary.confirm("Do you want to enable MemGPT with Azure?").ask()
+    use_azure_deployment_ids = False
+    if use_azure:
+        # search for key in enviornment
+        azure_key = os.getenv("AZURE_API_KEY")
+        azure_endpoint = (os.getenv("AZURE_ENDPOINT"),)
+        azure_version = (os.getenv("AZURE_VERSION"),)
+        azure_deployment = (os.getenv("AZURE_OPENAI_DEPLOYMENT"),)
+        azure_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")
+
+        if all([azure_key, azure_endpoint, azure_version]):
+            print(f"Using Microsoft endpoint {azure_endpoint}.")
+            if all([azure_deployment, azure_embedding_deployment]):
+                print(f"Using deployment id {azure_deployment}")
+                use_azure_deployment_ids = True
+            default_azure = questionary.confirm("Use Azure as default provider?").ask()
+            if default_azure:
+                default_provider = "azure"
+        else:
+            print("Missing enviornment variables for Azure. Please set then run `memgpt configure` again.")
+            # TODO: allow for manual setting
+            use_azure = False
+
+    # TODO: configure local model
+
+    # default model
+    model_options = []
+    if use_openai:
+        model_options += ["gpt-3.5-turbo", "gpt-3.5", "gpt-4"]
+    default_model = questionary.select(
+        "Select default model (recommended: gpt-4):", choices=["gpt-3.5-turbo", "gpt-3.5", "gpt-4"], default="gpt-4"
+    ).ask()
+
+    # defaults
+    personas = [os.path.basename(f).replace(".txt", "") for f in list_persona_files()]
+    print(personas)
+    default_persona = questionary.select("Select default persona:", personas, default="sam_pov").ask()
+    humans = [os.path.basename(f).replace(".txt", "") for f in list_human_files()]
+    print(humans)
+    default_human = questionary.select("Select default human:", humans, default="cs_phd").ask()
+
+    # TODO: figure out if we should set a default agent or not
+    # agents = [os.path.basename(f).replace(".json", "") for f in list_agent_config_files()]
+    # if len(agents) > 0: # agents have been created
+    #    default_agent = questionary.select(
+    #        "Select default agent:",
+    #        agents
+    #    ).ask()
+    # else:
+    #    default_agent = None
+
+    # TODO: allow configuring embedding model
+
+    config = MemGPTConfig(
+        model=default_model,
+        provider=default_provider,
+        default_persona=default_persona,
+        default_human=default_human,
+        default_agent=default_agent,
+        openai_key=openai_key if use_openai else None,
+        azure_key=azure_key if use_azure else None,
+        azure_endpoint=azure_endpoint if use_azure else None,
+        azure_version=azure_version if use_azure else None,
+        azure_deployment=azure_deployment if use_azure_deployment_ids else None,
+        azure_embedding_deployment=azure_embedding_deployment if use_azure_deployment_ids else None,
+    )
+    print(f"Saving config to {config.config_path}")
+    config.save()
 
 
 @app.command()
@@ -290,6 +394,7 @@ def run(
 
 
 # @app.callback(invoke_without_command=True)  # make default command
+@app.command("legacy-run")
 def legacy_run(
     persona: str = typer.Option(None, help="Specify persona"),
     human: str = typer.Option(None, help="Specify human"),

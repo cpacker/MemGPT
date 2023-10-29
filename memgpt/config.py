@@ -39,11 +39,11 @@ class MemGPTConfig:
     anon_clientid: str = None
 
     # model parameters
+    provider: str = "openai"  # openai, azure, local (TODO)
     model: str = "gpt-4"  # gpt-4, gpt-3.5-turbo, local
 
     # model parameters: openai
     openai_key: str = None
-    openai_model: str = constants.DEFAULT_MEMGPT_MODEL  # gpt-4, gpt-3.5-turbo
 
     # model parameters: azure
     azure_key: str = None
@@ -89,6 +89,7 @@ class MemGPTConfig:
 
             # read config values
             model = config.get("defaults", "model")
+            provider = config.get("defaults", "provider")
             default_persona = config.get("defaults", "persona")
             default_human = config.get("defaults", "human")
             default_agent = config.get("defaults", "agent") if config.has_option("defaults", "agent") else None
@@ -96,7 +97,6 @@ class MemGPTConfig:
             openai_key, openai_model = None, None
             if "openai" in config:
                 openai_key = config.get("openai", "key")
-                openai_model = config.get("openai", "model")
 
             azure_key, azure_endpoint, azure_version, azure_deployment, azure_embedding_deployment = None, None, None, None, None
             if "azure" in config:
@@ -114,11 +114,11 @@ class MemGPTConfig:
 
             return cls(
                 model=model,
+                provider=provider,
                 default_persona=default_persona,
                 default_human=default_human,
                 default_agent=default_agent,
                 openai_key=openai_key,
-                openai_model=openai_model,
                 azure_key=azure_key,
                 azure_endpoint=azure_endpoint,
                 azure_version=azure_version,
@@ -141,6 +141,7 @@ class MemGPTConfig:
         # CLI defaults
         config.add_section("defaults")
         config.set("defaults", "model", self.model)
+        config.set("defaults", "provider", self.provider)
         config.set("defaults", "persona", self.default_persona)
         config.set("defaults", "human", self.default_human)
         if self.default_agent:
@@ -150,7 +151,6 @@ class MemGPTConfig:
         if self.openai_key:
             config.add_section("openai")
             config.set("openai", "key", self.openai_key)
-            config.set("openai", "model", self.openai_model)
 
         if self.azure_key:
             config.add_section("azure")

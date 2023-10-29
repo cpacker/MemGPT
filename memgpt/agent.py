@@ -330,6 +330,7 @@ class AgentAsync(object):
             messages_total=state["messages_total"] if "messages_total" in state else len(messages) - 1,
         )
         agent._messages = messages
+        agent.memory = initialize_memory(state["memory"]["persona"], state["memory"]["human"])
         return agent
 
     @classmethod
@@ -563,6 +564,9 @@ class AgentAsync(object):
 
             if len(input_message_sequence) > 1 and input_message_sequence[-1]["role"] != "user":
                 printd(f"WARNING: attempting to run ChatCompletion without user as the last message in the queue")
+                from pprint import pprint
+
+                pprint(input_message_sequence[-1])
 
             # Step 1: send the conversation and available functions to GPT
             if not skip_verify and (first_message or self.messages_total == self.messages_total_init):
