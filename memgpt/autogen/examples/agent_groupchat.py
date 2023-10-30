@@ -58,9 +58,9 @@ else:
         coder = create_autogen_memgpt_agent(
             "MemGPT_coder",
             persona_description="I am a 10x engineer, trained in Python. I was the first engineer at Uber "
-                                "(which I make sure to tell everyone I work with).",
+            "(which I make sure to tell everyone I work with).",
             user_description=f"You are participating in a group chat with a user ({user_proxy.name}) "
-                             f"and a product manager ({pm.name}).",
+            f"and a product manager ({pm.name}).",
             # extra options
             # interface_kwargs={"debug": True},
         )
@@ -69,9 +69,9 @@ else:
             "MemGPT_coder",
             llm_config=llm_config,
             system_message=f"I am a 10x engineer, trained in Python. I was the first engineer at Uber "
-                           f"(which I make sure to tell everyone I work with).\n"
-                           f"You are participating in a group chat with a user ({user_proxy.name}) "
-                           f"and a product manager ({pm.name}).",
+            f"(which I make sure to tell everyone I work with).\n"
+            f"You are participating in a group chat with a user ({user_proxy.name}) "
+            f"and a product manager ({pm.name}).",
         )
 
 # Initialize the group chat between the user and two LLM agents (PM and coder)
@@ -81,6 +81,5 @@ manager = autogen.GroupChatManager(groupchat=groupchat, llm_config=llm_config)
 # Begin the group chat with a message from the user
 user_proxy.initiate_chat(
     manager,
-    message="I want to design an app to make me one million dollars in one month. "
-            "Yes, your heard that right.",
+    message="I want to design an app to make me one million dollars in one month. " "Yes, your heard that right.",
 )

@@ -139,13 +139,13 @@ def read_in_rows_csv(file_object, chunk_size):
 
 def prepare_archival_index_from_files(glob_pattern, tkns_per_chunk=300, model="gpt-4"):
     encoding = tiktoken.encoding_for_model(model)
-    files = glob.glob(glob_pattern)
+    files = glob.glob(glob_pattern, recursive=True)
     return chunk_files(files, tkns_per_chunk, model)
 
 
 def total_bytes(pattern):
     total = 0
-    for filename in glob.glob(pattern):
+    for filename in glob.glob(pattern, recursive=True):
         if os.path.isfile(filename):  # ensure it's a file and not a directory
             total += os.path.getsize(filename)
     return total
@@ -262,7 +262,7 @@ async def prepare_archival_index_from_files_compute_embeddings(
     model="gpt-4",
     embeddings_model="text-embedding-ada-002",
 ):
-    files = sorted(glob.glob(glob_pattern))
+    files = sorted(glob.glob(glob_pattern, recursive=True))
     save_dir = os.path.join(
         MEMGPT_DIR,
         "archival_index_from_files_" + get_local_time().replace(" ", "_").replace(":", "_"),

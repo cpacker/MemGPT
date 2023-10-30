@@ -6,7 +6,7 @@ import json
 
 from .webui.api import get_webui_completion
 from .lmstudio.api import get_lmstudio_completion
-from .llm_chat_completion_wrappers import airoboros, dolphin
+from .llm_chat_completion_wrappers import airoboros, dolphin, zephyr
 from .utils import DotDict
 
 HOST = os.getenv("OPENAI_API_BASE")
@@ -28,6 +28,8 @@ async def get_chat_completion(
         llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper()
     elif model == "dolphin-2.1-mistral-7b":
         llm_wrapper = dolphin.Dolphin21MistralWrapper()
+    elif model == "zephyr-7B-alpha" or model == "zephyr-7B-beta":
+        llm_wrapper = zephyr.ZephyrMistralInnerMonologueWrapper()
     else:
         # Warn the user that we're using the fallback
         print(f"Warning: no wrapper specified for local LLM, using the default wrapper")

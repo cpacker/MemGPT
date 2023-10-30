@@ -43,7 +43,7 @@ def construct_system_with_memory(system, memory, memory_edit_timestamp, archival
         [
             system,
             "\n",
-            f"### Memory [last modified: {memory_edit_timestamp}",
+            f"### Memory [last modified: {memory_edit_timestamp}]",
             f"{len(recall_memory) if recall_memory else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
             f"{len(archival_memory) if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
             "\nCore memory shown below (limited in size, additional information stored in archival / recall memory):",
@@ -1038,7 +1038,7 @@ class AgentAsync(Agent):
         message_sequence_to_summarize = self.messages[1:cutoff]  # do NOT get rid of the system message
         printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
 
-        summary = await summarize_messages(self.model, message_sequence_to_summarize)
+        summary = await a_summarize_messages(self.model, message_sequence_to_summarize)
         printd(f"Got summary: {summary}")
 
         # Metadata that's useful for the agent to see
