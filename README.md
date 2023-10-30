@@ -286,8 +286,8 @@ While using MemGPT via the CLI (not Discord!) you can run various commands:
   save a checkpoint of the current agent/conversation state
 /load
   load a saved checkpoint
-/dump
-  view the current message log (see the contents of main context)
+/dump <count>
+  view the last <count> messages (all if <count> is omitted)
 /memory
   print the current contents of agent memory
 /pop

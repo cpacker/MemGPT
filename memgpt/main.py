@@ -14,6 +14,7 @@ import typer
 
 from rich.console import Console
 from prettytable import PrettyTable
+from .interface import print_messages
 
 console = Console()
 
@@ -446,16 +447,18 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=
                     load(memgpt_agent=memgpt_agent, filename=filename)
                     continue
 
-                elif user_input.lower() == "/dump":
-                    await memgpt.interface.print_messages(memgpt_agent.messages)
+                elif user_input.lower() == "/dump" or user_input.lower().startswith("/dump "):
+                    # Check if there's an additional argument that's an integer
+                    command = user_input.strip().split()
+                    amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 0
+                    if amount == 0:
+                        await print_messages(memgpt_agent.messages, dump=True)
+                    else:
+                        await print_messages(memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
                     continue
 
                 elif user_input.lower() == "/dumpraw":
                     await memgpt.interface.print_messages_raw(memgpt_agent.messages)
-                    continue
-
-                elif user_input.lower() == "/dump1":
-                    await memgpt.interface.print_messages(memgpt_agent.messages[-1])
                     continue
 
                 elif user_input.lower() == "/memory":
@@ -553,7 +556,7 @@ USER_COMMANDS = [
     ("/exit", "exit the CLI"),
     ("/save", "save a checkpoint of the current agent/conversation state"),
     ("/load", "load a saved checkpoint"),
-    ("/dump", "view the current message log (see the contents of main context)"),
+    ("/dump <count>", "view the last <count> messages (all if <count> is omitted)"),
     ("/memory", "print the current contents of agent memory"),
     ("/pop", "undo the last message in the conversation"),
     ("/heartbeat", "send a heartbeat system message to the agent"),
