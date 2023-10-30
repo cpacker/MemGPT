@@ -1,4 +1,6 @@
 import glob
+import random
+import string
 import json
 import os
 import uuid
@@ -188,7 +190,7 @@ class AgentConfig:
 
     def __init__(self, persona, human, model, name=None, data_source=None, agent_config_path=None, create_time=None):
         if name is None:
-            self.name = f"agent_{uuid.UUID(int=uuid.getnode()).hex}"
+            self.name = f"agent_{self.generate_agent_id()}"
         else:
             self.name = name
         self.persona = persona
@@ -203,6 +205,16 @@ class AgentConfig:
         )
         # assert not os.path.exists(self.agent_config_path), f"Agent config file already exists at {self.agent_config_path}"
         self.save()
+
+    def generate_agent_id(self, length=6):
+
+        ## random character based
+        # characters = string.ascii_lowercase + string.digits
+        # return ''.join(random.choices(characters, k=length))
+
+        # count based
+        agent_count = len(utils.list_agent_config_files())
+        return str(agent_count + 1)
 
     def attach_data_source(self, data_source: str):
         # TODO: add warning that only once source can be attached

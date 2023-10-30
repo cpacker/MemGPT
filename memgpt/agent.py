@@ -315,8 +315,6 @@ class AgentAsync(object):
         directory = agent_config.save_persistence_manager_dir()
         persistence_manager = LocalStateManager.load(os.path.join(directory, filename), agent_config)
 
-        print("persistence maanger", persistence_manager)
-
         messages = state["messages"]
         agent = cls(
             config=agent_config,
@@ -588,7 +586,6 @@ class AgentAsync(object):
             # Step 2: check if LLM wanted to call a function
             # (if yes) Step 3: call the function
             # (if yes) Step 4: send the info on the function call and function response to LLM
-            print("handle AI response")
             response_message = response.choices[0].message
             response_message_copy = response_message.copy()
             all_response_messages, heartbeat_request, function_failed = await self.handle_ai_response(response_message)
