@@ -290,8 +290,10 @@ While using MemGPT via the CLI (not Discord!) you can run various commands:
   view the current message log (see the contents of main context)
 /memory
   print the current contents of agent memory
-/pop
-  undo the last message in the conversation
+/pop <count>
+  undo the last messages in the conversation. It defaults to 3, which usually is one turn around in the conversation
+/retry
+  pops the last answer and tries to get another one
 /heartbeat
   send a heartbeat system message to the agent
 /memorywarning
