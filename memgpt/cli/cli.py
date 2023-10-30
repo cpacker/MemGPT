@@ -6,6 +6,8 @@ from prettytable import PrettyTable
 import questionary
 import openai
 
+from llama_index import set_global_service_context
+from llama_index import VectorStoreIndex, SimpleDirectoryReader, ServiceContext
 
 import memgpt.interface  # for printing to terminal
 from memgpt.cli.cli_config import configure
@@ -21,6 +23,7 @@ from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
 from memgpt.agent import AgentAsync
+from memgpt.embeddings import embedding_model
 
 
 def run(
@@ -78,6 +81,24 @@ def run(
             select_agent = questionary.confirm("Would you like to select an existing agent?").ask()
             if select_agent:
                 agent = questionary.select("Select agent:", choices=agents).ask()
+
+    # configure llama index
+    from llama_index.llms import MockLLM
+
+    llm = MockLLM(max_tokens=256)
+    config = MemGPTConfig.load()
+    embed_model = embedding_model(config)
+    print(embed_model)
+    print(embed_model("hello"))
+    print("loaded model")
+    service_context = ServiceContext.from_defaults(
+        # embed_model=embed_model,
+        llm=llm,
+        embed_model=embed_model,
+    )
+    print("setting context")
+    set_global_service_context(service_context)
+    print("set service context")
 
     # create agent config
     if agent and AgentConfig.exists(agent):  # use existing agent

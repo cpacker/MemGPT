@@ -66,13 +66,32 @@ def configure():
 
     # TODO: configure local model
 
-    # default model
-    model_options = []
+    # configure provider
+    use_local = not use_openai and os.getenv("OPENAI_API_BASE")
+    endpoint_options = []
+    if os.getenv("OPENAI_API_BASE") is not None:
+        endpoint_options.append(os.getenv("OPENAI_API_BASE"))
+    if os.getenv("AZURE_ENDPOINT") is not None:
+        endpoint_options += ["azure"]
     if use_openai:
-        model_options += ["gpt-3.5-turbo", "gpt-3.5", "gpt-4"]
-    default_model = questionary.select(
-        "Select default model (recommended: gpt-4):", choices=["gpt-3.5-turbo", "gpt-3.5", "gpt-4"], default="gpt-4"
-    ).ask()
+        endpoint_options += ["openai"]
+
+    assert len(endpoint_options) > 0, "No endpoints found. Please enable OpenAI, Azure, or set OPENAI_API_BASE."
+    if len(endpoint_options) == 1:
+        default_endpoint = endpoint_options[0]
+    else:
+        default_endpoint = questionary.select("Select default endpoint:", endpoint_options).ask()
+
+    # default model
+    if use_openai or use_azure:
+        model_options = []
+        if use_openai:
+            model_options += ["gpt-3.5-turbo", "gpt-3.5", "gpt-4"]
+        default_model = questionary.select(
+            "Select default model (recommended: gpt-4):", choices=["gpt-3.5-turbo", "gpt-3.5", "gpt-4"], default="gpt-4"
+        ).ask()
+    else:
+        default_model = "local"  # TODO: figure out if this is ok? this is for local endpoint
 
     # defaults
     personas = [os.path.basename(f).replace(".txt", "") for f in utils.list_persona_files()]
@@ -97,7 +116,7 @@ def configure():
 
     config = MemGPTConfig(
         model=default_model,
-        provider=default_provider,
+        model_endpoint=default_endpoint,
         default_persona=default_persona,
         default_human=default_human,
         default_agent=default_agent,

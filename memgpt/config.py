@@ -40,7 +40,8 @@ class MemGPTConfig:
     anon_clientid: str = None
 
     # model parameters
-    provider: str = "openai"  # openai, azure, local (TODO)
+    # provider: str = "openai"  # openai, azure, local (TODO)
+    model_endpoint: str = "openai"
     model: str = "gpt-4"  # gpt-4, gpt-3.5-turbo, local
 
     # model parameters: openai
@@ -90,7 +91,7 @@ class MemGPTConfig:
 
             # read config values
             model = config.get("defaults", "model")
-            provider = config.get("defaults", "provider")
+            model_endpoint = config.get("defaults", "model_endpoint")
             default_persona = config.get("defaults", "persona")
             default_human = config.get("defaults", "human")
             default_agent = config.get("defaults", "agent") if config.has_option("defaults", "agent") else None
@@ -115,7 +116,7 @@ class MemGPTConfig:
 
             return cls(
                 model=model,
-                provider=provider,
+                model_endpoint=model_endpoint,
                 default_persona=default_persona,
                 default_human=default_human,
                 default_agent=default_agent,
@@ -142,7 +143,8 @@ class MemGPTConfig:
         # CLI defaults
         config.add_section("defaults")
         config.set("defaults", "model", self.model)
-        config.set("defaults", "provider", self.provider)
+        assert self.model_endpoint is not None, "Endpoint must be set"
+        config.set("defaults", "model_endpoint", self.model_endpoint)
         config.set("defaults", "persona", self.default_persona)
         config.set("defaults", "human", self.default_human)
         if self.default_agent:
