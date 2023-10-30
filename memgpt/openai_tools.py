@@ -108,13 +108,13 @@ def aretry_with_exponential_backoff(
 async def acompletions_with_backoff(**kwargs):
     # Local model
     if HOST_TYPE is not None:
-        retry_count = 5 # Retry up to five times
-        for i in range(1, retry_count):
+        retry_count = 5  # Retry up to five times
+        for i in range(1, retry_count + 1):
             try:
                 return await get_chat_completion(**kwargs)
             except Exception as e:
                 print(f"Failed to get a valid response on attempt: {i}\n{str(e)}")
-                if i <= retry_count:
+                if i < retry_count:
                     pass
                 else:
                     raise e
