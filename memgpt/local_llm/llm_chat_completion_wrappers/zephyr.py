@@ -1,6 +1,7 @@
 import json
 from .wrapper_base import LLMChatCompletionWrapper
 
+
 class ZephyrMistralWrapper(LLMChatCompletionWrapper):
     """
     Wrapper for Zephyr Alpha and Beta, Mistral 7B:
@@ -33,7 +34,7 @@ class ZephyrMistralWrapper(LLMChatCompletionWrapper):
             <|assistant|>
         (source: https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF#prompt-template-zephyr)
         """
-        
+
         prompt = ""
 
         IM_START_TOKEN = "<s>"
@@ -72,7 +73,7 @@ class ZephyrMistralWrapper(LLMChatCompletionWrapper):
                 "params": json.loads(function_call["arguments"]),
             }
             return json.dumps(airo_func_call, indent=2)
-        
+
         for message in messages[1:]:
             assert message["role"] in ["user", "assistant", "function"], message
 
@@ -166,6 +167,7 @@ class ZephyrMistralWrapper(LLMChatCompletionWrapper):
         }
         return message
 
+
 class ZephyrMistralInnerMonologueWrapper(ZephyrMistralWrapper):
     """Still expect only JSON outputs from model, but add inner monologue as a field"""
 
@@ -191,7 +193,6 @@ class ZephyrMistralInnerMonologueWrapper(ZephyrMistralWrapper):
         self.include_section_separators = include_section_separators
 
     def chat_completion_to_prompt(self, messages, functions):
-
         prompt = ""
 
         IM_START_TOKEN = "<s>"
@@ -263,7 +264,7 @@ class ZephyrMistralInnerMonologueWrapper(ZephyrMistralWrapper):
                 raise ValueError(message)
 
         # Add a sep for the response
-        #if self.include_section_separators:
+        # if self.include_section_separators:
         #    prompt += "\n### RESPONSE"
 
         if self.include_assistant_prefix:
