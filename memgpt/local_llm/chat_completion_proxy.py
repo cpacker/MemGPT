@@ -21,6 +21,11 @@ async def get_chat_completion(
     functions,
     function_call="auto",
 ):
+    if HOST is None:
+        raise ValueError(f"The OPENAI_API_BASE environment variable is not defined. Please set it in your environment.")
+    if HOST_TYPE is None:
+        raise ValueError(f"The BACKEND_TYPE environment variable is not defined. Please set it in your environment.")
+
     if function_call != "auto":
         raise ValueError(f"function_call == {function_call} not supported (auto only)")
 
