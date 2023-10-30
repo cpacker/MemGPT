@@ -121,7 +121,9 @@ class Config:
         ).ask_async()
 
         self.archival_storage_index = None
-        self.preload_archival = await questionary.confirm("Would you like to preload anything into MemGPT's archival memory?", default=False).ask_async()
+        self.preload_archival = await questionary.confirm(
+            "Would you like to preload anything into MemGPT's archival memory?", default=False
+        ).ask_async()
         if self.preload_archival:
             self.load_type = await questionary.select(
                 "What would you like to load?",

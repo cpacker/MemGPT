@@ -685,7 +685,7 @@ class LocalArchivalMemory(ArchivalMemory):
         # from pprint import pprint
         # pprint(results)
         return results, len(results)
-    
+
     async def a_search(self, query_string, count=None, start=None):
         return self.search(query_string, count, start)
 

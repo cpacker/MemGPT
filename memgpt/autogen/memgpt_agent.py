@@ -75,7 +75,7 @@ def create_memgpt_autogen_agent_from_config(
         groupchat = GroupChat(
             agents=[autogen_memgpt_agent, coop_agent1, coop_agent2],
             messages=[],
-            max_round=12 if max_consecutive_auto_reply is None else max_consecutive_auto_reply
+            max_round=12 if max_consecutive_auto_reply is None else max_consecutive_auto_reply,
         )
         manager = GroupChatManager(name=name, groupchat=groupchat, llm_config=llm_config)
         return manager
@@ -146,9 +146,7 @@ class MemGPTAgent(ConversableAgent):
         self.register_reply([Agent, None], MemGPTAgent._generate_reply_for_user_message)
         self.messages_processed_up_to_idx = 0
 
-        self._is_termination_msg = (
-            is_termination_msg if is_termination_msg is not None else (lambda x: x == "TERMINATE")
-        )
+        self._is_termination_msg = is_termination_msg if is_termination_msg is not None else (lambda x: x == "TERMINATE")
 
     def format_other_agent_message(self, msg):
         if "name" in msg:
@@ -220,7 +218,7 @@ class MemGPTAgent(ConversableAgent):
                 break
 
         # Stop the conversation
-        if self._is_termination_msg(new_messages[-1]['content']):
+        if self._is_termination_msg(new_messages[-1]["content"]):
             return True, None
 
         # Pass back to AutoGen the pretty-printed calls MemGPT made to the interface
