@@ -28,7 +28,7 @@ async def get_chat_completion(
         llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper()
     elif model == "dolphin-2.1-mistral-7b":
         llm_wrapper = dolphin.Dolphin21MistralWrapper()
-    elif (model == "zephyr-7B-alpha" or model == "zephyr-7B-beta"):
+    elif model == "zephyr-7B-alpha" or model == "zephyr-7B-beta":
         llm_wrapper = zephyr.ZephyrMistralInnerMonologueWrapper()
     else:
         # Warn the user that we're using the fallback
