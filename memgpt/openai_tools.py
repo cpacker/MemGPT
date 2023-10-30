@@ -179,8 +179,8 @@ def get_set_azure_env_vars():
         ("AZURE_OPENAI_VERSION", os.getenv("AZURE_OPENAI_VERSION")),
         ("AZURE_OPENAI_DEPLOYMENT", os.getenv("AZURE_OPENAI_DEPLOYMENT")),
         (
-            "AZURE_OPENAI_EMBEDDING_DEPLOYMENT",
-            os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT"),
+            "AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT",
+            os.getenv("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT"),
         ),
     ]
     return [x for x in azure_env_variables if x[1] is not None]
@@ -211,7 +211,7 @@ def configure_azure_support():
 
 def check_azure_embeddings():
     azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-    azure_openai_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")
+    azure_openai_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT")
     if azure_openai_deployment is not None and azure_openai_embedding_deployment is None:
         raise ValueError(
             f"Error: It looks like you are using Azure deployment ids and computing embeddings, make sure you are setting one for embeddings as well. Please see README section on Azure"
