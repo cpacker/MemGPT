@@ -17,7 +17,6 @@ import typer
 import memgpt
 from memgpt.openai_tools import async_get_embedding_with_backoff
 from memgpt.constants import MEMGPT_DIR
-from memgpt.config import MemGPTConfig
 from llama_index import set_global_service_context, ServiceContext, VectorStoreIndex, load_index_from_storage, StorageContext
 from llama_index.embeddings import OpenAIEmbedding
 
@@ -366,6 +365,7 @@ def get_index(name, docs):
     :param docs: Documents to be embedded
     :type docs: List[Document]
     """
+    from memgpt.config import MemGPTConfig  # avoid circular import
 
     # check if directory exists
     dir = f"{MEMGPT_DIR}/archival/{name}"
@@ -392,7 +392,7 @@ def get_index(name, docs):
     # read embedding confirguration
     # TODO: in the future, make an IngestData class that loads the config once
     config = MemGPTConfig.load()
-    chunk_size = config.chunk_size
+    chunk_size = config.embedding_chunk_size
     model = config.embedding_model  # TODO: actually use this
     dim = config.embedding_dim  # TODO: actually use this
 
