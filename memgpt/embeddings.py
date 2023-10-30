@@ -6,7 +6,7 @@ from llama_index.embeddings import OpenAIEmbedding
 def embedding_model(config: MemGPTConfig):
     # TODO: use embedding_endpoint in the future
     if config.model_endpoint == "openai":
-        return OpenAIEmbedding(model="text-embedding-ada-002", api_key=config.openai_key, api_type="openai")
+        return OpenAIEmbedding()
     elif config.model_endpoint == "azure":
         return OpenAIEmbedding(
             model="text-embedding-ada-002",

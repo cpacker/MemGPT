@@ -367,6 +367,9 @@ def get_index(name, docs):
     """
     from memgpt.config import MemGPTConfig  # avoid circular import
 
+    # TODO: configure to work for local
+    print("Warning: get_index(docs) only supported for OpenAI")
+
     # check if directory exists
     dir = f"{MEMGPT_DIR}/archival/{name}"
     if os.path.exists(dir):
@@ -391,14 +394,13 @@ def get_index(name, docs):
 
     # read embedding confirguration
     # TODO: in the future, make an IngestData class that loads the config once
-    config = MemGPTConfig.load()
-    chunk_size = config.embedding_chunk_size
-    model = config.embedding_model  # TODO: actually use this
-    dim = config.embedding_dim  # TODO: actually use this
-
-    embed_model = OpenAIEmbedding()
-    service_context = ServiceContext.from_defaults(embed_model=embed_model, chunk_size=chunk_size)
-    set_global_service_context(service_context)
+    # config = MemGPTConfig.load()
+    # chunk_size = config.embedding_chunk_size
+    # model = config.embedding_model  # TODO: actually use this
+    # dim = config.embedding_dim  # TODO: actually use this
+    # embed_model = OpenAIEmbedding()
+    # service_context = ServiceContext.from_defaults(embed_model=embed_model, chunk_size=chunk_size)
+    # set_global_service_context(service_context)
 
     # index documents
     index = VectorStoreIndex.from_documents(docs)

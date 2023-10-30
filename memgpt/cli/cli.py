@@ -1,4 +1,6 @@
 import typer
+import sys
+import io
 import logging
 import asyncio
 import os
@@ -83,22 +85,13 @@ def run(
                 agent = questionary.select("Select agent:", choices=agents).ask()
 
     # configure llama index
-    from llama_index.llms import MockLLM
-
-    llm = MockLLM(max_tokens=256)
     config = MemGPTConfig.load()
+    original_stdout = sys.stdout  # unfortunate hack required to suppress confusing print statements from llama index
+    sys.stdout = io.StringIO()
     embed_model = embedding_model(config)
-    print(embed_model)
-    print(embed_model("hello"))
-    print("loaded model")
-    service_context = ServiceContext.from_defaults(
-        # embed_model=embed_model,
-        llm=llm,
-        embed_model=embed_model,
-    )
-    print("setting context")
+    service_context = ServiceContext.from_defaults(llm=None, embed_model=embed_model, chunk_size=config.embedding_chunk_size)
     set_global_service_context(service_context)
-    print("set service context")
+    sys.stdout = original_stdout
 
     # create agent config
     if agent and AgentConfig.exists(agent):  # use existing agent

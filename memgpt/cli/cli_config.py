@@ -29,7 +29,7 @@ def configure():
         # search for key in enviornment
         openai_key = os.getenv("OPENAI_API_KEY")
         if not openai_key:
-            openai_key = questionary.text("Open AI keys not found in enviornment - please enter:").ask()
+            openai_key = questionary.text("Open AI API keys not found in enviornment - please enter:").ask()
         default_openai = questionary.confirm("Use OpenAI as default provider?").ask()
         if default_openai:
             default_provider = "openai"
