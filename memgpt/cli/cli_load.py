@@ -8,12 +8,8 @@ memgpt load <data-connector-type> --name <dataset-name> [ADDITIONAL ARGS]
 
 """
 
-from llama_index import download_loader
 from typing import List
-import os
 import typer
-from memgpt.constants import MEMGPT_DIR
-from memgpt.utils import estimate_openai_cost, get_index, save_index
 
 app = typer.Typer()
 
@@ -26,6 +22,7 @@ def load_directory(
     recursive: bool = typer.Option(False, help="Recursively search for files in directory."),
 ):
     from llama_index import SimpleDirectoryReader
+    from memgpt.utils import get_index, save_index
 
     if recursive:
         assert input_dir is not None, "Must provide input directory if recursive is True."
@@ -53,6 +50,7 @@ def load_webpage(
     urls: List[str] = typer.Option(None, help="List of urls to load."),
 ):
     from llama_index import SimpleWebPageReader
+    from memgpt.utils import get_index, save_index
 
     docs = SimpleWebPageReader(html_to_text=True).load_data(urls)
 
@@ -76,6 +74,7 @@ def load_database(
     dbname: str = typer.Option(None, help="Database name."),
 ):
     from llama_index.readers.database import DatabaseReader
+    from memgpt.utils import get_index, save_index
 
     print(dump_path, scheme)
 

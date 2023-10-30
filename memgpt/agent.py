@@ -1,6 +1,7 @@
 import asyncio
 import inspect
 import datetime
+import glob
 import pickle
 import math
 import os
@@ -8,12 +9,14 @@ import json
 import threading
 
 import openai
-
+from memgpt.persistence_manager import LocalStateManager
+from memgpt.config import AgentConfig
 from .system import get_heartbeat, get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from .memory import CoreMemory as Memory, summarize_messages, a_summarize_messages
 from .openai_tools import acompletions_with_backoff as acreate, completions_with_backoff as create
 from .utils import get_local_time, parse_json, united_diff, printd, count_tokens
 from .constants import (
+    MEMGPT_DIR,
     FIRST_MESSAGE_ATTEMPTS,
     MAX_PAUSE_HEARTBEATS,
     MESSAGE_CHATGPT_FUNCTION_MODEL,
@@ -167,6 +170,7 @@ async def call_function(function_to_call, **function_args):
 class Agent(object):
     def __init__(
         self,
+        config,
         model,
         system,
         functions,
@@ -178,6 +182,8 @@ class Agent(object):
         persistence_manager_init=True,
         first_message_verify_mono=True,
     ):
+        # agent config
+        self.config = config
         # gpt-4, gpt-3.5-turbo
         self.model = model
         # Store the system instructions (used to rebuild memory)
@@ -194,7 +200,8 @@ class Agent(object):
         )
         # Keep track of the total number of messages throughout all time
         self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
-        self.messages_total_init = self.messages_total
+        # self.messages_total_init = self.messages_total
+        self.messages_total_init = len(self._messages) - 1
         printd(f"AgentAsync initialized, self.messages_total={self.messages_total}")
 
         # Interface must implement:
@@ -330,6 +337,61 @@ class Agent(object):
     def save_to_json_file(self, filename):
         with open(filename, "w") as file:
             json.dump(self.to_dict(), file)
+
+    def save(self):
+        """Save agent state locally"""
+
+        timestamp = get_local_time().replace(" ", "_").replace(":", "_")
+        agent_name = self.config.name  # TODO: fix
+
+        # save agent state
+        filename = f"{timestamp}.json"
+        os.makedirs(self.config.save_state_dir(), exist_ok=True)
+        self.save_to_json_file(os.path.join(self.config.save_state_dir(), filename))
+
+        # save the persistence manager too
+        filename = f"{timestamp}.persistence.pickle"
+        os.makedirs(self.config.save_persistence_manager_dir(), exist_ok=True)
+        self.persistence_manager.save(os.path.join(self.config.save_persistence_manager_dir(), filename))
+
+    @classmethod
+    def load_agent(cls, interface, agent_config: AgentConfig):
+        """Load saved agent state"""
+        # TODO: support loading from specific file
+        agent_name = agent_config.name
+
+        # load state
+        directory = agent_config.save_state_dir()
+        json_files = glob.glob(f"{directory}/*.json")  # This will list all .json files in the current directory.
+        if not json_files:
+            print(f"/load error: no .json checkpoint files found")
+            raise ValueError(f"Cannot load {agent_name}")
+
+        # Sort files based on modified timestamp, with the latest file being the first.
+        filename = max(json_files, key=os.path.getmtime)
+        state = json.load(open(filename, "r"))
+
+        # load persistence manager
+        filename = os.path.basename(filename).replace(".json", ".persistence.pickle")
+        directory = agent_config.save_persistence_manager_dir()
+        persistence_manager = LocalStateManager.load(os.path.join(directory, filename), agent_config)
+
+        messages = state["messages"]
+        agent = cls(
+            config=agent_config,
+            model=state["model"],
+            system=state["system"],
+            functions=state["functions"],
+            interface=interface,
+            persistence_manager=persistence_manager,
+            persistence_manager_init=False,
+            persona_notes=state["memory"]["persona"],
+            human_notes=state["memory"]["human"],
+            messages_total=state["messages_total"] if "messages_total" in state else len(messages) - 1,
+        )
+        agent._messages = messages
+        agent.memory = initialize_memory(state["memory"]["persona"], state["memory"]["human"])
+        return agent
 
     @classmethod
     def load(cls, state, interface, persistence_manager):
@@ -875,6 +937,9 @@ class AgentAsync(Agent):
 
             if len(input_message_sequence) > 1 and input_message_sequence[-1]["role"] != "user":
                 printd(f"WARNING: attempting to run ChatCompletion without user as the last message in the queue")
+                from pprint import pprint
+
+                pprint(input_message_sequence[-1])
 
             # Step 1: send the conversation and available functions to GPT
             if not skip_verify and (first_message or self.messages_total == self.messages_total_init):
@@ -901,9 +966,9 @@ class AgentAsync(Agent):
 
             # Add the extra metadata to the assistant response
             # (e.g. enough metadata to enable recreating the API call)
-            assert "api_response" not in all_response_messages[0]
+            assert "api_response" not in all_response_messages[0], f"api_response already in {all_response_messages[0]}"
             all_response_messages[0]["api_response"] = response_message_copy
-            assert "api_args" not in all_response_messages[0]
+            assert "api_args" not in all_response_messages[0], f"api_args already in {all_response_messages[0]}"
             all_response_messages[0]["api_args"] = {
                 "model": self.model,
                 "messages": input_message_sequence,
@@ -933,6 +998,7 @@ class AgentAsync(Agent):
 
         except Exception as e:
             printd(f"step() failed\nuser_message = {user_message}\nerror = {e}")
+            print(f"step() failed\nuser_message = {user_message}\nerror = {e}")
 
             # If we got a context alert, try trimming the messages length, then try again
             if "maximum context length" in str(e):
@@ -943,6 +1009,7 @@ class AgentAsync(Agent):
                 return await self.step(user_message, first_message=first_message)
             else:
                 printd(f"step() failed with openai.InvalidRequestError, but didn't recognize the error message: '{str(e)}'")
+                print(e)
                 raise e
 
     async def summarize_messages_inplace(self, cutoff=None):
