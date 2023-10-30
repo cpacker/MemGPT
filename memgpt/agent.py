@@ -40,7 +40,7 @@ def construct_system_with_memory(system, memory, memory_edit_timestamp, archival
         [
             system,
             "\n",
-            f"### Memory [last modified: {memory_edit_timestamp}",
+            f"### Memory [last modified: {memory_edit_timestamp}]",
             f"{len(recall_memory) if recall_memory else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
             f"{len(archival_memory) if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
             "\nCore memory shown below (limited in size, additional information stored in archival / recall memory):",
