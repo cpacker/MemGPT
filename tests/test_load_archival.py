@@ -16,7 +16,6 @@ import memgpt.interface  # for printing to terminal
 
 
 def test_load_directory():
-
     # downloading hugging face dataset (if does not exist)
     dataset = load_dataset("MemGPT/example_short_stories")
 
