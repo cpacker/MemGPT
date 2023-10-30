@@ -33,6 +33,7 @@ def run(
     agent: str = typer.Option(None, help="Specify agent save file"),
     human: str = typer.Option(None, help="Specify human"),
     model: str = typer.Option(None, help="Specify the LLM model"),
+    preset: str = typer.Option(None, help="Specify preset"),
     data_source: str = typer.Option(None, help="Specify data source to attach to agent"),
     first: bool = typer.Option(False, "--first", help="Use --first to send the first message in the sequence"),
     debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
@@ -116,6 +117,7 @@ def run(
             persona=persona if persona else config.default_persona,
             human=human if human else config.default_human,
             model=model if model else config.model,
+            preset=preset if preset else config.preset,
         )
 
         # attach data source to agent
@@ -130,7 +132,7 @@ def run(
 
         # create agent
         memgpt_agent = presets.use_preset(
-            presets.DEFAULT,
+            agent_config.preset,
             agent_config,
             agent_config.model,
             agent_config.persona,

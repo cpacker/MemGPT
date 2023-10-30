@@ -47,7 +47,7 @@ def test_load_directory():
 
     # create agent
     memgpt_agent = presets.use_preset(
-        presets.DEFAULT,
+        presets.DEFAULT_PRESET,
         agent_config,
         DEFAULT_MEMGPT_MODEL,
         personas.get_persona_text(personas.DEFAULT),
@@ -100,7 +100,7 @@ def test_load_database():
 
     # create agents with defaults
     agent_config = AgentConfig(
-        persona=personas.DEFAULT,
+        persona=personas.DEFAULT_PRESET,
         human=humans.DEFAULT,
         model=DEFAULT_MEMGPT_MODEL,
         data_source="tmp_hf_dataset",

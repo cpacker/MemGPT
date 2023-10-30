@@ -23,6 +23,7 @@ from memgpt.constants import MEMGPT_DIR
 import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
+from memgpt.presets import DEFAULT_PRESET, preset_options
 
 
 model_choices = [
@@ -38,6 +39,9 @@ model_choices = [
 class MemGPTConfig:
     config_path: str = f"{MEMGPT_DIR}/config"
     anon_clientid: str = None
+
+    # preset
+    preset: str = DEFAULT_PRESET
 
     # model parameters
     # provider: str = "openai"  # openai, azure, local (TODO)
@@ -91,6 +95,7 @@ class MemGPTConfig:
 
             # read config values
             model = config.get("defaults", "model")
+            preset = config.get("defaults", "preset")
             model_endpoint = config.get("defaults", "model_endpoint")
             default_persona = config.get("defaults", "persona")
             default_human = config.get("defaults", "human")
@@ -116,6 +121,7 @@ class MemGPTConfig:
 
             return cls(
                 model=model,
+                preset=preset,
                 model_endpoint=model_endpoint,
                 default_persona=default_persona,
                 default_human=default_human,
@@ -143,6 +149,7 @@ class MemGPTConfig:
         # CLI defaults
         config.add_section("defaults")
         config.set("defaults", "model", self.model)
+        config.set("defaults", "preset", self.preset)
         assert self.model_endpoint is not None, "Endpoint must be set"
         config.set("defaults", "model_endpoint", self.model_endpoint)
         config.set("defaults", "persona", self.default_persona)
@@ -199,7 +206,7 @@ class AgentConfig:
     Configuration for a specific instance of an agent
     """
 
-    def __init__(self, persona, human, model, name=None, data_source=None, agent_config_path=None, create_time=None):
+    def __init__(self, persona, human, model, preset=DEFAULT_PRESET, name=None, data_source=None, agent_config_path=None, create_time=None):
         if name is None:
             self.name = f"agent_{self.generate_agent_id()}"
         else:
@@ -207,6 +214,7 @@ class AgentConfig:
         self.persona = persona
         self.human = human
         self.model = model
+        self.preset = preset
         self.data_source = data_source
         self.create_time = create_time if create_time is not None else utils.get_local_time()
 

@@ -1,16 +1,17 @@
 from .prompts import gpt_functions
 from .prompts import gpt_system
-from .agent import AgentAsync
-from .utils import printd
 
-
-DEFAULT = "memgpt_chat"
+DEFAULT_PRESET = "memgpt_chat"
+preset_options = [DEFAULT_PRESET]
 
 
 def use_preset(preset_name, agent_config, model, persona, human, interface, persistence_manager):
     """Storing combinations of SYSTEM + FUNCTION prompts"""
 
-    if preset_name == "memgpt_chat":
+    from memgpt.agent import AgentAsync
+    from memgpt.utils import printd
+
+    if preset_name == DEFAULT_PRESET:
         functions = [
             "send_message",
             "pause_heartbeats",

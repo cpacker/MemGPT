@@ -20,7 +20,8 @@ app = typer.Typer()
 def configure():
     """Updates default MemGPT configurations"""
 
-    default_provider = "openai"
+    from memgpt.presets import DEFAULT_PRESET, preset_options
+
     MemGPTConfig.create_config_dir()
 
     # openai credentials
@@ -30,9 +31,6 @@ def configure():
         openai_key = os.getenv("OPENAI_API_KEY")
         if not openai_key:
             openai_key = questionary.text("Open AI API keys not found in enviornment - please enter:").ask()
-        default_openai = questionary.confirm("Use OpenAI as default provider?").ask()
-        if default_openai:
-            default_provider = "openai"
 
     # azure credentials
     use_azure = questionary.confirm("Do you want to enable MemGPT with Azure?").ask()
@@ -50,9 +48,6 @@ def configure():
             if all([azure_deployment, azure_embedding_deployment]):
                 print(f"Using deployment id {azure_deployment}")
                 use_azure_deployment_ids = True
-            default_azure = questionary.confirm("Use Azure as default provider?").ask()
-            if default_azure:
-                default_provider = "azure"
 
             # configure openai
             openai.api_type = "azure"
@@ -81,6 +76,9 @@ def configure():
         default_endpoint = endpoint_options[0]
     else:
         default_endpoint = questionary.select("Select default endpoint:", endpoint_options).ask()
+
+    # configure preset
+    default_preset = questionary.select("Select default preset:", preset_options, default=DEFAULT_PRESET).ask()
 
     # default model
     if use_openai or use_azure:
@@ -116,6 +114,7 @@ def configure():
 
     config = MemGPTConfig(
         model=default_model,
+        preset=default_preset,
         model_endpoint=default_endpoint,
         default_persona=default_persona,
         default_human=default_human,

@@ -229,7 +229,7 @@ async def main(
         memgpt_persona = persona
         if memgpt_persona is None:
             memgpt_persona = (
-                personas.GPT35_DEFAULT if "gpt-3.5" in model else personas.DEFAULT,
+                personas.GPT35_DEFAULT if "gpt-3.5" in model else personas.DEFAULT_PRESET,
                 None,  # represents the personas dir in pymemgpt package
             )
         else:
@@ -325,7 +325,7 @@ async def main(
     chosen_persona = cfg.memgpt_persona
 
     memgpt_agent = presets.use_preset(
-        presets.DEFAULT,
+        presets.DEFAULT_PRESET,
         None,  # no agent config to provide
         cfg.model,
         personas.get_persona_text(*chosen_persona),
