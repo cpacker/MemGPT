@@ -14,6 +14,7 @@ import sqlite3
 import fitz
 from tqdm import tqdm
 import typer
+import memgpt
 from memgpt.openai_tools import async_get_embedding_with_backoff
 from memgpt.constants import MEMGPT_DIR
 from llama_index import set_global_service_context, ServiceContext, VectorStoreIndex, load_index_from_storage, StorageContext
@@ -364,6 +365,10 @@ def get_index(name, docs):
     :param docs: Documents to be embedded
     :type docs: List[Document]
     """
+    from memgpt.config import MemGPTConfig  # avoid circular import
+
+    # TODO: configure to work for local
+    print("Warning: get_index(docs) only supported for OpenAI")
 
     # check if directory exists
     dir = f"{MEMGPT_DIR}/archival/{name}"
@@ -387,17 +392,36 @@ def get_index(name, docs):
         typer.secho("Aborting.", fg="red")
         exit()
 
-    embed_model = OpenAIEmbedding()
-    service_context = ServiceContext.from_defaults(embed_model=embed_model, chunk_size=300)
-    set_global_service_context(service_context)
+    # read embedding confirguration
+    # TODO: in the future, make an IngestData class that loads the config once
+    # config = MemGPTConfig.load()
+    # chunk_size = config.embedding_chunk_size
+    # model = config.embedding_model  # TODO: actually use this
+    # dim = config.embedding_dim  # TODO: actually use this
+    # embed_model = OpenAIEmbedding()
+    # service_context = ServiceContext.from_defaults(embed_model=embed_model, chunk_size=chunk_size)
+    # set_global_service_context(service_context)
 
     # index documents
     index = VectorStoreIndex.from_documents(docs)
     return index
 
 
+def save_agent_index(index, agent_config):
+    """Save agent index inside of ~/.memgpt/agents/<agent_name>
+
+    :param index: Index to save
+    :type index: VectorStoreIndex
+    :param agent_name: Name of agent that the archival memory belonds to
+    :type agent_name: str
+    """
+    dir = agent_config.save_agent_index_dir()
+    os.makedirs(dir, exist_ok=True)
+    index.storage_context.persist(dir)
+
+
 def save_index(index, name):
-    """Save index to a specificed name in ~/.memgpt
+    """Save index ~/.memgpt/archival/<name> to load into agents
 
     :param index: Index to save
     :type index: VectorStoreIndex
@@ -422,3 +446,34 @@ def save_index(index, name):
     os.makedirs(dir, exist_ok=True)
     index.storage_context.persist(dir)
     print(dir)
+
+
+def list_agent_config_files():
+    """List all agents config files"""
+    return os.listdir(os.path.join(MEMGPT_DIR, "agents"))
+
+
+def list_human_files():
+    """List all humans files"""
+    defaults_dir = os.path.join(memgpt.__path__[0], "humans", "examples")
+    user_dir = os.path.join(MEMGPT_DIR, "humans")
+
+    memgpt_defaults = os.listdir(defaults_dir)
+    memgpt_defaults = [os.path.join(defaults_dir, f) for f in memgpt_defaults if f.endswith(".txt")]
+
+    user_added = os.listdir(user_dir)
+    user_added = [os.path.join(user_dir, f) for f in user_added]
+    return memgpt_defaults + user_added
+
+
+def list_persona_files():
+    """List all personas files"""
+    defaults_dir = os.path.join(memgpt.__path__[0], "personas", "examples")
+    user_dir = os.path.join(MEMGPT_DIR, "personas")
+
+    memgpt_defaults = os.listdir(defaults_dir)
+    memgpt_defaults = [os.path.join(defaults_dir, f) for f in memgpt_defaults if f.endswith(".txt")]
+
+    user_added = os.listdir(user_dir)
+    user_added = [os.path.join(user_dir, f) for f in user_added]
+    return memgpt_defaults + user_added

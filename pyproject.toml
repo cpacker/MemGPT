@@ -35,6 +35,7 @@ pytest = "^7.4.3"
 llama-index = "^0.8.53.post3"
 setuptools = "^68.2.2"
 datasets = "^2.14.6"
+prettytable = "^3.9.0"
 
 
 [build-system]

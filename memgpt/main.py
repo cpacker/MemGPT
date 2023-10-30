@@ -1,4 +1,7 @@
 import asyncio
+import shutil
+import configparser
+import uuid
 import logging
 import glob
 import os
@@ -9,6 +12,7 @@ import questionary
 import typer
 
 from rich.console import Console
+from prettytable import PrettyTable
 
 console = Console()
 
@@ -21,14 +25,17 @@ import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
 from memgpt.persistence_manager import (
+    LocalStateManager,
     InMemoryStateManager,
     InMemoryStateManagerWithPreloadedArchivalMemory,
     InMemoryStateManagerWithFaiss,
 )
-
-from memgpt.config import Config
+from memgpt.cli.cli import run
+from memgpt.cli.cli_config import configure, list, add
+from memgpt.cli.cli_load import app as load_app
+from memgpt.config import Config, MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
-from memgpt.connectors import connector
+from memgpt.agent import AgentAsync
 from memgpt.openai_tools import (
     configure_azure_support,
     check_azure_embeddings,
@@ -37,7 +44,12 @@ from memgpt.openai_tools import (
 import asyncio
 
 app = typer.Typer()
-app.add_typer(connector.app, name="load")
+app.command(name="run")(run)
+app.command(name="configure")(configure)
+app.command(name="list")(list)
+app.command(name="add")(add)
+# load data commands
+app.add_typer(load_app, name="load")
 
 
 def clear_line():
@@ -111,7 +123,9 @@ def load(memgpt_agent, filename):
 
 
 @app.callback(invoke_without_command=True)  # make default command
-def run(
+# @app.command("legacy-run")
+def legacy_run(
+    ctx: typer.Context,
     persona: str = typer.Option(None, help="Specify persona"),
     human: str = typer.Option(None, help="Specify human"),
     model: str = typer.Option(constants.DEFAULT_MEMGPT_MODEL, help="Specify the LLM model"),
@@ -144,6 +158,13 @@ def run(
         help="Use Azure OpenAI (requires additional environment variables)",
     ),  # TODO: just pass in?
 ):
+    if ctx.invoked_subcommand is not None:
+        return
+
+    typer.secho("Warning: Running legacy run command. Run `memgpt run` instead.", fg=typer.colors.RED, bold=True)
+    if not questionary.confirm("Continue with legacy CLI?", default=False).ask():
+        return
+
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
         main(
@@ -208,7 +229,7 @@ async def main(
         memgpt_persona = persona
         if memgpt_persona is None:
             memgpt_persona = (
-                personas.GPT35_DEFAULT if "gpt-3.5" in model else personas.DEFAULT,
+                personas.GPT35_DEFAULT if "gpt-3.5" in model else personas.DEFAULT_PRESET,
                 None,  # represents the personas dir in pymemgpt package
             )
         else:
@@ -304,7 +325,8 @@ async def main(
     chosen_persona = cfg.memgpt_persona
 
     memgpt_agent = presets.use_preset(
-        presets.DEFAULT,
+        presets.DEFAULT_PRESET,
+        None,  # no agent config to provide
         cfg.model,
         personas.get_persona_text(*chosen_persona),
         humans.get_human_text(*chosen_human),
@@ -313,12 +335,6 @@ async def main(
     )
     print_messages = memgpt.interface.print_messages
     await print_messages(memgpt_agent.messages)
-
-    counter = 0
-    user_input = None
-    skip_next_user_input = False
-    user_message = None
-    USER_GOES_FIRST = first
 
     if cfg.load_type == "sql":  # TODO: move this into config.py in a clean manner
         if not os.path.exists(cfg.archival_storage_files):
@@ -337,6 +353,17 @@ async def main(
         load_save_file = await questionary.confirm(f"Load in saved agent '{cfg.agent_save_file}'?").ask_async()
         if load_save_file:
             load(memgpt_agent, cfg.agent_save_file)
+
+    # run agent loop
+    await run_agent_loop(memgpt_agent, first, no_verify, cfg, legacy=True)
+
+
+async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=False):
+    counter = 0
+    user_input = None
+    skip_next_user_input = False
+    user_message = None
+    USER_GOES_FIRST = first
 
     # auto-exit for
     if "GITHUB_ACTIONS" in os.environ:
@@ -359,6 +386,10 @@ async def main(
             ).ask_async()
             clear_line()
 
+            # Gracefully exit on Ctrl-C/D
+            if user_input is None:
+                user_input = "/exit"
+
             user_input = user_input.rstrip()
 
             if user_input.startswith("!"):
@@ -373,30 +404,40 @@ async def main(
             # Handle CLI commands
             # Commands to not get passed as input to MemGPT
             if user_input.startswith("/"):
-                if user_input.lower() == "/exit":
-                    # autosave
-                    save(memgpt_agent=memgpt_agent, cfg=cfg)
-                    break
+                if legacy:
+                    # legacy agent save functions (TODO: eventually remove)
+                    if user_input.lower() == "/exit":
+                        # autosave
+                        save(memgpt_agent=memgpt_agent, cfg=cfg)
+                        break
 
-                elif user_input.lower() == "/savechat":
-                    filename = utils.get_local_time().replace(" ", "_").replace(":", "_")
-                    filename = f"{filename}.pkl"
-                    directory = os.path.join(MEMGPT_DIR, "saved_chats")
-                    try:
-                        if not os.path.exists(directory):
-                            os.makedirs(directory)
-                        with open(os.path.join(directory, filename), "wb") as f:
-                            pickle.dump(memgpt_agent.messages, f)
-                            print(f"Saved messages to: {filename}")
-                    except Exception as e:
-                        print(f"Saving chat to {filename} failed with: {e}")
-                    continue
+                    elif user_input.lower() == "/savechat":
+                        filename = utils.get_local_time().replace(" ", "_").replace(":", "_")
+                        filename = f"{filename}.pkl"
+                        directory = os.path.join(MEMGPT_DIR, "saved_chats")
+                        try:
+                            if not os.path.exists(directory):
+                                os.makedirs(directory)
+                            with open(os.path.join(directory, filename), "wb") as f:
+                                pickle.dump(memgpt_agent.messages, f)
+                                print(f"Saved messages to: {filename}")
+                        except Exception as e:
+                            print(f"Saving chat to {filename} failed with: {e}")
+                        continue
 
-                elif user_input.lower() == "/save":
-                    save(memgpt_agent=memgpt_agent, cfg=cfg)
-                    continue
+                    elif user_input.lower() == "/save":
+                        save(memgpt_agent=memgpt_agent, cfg=cfg)
+                        continue
+                else:
+                    # updated agent save functions
+                    if user_input.lower() == "/exit":
+                        memgpt_agent.save()
+                        break
+                    elif user_input.lower() == "/save" or user_input.lower() == "/savechat":
+                        memgpt_agent.save()
+                        continue
 
-                elif user_input.lower() == "/load" or user_input.lower().startswith("/load "):
+                if user_input.lower() == "/load" or user_input.lower().startswith("/load "):
                     command = user_input.strip().split()
                     filename = command[1] if len(command) > 1 else None
                     load(memgpt_agent=memgpt_agent, filename=filename)
