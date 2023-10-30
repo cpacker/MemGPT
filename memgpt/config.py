@@ -36,7 +36,6 @@ model_choices = [
 
 @dataclass
 class MemGPTConfig:
-
     config_path: str = f"{MEMGPT_DIR}/config"
     anon_clientid: str = None
 
@@ -217,7 +216,6 @@ class AgentConfig:
         self.save()
 
     def generate_agent_id(self, length=6):
-
         ## random character based
         # characters = string.ascii_lowercase + string.digits
         # return ''.join(random.choices(characters, k=length))

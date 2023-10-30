@@ -127,7 +127,6 @@ class LocalStateManager(PersistenceManager):
 
     def save(self, filename):
         with open(filename, "wb") as fh:
-
             # TODO: fix this hacky solution to pickle the retriever
             self.archival_memory.save()
             self.archival_memory = None

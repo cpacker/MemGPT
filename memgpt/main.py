@@ -404,7 +404,6 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=
             # Handle CLI commands
             # Commands to not get passed as input to MemGPT
             if user_input.startswith("/"):
-
                 if legacy:
                     # legacy agent save functions (TODO: eventually remove)
                     if user_input.lower() == "/exit":

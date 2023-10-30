@@ -114,7 +114,6 @@ def configure():
 
 @app.command()
 def list(option: str):
-
     if option == "agents":
         """List all agents"""
         table = PrettyTable()

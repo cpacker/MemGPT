@@ -339,7 +339,6 @@ class Agent(object):
             json.dump(self.to_dict(), file)
 
     def save(self):
-
         """Save agent state locally"""
 
         timestamp = get_local_time().replace(" ", "_").replace(":", "_")
