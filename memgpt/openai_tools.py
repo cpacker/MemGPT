@@ -144,6 +144,25 @@ async def async_get_embedding_with_backoff(text, model="text-embedding-ada-002")
     return embedding
 
 
+@retry_with_exponential_backoff
+def create_embedding_with_backoff(**kwargs):
+    if using_azure():
+        azure_openai_deployment = os.getenv("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT")
+        if azure_openai_deployment is not None:
+            kwargs["deployment_id"] = azure_openai_deployment
+        else:
+            kwargs["engine"] = kwargs["model"]
+            kwargs.pop("model")
+    return openai.Embedding.create(**kwargs)
+
+
+def get_embedding_with_backoff(text, model="text-embedding-ada-002"):
+    text = text.replace("\n", " ")
+    response = create_embedding_with_backoff(input=[text], model=model)
+    embedding = response["data"][0]["embedding"]
+    return embedding
+
+
 MODEL_TO_AZURE_ENGINE = {
     "gpt-4": "gpt-4",
     "gpt-4-32k": "gpt-4-32k",

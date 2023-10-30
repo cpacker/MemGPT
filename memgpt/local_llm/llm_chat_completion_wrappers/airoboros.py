@@ -391,7 +391,10 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
         try:
             function_json_output = json.loads(raw_llm_output)
         except Exception as e:
-            raise Exception(f"Failed to decode JSON from LLM output:\n{raw_llm_output}")
+            try:
+                function_json_output = json.loads(raw_llm_output + "\n}")
+            except:
+                raise Exception(f"Failed to decode JSON from LLM output:\n{raw_llm_output}")
         function_name = function_json_output["function"]
         function_parameters = function_json_output["params"]
 
