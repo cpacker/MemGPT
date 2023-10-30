@@ -105,6 +105,10 @@ To run MemGPT for as a conversation agent in CLI mode, simply run `memgpt`:
 memgpt
 ```
 
+
+
+<details>
+<summary><h2>Deprecated API</h2></summary>
 <details>
 <summary><strong>Debugging command not found</strong></summary>
 
@@ -329,6 +333,7 @@ MemGPT also enables you to chat with docs -- try running this example to talk to
     where `ARCHIVAL_STORAGE_FAISS_PATH` is the directory where `all_docs.jsonl` and `all_docs.index` are located.
    If you downloaded from Hugging Face, it will be `memgpt/personas/docqa/llamaindex-api-docs`.
    If you built the index yourself, it will be `memgpt/personas/docqa`.
+</details>
 </details>
 
 ## Support
