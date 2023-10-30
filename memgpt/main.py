@@ -161,7 +161,10 @@ def legacy_run(
     if ctx.invoked_subcommand is not None:
         return
 
-    typer.secho("Warning: Running legacy run command. Run `memgpt run` instead.")
+    typer.secho("Warning: Running legacy run command. Run `memgpt run` instead.", fg=typer.colors.RED, bold=True)
+    if not questionary.confirm("Continue with legacy CLI?", default=False).ask():
+        return
+
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
         main(
