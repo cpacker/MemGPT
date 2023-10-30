@@ -181,6 +181,16 @@ class MemGPTConfig:
     def exists():
         return os.path.exists(MemGPTConfig.config_path)
 
+    @staticmethod
+    def create_config_dir():
+        if not os.path.exists(MEMGPT_DIR):
+            os.makedirs(MEMGPT_DIR, exist_ok=True)
+
+        folders = ["personas", "humans", "archival", "agents"]
+        for folder in folders:
+            if not os.path.exists(os.path.join(MEMGPT_DIR, folder)):
+                os.makedirs(os.path.join(MEMGPT_DIR, folder))
+
 
 @dataclass
 class AgentConfig:

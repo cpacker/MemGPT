@@ -8,6 +8,7 @@ import openai
 
 
 import memgpt.interface  # for printing to terminal
+from memgpt.cli.cli_config import configure
 import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.presets as presets
@@ -57,7 +58,8 @@ def run(
             config = MemGPTConfig()
         else:
             # use input
-            memgpt.cli_configure.configure()
+            configure()
+            config = MemGPTConfig.load()
     else:  # load config
         config = MemGPTConfig.load()
 

@@ -21,6 +21,7 @@ def configure():
     """Updates default MemGPT configurations"""
 
     default_provider = "openai"
+    MemGPTConfig.create_config_dir()
 
     # openai credentials
     use_openai = questionary.confirm("Do you want to enable MemGPT with Open AI?").ask()
