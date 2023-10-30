@@ -209,26 +209,26 @@ async def main(
         if memgpt_persona is None:
             memgpt_persona = (
                 personas.GPT35_DEFAULT if "gpt-3.5" in model else personas.DEFAULT,
-                Config.personas_dir,
+                None,  # represents the personas dir in pymemgpt package
             )
         else:
             try:
                 personas.get_persona_text(memgpt_persona, Config.custom_personas_dir)
                 memgpt_persona = (memgpt_persona, Config.custom_personas_dir)
             except FileNotFoundError:
-                personas.get_persona_text(memgpt_persona, Config.personas_dir)
-                memgpt_persona = (memgpt_persona, Config.personas_dir)
+                personas.get_persona_text(memgpt_persona)
+                memgpt_persona = (memgpt_persona, None)
 
         human_persona = human
         if human_persona is None:
-            human_persona = (humans.DEFAULT, Config.humans_dir)
+            human_persona = (humans.DEFAULT, None)
         else:
             try:
                 humans.get_human_text(human_persona, Config.custom_humans_dir)
                 human_persona = (human_persona, Config.custom_humans_dir)
             except FileNotFoundError:
-                humans.get_human_text(human_persona, Config.humans_dir)
-                human_persona = (human_persona, Config.humans_dir)
+                humans.get_human_text(human_persona)
+                human_persona = (human_persona, None)
 
         print(persona, model, memgpt_persona)
         if archival_storage_files:
