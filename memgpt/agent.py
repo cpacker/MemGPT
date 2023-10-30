@@ -970,7 +970,7 @@ class AgentAsync(Agent):
         message_sequence_to_summarize = self.messages[1:cutoff]  # do NOT get rid of the system message
         printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
 
-        summary = await summarize_messages(self.model, message_sequence_to_summarize)
+        summary = await a_summarize_messages(self.model, message_sequence_to_summarize)
         printd(f"Got summary: {summary}")
 
         # Metadata that's useful for the agent to see
