@@ -134,8 +134,6 @@ def run(
         agent_config.save()
         typer.secho(f"Created new agent {agent_config.name}.", fg=typer.colors.GREEN)
 
-        print(agent_config.human, agent_config.persona)
-
         # create agent
         memgpt_agent = presets.use_preset(
             agent_config.preset,
