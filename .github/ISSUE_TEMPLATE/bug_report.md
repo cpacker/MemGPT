@@ -33,7 +33,7 @@ Add any other context about the problem here.
 - From the official package? `pip install pymemgpt`
 - From source?
   - With [poetry](https://github.com/cpacker/MemGPT#development)?
-  - With `git clone ...` and `pip install -r requirements.txt`?
+  - With `git clone git@github.com:cpacker/MemGPT.git` and `pip install -r requirements.txt`?
 
 **Your setup (please complete the following information)**
 
@@ -42,7 +42,7 @@ Add any other context about the problem here.
   - Terminal? PowerShell? cmd.exe?
 - Your python version (run `python --version`)
 -  If you installed with `pip install pymemgpt`:
- - `pymemgpt` version (run `pip list | grep pymemgpt`)
+  - `pymemgpt` version (run `pip list | grep pymemgpt`)
 - If you installed from source:
   - Your current git commit (run `git describe --tags`)
 
