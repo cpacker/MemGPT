@@ -37,10 +37,10 @@ def configure():
     use_azure_deployment_ids = False
     if use_azure:
         # search for key in enviornment
-        azure_key = os.getenv("AZURE_API_KEY")
-        azure_endpoint = (os.getenv("AZURE_ENDPOINT"),)
-        azure_version = (os.getenv("AZURE_VERSION"),)
-        azure_deployment = (os.getenv("AZURE_OPENAI_DEPLOYMENT"),)
+        azure_key = os.getenv("AZURE_OPENAI_KEY")
+        azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        azure_version = os.getenv("AZURE_OPENAI_VERSION")
+        azure_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
         azure_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")
 
         if all([azure_key, azure_endpoint, azure_version]):
@@ -66,7 +66,7 @@ def configure():
     endpoint_options = []
     if os.getenv("OPENAI_API_BASE") is not None:
         endpoint_options.append(os.getenv("OPENAI_API_BASE"))
-    if os.getenv("AZURE_ENDPOINT") is not None:
+    if use_azure:
         endpoint_options += ["azure"]
     if use_openai:
         endpoint_options += ["openai"]

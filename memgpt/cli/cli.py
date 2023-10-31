@@ -26,6 +26,10 @@ from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
 from memgpt.agent import AgentAsync
 from memgpt.embeddings import embedding_model
+from memgpt.openai_tools import (
+    configure_azure_support,
+    check_azure_embeddings,
+)
 
 
 def run(
@@ -143,6 +147,10 @@ def run(
 
     # start event loop
     from memgpt.main import run_agent_loop
+
+    # setup azure if using
+    # TODO: cleanup this code
+    configure_azure_support()
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(run_agent_loop(memgpt_agent, first, no_verify, config))  # TODO: add back no_verify
