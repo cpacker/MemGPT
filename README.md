@@ -132,22 +132,23 @@ You can view available persona and human files with the following command:
 memgpt list [human/persona]
 ```
 
-### Data Sources
+### Data Sources (i.e. chat with your data)
 MemGPT supports pre-loading data into archival memory, so your agent can reference loaded data in your conversations with an agent by specifying the data source with the flag `memgpt run --data-source <NAME>`.
 
 #### Loading Data
+We currently support loading from a directory and database dump. We highly encourage contributions for new data sources, which can be added as a new [CLI data load command](https://github.com/cpacker/MemGPT/blob/main/memgpt/cli/cli_load.py).
+
 Loading from a directory:
 ```
 # loading a directory
 memgpt load directory --name <NAME> \
     [--input_dir <DIRECTORY>] [--input-files <FILE1> <FILE2>...] [--recursive]
 ```
-Loading from a database:
+Loading from a database dump:
 ```sh
-# loading a database
 memgpt load database --name <NAME>  \
     --query <QUERY> \ # Query to run on database to get data
-    --dump_path <PATH> \ # Path to dump file
+    --dump-path <PATH> \ # Path to dump file
     --scheme <SCHEME> \ # Database scheme
     --host <HOST> \ # Database host
     --port <PORT> \ # Database port
@@ -157,14 +158,14 @@ memgpt load database --name <NAME>  \
 ```
 To encourage your agent to reference its archival memory, we recommend adding phrases like "search your archival memory..." for the best results.
 
-### Viewing available data sources
+#### Viewing available data sources
 You can view loaded data source with:
 ```
 memgpt list sources
 ```
 
 ### Using other endpoints
-AddingAddingAdding
+
 ## Advanced
 
 ### Adding new connectors
