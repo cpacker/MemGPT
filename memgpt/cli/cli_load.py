@@ -14,6 +14,14 @@ import typer
 app = typer.Typer()
 
 
+@app.command("index")
+def load_index(
+    name: str = typer.Option(help="Name of dataset to load."), dir: str = typer.Option(help="Path to directory containing index.")
+):
+    """Load a LlamaIndex saved VectorIndex into MemGPT"""
+    pass
+
+
 @app.command("directory")
 def load_directory(
     name: str = typer.Option(help="Name of dataset to load."),
