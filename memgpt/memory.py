@@ -688,7 +688,7 @@ class LocalArchivalMemory(ArchivalMemory):
         else:
             utils.save_agent_index(self.index, self.agent_config)
 
-    async def insert(self, memory_string):
+    def insert(self, memory_string):
         self.index.insert(memory_string)
 
         # TODO: figure out if this needs to be refreshed (probably not)
@@ -697,7 +697,10 @@ class LocalArchivalMemory(ArchivalMemory):
             similarity_top_k=self.top_k,
         )
 
-    async def search(self, query_string, count=None, start=None):
+    async def a_insert(self, memory_string):
+        return self.insert(memory_string)
+
+    def search(self, query_string, count=None, start=None):
         if self.retriever is None:
             print("Warning: archival memory is empty")
             return [], 0
