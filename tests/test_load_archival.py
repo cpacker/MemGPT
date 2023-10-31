@@ -10,7 +10,8 @@ import memgpt.presets as presets
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
 from memgpt.persistence_manager import InMemoryStateManager, LocalStateManager
-from memgpt.config import AgentConfig
+
+# from memgpt.config import AgentConfig
 from memgpt.constants import MEMGPT_DIR, DEFAULT_MEMGPT_MODEL
 import memgpt.interface  # for printing to terminal
 
