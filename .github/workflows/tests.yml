@@ -29,4 +29,4 @@ jobs:
 
     - name: Run tests with pytest
       run: |
-        poetry run pytest -s tests
+        poetry run pytest -vv tests
