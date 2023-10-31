@@ -85,28 +85,25 @@ export OPENAI_API_KEY=YOUR_API_KEY # on Linux/Mac
 set OPENAI_API_KEY=YOUR_API_KEY # on Windows
 $Env:OPENAI_API_KEY = "YOUR_API_KEY" # on Windows (PowerShell)
 ```
-
+Configure default setting for MemGPT by running:
+```
+memgpt configure
+```
 Now, you can run MemGPT with:
 ```sh
 memgpt run
 ```
-The `run` command supports the following flags:
+The `run` command supports the following optional flags (if set, will override config defaults):
 * `--agent`: (str) Name of agent to create or to resume chatting with.
 * `--human`: (str) Name of the human to run the agent with.
-* `--model`: (str) LLM model to run
-
-### Configuration
-You can configure defaults settings for MemGPT with:
-```
-memgpt configure
-```
-Configuration defaults can be overriden when calling `memgpt run` by using flags:
-```
-memgpt run \
---persona
---agent
---human
-```
+* `--persona`: (str) Name of agent persona to use.
+* `--model`: (str) LLM model to run [gpt-4, gpt-3.5].
+* `--preset`: (str) MemGPT preset to run agent with.
+* `--data_source`: (str) Name of data source (loaded with `memgpt load`) to connect to agent.
+* `--first`: (str) Allow user to sent the first message.
+* `--debug`: (bool) Show debug logs (default=False)
+* `--no_verify`: (bool) Bypass message verification (default=False)
+* `--yes`/`-y`: (bool) Skip confirmation prompt and use defaults (default=False)
 
 ### Adding Custom Personas/Humans
 You can add new human or persona definitions either by providing a file (using the `-f` flag) or text (using the `--text` flag).
@@ -129,6 +126,8 @@ MemGPT supports pre-loading data into archival memory, so your agent can referen
 memgpt load
 ```
 To encourage your agent to reference its archival memory, we recommend adding phrases like "search your archival memory..." for the best results.
+
+### Using other endpoints
 
 ## Advanced
 
