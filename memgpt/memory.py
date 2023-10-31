@@ -539,7 +539,7 @@ class DummyRecallMemory(RecallMemory):
         try:
             datetime.datetime.strptime(date_str, "%Y-%m-%d")
             return True
-        except ValueError:
+        except (ValueError, TypeError):
             return False
 
     def _extract_date_from_timestamp(self, timestamp):
@@ -576,7 +576,7 @@ class DummyRecallMemory(RecallMemory):
         else:
             return matches, len(matches)
 
-    def a_date_search(self, start_date, end_date, count=None, start=None):
+    async def a_date_search(self, start_date, end_date, count=None, start=None):
         return self.date_search(start_date, end_date, count, start)
 
 
@@ -688,7 +688,7 @@ class LocalArchivalMemory(ArchivalMemory):
         else:
             utils.save_agent_index(self.index, self.agent_config)
 
-    async def insert(self, memory_string):
+    def insert(self, memory_string):
         self.index.insert(memory_string)
 
         # TODO: figure out if this needs to be refreshed (probably not)
@@ -697,7 +697,10 @@ class LocalArchivalMemory(ArchivalMemory):
             similarity_top_k=self.top_k,
         )
 
-    async def search(self, query_string, count=None, start=None):
+    async def a_insert(self, memory_string):
+        return self.insert(memory_string)
+
+    def search(self, query_string, count=None, start=None):
         if self.retriever is None:
             print("Warning: archival memory is empty")
             return [], 0

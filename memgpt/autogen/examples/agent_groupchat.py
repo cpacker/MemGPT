@@ -62,7 +62,7 @@ else:
             user_description=f"You are participating in a group chat with a user ({user_proxy.name}) "
             f"and a product manager ({pm.name}).",
             # extra options
-            # interface_kwargs={"debug": True},
+            # interface_kwargs={"debug": False, "show_inner_thoughts": True, "show_function_outputs": True},
         )
     else:
         coder = create_memgpt_autogen_agent_from_config(

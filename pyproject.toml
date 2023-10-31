@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pymemgpt"
-version = "0.1.11"
+version = "0.1.15"
 packages = [
     {include = "memgpt"}
 ]
