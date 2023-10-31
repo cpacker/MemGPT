@@ -39,7 +39,8 @@ def test_cli_sequence():
     child.expect("Would you like to preload anything into MemGPT's archival memory?")
     child.sendline("N")
 
-    time.sleep(0.5)  # Wait for a short while to let output be captured
+    time.sleep(2.0)  # Wait for a short while to let output be captured
+    child.expect("Bootup sequence complete")
     child.expect("Enter your message")
     child.sendline("/save")
 
