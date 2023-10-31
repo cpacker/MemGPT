@@ -22,29 +22,10 @@
 </details>
 
 <details>
- <summary><h2>🗃️ Chat with your data - talk to your SQL database or your local files!</strong></h2></summary>
-  <strong>SQL Database</strong>
+ <summary><h2>🗃️ Chat with your data - talk to your local files or SQL database!</strong></h2></summary>
   <div align="center">
-    <img src="https://memgpt.ai/assets/img/sql_demo.gif" alt="MemGPT demo video for sql search" width="800">
+    <img src="https://memgpt.ai/assets/img/doc.gif" alt="MemGPT demo video for sql search" width="800">
   </div>
-  <strong>Local files</strong>
-  <div align="center">
-    <img src="https://memgpt.ai/assets/img/preload_archival_demo.gif" alt="MemGPT demo video for sql search" width="800">
-  </div>
-</details>
-
-<details>
-  <summary><h2>📄 You can also talk to docs - for example ask about <a href="memgpt/personas/examples/docqa">LlamaIndex</a>!</h1></summary>
-  <div align="center">
-    <img src="https://memgpt.ai/assets/img/docqa_demo.gif" alt="MemGPT demo video for llamaindex api docs search" width="800">
-  </div>
-  <details>
-  <summary><b>ChatGPT (GPT-4) when asked the same question:</b></summary>
-    <div align="center">
-      <img src="https://memgpt.ai/assets/img/llama_index_gpt4.png" alt="GPT-4 when asked about llamaindex api docs" width="800">
-    </div>
-    (Question from https://github.com/run-llama/llama_index/issues/7756)
-  </details>
 </details>
 
 ## Quick setup
