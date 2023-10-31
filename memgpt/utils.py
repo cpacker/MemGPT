@@ -28,6 +28,7 @@ def count_tokens(s: str, model: str = "gpt-4") -> int:
 
 # DEBUG = True
 DEBUG = False
+AMPM = False
 
 
 def printd(*args, **kwargs):
@@ -46,32 +47,8 @@ def united_diff(str1, str2):
     return "".join(diff)
 
 
-def get_local_time_military():
-    # Get the current time in UTC
-    current_time_utc = datetime.now(pytz.utc)
-
-    # Convert to San Francisco's time zone (PST/PDT)
-    sf_time_zone = pytz.timezone("America/Los_Angeles")
-    local_time = current_time_utc.astimezone(sf_time_zone)
-
-    # You may format it as you desire
-    formatted_time = local_time.strftime("%Y-%m-%d %H:%M:%S %Z%z")
-
-    return formatted_time
-
-
 def get_local_time():
-    # Get the current time in UTC
-    current_time_utc = datetime.now(pytz.utc)
-
-    # Convert to San Francisco's time zone (PST/PDT)
-    sf_time_zone = pytz.timezone("America/Los_Angeles")
-    local_time = current_time_utc.astimezone(sf_time_zone)
-
-    # You may format it as you desire, including AM/PM
-    formatted_time = local_time.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
-
-    return formatted_time
+    return datetime.now().astimezone().isoformat("T", timespec="seconds")
 
 
 def parse_json(string):

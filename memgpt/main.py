@@ -132,6 +132,7 @@ def legacy_run(
     persona: str = typer.Option(None, help="Specify persona"),
     human: str = typer.Option(None, help="Specify human"),
     model: str = typer.Option(constants.DEFAULT_MEMGPT_MODEL, help="Specify the LLM model"),
+    timezone: str = typer.Option("", help="Sets the timezone (useful if the host is not in your local time)"),
     first: bool = typer.Option(False, "--first", help="Use --first to send the first message in the sequence"),
     debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
     no_verify: bool = typer.Option(False, "--no_verify", help="Bypass message verification"),
@@ -167,6 +168,9 @@ def legacy_run(
     typer.secho("Warning: Running legacy run command. Run `memgpt run` instead.", fg=typer.colors.RED, bold=True)
     if not questionary.confirm("Continue with legacy CLI?", default=False).ask():
         return
+
+    if timezone != "":
+        os.environ["TZ"] = timezone
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
