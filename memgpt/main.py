@@ -1,14 +1,19 @@
 import asyncio
+import shutil
+import configparser
+import uuid
 import logging
 import glob
 import os
 import sys
 import pickle
+import traceback
 
 import questionary
 import typer
 
 from rich.console import Console
+from prettytable import PrettyTable
 
 console = Console()
 
@@ -21,16 +26,31 @@ import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
 from memgpt.persistence_manager import (
+    LocalStateManager,
     InMemoryStateManager,
     InMemoryStateManagerWithPreloadedArchivalMemory,
     InMemoryStateManagerWithFaiss,
 )
-
-from memgpt.config import Config
+from memgpt.cli.cli import run
+from memgpt.cli.cli_config import configure, list, add
+from memgpt.cli.cli_load import app as load_app
+from memgpt.config import Config, MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
+from memgpt.agent import AgentAsync
+from memgpt.openai_tools import (
+    configure_azure_support,
+    check_azure_embeddings,
+    get_set_azure_env_vars,
+)
 import asyncio
 
 app = typer.Typer()
+app.command(name="run")(run)
+app.command(name="configure")(configure)
+app.command(name="list")(list)
+app.command(name="add")(add)
+# load data commands
+app.add_typer(load_app, name="load")
 
 
 def clear_line():
@@ -77,12 +97,8 @@ def load(memgpt_agent, filename):
             print(f"Loading {filename} failed with: {e}")
     else:
         # Load the latest file
-        print(
-            f"/load warning: no checkpoint specified, loading most recent checkpoint instead"
-        )
-        json_files = glob.glob(
-            "saved_state/*.json"
-        )  # This will list all .json files in the current directory.
+        print(f"/load warning: no checkpoint specified, loading most recent checkpoint instead")
+        json_files = glob.glob("saved_state/*.json")  # This will list all .json files in the current directory.
 
         # Check if there are any json files.
         if not json_files:
@@ -104,27 +120,19 @@ def load(memgpt_agent, filename):
         )  # TODO(fixme):for different types of persistence managers that require different load/save methods
         print(f"Loaded persistence manager from {filename}")
     except Exception as e:
-        print(
-            f"/load warning: loading persistence manager from {filename} failed with: {e}"
-        )
+        print(f"/load warning: loading persistence manager from {filename} failed with: {e}")
 
 
-@app.command()
-def run(
+@app.callback(invoke_without_command=True)  # make default command
+# @app.command("legacy-run")
+def legacy_run(
+    ctx: typer.Context,
     persona: str = typer.Option(None, help="Specify persona"),
     human: str = typer.Option(None, help="Specify human"),
-    model: str = typer.Option(
-        constants.DEFAULT_MEMGPT_MODEL, help="Specify the LLM model"
-    ),
-    first: bool = typer.Option(
-        False, "--first", help="Use --first to send the first message in the sequence"
-    ),
-    debug: bool = typer.Option(
-        False, "--debug", help="Use --debug to enable debugging output"
-    ),
-    no_verify: bool = typer.Option(
-        False, "--no_verify", help="Bypass message verification"
-    ),
+    model: str = typer.Option(constants.DEFAULT_MEMGPT_MODEL, help="Specify the LLM model"),
+    first: bool = typer.Option(False, "--first", help="Use --first to send the first message in the sequence"),
+    debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
+    no_verify: bool = typer.Option(False, "--no_verify", help="Bypass message verification"),
     archival_storage_faiss_path: str = typer.Option(
         "",
         "--archival_storage_faiss_path",
@@ -151,6 +159,13 @@ def run(
         help="Use Azure OpenAI (requires additional environment variables)",
     ),  # TODO: just pass in?
 ):
+    if ctx.invoked_subcommand is not None:
+        return
+
+    typer.secho("Warning: Running legacy run command. Run `memgpt run` instead.", fg=typer.colors.RED, bold=True)
+    if not questionary.confirm("Continue with legacy CLI?", default=False).ask():
+        return
+
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
         main(
@@ -187,6 +202,16 @@ async def main(
     if debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
+    # Azure OpenAI support
+    if use_azure_openai:
+        configure_azure_support()
+        check_azure_embeddings()
+    else:
+        azure_vars = get_set_azure_env_vars()
+        if len(azure_vars) > 0:
+            print(f"Error: Environment variables {', '.join([x[0] for x in azure_vars])} should not be set if --use_azure_openai is False")
+            return
+
     if any(
         (
             persona,
@@ -206,26 +231,26 @@ async def main(
         if memgpt_persona is None:
             memgpt_persona = (
                 personas.GPT35_DEFAULT if "gpt-3.5" in model else personas.DEFAULT,
-                Config.personas_dir,
+                None,  # represents the personas dir in pymemgpt package
             )
         else:
             try:
                 personas.get_persona_text(memgpt_persona, Config.custom_personas_dir)
                 memgpt_persona = (memgpt_persona, Config.custom_personas_dir)
             except FileNotFoundError:
-                personas.get_persona_text(memgpt_persona, Config.personas_dir)
-                memgpt_persona = (memgpt_persona, Config.personas_dir)
+                personas.get_persona_text(memgpt_persona)
+                memgpt_persona = (memgpt_persona, None)
 
         human_persona = human
         if human_persona is None:
-            human_persona = (humans.DEFAULT, Config.humans_dir)
+            human_persona = (humans.DEFAULT, None)
         else:
             try:
                 humans.get_human_text(human_persona, Config.custom_humans_dir)
                 human_persona = (human_persona, Config.custom_humans_dir)
             except FileNotFoundError:
-                humans.get_human_text(human_persona, Config.humans_dir)
-                human_persona = (human_persona, Config.humans_dir)
+                humans.get_human_text(human_persona)
+                human_persona = (human_persona, None)
 
         print(persona, model, memgpt_persona)
         if archival_storage_files:
@@ -277,55 +302,17 @@ async def main(
     else:
         cfg = await Config.config_init()
 
-    memgpt.interface.important_message(
-        "Running... [exit by typing '/exit', list available commands with '/help']"
-    )
+    memgpt.interface.important_message("Running... [exit by typing '/exit', list available commands with '/help']")
     if cfg.model != constants.DEFAULT_MEMGPT_MODEL:
         memgpt.interface.warning_message(
             f"⛔️ Warning - you are running MemGPT with {cfg.model}, which is not officially supported (yet). Expect bugs!"
         )
 
-    # Azure OpenAI support
-    if use_azure_openai:
-        azure_openai_key = os.getenv("AZURE_OPENAI_KEY")
-        azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-        azure_openai_version = os.getenv("AZURE_OPENAI_VERSION")
-        azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-        if None in [
-            azure_openai_key,
-            azure_openai_endpoint,
-            azure_openai_version,
-            azure_openai_deployment,
-        ]:
-            print(
-                f"Error: missing Azure OpenAI environment variables. Please see README section on Azure."
-            )
-            return
-
-        import openai
-
-        openai.api_type = "azure"
-        openai.api_key = azure_openai_key
-        openai.api_base = azure_openai_endpoint
-        openai.api_version = azure_openai_version
-        # deployment gets passed into chatcompletion
-    else:
-        azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-        if azure_openai_deployment is not None:
-            print(
-                f"Error: AZURE_OPENAI_DEPLOYMENT should not be set if --use_azure_openai is False"
-            )
-            return
-
     if cfg.index:
-        persistence_manager = InMemoryStateManagerWithFaiss(
-            cfg.index, cfg.archival_database
-        )
+        persistence_manager = InMemoryStateManagerWithFaiss(cfg.index, cfg.archival_database)
     elif cfg.archival_storage_files:
         print(f"Preloaded {len(cfg.archival_database)} chunks into archival memory.")
-        persistence_manager = InMemoryStateManagerWithPreloadedArchivalMemory(
-            cfg.archival_database
-        )
+        persistence_manager = InMemoryStateManagerWithPreloadedArchivalMemory(cfg.archival_database)
     else:
         persistence_manager = InMemoryStateManager()
 
@@ -339,7 +326,8 @@ async def main(
     chosen_persona = cfg.memgpt_persona
 
     memgpt_agent = presets.use_preset(
-        presets.DEFAULT,
+        presets.DEFAULT_PRESET,
+        None,  # no agent config to provide
         cfg.model,
         personas.get_persona_text(*chosen_persona),
         humans.get_human_text(*chosen_human),
@@ -348,12 +336,6 @@ async def main(
     )
     print_messages = memgpt.interface.print_messages
     await print_messages(memgpt_agent.messages)
-
-    counter = 0
-    user_input = None
-    skip_next_user_input = False
-    user_message = None
-    USER_GOES_FIRST = first
 
     if cfg.load_type == "sql":  # TODO: move this into config.py in a clean manner
         if not os.path.exists(cfg.archival_storage_files):
@@ -369,20 +351,27 @@ async def main(
             print(f"Database loaded into archival memory.")
 
     if cfg.agent_save_file:
-        load_save_file = await questionary.confirm(
-            f"Load in saved agent '{cfg.agent_save_file}'?"
-        ).ask_async()
+        load_save_file = await questionary.confirm(f"Load in saved agent '{cfg.agent_save_file}'?").ask_async()
         if load_save_file:
             load(memgpt_agent, cfg.agent_save_file)
+
+    # run agent loop
+    await run_agent_loop(memgpt_agent, first, no_verify, cfg, legacy=True)
+
+
+async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=False):
+    counter = 0
+    user_input = None
+    skip_next_user_input = False
+    user_message = None
+    USER_GOES_FIRST = first
 
     # auto-exit for
     if "GITHUB_ACTIONS" in os.environ:
         return
 
     if not USER_GOES_FIRST:
-        console.input(
-            "[bold cyan]Hit enter to begin (will request first MemGPT message)[/bold cyan]"
-        )
+        console.input("[bold cyan]Hit enter to begin (will request first MemGPT message)[/bold cyan]")
         clear_line()
         print()
 
@@ -398,6 +387,10 @@ async def main(
             ).ask_async()
             clear_line()
 
+            # Gracefully exit on Ctrl-C/D
+            if user_input is None:
+                user_input = "/exit"
+
             user_input = user_input.rstrip()
 
             if user_input.startswith("!"):
@@ -412,34 +405,40 @@ async def main(
             # Handle CLI commands
             # Commands to not get passed as input to MemGPT
             if user_input.startswith("/"):
-                if user_input.lower() == "/exit":
-                    # autosave
-                    save(memgpt_agent=memgpt_agent, cfg=cfg)
-                    break
+                if legacy:
+                    # legacy agent save functions (TODO: eventually remove)
+                    if user_input.lower() == "/exit":
+                        # autosave
+                        save(memgpt_agent=memgpt_agent, cfg=cfg)
+                        break
 
-                elif user_input.lower() == "/savechat":
-                    filename = (
-                        utils.get_local_time().replace(" ", "_").replace(":", "_")
-                    )
-                    filename = f"{filename}.pkl"
-                    directory = os.path.join(MEMGPT_DIR, "saved_chats")
-                    try:
-                        if not os.path.exists(directory):
-                            os.makedirs(directory)
-                        with open(os.path.join(directory, filename), "wb") as f:
-                            pickle.dump(memgpt_agent.messages, f)
-                            print(f"Saved messages to: {filename}")
-                    except Exception as e:
-                        print(f"Saving chat to {filename} failed with: {e}")
-                    continue
+                    elif user_input.lower() == "/savechat":
+                        filename = utils.get_local_time().replace(" ", "_").replace(":", "_")
+                        filename = f"{filename}.pkl"
+                        directory = os.path.join(MEMGPT_DIR, "saved_chats")
+                        try:
+                            if not os.path.exists(directory):
+                                os.makedirs(directory)
+                            with open(os.path.join(directory, filename), "wb") as f:
+                                pickle.dump(memgpt_agent.messages, f)
+                                print(f"Saved messages to: {filename}")
+                        except Exception as e:
+                            print(f"Saving chat to {filename} failed with: {e}")
+                        continue
 
-                elif user_input.lower() == "/save":
-                    save(memgpt_agent=memgpt_agent, cfg=cfg)
-                    continue
+                    elif user_input.lower() == "/save":
+                        save(memgpt_agent=memgpt_agent, cfg=cfg)
+                        continue
+                else:
+                    # updated agent save functions
+                    if user_input.lower() == "/exit":
+                        memgpt_agent.save()
+                        break
+                    elif user_input.lower() == "/save" or user_input.lower() == "/savechat":
+                        memgpt_agent.save()
+                        continue
 
-                elif user_input.lower() == "/load" or user_input.lower().startswith(
-                    "/load "
-                ):
+                if user_input.lower() == "/load" or user_input.lower().startswith("/load "):
                     command = user_input.strip().split()
                     filename = command[1] if len(command) > 1 else None
                     load(memgpt_agent=memgpt_agent, filename=filename)
@@ -472,16 +471,10 @@ async def main(
                     print(f"Updated model to:\n{str(memgpt_agent.model)}")
                     continue
 
-                elif user_input.lower() == "/pop" or user_input.lower().startswith(
-                    "/pop "
-                ):
+                elif user_input.lower() == "/pop" or user_input.lower().startswith("/pop "):
                     # Check if there's an additional argument that's an integer
                     command = user_input.strip().split()
-                    amount = (
-                        int(command[1])
-                        if len(command) > 1 and command[1].isdigit()
-                        else 2
-                    )
+                    amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 2
                     print(f"Popping last {amount} messages from stack")
                     for _ in range(min(amount, len(memgpt_agent.messages))):
                         memgpt_agent.messages.pop()
@@ -520,28 +513,32 @@ async def main(
 
         skip_next_user_input = False
 
-        with console.status("[bold cyan]Thinking...") as status:
-            (
-                new_messages,
-                heartbeat_request,
-                function_failed,
-                token_warning,
-            ) = await memgpt_agent.step(
-                user_message, first_message=False, skip_verify=no_verify
-            )
+        while True:
+            try:
+                with console.status("[bold cyan]Thinking...") as status:
+                    (
+                        new_messages,
+                        heartbeat_request,
+                        function_failed,
+                        token_warning,
+                    ) = await memgpt_agent.step(user_message, first_message=False, skip_verify=no_verify)
 
-            # Skip user inputs if there's a memory warning, function execution failed, or the agent asked for control
-            if token_warning:
-                user_message = system.get_token_limit_warning()
-                skip_next_user_input = True
-            elif function_failed:
-                user_message = system.get_heartbeat(
-                    constants.FUNC_FAILED_HEARTBEAT_MESSAGE
-                )
-                skip_next_user_input = True
-            elif heartbeat_request:
-                user_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
-                skip_next_user_input = True
+                    # Skip user inputs if there's a memory warning, function execution failed, or the agent asked for control
+                    if token_warning:
+                        user_message = system.get_token_limit_warning()
+                        skip_next_user_input = True
+                    elif function_failed:
+                        user_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
+                        skip_next_user_input = True
+                    elif heartbeat_request:
+                        user_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
+                        skip_next_user_input = True
+            except Exception as e:
+                print("An exception ocurred when running agent.step(): ")
+                traceback.print_exc()
+                retry = await questionary.confirm("Retry agent.step()?").ask_async()
+                if not retry:
+                    break
 
         counter += 1
 

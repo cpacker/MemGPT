@@ -32,9 +32,37 @@ For the purposes of this example, we're going to serve (host) the LLMs using [oo
 4. If the model was loaded successfully, you should be able to access it via the API (if local, this is probably on port `5000`)
 5. Assuming steps 1-4 went correctly, the LLM is now properly hosted on a port you can point MemGPT to!
 
+In your terminal where you're running MemGPT, run:
+
+```sh
+# if you are running web UI locally, the default port will be 5000
+export OPENAI_API_BASE=http://127.0.0.1:5000
+export BACKEND_TYPE=webui
+```
+
 WebUI exposes a lot of parameters that can dramatically change LLM outputs, to change these you can modify the [WebUI settings file](/memgpt/local_llm/webui/settings.py).
 
 ⁉️ If you have problems getting WebUI setup, please use the [official web UI repo for support](https://github.com/oobabooga/text-generation-webui)! There will be more answered questions about web UI there vs here on the MemGPT repo.
+
+</details>
+
+<details>
+ <summary><h2>🖥️ Serving your LLM from a web server (LM Studio example)</strong></h2></summary>
+
+![image](https://github.com/cpacker/MemGPT/assets/5475622/abc8ce2d-4130-4c51-8169-83e682db625d)
+
+1. Download [LM Studio](https://lmstudio.ai/) and the model you want to test with
+2. Go to the "local inference server" tab, load the model and configure your settings (make sure to set the context length to something reasonable like 8k!)
+3. Click "Start server"
+4. Copy the IP address + port that your server is running on (in the example screenshot, the address is `http://localhost:1234`)
+
+In your terminal where you're running MemGPT, run:
+
+```sh
+# if you used a different port in LM Studio, change 1234 to the actual port
+export OPENAI_API_BASE=http://localhost:1234
+export BACKEND_TYPE=lmstudio
+```
 
 </details>
 
@@ -46,11 +74,11 @@ Once you have an LLM web server set up, all you need to do to connect it to MemG
 - `OPENAI_API_BASE`
   - set this to the IP address of your LLM API - for example, if you're using web UI on a local machine, this will look like `http://127.0.0.1:5000`
 - `BACKEND_TYPE`
-  - set this to `webui`
+  - set this to `webui` or `lmstudio`
   - this controls how MemGPT packages the HTTP request to the webserver, see [this code](https://github.com/cpacker/MemGPT/blob/main/memgpt/local_llm/webui/api.py)
   - currently this is set up to work with web UI, but it might work with other backends / web servers too!
   - if you'd like to use a different web server and you need a different style of HTTP request, let us know on the discussion page (https://github.com/cpacker/MemGPT/discussions/67) and we'll try to add it ASAP
- 
+
 You can change the prompt format and output parser used with the `--model` flag. For example:
 
 ```sh
@@ -184,7 +212,7 @@ In the future, more open LLMs and LLM servers (that can host OpenAI-compatable C
 
 <details>
  <summary><h3>What is this all this extra code for?</strong></h3></summary>
-  
+
 Because of the poor state of function calling support in existing ChatCompletion API serving code, we instead provide a light wrapper on top of ChatCompletion that adds parsers to handle function calling support. These parsers need to be specific to the model you're using (or at least specific to the way it was trained on function calling). We hope that our example code will help the community add additional compatability of MemGPT with more function-calling LLMs - we will also add more model support as we test more models and find those that work well enough to run MemGPT's function set.
 
 To run the example of MemGPT with Airoboros, you'll need to host the model behind some LLM web server (for example [webui](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui)). Then, all you need to do is point MemGPT to this API endpoint by setting the environment variables `OPENAI_API_BASE` and `BACKEND_TYPE`. Now, instead of calling ChatCompletion on OpenAI's API, MemGPT will use it's own ChatCompletion wrapper that parses the system, messages, and function arguments into a format that Airoboros has been finetuned on, and once Airoboros generates a string output, MemGPT will parse the response to extract a potential function call (knowing what we know about Airoboros expected function call output).

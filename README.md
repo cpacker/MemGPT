@@ -5,9 +5,9 @@
 <div align="center">
 
  <strong>Try out our MemGPT chatbot on <a href="https://discord.gg/9GEQrxmVyE">Discord</a>!</strong>
- 
+
  <strong>⭐ NEW: You can now run MemGPT with <a href="https://github.com/cpacker/MemGPT/discussions/67">local LLMs</a> and <a href="https://github.com/cpacker/MemGPT/discussions/65">AutoGen</a>! ⭐ </strong>
- 
+
 [![Discord](https://img.shields.io/discord/1161736243340640419?label=Discord&logo=discord&logoColor=5865F2&style=flat-square&color=5865F2)](https://discord.gg/9GEQrxmVyE)
 [![arXiv 2310.08560](https://img.shields.io/badge/arXiv-2310.08560-B31B1B?logo=arxiv&style=flat-square)](https://arxiv.org/abs/2310.08560)
 
@@ -94,6 +94,11 @@ export OPENAI_API_KEY=YOUR_API_KEY
 set OPENAI_API_KEY=YOUR_API_KEY
 ```
 
+```sh
+# on Windows (PowerShell)
+$Env:OPENAI_API_KEY = "YOUR_API_KEY"
+```
+
 To run MemGPT as a conversation agent in CLI mode, simply run `memgpt`:
 
 ```sh
@@ -132,7 +137,10 @@ If you're using Azure OpenAI, set these variables instead:
 export AZURE_OPENAI_KEY = ...
 export AZURE_OPENAI_ENDPOINT = ...
 export AZURE_OPENAI_VERSION = ...
+
+# set the below if you are using deployment ids
 export AZURE_OPENAI_DEPLOYMENT = ...
+export AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT = ...
 
 # then use the --use_azure_openai flag
 memgpt --use_azure_openai
@@ -342,3 +350,28 @@ Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded
 - [x] CLI UI improvements ([issue](https://github.com/cpacker/MemGPT/issues/11))
 - [x] Add support for other LLM backends ([issue](https://github.com/cpacker/MemGPT/issues/18), [discussion](https://github.com/cpacker/MemGPT/discussions/67))
 - [ ] Release MemGPT family of open models (eg finetuned Mistral) ([discussion](https://github.com/cpacker/MemGPT/discussions/67))
+
+## Development
+
+_Reminder: if you do not plan on modifying the source code, simply install MemGPT with `pip install pymemgpt`!_
+
+First, install Poetry using [the official instructions here](https://python-poetry.org/docs/#installing-with-the-official-installer).
+
+Then, you can install MemGPT from source with:
+```
+git clone git@github.com:cpacker/MemGPT.git
+poetry shell
+poetry install
+```
+We recommend installing pre-commit to ensure proper formatting during development:
+```
+pip install pre-commit
+pre-commit install
+pre-commit run --all-files
+```
+
+### Contributing
+We welcome pull requests! Please run the formatter before submitting a pull request:
+```
+poetry run black . -l 140
+```

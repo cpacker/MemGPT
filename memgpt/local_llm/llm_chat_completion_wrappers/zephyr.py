@@ -1,11 +1,12 @@
 import json
-
 from .wrapper_base import LLMChatCompletionWrapper
 
 
-class Airoboros21Wrapper(LLMChatCompletionWrapper):
-    """Wrapper for Airoboros 70b v2.1: https://huggingface.co/jondurbin/airoboros-l2-70b-2.1
-
+class ZephyrMistralWrapper(LLMChatCompletionWrapper):
+    """
+    Wrapper for Zephyr Alpha and Beta, Mistral 7B:
+    https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha
+    https://huggingface.co/HuggingFaceH4/zephyr-7b-beta
     Note: this wrapper formats a prompt that only generates JSON, no inner thoughts
     """
 
@@ -15,7 +16,7 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
         clean_function_args=True,
         include_assistant_prefix=True,
         include_opening_brace_in_prefix=True,
-        include_section_separators=True,
+        include_section_separators=False,
     ):
         self.simplify_json_content = simplify_json_content
         self.clean_func_args = clean_function_args
@@ -24,49 +25,25 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
         self.include_section_separators = include_section_separators
 
     def chat_completion_to_prompt(self, messages, functions):
-        """Example for airoboros: https://huggingface.co/jondurbin/airoboros-l2-70b-2.1#prompt-format
-
-        A chat.
-        USER: {prompt}
-        ASSISTANT:
-
-        Functions support: https://huggingface.co/jondurbin/airoboros-l2-70b-2.1#agentfunction-calling
-
-            As an AI assistant, please select the most suitable function and parameters from the list of available functions below, based on the user's input. Provide your response in JSON format.
-
-            Input: I want to know how many times 'Python' is mentioned in my text file.
-
-            Available functions:
-            file_analytics:
-              description: This tool performs various operations on a text file.
-              params:
-                action: The operation we want to perform on the data, such as "count_occurrences", "find_line", etc.
-                filters:
-                  keyword: The word or phrase we want to search for.
-
-        OpenAI functions schema style:
-
-            {
-                "name": "send_message",
-                "description": "Sends a message to the human user",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        # https://json-schema.org/understanding-json-schema/reference/array.html
-                        "message": {
-                            "type": "string",
-                            "description": "Message contents. All unicode (including emojis) are supported.",
-                        },
-                    },
-                    "required": ["message"],
-                }
-            },
         """
+        Zephyr prompt format:
+            <|system|>
+            </s>
+            <|user|>
+            {prompt}</s>
+            <|assistant|>
+        (source: https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF#prompt-template-zephyr)
+        """
+
         prompt = ""
 
-        # System insturctions go first
+        IM_START_TOKEN = "<s>"
+        IM_END_TOKEN = "</s>"
+
+        # System instructions go first
         assert messages[0]["role"] == "system"
-        prompt += messages[0]["content"]
+        prompt += f"<|system|>"
+        prompt += f"\n{messages[0]['content']}"
 
         # Next is the functions preamble
         def create_function_description(schema):
@@ -87,36 +64,16 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
         for function_dict in functions:
             prompt += f"\n{create_function_description(function_dict)}"
 
+        # Put functions INSIDE system message (TODO experiment with this)
+        prompt += IM_END_TOKEN
+
         def create_function_call(function_call):
-            """Go from ChatCompletion to Airoboros style function trace (in prompt)
-
-            ChatCompletion data (inside message['function_call']):
-                "function_call": {
-                    "name": ...
-                    "arguments": {
-                        "arg1": val1,
-                        ...
-                    }
-
-            Airoboros output:
-                {
-                  "function": "send_message",
-                  "params": {
-                    "message": "Hello there! I am Sam, an AI developed by Liminal Corp. How can I assist you today?"
-                  }
-                }
-            """
             airo_func_call = {
                 "function": function_call["name"],
                 "params": json.loads(function_call["arguments"]),
             }
             return json.dumps(airo_func_call, indent=2)
 
-        # Add a sep for the conversation
-        if self.include_section_separators:
-            prompt += "\n### INPUT"
-
-        # Last are the user/assistant messages
         for message in messages[1:]:
             assert message["role"] in ["user", "assistant", "function"], message
 
@@ -125,32 +82,40 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
                     try:
                         content_json = json.loads(message["content"])
                         content_simple = content_json["message"]
-                        prompt += f"\nUSER: {content_simple}"
+                        prompt += f"\n<|user|>\n{content_simple}{IM_END_TOKEN}"
+                        # prompt += f"\nUSER: {content_simple}"
                     except:
-                        prompt += f"\nUSER: {message['content']}"
+                        prompt += f"\n<|user|>\n{message['content']}{IM_END_TOKEN}"
+                        # prompt += f"\nUSER: {message['content']}"
             elif message["role"] == "assistant":
-                prompt += f"\nASSISTANT: {message['content']}"
+                prompt += f"\n<|assistant|>"
+                if message["content"] is not None:
+                    prompt += f"\n{message['content']}"
+                # prompt += f"\nASSISTANT: {message['content']}"
                 # need to add the function call if there was one
                 if message["function_call"]:
                     prompt += f"\n{create_function_call(message['function_call'])}"
+                prompt += f"{IM_END_TOKEN}"
             elif message["role"] == "function":
                 # TODO find a good way to add this
                 # prompt += f"\nASSISTANT: (function return) {message['content']}"
+                prompt += f"\n<|assistant|>"
                 prompt += f"\nFUNCTION RETURN: {message['content']}"
+                # prompt += f"\nFUNCTION RETURN: {message['content']}"
                 continue
             else:
                 raise ValueError(message)
 
         # Add a sep for the response
-        if self.include_section_separators:
-            prompt += "\n### RESPONSE"
+        # if self.include_section_separators:
+        # prompt += "\n### RESPONSE"
 
         if self.include_assistant_prefix:
-            prompt += f"\nASSISTANT:"
+            # prompt += f"\nASSISTANT:"
+            prompt += f"\n<|assistant|>"
             if self.include_opening_brance_in_prefix:
                 prompt += "\n{"
 
-        print(prompt)
         return prompt
 
     def clean_function_args(self, function_name, function_args):
@@ -203,8 +168,15 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
         return message
 
 
-class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
+class ZephyrMistralInnerMonologueWrapper(ZephyrMistralWrapper):
     """Still expect only JSON outputs from model, but add inner monologue as a field"""
+
+    """
+    Wrapper for Zephyr Alpha and Beta, Mistral 7B:
+    https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha
+    https://huggingface.co/HuggingFaceH4/zephyr-7b-beta
+    Note: this wrapper formats a prompt with inner thoughts included
+    """
 
     def __init__(
         self,
@@ -221,45 +193,10 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
         self.include_section_separators = include_section_separators
 
     def chat_completion_to_prompt(self, messages, functions):
-        """Example for airoboros: https://huggingface.co/jondurbin/airoboros-l2-70b-2.1#prompt-format
-
-        A chat.
-        USER: {prompt}
-        ASSISTANT:
-
-        Functions support: https://huggingface.co/jondurbin/airoboros-l2-70b-2.1#agentfunction-calling
-
-            As an AI assistant, please select the most suitable function and parameters from the list of available functions below, based on the user's input. Provide your response in JSON format.
-
-            Input: I want to know how many times 'Python' is mentioned in my text file.
-
-            Available functions:
-            file_analytics:
-              description: This tool performs various operations on a text file.
-              params:
-                action: The operation we want to perform on the data, such as "count_occurrences", "find_line", etc.
-                filters:
-                  keyword: The word or phrase we want to search for.
-
-        OpenAI functions schema style:
-
-            {
-                "name": "send_message",
-                "description": "Sends a message to the human user",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        # https://json-schema.org/understanding-json-schema/reference/array.html
-                        "message": {
-                            "type": "string",
-                            "description": "Message contents. All unicode (including emojis) are supported.",
-                        },
-                    },
-                    "required": ["message"],
-                }
-            },
-        """
         prompt = ""
+
+        IM_START_TOKEN = "<s>"
+        IM_END_TOKEN = "</s>"
 
         # System insturctions go first
         assert messages[0]["role"] == "system"
@@ -287,24 +224,6 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
             prompt += f"\n{create_function_description(function_dict)}"
 
         def create_function_call(function_call, inner_thoughts=None):
-            """Go from ChatCompletion to Airoboros style function trace (in prompt)
-
-            ChatCompletion data (inside message['function_call']):
-                "function_call": {
-                    "name": ...
-                    "arguments": {
-                        "arg1": val1,
-                        ...
-                    }
-
-            Airoboros output:
-                {
-                  "function": "send_message",
-                  "params": {
-                    "message": "Hello there! I am Sam, an AI developed by Liminal Corp. How can I assist you today?"
-                  }
-                }
-            """
             airo_func_call = {
                 "function": function_call["name"],
                 "params": {
@@ -316,7 +235,7 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
 
         # Add a sep for the conversation
         if self.include_section_separators:
-            prompt += "\n### INPUT"
+            prompt += "\n<|user|>"
 
         # Last are the user/assistant messages
         for message in messages[1:]:
@@ -327,11 +246,11 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
                     try:
                         content_json = json.loads(message["content"])
                         content_simple = content_json["message"]
-                        prompt += f"\nUSER: {content_simple}"
+                        prompt += f"\n<|user|>\n{content_simple}{IM_END_TOKEN}"
                     except:
-                        prompt += f"\nUSER: {message['content']}"
+                        prompt += f"\n<|user|>\n{message['content']}{IM_END_TOKEN}"
             elif message["role"] == "assistant":
-                prompt += f"\nASSISTANT:"
+                prompt += f"\n<|assistant|>"
                 # need to add the function call if there was one
                 inner_thoughts = message["content"]
                 if message["function_call"]:
@@ -345,11 +264,11 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
                 raise ValueError(message)
 
         # Add a sep for the response
-        if self.include_section_separators:
-            prompt += "\n### RESPONSE"
+        # if self.include_section_separators:
+        #    prompt += "\n### RESPONSE"
 
         if self.include_assistant_prefix:
-            prompt += f"\nASSISTANT:"
+            prompt += f"\n<|assistant|>"
             if self.include_opening_brance_in_prefix:
                 prompt += "\n{"
 

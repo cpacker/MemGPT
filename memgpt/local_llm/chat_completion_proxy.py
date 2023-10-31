@@ -5,7 +5,8 @@ import requests
 import json
 
 from .webui.api import get_webui_completion
-from .llm_chat_completion_wrappers import airoboros, dolphin
+from .lmstudio.api import get_lmstudio_completion
+from .llm_chat_completion_wrappers import airoboros, dolphin, zephyr
 from .utils import DotDict
 
 HOST = os.getenv("OPENAI_API_BASE")
@@ -20,6 +21,11 @@ async def get_chat_completion(
     functions,
     function_call="auto",
 ):
+    if HOST is None:
+        raise ValueError(f"The OPENAI_API_BASE environment variable is not defined. Please set it in your environment.")
+    if HOST_TYPE is None:
+        raise ValueError(f"The BACKEND_TYPE environment variable is not defined. Please set it in your environment.")
+
     if function_call != "auto":
         raise ValueError(f"function_call == {function_call} not supported (auto only)")
 
@@ -27,6 +33,8 @@ async def get_chat_completion(
         llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper()
     elif model == "dolphin-2.1-mistral-7b":
         llm_wrapper = dolphin.Dolphin21MistralWrapper()
+    elif model == "zephyr-7B-alpha" or model == "zephyr-7B-beta":
+        llm_wrapper = zephyr.ZephyrMistralInnerMonologueWrapper()
     else:
         # Warn the user that we're using the fallback
         print(f"Warning: no wrapper specified for local LLM, using the default wrapper")
@@ -40,6 +48,8 @@ async def get_chat_completion(
     try:
         if HOST_TYPE == "webui":
             result = get_webui_completion(prompt)
+        elif HOST_TYPE == "lmstudio":
+            result = get_lmstudio_completion(prompt)
         else:
             print(f"Warning: BACKEND_TYPE was not set, defaulting to webui")
             result = get_webui_completion(prompt)

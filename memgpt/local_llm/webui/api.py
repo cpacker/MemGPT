@@ -1,4 +1,5 @@
 import os
+from urllib.parse import urljoin
 import requests
 
 from .settings import SIMPLE
@@ -16,8 +17,11 @@ def get_webui_completion(prompt, settings=SIMPLE):
     request = settings
     request["prompt"] = prompt
 
+    if not HOST.startswith(("http://", "https://")):
+        raise ValueError(f"Provided OPENAI_API_BASE value ({HOST}) must begin with http:// or https://")
+
     try:
-        URI = f"{HOST.strip('/')}{WEBUI_API_SUFFIX}"
+        URI = urljoin(HOST.strip("/") + "/", WEBUI_API_SUFFIX.strip("/"))
         response = requests.post(URI, json=request)
         if response.status_code == 200:
             result = response.json()
@@ -25,7 +29,9 @@ def get_webui_completion(prompt, settings=SIMPLE):
             if DEBUG:
                 print(f"json API response.text: {result}")
         else:
-            raise Exception(f"API call got non-200 response code for address: {URI}")
+            raise Exception(
+                f"API call got non-200 response code for address: {URI}. Make sure that the web UI server is running and reachable at {URI}."
+            )
     except:
         # TODO handle gracefully
         raise
