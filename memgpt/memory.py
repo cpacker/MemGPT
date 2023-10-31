@@ -539,7 +539,7 @@ class DummyRecallMemory(RecallMemory):
         try:
             datetime.datetime.strptime(date_str, "%Y-%m-%d")
             return True
-        except ValueError:
+        except (ValueError, TypeError):
             return False
 
     def _extract_date_from_timestamp(self, timestamp):
