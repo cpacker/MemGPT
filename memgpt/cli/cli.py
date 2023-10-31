@@ -150,7 +150,8 @@ def run(
 
     # setup azure if using
     # TODO: cleanup this code
-    configure_azure_support()
+    if config.model_endpoint == "azure":
+        configure_azure_support()
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(run_agent_loop(memgpt_agent, first, no_verify, config))  # TODO: add back no_verify
