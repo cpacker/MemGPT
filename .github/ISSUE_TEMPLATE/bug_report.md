@@ -35,7 +35,7 @@ Add any other context about the problem here.
   - With [poetry](https://github.com/cpacker/MemGPT#development)?
   - With `git clone ...` and `pip install -r requirements.txt`?
 
-**Your setup (please complete the following information):**
+**Your setup (please complete the following information)**
 
 - Your OS (Linux, MacOS, Windows)
 - Where you're trying to run MemGPT from
