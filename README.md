@@ -113,6 +113,8 @@ You can run the following commands in the MemGPT CLI prompt:
 * `/pop`: Undo the last message in the conversation
 * `/heartbeat`: Send a heartbeat system message to the agent
 * `/memorywarning`: Send a memory warning system message to the agent
+
+
 Once you exit the CLI with `/exit`, you can resume chatting with the same agent by specifying the agent name in `memgpt run --agent <NAME>`.
 
 ### Adding Custom Personas/Humans
@@ -130,28 +132,39 @@ You can view available persona and human files with the following command:
 memgpt list [human/persona]
 ```
 
-### Adding Data Sources
-MemGPT supports pre-loading data into archival memory, so your agent can reference loaded data in your conversations with `memgpt load --name <NAME>`, where the `--name` flag specifies a unique ID for the data source which you can use to attach the data source to the agent when running `memgpt run --data-source <NAME>`.
+### Data Sources
+MemGPT supports pre-loading data into archival memory, so your agent can reference loaded data in your conversations with an agent by specifying the data source with the flag `memgpt run --data-source <NAME>`.
 
+#### Loading Data
 Loading from a directory:
 ```
 # loading a directory
-memgpt load directory --name <NAME> [--input_dir <DIRECTORY>] [--input-files <FILE1> <FILE2>...] [--recursive]
+memgpt load directory --name <NAME> \
+    [--input_dir <DIRECTORY>] [--input-files <FILE1> <FILE2>...] [--recursive]
 ```
 Loading from a database:
-```
+```sh
 # loading a database
-memgpt load database --name <NAME>
+memgpt load database --name <NAME>  \
+    --query <QUERY> \ # Query to run on database to get data
+    --dump_path <PATH> \ # Path to dump file
+    --scheme <SCHEME> \ # Database scheme
+    --host <HOST> \ # Database host
+    --port <PORT> \ # Database port
+    --user <USER> \ # Database user
+    --password <PASSWORD> \ # Database password
+    --dbname <DB_NAME> # Database name
 ```
 To encourage your agent to reference its archival memory, we recommend adding phrases like "search your archival memory..." for the best results.
 
+### Viewing available data sources
 You can view loaded data source with:
 ```
 memgpt list sources
 ```
 
 ### Using other endpoints
-
+AddingAddingAdding
 ## Advanced
 
 ### Adding new connectors
