@@ -25,7 +25,7 @@
  <summary><h2>🗃️ Chat with your data - talk to your SQL database or your local files!</strong></h2></summary>
   <strong>SQL Database</strong>
   <div align="center">
-    <img src="https://memgpt.ai/assets/img/sql_demo.gif" alt="MemGPT demo video for sql search" width="800">
+    <img src="https://memgpt.ai/assets/img/doc.gif" alt="MemGPT demo video for sql search" width="800">
   </div>
   <strong>Local files</strong>
   <div align="center">
