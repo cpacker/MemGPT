@@ -20,6 +20,8 @@ from memgpt.constants import MEMGPT_DIR
 from llama_index import set_global_service_context, ServiceContext, VectorStoreIndex, load_index_from_storage, StorageContext
 from llama_index.embeddings import OpenAIEmbedding
 
+from memgpt.embeddings import embedding_model
+
 
 def count_tokens(s: str, model: str = "gpt-4") -> int:
     encoding = tiktoken.encoding_for_model(model)
@@ -398,13 +400,11 @@ def get_index(name, docs):
 
     # read embedding confirguration
     # TODO: in the future, make an IngestData class that loads the config once
-    # config = MemGPTConfig.load()
-    # chunk_size = config.embedding_chunk_size
-    # model = config.embedding_model  # TODO: actually use this
-    # dim = config.embedding_dim  # TODO: actually use this
-    # embed_model = OpenAIEmbedding()
-    # service_context = ServiceContext.from_defaults(embed_model=embed_model, chunk_size=chunk_size)
-    # set_global_service_context(service_context)
+    config = MemGPTConfig.load()
+    embed_model = embedding_model(config)
+    chunk_size = config.embedding_chunk_size
+    service_context = ServiceContext.from_defaults(embed_model=embed_model, chunk_size=chunk_size)
+    set_global_service_context(service_context)
 
     # index documents
     index = VectorStoreIndex.from_documents(docs)
@@ -481,3 +481,27 @@ def list_persona_files():
     user_added = os.listdir(user_dir)
     user_added = [os.path.join(user_dir, f) for f in user_added]
     return memgpt_defaults + user_added
+
+
+def get_human_text(name: str):
+    for file_path in list_human_files():
+        file = os.path.basename(file_path)
+        if f"{name}.txt" == file or name == file:
+            return open(file_path, "r").read().strip()
+    raise ValueError(f"Human {name} not found")
+
+
+def get_persona_text(name: str):
+    for file_path in list_persona_files():
+        file = os.path.basename(file_path)
+        if f"{name}.txt" == file or name == file:
+            return open(file_path, "r").read().strip()
+
+    raise ValueError(f"Persona {name} not found")
+
+
+def get_human_text(name: str):
+    for file_path in list_human_files():
+        file = os.path.basename(file_path)
+        if f"{name}.txt" == file or name == file:
+            return open(file_path, "r").read().strip()
