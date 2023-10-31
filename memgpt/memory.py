@@ -539,7 +539,7 @@ class DummyRecallMemory(RecallMemory):
         try:
             datetime.datetime.strptime(date_str, "%Y-%m-%d")
             return True
-        except ValueError:
+        except (ValueError, TypeError):
             return False
 
     def _extract_date_from_timestamp(self, timestamp):
@@ -576,7 +576,7 @@ class DummyRecallMemory(RecallMemory):
         else:
             return matches, len(matches)
 
-    def a_date_search(self, start_date, end_date, count=None, start=None):
+    async def a_date_search(self, start_date, end_date, count=None, start=None):
         return self.date_search(start_date, end_date, count, start)
 
 
