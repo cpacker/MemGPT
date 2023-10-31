@@ -77,22 +77,13 @@ Install MemGPT:
 pip install pymemgpt
 ```
 
-To update the package, run
-```sh
-pip install pymemgpt -U
-```
-
 Add your OpenAI API key to your environment:
 
 ```sh
-# on Linux/Mac
-export OPENAI_API_KEY=YOUR_API_KEY
 
-# on Windows
-set OPENAI_API_KEY=YOUR_API_KEY
-
-# on Windows (PowerShell)
-$Env:OPENAI_API_KEY = "YOUR_API_KEY"
+export OPENAI_API_KEY=YOUR_API_KEY # on Linux/Mac
+set OPENAI_API_KEY=YOUR_API_KEY # on Windows
+$Env:OPENAI_API_KEY = "YOUR_API_KEY" # on Windows (PowerShell)
 ```
 
 Now, you can run MemGPT with:
@@ -125,6 +116,11 @@ memgpt add human [-f <FILENAME>] [--text <TEXT>]
 
 # add a persona
 memgpt add persona [-f <FILENAME>] [--text <TEXT>]
+```
+
+You can view available persona and human files with the following command:
+```
+memgpt list [human/persona]
 ```
 
 ### Adding Data Sources
