@@ -10,7 +10,7 @@ SYNC_CHAT = "memgpt_chat_sync"  # TODO: remove me after we move the CLI to Agent
 def use_preset(preset_name, agent_config, model, persona, human, interface, persistence_manager):
     """Storing combinations of SYSTEM + FUNCTION prompts"""
 
-    from memgpt.agent import AgentAsync
+    from memgpt.agent import AgentAsync, Agent
     from memgpt.utils import printd
 
     if preset_name == DEFAULT_PRESET:
@@ -45,7 +45,7 @@ def use_preset(preset_name, agent_config, model, persona, human, interface, pers
             first_message_verify_mono=True if "gpt-4" in model else False,
         )
 
-    if preset_name == "memgpt_chat_sync":
+    if preset_name == "memgpt_chat_sync":  # TODO: remove me after we move the CLI to AgentSync
         functions = [
             "send_message",
             "pause_heartbeats",
@@ -66,7 +66,7 @@ def use_preset(preset_name, agent_config, model, persona, human, interface, pers
 
         return Agent(
             model=model,
-            system=gpt_system.get_system_text(DEFAULT),
+            system=gpt_system.get_system_text(DEFAULT_PRESET),
             functions=available_functions,
             interface=interface,
             persistence_manager=persistence_manager,
