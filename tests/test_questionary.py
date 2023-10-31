@@ -1,5 +1,6 @@
 # from unittest.mock import patch
 import pexpect
+import time
 import memgpt
 
 
@@ -15,14 +16,16 @@ def test_cli_sequence():
 
     # Send 'Y' followed by newline
     child.sendline("Y")
-    print(child.before.decode())  # after child.sendline or child.expect
+    time.sleep(1)  # Wait for a short while to let output be captured
+    print(child.before.decode() if child.before else "No output captured")
 
     # Expect a prompt or some output to know when to send the next command
     # child.expect("SomeExpectedOutputOrPromptRegex")
 
     # Send the '/save' command
     child.sendline("/save")
-    print(child.before.decode())  # after child.sendline or child.expect
+    time.sleep(1)  # Wait for a short while to let output be captured
+    print(child.before.decode() if child.before else "No output captured")
 
     # Optionally, you can add more expects and sends here, depending on the interactions
     # child.expect("ExpectedOutputAfterSaveRegex")
@@ -30,7 +33,8 @@ def test_cli_sequence():
     # Additional asserts can go here based on the outputs/behavior
     # Finally, make sure to gracefully exit the application if needed
     child.sendline("/exit")  # Replace with your CLI's exit command
-    print(child.before.decode())  # after child.sendline or child.expect
+    time.sleep(1)  # Wait for a short while to let output be captured
+    print(child.before.decode() if child.before else "No output captured")
 
     child.close()
     assert child.isalive() is False, "CLI should have terminated."
