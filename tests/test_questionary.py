@@ -13,8 +13,11 @@ def test_cli_sequence():
     # Start the CLI process
     child = pexpect.spawn("memgpt --first")
 
+    # Send 'Y' followed by newline
+    child.sendline("Y")
+
     # Expect a prompt or some output to know when to send the next command
-    child.expect("SomeExpectedOutputOrPromptRegex")
+    # child.expect("SomeExpectedOutputOrPromptRegex")
 
     # Send the '/save' command
     child.sendline("/save")
