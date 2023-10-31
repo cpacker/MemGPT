@@ -534,9 +534,9 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=
                         user_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
                         skip_next_user_input = True
             except Exception as e:
-                print("An exception ocurred when running step(): ")
+                print("An exception ocurred when running agent.step(): ")
                 traceback.print_exc()
-                retry = await questionary.confirm("Retry step()?").ask_async()
+                retry = await questionary.confirm("Retry agent.step()?").ask_async()
                 if not retry:
                     break
 
