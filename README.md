@@ -87,23 +87,57 @@ Add your OpenAI API key to your environment:
 ```sh
 # on Linux/Mac
 export OPENAI_API_KEY=YOUR_API_KEY
-```
 
-```sh
 # on Windows
 set OPENAI_API_KEY=YOUR_API_KEY
-```
 
-```sh
 # on Windows (PowerShell)
 $Env:OPENAI_API_KEY = "YOUR_API_KEY"
 ```
 
-To run MemGPT for as a conversation agent in CLI mode, simply run `memgpt`:
-
+Now, you can run MemGPT with:
 ```sh
-memgpt
+memgpt run
 ```
+The `run` command supports the following flags:
+* `--agent`: (str) Name of agent to create or to resume chatting with.
+* `--human`: (str) Name of the human to run the agent with.
+* `--model`: (str) LLM model to run
+
+### Configuration
+You can configure defaults settings for MemGPT with:
+```
+memgpt configure
+```
+Configuration defaults can be overriden when calling `memgpt run` by using flags:
+```
+memgpt run \
+--persona
+--agent
+--human
+```
+
+### Adding Custom Personas/Humans
+You can add new human or persona definitions either by providing a file (using the `-f` flag) or text (using the `--text` flag).
+```
+# add a human
+memgpt add human [-f <FILENAME>] [--text <TEXT>]
+
+# add a persona
+memgpt add persona [-f <FILENAME>] [--text <TEXT>]
+```
+
+### Adding Data Sources
+MemGPT supports pre-loading data into archival memory, so your agent can reference loaded data in your conversations.
+```
+memgpt load
+```
+To encourage your agent to reference its archival memory, we recommend adding phrases like "search your archival memory..." for the best results.
+
+## Advanced
+
+### Adding new connectors
+
 
 
 
