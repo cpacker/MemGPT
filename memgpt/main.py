@@ -7,6 +7,7 @@ import glob
 import os
 import sys
 import pickle
+import traceback
 
 import questionary
 import typer
@@ -229,7 +230,7 @@ async def main(
         memgpt_persona = persona
         if memgpt_persona is None:
             memgpt_persona = (
-                personas.GPT35_DEFAULT if "gpt-3.5" in model else personas.DEFAULT_PRESET,
+                personas.GPT35_DEFAULT if "gpt-3.5" in model else personas.DEFAULT,
                 None,  # represents the personas dir in pymemgpt package
             )
         else:
@@ -512,24 +513,32 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=
 
         skip_next_user_input = False
 
-        with console.status("[bold cyan]Thinking...") as status:
-            (
-                new_messages,
-                heartbeat_request,
-                function_failed,
-                token_warning,
-            ) = await memgpt_agent.step(user_message, first_message=False, skip_verify=no_verify)
+        while True:
+            try:
+                with console.status("[bold cyan]Thinking...") as status:
+                    (
+                        new_messages,
+                        heartbeat_request,
+                        function_failed,
+                        token_warning,
+                    ) = await memgpt_agent.step(user_message, first_message=False, skip_verify=no_verify)
 
-            # Skip user inputs if there's a memory warning, function execution failed, or the agent asked for control
-            if token_warning:
-                user_message = system.get_token_limit_warning()
-                skip_next_user_input = True
-            elif function_failed:
-                user_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
-                skip_next_user_input = True
-            elif heartbeat_request:
-                user_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
-                skip_next_user_input = True
+                    # Skip user inputs if there's a memory warning, function execution failed, or the agent asked for control
+                    if token_warning:
+                        user_message = system.get_token_limit_warning()
+                        skip_next_user_input = True
+                    elif function_failed:
+                        user_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
+                        skip_next_user_input = True
+                    elif heartbeat_request:
+                        user_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
+                        skip_next_user_input = True
+            except Exception as e:
+                print("An exception ocurred when running agent.step(): ")
+                traceback.print_exc()
+                retry = await questionary.confirm("Retry agent.step()?").ask_async()
+                if not retry:
+                    break
 
         counter += 1
 
