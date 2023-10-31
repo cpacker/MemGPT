@@ -100,7 +100,7 @@ def test_load_database():
 
     # create agents with defaults
     agent_config = AgentConfig(
-        persona=personas.DEFAULT_PRESET,
+        persona=personas.DEFAULT,
         human=humans.DEFAULT,
         model=DEFAULT_MEMGPT_MODEL,
         data_source="tmp_hf_dataset",
