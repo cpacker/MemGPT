@@ -121,9 +121,17 @@ memgpt list [human/persona]
 ```
 
 ### Adding Data Sources
-MemGPT supports pre-loading data into archival memory, so your agent can reference loaded data in your conversations.
+MemGPT supports pre-loading data into archival memory, so your agent can reference loaded data in your conversations with `memgpt load --name <NAME>`, where the `--name` flag specifies a unique ID for the data source which you can use to attach the data source to the agent when running `memgpt run --data-source <NAME>`.
+
+Loading from a directory:
 ```
-memgpt load
+# loading a directory
+memgpt load directory --name <NAME> [--input_dir <DIRECTORY>] [--input-files <FILE1> <FILE2>...] [--recursive]
+```
+Loading from a database:
+```
+# loading a database
+memgpt load database --name <NAME>
 ```
 To encourage your agent to reference its archival memory, we recommend adding phrases like "search your archival memory..." for the best results.
 
