@@ -136,9 +136,9 @@ memgpt list [human/persona]
 MemGPT supports pre-loading data into archival memory, so your agent can reference loaded data in your conversations with an agent by specifying the data source with the flag `memgpt run --data-source <NAME>`.
 
 #### Loading Data
-We currently support loading from a directory and database dump. We highly encourage contributions for new data sources, which can be added as a new [CLI data load command](https://github.com/cpacker/MemGPT/blob/main/memgpt/cli/cli_load.py).
+We currently support loading from a directory and database dumps. We highly encourage contributions for new data sources, which can be added as a new [CLI data load command](https://github.com/cpacker/MemGPT/blob/main/memgpt/cli/cli_load.py).
 
-Loading from a directory:
+Loading from a directorsy:
 ```
 # loading a directory
 memgpt load directory --name <NAME> \
@@ -166,9 +166,6 @@ memgpt list sources
 
 ### Using other endpoints
 
-## Advanced
-
-### Adding new connectors
 
 
 
