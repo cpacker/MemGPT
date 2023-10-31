@@ -1,5 +1,5 @@
 from autogen.agentchat import Agent, ConversableAgent, UserProxyAgent, GroupChat, GroupChatManager
-from ..agent import AgentAsync
+from ..agent import Agent as _Agent
 
 import asyncio
 from typing import Callable, Optional, List, Dict, Union, Any, Tuple
@@ -11,6 +11,7 @@ from .. import constants
 from .. import presets
 from ..personas import personas
 from ..humans import humans
+from ..config import AgentConfig
 
 
 def create_memgpt_autogen_agent_from_config(
@@ -86,7 +87,7 @@ def create_memgpt_autogen_agent_from_config(
 
 def create_autogen_memgpt_agent(
     autogen_name,
-    preset=presets.DEFAULT_PRESET,
+    preset=presets.SYNC_CHAT,
     model=constants.DEFAULT_MEMGPT_MODEL,
     persona_description=personas.DEFAULT,
     user_description=humans.DEFAULT,
@@ -112,8 +113,16 @@ def create_autogen_memgpt_agent(
     interface = AutoGenInterface(**interface_kwargs) if interface is None else interface
     persistence_manager = InMemoryStateManager(**persistence_manager_kwargs) if persistence_manager is None else persistence_manager
 
+    agent_config = AgentConfig(
+        persona=persona_description,
+        human=user_description,
+        model=model,
+        preset=presets.SYNC_CHAT,
+    )
+
     memgpt_agent = presets.use_preset(
         preset,
+        agent_config,
         model,
         persona_description,
         user_description,
@@ -133,7 +142,7 @@ class MemGPTAgent(ConversableAgent):
     def __init__(
         self,
         name: str,
-        agent: AgentAsync,
+        agent: _Agent,
         skip_verify=False,
         concat_other_agent_messages=False,
         is_termination_msg: Optional[Callable[[Dict], bool]] = None,
@@ -142,7 +151,6 @@ class MemGPTAgent(ConversableAgent):
         self.agent = agent
         self.skip_verify = skip_verify
         self.concat_other_agent_messages = concat_other_agent_messages
-        self.register_reply([Agent, None], MemGPTAgent._a_generate_reply_for_user_message)
         self.register_reply([Agent, None], MemGPTAgent._generate_reply_for_user_message)
         self.messages_processed_up_to_idx = 0
 
@@ -167,14 +175,6 @@ class MemGPTAgent(ConversableAgent):
         return entire_message_list[self.messages_processed_up_to_idx :]
 
     def _generate_reply_for_user_message(
-        self,
-        messages: Optional[List[Dict]] = None,
-        sender: Optional[Agent] = None,
-        config: Optional[Any] = None,
-    ) -> Tuple[bool, Union[str, Dict, None]]:
-        return asyncio.run(self._a_generate_reply_for_user_message(messages=messages, sender=sender, config=config))
-
-    async def _a_generate_reply_for_user_message(
         self,
         messages: Optional[List[Dict]] = None,
         sender: Optional[Agent] = None,
@@ -206,7 +206,7 @@ class MemGPTAgent(ConversableAgent):
                 heartbeat_request,
                 function_failed,
                 token_warning,
-            ) = await self.agent.step(user_message, first_message=False, skip_verify=self.skip_verify)
+            ) = self.agent.step(user_message, first_message=False, skip_verify=self.skip_verify)
             # Skip user inputs if there's a memory warning, function execution failed, or the agent asked for control
             if token_warning:
                 user_message = system.get_token_limit_warning()
@@ -225,6 +225,7 @@ class MemGPTAgent(ConversableAgent):
         pretty_ret = MemGPTAgent.pretty_concat(self.agent.interface.message_list)
         self.messages_processed_up_to_idx += len(new_messages)
         return True, pretty_ret
+        return asyncio.run(self._a_generate_reply_for_user_message(messages=messages, sender=sender, config=config))
 
     @staticmethod
     def pretty_concat(messages):

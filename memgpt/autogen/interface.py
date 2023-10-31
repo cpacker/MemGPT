@@ -14,22 +14,22 @@ class DummyInterface(object):
     def set_message_list(self, message_list):
         pass
 
-    async def internal_monologue(self, msg):
+    def internal_monologue(self, msg):
         pass
 
-    async def assistant_message(self, msg):
+    def assistant_message(self, msg):
         pass
 
-    async def memory_message(self, msg):
+    def memory_message(self, msg):
         pass
 
-    async def system_message(self, msg):
+    def system_message(self, msg):
         pass
 
-    async def user_message(self, msg, raw=False):
+    def user_message(self, msg, raw=False):
         pass
 
-    async def function_message(self, msg):
+    def function_message(self, msg):
         pass
 
 
@@ -62,7 +62,7 @@ class AutoGenInterface(object):
         """Clears the buffer. Call before every agent.step() when using MemGPT+AutoGen"""
         self.message_list = []
 
-    async def internal_monologue(self, msg):
+    def internal_monologue(self, msg):
         # ANSI escape code for italic is '\x1B[3m'
         if self.debug:
             print(f"inner thoughts :: {msg}")
@@ -71,25 +71,25 @@ class AutoGenInterface(object):
         message = f"\x1B[3m{Fore.LIGHTBLACK_EX}💭 {msg}{Style.RESET_ALL}" if self.fancy else f"[inner thoughts] {msg}"
         self.message_list.append(message)
 
-    async def assistant_message(self, msg):
+    def assistant_message(self, msg):
         if self.debug:
             print(f"assistant :: {msg}")
         message = f"{Fore.YELLOW}{Style.BRIGHT}🤖 {Fore.YELLOW}{msg}{Style.RESET_ALL}" if self.fancy else msg
         self.message_list.append(message)
 
-    async def memory_message(self, msg):
+    def memory_message(self, msg):
         if self.debug:
             print(f"memory :: {msg}")
         message = f"{Fore.LIGHTMAGENTA_EX}{Style.BRIGHT}🧠 {Fore.LIGHTMAGENTA_EX}{msg}{Style.RESET_ALL}" if self.fancy else f"[memory] {msg}"
         self.message_list.append(message)
 
-    async def system_message(self, msg):
+    def system_message(self, msg):
         if self.debug:
             print(f"system :: {msg}")
         message = f"{Fore.MAGENTA}{Style.BRIGHT}🖥️ [system] {Fore.MAGENTA}{msg}{Style.RESET_ALL}" if self.fancy else f"[system] {msg}"
         self.message_list.append(message)
 
-    async def user_message(self, msg, raw=False):
+    def user_message(self, msg, raw=False):
         if self.debug:
             print(f"user :: {msg}")
         if not self.show_user_message:
@@ -126,7 +126,7 @@ class AutoGenInterface(object):
 
         self.message_list.append(message)
 
-    async def function_message(self, msg):
+    def function_message(self, msg):
         if self.debug:
             print(f"function :: {msg}")
         if not self.show_function_outputs:
