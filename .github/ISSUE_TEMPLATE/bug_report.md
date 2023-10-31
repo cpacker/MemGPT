@@ -23,6 +23,9 @@ A clear and concise description of what you expected to happen.
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
+**Additional context**
+Add any other context about the problem here.
+
 ---
 
 **How did you install MemGPT?**
@@ -54,6 +57,3 @@ If you are trying to run MemGPT with local LLMs, please provide the following in
 - Your hardware for the MemGPT command (same computer as the local LLM backend?)
 - The full output (or as much as possible) of where the LLM is failing
   - If you can include screenshots, even better!
-
-**Additional context**
-Add any other context about the problem here.
