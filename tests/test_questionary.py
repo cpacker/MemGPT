@@ -40,7 +40,7 @@ def test_cli_sequence():
     child.sendline("N")
 
     time.sleep(2.0)  # Wait for a short while to let output be captured
-    child.expect("Bootup sequence complete")
+    child.expect("Testing messaging functionality")
     # child.expect("Enter your message")
     child.sendline("/save")
 
