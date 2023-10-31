@@ -105,6 +105,16 @@ The `run` command supports the following optional flags (if set, will override c
 * `--no_verify`: (bool) Bypass message verification (default=False)
 * `--yes`/`-y`: (bool) Skip confirmation prompt and use defaults (default=False)
 
+You can run the following commands in the MemGPT CLI prompt:
+* `/exit`: Exit the CLI
+* `/save`: Save a checkpoint of the current agent/conversation state
+* `/dump`: View the current message log (see the contents of main context)
+* `/memory`: Print the current contents of agent memory
+* `/pop`: Undo the last message in the conversation
+* `/heartbeat`: Send a heartbeat system message to the agent
+* `/memorywarning`: Send a memory warning system message to the agent
+Once you exit the CLI with `/exit`, you can resume chatting with the same agent by specifying the agent name in `memgpt run --agent <NAME>`.
+
 ### Adding Custom Personas/Humans
 You can add new human or persona definitions either by providing a file (using the `-f` flag) or text (using the `--text` flag).
 ```
@@ -134,6 +144,11 @@ Loading from a database:
 memgpt load database --name <NAME>
 ```
 To encourage your agent to reference its archival memory, we recommend adding phrases like "search your archival memory..." for the best results.
+
+You can view loaded data source with:
+```
+memgpt list sources
+```
 
 ### Using other endpoints
 
