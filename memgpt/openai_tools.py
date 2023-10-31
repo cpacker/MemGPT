@@ -58,7 +58,20 @@ def retry_with_exponential_backoff(
 
 @retry_with_exponential_backoff
 def completions_with_backoff(**kwargs):
-    return openai.ChatCompletion.create(**kwargs)
+    # Local model
+    if HOST_TYPE is not None:
+        return get_chat_completion(**kwargs)
+
+    # OpenAI / Azure model
+    else:
+        if using_azure():
+            azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+            if azure_openai_deployment is not None:
+                kwargs["deployment_id"] = azure_openai_deployment
+            else:
+                kwargs["engine"] = MODEL_TO_AZURE_ENGINE[kwargs["model"]]
+                kwargs.pop("model")
+        return openai.ChatCompletion.create(**kwargs)
 
 
 def aretry_with_exponential_backoff(
@@ -108,7 +121,7 @@ def aretry_with_exponential_backoff(
 async def acompletions_with_backoff(**kwargs):
     # Local model
     if HOST_TYPE is not None:
-        return await get_chat_completion(**kwargs)
+        return get_chat_completion(**kwargs)
 
     # OpenAI / Azure model
     else:
