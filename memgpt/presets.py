@@ -65,6 +65,7 @@ def use_preset(preset_name, agent_config, model, persona, human, interface, pers
             preset_name = "memgpt_gpt35_extralong"
 
         return Agent(
+            config=agent_config,
             model=model,
             system=gpt_system.get_system_text(DEFAULT_PRESET),
             functions=available_functions,

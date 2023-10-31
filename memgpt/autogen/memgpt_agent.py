@@ -11,6 +11,7 @@ from .. import constants
 from .. import presets
 from ..personas import personas
 from ..humans import humans
+from ..config import AgentConfig
 
 
 def create_memgpt_autogen_agent_from_config(
@@ -112,8 +113,16 @@ def create_autogen_memgpt_agent(
     interface = AutoGenInterface(**interface_kwargs) if interface is None else interface
     persistence_manager = InMemoryStateManager(**persistence_manager_kwargs) if persistence_manager is None else persistence_manager
 
+    agent_config = AgentConfig(
+        persona=persona_description,
+        human=user_description,
+        model=model,
+        preset=presets.SYNC_CHAT,
+    )
+
     memgpt_agent = presets.use_preset(
         preset,
+        agent_config,
         model,
         persona_description,
         user_description,
