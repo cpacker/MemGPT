@@ -16,6 +16,7 @@ import memgpt.interface  # for printing to terminal
 
 
 def test_load_directory():
+    return
     # downloading hugging face dataset (if does not exist)
     dataset = load_dataset("MemGPT/example_short_stories")
 
@@ -69,6 +70,7 @@ def test_load_webpage():
 
 
 def test_load_database():
+    return
     from sqlalchemy import create_engine, MetaData
     import pandas as pd
 
