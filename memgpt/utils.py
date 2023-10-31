@@ -154,7 +154,7 @@ def chunk_file(file, tkns_per_chunk=300, model="gpt-4"):
     encoding = tiktoken.encoding_for_model(model)
 
     if file.endswith(".db"):
-        return # can't read the sqlite db this way, will get handled in main.py
+        return  # can't read the sqlite db this way, will get handled in main.py
 
     with open(file, "r") as f:
         if file.endswith(".pdf"):
