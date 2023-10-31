@@ -114,6 +114,7 @@ def create_autogen_memgpt_agent(
     persistence_manager = InMemoryStateManager(**persistence_manager_kwargs) if persistence_manager is None else persistence_manager
 
     agent_config = AgentConfig(
+        name=autogen_name,
         persona=persona_description,
         human=user_description,
         model=model,
