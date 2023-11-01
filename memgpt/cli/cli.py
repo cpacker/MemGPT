@@ -107,9 +107,19 @@ def run(
         printd("Index path:", agent_config.save_agent_index_dir())
         # persistence_manager = LocalStateManager(agent_config).load() # TODO: implement load
         # TODO: load prior agent state
-        assert not any(
-            [persona, human, model]
-        ), f"Cannot override existing agent state with command line arguments: {persona}, {human}, {model}"
+        error_messages = {
+            "persona": "Cannot override existing persona. Please attempt the command again without --persona flag or select a new one.",
+            "human": "Cannot override existing human. Please attempt the command again without --human flag or select a new one.",
+            "model": f"Model '{model}' is already loaded. Please attempt the command again without --model flag or select a new agent.",
+        }
+
+        violated_asserts = {name: value for name, value in [("persona", persona), ("human", human), ("model", model)] if value}
+
+        for assert_name in violated_asserts:
+            if assert_name in error_messages:
+                raise AssertionError(error_messages[assert_name])
+            else:
+                raise AssertionError(f"Cannot override existing agent state with command line arguments: {assert_name}")
 
         # load existing agent
         memgpt_agent = AgentAsync.load_agent(memgpt.interface, agent_config)
