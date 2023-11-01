@@ -29,4 +29,5 @@ jobs:
 
     - name: Run tests with pytest
       run: |
+        export TEST=true
         poetry run pytest -s -vv tests
