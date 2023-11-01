@@ -20,8 +20,6 @@ from memgpt.constants import MEMGPT_DIR
 from llama_index import set_global_service_context, ServiceContext, VectorStoreIndex, load_index_from_storage, StorageContext
 from llama_index.embeddings import OpenAIEmbedding
 
-from memgpt.embeddings import embedding_model
-
 
 def count_tokens(s: str, model: str = "gpt-4") -> int:
     encoding = tiktoken.encoding_for_model(model)
@@ -156,7 +154,7 @@ def chunk_file(file, tkns_per_chunk=300, model="gpt-4"):
     encoding = tiktoken.encoding_for_model(model)
 
     if file.endswith(".db"):
-        return # can't read the sqlite db this way, will get handled in main.py
+        return  # can't read the sqlite db this way, will get handled in main.py
 
     with open(file, "r") as f:
         if file.endswith(".pdf"):
@@ -400,14 +398,19 @@ def get_index(name, docs):
 
     # read embedding confirguration
     # TODO: in the future, make an IngestData class that loads the config once
+
+    from memgpt.embeddings import embedding_model
+
     config = MemGPTConfig.load()
     embed_model = embedding_model(config)
     chunk_size = config.embedding_chunk_size
     service_context = ServiceContext.from_defaults(embed_model=embed_model, chunk_size=chunk_size)
     set_global_service_context(service_context)
 
+    # storage configuration
+
     # index documents
-    index = VectorStoreIndex.from_documents(docs)
+    index = VectorStoreIndex.from_documents(docs, show_progress=True)
     return index
 
 
@@ -446,10 +449,18 @@ def save_index(index, name):
     #        typer.secho("Aborting.", fg="red")
     #        exit()
 
-    # create directory, even if it already exists
-    os.makedirs(dir, exist_ok=True)
-    index.storage_context.persist(dir)
-    print(dir)
+    # TODO: read config and save to database/local depending on config
+    config = MemGPTConfig.load()
+    if config.archival_storage_type == "local":
+        # save to local path
+        # create directory, even if it already exists
+        os.makedirs(dir, exist_ok=True)
+        index.storage_context.persist(dir)
+        print(dir)
+    elif config.archival_storage_type == "database":
+        index.storage_context.persist()
+    else:
+        raise ValueError(f"Invalid storage type {config.archival_storage_type}")
 
 
 def list_agent_config_files():
