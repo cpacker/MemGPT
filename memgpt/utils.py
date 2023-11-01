@@ -20,6 +20,8 @@ from memgpt.constants import MEMGPT_DIR
 from llama_index import set_global_service_context, ServiceContext, VectorStoreIndex, load_index_from_storage, StorageContext
 from llama_index.embeddings import OpenAIEmbedding
 
+from memgpt.embeddings import embedding_model
+
 
 def count_tokens(s: str, model: str = "gpt-4") -> int:
     encoding = tiktoken.encoding_for_model(model)

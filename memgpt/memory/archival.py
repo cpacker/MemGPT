@@ -34,6 +34,9 @@ from sqlalchemy import make_url
 
 
 class ArchivalMemory(ABC):
+
+    """Wrapper around Llama Index VectorStoreIndex"""
+
     @abstractmethod
     def insert(self, memory_string):
         """Insert new archival memory
@@ -189,3 +192,41 @@ class PostgresArchivalMemory(ArchivalMemory):
             index=self.index,
             similarity_top_k=self.top_k,
         )
+
+
+class ChromaArchivalMemory(ArchivalMemory):
+
+    import chromadb
+
+    def __init__(
+        self,
+        agent_config: AgentConfig,
+        top_k: int = 100,
+    ):
+        self.agent_config = agent_config
+        self.data_source_name = agent_config.data_source
+
+        # connect to client
+        self.client = chromadb.Client()
+        # client = chromadb.PersistentClient(path="/path/to/save/to")
+        self.collection = self.client.get_collection(self.data_source_name)
+
+        # TODO: have some mechanism for cleanup otherwise will lead to OOM
+        self.cache = {}
+
+    def search(self, query_string, count=None, start=None):
+
+        start = start if start else 0
+        count = count if count else self.top_k
+        count = min(count + start, self.top_k)
+
+        if query_string not in self.cache:
+            self.cache[query_string] = self.collection.query(
+                query_texts=[query_string],
+            )
+
+        results = self.cache[query_string][start : start + count]
+        results = [{"timestamp": get_local_time(), "content": node.node.text} for node in results]
+        # from pprint import pprint
+        # pprint(results)
+        return results, len(results)
