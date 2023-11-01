@@ -197,4 +197,5 @@ def test_load_database():
     assert True
 
 
-test_chroma()
+test_postgres()
+# test_chroma()
