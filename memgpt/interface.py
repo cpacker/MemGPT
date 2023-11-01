@@ -124,9 +124,16 @@ async def function_message(msg):
                     try:
                         msg_dict = eval(function_args)
                         if function_name == "archival_memory_search":
-                            print_function_message("", f'\tquery: {msg_dict["query"]}, page: {msg_dict["page"]}')
+                            output = f'\tquery: {msg_dict["query"]}, page: {msg_dict["page"]}'
+                            if STRIP_UI:
+                                print(output)
+                            else:
+                                print(f'{Fore.RED}{output}')
                         else:
-                            print_function_message("", f'\t{Fore.RED} {msg_dict["old_content"]}\n\t{Fore.GREEN}→ {msg_dict["new_content"]}')
+                            if STRIP_UI:
+                                print(f'\t {msg_dict["old_content"]}\n\t{Fore.GREEN}→ {msg_dict["new_content"]}')
+                            else:
+                                print(f'{Style.BRIGHT}\t{Fore.RED} {msg_dict["old_content"]}\n\t{Fore.GREEN}→ {msg_dict["new_content"]}')
                     except Exception as e:
                         printd(e)
                         printd(msg_dict)
