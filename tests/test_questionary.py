@@ -54,15 +54,26 @@ def test_cli_sequence():
     child.expect("Testing messaging functionality")
     time.sleep(1.0)  # Wait for a short while to let output be captured
     # child.sendline()
-    # child.sendline()
     sys.stdout.flush()
     print("DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
     print("DEBUG AFTER:", child.after)
+
+    # child.sendline()
+    # flush = ""
+    # try:
+    #     while not child.expect(r".+", timeout=5):
+    #         flush += str(child.match.group(0))
+    # except (pexpect.TIMEOUT, pexpect.EOF) as e:
+    #     pass
+    # print("FLUSHED:", flush)
+    # return
+
     try:
         child.expect("Enter your message")
-    except:
+    except Exception as e:
         print("Exception was thrown, debug info:")
         print(str(child))
+        raise e
     child.sendline()
 
     time.sleep(1.0)  # Wait for a short while to let output be captured

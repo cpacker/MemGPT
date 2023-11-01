@@ -376,10 +376,6 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
     user_message = None
     USER_GOES_FIRST = first
 
-    # auto-exit for
-    if "GITHUB_ACTIONS" in os.environ:
-        return
-
     if not USER_GOES_FIRST:
         console.input("[bold cyan]Hit enter to begin (will request first MemGPT message)[/bold cyan]")
         clear_line(strip_ui)
@@ -389,16 +385,12 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
     while True:
         if not skip_next_user_input and (counter > 0 or USER_GOES_FIRST):
             # Ask for user input
-            # user_input = console.input("[bold cyan]Enter your message:[/bold cyan] ")
-            if strip_ui:
-                user_input = input("Enter your message:")
-            else:
-                user_input = await questionary.text(
-                    "Enter your message:",
-                    multiline=multiline_input,
-                    qmark=">",
-                ).ask_async()
-                clear_line(strip_ui)
+            user_input = await questionary.text(
+                "Enter your message:",
+                multiline=multiline_input,
+                qmark=">",
+            ).ask_async()
+            clear_line(strip_ui)
 
             # Gracefully exit on Ctrl-C/D
             if user_input is None:
