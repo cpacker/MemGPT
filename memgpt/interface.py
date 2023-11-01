@@ -128,7 +128,7 @@ async def function_message(msg):
                             if STRIP_UI:
                                 print(output)
                             else:
-                                print(f'{Fore.RED}{output}')
+                                print(f"{Fore.RED}{output}")
                         else:
                             if STRIP_UI:
                                 print(f'\t {msg_dict["old_content"]}\n\t{Fore.GREEN}→ {msg_dict["new_content"]}')
