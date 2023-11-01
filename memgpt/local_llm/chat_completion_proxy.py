@@ -15,7 +15,7 @@ DEBUG = False
 DEFAULT_WRAPPER = airoboros.Airoboros21InnerMonologueWrapper()
 
 
-async def get_chat_completion(
+def get_chat_completion(
     model,  # no model, since the model is fixed to whatever you set in your own backend
     messages,
     functions,
