@@ -348,7 +348,7 @@ def estimate_openai_cost(docs):
     from llama_index.callbacks import CallbackManager, TokenCountingHandler
     import tiktoken
 
-    embed_model = MockEmbedding(embed_dim=1536)
+    embed_model = MockEmbedding(embed_dim=768)
 
     token_counter = TokenCountingHandler(tokenizer=tiktoken.encoding_for_model("gpt-3.5-turbo").encode)
 
