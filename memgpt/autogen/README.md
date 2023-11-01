@@ -2,7 +2,7 @@
 [examples/agent_groupchat.py](examples/agent_groupchat.py) contains an example of a groupchat where one of the agents is powered by MemGPT.
 
 **Local LLM support**
-In order to run MemGPT+Autogen on a local LLM, uncomment lines 31-46 in [examples/agent_groupchat.py](exmaples/agent_groupchat.py) and fill in the config files with your local LLM's deployment details. For example, if you are using webui, it will look something like this:
+In order to run MemGPT+Autogen on a local LLM, go to lines 32-55 in [examples/agent_groupchat.py](examples/agent_groupchat.py) and fill in the config files with your local LLM's deployment details. For example, if you are using webui, it will look something like this:
 
 ```
 config_list = [
