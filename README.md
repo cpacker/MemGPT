@@ -22,29 +22,10 @@
 </details>
 
 <details>
- <summary><h2>🗃️ Chat with your data - talk to your SQL database or your local files!</strong></h2></summary>
-  <strong>SQL Database</strong>
+ <summary><h2>🗃️ Chat with your data - talk to your local files or SQL database!</strong></h2></summary>
   <div align="center">
-    <img src="https://memgpt.ai/assets/img/sql_demo.gif" alt="MemGPT demo video for sql search" width="800">
+    <img src="https://memgpt.ai/assets/img/doc.gif" alt="MemGPT demo video for sql search" width="800">
   </div>
-  <strong>Local files</strong>
-  <div align="center">
-    <img src="https://memgpt.ai/assets/img/preload_archival_demo.gif" alt="MemGPT demo video for sql search" width="800">
-  </div>
-</details>
-
-<details>
-  <summary><h2>📄 You can also talk to docs - for example ask about <a href="memgpt/personas/examples/docqa">LlamaIndex</a>!</h1></summary>
-  <div align="center">
-    <img src="https://memgpt.ai/assets/img/docqa_demo.gif" alt="MemGPT demo video for llamaindex api docs search" width="800">
-  </div>
-  <details>
-  <summary><b>ChatGPT (GPT-4) when asked the same question:</b></summary>
-    <div align="center">
-      <img src="https://memgpt.ai/assets/img/llama_index_gpt4.png" alt="GPT-4 when asked about llamaindex api docs" width="800">
-    </div>
-    (Question from https://github.com/run-llama/llama_index/issues/7756)
-  </details>
 </details>
 
 ## Quick setup
@@ -77,34 +58,117 @@ Install MemGPT:
 pip install pymemgpt
 ```
 
-To update the package, run
-```sh
-pip install pymemgpt -U
-```
-
 Add your OpenAI API key to your environment:
 
 ```sh
-# on Linux/Mac
-export OPENAI_API_KEY=YOUR_API_KEY
-```
 
+export OPENAI_API_KEY=YOUR_API_KEY # on Linux/Mac
+set OPENAI_API_KEY=YOUR_API_KEY # on Windows
+$Env:OPENAI_API_KEY = "YOUR_API_KEY" # on Windows (PowerShell)
+```
+Configure default setting for MemGPT by running:
+```
+memgpt configure
+```
+Now, you can run MemGPT with:
 ```sh
-# on Windows
-set OPENAI_API_KEY=YOUR_API_KEY
+memgpt run
+```
+The `run` command supports the following optional flags (if set, will override config defaults):
+* `--agent`: (str) Name of agent to create or to resume chatting with.
+* `--human`: (str) Name of the human to run the agent with.
+* `--persona`: (str) Name of agent persona to use.
+* `--model`: (str) LLM model to run [gpt-4, gpt-3.5].
+* `--preset`: (str) MemGPT preset to run agent with.
+* `--data_source`: (str) Name of data source (loaded with `memgpt load`) to connect to agent.
+* `--first`: (str) Allow user to sent the first message.
+* `--debug`: (bool) Show debug logs (default=False)
+* `--no_verify`: (bool) Bypass message verification (default=False)
+* `--yes`/`-y`: (bool) Skip confirmation prompt and use defaults (default=False)
+
+You can run the following commands in the MemGPT CLI prompt:
+* `/exit`: Exit the CLI
+* `/save`: Save a checkpoint of the current agent/conversation state
+* `/dump`: View the current message log (see the contents of main context)
+* `/memory`: Print the current contents of agent memory
+* `/pop`: Undo the last message in the conversation
+* `/heartbeat`: Send a heartbeat system message to the agent
+* `/memorywarning`: Send a memory warning system message to the agent
+
+
+Once you exit the CLI with `/exit`, you can resume chatting with the same agent by specifying the agent name in `memgpt run --agent <NAME>`.
+
+### Adding Custom Personas/Humans
+You can add new human or persona definitions either by providing a file (using the `-f` flag) or text (using the `--text` flag).
+```
+# add a human
+memgpt add human [-f <FILENAME>] [--text <TEXT>]
+
+# add a persona
+memgpt add persona [-f <FILENAME>] [--text <TEXT>]
 ```
 
+You can view available persona and human files with the following command:
+```
+memgpt list [human/persona]
+```
+
+### Data Sources (i.e. chat with your data)
+MemGPT supports pre-loading data into archival memory, so your agent can reference loaded data in your conversations with an agent by specifying the data source with the flag `memgpt run --data-source <NAME>`.
+
+#### Loading Data
+We currently support loading from a directory and database dumps. We highly encourage contributions for new data sources, which can be added as a new [CLI data load command](https://github.com/cpacker/MemGPT/blob/main/memgpt/cli/cli_load.py).
+
+Loading from a directorsy:
+```
+# loading a directory
+memgpt load directory --name <NAME> \
+    [--input_dir <DIRECTORY>] [--input-files <FILE1> <FILE2>...] [--recursive]
+```
+Loading from a database dump:
 ```sh
-# on Windows (PowerShell)
-$Env:OPENAI_API_KEY = "YOUR_API_KEY"
+memgpt load database --name <NAME>  \
+    --query <QUERY> \ # Query to run on database to get data
+    --dump-path <PATH> \ # Path to dump file
+    --scheme <SCHEME> \ # Database scheme
+    --host <HOST> \ # Database host
+    --port <PORT> \ # Database port
+    --user <USER> \ # Database user
+    --password <PASSWORD> \ # Database password
+    --dbname <DB_NAME> # Database name
+```
+To encourage your agent to reference its archival memory, we recommend adding phrases like "search your archival memory..." for the best results.
+
+#### Viewing available data sources
+You can view loaded data source with:
+```
+memgpt list sources
 ```
 
-To run MemGPT for as a conversation agent in CLI mode, simply run `memgpt`:
+### Using other endpoints
 
+#### Azure
+To use MemGPT with Azure, expore the following variables and then re-run `memgpt configure`:
 ```sh
-memgpt
+# see https://github.com/openai/openai-python#microsoft-azure-endpoints
+export AZURE_OPENAI_KEY = ...
+export AZURE_OPENAI_ENDPOINT = ...
+export AZURE_OPENAI_VERSION = ...
+
+# set the below if you are using deployment ids
+export AZURE_OPENAI_DEPLOYMENT = ...
+export AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT = ...
 ```
 
+#### Custom Endpoints
+To use custom endpoints, run `export OPENAI_API_BASE=<MY_CUSTOM_URL>` and then re-run `memgpt configure` to set the custom endpoint as the default endpoint.
+
+
+
+
+
+<details>
+<summary><h2>Deprecated API</h2></summary>
 <details>
 <summary><strong>Debugging command not found</strong></summary>
 
@@ -329,6 +393,7 @@ MemGPT also enables you to chat with docs -- try running this example to talk to
     where `ARCHIVAL_STORAGE_FAISS_PATH` is the directory where `all_docs.jsonl` and `all_docs.index` are located.
    If you downloaded from Hugging Face, it will be `memgpt/personas/docqa/llamaindex-api-docs`.
    If you built the index yourself, it will be `memgpt/personas/docqa`.
+</details>
 </details>
 
 ## Support
