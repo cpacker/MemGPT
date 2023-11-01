@@ -97,8 +97,7 @@ else:
             "(which I make sure to tell everyone I work with).",
             user_description=f"You are participating in a group chat with a user ({user_proxy.name}) "
             f"and a product manager ({pm.name}).",
-            # extra options
-            # interface_kwargs={"debug": False, "show_inner_thoughts": True, "show_function_outputs": True},
+            model = config_list_memgpt[0]["model"],
             interface_kwargs=interface_kwargs,
         )
     else:
