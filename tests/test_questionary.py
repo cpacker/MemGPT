@@ -60,6 +60,7 @@ def test_cli_sequence():
     child.sendline()
 
     time.sleep(1.0)  # Wait for a short while to let output be captured
+    sys.stdout.flush()
     print("(pre-enter) DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
     print("(pre-enter) DEBUG AFTER:", child.after)
     try:
