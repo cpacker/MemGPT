@@ -20,15 +20,39 @@ def load_index(
     name: str = typer.Option(help="Name of dataset to load."), dir: str = typer.Option(help="Path to directory containing index.")
 ):
     """Load a LlamaIndex saved VectorIndex into MemGPT"""
-    from llama_index import load_index_from_storage
+    from llama_index import load_index_from_storage, StorageContext
+
+    # load index data
+    storage_context = StorageContext.from_defaults(persist_dir=dir)
+    loaded_index = load_index_from_storage(storage_context)
+
+    embed_dict = loaded_index._vector_store._data.embedding_dict
+    node_dict = loaded_index._docstore.docs
+
+    nodes = []
+    for node_id, node in node_dict.items():
+        vector = embed_dict[node_id]
+        node.embedding = vector
+        nodes.append(node)
+
+    print("adding node", len(nodes))
+
+    # index_store = loaded_index.storage_context.index_store
+    # node_ids = list(loaded_index.ref_doc_info.items())[0][1].node_ids
+    # print("ndoes", node_ids)
+
+    # vector_nodes = storage_context.vector_store.get_nodes(node_ids)
+    # print("vector", vector_nodes)
+    # nodes = storage_context.docstore.get_nodes(node_ids)
+    # print(nodes)
+    # print(index_store.to_dict())
+    # print(loaded_index.documents[0])
 
     index = Index(name)
-    # load index data
-    index.index = load_index_from_storage(dir)
-    # reset storage context
-    index.index.storage_context = index.storage_context
+    index.load_nodes(nodes)
+    # index.index.storage_context = index.storage_context
 
-    index.persist()  # persist
+    # index.persist()  # persist
 
 
 @app.command("directory")
