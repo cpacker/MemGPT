@@ -54,6 +54,8 @@ app.add_typer(load_app, name="load")
 
 
 def clear_line():
+    if os.getenv("TEST"):
+        return
     if os.name == "nt":  # for windows
         console.print("\033[A\033[K", end="")
     else:  # for linux
