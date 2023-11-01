@@ -56,6 +56,8 @@ def test_cli_sequence():
     # child.sendline()
     # child.sendline()
     sys.stdout.flush()
+    print("DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
+    print("DEBUG AFTER:", child.after)
     child.expect("Enter your message")
     child.sendline()
 
