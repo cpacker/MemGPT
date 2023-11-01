@@ -15,6 +15,8 @@ def test_cli_sequence():
     child = pexpect.spawn("memgpt --first")
 
     # Expect a prompt or some output to know when to send the next command
+    print("DEBUG BEFORE:", child.before.decode())
+    print("DEBUG AFTER:", child.after)
     child.expect("Continue with legacy CLI?")
 
     # Send 'Y' followed by newline
@@ -24,34 +26,50 @@ def test_cli_sequence():
 
     # Since .memgpt is empty, should jump immediately to "Which model?"
     time.sleep(0.5)  # Wait for a short while to let output be captured
+    print("DEBUG BEFORE:", child.before.decode())
+    print("DEBUG AFTER:", child.after)
     child.expect("Which model would you like to use?")
     child.sendline()
 
     time.sleep(0.5)  # Wait for a short while to let output be captured
+    print("DEBUG BEFORE:", child.before.decode())
+    print("DEBUG AFTER:", child.after)
     child.expect("Which persona would you like MemGPT to use?")
     child.sendline()
 
     time.sleep(0.5)  # Wait for a short while to let output be captured
+    print("DEBUG BEFORE:", child.before.decode())
+    print("DEBUG AFTER:", child.after)
     child.expect("Which user would you like to use?")
     child.sendline()
 
     time.sleep(0.5)  # Wait for a short while to let output be captured
+    print("DEBUG BEFORE:", child.before.decode())
+    print("DEBUG AFTER:", child.after)
     child.expect("Would you like to preload anything into MemGPT's archival memory?")
     child.sendline("N")
 
     time.sleep(2.0)  # Wait for a short while to let output be captured
+    print("DEBUG BEFORE:", child.before.decode())
+    print("DEBUG AFTER:", child.after)
     child.expect("Testing messaging functionality")
     # child.expect("Enter your message")
     child.sendline("/save")
 
     time.sleep(0.5)  # Wait for a short while to let output be captured
+    print("DEBUG BEFORE:", child.before.decode())
+    print("DEBUG AFTER:", child.after)
     child.expect("Saved config file")
     child.sendline("/load")
 
     time.sleep(0.5)  # Wait for a short while to let output be captured
+    print("DEBUG BEFORE:", child.before.decode())
+    print("DEBUG AFTER:", child.after)
     child.expect("Loaded persistence manager")
     child.sendline("/exit")
 
+    print("DEBUG BEFORE:", child.before.decode())
+    print("DEBUG AFTER:", child.after)
     child.expect("Finished.")
 
     # Send the '/save' command
