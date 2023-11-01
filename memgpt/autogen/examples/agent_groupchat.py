@@ -16,8 +16,10 @@ from memgpt.autogen.memgpt_agent import create_autogen_memgpt_agent, create_memg
 
 # This config is for autogen agents that are not powered by MemGPT
 config_list = [
-    "model": "gpt-4",
-    "api_key": os.getenv("OPENAI_API_KEY"),
+    {
+        "model": "gpt-4",
+        "api_key": os.getenv("OPENAI_API_KEY"),
+    }
 ]
 
 # This config is for autogen agents that powered by MemGPT
@@ -97,7 +99,7 @@ else:
             "(which I make sure to tell everyone I work with).",
             user_description=f"You are participating in a group chat with a user ({user_proxy.name}) "
             f"and a product manager ({pm.name}).",
-            model = config_list_memgpt[0]["model"],
+            model=config_list_memgpt[0]["model"],
             interface_kwargs=interface_kwargs,
         )
     else:
