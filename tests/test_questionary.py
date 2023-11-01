@@ -55,36 +55,25 @@ def test_cli_sequence():
     child.expect("Testing messaging functionality")
     # child.expect("Enter your message")
     child.sendline("/save")
+    child.sendline()
 
     time.sleep(2.0)  # Wait for a short while to let output be captured
     print("(post-save) DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
     print("(post-save) DEBUG AFTER:", child.after)
     child.expect("Saved ")  # erroring
     child.sendline("/load")
+    child.sendline()
 
     time.sleep(0.5)  # Wait for a short while to let output be captured
     print("DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
     print("DEBUG AFTER:", child.after)
     child.expect("Loaded persistence manager")
     child.sendline("/exit")
+    child.sendline()
 
     print("DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
     print("DEBUG AFTER:", child.after)
     child.expect("Finished.")
-
-    # Send the '/save' command
-    # child.sendline("/save")
-    # time.sleep(1)  # Wait for a short while to let output be captured
-    # print(child.before.decode() if child.before else "No output captured")
-
-    # Optionally, you can add more expects and sends here, depending on the interactions
-    # child.expect("ExpectedOutputAfterSaveRegex")
-
-    # Additional asserts can go here based on the outputs/behavior
-    # Finally, make sure to gracefully exit the application if needed
-    # child.sendline("/exit")  # Replace with your CLI's exit command
-    # time.sleep(1)  # Wait for a short while to let output be captured
-    # print(child.before.decode() if child.before else "No output captured")
 
     child.close()
     assert child.isalive() is False, "CLI should have terminated."
