@@ -662,10 +662,11 @@ class LocalArchivalMemory(ArchivalMemory):
         self.agent_config = agent_config
 
         # locate saved index
-        if self.agent_config.data_source is not None:  # connected data source
-            directory = f"{MEMGPT_DIR}/archival/{self.agent_config.data_source}"
-            assert os.path.exists(directory), f"Archival memory database {self.agent_config.data_source} does not exist"
-        elif self.agent_config.name is not None:
+        # if self.agent_config.data_source is not None:  # connected data source
+        #    directory = f"{MEMGPT_DIR}/archival/{self.agent_config.data_source}"
+        #    assert os.path.exists(directory), f"Archival memory database {self.agent_config.data_source} does not exist"
+        # elif self.agent_config.name is not None:
+        if self.agent_config.name is not None:
             directory = agent_config.save_agent_index_dir()
             if not os.path.exists(directory):
                 # no existing archival storage
@@ -696,11 +697,13 @@ class LocalArchivalMemory(ArchivalMemory):
 
     def save(self):
         """Save the index to disk"""
-        if self.agent_config.data_source:  # update original archival index
-            # TODO: this corrupts the originally loaded data. do we want to do this?
-            utils.save_index(self.index, self.agent_config.data_source)
-        else:
-            utils.save_agent_index(self.index, self.agent_config)
+        # if self.agent_config.data_sources:  # update original archival index
+        #    # TODO: this corrupts the originally loaded data. do we want to do this?
+        #    utils.save_index(self.index, self.agent_config.data_sources)
+        # else:
+
+        # don't need to save data source, since we assume data source data is already loaded into the agent index
+        utils.save_agent_index(self.index, self.agent_config)
 
     def insert(self, memory_string):
         self.index.insert(memory_string)

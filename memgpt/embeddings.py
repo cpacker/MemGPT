@@ -12,8 +12,10 @@ from llama_index.retrievers import VectorIndexRetriever
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.indices.postprocessor import SimilarityPostprocessor
 
+
 import typer
 from llama_index.embeddings import OpenAIEmbedding
+from llama_index.schema import BaseComponent, TextNode, Document
 
 
 def embedding_model(config: MemGPTConfig):
@@ -72,6 +74,9 @@ class Index:
                     table_name=name,  # table_name = data source name
                     embed_dim=config.embedding_dim,  # openai embedding dimension
                 )
+                self.uri = config.archival_storage_uri
+                self.table_name = "data_%s" % name.lower()  # TODO: figure out exactly what this is
+                print("TABLE NAME", self.table_name)
             elif config.archival_storage_type == "chroma":
                 from llama_index.vector_stores import ChromaVectorStore
                 import chromadb
@@ -102,7 +107,15 @@ class Index:
             self.index = VectorStoreIndex.from_vector_store(vector_store=self.vector_store)
 
     def load_nodes(self, nodes):
+        """Loads a list of LlamaIndex nodes into index
+
+        :param nodes: List of nodes to create an index with
+        :type nodes: List[TextNode]
+        """
+        for node in nodes:
+            node.text = node.text.replace("\x00", "\uFFFD")  # hacky fix for error on null characters
         self.index.build_index_from_nodes(nodes=nodes)
+        print(f"Added {len(nodes)} nodes")
         self.persist()
 
     def load_documents(self, documents):
@@ -130,7 +143,15 @@ class Index:
         else:
             self.index.storage_context.persist()
 
-    def update(self, documents):
+    def insert(self, text: str, embedding: Optional[List[float]] = None):
+        """Insert new string into index
+
+        :param text: String to insert into index
+        :type text: str
+        """
+        self.index.insert(Document(text=text, embedding=embedding))
+
+    def update(self, documents, embeddings=[]):
         """Update an index with new documents
 
         :param documents: List of documents to update an index with
@@ -141,3 +162,62 @@ class Index:
             doc.text = doc.text.replace("\x00", "\uFFFD")
 
         # TODO: make sure document is persisted in the remote DB
+
+        # TODO: allow for existing embeddings
+
+    def get_nodes(self):
+        """Get the list of nodes from an index (useful for moving data from one index to another)
+
+        :return: Nodes contained in index
+        :rtype: List[TextNode]
+        """
+
+        if self.storage_type == "local":
+            embed_dict = self.index._vector_store._data.embedding_dict
+            node_dict = self.index._docstore.docs
+
+            nodes = []
+            for node_id, node in node_dict.items():
+                vector = embed_dict[node_id]
+                node.embedding = vector
+                nodes.append(node)
+            return nodes
+        elif self.storage_type == "postgres":
+            from sqlalchemy import create_engine, MetaData, Table, select
+
+            engine = create_engine(self.uri)
+            metadata = MetaData()
+            # data_table = Table(self.table_name, metadata, autoload_with=engine, schema='public')k
+            print(self.vector_store._table_class)
+
+            # Initialize a list to store the Node objects
+            nodes = []
+
+            # Start a connection to the database
+            with engine.connect() as conn:
+                # Select all data from the table
+                select_stmt = select(self.vector_store._table_class)
+                results = conn.execute(select_stmt).all()
+
+                print(results[0])
+                print("DATA", results[1].embedding, results[1].text)
+
+                # Iterate over the rows to create Node objects
+                for row in results:
+                    # Assuming that 'text' is the document and 'embedding' is the binary representation of the embedding
+                    # If 'embedding' is stored in a different format, you might need to adjust the code to handle it correctly
+                    # import json
+                    # document = json.loads(row[1])
+                    try:
+                        node = Document(document=row.text, embedding=list(row.embedding))
+                    except Exception as e:
+                        print(row)
+                        raise e
+                    nodes.append(node)
+            print("nodes", len(nodes))
+            return nodes
+
+        elif self.storage_type == "chroma":
+            raise NotImplementedError("TODO")
+        else:
+            raise ValueError(f"Unknown archival storage type {self.storage_type}")

@@ -31,7 +31,7 @@ from memgpt.persistence_manager import (
     InMemoryStateManagerWithPreloadedArchivalMemory,
     InMemoryStateManagerWithFaiss,
 )
-from memgpt.cli.cli import run
+from memgpt.cli.cli import run, attach
 from memgpt.cli.cli_config import configure, list, add
 from memgpt.cli.cli_load import app as load_app
 from memgpt.config import Config, MemGPTConfig, AgentConfig
@@ -46,6 +46,7 @@ import asyncio
 
 app = typer.Typer()
 app.command(name="run")(run)
+app.command(name="attach")(attach)
 app.command(name="configure")(configure)
 app.command(name="list")(list)
 app.command(name="add")(add)

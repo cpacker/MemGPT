@@ -242,7 +242,7 @@ class AgentConfig:
     Configuration for a specific instance of an agent
     """
 
-    def __init__(self, persona, human, model, preset=DEFAULT_PRESET, name=None, data_source=None, agent_config_path=None, create_time=None):
+    def __init__(self, persona, human, model, preset=DEFAULT_PRESET, name=None, data_sources=[], agent_config_path=None, create_time=None):
         if name is None:
             self.name = f"agent_{self.generate_agent_id()}"
         else:
@@ -251,7 +251,7 @@ class AgentConfig:
         self.human = human
         self.model = model
         self.preset = preset
-        self.data_source = data_source
+        self.data_sources = data_sources
         self.create_time = create_time if create_time is not None else utils.get_local_time()
 
         # save agent config
@@ -273,7 +273,7 @@ class AgentConfig:
     def attach_data_source(self, data_source: str):
         # TODO: add warning that only once source can be attached
         # i.e. previous source will be overriden
-        self.data_source = data_source
+        self.data_sources.append(data_source)
         self.save()
 
     def save_state_dir(self):
