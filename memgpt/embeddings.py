@@ -52,9 +52,15 @@ class Index:
         else:
             if config.archival_storage_type == "postgres":
                 from llama_index.vector_stores import PGVectorStore
+                from sqlalchemy import make_url
+
+                connection_string = ""  # TODO: read from config
+                url = make_url(connection_string)
+
+                print("table", name)
 
                 self.vector_store = PGVectorStore.from_params(
-                    database=self.db_name,
+                    database=url.database,
                     host=url.host,
                     password=url.password,
                     port=url.port,
@@ -74,6 +80,7 @@ class Index:
             else:
                 raise ValueError(f"Unknown archival storage type {config.archival_storage_type}")
             self.storage_context = StorageContext.from_defaults(vector_store=self.vector_store)
+            print("storage context", self.storage_context)
 
         # setup embedding model
         self.embed_model = embedding_model(config)
@@ -85,9 +92,14 @@ class Index:
         self.index = VectorStoreIndex.from_documents(
             documents, storage_context=self.storage_context, service_context=self.service_context, show_progress=True
         )
+        print("loaded docs")
         if self.storage_type == "local":
             # save to disk if local
             self.index.storage_context.persist(persist_dir=self.directory)  # TODO:
+            print("saved local")
+        else:
+            self.index.storage_context.persist()
+            print("saved storage")
 
     def load_index(self, index_dir: str):
         storage_context = StorageContext.from_defaults(persist_dir=index_dir)
