@@ -691,7 +691,8 @@ class LocalArchivalMemory(ArchivalMemory):
         self.cache = {}
 
     def __len__(self):
-        raise NotImplementedError
+        # TODO FIXME
+        return 1
 
     def save(self):
         """Save the index to disk"""
