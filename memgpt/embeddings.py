@@ -94,6 +94,10 @@ class Index:
             # load from vector store
             self.index = VectorStoreIndex.from_vector_store(vector_store=self.vector_store)
 
+    def load_nodes(self, nodes):
+        self.index.build_index_from_nodes(nodes=nodes)
+        self.persist()
+
     def load_documents(self, documents):
         """Load a list of documents into an index
 
