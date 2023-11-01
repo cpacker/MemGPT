@@ -58,9 +58,14 @@ def test_cli_sequence():
     child.sendline()
 
     time.sleep(2.0)  # Wait for a short while to let output be captured
-    print("(post-save) DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
-    print("(post-save) DEBUG AFTER:", child.after)
-    child.expect("Saved ")  # erroring
+    print("(pre-save) DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
+    print("(pre-save) DEBUG AFTER:", child.after)
+    try:
+        child.expect("Saved checkpoint")  # erroring
+    except:
+        print("(post-save) DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
+        print("(post-save) DEBUG AFTER:", child.after)
+        raise
     child.sendline("/load")
     child.sendline()
 
