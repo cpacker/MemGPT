@@ -5,7 +5,7 @@ import time
 
 def test_cli_sequence():
     # Start the CLI process
-    child = pexpect.spawn("memgpt --first")
+    child = pexpect.spawn("memgpt --first --strip_ui")
 
     # Expect a prompt or some output to know when to send the next command
     time.sleep(1.5)  # Wait for a short while to let output be captured
