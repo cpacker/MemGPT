@@ -26,7 +26,7 @@ def test_postgres():
     config.save()
     # exit()
 
-    name = "tmp_hf_dataset"
+    name = "tmp_hf_dataset2"
 
     dataset = load_dataset("MemGPT/example_short_stories")
 

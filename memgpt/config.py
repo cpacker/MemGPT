@@ -65,7 +65,7 @@ class MemGPTConfig:
 
     # embedding parameters
     embedding_model: str = "openai"
-    embedding_dim: int = 1536  # 768
+    embedding_dim: int = 1536
     embedding_chunk_size: int = 300  # number of tokens
 
     # database configs: archival
