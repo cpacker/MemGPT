@@ -32,20 +32,27 @@ config_list_memgpt = [
 # Uncomment and fill in the following for local LLM deployment:
 # # This config is for autogen agents that are not powered by MemGPT
 # # See https://github.com/oobabooga/text-generation-webui/tree/main/extensions/openai
-# config_list = [
-#     {
-#         "model": "YOUR_MODEL" # ex. "dolphin-2.1-mistral-7b",
-#         "api_base": "YOUR_URL" # ex. "http://127.0.0.1:5001/v1" if you are using webui
-#         "api_key": "NULL", # this is a placeholder
-#         "api_type": "open_ai",
-#     },
-# ]
+config_list = [
+    {
+        "model": "YOUR_MODEL",  # ex. This is the model name, not the wrapper
+        "api_base": "YOUR_URL",  # ex. "http://127.0.0.1:5001/v1" if you are using webui, "http://localhost:1234/v1/" if you are using LM Studio
+        "api_key": "NULL",  # this is a placeholder
+        "api_type": "open_ai",
+    },
+]
+
 # # This config is for autogen agents that powered by MemGPT
-# config_list_memgpt = [
-#     {
-#         "model": "<YOUR_MODEL>" # ex. "dolphin-2.1-mistral-7b",
-#     },
-# ]
+# # For this to work, you need to have your environment variables set correctly, e.g.
+# # For web UI:
+# #   OPENAI_API_BASE=http://127.0.0.1:5000
+# #   BACKEND_TYPE=webui
+# # For LM Studio:
+# #   OPENAI_API_BASE=http://127.0.0.1:1234
+# #   BACKEND_TYPE=lmstudio
+# # "model" here specifies the "wrapper" that will be used, setting it to "gpt-4" uses the default
+config_list_memgpt = [
+    {"model": "airoboros-l2-70b-2.1"},  # if you set this to gpt-4, it will fall back to the default wrapper
+]
 
 
 # If USE_MEMGPT is False, then this example will be the same as the official AutoGen repo
@@ -73,6 +80,7 @@ user_proxy = autogen.UserProxyAgent(
     system_message="A human admin.",
     code_execution_config={"last_n_messages": 2, "work_dir": "groupchat"},
     human_input_mode="TERMINATE",  # needed?
+    default_auto_reply="...",  # Set a default auto-reply message here (non-empty auto-reply is required for LM Studio)
 )
 
 # The agent playing the role of the product manager (PM)
@@ -80,6 +88,7 @@ pm = autogen.AssistantAgent(
     name="Product_manager",
     system_message="Creative in software product ideas.",
     llm_config=llm_config,
+    default_auto_reply="...",  # Set a default auto-reply message here (non-empty auto-reply is required for LM Studio)
 )
 
 if not USE_MEMGPT:
