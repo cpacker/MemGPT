@@ -20,7 +20,15 @@ def load_index(
     name: str = typer.Option(help="Name of dataset to load."), dir: str = typer.Option(help="Path to directory containing index.")
 ):
     """Load a LlamaIndex saved VectorIndex into MemGPT"""
-    pass
+    from llama_index import load_index_from_storage
+
+    index = Index(name)
+    # load index data
+    index.index = load_index_from_storage(dir)
+    # reset storage context
+    index.index.storage_context = index.storage_context
+
+    index.persist()  # persist
 
 
 @app.command("directory")
