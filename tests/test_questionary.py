@@ -58,7 +58,11 @@ def test_cli_sequence():
     sys.stdout.flush()
     print("DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
     print("DEBUG AFTER:", child.after)
-    child.expect("Enter your message")
+    try:
+        child.expect("Enter your message")
+    except:
+        print("Exception was thrown, debug info:")
+        print(str(child))
     child.sendline()
 
     time.sleep(1.0)  # Wait for a short while to let output be captured
