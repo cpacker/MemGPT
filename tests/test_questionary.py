@@ -56,10 +56,10 @@ def test_cli_sequence():
     # child.expect("Enter your message")
     child.sendline("/save")
 
-    time.sleep(0.5)  # Wait for a short while to let output be captured
+    time.sleep(2.0)  # Wait for a short while to let output be captured
     print("DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
     print("DEBUG AFTER:", child.after)
-    child.expect("Saved config file")
+    child.expect("Saved config file")  # erroring
     child.sendline("/load")
 
     time.sleep(0.5)  # Wait for a short while to let output be captured
