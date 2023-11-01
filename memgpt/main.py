@@ -98,7 +98,7 @@ def load(memgpt_agent, filename):
     else:
         # Load the latest file
         print(f"/load warning: no checkpoint specified, loading most recent checkpoint instead")
-        json_files = glob.glob("saved_state/*.json")  # This will list all .json files in the current directory.
+        json_files = glob.glob(f"f{constants.MEMGPT_DIR}/saved_state/*.json")  # This will list all .json files in the current directory.
 
         # Check if there are any json files.
         if not json_files:
