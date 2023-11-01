@@ -86,7 +86,28 @@ def save(memgpt_agent, cfg):
     cfg.write_config()
 
 
-def load(memgpt_agent, filename):
+def list_all_checkpoints():
+    """Return a list of all checkpoint files sorted based on modified timestamp (most recent first)."""
+    save_path = f"{constants.MEMGPT_DIR}/saved_state"
+    json_files = glob.glob(f"{save_path}/*.json")
+    return sorted(json_files, key=os.path.getmtime, reverse=True)
+
+
+#please let me know if we don't want async here.
+async def load(memgpt_agent, filename):
+    # If no file is specified, ask user to select from list of checkpoints
+    if filename is None:
+        checkpoints = list_all_checkpoints()
+        if not checkpoints:
+            print("/load error: no .json checkpoint files found")
+            return
+        
+        filename = await questionary.select(
+            "Select a checkpoint to load:",
+            choices=checkpoints
+        ).ask_async()  # Using the async version of the method
+
+    print("LOADING")
     if filename is not None:
         if filename[-5:] != ".json":
             filename += ".json"
@@ -443,7 +464,7 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=
                 if user_input.lower() == "/load" or user_input.lower().startswith("/load "):
                     command = user_input.strip().split()
                     filename = command[1] if len(command) > 1 else None
-                    load(memgpt_agent=memgpt_agent, filename=filename)
+                    await load(memgpt_agent=memgpt_agent, filename=filename)
                     continue
 
                 elif user_input.lower() == "/dump":
