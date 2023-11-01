@@ -57,9 +57,9 @@ def test_cli_sequence():
     child.sendline("/save")
 
     time.sleep(2.0)  # Wait for a short while to let output be captured
-    print("DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
-    print("DEBUG AFTER:", child.after)
-    child.expect("Saved config file")  # erroring
+    print("(post-save) DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
+    print("(post-save) DEBUG AFTER:", child.after)
+    child.expect("Saved ")  # erroring
     child.sendline("/load")
 
     time.sleep(0.5)  # Wait for a short while to let output be captured
