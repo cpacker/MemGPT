@@ -160,6 +160,8 @@ export AZURE_OPENAI_DEPLOYMENT = ...
 export AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT = ...
 ```
 
+Note: your Azure endpoint must support functions or you will get an error. See https://github.com/cpacker/MemGPT/issues/91 for more information.
+
 #### Custom Endpoints
 To use custom endpoints, run `export OPENAI_API_BASE=<MY_CUSTOM_URL>` and then re-run `memgpt configure` to set the custom endpoint as the default endpoint.
 
