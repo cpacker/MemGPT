@@ -93,7 +93,7 @@ def list_all_checkpoints():
     return sorted(json_files, key=os.path.getmtime, reverse=True)
 
 
-#please let me know if we don't want async here.
+# please let me know if we don't want async here.
 async def load(memgpt_agent, filename):
     # If no file is specified, ask user to select from list of checkpoints
     if filename is None:
@@ -101,10 +101,9 @@ async def load(memgpt_agent, filename):
         if not checkpoints:
             print("/load error: no .json checkpoint files found")
             return
-        
+
         filename = await questionary.select(
-            "Select a checkpoint to load:",
-            choices=checkpoints
+            "Select a checkpoint to load:", choices=checkpoints
         ).ask_async()  # Using the async version of the method
 
     print("LOADING")
