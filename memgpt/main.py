@@ -202,6 +202,8 @@ async def main(
     use_azure_openai,
     strip_ui,
 ):
+    if os.getenv("TEST"):
+        strip_ui = True
     memgpt.interface.STRIP_UI = strip_ui
     utils.DEBUG = debug
     logging.getLogger().setLevel(logging.CRITICAL)
