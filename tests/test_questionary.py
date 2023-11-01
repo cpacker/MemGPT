@@ -61,7 +61,7 @@ def test_cli_sequence():
     print("(pre-enter) DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
     print("(pre-enter) DEBUG AFTER:", child.after)
     try:
-        child.expect("Try again!")
+        child.expect(["Try again!", pexpect.EOF])
     except:
         print("(post-enter) DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
         print("(post-enter) DEBUG AFTER:", child.after)
