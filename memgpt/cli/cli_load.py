@@ -10,6 +10,7 @@ memgpt load <data-connector-type> --name <dataset-name> [ADDITIONAL ARGS]
 
 from typing import List
 import typer
+from memgpt.embeddings import Index
 
 app = typer.Typer()
 
@@ -48,11 +49,14 @@ def load_directory(
     print("Loading data...")
     docs = reader.load_data()
 
-    # embed docs
-    print("Indexing documents...")
-    index = get_index(name, docs)
-    # save connector information into .memgpt metadata file
-    save_index(index, name)
+    index = Index(name)
+    index.load_documents(docs)
+
+    ## embed docs
+    # print("Indexing documents...")
+    # index = get_index(name, docs)
+    ## save connector information into .memgpt metadata file
+    # save_index(index, name)
 
 
 @app.command("webpage")

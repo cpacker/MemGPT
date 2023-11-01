@@ -90,8 +90,18 @@ class MemGPTConfig:
     @classmethod
     def load(cls) -> "MemGPTConfig":
         config = configparser.ConfigParser()
-        if os.path.exists(MemGPTConfig.config_path):
-            config.read(MemGPTConfig.config_path)
+
+        # allow overriding with env variables
+        print("env", os.getenv("MEMGPT_CONFIG_PATH"))
+        if os.getenv("MEMGPT_CONFIG_PATH"):
+            config_path = os.getenv("MEMGPT_CONFIG_PATH")
+        else:
+            config_path = MemGPTConfig.config_path
+
+        print("config path", config_path)
+
+        if os.path.exists(config_path):
+            config.read(config_path)
 
             # read config values
             model = config.get("defaults", "model")
@@ -119,6 +129,11 @@ class MemGPTConfig:
             embedding_dim = config.getint("embedding", "dim")
             embedding_chunk_size = config.getint("embedding", "chunk_size")
 
+            # archival storage
+            archival_storage_type = config.get("archival_storage", "type")
+            archival_storage_path = config.get("archival_storage", "path") if config.has_option("archival_storage", "path") else None
+            archival_storage_uri = config.get("archival_storage", "uri") if config.has_option("archival_storage", "uri") else None
+
             anon_clientid = config.get("client", "anon_clientid")
 
             return cls(
@@ -137,11 +152,15 @@ class MemGPTConfig:
                 embedding_model=embedding_model,
                 embedding_dim=embedding_dim,
                 embedding_chunk_size=embedding_chunk_size,
+                archival_storage_type=archival_storage_type,
+                archival_storage_path=archival_storage_path,
+                archival_storage_uri=archival_storage_uri,
                 anon_clientid=anon_clientid,
+                config_path=config_path,
             )
 
         anon_clientid = MemGPTConfig.generate_uuid()
-        config = cls(anon_clientid=anon_clientid)
+        config = cls(anon_clientid=anon_clientid, config_path=config_path)
         config.save()  # save updated config
         return config
 
@@ -179,6 +198,15 @@ class MemGPTConfig:
         config.set("embedding", "dim", str(self.embedding_dim))
         config.set("embedding", "chunk_size", str(self.embedding_chunk_size))
 
+        # archival storage
+        config.add_section("archival_storage")
+        print("archival storage", self.archival_storage_type)
+        config.set("archival_storage", "type", self.archival_storage_type)
+        if self.archival_storage_path:
+            config.set("archival_storage", "path", self.archival_storage_path)
+        if self.archival_storage_uri:
+            config.set("archival_storage", "uri", self.archival_storage_uri)
+
         # client
         config.add_section("client")
         if not self.anon_clientid:
@@ -190,7 +218,12 @@ class MemGPTConfig:
 
     @staticmethod
     def exists():
-        return os.path.exists(MemGPTConfig.config_path)
+        # allow overriding with env variables
+        if os.getenv("MEMGPT_CONFIG_PATH"):
+            config_path = os.getenv("MEMGPT_CONFIG_PATH")
+        else:
+            config_path = MemGPTConfig.config_path
+        return os.path.exists(config_path)
 
     @staticmethod
     def create_config_dir():
