@@ -173,6 +173,11 @@ async def a_summarize_messages(
 
 class ArchivalMemory(ABC):
     @abstractmethod
+    def __len__(self):
+        """Define the length of the object. Must be implemented by subclasses."""
+        pass
+
+    @abstractmethod
     def insert(self, memory_string):
         """Insert new archival memory
 
@@ -382,7 +387,7 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
     async def a_insert(self, memory_string, embedding=None):
         if embedding is None:
             # Get the embedding
-            embedding = async_get_embedding_with_backoff(memory_string, model=self.embedding_model)
+            embedding = await async_get_embedding_with_backoff(memory_string, model=self.embedding_model)
         return self._insert(memory_string, embedding)
 
     def _search(self, query_embedding, query_string, count=None, start=None):
@@ -439,6 +444,11 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
 
 
 class RecallMemory(ABC):
+    @abstractmethod
+    def __len__(self):
+        """Define the length of the object. Must be implemented by subclasses."""
+        pass
+
     @abstractmethod
     def text_search(self, query_string, count=None, start=None):
         pass
@@ -679,6 +689,10 @@ class LocalArchivalMemory(ArchivalMemory):
 
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
+
+    def __len__(self):
+        # TODO FIXME
+        return 1
 
     def save(self):
         """Save the index to disk"""

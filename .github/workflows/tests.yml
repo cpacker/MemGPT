@@ -2,7 +2,7 @@ name: MemGPT tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ basic-tests ]
   pull_request:
     branches: [ main ]
 
@@ -26,6 +26,10 @@ jobs:
     - name: Install dependencies using Poetry
       run: |
         poetry install
+
+    - name: Install pexpect for testing the interactive CLI
+      run: |
+        poetry add --dev pexpect
 
     - name: Run tests with pytest
       run: |

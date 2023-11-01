@@ -99,12 +99,14 @@ def load(memgpt_agent, filename):
             print(f"Loading {filename} failed with: {e}")
     else:
         # Load the latest file
-        print(f"/load warning: no checkpoint specified, loading most recent checkpoint instead")
-        json_files = glob.glob("saved_state/*.json")  # This will list all .json files in the current directory.
+        save_path = f"{constants.MEMGPT_DIR}/saved_state"
+        print(f"/load warning: no checkpoint specified, loading most recent checkpoint from {save_path} instead")
+        json_files = glob.glob(f"{save_path}/*.json")  # This will list all .json files in the current directory.
 
         # Check if there are any json files.
         if not json_files:
             print(f"/load error: no .json checkpoint files found")
+            return
         else:
             # Sort files based on modified timestamp, with the latest file being the first.
             filename = max(json_files, key=os.path.getmtime)
@@ -456,7 +458,7 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
                     continue
 
                 elif user_input.lower() == "/dump":
-                    await print_messages(memgpt_agent.messages)
+                    await memgpt.interface.print_messages(memgpt_agent.messages)
                     continue
 
                 elif user_input.lower() == "/dumpraw":
@@ -464,7 +466,7 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
                     continue
 
                 elif user_input.lower() == "/dump1":
-                    await print_messages(memgpt_agent.messages[-1])
+                    await memgpt.interface.print_messages(memgpt_agent.messages[-1])
                     continue
 
                 elif user_input.lower() == "/memory":

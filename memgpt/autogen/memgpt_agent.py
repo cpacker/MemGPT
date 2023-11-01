@@ -24,8 +24,12 @@ def create_memgpt_autogen_agent_from_config(
     code_execution_config: Optional[Union[Dict, bool]] = None,
     llm_config: Optional[Union[Dict, bool]] = None,
     default_auto_reply: Optional[Union[str, Dict, None]] = "",
+    interface_kwargs: Dict = None,
 ):
     """Construct AutoGen config workflow in a clean way."""
+
+    if interface_kwargs is None:
+        interface_kwargs = {}
 
     model = constants.DEFAULT_MEMGPT_MODEL if llm_config is None else llm_config["config_list"][0]["model"]
     persona_desc = personas.DEFAULT if system_message == "" else system_message
@@ -41,21 +45,23 @@ def create_memgpt_autogen_agent_from_config(
 
     autogen_memgpt_agent = create_autogen_memgpt_agent(
         name,
-        preset=presets.DEFAULT_PRESET,
+        preset=presets.SYNC_CHAT,
         model=model,
         persona_description=persona_desc,
         user_description=user_desc,
         is_termination_msg=is_termination_msg,
+        interface_kwargs=interface_kwargs,
     )
 
     if human_input_mode != "ALWAYS":
         coop_agent1 = create_autogen_memgpt_agent(
             name,
-            preset=presets.DEFAULT_PRESET,
+            preset=presets.SYNC_CHAT,
             model=model,
             persona_description=persona_desc,
             user_description=user_desc,
             is_termination_msg=is_termination_msg,
+            interface_kwargs=interface_kwargs,
         )
         if default_auto_reply != "":
             coop_agent2 = UserProxyAgent(
@@ -66,11 +72,12 @@ def create_memgpt_autogen_agent_from_config(
         else:
             coop_agent2 = create_autogen_memgpt_agent(
                 name,
-                preset=presets.DEFAULT_PRESET,
+                preset=presets.SYNC_CHAT,
                 model=model,
                 persona_description=persona_desc,
                 user_description=user_desc,
                 is_termination_msg=is_termination_msg,
+                interface_kwargs=interface_kwargs,
             )
 
         groupchat = GroupChat(
