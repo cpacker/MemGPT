@@ -7,7 +7,7 @@ In order to run MemGPT+Autogen on a local LLM, uncomment lines 31-46 in [example
 ```
 config_list = [
     {
-        "model": "dolphin-2.1-mistral-7b",
+        "model": "dolphin-2.1-mistral-7b",  # this indicates the MODEL, not the WRAPPER (no concept of wrappers for AutoGen)
         "api_base": "http://127.0.0.1:5001/v1"
         "api_key": "NULL", # this is a placeholder
         "api_type": "open_ai",
@@ -15,7 +15,7 @@ config_list = [
 ]
 config_list_memgpt = [
     {
-        "model": "dolphin-2.1-mistral-7b",
+        "model": "airoboros-l2-70b-2.1",  # this specifies the WRAPPER MemGPT will use, not the MODEL
     },
 ]
 ```
