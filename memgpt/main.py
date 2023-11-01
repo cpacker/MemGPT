@@ -31,7 +31,7 @@ from memgpt.persistence_manager import (
     InMemoryStateManagerWithPreloadedArchivalMemory,
     InMemoryStateManagerWithFaiss,
 )
-from memgpt.cli.cli import run
+from memgpt.cli.cli import run, attach
 from memgpt.cli.cli_config import configure, list, add
 from memgpt.cli.cli_load import app as load_app
 from memgpt.config import Config, MemGPTConfig, AgentConfig
@@ -46,6 +46,7 @@ import asyncio
 
 app = typer.Typer()
 app.command(name="run")(run)
+app.command(name="attach")(attach)
 app.command(name="configure")(configure)
 app.command(name="list")(list)
 app.command(name="add")(add)
@@ -533,6 +534,7 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=
                     elif heartbeat_request:
                         user_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
                         skip_next_user_input = True
+                break
             except Exception as e:
                 print("An exception ocurred when running agent.step(): ")
                 traceback.print_exc()

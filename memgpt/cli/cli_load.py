@@ -35,24 +35,8 @@ def load_index(
         node.embedding = vector
         nodes.append(node)
 
-    print("adding node", len(nodes))
-
-    # index_store = loaded_index.storage_context.index_store
-    # node_ids = list(loaded_index.ref_doc_info.items())[0][1].node_ids
-    # print("ndoes", node_ids)
-
-    # vector_nodes = storage_context.vector_store.get_nodes(node_ids)
-    # print("vector", vector_nodes)
-    # nodes = storage_context.docstore.get_nodes(node_ids)
-    # print(nodes)
-    # print(index_store.to_dict())
-    # print(loaded_index.documents[0])
-
     index = Index(name)
     index.load_nodes(nodes)
-    # index.index.storage_context = index.storage_context
-
-    # index.persist()  # persist
 
 
 @app.command("directory")
