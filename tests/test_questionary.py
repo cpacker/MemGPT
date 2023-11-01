@@ -1,4 +1,5 @@
 import pexpect
+import sys
 import time
 
 
@@ -55,26 +56,30 @@ def test_cli_sequence():
     time.sleep(1.0)  # Wait for a short while to let output be captured
     # child.sendline()
     # child.sendline()
+    sys.stdout.flush()
     child.sendline()
 
     time.sleep(1.0)  # Wait for a short while to let output be captured
     print("(pre-enter) DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
     print("(pre-enter) DEBUG AFTER:", child.after)
     try:
-        child.expect(["Try again!", pexpect.EOF])
+        # child.expect(["Try again!", pexpect.EOF])
+        child.expect("Try again!")
     except:
         print("(post-enter) DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
         print("(post-enter) DEBUG AFTER:", child.after)
         raise
     # child.expect("Enter your message")
     time.sleep(0.5)  # Wait for a short while to let output be captured
+    sys.stdout.flush()
     child.sendline("/save")
 
     time.sleep(2.0)  # Wait for a short while to let output be captured
     print("(pre-save) DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
     print("(pre-save) DEBUG AFTER:", child.after)
     try:
-        child.expect(["Saved checkpoint", pexpect.EOF])  # erroring
+        # child.expect(["Saved checkpoint", pexpect.EOF])  # erroring
+        child.expect("Saved checkpoint")  # erroring
     except:
         print("(post-save) DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
         print("(post-save) DEBUG AFTER:", child.after)
@@ -85,10 +90,13 @@ def test_cli_sequence():
     time.sleep(1.5)  # Wait for a short while to let output be captured
     print("DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
     print("DEBUG AFTER:", child.after)
-    child.expect(["Loaded persistence manager", pexpect.EOF])
+    # child.expect(["Loaded persistence manager", pexpect.EOF])
+    child.expect("Loaded persistence manager")
     time.sleep(0.5)  # Wait for a short while to let output be captured
+    sys.stdout.flush()
     child.sendline("/exit")
     time.sleep(0.5)  # Wait for a short while to let output be captured
+    sys.stdout.flush()
     child.sendline()
 
     print("DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
