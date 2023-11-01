@@ -54,8 +54,14 @@ def test_cli_sequence():
     print("DEBUG AFTER:", child.after)
     child.expect("Testing messaging functionality")
     # child.expect("Enter your message")
-    child.sendline("/save")
     child.sendline()
+
+    time.sleep(0.5)  # Wait for a short while to let output be captured
+    print("DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
+    print("DEBUG AFTER:", child.after)
+    child.expect("Try again!")
+    # child.expect("Enter your message")
+    child.sendline("/save")
 
     time.sleep(2.0)  # Wait for a short while to let output be captured
     print("(pre-save) DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
@@ -67,7 +73,6 @@ def test_cli_sequence():
         print("(post-save) DEBUG AFTER:", child.after)
         raise
     child.sendline("/load")
-    child.sendline()
 
     time.sleep(0.5)  # Wait for a short while to let output be captured
     print("DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
