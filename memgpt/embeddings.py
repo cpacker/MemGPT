@@ -115,6 +115,9 @@ class Index:
         self.index = VectorStoreIndex.from_documents(
             documents, storage_context=self.storage_context, service_context=self.service_context, show_progress=True
         )
+        self.persist()
+
+    def persist(self):
 
         # persist state
         if self.storage_type == "local":
