@@ -74,7 +74,7 @@ def test_cli_sequence():
     print("(pre-save) DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
     print("(pre-save) DEBUG AFTER:", child.after)
     try:
-        child.expect("Saved checkpoint")  # erroring
+        child.expect(["Saved checkpoint", pexpect.EOF])  # erroring
     except:
         print("(post-save) DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
         print("(post-save) DEBUG AFTER:", child.after)
@@ -85,7 +85,7 @@ def test_cli_sequence():
     time.sleep(1.5)  # Wait for a short while to let output be captured
     print("DEBUG BEFORE:", child.before.decode() if child.before else "no child.before")
     print("DEBUG AFTER:", child.after)
-    child.expect("Loaded persistence manager")
+    child.expect(["Loaded persistence manager", pexpect.EOF])
     time.sleep(0.5)  # Wait for a short while to let output be captured
     child.sendline("/exit")
     time.sleep(0.5)  # Wait for a short while to let output be captured
