@@ -131,7 +131,7 @@ async def function_message(msg):
                                 print(f"{Fore.RED}{output}")
                         else:
                             if STRIP_UI:
-                                print(f'\t {msg_dict["old_content"]}\n\t{Fore.GREEN}→ {msg_dict["new_content"]}')
+                                print(f'\t {msg_dict["old_content"]}\n\t→ {msg_dict["new_content"]}')
                             else:
                                 print(f'{Style.BRIGHT}\t{Fore.RED} {msg_dict["old_content"]}\n\t{Fore.GREEN}→ {msg_dict["new_content"]}')
                     except Exception as e:
