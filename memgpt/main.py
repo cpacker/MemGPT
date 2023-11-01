@@ -386,12 +386,15 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
         if not skip_next_user_input and (counter > 0 or USER_GOES_FIRST):
             # Ask for user input
             # user_input = console.input("[bold cyan]Enter your message:[/bold cyan] ")
-            user_input = await questionary.text(
-                "Enter your message:",
-                multiline=multiline_input,
-                qmark=">",
-            ).ask_async()
-            clear_line(strip_ui)
+            if strip_ui:
+                user_input = input("Enter your message:")
+            else:
+                user_input = await questionary.text(
+                    "Enter your message:",
+                    multiline=multiline_input,
+                    qmark=">",
+                ).ask_async()
+                clear_line(strip_ui)
 
             # Gracefully exit on Ctrl-C/D
             if user_input is None:
