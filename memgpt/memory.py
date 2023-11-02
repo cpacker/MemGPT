@@ -736,5 +736,8 @@ class LocalArchivalMemory(ArchivalMemory):
         return self.search(query_string, count, start)
 
     def __repr__(self) -> str:
-        print(self.index.ref_doc_info)
-        return ""
+        if isinstance(self.index, EmptyIndex):
+            memory_str = "<empty>"
+        else:
+            memory_str = self.index.ref_doc_info
+        return f"\n### ARCHIVAL MEMORY ###" + f"\n{memory_str}"
