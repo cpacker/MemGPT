@@ -167,17 +167,49 @@ def attach(
     agent_config = AgentConfig.load(agent)
 
     source_index = Index(data_source)
+
+    from llama_index.retrievers import VectorIndexRetriever
+
+    retriever = VectorIndexRetriever(
+        index=source_index.index,  # does this get refreshed?
+        similarity_top_k=10,
+    )
+    print("RETRIEVE", retriever.retrieve("crying cinderella"))
+
+    # query_engine = source_index.index.as_query_engine()
+    # print("QUERY 1", query_engine.query("crying cinderella"))
+
+    # query_engine = source_index.index.as_query_engine(top_k=2)
+    # print("QUERY 2", query_engine.query("crying cinderella"))
+
+    # query_engine = source_index.index.as_query_engine(top_k=100)
+    # print("QUERY 3", query_engine.query("crying cinderella"))
+
     agent_index = Index(agent, save_directory=agent_config.save_agent_index_dir())  # pass in save directory for agent index
 
     # copy nodes from source index to dest index
     from tqdm import tqdm
 
     nodes = source_index.get_nodes()
-    for node in tqdm(nodes):
-        agent_index.insert(node.text, node.embedding)
-    print(f"Added {len(nodes)} form source {data_source} to agent {agent}")
+    # for node in tqdm(nodes):
+    #    agent_index.insert(node.text, node.embedding)
+    # print(f"Added {len(nodes)} form source {data_source} to agent {agent}")
+    # agent_index.persist()
 
     if data_source not in agent_config.data_sources:
         agent_config.data_sources += [data_source]
 
+    agent_index.load_nodes(nodes)
+    retriever = VectorIndexRetriever(
+        index=agent_index.index,  # does this get refreshed?
+        similarity_top_k=10,
+    )
+    print("RETRIEVE", retriever.retrieve("crying cinderella"))
+
+    # update and save agent state
+
     print("Agent data sources", agent_config.data_sources)
+    agent_config.save()
+
+    nodes = agent_index.get_nodes()
+    print("agent nodes", len(nodes))
