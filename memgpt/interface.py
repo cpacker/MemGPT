@@ -21,7 +21,7 @@ def important_message(msg):
 
 
 def warning_message(msg):
-    f_str = f"{Fore.RED}{Style.BRIGHT}{{msg}}{Style.RESET_ALL}"
+    fstr = f"{Fore.RED}{Style.BRIGHT}{{msg}}{Style.RESET_ALL}"
     if STRIP_UI:
         fstr = "{msg}"
     else:
