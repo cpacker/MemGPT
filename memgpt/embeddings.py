@@ -47,6 +47,7 @@ class Index:
 
         # setup storage
         self.storage_type = config.archival_storage_type
+        print("storage type", self.storage_type)
         if config.archival_storage_type == "local":
             self.storage_context = StorageContext.from_defaults(persist_dir=self.save_directory)
         else:
@@ -97,6 +98,7 @@ class Index:
         else:
             # load from vector store
             self.index = VectorStoreIndex.from_vector_store(vector_store=self.vector_store)
+            # print("BASIC QUERY", self.index.as_query_engine().query("cinderella crying"))
 
     def load_nodes(self, nodes):
         """Loads a list of LlamaIndex nodes into index
@@ -104,8 +106,8 @@ class Index:
         :param nodes: List of nodes to create an index with
         :type nodes: List[TextNode]
         """
-        for node in nodes:
-            node.text = node.text.replace("\x00", "\uFFFD")  # hacky fix for error on null characters
+        # for node in nodes:
+        #    node.text = node.text.replace("\x00", "\uFFFD")  # hacky fix for error on null characters
         self.index.build_index_from_nodes(nodes=nodes)
         print(f"Added {len(nodes)} nodes")
         self.persist()
@@ -141,7 +143,10 @@ class Index:
         :param text: String to insert into index
         :type text: str
         """
-        self.index.insert(Document(text=text, embedding=embedding))
+        if embedding is None:
+            self.index.insert(text)
+        else:
+            self.index.insert(Document(text=text, embedding=embedding))
 
     def update(self, documents, embeddings=[]):
         """Update an index with new documents
@@ -201,7 +206,15 @@ class Index:
                     # import json
                     # document = json.loads(row[1])
                     try:
-                        node = Document(document=row.text, embedding=list(row.embedding))
+
+                        node = TextNode(
+                            id_=row.node_id,
+                            text=row.text,
+                            metadata=row.metadata,
+                            embedding=row.embedding,
+                        )
+                        print(node)
+                        # node = Document(document=row.text, embedding=list(row.embedding))
                     except Exception as e:
                         print(row)
                         raise e
