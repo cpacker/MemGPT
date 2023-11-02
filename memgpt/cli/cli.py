@@ -165,6 +165,20 @@ def attach(
     # loads the data contained in data source into the agent's memory
 
     agent_config = AgentConfig.load(agent)
+    config = MemGPTConfig.load()
+
+    from memgpt.connectors.storage import StorageConnector
+
+    source_storage = StorageConnector.get_storage_connector(name=data_source)
+    dest_storage = StorageConnector.get_storage_connector(agent_config=agent_config)
+
+    passages = source_storage.get_all()
+    assert [len(p.embedding) == config.embedding_dim for p in passages], f"Mismatched embedding sizes"
+    dest_storage.insert_many(passages)
+
+    print("inserted all", len(passages))
+
+    return
 
     source_index = Index(data_source)
     agent_index = Index(agent, save_directory=agent_config.save_agent_index_dir())  # pass in save directory for agent index

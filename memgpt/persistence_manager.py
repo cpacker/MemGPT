@@ -8,8 +8,9 @@ from .memory import (
     DummyArchivalMemory,
     DummyArchivalMemoryWithEmbeddings,
     DummyArchivalMemoryWithFaiss,
-    LocalArchivalMemory,
-    VectorStoreIndexArchivalMemory,
+    # LocalArchivalMemory,
+    # VectorStoreIndexArchivalMemory,
+    GeneralArchivalMemory,
 )
 from .utils import get_local_time, printd
 
@@ -107,7 +108,7 @@ class LocalStateManager(PersistenceManager):
     """In-memory state manager has nothing to manage, all agents are held in-memory"""
 
     recall_memory_cls = DummyRecallMemory
-    archival_memory_cls = VectorStoreIndexArchivalMemory  # LocalArchivalMemory
+    archival_memory_cls = GeneralArchivalMemory  # VectorStoreIndexArchivalMemory  # LocalArchivalMemory
 
     def __init__(self, agent_config: AgentConfig):
         # Memory held in-state useful for debugging stateful versions
@@ -116,7 +117,7 @@ class LocalStateManager(PersistenceManager):
         self.all_messages = []
         # self.archival_memory = LocalArchivalMemory(agent_config=agent_config)
         print("local manager")
-        self.archival_memory = VectorStoreIndexArchivalMemory(agent_config)
+        self.archival_memory = GeneralArchivalMemory(agent_config)
         print("archival memory", self.archival_memory)
         self.recall_memory = None
         self.agent_config = agent_config
@@ -128,7 +129,7 @@ class LocalStateManager(PersistenceManager):
             recall_memory = pickle.load(f)
 
         manager = cls(agent_config)
-        manager.archival_memory = VectorStoreIndexArchivalMemory(agent_config)  # LocalArchivalMemory(agent_config=agent_config)
+        manager.archival_memory = GeneralArchivalMemory(agent_config)  # LocalArchivalMemory(agent_config=agent_config)
         manager.recall_memory = recall_memory
 
         return manager

@@ -744,8 +744,154 @@ class LocalArchivalMemory(ArchivalMemory):
         return self.search(query_string, count, start)
 
     def __repr__(self) -> str:
+<<<<<<< HEAD
         if isinstance(self.index, EmptyIndex):
             memory_str = "<empty>"
         else:
             memory_str = self.index.ref_doc_info
         return f"\n### ARCHIVAL MEMORY ###" + f"\n{memory_str}"
+=======
+        print(self.index.ref_doc_info)
+        return ""
+
+
+class VectorStoreIndexArchivalMemory(ArchivalMemory):
+
+    """Llama index VectorStoreIndex archival memory"""
+
+    def __init__(self, agent_config, top_k: Optional[int] = 100):
+        """Init function for archival memory
+
+        :param archiva_memory_database: name of dataset to pre-fill archival with
+        :type archival_memory_database: str
+        """
+
+        self.top_k = top_k
+        self.agent_config = agent_config
+        self.index = Index(self.agent_config.name)
+
+        print("Create index", self.index)
+
+        # create retriever
+        self.retriever = VectorIndexRetriever(
+            index=self.index.index,  # does this get refreshed?
+            similarity_top_k=self.top_k,
+        )
+        self.query_engine = self.index.index.as_query_engine(top_k=self.top_k)
+
+        # TODO: have some mechanism for cleanup otherwise will lead to OOM
+        self.cache = {}
+
+    def save(self):
+        """Save the index to disk"""
+        print("saving index", self.index.index)
+        self.index.persist()
+
+    def insert(self, memory_string):
+        self.index.insert(memory_string)
+
+    def search(self, query_string, count=None, start=None):
+        print("searching", query_string)
+        if self.retriever is None:
+            print("Warning: archival memory is empty")
+            return [], 0
+
+        start = start if start else 0
+        count = count if count else self.top_k
+        count = min(count + start, self.top_k)
+
+        print("quering...")
+        if query_string not in self.cache:
+            # self.cache[query_string] = self.retriever.retrieve(query_string)
+            try:
+                self.cache[query_string] = self.query_engine.query(query_string)
+            except Exception as e:
+                print(e)
+                raise e
+
+        print(self.cache[query_string])
+
+        results = self.cache[query_string][start : start + count]
+        results = [{"timestamp": get_local_time(), "content": node.node.text} for node in results]
+        # from pprint import pprint
+        # pprint(results)
+        return results, len(results)
+
+    async def a_search(self, query_string, count=None, start=None):
+        return self.search(query_string, count, start)
+
+    async def a_insert(self, memory_string):
+        return self.insert(memory_string)
+
+    def __repr__(self) -> str:
+        # print(self.index.ref_doc_info)
+        nodes = self.index.get_nodes()
+        # from pprint import pprint
+        # pprint(nodes[:10])
+        return f"Archival Memory: {len(nodes)} nodes"
+
+
+class GeneralArchivalMemory(ArchivalMemory):
+    def __init__(self, agent_config, top_k: Optional[int] = 100):
+        """Init function for archival memory
+
+        :param archiva_memory_database: name of dataset to pre-fill archival with
+        :type archival_memory_database: str
+        """
+
+        self.top_k = top_k
+        self.agent_config = agent_config
+        config = MemGPTConfig.load()
+
+        # create embedding model
+        self.embed_model = embedding_model(config)
+
+        # create storage backend
+        self.storage = StorageConnector.get_storage_connector(agent_config=agent_config)
+        # TODO: have some mechanism for cleanup otherwise will lead to OOM
+        self.cache = {}
+
+    def save(self):
+        """Save the index to disk"""
+        self.storage.save()
+
+    def insert(self, memory_string):
+        """Embed and save memory string"""
+        embedding = self.embed_model(memory_string)
+        self.storage.insert(Passage(text=memory_string, embedding=embedding, doc_id=f"agent_{self.agent_config.name}_memory"))
+
+    def search(self, query_string, count=None, start=None):
+        """Search query string"""
+
+        try:
+            if query_string not in self.cache:
+                # self.cache[query_string] = self.retriever.retrieve(query_string)
+                query_vec = self.embed_model.get_text_embedding(query_string)
+                self.cache[query_string] = self.storage.query(query_vec, top_k=self.top_k)
+
+            start = start if start else 0
+            count = count if count else self.top_k
+            end = min(count + start, len(self.cache[query_string]))
+
+            results = self.cache[query_string][start:end]
+            results = [{"timestamp": get_local_time(), "content": node.text} for node in results]
+            return results, len(results)
+        except Exception as e:
+            print("Archival search error", e)
+            raise e
+
+    async def a_search(self, query_string, count=None, start=None):
+        return self.search(query_string, count, start)
+
+    async def a_insert(self, memory_string):
+        return self.insert(memory_string)
+
+    def __repr__(self) -> str:
+        limit = 10
+        passages = []
+        for passage in self.storage.get_all():
+            passages.append(str(passage))
+        print("\n".join(passages))
+        return ""  # TODO: fix
+        # return f"Archival Memory: {len(nodes)} nodes"
+>>>>>>> 3d904f5 (working postgres integration)

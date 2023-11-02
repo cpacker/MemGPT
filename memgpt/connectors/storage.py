@@ -5,6 +5,7 @@ We originally tried to use Llama Index VectorIndex, but their limited API was ex
 from typing import Optional, List
 from memgpt.config import AgentConfig, MemGPTConfig
 from tqdm import tqdm
+import re
 
 from pgvector.psycopg import register_vector
 from pgvector.sqlalchemy import Vector
@@ -38,18 +39,40 @@ class Passage:
 
 
 class StorageConnector:
-    def __init__(self):
-        pass
+    def sanitize_table_name(self, name: str) -> str:
+        # Remove leading and trailing whitespace
+        name = name.strip()
 
-    def table_name(self, agent_config: AgentConfig):
-        return f"memgpt_{agent_config.name}"
+        # Replace spaces and invalid characters with underscores
+        name = re.sub(r"\s+|\W+", "_", name)
+
+        # SQL identifiers should not start with a number or underscore (for some databases)
+        if name[0].isdigit() or name[0] == "_":
+            name = "t" + name
+
+        # Truncate to the maximum identifier length (e.g., 63 for PostgreSQL)
+        max_length = 63
+        if len(name) > max_length:
+            name = name[:max_length].rstrip("_")
+
+        # Convert to lowercase
+        name = name.lower()
+
+        return name
+
+    def generate_table_name_agent(self, agent_config: AgentConfig):
+        return f"memgpt_agent_{self.sanitize_table_name(agent_config.name)}"
+
+    def generate_table_name(self, name: str):
+        return f"memgpt_{self.sanitize_table_name(name)}"
 
     @staticmethod
-    def get_storage_connector(storage_type: str, save_directory: Optional[str] = None):
+    def get_storage_connector(name: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
+        storage_type = MemGPTConfig.load().archival_storage_type
         if storage_type == "local":
-            return LocalStorageConnector(save_directory=save_directory)
+            return LocalStorageConnector(name=name, agent_config=agent_config)
         elif storage_type == "postgres":
-            return PostgresStorageConnector()
+            return PostgresStorageConnector(name=name, agent_config=agent_config)
         else:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")
 
@@ -74,6 +97,38 @@ class StorageConnector:
         pass
 
     @abstractmethod
+    def save(self):
+        """Save state of storage connector"""
+        pass
+
+    @abstractmethod
+    def list_tables(self):
+        """List all tables in the storage connector"""
+        pass
+
+
+class LocalStorageConnector:
+
+    """Local storage connector based on LlamaIndex"""
+
+    def __init__(self, agent_config: AgentConfig):
+        pass
+
+    def get_all(self) -> List[Passage]:
+        pass
+
+    def get(self, id: str) -> Passage:
+        pass
+
+    def insert(self, passage: Passage):
+        pass
+
+    def insert_many(self, passages: List[Passage]):
+        pass
+
+    def query(self, query_string: str, top_k: int = 10) -> List[Passage]:
+        pass
+
     def save(self):
         """Save state of storage connector"""
         pass
@@ -153,24 +208,30 @@ class PassageModel(Base):
 
 def get_db_model(table_name: str):
     class_name = f"{table_name.capitalize()}Model"
-    Model = type(class_name, (PassageModel,), {"__tablename__": table_name})
+    Model = type(class_name, (PassageModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
     return Model
 
 
-class PostgresStorageConnector:
-    def __init__(self, uri: str, table_name: str = None):
+class PostgresStorageConnector(StorageConnector):
+    def __init__(self, name: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
         config = MemGPTConfig.load()
-        self.table_name = (
-            "passages" if not table_name else table_name
-        )  # Assuming you want a static table name; otherwise, use config or agent_config
-        self.uri = uri
+
+        # determine table name
+        if agent_config:
+            assert name is None, f"Cannot specify both agent config and name {name}"
+            self.table_name = self.generate_table_name_agent(agent_config)
+        elif name:
+            assert agent_config is None, f"Cannot specify both agent config and name {name}"
+            self.table_name = self.generate_table_name(name)
+        else:
+            raise ValueError("Must specify either agent config or name")
+
+        # create table
+        self.uri = config.archival_storage_uri
+        self.db_model = get_db_model(self.table_name)
         self.engine = create_engine(self.uri)
         Base.metadata.create_all(self.engine)  # Create the table if it doesn't exist
         self.Session = sessionmaker(bind=self.engine)
-
-        self.db_model = get_db_model(table_name)
-
-        # mapper(Passage, PassageModel)
 
     def get_all(self) -> List[Passage]:
         session = self.Session()
@@ -208,6 +269,7 @@ class PostgresStorageConnector:
             Passage(text=result.text, embedding=np.frombuffer(result.embedding), doc_id=result.doc_id, passage_id=result.id)
             for result in results
         ]
+        print(passages[0].text)
 
         return passages
 
