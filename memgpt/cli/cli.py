@@ -30,7 +30,6 @@ from memgpt.openai_tools import (
     configure_azure_support,
     check_azure_embeddings,
 )
-from memgpt.embeddings import Index
 
 
 def run(
@@ -156,4 +155,29 @@ def run(
         configure_azure_support()
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(run_agent_loop(memgpt_agent, first, no_verify, config, strip_ui))  # TODO: add back no_verify
+    loop.run_until_complete(run_agent_loop(memgpt_agent, first, no_verify, config))  # TODO: add back no_verify
+
+
+def attach(
+    agent: str = typer.Option(help="Specify agent to attach data to"),
+    data_source: str = typer.Option(help="Data source to attach to avent"),
+):
+    # loads the data contained in data source into the agent's memory
+
+    agent_config = AgentConfig.load(agent)
+
+    source_index = Index(data_source)
+    agent_index = Index(agent, save_directory=agent_config.save_agent_index_dir())  # pass in save directory for agent index
+
+    # copy nodes from source index to dest index
+    from tqdm import tqdm
+
+    nodes = source_index.get_nodes()
+    for node in tqdm(nodes):
+        agent_index.insert(node.text, node.embedding)
+    print(f"Added {len(nodes)} form source {data_source} to agent {agent}")
+
+    if data_source not in agent_config.data_sources:
+        agent_config.data_sources += [data_source]
+
+    print("Agent data sources", agent_config.data_sources)

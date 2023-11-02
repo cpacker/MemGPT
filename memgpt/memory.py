@@ -27,6 +27,10 @@ from llama_index.retrievers import VectorIndexRetriever
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.indices.postprocessor import SimilarityPostprocessor
 
+from memgpt.embeddings import Index, embedding_model
+from memgpt.connectors.storage import StorageConnector, Passage
+from memgpt.config import MemGPTConfig
+
 
 class CoreMemory(object):
     """Held in-context inside the system message
@@ -718,6 +722,7 @@ class LocalArchivalMemory(ArchivalMemory):
         return self.insert(memory_string)
 
     def search(self, query_string, count=None, start=None):
+        print("searching with local")
         if self.retriever is None:
             print("Warning: archival memory is empty")
             return [], 0
