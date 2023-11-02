@@ -28,7 +28,7 @@ def load_directory(
         assert input_dir is not None, "Must provide input directory if recursive is True."
 
     if input_dir is not None:
-        assert input_files is None, "Either load in a list of files OR a directory."
+        assert len(input_files) == 0, "Either load in a list of files OR a directory."
         reader = SimpleDirectoryReader(
             input_dir=input_dir,
             recursive=recursive,
