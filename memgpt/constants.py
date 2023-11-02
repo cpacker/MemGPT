@@ -19,8 +19,8 @@ INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG = STARTUP_QUOTES[2]
 
 # The max amount of tokens supported by the underlying model (eg 8k for gpt-4 and Mistral 7B)
 # LLM_MAX_TOKENS = 8000
-LLM_MIN_TOKENS = 2000
-LLM_MAX_TOKENS = 3000  # change this depending on your model
+LLM_MIN_TOKENS = 2000  # approx default system message
+LLM_MAX_TOKENS = 4000  # change this depending on your model
 assert LLM_MAX_TOKENS > LLM_MIN_TOKENS, f"LLM_MAX_TOKENS cannot be set to less than {LLM_MIN_TOKENS}"
 
 # The amount of tokens before a sytem warning about upcoming truncation is sent to MemGPT

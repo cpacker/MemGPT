@@ -27,6 +27,7 @@ from .constants import (
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
 )
+from .errors import LLMError
 
 
 def initialize_memory(ai_notes, human_notes):
@@ -1029,6 +1030,7 @@ class AgentAsync(Agent):
                 cutoff -= 1
                 printd(f"cutoff = {cutoff}")
             cutoff = min(len(self.messages) - MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST, cutoff)  # Always keep the last two messages too
+            cutoff = max(1, cutoff)  # Make sure you don't go negative, and keep system
             printd(f"cutoff = min({len(self.messages)} - {MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST}, cutoff) = {cutoff}")
 
         # Try to make an assistant message come after the cutoff
@@ -1045,7 +1047,9 @@ class AgentAsync(Agent):
         message_sequence_to_summarize = self.messages[1:cutoff]  # do NOT get rid of the system message
         if len(message_sequence_to_summarize) == 0:
             printd(f"message_sequence_to_summarize is len 0, skipping summarize")
-            return
+            raise LLMError(
+                f"Summarize error: tried to run summarize, but couldn't find enough messages to compress [len={len(self.messages)}, cutoff={cutoff}]"
+            )
 
         printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
         summary = await a_summarize_messages(self.model, message_sequence_to_summarize)
