@@ -119,11 +119,11 @@ MemGPT supports pre-loading data into archival memory, so your agent can referen
 #### Loading Data
 We currently support loading from a directory and database dumps. We highly encourage contributions for new data sources, which can be added as a new [CLI data load command](https://github.com/cpacker/MemGPT/blob/main/memgpt/cli/cli_load.py).
 
-Loading from a directorsy:
+Loading from a directory:
 ```
 # loading a directory
 memgpt load directory --name <NAME> \
-    [--input_dir <DIRECTORY>] [--input-files <FILE1> <FILE2>...] [--recursive]
+    [--input-dir <DIRECTORY>] [--input-files <FILE1> <FILE2>...] [--recursive]
 ```
 Loading from a database dump:
 ```sh
