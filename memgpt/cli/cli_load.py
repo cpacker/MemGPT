@@ -9,10 +9,48 @@ memgpt load <data-connector-type> --name <dataset-name> [ADDITIONAL ARGS]
 """
 
 from typing import List
+from tqdm import tqdm
 import typer
-from memgpt.embeddings import Index
+from memgpt.embeddings import Index, embedding_model
+from memgpt.connectors.storage import StorageConnector, Passage
+from memgpt.config import MemGPTConfig
+
+from llama_index import (
+    VectorStoreIndex,
+    ServiceContext,
+)
 
 app = typer.Typer()
+
+
+def store_docs(name, docs, show_progress=True):
+    """Common function for embedding and storing documents"""
+    storage = StorageConnector.get_storage_connector(name=name)
+    config = MemGPTConfig.load()
+    embed_model = embedding_model(config)
+
+    # use llama index to run embeddings code
+    service_context = ServiceContext.from_defaults(llm=None, embed_model=embed_model, chunk_size=config.embedding_chunk_size)
+    index = VectorStoreIndex.from_documents(docs, service_context=service_context)
+    embed_dict = index._vector_store._data.embedding_dict
+    node_dict = index._docstore.docs
+
+    # gather passages
+    passages = []
+    for node_id, node in tqdm(node_dict.items()):
+        vector = embed_dict[node_id]
+        node.embedding = vector
+        text = node.text.replace("\x00", "\uFFFD")  # hacky fix for error on null characters
+        assert (
+            len(node.embedding) == config.embedding_dim
+        ), f"Expected embedding dimension {config.embedding_dim}, got {len(node.embedding)}"
+        passages.append(Passage(text=text, embedding=vector))
+
+    # embeddings = [embed_model.get_text_embedding(doc.text) for doc in docs]
+    # storage.insert_many([Passage(text=doc.text, embedding=embedding) for doc, embedding in zip(docs, embeddings)])
+
+    # insert into storage
+    storage.insert_many(passages)
 
 
 @app.command("index")
@@ -29,14 +67,17 @@ def load_index(
     embed_dict = loaded_index._vector_store._data.embedding_dict
     node_dict = loaded_index._docstore.docs
 
-    nodes = []
+    passages = []
     for node_id, node in node_dict.items():
         vector = embed_dict[node_id]
         node.embedding = vector
-        nodes.append(node)
+        passages.append(Passage(text=node.text, embedding=vector))
 
-    index = Index(name)
-    index.load_nodes(nodes)
+    # index = Index(name)
+    # index.load_nodes(nodes)
+
+    storage = StorageConnector.get_storage_connector(name=name)
+    storage.insert_many(passages)
 
 
 @app.command("directory")
@@ -62,8 +103,10 @@ def load_directory(
     print("Loading data...")
     docs = reader.load_data()
 
-    index = Index(name)
-    index.load_documents(docs)
+    store_docs(name, docs)
+
+    # index = Index(name)
+    # index.load_documents(docs)
 
     ## embed docs
     # print("Indexing documents...")

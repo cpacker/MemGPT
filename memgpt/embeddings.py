@@ -17,6 +17,8 @@ import typer
 from llama_index.embeddings import OpenAIEmbedding
 from llama_index.schema import BaseComponent, TextNode, Document
 
+from memgpt.connectors.storage import PostgresStorageConnector
+
 
 def embedding_model(config: MemGPTConfig):
     # TODO: use embedding_endpoint in the future
@@ -60,24 +62,25 @@ class Index:
             self.storage_context = StorageContext.from_defaults(persist_dir=self.save_directory)
         else:
             if config.archival_storage_type == "postgres":
-                from llama_index.vector_stores import PGVectorStore
-                from sqlalchemy import make_url
+                self.storage = PostgresStorageConnector(name)
+                # from llama_index.vector_stores import PGVectorStore
+                # from sqlalchemy import make_url
 
-                connection_string = config.archival_storage_uri
-                url = make_url(connection_string)
+                # connection_string = config.archival_storage_uri
+                # url = make_url(connection_string)
 
-                self.vector_store = PGVectorStore.from_params(
-                    database=url.database,
-                    host=url.host,
-                    password=url.password,
-                    port=url.port,
-                    user=url.username,
-                    table_name=name,  # table_name = data source name
-                    embed_dim=config.embedding_dim,  # openai embedding dimension
-                )
-                self.uri = config.archival_storage_uri
-                self.table_name = "data_%s" % name.lower()  # TODO: figure out exactly what this is
-                print("TABLE NAME", self.table_name)
+                # self.vector_store = PGVectorStore.from_params(
+                #    database=url.database,
+                #    host=url.host,
+                #    password=url.password,
+                #    port=url.port,
+                #    user=url.username,
+                #    table_name=name,  # table_name = data source name
+                #    embed_dim=config.embedding_dim,  # openai embedding dimension
+                # )
+                # self.uri = config.archival_storage_uri
+                # self.table_name = "data_%s" % name.lower()  # TODO: figure out exactly what this is
+                # print("TABLE NAME", self.table_name)
             elif config.archival_storage_type == "chroma":
                 from llama_index.vector_stores import ChromaVectorStore
                 import chromadb

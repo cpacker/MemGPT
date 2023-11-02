@@ -826,7 +826,7 @@ class GeneralArchivalMemory(ArchivalMemory):
         self.embed_model = embedding_model(config)
 
         # create storage backend
-        self.storage = StorageConnector(self.agent_config.name, config.archival_storage_type, config.archival_storage_uri)
+        self.storage = StorageConnector.get_storage_connector(agent_config=agent_config)
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
 
@@ -842,22 +842,22 @@ class GeneralArchivalMemory(ArchivalMemory):
     def search(self, query_string, count=None, start=None):
         """Search query string"""
 
-        start = start if start else 0
-        count = count if count else self.top_k
-        count = min(count + start, self.top_k)
+        try:
+            if query_string not in self.cache:
+                # self.cache[query_string] = self.retriever.retrieve(query_string)
+                query_vec = self.embed_model.get_text_embedding(query_string)
+                self.cache[query_string] = self.storage.query(query_vec, top_k=self.top_k)
 
-        print("quering...", query_string)
-        if query_string not in self.cache:
-            # self.cache[query_string] = self.retriever.retrieve(query_string)
-            try:
-                self.cache[query_string] = self.storage.query(query_string, top_k=self.top_k)
-            except Exception as e:
-                print(e)
-                raise e
+            start = start if start else 0
+            count = count if count else self.top_k
+            end = min(count + start, len(self.cache[query_string]))
 
-        results = self.cache[query_string][start : start + count]
-        results = [{"timestamp": get_local_time(), "content": node.node.text} for node in results]
-        return results, len(results)
+            results = self.cache[query_string][start:end]
+            results = [{"timestamp": get_local_time(), "content": node.text} for node in results]
+            return results, len(results)
+        except Exception as e:
+            print("Archival search error", e)
+            raise e
 
     async def a_search(self, query_string, count=None, start=None):
         return self.search(query_string, count, start)
