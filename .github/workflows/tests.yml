@@ -2,7 +2,7 @@ name: MemGPT tests
 
 on:
   push:
-    branches: [ basic-tests ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -33,4 +33,4 @@ jobs:
 
     - name: Run tests with pytest
       run: |
-        poetry run pytest -s tests
+        poetry run pytest -s -vv tests
