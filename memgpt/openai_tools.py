@@ -145,6 +145,9 @@ async def acreate_embedding_with_backoff(**kwargs):
         else:
             kwargs["engine"] = kwargs["model"]
             kwargs.pop("model")
+    elif HOST_TYPE is not None:
+        # Currently, still use openai embeddings
+        kwargs["api_base"] = "https://api.openai.com/v1"
     return await openai.Embedding.acreate(**kwargs)
 
 
@@ -166,6 +169,9 @@ def create_embedding_with_backoff(**kwargs):
         else:
             kwargs["engine"] = kwargs["model"]
             kwargs.pop("model")
+    elif HOST_TYPE is not None:
+        # Currently, still use openai embeddings
+        kwargs["api_base"] = "https://api.openai.com/v1"
     return openai.Embedding.create(**kwargs)
 
 

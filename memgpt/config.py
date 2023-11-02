@@ -447,12 +447,16 @@ class Config:
 
     async def configure_archival_storage(self, recompute_embeddings):
         if recompute_embeddings:
-            if self.host:
-                interface.warning_message(
-                    "⛔️ Embeddings on a non-OpenAI endpoint are not yet supported, falling back to substring matching search."
-                )
-            else:
+            try:
                 self.archival_storage_index = await utils.prepare_archival_index_from_files_compute_embeddings(self.archival_storage_files)
+            except Exception as e:
+                if self.host:
+                    print(e)
+                    interface.warning_message(
+                        "⛔️ Embeddings on a non-OpenAI endpoint are not yet supported, falling back to substring matching search."
+                    )
+                else:
+                    raise e
         if self.compute_embeddings and self.archival_storage_index:
             self.index, self.archival_database = utils.prepare_archival_index(self.archival_storage_index)
         else:
