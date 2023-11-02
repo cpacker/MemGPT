@@ -16,8 +16,27 @@ STARTUP_QUOTES = [
 INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG = STARTUP_QUOTES[2]
 
 # Constants to do with summarization / conversation length window
-MESSAGE_SUMMARY_WARNING_TOKENS = 7000  # the number of tokens consumed in a call before a system warning goes to the agent
+
+# The max amount of tokens supported by the underlying model (eg 8k for gpt-4 and Mistral 7B)
+# LLM_MAX_TOKENS = 8000
+LLM_MIN_TOKENS = 2000
+LLM_MAX_TOKENS = 3000  # change this depending on your model
+assert LLM_MAX_TOKENS > LLM_MIN_TOKENS, f"LLM_MAX_TOKENS cannot be set to less than {LLM_MIN_TOKENS}"
+
+# The amount of tokens before a sytem warning about upcoming truncation is sent to MemGPT
+# MESSAGE_SUMMARY_WARNING_TOKENS = int((6000 / 8000) * LLM_MAX_TOKENS)
+MESSAGE_SUMMARY_WARNING_TOKENS = int(0.75 * LLM_MAX_TOKENS)
+# The error message that MemGPT will receive
 MESSAGE_SUMMARY_WARNING_STR = f"Warning: the conversation history will soon reach its maximum length and be trimmed. Make sure to save any important information from the conversation to your memory before it is removed."
+
+# The amount of tokens we truncate down to
+# The truncation process will traverse the message list backwards until this token count is hit
+# MESSAGE_SUMMARY_TRUNC_TOKEN = int(MESSAGE_SUMMARY_WARNING_TOKENS * 0.2)
+# We shouldn't let this go below the amount of tokens required for the system message
+MESSAGE_SUMMARY_TRUNC_TOKENS = max(LLM_MIN_TOKENS, int(0.2 * LLM_MAX_TOKENS))
+# Even when summarizing, we want to keep a handful of recent messages
+# These serve as in-context examples of how to use functions / what user messages look like
+MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST = 3
 
 # Default memory limits
 CORE_MEMORY_PERSONA_CHAR_LIMIT = 2000

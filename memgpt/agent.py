@@ -22,6 +22,8 @@ from .constants import (
     MESSAGE_CHATGPT_FUNCTION_MODEL,
     MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
     MESSAGE_SUMMARY_WARNING_TOKENS,
+    MESSAGE_SUMMARY_TRUNC_TOKENS,
+    MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
 )
@@ -682,7 +684,7 @@ class Agent(object):
             cutoff = len(self.messages) - 1
             for m in reversed(self.messages):
                 tokens_so_far += count_tokens(str(m), self.model)
-                if tokens_so_far >= MESSAGE_SUMMARY_WARNING_TOKENS * 0.2:
+                if tokens_so_far >= MESSAGE_SUMMARY_TRUNC_TOKENS:
                     break
                 cutoff -= 1
             cutoff = min(len(self.messages) - 3, cutoff)  # Always keep the last two messages too
@@ -1014,14 +1016,20 @@ class AgentAsync(Agent):
 
     async def summarize_messages_inplace(self, cutoff=None):
         if cutoff is None:
+            printd(f"cutoff is None, computing cutoff")
             tokens_so_far = 0  # Smart cutoff -- just below the max.
             cutoff = len(self.messages) - 1
+            printd(f"cutoff = {cutoff}")
             for m in reversed(self.messages):
                 tokens_so_far += count_tokens(str(m), self.model)
-                if tokens_so_far >= MESSAGE_SUMMARY_WARNING_TOKENS * 0.2:
+                printd(f"tokens_so_far = {tokens_so_far}")
+                if tokens_so_far >= MESSAGE_SUMMARY_TRUNC_TOKENS:
+                    printd(f"tokens_so_far >= {MESSAGE_SUMMARY_TRUNC_TOKENS}")
                     break
                 cutoff -= 1
-            cutoff = min(len(self.messages) - 3, cutoff)  # Always keep the last two messages too
+                printd(f"cutoff = {cutoff}")
+            cutoff = min(len(self.messages) - MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST, cutoff)  # Always keep the last two messages too
+            printd(f"cutoff = min({len(self.messages)} - {MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST}, cutoff) = {cutoff}")
 
         # Try to make an assistant message come after the cutoff
         try:
@@ -1035,8 +1043,11 @@ class AgentAsync(Agent):
             pass
 
         message_sequence_to_summarize = self.messages[1:cutoff]  # do NOT get rid of the system message
-        printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
+        if len(message_sequence_to_summarize) == 0:
+            printd(f"message_sequence_to_summarize is len 0, skipping summarize")
+            return
 
+        printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
         summary = await a_summarize_messages(self.model, message_sequence_to_summarize)
         printd(f"Got summary: {summary}")
 

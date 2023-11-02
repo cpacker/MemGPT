@@ -9,6 +9,7 @@ from .lmstudio.api import get_lmstudio_completion
 from .llm_chat_completion_wrappers import airoboros, dolphin, zephyr, simple_summary_wrapper
 from .utils import DotDict
 from ..prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
+from ..errors import LocalLLMConnectionError, LocalLLMError
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
@@ -33,6 +34,8 @@ async def get_chat_completion(
     if messages[0]["role"] == "system" and messages[0]["content"].strip() == SUMMARIZE_SYSTEM_MESSAGE.strip():
         # Special case for if the call we're making is coming from the summarizer
         print("XXX summarize found!")
+        print(f"messages=\n{messages}")
+        input()
         llm_wrapper = simple_summary_wrapper.SimpleSummaryWrapper()
     elif model == "airoboros-l2-70b-2.1":
         llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper()
@@ -62,10 +65,10 @@ async def get_chat_completion(
             print(f"Warning: BACKEND_TYPE was not set, defaulting to webui")
             result = get_webui_completion(prompt)
     except requests.exceptions.ConnectionError as e:
-        raise ValueError(f"Was unable to connect to host {HOST}")
+        raise LocalLLMConnectionError(f"Unable to connect to host {HOST}")
 
     if result is None or result == "":
-        raise Exception(f"Got back an empty response string from {HOST}")
+        raise LocalLLMError(f"Got back an empty response string from {HOST}")
 
     chat_completion_result = llm_wrapper.output_to_chat_completion_response(result)
     if DEBUG:
