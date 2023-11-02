@@ -30,15 +30,7 @@ from llama_index.retrievers import VectorIndexRetriever
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.indices.postprocessor import SimilarityPostprocessor
 
-<<<<<<< HEAD
 from memgpt.embeddings import embedding_model
-from memgpt.config import MemGPTConfig
-
-from memgpt.embeddings import embedding_model
-=======
-from memgpt.embeddings import Index, embedding_model
-from memgpt.connectors.storage import StorageConnector, Passage
->>>>>>> b55cdad (add postgres connector)
 from memgpt.config import MemGPTConfig
 
 
