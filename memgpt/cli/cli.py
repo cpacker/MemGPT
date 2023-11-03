@@ -38,7 +38,6 @@ def run(
     human: str = typer.Option(None, help="Specify human"),
     model: str = typer.Option(None, help="Specify the LLM model"),
     preset: str = typer.Option(None, help="Specify preset"),
-    # data_source: str = typer.Option(None, help="Specify data source to attach to agent"),
     first: bool = typer.Option(False, "--first", help="Use --first to send the first message in the sequence"),
     strip_ui: bool = typer.Option(False, "--strip_ui", help="Remove all the bells and whistles in CLI output (helpful for testing)"),
     debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
@@ -53,7 +52,6 @@ def run(
     :param agent: Specify agent name (will load existing state if the agent exists, or create a new one with that name)
     :param human: Specify human
     :param model: Specify the LLM model
-    #:param data_source: Specify data source to attach to agent (if new agent is being created)
 
     """
 

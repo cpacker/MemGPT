@@ -106,6 +106,7 @@ class LocalStorageConnector(StorageConnector):
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10) -> List[Passage]:
         # TODO: this may be super slow?
+        # the nice thing about creating this here is that now we can save the persistent storage manager
         retriever = VectorIndexRetriever(
             index=self.index,  # does this get refreshed?
             similarity_top_k=top_k,
