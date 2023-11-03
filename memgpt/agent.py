@@ -23,9 +23,12 @@ from .constants import (
     MESSAGE_CHATGPT_FUNCTION_MODEL,
     MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
     MESSAGE_SUMMARY_WARNING_TOKENS,
+    MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
+    MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
 )
+from .errors import LLMError
 
 
 def initialize_memory(ai_notes, human_notes):
@@ -680,16 +683,43 @@ class Agent(object):
                 printd(f"step() failed with openai.InvalidRequestError, but didn't recognize the error message: '{str(e)}'")
                 raise e
 
-    def summarize_messages_inplace(self, cutoff=None):
-        if cutoff is None:
-            tokens_so_far = 0  # Smart cutoff -- just below the max.
-            cutoff = len(self.messages) - 1
-            for m in reversed(self.messages):
-                tokens_so_far += count_tokens(str(m), self.model)
-                if tokens_so_far >= MESSAGE_SUMMARY_WARNING_TOKENS * 0.2:
-                    break
-                cutoff -= 1
-            cutoff = min(len(self.messages) - 3, cutoff)  # Always keep the last two messages too
+    def summarize_messages_inplace(self, cutoff=None, preserve_last_N_messages=True):
+        assert self.messages[0]["role"] == "system", f"self.messages[0] should be system (instead got {self.messages[0]})"
+
+        # Start at index 1 (past the system message),
+        # and collect messages for summarization until we reach the desired truncation token fraction (eg 50%)
+        # Do not allow truncation of the last N messages, since these are needed for in-context examples of function calling
+        token_counts = [count_tokens(str(msg)) for msg in self.messages]
+        message_buffer_token_count = sum(token_counts[1:])  # no system message
+        desired_token_count_to_summarize = int(message_buffer_token_count * MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC)
+        candidate_messages_to_summarize = self.messages[1:]
+        token_counts = token_counts[1:]
+        if preserve_last_N_messages:
+            candidate_messages_to_summarize = candidate_messages_to_summarize[:-MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST]
+            token_counts = token_counts[:-MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST]
+        printd(f"MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC={MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC}")
+        printd(f"MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST={MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST}")
+        printd(f"token_counts={token_counts}")
+        printd(f"message_buffer_token_count={message_buffer_token_count}")
+        printd(f"desired_token_count_to_summarize={desired_token_count_to_summarize}")
+        printd(f"len(candidate_messages_to_summarize)={len(candidate_messages_to_summarize)}")
+
+        # If at this point there's nothing to summarize, throw an error
+        if len(candidate_messages_to_summarize) == 0:
+            raise LLMError(
+                f"Summarize error: tried to run summarize, but couldn't find enough messages to compress [len={len(self.messages)}, preserve_N={MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST}]"
+            )
+
+        # Walk down the message buffer (front-to-back) until we hit the target token count
+        tokens_so_far = 0
+        cutoff = 0
+        for i, msg in enumerate(candidate_messages_to_summarize):
+            cutoff = i
+            tokens_so_far += token_counts[i]
+            if tokens_so_far > desired_token_count_to_summarize:
+                break
+        # Account for system message
+        cutoff += 1
 
         # Try to make an assistant message come after the cutoff
         try:
@@ -1083,16 +1113,43 @@ class AgentAsync(Agent):
                 print(e)
                 raise e
 
-    async def summarize_messages_inplace(self, cutoff=None):
-        if cutoff is None:
-            tokens_so_far = 0  # Smart cutoff -- just below the max.
-            cutoff = len(self.messages) - 1
-            for m in reversed(self.messages):
-                tokens_so_far += count_tokens(str(m), self.model)
-                if tokens_so_far >= MESSAGE_SUMMARY_WARNING_TOKENS * 0.2:
-                    break
-                cutoff -= 1
-            cutoff = min(len(self.messages) - 3, cutoff)  # Always keep the last two messages too
+    async def summarize_messages_inplace(self, cutoff=None, preserve_last_N_messages=True):
+        assert self.messages[0]["role"] == "system", f"self.messages[0] should be system (instead got {self.messages[0]})"
+
+        # Start at index 1 (past the system message),
+        # and collect messages for summarization until we reach the desired truncation token fraction (eg 50%)
+        # Do not allow truncation of the last N messages, since these are needed for in-context examples of function calling
+        token_counts = [count_tokens(str(msg)) for msg in self.messages]
+        message_buffer_token_count = sum(token_counts[1:])  # no system message
+        token_counts = token_counts[1:]
+        desired_token_count_to_summarize = int(message_buffer_token_count * MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC)
+        candidate_messages_to_summarize = self.messages[1:]
+        if preserve_last_N_messages:
+            candidate_messages_to_summarize = candidate_messages_to_summarize[:-MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST]
+            token_counts = token_counts[:-MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST]
+        printd(f"MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC={MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC}")
+        printd(f"MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST={MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST}")
+        printd(f"token_counts={token_counts}")
+        printd(f"message_buffer_token_count={message_buffer_token_count}")
+        printd(f"desired_token_count_to_summarize={desired_token_count_to_summarize}")
+        printd(f"len(candidate_messages_to_summarize)={len(candidate_messages_to_summarize)}")
+
+        # If at this point there's nothing to summarize, throw an error
+        if len(candidate_messages_to_summarize) == 0:
+            raise LLMError(
+                f"Summarize error: tried to run summarize, but couldn't find enough messages to compress [len={len(self.messages)}, preserve_N={MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST}]"
+            )
+
+        # Walk down the message buffer (front-to-back) until we hit the target token count
+        tokens_so_far = 0
+        cutoff = 0
+        for i, msg in enumerate(candidate_messages_to_summarize):
+            cutoff = i
+            tokens_so_far += token_counts[i]
+            if tokens_so_far > desired_token_count_to_summarize:
+                break
+        # Account for system message
+        cutoff += 1
 
         # Try to make an assistant message come after the cutoff
         try:
@@ -1106,8 +1163,13 @@ class AgentAsync(Agent):
             pass
 
         message_sequence_to_summarize = self.messages[1:cutoff]  # do NOT get rid of the system message
-        printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
+        if len(message_sequence_to_summarize) == 0:
+            printd(f"message_sequence_to_summarize is len 0, skipping summarize")
+            raise LLMError(
+                f"Summarize error: tried to run summarize, but couldn't find enough messages to compress [len={len(self.messages)}, cutoff={cutoff}]"
+            )
 
+        printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
         summary = await a_summarize_messages(self.model, message_sequence_to_summarize)
         printd(f"Got summary: {summary}")
 

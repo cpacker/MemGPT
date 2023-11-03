@@ -121,7 +121,7 @@ def summarize_messages(
 
     summary_prompt = SUMMARY_PROMPT_SYSTEM
     summary_input = str(message_sequence_to_summarize)
-    summary_input_tkns = count_tokens(summary_input, model)
+    summary_input_tkns = count_tokens(summary_input)
     if summary_input_tkns > MESSAGE_SUMMARY_WARNING_TOKENS:
         trunc_ratio = (MESSAGE_SUMMARY_WARNING_TOKENS / summary_input_tkns) * 0.8  # For good measure...
         cutoff = int(len(message_sequence_to_summarize) * trunc_ratio)
@@ -149,12 +149,12 @@ async def a_summarize_messages(
 
     summary_prompt = SUMMARY_PROMPT_SYSTEM
     summary_input = str(message_sequence_to_summarize)
-    summary_input_tkns = count_tokens(summary_input, model)
+    summary_input_tkns = count_tokens(summary_input)
     if summary_input_tkns > MESSAGE_SUMMARY_WARNING_TOKENS:
         trunc_ratio = (MESSAGE_SUMMARY_WARNING_TOKENS / summary_input_tkns) * 0.8  # For good measure...
         cutoff = int(len(message_sequence_to_summarize) * trunc_ratio)
         summary_input = str(
-            [await summarize_messages(model, message_sequence_to_summarize[:cutoff])] + message_sequence_to_summarize[cutoff:]
+            [await a_summarize_messages(model, message_sequence_to_summarize[:cutoff])] + message_sequence_to_summarize[cutoff:]
         )
     message_sequence = [
         {"role": "system", "content": summary_prompt},
