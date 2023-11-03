@@ -233,7 +233,6 @@ class MemGPTAgent(ConversableAgent):
         pretty_ret = MemGPTAgent.pretty_concat(self.agent.interface.message_list)
         self.messages_processed_up_to_idx += len(new_messages)
         return True, pretty_ret
-        return asyncio.run(self._a_generate_reply_for_user_message(messages=messages, sender=sender, config=config))
 
     @staticmethod
     def pretty_concat(messages):
