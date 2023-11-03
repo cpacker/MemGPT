@@ -470,6 +470,25 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
                     )
                     continue
 
+                elif user_input.lower() == "/attach":
+                    if legacy:
+                        typer.secho("Error: /attach is not supported in legacy mode.", fg=typer.colors.RED, bold=True)
+                        continue
+
+                    # TODO: check if agent already has it
+                    data_source_options = StorageConnector.list_loaded_data()
+                    data_source = await questionary.select("Select data source", choices=data_source_options).ask_async()
+
+                    # attach new data
+                    attach(memgpt_agent.config.name, data_source)
+
+                    # reload agent with new data source
+                    # TODO: maybe make this less ugly...
+                    memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_storage_connector(
+                        agent_config=memgpt_agent.config
+                    )
+                    continue
+
                 elif user_input.lower() == "/dump":
                     await memgpt.interface.print_messages(memgpt_agent.messages)
                     continue
