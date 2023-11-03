@@ -80,10 +80,10 @@ The `run` command supports the following optional flags (if set, will override c
 * `--persona`: (str) Name of agent persona to use.
 * `--model`: (str) LLM model to run [gpt-4, gpt-3.5].
 * `--preset`: (str) MemGPT preset to run agent with.
-* `--data_source`: (str) Name of data source (loaded with `memgpt load`) to connect to agent.
+* `--data-source`: (str) Name of data source (loaded with `memgpt load`) to connect to agent.
 * `--first`: (str) Allow user to sent the first message.
 * `--debug`: (bool) Show debug logs (default=False)
-* `--no_verify`: (bool) Bypass message verification (default=False)
+* `--no-verify`: (bool) Bypass message verification (default=False)
 * `--yes`/`-y`: (bool) Skip confirmation prompt and use defaults (default=False)
 
 You can run the following commands in the MemGPT CLI prompt:
