@@ -51,6 +51,7 @@ def store_docs(name, docs, show_progress=True):
 
     # insert into storage
     storage.insert_many(passages)
+    storage.save()
 
 
 @app.command("index")
@@ -78,6 +79,7 @@ def load_index(
 
     storage = StorageConnector.get_storage_connector(name=name)
     storage.insert_many(passages)
+    storage.save()
 
 
 @app.command("directory")

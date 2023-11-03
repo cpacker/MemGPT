@@ -173,8 +173,10 @@ def attach(
     dest_storage = StorageConnector.get_storage_connector(agent_config=agent_config)
 
     passages = source_storage.get_all()
-    assert [len(p.embedding) == config.embedding_dim for p in passages], f"Mismatched embedding sizes"
+    for p in passages:
+        len(p.embedding) == config.embedding_dim, f"Mismatched embedding sizes {len(p.embedding)} != {config.embedding_dim}"
     dest_storage.insert_many(passages)
+    dest_storage.save()
 
     print("inserted all", len(passages))
 
