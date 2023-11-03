@@ -178,7 +178,7 @@ class ArchivalMemory(ABC):
         pass
 
     @abstractmethod
-    def insert(self, memory_string):
+    def insert(self, memory_string, embedding=None):
         """Insert new archival memory
 
         :param memory_string: Memory string to insert
