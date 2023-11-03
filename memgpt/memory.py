@@ -890,3 +890,6 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         print("\n".join(passages))
         return ""  # TODO: fix
         # return f"Archival Memory: {len(nodes)} nodes"
+
+    def __len__(self):
+        return len(self.storage.get_all())
