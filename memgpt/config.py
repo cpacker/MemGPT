@@ -37,7 +37,7 @@ model_choices = [
 
 @dataclass
 class MemGPTConfig:
-    config_path: str = f"{MEMGPT_DIR}/config"
+    config_path: str = os.path.join(MEMGPT_DIR, "config")
     anon_clientid: str = None
 
     # preset

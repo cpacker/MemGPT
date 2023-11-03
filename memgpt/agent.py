@@ -369,7 +369,7 @@ class Agent(object):
 
         # load state
         directory = agent_config.save_state_dir()
-        json_files = glob.glob(f"{directory}/*.json")  # This will list all .json files in the current directory.
+        json_files = glob.glob(os.path.join(directory, "*.json"))  # This will list all .json files in the current directory.
         if not json_files:
             print(f"/load error: no .json checkpoint files found")
             raise ValueError(f"Cannot load {agent_name}")
