@@ -1,0 +1,36 @@
+name: MemGPT tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.10.10  # Set this to your Python version
+
+    - name: Install Poetry
+      run: |
+        pip install poetry
+
+    - name: Install dependencies using Poetry
+      run: |
+        poetry install
+
+    - name: Install pexpect for testing the interactive CLI
+      run: |
+        poetry add --dev pexpect
+
+    - name: Run tests with pytest
+      run: |
+        poetry run pytest -s -vv tests

@@ -173,6 +173,11 @@ async def a_summarize_messages(
 
 class ArchivalMemory(ABC):
     @abstractmethod
+    def __len__(self):
+        """Define the length of the object. Must be implemented by subclasses."""
+        pass
+
+    @abstractmethod
     def insert(self, memory_string):
         """Insert new archival memory
 
@@ -382,7 +387,7 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
     async def a_insert(self, memory_string, embedding=None):
         if embedding is None:
             # Get the embedding
-            embedding = async_get_embedding_with_backoff(memory_string, model=self.embedding_model)
+            embedding = await async_get_embedding_with_backoff(memory_string, model=self.embedding_model)
         return self._insert(memory_string, embedding)
 
     def _search(self, query_embedding, query_string, count=None, start=None):
@@ -439,6 +444,11 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
 
 
 class RecallMemory(ABC):
+    @abstractmethod
+    def __len__(self):
+        """Define the length of the object. Must be implemented by subclasses."""
+        pass
+
     @abstractmethod
     def text_search(self, query_string, count=None, start=None):
         pass
@@ -539,7 +549,7 @@ class DummyRecallMemory(RecallMemory):
         try:
             datetime.datetime.strptime(date_str, "%Y-%m-%d")
             return True
-        except ValueError:
+        except (ValueError, TypeError):
             return False
 
     def _extract_date_from_timestamp(self, timestamp):
@@ -576,7 +586,7 @@ class DummyRecallMemory(RecallMemory):
         else:
             return matches, len(matches)
 
-    def a_date_search(self, start_date, end_date, count=None, start=None):
+    async def a_date_search(self, start_date, end_date, count=None, start=None):
         return self.date_search(start_date, end_date, count, start)
 
 
@@ -680,6 +690,10 @@ class LocalArchivalMemory(ArchivalMemory):
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
 
+    def __len__(self):
+        # TODO FIXME
+        return 1
+
     def save(self):
         """Save the index to disk"""
         if self.agent_config.data_source:  # update original archival index
@@ -722,5 +736,8 @@ class LocalArchivalMemory(ArchivalMemory):
         return self.search(query_string, count, start)
 
     def __repr__(self) -> str:
-        print(self.index.ref_doc_info)
-        return ""
+        if isinstance(self.index, EmptyIndex):
+            memory_str = "<empty>"
+        else:
+            memory_str = self.index.ref_doc_info
+        return f"\n### ARCHIVAL MEMORY ###" + f"\n{memory_str}"

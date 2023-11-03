@@ -20,7 +20,7 @@ When using open LLMs with MemGPT, **the main failure case will be your LLM outpu
 <details>
  <summary><h2>🖥️ Serving your LLM from a web server (WebUI example)</strong></h2></summary>
 
-⁉️ Do **NOT** enable any extensions in web UI, including the [openai extension](https://github.com/oobabooga/text-generation-webui/tree/main/extensions/openai)! Just run web UI as-is
+⁉️ Do **NOT** enable any extensions in web UI, including the [openai extension](https://github.com/oobabooga/text-generation-webui/tree/main/extensions/openai)! Just run web UI as-is, unless you are running [MemGPT+Autogen](https://github.com/cpacker/MemGPT/tree/main/memgpt/autogen) with non-MemGPT agents.
 
 To get MemGPT to work with a local LLM, you need to have the LLM running on a server that takes API requests.
 

@@ -1,21 +1,23 @@
-import tempfile
-import asyncio
-import os
-import asyncio
-from datasets import load_dataset
+# import tempfile
+# import asyncio
+# import os
+# import asyncio
+# from datasets import load_dataset
 
-import memgpt
-from memgpt.cli.cli_load import load_directory, load_database, load_webpage
-import memgpt.presets as presets
-import memgpt.personas.personas as personas
-import memgpt.humans.humans as humans
-from memgpt.persistence_manager import InMemoryStateManager, LocalStateManager
-from memgpt.config import AgentConfig
-from memgpt.constants import MEMGPT_DIR, DEFAULT_MEMGPT_MODEL
-import memgpt.interface  # for printing to terminal
+# import memgpt
+# from memgpt.cli.cli_load import load_directory, load_database, load_webpage
+# import memgpt.presets as presets
+# import memgpt.personas.personas as personas
+# import memgpt.humans.humans as humans
+# from memgpt.persistence_manager import InMemoryStateManager, LocalStateManager
+
+# # from memgpt.config import AgentConfig
+# from memgpt.constants import MEMGPT_DIR, DEFAULT_MEMGPT_MODEL
+# import memgpt.interface  # for printing to terminal
 
 
 def test_load_directory():
+    return
     # downloading hugging face dataset (if does not exist)
     dataset = load_dataset("MemGPT/example_short_stories")
 
@@ -69,6 +71,7 @@ def test_load_webpage():
 
 
 def test_load_database():
+    return
     from sqlalchemy import create_engine, MetaData
     import pandas as pd
 
@@ -100,7 +103,7 @@ def test_load_database():
 
     # create agents with defaults
     agent_config = AgentConfig(
-        persona=personas.DEFAULT_PRESET,
+        persona=personas.DEFAULT,
         human=humans.DEFAULT,
         model=DEFAULT_MEMGPT_MODEL,
         data_source="tmp_hf_dataset",

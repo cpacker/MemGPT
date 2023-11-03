@@ -26,6 +26,10 @@ from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
 from memgpt.agent import AgentAsync
 from memgpt.embeddings import embedding_model
+from memgpt.openai_tools import (
+    configure_azure_support,
+    check_azure_embeddings,
+)
 
 
 def run(
@@ -36,6 +40,7 @@ def run(
     preset: str = typer.Option(None, help="Specify preset"),
     data_source: str = typer.Option(None, help="Specify data source to attach to agent"),
     first: bool = typer.Option(False, "--first", help="Use --first to send the first message in the sequence"),
+    strip_ui: bool = typer.Option(False, "--strip_ui", help="Remove all the bells and whistles in CLI output (helpful for testing)"),
     debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
     no_verify: bool = typer.Option(False, "--no_verify", help="Bypass message verification"),
     yes: bool = typer.Option(False, "-y", help="Skip confirmation prompt and use defaults"),
@@ -135,8 +140,8 @@ def run(
             agent_config.preset,
             agent_config,
             agent_config.model,
-            agent_config.persona,
-            agent_config.human,
+            utils.get_persona_text(agent_config.persona),
+            utils.get_human_text(agent_config.human),
             memgpt.interface,
             persistence_manager,
         )
@@ -144,5 +149,10 @@ def run(
     # start event loop
     from memgpt.main import run_agent_loop
 
+    # setup azure if using
+    # TODO: cleanup this code
+    if config.model_endpoint == "azure":
+        configure_azure_support()
+
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(run_agent_loop(memgpt_agent, first, no_verify, config))  # TODO: add back no_verify
+    loop.run_until_complete(run_agent_loop(memgpt_agent, first, no_verify, config, strip_ui))  # TODO: add back no_verify

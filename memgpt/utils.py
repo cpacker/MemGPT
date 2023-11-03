@@ -152,6 +152,10 @@ def total_bytes(pattern):
 
 def chunk_file(file, tkns_per_chunk=300, model="gpt-4"):
     encoding = tiktoken.encoding_for_model(model)
+
+    if file.endswith(".db"):
+        return  # can't read the sqlite db this way, will get handled in main.py
+
     with open(file, "r") as f:
         if file.endswith(".pdf"):
             lines = [l for l in read_pdf_in_chunks(file, tkns_per_chunk * 8)]
@@ -366,6 +370,7 @@ def get_index(name, docs):
     :type docs: List[Document]
     """
     from memgpt.config import MemGPTConfig  # avoid circular import
+    from memgpt.embeddings import embedding_model  # avoid circular import
 
     # TODO: configure to work for local
     print("Warning: get_index(docs) only supported for OpenAI")
@@ -394,13 +399,11 @@ def get_index(name, docs):
 
     # read embedding confirguration
     # TODO: in the future, make an IngestData class that loads the config once
-    # config = MemGPTConfig.load()
-    # chunk_size = config.embedding_chunk_size
-    # model = config.embedding_model  # TODO: actually use this
-    # dim = config.embedding_dim  # TODO: actually use this
-    # embed_model = OpenAIEmbedding()
-    # service_context = ServiceContext.from_defaults(embed_model=embed_model, chunk_size=chunk_size)
-    # set_global_service_context(service_context)
+    config = MemGPTConfig.load()
+    embed_model = embedding_model(config)
+    chunk_size = config.embedding_chunk_size
+    service_context = ServiceContext.from_defaults(embed_model=embed_model, chunk_size=chunk_size)
+    set_global_service_context(service_context)
 
     # index documents
     index = VectorStoreIndex.from_documents(docs)
@@ -477,3 +480,27 @@ def list_persona_files():
     user_added = os.listdir(user_dir)
     user_added = [os.path.join(user_dir, f) for f in user_added]
     return memgpt_defaults + user_added
+
+
+def get_human_text(name: str):
+    for file_path in list_human_files():
+        file = os.path.basename(file_path)
+        if f"{name}.txt" == file or name == file:
+            return open(file_path, "r").read().strip()
+    raise ValueError(f"Human {name} not found")
+
+
+def get_persona_text(name: str):
+    for file_path in list_persona_files():
+        file = os.path.basename(file_path)
+        if f"{name}.txt" == file or name == file:
+            return open(file_path, "r").read().strip()
+
+    raise ValueError(f"Persona {name} not found")
+
+
+def get_human_text(name: str):
+    for file_path in list_human_files():
+        file = os.path.basename(file_path)
+        if f"{name}.txt" == file or name == file:
+            return open(file_path, "r").read().strip()

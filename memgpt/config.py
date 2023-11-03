@@ -110,8 +110,10 @@ class MemGPTConfig:
                 azure_key = config.get("azure", "key")
                 azure_endpoint = config.get("azure", "endpoint")
                 azure_version = config.get("azure", "version")
-                azure_deployment = config.get("azure", "deployment")
-                azure_embedding_deployment = config.get("azure", "embedding_deployment")
+                azure_deployment = config.get("azure", "deployment") if config.has_option("azure", "deployment") else None
+                azure_embedding_deployment = (
+                    config.get("azure", "embedding_deployment") if config.has_option("azure", "embedding_deployment") else None
+                )
 
             embedding_model = config.get("embedding", "model")
             embedding_dim = config.getint("embedding", "dim")
@@ -167,8 +169,9 @@ class MemGPTConfig:
             config.set("azure", "key", self.azure_key)
             config.set("azure", "endpoint", self.azure_endpoint)
             config.set("azure", "version", self.azure_version)
-            config.set("azure", "deployment", self.azure_deployment)
-            config.set("azure", "embedding_deployment", self.azure_embedding_deployment)
+            if self.azure_deployment:
+                config.set("azure", "deployment", self.azure_deployment)
+                config.set("azure", "embedding_deployment", self.azure_embedding_deployment)
 
         # embeddings
         config.add_section("embedding")
