@@ -1,5 +1,6 @@
 import json
 from .wrapper_base import LLMChatCompletionWrapper
+from ...errors import LLMJSONParsingError
 
 
 class ZephyrMistralWrapper(LLMChatCompletionWrapper):
@@ -151,8 +152,11 @@ class ZephyrMistralWrapper(LLMChatCompletionWrapper):
             function_json_output = json.loads(raw_llm_output)
         except Exception as e:
             raise Exception(f"Failed to decode JSON from LLM output:\n{raw_llm_output}")
-        function_name = function_json_output["function"]
-        function_parameters = function_json_output["params"]
+        try:
+            function_name = function_json_output["function"]
+            function_parameters = function_json_output["params"]
+        except KeyError as e:
+            raise LLMJSONParsingError(f"Received valid JSON from LLM, but JSON was missing fields: {str(e)}")
 
         if self.clean_func_args:
             function_name, function_parameters = self.clean_function_args(function_name, function_parameters)
@@ -314,8 +318,11 @@ class ZephyrMistralInnerMonologueWrapper(ZephyrMistralWrapper):
                 function_json_output = json.loads(raw_llm_output + "\n}")
             except:
                 raise Exception(f"Failed to decode JSON from LLM output:\n{raw_llm_output}")
-        function_name = function_json_output["function"]
-        function_parameters = function_json_output["params"]
+        try:
+            function_name = function_json_output["function"]
+            function_parameters = function_json_output["params"]
+        except KeyError as e:
+            raise LLMJSONParsingError(f"Received valid JSON from LLM, but JSON was missing fields: {str(e)}")
 
         if self.clean_func_args:
             (
