@@ -8,8 +8,6 @@ from .memory import (
     DummyArchivalMemory,
     DummyArchivalMemoryWithEmbeddings,
     DummyArchivalMemoryWithFaiss,
-    # LocalArchivalMemory,
-    # VectorStoreIndexArchivalMemory,
     EmbeddingArchivalMemory,
 )
 from .utils import get_local_time, printd
