@@ -831,11 +831,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
 
         # create embedding model
         self.embed_model = embedding_model()
-
-        # create parser
-        self.parser = SimpleNodeParser.from_defaults(
-            chunk_size=config.embedding_chunk_size,
-        )
+        self.embedding_chunk_size = config.embedding_chunk_size
 
         # create storage backend
         self.storage = StorageConnector.get_storage_connector(agent_config=agent_config)
@@ -851,8 +847,12 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         from memgpt.connectors.storage import Passage
 
         passages = []
+
+        # create parser
+        parser = SimpleNodeParser.from_defaults(chunk_size=self.embedding_chunk_size)
+
         # breakup string into passages
-        for node in self.parser.get_nodes_from_documents([memory_string]):
+        for node in parser.get_nodes_from_documents([memory_string]):
             embedding = self.embed_model(node.text)
             passages.append(Passage(text=node.text, embedding=embedding, doc_id=f"agent_{self.agent_config.name}_memory"))
 

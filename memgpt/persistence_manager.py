@@ -123,19 +123,29 @@ class LocalStateManager(PersistenceManager):
     def load(cls, filename, agent_config: AgentConfig):
         """ Load a LocalStateManager from a file. """ ""
         with open(filename, "rb") as f:
-            recall_memory = pickle.load(f)
+            data = pickle.load(f)
 
         manager = cls(agent_config)
+        manager.all_messages = data["all_messages"]
+        manager.messages = data["messages"]
+        manager.recall_memory = data["recall_memory"]
         manager.archival_memory = EmbeddingArchivalMemory(agent_config)
-        manager.recall_memory = recall_memory
-
         return manager
 
     def save(self, filename):
         with open(filename, "wb") as fh:
-            # TODO: fix this hacky solution to pickle the retriever
+            ## TODO: fix this hacky solution to pickle the retriever
             self.archival_memory.save()
-            pickle.dump(self.recall_memory, fh, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(
+                {
+                    "recall_memory": self.recall_memory,
+                    "messages": self.messages,
+                    "all_messages": self.all_messages,
+                },
+                fh,
+                protocol=pickle.HIGHEST_PROTOCOL,
+            )
+            printd(f"Saved state to {fh}")
 
     def init(self, agent):
         printd(f"Initializing InMemoryStateManager with agent object")
