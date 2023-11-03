@@ -787,6 +787,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
 
             # insert passages
             self.storage.insert_many(passages)
+            return True
         except Exception as e:
             print("Archival insert error", e)
             raise e
@@ -819,11 +820,10 @@ class EmbeddingArchivalMemory(ArchivalMemory):
     def __repr__(self) -> str:
         limit = 10
         passages = []
-        for passage in self.storage.get_all():
-            passages.append(str(passage))
-        print("\n".join(passages))
-        return ""  # TODO: fix
-        # return f"Archival Memory: {len(nodes)} nodes"
+        for passage in list(self.storage.get_all())[:limit]:  # TODO: only get first 10
+            passages.append(str(passage.text))
+        memory_str = "\n".join(passages)
+        return f"\n### ARCHIVAL MEMORY ###" + f"\n{memory_str}"
 
     def __len__(self):
         return len(self.storage.get_all())
