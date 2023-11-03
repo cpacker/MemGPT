@@ -18,6 +18,7 @@ from memgpt.config import MemGPTConfig
 from memgpt.connectors.storage import StorageConnector, Passage
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.constants import MEMGPT_DIR
+from memgpt.utils import printd
 
 Base = declarative_base()
 
@@ -62,6 +63,8 @@ class PostgresStorageConnector(StorageConnector):
             self.table_name = self.generate_table_name(name)
         else:
             raise ValueError("Must specify either agent config or name")
+
+        printd(f"Using table name {self.table_name}")
 
         # create table
         self.uri = config.archival_storage_uri
