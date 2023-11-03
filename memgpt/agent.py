@@ -23,7 +23,6 @@ from .constants import (
     MESSAGE_CHATGPT_FUNCTION_MODEL,
     MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
     MESSAGE_SUMMARY_WARNING_TOKENS,
-    # MESSAGE_SUMMARY_TRUNC_TOKENS,
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
@@ -694,8 +693,10 @@ class Agent(object):
         message_buffer_token_count = sum(token_counts[1:])  # no system message
         desired_token_count_to_summarize = int(message_buffer_token_count * MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC)
         candidate_messages_to_summarize = self.messages[1:]
+        token_counts = token_counts[1:]
         if preserve_last_N_messages:
             candidate_messages_to_summarize = candidate_messages_to_summarize[:-MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST]
+            token_counts = token_counts[:-MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST]
         printd(f"MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC={MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC}")
         printd(f"MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST={MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST}")
         printd(f"token_counts={token_counts}")
@@ -714,7 +715,7 @@ class Agent(object):
         cutoff = 0
         for i, msg in enumerate(candidate_messages_to_summarize):
             cutoff = i
-            tokens_so_far += count_tokens(str(msg))  # TODO remove duplicated token count code
+            tokens_so_far += token_counts[i]
             if tokens_so_far > desired_token_count_to_summarize:
                 break
         # Account for system message
@@ -1120,10 +1121,12 @@ class AgentAsync(Agent):
         # Do not allow truncation of the last N messages, since these are needed for in-context examples of function calling
         token_counts = [count_tokens(str(msg)) for msg in self.messages]
         message_buffer_token_count = sum(token_counts[1:])  # no system message
+        token_counts = token_counts[1:]
         desired_token_count_to_summarize = int(message_buffer_token_count * MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC)
         candidate_messages_to_summarize = self.messages[1:]
         if preserve_last_N_messages:
             candidate_messages_to_summarize = candidate_messages_to_summarize[:-MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST]
+            token_counts = token_counts[:-MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST]
         printd(f"MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC={MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC}")
         printd(f"MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST={MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST}")
         printd(f"token_counts={token_counts}")
@@ -1142,7 +1145,7 @@ class AgentAsync(Agent):
         cutoff = 0
         for i, msg in enumerate(candidate_messages_to_summarize):
             cutoff = i
-            tokens_so_far += count_tokens(str(msg))  # TODO remove duplicated token count code
+            tokens_so_far += token_counts[i]
             if tokens_so_far > desired_token_count_to_summarize:
                 break
         # Account for system message
