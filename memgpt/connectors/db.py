@@ -15,7 +15,7 @@ import numpy as np
 from tqdm import tqdm
 
 from memgpt.config import MemGPTConfig
-from memgpt.storage import StorageConnector, Passage
+from memgpt.connectors.storage import StorageConnector, Passage
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.constants import MEMGPT_DIR
 
@@ -63,8 +63,6 @@ class PostgresStorageConnector(StorageConnector):
         else:
             raise ValueError("Must specify either agent config or name")
 
-        print("table name", self.table_name)
-
         # create table
         self.uri = config.archival_storage_uri
         self.db_model = get_db_model(self.table_name)
@@ -108,8 +106,6 @@ class PostgresStorageConnector(StorageConnector):
             Passage(text=result.text, embedding=np.frombuffer(result.embedding), doc_id=result.doc_id, passage_id=result.id)
             for result in results
         ]
-        print(passages[0].text)
-
         return passages
 
     def delete(self):

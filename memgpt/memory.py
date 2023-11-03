@@ -28,8 +28,7 @@ from llama_index.retrievers import VectorIndexRetriever
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.indices.postprocessor import SimilarityPostprocessor
 
-from memgpt.embeddings import Index, embedding_model
-from memgpt.connectors.storage import StorageConnector, Passage
+from memgpt.embeddings import embedding_model
 from memgpt.config import MemGPTConfig
 
 
@@ -820,13 +819,14 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         :param archiva_memory_database: name of dataset to pre-fill archival with
         :type archival_memory_database: str
         """
+        from memgpt.connectors.storage import StorageConnector
 
         self.top_k = top_k
         self.agent_config = agent_config
         config = MemGPTConfig.load()
 
         # create embedding model
-        self.embed_model = embedding_model(config)
+        self.embed_model = embedding_model()
 
         # create parser
         self.parser = SimpleNodeParser.from_defaults(
@@ -844,6 +844,8 @@ class EmbeddingArchivalMemory(ArchivalMemory):
 
     def insert(self, memory_string):
         """Embed and save memory string"""
+        from memgpt.connectors.storage import Passage
+
         passages = []
         # breakup string into passages
         for node in self.parser.get_nodes_from_documents([memory_string]):

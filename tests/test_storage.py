@@ -1,6 +1,7 @@
-from memgpt.connectors.storage import StorageConnector, PostgresStorageConnector, Passage
+from memgpt.connectors.storage import StorageConnector, Passage
+from memgpt.connectors.db import PostgresStorageConnector
 from memgpt.embeddings import embedding_model
-from memgpt.config import MemGPTConfigS
+from memgpt.config import MemGPTConfig
 
 import argparse
 
@@ -8,7 +9,7 @@ import argparse
 def test_postgres():
 
     config = MemGPTConfig.load()
-    embed_model = embedding_model(config)
+    embed_model = embedding_model()
 
     passage = ["This is a test passage", "This is another test passage", "Cinderella wept"]
 

@@ -30,7 +30,6 @@ from memgpt.openai_tools import (
     configure_azure_support,
     check_azure_embeddings,
 )
-from memgpt.embeddings import Index
 
 
 def run(
@@ -93,7 +92,7 @@ def run(
     config = MemGPTConfig.load()
     original_stdout = sys.stdout  # unfortunate hack required to suppress confusing print statements from llama index
     sys.stdout = io.StringIO()
-    embed_model = embedding_model(config)
+    embed_model = embedding_model()
     service_context = ServiceContext.from_defaults(llm=None, embed_model=embed_model, chunk_size=config.embedding_chunk_size)
     set_global_service_context(service_context)
     sys.stdout = original_stdout
@@ -177,4 +176,9 @@ def attach(
     dest_storage.insert_many(passages)
     dest_storage.save()
 
-    typer.secho(f"Attached data source {data_source} to agent {agent}, consisting of {len(passages)} total", fg=typer.colors.GREEN)
+    total_agent_passages = len(dest_storage.get_all())
+
+    typer.secho(
+        f"Attached data source {data_source} to agent {agent}, consisting of {len(passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
+        fg=typer.colors.GREEN,
+    )
