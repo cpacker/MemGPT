@@ -161,3 +161,46 @@ def load_database(
     # load data
     docs = db.load_data(query=query)
     store_docs(name, docs)
+
+
+@app.command("vector-database")
+def load_vector_database(
+    name: str = typer.Option(help="Name of dataset to load."),
+    uri: str = typer.Option(help="Database URI."),
+    table_name: str = typer.Option(help="Name of table containing data."),
+    text_column: str = typer.Option(help="Name of column containing text."),
+    embedding_column: str = typer.Option(help="Name of column containing embedding."),
+):
+    """Load pre-computed embeddings into MemGPT from a database."""
+
+    from sqlalchemy import create_engine, select, MetaData, Table, Inspector
+    from pgvector.sqlalchemy import Vector
+
+    # connect to db table
+    engine = create_engine(uri)
+    metadata = MetaData()
+    # Create an inspector to inspect the database
+    inspector = Inspector.from_engine(engine)
+    table_names = inspector.get_table_names()
+    assert table_name in table_names, f"Table {table_name} not found in database: tables that exist {table_names}."
+
+    table = Table(table_name, metadata, autoload_with=engine)
+
+    config = MemGPTConfig.load()
+
+    # Prepare a select statement
+    select_statement = select(table.c[text_column], table.c[embedding_column].cast(Vector(config.embedding_dim)))
+
+    # Execute the query and fetch the results
+    with engine.connect() as connection:
+        result = connection.execute(select_statement).fetchall()
+
+    # Convert to a list of tuples (text, embedding)
+    passages = []
+    for (text, embedding) in result:
+        passages.append(Passage(text=text, embedding=embedding))
+        assert config.embedding_dim == len(embedding), f"Expected embedding dimension {config.embedding_dim}, got {len(embedding)}"
+
+    # insert into storage
+    storage = StorageConnector.get_storage_connector(name=name)
+    storage.insert_many(passages)
