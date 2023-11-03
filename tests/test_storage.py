@@ -9,6 +9,7 @@ import pgvector  # Try to import again after installing
 
 from memgpt.connectors.storage import StorageConnector, Passage
 from memgpt.connectors.db import PostgresStorageConnector
+from memgpt.connectors.chroma import ChromaStorageConnector
 from memgpt.embeddings import embedding_model
 from memgpt.config import MemGPTConfig, AgentConfig
 
@@ -46,4 +47,30 @@ def test_postgres():
     print("...finished")
 
 
-test_postgres()
+def test_chroma():
+
+    config = MemGPTConfig.load()
+    embed_model = embedding_model()
+
+    passage = ["This is a test passage", "This is another test passage", "Cinderella wept"]
+
+    db = ChromaStorageConnector(name="test2")
+
+    for passage in passage:
+        db.insert(Passage(text=passage, embedding=embed_model.get_text_embedding(passage)))
+
+    query = "why was she crying"
+    query_vec = embed_model.get_text_embedding(query)
+    res = db.query(query, query_vec, top_k=2)
+
+    assert len(res) == 2, f"Expected 2 results, got {len(res)}"
+    assert "wept" in res[0].text, f"Expected 'wept' in results, but got {res[0].text}"
+
+    print(res[0].text)
+
+    print("deleting")
+    db.delete()
+
+
+# test_postgres()
+test_chroma()

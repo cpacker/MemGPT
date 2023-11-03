@@ -113,13 +113,21 @@ def configure():
     #    default_agent = None
 
     # Configure archival storage backend
-    archival_storage_options = ["local", "postgres"]
+    archival_storage_options = ["local", "postgres", "chroma"]
     archival_storage_type = questionary.select("Select storage backend for archival data:", archival_storage_options, default="local").ask()
     archival_storage_uri = None
+    archival_storage_path = None
     if archival_storage_type == "postgres":
         archival_storage_uri = questionary.text(
             "Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}):"
         ).ask()
+    elif archival_storage_type == "chroma":
+        chroma_type = questionary.select("Select chroma client type:", ["HTTP", "Persistent Storage"]).ask()
+        if chroma_type == "HTTP":
+            archival_storage_uri = questionary.text("Enter chroma server (e.g. localhost:8000)").ask()
+            # TODO: check correct formatting
+        else:
+            archival_storage_path = questionary.text("Enter chroma storage path (e.g. /tmp/chroma)").ask()
 
     # TODO: allow configuring embedding model
 
@@ -138,6 +146,7 @@ def configure():
         azure_embedding_deployment=azure_embedding_deployment if use_azure_deployment_ids else None,
         archival_storage_type=archival_storage_type,
         archival_storage_uri=archival_storage_uri,
+        archival_storage_path=archival_storage_path,
     )
     print(f"Saving config to {config.config_path}")
     config.save()
