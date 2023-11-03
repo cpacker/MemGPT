@@ -808,7 +808,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
     async def a_search(self, query_string, count=None, start=None):
         return self.search(query_string, count, start)
 
-    async def a_insert(self, memory_string, embedding=None):
+    async def a_insert(self, memory_string):
         return self.insert(memory_string)
 
     def __repr__(self) -> str:
