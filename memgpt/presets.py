@@ -52,6 +52,7 @@ class ExtrasPreset(DefaultPreset):
 presets = [DefaultPreset(), ExtrasPreset(), SyncPreset()]
 preset_map = {preset.name: preset for preset in presets}
 
+
 # def use_preset(preset_name, agent_config, model, persona, human, interface, persistence_manager):
 def use_preset(agent_config, interface, persistence_manager):
     """Storing combinations of SYSTEM + FUNCTION prompts"""
