@@ -22,6 +22,7 @@ from llama_index import (
     get_response_synthesizer,
     load_index_from_storage,
     StorageContext,
+    Document,
 )
 from llama_index.node_parser import SimpleNodeParser
 from llama_index.node_parser import SimpleNodeParser
@@ -773,18 +774,22 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         """Embed and save memory string"""
         from memgpt.connectors.storage import Passage
 
-        passages = []
+        try:
+            passages = []
 
-        # create parser
-        parser = SimpleNodeParser.from_defaults(chunk_size=self.embedding_chunk_size)
+            # create parser
+            parser = SimpleNodeParser.from_defaults(chunk_size=self.embedding_chunk_size)
 
-        # breakup string into passages
-        for node in parser.get_nodes_from_documents([memory_string]):
-            embedding = self.embed_model(node.text)
-            passages.append(Passage(text=node.text, embedding=embedding, doc_id=f"agent_{self.agent_config.name}_memory"))
+            # breakup string into passages
+            for node in parser.get_nodes_from_documents([Document(text=memory_string)]):
+                embedding = self.embed_model.get_text_embedding(node.text)
+                passages.append(Passage(text=node.text, embedding=embedding, doc_id=f"agent_{self.agent_config.name}_memory"))
 
-        # insert passages
-        self.storage.insert_many(passages)
+            # insert passages
+            self.storage.insert_many(passages)
+        except Exception as e:
+            print("Archival insert error", e)
+            raise e
 
     def search(self, query_string, count=None, start=None):
         """Search query string"""
@@ -808,7 +813,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
     async def a_search(self, query_string, count=None, start=None):
         return self.search(query_string, count, start)
 
-    async def a_insert(self, memory_string):
+    async def a_insert(self, memory_string, embedding=None):
         return self.insert(memory_string)
 
     def __repr__(self) -> str:

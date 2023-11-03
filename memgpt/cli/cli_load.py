@@ -33,7 +33,7 @@ def store_docs(name, docs, show_progress=True):
 
     # use llama index to run embeddings code
     service_context = ServiceContext.from_defaults(llm=None, embed_model=embed_model, chunk_size=config.embedding_chunk_size)
-    index = VectorStoreIndex.from_documents(docs, service_context=service_context)
+    index = VectorStoreIndex.from_documents(docs, service_context=service_context, show_progress=True)
     embed_dict = index._vector_store._data.embedding_dict
     node_dict = index._docstore.docs
 
@@ -102,7 +102,9 @@ def load_directory(
         reader = SimpleDirectoryReader(input_files=input_files)
 
     # load docs
+    print("loading data")
     docs = reader.load_data()
+    print("done loading data")
     store_docs(name, docs)
 
 
@@ -197,7 +199,7 @@ def load_vector_database(
 
     # Convert to a list of tuples (text, embedding)
     passages = []
-    for text, embedding in result:
+    for (text, embedding) in result:
         passages.append(Passage(text=text, embedding=embedding))
         assert config.embedding_dim == len(embedding), f"Expected embedding dimension {config.embedding_dim}, got {len(embedding)}"
 

@@ -239,7 +239,18 @@ class AgentConfig:
     Configuration for a specific instance of an agent
     """
 
-    def __init__(self, persona, human, model, preset=DEFAULT_PRESET, name=None, data_sources=[], agent_config_path=None, create_time=None):
+    def __init__(
+        self,
+        persona,
+        human,
+        model,
+        preset=DEFAULT_PRESET,
+        name=None,
+        data_sources=[],
+        agent_config_path=None,
+        create_time=None,
+        data_source=None,
+    ):
         if name is None:
             self.name = f"agent_{self.generate_agent_id()}"
         else:
@@ -250,6 +261,7 @@ class AgentConfig:
         self.preset = preset
         self.data_sources = data_sources
         self.create_time = create_time if create_time is not None else utils.get_local_time()
+        self.data_source = None  # deprecated
 
         # save agent config
         self.agent_config_path = (

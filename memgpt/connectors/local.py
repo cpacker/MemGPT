@@ -84,6 +84,7 @@ class LocalStorageConnector(StorageConnector):
 
     def insert(self, passage: Passage):
         nodes = [TextNode(text=passage.text, embedding=passage.embedding)]
+        print("nodes", nodes)
         self.nodes += nodes
         if isinstance(self.index, EmptyIndex):
             self.index = VectorStoreIndex(self.nodes, service_context=self.service_context, show_progress=True)
