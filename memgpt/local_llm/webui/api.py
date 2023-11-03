@@ -29,9 +29,17 @@ def get_webui_completion(prompt, settings=SIMPLE):
             if DEBUG:
                 print(f"json API response.text: {result}")
         else:
-            raise Exception(
-                f"API call got non-200 response code for address: {URI}. Make sure that the web UI server is running and reachable at {URI}."
-            )
+            # TODO check what is web UI's error message?
+            if "context length" in str(response.text).lower():
+                # "exceeds context length" is what appears in the LM Studio error message
+                # raise an alternate exception that matches OpenAI's message, which is "maximum context length"
+                raise Exception(f"Request exceeds maximum context length (code={response.status_code}, msg={response.text}, URI={URI})")
+            else:
+                raise Exception(
+                    f"API call got non-200 response code (code={response.status_code}, msg={response.text}) for address: {URI}."
+                    + f"Make sure that the web UI server is running and reachable at {URI}."
+                )
+
     except:
         # TODO handle gracefully
         raise
