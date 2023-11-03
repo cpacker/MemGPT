@@ -64,8 +64,6 @@ class PostgresStorageConnector(StorageConnector):
         else:
             raise ValueError("Must specify either agent config or name")
 
-        printd(f"Using table name {self.table_name}")
-
         # create table
         self.uri = config.archival_storage_uri
         if config.archival_storage_uri is None:

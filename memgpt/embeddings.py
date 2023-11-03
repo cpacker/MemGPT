@@ -1,4 +1,5 @@
 import typer
+from llama_index.embeddings import OpenAIEmbedding
 
 
 def embedding_model():

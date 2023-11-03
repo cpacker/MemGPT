@@ -30,7 +30,6 @@ from memgpt.openai_tools import (
     configure_azure_support,
     check_azure_embeddings,
 )
-from memgpt.embeddings import Index
 
 
 def run(
