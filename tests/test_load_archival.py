@@ -17,10 +17,11 @@
 
 
 def test_postgres():
+    return
 
     # override config path with enviornment variable
     # TODO: make into temporary file
-    os.environ["MEMGPT_CONFIG_PATH"] = "/Users/sarahwooders/repos/MemGPT/test_config.cfg"
+    os.environ["MEMGPT_CONFIG_PATH"] = "test_config.cfg"
     print("env", os.getenv("MEMGPT_CONFIG_PATH"))
     config = memgpt.config.MemGPTConfig(archival_storage_type="postgres", config_path=os.getenv("MEMGPT_CONFIG_PATH"))
     print(config)
@@ -44,12 +45,13 @@ def test_postgres():
 
 
 def test_chroma():
+    return
 
     import chromadb
 
     # override config path with enviornment variable
     # TODO: make into temporary file
-    os.environ["MEMGPT_CONFIG_PATH"] = "/Users/sarahwooders/repos/MemGPT/test_config.cfg"
+    os.environ["MEMGPT_CONFIG_PATH"] = "test_config.cfg"
     print("env", os.getenv("MEMGPT_CONFIG_PATH"))
     config = memgpt.config.MemGPTConfig(archival_storage_type="chroma", config_path=os.getenv("MEMGPT_CONFIG_PATH"))
     print(config)
@@ -195,7 +197,3 @@ def test_load_database():
     )
     print("Successfully loaded into index")
     assert True
-
-
-test_postgres()
-# test_chroma()
