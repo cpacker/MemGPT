@@ -31,7 +31,7 @@ from memgpt.persistence_manager import (
     InMemoryStateManagerWithPreloadedArchivalMemory,
     InMemoryStateManagerWithFaiss,
 )
-from memgpt.cli.cli import run
+from memgpt.cli.cli import run, attach
 from memgpt.cli.cli_config import configure, list, add
 from memgpt.cli.cli_load import app as load_app
 from memgpt.config import Config, MemGPTConfig, AgentConfig
@@ -42,10 +42,12 @@ from memgpt.openai_tools import (
     check_azure_embeddings,
     get_set_azure_env_vars,
 )
+from memgpt.connectors.storage import StorageConnector
 import asyncio
 
 app = typer.Typer()
 app.command(name="run")(run)
+app.command(name="attach")(attach)
 app.command(name="configure")(configure)
 app.command(name="list")(list)
 app.command(name="add")(add)
@@ -99,9 +101,9 @@ def load(memgpt_agent, filename):
             print(f"Loading {filename} failed with: {e}")
     else:
         # Load the latest file
-        save_path = f"{constants.MEMGPT_DIR}/saved_state"
+        save_path = os.path.join(constants.MEMGPT_DIR, "saved_state")
         print(f"/load warning: no checkpoint specified, loading most recent checkpoint from {save_path} instead")
-        json_files = glob.glob(f"{save_path}/*.json")  # This will list all .json files in the current directory.
+        json_files = glob.glob(os.path.join(save_path, "*.json"))  # This will list all .json files in the current directory.
 
         # Check if there are any json files.
         if not json_files:
@@ -410,7 +412,12 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
             if user_input.startswith("/"):
                 if legacy:
                     # legacy agent save functions (TODO: eventually remove)
-                    if user_input.lower() == "/exit":
+                    if user_input.lower() == "/load" or user_input.lower().startswith("/load "):
+                        command = user_input.strip().split()
+                        filename = command[1] if len(command) > 1 else None
+                        load(memgpt_agent=memgpt_agent, filename=filename)
+                        continue
+                    elif user_input.lower() == "/exit":
                         # autosave
                         save(memgpt_agent=memgpt_agent, cfg=cfg)
                         break
@@ -441,10 +448,26 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
                         memgpt_agent.save()
                         continue
 
-                if user_input.lower() == "/load" or user_input.lower().startswith("/load "):
-                    command = user_input.strip().split()
-                    filename = command[1] if len(command) > 1 else None
-                    load(memgpt_agent=memgpt_agent, filename=filename)
+                if user_input.lower() == "/attach":
+                    if legacy:
+                        typer.secho("Error: /attach is not supported in legacy mode.", fg=typer.colors.RED, bold=True)
+                        continue
+
+                    # TODO: check if agent already has it
+                    data_source_options = StorageConnector.list_loaded_data()
+                    data_source = await questionary.select("Select data source", choices=data_source_options).ask_async()
+
+                    # attach new data
+                    attach(memgpt_agent.config.name, data_source)
+
+                    # update agent config
+                    memgpt_agent.config.attach_data_source(data_source)
+
+                    # reload agent with new data source
+                    # TODO: maybe make this less ugly...
+                    memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_storage_connector(
+                        agent_config=memgpt_agent.config
+                    )
                     continue
 
                 elif user_input.lower() == "/dump":
@@ -565,6 +588,7 @@ USER_COMMANDS = [
     ("/pop", "undo the last message in the conversation"),
     ("/heartbeat", "send a heartbeat system message to the agent"),
     ("/memorywarning", "send a memory warning system message to the agent"),
+    ("/attach", "attach data source to agent"),
 ]
 # if __name__ == "__main__":
 #
