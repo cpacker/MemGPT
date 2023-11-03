@@ -28,7 +28,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: 3.10.10  # Set this to your Python version
+        python-version: "3.10"
         cache: "poetry"
 
     - name: Set Poetry config
