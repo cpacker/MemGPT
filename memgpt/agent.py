@@ -8,6 +8,7 @@ import os
 import requests
 import json
 import threading
+import traceback
 
 import openai
 from memgpt.persistence_manager import LocalStateManager
@@ -566,7 +567,6 @@ class Agent(object):
                 function_response = package_function_response(True, function_response_string)
                 function_failed = False
             except Exception as e:
-                import traceback
                 error_msg = f"Error calling function {function_name} with args {function_args}: {str(e)}\n{traceback.format_exc()}"
                 printd(error_msg)
                 function_response = package_function_response(False, error_msg)
@@ -992,7 +992,6 @@ class AgentAsync(Agent):
                 function_response = package_function_response(True, function_response_string)
                 function_failed = False
             except Exception as e:
-                import traceback
                 error_msg = f"Error calling function {function_name} with args {function_args}: {str(e)}\n{traceback.format_exc()}"
                 printd(error_msg)
                 function_response = package_function_response(False, error_msg)
