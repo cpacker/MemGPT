@@ -33,7 +33,7 @@ def configure():
             openai_key = questionary.text("Open AI API keys not found in enviornment - please enter:").ask()
 
     # azure credentials
-    use_azure = questionary.confirm("Do you want to enable MemGPT with Azure?").ask()
+    use_azure = questionary.confirm("Do you want to enable MemGPT with Azure?", default=False).ask()
     use_azure_deployment_ids = False
     if use_azure:
         # search for key in enviornment
@@ -110,6 +110,15 @@ def configure():
     # else:
     #    default_agent = None
 
+    # Configure archival storage backend
+    archival_storage_options = ["local", "postgres"]
+    archival_storage_type = questionary.select("Select storage backend for archival data:", archival_storage_options, default="local").ask()
+    archival_storage_uri = None
+    if archival_storage_type == "postgres":
+        archival_storage_uri = questionary.text(
+            "Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}):"
+        ).ask()
+
     # TODO: allow configuring embedding model
 
     config = MemGPTConfig(
@@ -125,6 +134,8 @@ def configure():
         azure_version=azure_version if use_azure else None,
         azure_deployment=azure_deployment if use_azure_deployment_ids else None,
         azure_embedding_deployment=azure_embedding_deployment if use_azure_deployment_ids else None,
+        archival_storage_type=archival_storage_type,
+        archival_storage_uri=archival_storage_uri,
     )
     print(f"Saving config to {config.config_path}")
     config.save()
