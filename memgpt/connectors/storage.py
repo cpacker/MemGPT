@@ -14,7 +14,7 @@ from pgvector.sqlalchemy import Vector
 import psycopg
 
 
-from sqlalchemy import create_engine, Column, String, Integer, LargeBinary, Table, BIGINT, select
+from sqlalchemy import create_engine, Column, String, Integer, LargeBinary, Table, BIGINT, select, inspect
 from sqlalchemy.orm import sessionmaker, mapped_column
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
@@ -94,6 +94,16 @@ class StorageConnector:
         else:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")
 
+    @staticmethod
+    def list_loaded_data():
+        storage_type = MemGPTConfig.load().archival_storage_type
+        if storage_type == "local":
+            return LocalStorageConnector.list_loaded_data()
+        elif storage_type == "postgres":
+            return PostgresStorageConnector.list_loaded_data()
+        else:
+            raise NotImplementedError(f"Storage type {storage_type} not implemented")
+
     @abstractmethod
     def get_all(self) -> List[Passage]:
         pass
@@ -117,11 +127,6 @@ class StorageConnector:
     @abstractmethod
     def save(self):
         """Save state of storage connector"""
-        pass
-
-    @abstractmethod
-    def list_tables(self):
-        """List all tables in the storage connector"""
         pass
 
 
@@ -233,6 +238,14 @@ class LocalStorageConnector:
         pickle.dump(self.nodes, open(self.save_path, "wb"))
         print("saved", self.save_path)
 
+    @staticmethod
+    def list_loaded_data():
+        sources = []
+        for data_source_file in os.listdir(os.path.join(MEMGPT_DIR, "archival")):
+            name = os.path.basename(data_source_file)
+            sources.append(name)
+        return sources
+
 
 Base = declarative_base()
 
@@ -334,3 +347,12 @@ class PostgresStorageConnector(StorageConnector):
         # Since SQLAlchemy commits changes individually in `insert` and `insert_many`, this might not be needed.
         # If there's a need to handle transactions manually, you can control them using the session object.
         print("saving db")
+
+    @staticmethod
+    def list_loaded_data():
+        config = MemGPTConfig.load()
+        engine = create_engine(config.archival_storage_uri)
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+        print("all tables")
+        return [table for table in tables if table.startswith("memgpt_") and not table.startswith("memgpt_agent_")]
