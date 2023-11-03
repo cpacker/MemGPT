@@ -6,21 +6,26 @@ import json
 
 from .webui.api import get_webui_completion
 from .lmstudio.api import get_lmstudio_completion
-from .llm_chat_completion_wrappers import airoboros, dolphin, zephyr
+from .llm_chat_completion_wrappers import airoboros, dolphin, zephyr, simple_summary_wrapper
 from .utils import DotDict
+from ..prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
+from ..errors import LocalLLMConnectionError, LocalLLMError
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
 DEBUG = False
 DEFAULT_WRAPPER = airoboros.Airoboros21InnerMonologueWrapper()
+has_shown_warning = False
 
 
 def get_chat_completion(
     model,  # no model, since the model is fixed to whatever you set in your own backend
     messages,
-    functions,
+    functions=None,
     function_call="auto",
 ):
+    global has_shown_warning
+
     if HOST is None:
         raise ValueError(f"The OPENAI_API_BASE environment variable is not defined. Please set it in your environment.")
     if HOST_TYPE is None:
@@ -29,7 +34,10 @@ def get_chat_completion(
     if function_call != "auto":
         raise ValueError(f"function_call == {function_call} not supported (auto only)")
 
-    if model == "airoboros-l2-70b-2.1":
+    if messages[0]["role"] == "system" and messages[0]["content"].strip() == SUMMARIZE_SYSTEM_MESSAGE.strip():
+        # Special case for if the call we're making is coming from the summarizer
+        llm_wrapper = simple_summary_wrapper.SimpleSummaryWrapper()
+    elif model == "airoboros-l2-70b-2.1":
         llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper()
     elif model == "dolphin-2.1-mistral-7b":
         llm_wrapper = dolphin.Dolphin21MistralWrapper()
@@ -37,13 +45,23 @@ def get_chat_completion(
         llm_wrapper = zephyr.ZephyrMistralInnerMonologueWrapper()
     else:
         # Warn the user that we're using the fallback
-        print(f"Warning: no wrapper specified for local LLM, using the default wrapper")
+        if not has_shown_warning:
+            print(
+                f"Warning: no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --model)"
+            )
+            has_shown_warning = True
         llm_wrapper = DEFAULT_WRAPPER
 
     # First step: turn the message sequence into a prompt that the model expects
-    prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
-    if DEBUG:
-        print(prompt)
+
+    try:
+        prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
+        if DEBUG:
+            print(prompt)
+    except Exception as e:
+        raise LocalLLMError(
+            f"Failed to convert ChatCompletion messages into prompt string with wrapper {str(llm_wrapper)} - error: {str(e)}"
+        )
 
     try:
         if HOST_TYPE == "webui":
@@ -54,14 +72,17 @@ def get_chat_completion(
             print(f"Warning: BACKEND_TYPE was not set, defaulting to webui")
             result = get_webui_completion(prompt)
     except requests.exceptions.ConnectionError as e:
-        raise ValueError(f"Was unable to connect to host {HOST}")
+        raise LocalLLMConnectionError(f"Unable to connect to host {HOST}")
 
     if result is None or result == "":
-        raise Exception(f"Got back an empty response string from {HOST}")
+        raise LocalLLMError(f"Got back an empty response string from {HOST}")
 
-    chat_completion_result = llm_wrapper.output_to_chat_completion_response(result)
-    if DEBUG:
-        print(json.dumps(chat_completion_result, indent=2))
+    try:
+        chat_completion_result = llm_wrapper.output_to_chat_completion_response(result)
+        if DEBUG:
+            print(json.dumps(chat_completion_result, indent=2))
+    except Exception as e:
+        raise LocalLLMError(f"Failed to parse JSON from local LLM response - error: {str(e)}")
 
     # unpack with response.choices[0].message.content
     response = DotDict(
