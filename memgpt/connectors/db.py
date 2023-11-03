@@ -3,7 +3,7 @@ from pgvector.sqlalchemy import Vector
 import psycopg
 
 
-from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect
+from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text
 from sqlalchemy.orm import sessionmaker, mapped_column
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
@@ -68,10 +68,13 @@ class PostgresStorageConnector(StorageConnector):
 
         # create table
         self.uri = config.archival_storage_uri
+        if config.archival_storage_uri is None:
+            raise ValueError(f"Must specifiy archival_storage_uri in config")
         self.db_model = get_db_model(self.table_name)
         self.engine = create_engine(self.uri)
         Base.metadata.create_all(self.engine)  # Create the table if it doesn't exist
         self.Session = sessionmaker(bind=self.engine)
+        self.Session().execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
 
     def get_all(self) -> List[Passage]:
         session = self.Session()
