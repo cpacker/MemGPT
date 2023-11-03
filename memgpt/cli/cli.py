@@ -38,7 +38,6 @@ def run(
     human: str = typer.Option(None, help="Specify human"),
     model: str = typer.Option(None, help="Specify the LLM model"),
     preset: str = typer.Option(None, help="Specify preset"),
-    data_source: str = typer.Option(None, help="Specify data source to attach to agent"),
     first: bool = typer.Option(False, "--first", help="Use --first to send the first message in the sequence"),
     strip_ui: bool = typer.Option(False, "--strip_ui", help="Remove all the bells and whistles in CLI output (helpful for testing)"),
     debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
@@ -53,7 +52,6 @@ def run(
     :param agent: Specify agent name (will load existing state if the agent exists, or create a new one with that name)
     :param human: Specify human
     :param model: Specify the LLM model
-    :param data_source: Specify data source to attach to agent (if new agent is being created)
 
     """
 
@@ -94,7 +92,7 @@ def run(
     config = MemGPTConfig.load()
     original_stdout = sys.stdout  # unfortunate hack required to suppress confusing print statements from llama index
     sys.stdout = io.StringIO()
-    embed_model = embedding_model(config)
+    embed_model = embedding_model()
     service_context = ServiceContext.from_defaults(llm=None, embed_model=embed_model, chunk_size=config.embedding_chunk_size)
     set_global_service_context(service_context)
     sys.stdout = original_stdout
@@ -128,8 +126,8 @@ def run(
             preset=preset if preset else config.preset,
         )
 
-        # attach data source to agent
-        agent_config.attach_data_source(data_source)
+        ## attach data source to agent
+        # agent_config.attach_data_source(data_source)
 
         # TODO: allow configrable state manager (only local is supported right now)
         persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
@@ -158,4 +156,32 @@ def run(
         configure_azure_support()
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(run_agent_loop(memgpt_agent, first, no_verify, config, strip_ui))  # TODO: add back no_verify
+    loop.run_until_complete(run_agent_loop(memgpt_agent, first, no_verify, config))  # TODO: add back no_verify
+
+
+def attach(
+    agent: str = typer.Option(help="Specify agent to attach data to"),
+    data_source: str = typer.Option(help="Data source to attach to avent"),
+):
+    # loads the data contained in data source into the agent's memory
+    from memgpt.connectors.storage import StorageConnector
+
+    agent_config = AgentConfig.load(agent)
+    config = MemGPTConfig.load()
+
+    # get storage connectors
+    source_storage = StorageConnector.get_storage_connector(name=data_source)
+    dest_storage = StorageConnector.get_storage_connector(agent_config=agent_config)
+
+    passages = source_storage.get_all()
+    for p in passages:
+        len(p.embedding) == config.embedding_dim, f"Mismatched embedding sizes {len(p.embedding)} != {config.embedding_dim}"
+    dest_storage.insert_many(passages)
+    dest_storage.save()
+
+    total_agent_passages = len(dest_storage.get_all())
+
+    typer.secho(
+        f"Attached data source {data_source} to agent {agent}, consisting of {len(passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
+        fg=typer.colors.GREEN,
+    )

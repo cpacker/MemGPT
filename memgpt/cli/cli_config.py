@@ -4,6 +4,7 @@ from prettytable import PrettyTable
 import typer
 import os
 import shutil
+from collections import defaultdict
 
 # from memgpt.cli import app
 from memgpt import utils
@@ -12,6 +13,7 @@ import memgpt.humans.humans as humans
 import memgpt.personas.personas as personas
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
+from memgpt.connectors.storage import StorageConnector
 
 app = typer.Typer()
 
@@ -33,7 +35,7 @@ def configure():
             openai_key = questionary.text("Open AI API keys not found in enviornment - please enter:").ask()
 
     # azure credentials
-    use_azure = questionary.confirm("Do you want to enable MemGPT with Azure?").ask()
+    use_azure = questionary.confirm("Do you want to enable MemGPT with Azure?", default=False).ask()
     use_azure_deployment_ids = False
     if use_azure:
         # search for key in enviornment
@@ -110,6 +112,15 @@ def configure():
     # else:
     #    default_agent = None
 
+    # Configure archival storage backend
+    archival_storage_options = ["local", "postgres"]
+    archival_storage_type = questionary.select("Select storage backend for archival data:", archival_storage_options, default="local").ask()
+    archival_storage_uri = None
+    if archival_storage_type == "postgres":
+        archival_storage_uri = questionary.text(
+            "Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}):"
+        ).ask()
+
     # TODO: allow configuring embedding model
 
     config = MemGPTConfig(
@@ -125,6 +136,8 @@ def configure():
         azure_version=azure_version if use_azure else None,
         azure_deployment=azure_deployment if use_azure_deployment_ids else None,
         azure_embedding_deployment=azure_embedding_deployment if use_azure_deployment_ids else None,
+        archival_storage_type=archival_storage_type,
+        archival_storage_uri=archival_storage_uri,
     )
     print(f"Saving config to {config.config_path}")
     config.save()
@@ -139,7 +152,7 @@ def list(option: str):
         for agent_file in utils.list_agent_config_files():
             agent_name = os.path.basename(agent_file).replace(".json", "")
             agent_config = AgentConfig.load(agent_name)
-            table.add_row([agent_name, agent_config.model, agent_config.persona, agent_config.human, agent_config.data_source])
+            table.add_row([agent_name, agent_config.model, agent_config.persona, agent_config.human, ",".join(agent_config.data_sources)])
         print(table)
     elif option == "humans":
         """List all humans"""
@@ -163,10 +176,23 @@ def list(option: str):
     elif option == "sources":
         """List all data sources"""
         table = PrettyTable()
-        table.field_names = ["Name", "Create Time", "Agents"]
-        for data_source_file in os.listdir(os.path.join(MEMGPT_DIR, "archival")):
-            name = os.path.basename(data_source_file)
-            table.add_row([name, "TODO", "TODO"])
+        table.field_names = ["Name", "Location", "Agents"]
+        config = MemGPTConfig.load()
+        # TODO: eventually look accross all storage connections
+        # TODO: add data source stats
+        source_to_agents = {}
+        for agent_file in utils.list_agent_config_files():
+            agent_name = os.path.basename(agent_file).replace(".json", "")
+            agent_config = AgentConfig.load(agent_name)
+            for ds in agent_config.data_sources:
+                if ds in source_to_agents:
+                    source_to_agents[ds].append(agent_name)
+                else:
+                    source_to_agents[ds] = [agent_name]
+        for data_source in StorageConnector.list_loaded_data():
+            location = config.archival_storage_type
+            agents = ",".join(source_to_agents[data_source]) if data_source in source_to_agents else ""
+            table.add_row([data_source, location, agents])
         print(table)
     else:
         raise ValueError(f"Unknown option {option}")
