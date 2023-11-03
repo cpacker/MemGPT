@@ -10,30 +10,41 @@ import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
 from memgpt.persistence_manager import InMemoryStateManager, InMemoryStateManagerWithPreloadedArchivalMemory, InMemoryStateManagerWithFaiss
+import numpy as np
+import torch
+import os
 import openai
 
-openai.api_key = "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"
-openai.api_key = "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"
-openai.api_key = "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"
-openai.api_key = "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"
-openai.api_key = "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"
+
+openai.api_key = os.environ.get("openaikey")
 
 config_list = [
     {"model": "gpt-4"},
 ]
 
 llm_config = {"config_list": config_list, "seed": 42}
+
+openai.api_key = os.environ.get("openaikey")
+interface = autogen_interface.AutoGenInterface()  # how MemGPT talks to AutoGen
+persistence_manager = InMemoryStateManagerWithFaiss()  # how MemGPT stores messages
+agent_config = {
+    "max_tokens": 1024,
+    "temperature": 0.5,
+    "top_p": 0.9,
+    "frequency_penalty": 0.0,
+    "presence_penalty": 0.0,
+    "stop": ["\n", "Human:"],
+}
+
 user_proxy = autogen.UserProxyAgent(
     name="User_proxy",
     system_message="A human admin.",
     code_execution_config={"last_n_messages": 2, "work_dir": "groupchat"},
 )
 
-interface = autogen_interface.AutoGenInterface()  # how MemGPT talks to AutoGen
-persistence_manager = InMemoryStateManager()
 persona = "I'm a 10x engineer at a FAANG tech company."
 human = "I'm a team manager at a FAANG tech company."
-memgpt_agent = presets.use_preset(presets.DEFAULT_PRESET, "gpt-4", persona, human, interface, persistence_manager)
+memgpt_agent = presets.use_preset(presets.DEFAULT_PRESET, agent_config, "gpt-4", persona, human, interface, persistence_manager)
 
 # MemGPT coder
 coder = memgpt_autogen.MemGPTAgent(
