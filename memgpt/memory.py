@@ -758,11 +758,6 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         self.embed_model = embedding_model()
         self.embedding_chunk_size = config.embedding_chunk_size
 
-        # create parser
-        self.parser = SimpleNodeParser.from_defaults(
-            chunk_size=config.embedding_chunk_size,
-        )
-
         # create storage backend
         self.storage = StorageConnector.get_storage_connector(agent_config=agent_config)
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
