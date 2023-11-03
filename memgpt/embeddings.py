@@ -1,9 +1,15 @@
-from memgpt.config import MemGPTConfig
 import typer
 from llama_index.embeddings import OpenAIEmbedding
 
 
-def embedding_model(config: MemGPTConfig):
+def embedding_model():
+    """Return LlamaIndex embedding model to use for embeddings"""
+
+    from memgpt.config import MemGPTConfig
+
+    # load config
+    config = MemGPTConfig.load()
+
     # TODO: use embedding_endpoint in the future
     if config.model_endpoint == "openai":
         return OpenAIEmbedding()

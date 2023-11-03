@@ -31,7 +31,7 @@ from memgpt.persistence_manager import (
     InMemoryStateManagerWithPreloadedArchivalMemory,
     InMemoryStateManagerWithFaiss,
 )
-from memgpt.cli.cli import run
+from memgpt.cli.cli import run, attach
 from memgpt.cli.cli_config import configure, list, add
 from memgpt.cli.cli_load import app as load_app
 from memgpt.config import Config, MemGPTConfig, AgentConfig
@@ -42,10 +42,12 @@ from memgpt.openai_tools import (
     check_azure_embeddings,
     get_set_azure_env_vars,
 )
+from memgpt.connectors.storage import StorageConnector
 import asyncio
 
 app = typer.Typer()
 app.command(name="run")(run)
+app.command(name="attach")(attach)
 app.command(name="configure")(configure)
 app.command(name="list")(list)
 app.command(name="add")(add)
@@ -447,6 +449,28 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
                     load(memgpt_agent=memgpt_agent, filename=filename)
                     continue
 
+                elif user_input.lower() == "/attach":
+                    if legacy:
+                        typer.secho("Error: /attach is not supported in legacy mode.", fg=typer.colors.RED, bold=True)
+                        continue
+
+                    # TODO: check if agent already has it
+                    data_source_options = StorageConnector.list_loaded_data()
+                    data_source = await questionary.select("Select data source", choices=data_source_options).ask_async()
+
+                    # attach new data
+                    attach(memgpt_agent.config.name, data_source)
+
+                    # update agent config
+                    memgpt_agent.config.attach_data_source(data_source)
+
+                    # reload agent with new data source
+                    # TODO: maybe make this less ugly...
+                    memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_storage_connector(
+                        agent_config=memgpt_agent.config
+                    )
+                    continue
+
                 elif user_input.lower() == "/dump":
                     await memgpt.interface.print_messages(memgpt_agent.messages)
                     continue
@@ -565,6 +589,7 @@ USER_COMMANDS = [
     ("/pop", "undo the last message in the conversation"),
     ("/heartbeat", "send a heartbeat system message to the agent"),
     ("/memorywarning", "send a memory warning system message to the agent"),
+    ("/attach", "attach data source to agent"),
 ]
 # if __name__ == "__main__":
 #
