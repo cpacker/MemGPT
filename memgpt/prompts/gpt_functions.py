@@ -118,7 +118,7 @@ FUNCTIONS_CHAINING = {
                     "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
                 },
             },
-            "required": ["name", "page", "request_heartbeat"],
+            "required": ["query", "page", "request_heartbeat"],
         },
     },
     "conversation_search": {
@@ -140,7 +140,7 @@ FUNCTIONS_CHAINING = {
                     "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
                 },
             },
-            "required": ["name", "page", "request_heartbeat"],
+            "required": ["query", "page", "request_heartbeat"],
         },
     },
     "recall_memory_search_date": {
@@ -166,7 +166,7 @@ FUNCTIONS_CHAINING = {
                     "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
                 },
             },
-            "required": ["name", "page", "request_heartbeat"],
+            "required": ["start_date", "end_date", "page", "request_heartbeat"],
         },
     },
     "conversation_search_date": {
@@ -192,7 +192,7 @@ FUNCTIONS_CHAINING = {
                     "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
                 },
             },
-            "required": ["name", "page", "request_heartbeat"],
+            "required": ["start_date", "end_date", "page", "request_heartbeat"],
         },
     },
     "archival_memory_insert": {
@@ -210,7 +210,7 @@ FUNCTIONS_CHAINING = {
                     "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
                 },
             },
-            "required": ["name", "content", "request_heartbeat"],
+            "required": ["content", "request_heartbeat"],
         },
     },
     "archival_memory_search": {
@@ -232,7 +232,7 @@ FUNCTIONS_CHAINING = {
                     "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
                 },
             },
-            "required": ["name", "query", "page", "request_heartbeat"],
+            "required": ["query", "page", "request_heartbeat"],
         },
     },
     "read_from_text_file": {
