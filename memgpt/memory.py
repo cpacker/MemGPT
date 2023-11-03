@@ -663,7 +663,7 @@ class LocalArchivalMemory(ArchivalMemory):
 
         # locate saved index
         if self.agent_config.data_source is not None:  # connected data source
-            directory = f"{MEMGPT_DIR}/archival/{self.agent_config.data_source}"
+            directory = os.path.join(MEMGPT_DIR, "archival", self.agent_config.data_source)
             assert os.path.exists(directory), f"Archival memory database {self.agent_config.data_source} does not exist"
         elif self.agent_config.name is not None:
             directory = agent_config.save_agent_index_dir()

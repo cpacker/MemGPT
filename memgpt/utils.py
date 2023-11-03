@@ -376,7 +376,7 @@ def get_index(name, docs):
     print("Warning: get_index(docs) only supported for OpenAI")
 
     # check if directory exists
-    dir = f"{MEMGPT_DIR}/archival/{name}"
+    dir = os.path.join(MEMGPT_DIR, "archival", name)
     if os.path.exists(dir):
         confirm = typer.confirm(typer.style(f"Index with name {name} already exists -- re-index?", fg="yellow"), default=False)
         if not confirm:
@@ -435,7 +435,7 @@ def save_index(index, name):
     # TODO: load directory from config
     # TODO: save to vectordb/local depending on config
 
-    dir = f"{MEMGPT_DIR}/archival/{name}"
+    dir = os.pathjoin(MEMGPT_DIR, "archival", name)
 
     ## Avoid overwriting
     ## check if directory exists
