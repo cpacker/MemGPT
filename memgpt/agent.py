@@ -26,6 +26,8 @@ from .constants import (
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
 )
+from jira import JIRA
+from jira.exceptions import JIRAError
 
 
 def initialize_memory(ai_notes, human_notes):
@@ -227,6 +229,8 @@ class Agent(object):
         self.pause_heartbeats_start = None
         self.pause_heartbeats_minutes = 0
 
+        self.jira = None
+
         self.first_message_verify_mono = first_message_verify_mono
 
         # Controls if the convo memory pressure warning is triggered
@@ -260,6 +264,8 @@ class Agent(object):
             "read_from_text_file": self.read_from_text_file,
             "append_to_text_file": self.append_to_text_file,
             "http_request": self.http_request,
+            "get_jira": self.get_jira,
+            "query_jira": self.run_jql,
         }
 
     @property
@@ -867,6 +873,56 @@ class Agent(object):
             return {"status_code": response.status_code, "headers": dict(response.headers), "body": response.text}
         except Exception as e:
             return {"error": str(e)}
+
+    def get_jira(self, issue_key):
+        """
+        Makes a request to user's JIRA instance with the jira issue id that is provided and returns the issue details
+
+        Args:
+        issue_key (str): the issue key (MAIN-1 for example).
+
+        Returns:
+        dict: The response from the JIRA request.
+        """
+        if self.jira is None:
+            server = os.getenv("JIRA_SERVER")
+            username = os.getenv('JIRA_USER')
+            password = os.getenv('JIRA_KEY')
+            self.jira = JIRA({'server': server}, basic_auth=(username, password))
+        try:
+            issue = self.jira.issue(issue_key)
+            return {"issue": {
+                "key": issue.key,
+                "summary": issue.fields.summary,
+                "description": issue.fields.description,
+                "created": issue.fields.created,
+                "assignee": issue.fields.creator.displayName,
+                "status": issue.fields.status.name,
+                "status_category": issue.fields.status.statusCategory.name}}
+        except JIRAError as e:
+            print(f'Error: {e.text}')
+            return {"error": str(e.text)}
+    def run_jql(self, jql):
+        """
+        Makes a request to user's JIRA instance with the jql that is provided and returns the issues
+
+        Args:
+        jql (str): the JQL.
+
+        Returns:
+        dict: The response from the JIRA request.
+        """
+        if self.jira is None:
+            server = os.getenv("JIRA_SERVER")
+            username = os.getenv('JIRA_USER')
+            password = os.getenv('JIRA_KEY')
+            self.jira = JIRA({'server': server}, basic_auth=(username, password))
+        try:
+            issues = self.jira.search_issues(jql)
+            return {"issues": [issue.key for issue in issues]}
+        except JIRAError as e:
+            print(f'Error: {e.text}')
+            return {"error": str(e.text)}
 
     def pause_heartbeats(self, minutes, max_pause=MAX_PAUSE_HEARTBEATS):
         """Pause timed heartbeats for N minutes"""
