@@ -33,8 +33,9 @@ jobs:
 
     - name: Run tests with pytest
       env:
-        EXAMPLE_VAR: "hello_world"
+        EXAMPLE_VAR: ${{ secrets.DUMMY }}
         PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        echo $EXAMPLE_VAR
+        echo "Available environment variables:"
+        printenv | grep -E 'EXAMPLE_VAR' | awk -F '=' '{print $1}'
