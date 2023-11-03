@@ -381,6 +381,7 @@ class Agent(object):
         # load persistence manager
         filename = os.path.basename(filename).replace(".json", ".persistence.pickle")
         directory = agent_config.save_persistence_manager_dir()
+        printd(f"Loading persistence manager from {os.path.join(directory, filename)}")
         persistence_manager = LocalStateManager.load(os.path.join(directory, filename), agent_config)
 
         messages = state["messages"]

@@ -412,7 +412,12 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
             if user_input.startswith("/"):
                 if legacy:
                     # legacy agent save functions (TODO: eventually remove)
-                    if user_input.lower() == "/exit":
+                    if user_input.lower() == "/load" or user_input.lower().startswith("/load "):
+                        command = user_input.strip().split()
+                        filename = command[1] if len(command) > 1 else None
+                        load(memgpt_agent=memgpt_agent, filename=filename)
+                        continue
+                    elif user_input.lower() == "/exit":
                         # autosave
                         save(memgpt_agent=memgpt_agent, cfg=cfg)
                         break
@@ -443,13 +448,7 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
                         memgpt_agent.save()
                         continue
 
-                if user_input.lower() == "/load" or user_input.lower().startswith("/load "):
-                    command = user_input.strip().split()
-                    filename = command[1] if len(command) > 1 else None
-                    load(memgpt_agent=memgpt_agent, filename=filename)
-                    continue
-
-                elif user_input.lower() == "/attach":
+                if user_input.lower() == "/attach":
                     if legacy:
                         typer.secho("Error: /attach is not supported in legacy mode.", fg=typer.colors.RED, bold=True)
                         continue
