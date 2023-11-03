@@ -1,6 +1,7 @@
 import json
 
 from .wrapper_base import LLMChatCompletionWrapper
+from ..json_parser import clean_json
 
 
 class Airoboros21Wrapper(LLMChatCompletionWrapper):
@@ -389,12 +390,9 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
             raw_llm_output = "{" + raw_llm_output
 
         try:
-            function_json_output = json.loads(raw_llm_output)
+            function_json_output = clean_json(raw_llm_output)
         except Exception as e:
-            try:
-                function_json_output = json.loads(raw_llm_output + "\n}")
-            except:
-                raise Exception(f"Failed to decode JSON from LLM output:\n{raw_llm_output}")
+            raise Exception(f"Failed to decode JSON from LLM output:\n{raw_llm_output} - error\n{str(e)}")
         function_name = function_json_output["function"]
         function_parameters = function_json_output["params"]
 
