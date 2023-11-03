@@ -33,9 +33,6 @@ def get_chat_completion(
 
     if messages[0]["role"] == "system" and messages[0]["content"].strip() == SUMMARIZE_SYSTEM_MESSAGE.strip():
         # Special case for if the call we're making is coming from the summarizer
-        print("XXX summarize found!")
-        print(f"messages=\n{messages}")
-        input()
         llm_wrapper = simple_summary_wrapper.SimpleSummaryWrapper()
     elif model == "airoboros-l2-70b-2.1":
         llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper()
@@ -52,9 +49,14 @@ def get_chat_completion(
 
     # First step: turn the message sequence into a prompt that the model expects
 
-    prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
-    if DEBUG:
-        print(prompt)
+    try:
+        prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
+        if DEBUG:
+            print(prompt)
+    except Exception as e:
+        raise LocalLLMError(
+            f"Failed to convert ChatCompletion messages into prompt string with wrapper {str(llm_wrapper)} - error: {str(e)}"
+        )
 
     try:
         if HOST_TYPE == "webui":
@@ -70,9 +72,12 @@ def get_chat_completion(
     if result is None or result == "":
         raise LocalLLMError(f"Got back an empty response string from {HOST}")
 
-    chat_completion_result = llm_wrapper.output_to_chat_completion_response(result)
-    if DEBUG:
-        print(json.dumps(chat_completion_result, indent=2))
+    try:
+        chat_completion_result = llm_wrapper.output_to_chat_completion_response(result)
+        if DEBUG:
+            print(json.dumps(chat_completion_result, indent=2))
+    except Exception as e:
+        raise LocalLLMError(f"Failed to parse JSON from local LLM response - error: {str(e)}")
 
     # unpack with response.choices[0].message.content
     response = DotDict(
