@@ -92,13 +92,10 @@ class MemGPTConfig:
         config = configparser.ConfigParser()
 
         # allow overriding with env variables
-        print("env", os.getenv("MEMGPT_CONFIG_PATH"))
         if os.getenv("MEMGPT_CONFIG_PATH"):
             config_path = os.getenv("MEMGPT_CONFIG_PATH")
         else:
             config_path = MemGPTConfig.config_path
-
-        print("config path", config_path)
 
         if os.path.exists(config_path):
             config.read(config_path)

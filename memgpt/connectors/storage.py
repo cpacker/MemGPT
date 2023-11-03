@@ -121,7 +121,7 @@ class StorageConnector:
         pass
 
     @abstractmethod
-    def query(self, query_string: str, top_k: int = 10) -> List[Passage]:
+    def query(self, query: str, query_vec: List[float], top_k: int = 10) -> List[Passage]:
         pass
 
     @abstractmethod
@@ -287,6 +287,8 @@ class PostgresStorageConnector(StorageConnector):
         else:
             raise ValueError("Must specify either agent config or name")
 
+        print("table name", self.table_name)
+
         # create table
         self.uri = config.archival_storage_uri
         self.db_model = get_db_model(self.table_name)
@@ -320,10 +322,10 @@ class PostgresStorageConnector(StorageConnector):
             session.add(db_passage)
         session.commit()
 
-    def query(self, query_vector: List[float], top_k: int = 10) -> List[Passage]:
+    def query(self, query: str, query_vec: List[float], top_k: int = 10) -> List[Passage]:
         session = self.Session()
         # Assuming PassageModel.embedding has the capability of computing l2_distance
-        results = session.scalars(select(self.db_model).order_by(self.db_model.embedding.l2_distance(query_vector)).limit(top_k)).all()
+        results = session.scalars(select(self.db_model).order_by(self.db_model.embedding.l2_distance(query_vec)).limit(top_k)).all()
 
         # Convert the results into Passage objects
         passages = [
@@ -344,9 +346,9 @@ class PostgresStorageConnector(StorageConnector):
         self.db_model.__table__.drop(self.engine)
 
     def save(self):
-        # Since SQLAlchemy commits changes individually in `insert` and `insert_many`, this might not be needed.
-        # If there's a need to handle transactions manually, you can control them using the session object.
-        print("saving db")
+        # don't need to save
+        print("Saving db")
+        return
 
     @staticmethod
     def list_loaded_data():
@@ -354,5 +356,6 @@ class PostgresStorageConnector(StorageConnector):
         engine = create_engine(config.archival_storage_uri)
         inspector = inspect(engine)
         tables = inspector.get_table_names()
-        print("all tables")
-        return [table for table in tables if table.startswith("memgpt_") and not table.startswith("memgpt_agent_")]
+        tables = [table for table in tables if table.startswith("memgpt_") and not table.startswith("memgpt_agent_")]
+        tables = [table.replace("memgpt_", "") for table in tables]
+        return tables

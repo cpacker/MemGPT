@@ -163,12 +163,12 @@ def attach(
     data_source: str = typer.Option(help="Data source to attach to avent"),
 ):
     # loads the data contained in data source into the agent's memory
+    from memgpt.connectors.storage import StorageConnector
 
     agent_config = AgentConfig.load(agent)
     config = MemGPTConfig.load()
 
-    from memgpt.connectors.storage import StorageConnector
-
+    # get storage connectors
     source_storage = StorageConnector.get_storage_connector(name=data_source)
     dest_storage = StorageConnector.get_storage_connector(agent_config=agent_config)
 
@@ -178,22 +178,4 @@ def attach(
     dest_storage.insert_many(passages)
     dest_storage.save()
 
-    print("inserted all", len(passages))
-
-    return
-
-    source_index = Index(data_source)
-    agent_index = Index(agent, save_directory=agent_config.save_agent_index_dir())  # pass in save directory for agent index
-
-    # copy nodes from source index to dest index
-    from tqdm import tqdm
-
-    nodes = source_index.get_nodes()
-    for node in tqdm(nodes):
-        agent_index.insert(node.text, node.embedding)
-    print(f"Added {len(nodes)} form source {data_source} to agent {agent}")
-
-    if data_source not in agent_config.data_sources:
-        agent_config.data_sources += [data_source]
-
-    print("Agent data sources", agent_config.data_sources)
+    typer.secho(f"Attached data source {data_source} to agent {agent}, consisting of {len(passages)} total", fg=typer.colors.GREEN)
