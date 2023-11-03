@@ -27,15 +27,18 @@ jobs:
       run: |
         poetry install
 
+    - name: Set Poetry config
+      run: |
+        poetry config virtualenvs.in-project false
+        poetry config virtualenvs.path ~/.virtualenvs
+
     - name: Install pexpect for testing the interactive CLI
       run: |
         poetry add --dev pexpect
 
     - name: Run tests with pytest
       env:
-        EXAMPLE_VAR: ${{ secrets.DUMMY }}
         PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        echo "Available environment variables:"
-        printenv | grep -E 'EXAMPLE_VAR' | awk -F '=' '{print $1}'
+        poetry run pytest -s -vv tests
