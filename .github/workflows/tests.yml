@@ -11,6 +11,10 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    env:
+      PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
     steps:
     - uses: actions/checkout@v2
 
@@ -37,8 +41,5 @@ jobs:
         poetry add --dev pexpect
 
     - name: Run tests with pytest
-      env:
-        PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         poetry run pytest -s -vv tests
