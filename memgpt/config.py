@@ -210,6 +210,8 @@ class MemGPTConfig:
             self.anon_clientid = self.generate_uuid()
         config.set("client", "anon_clientid", self.anon_clientid)
 
+        if not os.path.exists(MEMGPT_DIR):
+            os.makedirs(MEMGPT_DIR, exist_ok=True)
         with open(self.config_path, "w") as f:
             config.write(f)
 
