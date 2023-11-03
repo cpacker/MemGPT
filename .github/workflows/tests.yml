@@ -34,6 +34,11 @@ jobs:
       run: |
         pip install poetry
 
+    - name: Set Poetry config
+      run: |
+        poetry config virtualenvs.in-project false
+        poetry config virtualenvs.path ~/.virtualenvs
+
     - name: Install dependencies using Poetry
       env:
         PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
