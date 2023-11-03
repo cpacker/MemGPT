@@ -200,7 +200,7 @@ def chunk_files(files, tkns_per_chunk=300, model="gpt-4"):
     for file in files:
         timestamp = os.path.getmtime(file)
         formatted_time = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
-        file_stem = file.split("/")[-1]
+        file_stem = file.split(os.sep)[-1]
         chunks = [c for c in chunk_file(file, tkns_per_chunk, model)]
         for i, chunk in enumerate(chunks):
             archival_database.append(
@@ -215,7 +215,7 @@ def chunk_files(files, tkns_per_chunk=300, model="gpt-4"):
 def chunk_files_for_jsonl(files, tkns_per_chunk=300, model="gpt-4"):
     ret = []
     for file in files:
-        file_stem = file.split("/")[-1]
+        file_stem = file.split(os.sep)[-1]
         curr_file = []
         for chunk in chunk_file(file, tkns_per_chunk, model):
             curr_file.append(
