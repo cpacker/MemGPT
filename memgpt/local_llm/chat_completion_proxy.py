@@ -15,6 +15,7 @@ HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
 DEBUG = False
 DEFAULT_WRAPPER = airoboros.Airoboros21InnerMonologueWrapper()
+has_shown_warning = False
 
 
 def get_chat_completion(
@@ -23,6 +24,8 @@ def get_chat_completion(
     functions=None,
     function_call="auto",
 ):
+    global has_shown_warning
+
     if HOST is None:
         raise ValueError(f"The OPENAI_API_BASE environment variable is not defined. Please set it in your environment.")
     if HOST_TYPE is None:
@@ -42,9 +45,11 @@ def get_chat_completion(
         llm_wrapper = zephyr.ZephyrMistralInnerMonologueWrapper()
     else:
         # Warn the user that we're using the fallback
-        print(
-            f"Warning: no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --model)"
-        )
+        if not has_shown_warning:
+            print(
+                f"Warning: no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --model)"
+            )
+            has_shown_warning = True
         llm_wrapper = DEFAULT_WRAPPER
 
     # First step: turn the message sequence into a prompt that the model expects
