@@ -391,7 +391,7 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
     async def a_insert(self, memory_string, embedding=None):
         if embedding is None:
             # Get the embedding
-            embedding = async_get_embedding_with_backoff(memory_string, model=self.embedding_model)
+            embedding = await async_get_embedding_with_backoff(memory_string, model=self.embedding_model)
         return self._insert(memory_string, embedding)
 
     def _search(self, query_embedding, query_string, count=None, start=None):
