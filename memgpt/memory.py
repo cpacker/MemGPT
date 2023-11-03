@@ -702,7 +702,7 @@ class LocalArchivalMemory(ArchivalMemory):
         else:
             utils.save_agent_index(self.index, self.agent_config)
 
-    def insert(self, memory_string):
+    def insert(self, memory_string, embedding=None):
         self.index.insert(memory_string)
 
         # TODO: figure out if this needs to be refreshed (probably not)
@@ -711,8 +711,8 @@ class LocalArchivalMemory(ArchivalMemory):
             similarity_top_k=self.top_k,
         )
 
-    async def a_insert(self, memory_string):
-        return self.insert(memory_string)
+    async def a_insert(self, memory_string, embedding=None):
+        return self.insert(memory_string, embedding=embedding)
 
     def search(self, query_string, count=None, start=None):
         if self.retriever is None:
