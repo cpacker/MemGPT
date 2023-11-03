@@ -18,6 +18,8 @@ from memgpt.config import MemGPTConfig
 from llama_index import (
     VectorStoreIndex,
     ServiceContext,
+    StorageContext,
+    load_index_from_storage,
 )
 
 app = typer.Typer()
@@ -46,9 +48,6 @@ def store_docs(name, docs, show_progress=True):
         ), f"Expected embedding dimension {config.embedding_dim}, got {len(node.embedding)}"
         passages.append(Passage(text=text, embedding=vector))
 
-    # embeddings = [embed_model.get_text_embedding(doc.text) for doc in docs]
-    # storage.insert_many([Passage(text=doc.text, embedding=embedding) for doc, embedding in zip(docs, embeddings)])
-
     # insert into storage
     storage.insert_many(passages)
     storage.save()
@@ -59,12 +58,11 @@ def load_index(
     name: str = typer.Option(help="Name of dataset to load."), dir: str = typer.Option(help="Path to directory containing index.")
 ):
     """Load a LlamaIndex saved VectorIndex into MemGPT"""
-    from llama_index import load_index_from_storage, StorageContext
-
     # load index data
     storage_context = StorageContext.from_defaults(persist_dir=dir)
     loaded_index = load_index_from_storage(storage_context)
 
+    # hacky code to extract out passages/embeddings (thanks a lot, llama index)
     embed_dict = loaded_index._vector_store._data.embedding_dict
     node_dict = loaded_index._docstore.docs
 
@@ -74,10 +72,10 @@ def load_index(
         node.embedding = vector
         passages.append(Passage(text=node.text, embedding=vector))
 
-    # index = Index(name)
-    # index.load_nodes(nodes)
-
+    # create storage connector
     storage = StorageConnector.get_storage_connector(name=name)
+
+    # add and save all passages
     storage.insert_many(passages)
     storage.save()
 
@@ -90,7 +88,6 @@ def load_directory(
     recursive: bool = typer.Option(False, help="Recursively search for files in directory."),
 ):
     from llama_index import SimpleDirectoryReader
-    from memgpt.utils import get_index, save_index
 
     if recursive:
         assert input_dir is not None, "Must provide input directory if recursive is True."
@@ -105,19 +102,8 @@ def load_directory(
         reader = SimpleDirectoryReader(input_files=input_files)
 
     # load docs
-    print("Loading data...")
     docs = reader.load_data()
-
     store_docs(name, docs)
-
-    # index = Index(name)
-    # index.load_documents(docs)
-
-    ## embed docs
-    # print("Indexing documents...")
-    # index = get_index(name, docs)
-    ## save connector information into .memgpt metadata file
-    # save_index(index, name)
 
 
 @app.command("webpage")
@@ -126,15 +112,9 @@ def load_webpage(
     urls: List[str] = typer.Option(None, help="List of urls to load."),
 ):
     from llama_index import SimpleWebPageReader
-    from memgpt.utils import get_index, save_index
 
     docs = SimpleWebPageReader(html_to_text=True).load_data(urls)
-
-    # embed docs
-    print("Indexing documents...")
-    index = get_index(docs)
-    # save connector information into .memgpt metadata file
-    save_index(index, name)
+    store_docs(name, docs)
 
 
 @app.command("database")
@@ -150,13 +130,12 @@ def load_database(
     dbname: str = typer.Option(None, help="Database name."),
 ):
     from llama_index.readers.database import DatabaseReader
-    from memgpt.utils import get_index, save_index
 
     print(dump_path, scheme)
 
     if dump_path is not None:
         # read from database dump file
-        from sqlalchemy import create_engine, MetaData
+        from sqlalchemy import create_engine
 
         engine = create_engine(f"sqlite:///{dump_path}")
 
@@ -181,6 +160,4 @@ def load_database(
 
     # load data
     docs = db.load_data(query=query)
-
-    index = get_index(name, docs)
-    save_index(index, name)
+    store_docs(name, docs)
