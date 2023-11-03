@@ -37,6 +37,4 @@ jobs:
         PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry shell
-        echo $EXAMPLE_VAR
-        pytest -s -vv tests
+        PGVECTOR_TEST_DB_URL=${{ secrets.PGVECTOR_TEST_DB_URL }} OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} poetry run pytest -s -vv tests
