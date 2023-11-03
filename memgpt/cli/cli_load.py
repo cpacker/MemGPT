@@ -204,3 +204,25 @@ def load_vector_database(
     # insert into storage
     storage = StorageConnector.get_storage_connector(name=name)
     storage.insert_many(passages)
+
+
+@app.command("notion")
+def load_notion(
+    name: str = typer.Option(help="Name of dataset to load."),
+    token: str = typer.Option(help="Notion token."),
+    database_id: str = typer.Option(None, help="Notion database id."),
+    page_ids: List[str] = typer.Option(None, help="List of page ids to load."),
+):
+
+    from llama_index import SummaryIndex, NotionPageReader
+
+    docs = []
+    if page_ids:
+        docs += NotionPageReader(integration_token=token).load_data(page_ids=page_ids)
+    elif database_id:
+        docs += NotionPageReader(integration_token=token).load_data(database_id=database_id)
+    else:
+        print("Please provide either a database id or a list of page ids.")
+        return
+
+    store_docs(name, docs)
