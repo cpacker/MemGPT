@@ -85,7 +85,7 @@ def run(
         agent_files = utils.list_agent_config_files()
         agents = [AgentConfig.load(f).name for f in agent_files]
 
-        if len(agents) > 0:
+        if len(agents) > 0 and not any([persona, human, model]):
             select_agent = questionary.confirm("Would you like to select an existing agent?").ask()
             if select_agent:
                 agent = questionary.select("Select agent:", choices=agents).ask()
