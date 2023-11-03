@@ -6,6 +6,8 @@ from typing import Optional, List
 from memgpt.config import AgentConfig, MemGPTConfig
 from tqdm import tqdm
 import re
+import pickle
+import os
 
 from pgvector.psycopg import register_vector
 from pgvector.sqlalchemy import Vector
@@ -20,6 +22,22 @@ from typing import List, Optional
 from abc import abstractmethod
 import numpy as np
 from tqdm import tqdm
+
+from llama_index import (
+    VectorStoreIndex,
+    EmptyIndex,
+    get_response_synthesizer,
+    load_index_from_storage,
+    StorageContext,
+    ServiceContext,
+)
+from llama_index.retrievers import VectorIndexRetriever
+from llama_index.query_engine import RetrieverQueryEngine
+from llama_index.indices.postprocessor import SimilarityPostprocessor
+from llama_index.schema import BaseComponent, TextNode, Document
+
+
+from memgpt.constants import MEMGPT_DIR
 
 
 class Passage:
@@ -111,79 +129,109 @@ class LocalStorageConnector:
 
     """Local storage connector based on LlamaIndex"""
 
-    def __init__(self, agent_config: AgentConfig):
-        pass
+    def __init__(self, name: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
+
+        from memgpt.embeddings import embedding_model
+
+        config = MemGPTConfig.load()
+
+        # TODO: add asserts to avoid both being passed
+        if name is None:
+            self.name = agent_config.name
+            self.save_directory = agent_config.save_agent_index_dir()
+        else:
+            self.name = name
+            self.save_directory = f"{MEMGPT_DIR}/archival/{name}"
+
+        # llama index contexts
+        self.embed_model = embedding_model(config)
+        self.service_context = ServiceContext.from_defaults(llm=None, embed_model=self.embed_model, chunk_size=config.embedding_chunk_size)
+
+        # load/create index
+        self.save_path = f"{self.save_directory}/nodes.pkl"
+        print("save", self.save_path)
+        if os.path.exists(self.save_path):
+            self.nodes = pickle.load(open(self.save_path, "rb"))
+        else:
+            self.nodes = []
+
+        print("nodes", len(self.nodes))
+
+        # create vectorindex
+        if len(self.nodes):
+            # self.storage_context = StorageContext.from_defaults(persist_dir=self.save_directory)
+            # self.index = load_index_from_storage(self.storage_context)
+            # llama index is trash so we just deal with nodes, and create an index from nodes
+            self.index = VectorStoreIndex(self.nodes)
+        else:
+            self.index = EmptyIndex()
+
+    def get_nodes(self) -> List[TextNode]:
+        """Get llama index nodes"""
+        embed_dict = self.index._vector_store._data.embedding_dict
+        node_dict = self.index._docstore.docs
+
+        nodes = []
+        for node_id, node in node_dict.items():
+            vector = embed_dict[node_id]
+            node.embedding = vector
+            nodes.append(TextNode(text=node.text, embedding=vector))
+        return nodes
+
+    def add_nodes(self, nodes: List[TextNode]):
+        self.nodes += nodes
+        self.index = VectorStoreIndex(self.nodes)
 
     def get_all(self) -> List[Passage]:
-        pass
+        passages = []
+        for node in self.get_nodes():
+            assert node.embedding is not None, f"Node embedding is None"
+            passages.append(Passage(text=node.text, embedding=node.embedding))
+        return passages
 
     def get(self, id: str) -> Passage:
         pass
 
     def insert(self, passage: Passage):
-        pass
+        nodes = [TextNode(text=passage.text, embedding=passage.embedding)]
+        self.nodes += nodes
+        if isinstance(self.index, EmptyIndex):
+            self.index = VectorStoreIndex(self.nodes, service_context=self.service_context, show_progress=True)
+        else:
+            self.index.insert_nodes(nodes)
 
     def insert_many(self, passages: List[Passage]):
-        pass
+        nodes = [TextNode(text=passage.text, embedding=passage.embedding) for passage in passages]
+        self.nodes += nodes
+        if isinstance(self.index, EmptyIndex):
+            self.index = VectorStoreIndex(self.nodes, service_context=self.service_context, show_progress=True)
+            print("new size", len(self.get_nodes()))
+        else:
+            orig_size == len(self.get_nodes())
+            self.index.insert_nodes(nodes)
+            assert len(self.get_nodes()) == orig_size + len(
+                passages
+            ), f"expected {orig_size + len(passages)} nodes, got {len(self.get_nodes())} nodes"
 
-    def query(self, query_string: str, top_k: int = 10) -> List[Passage]:
-        pass
+    def query(self, query: str, query_vec: List[float], top_k: int = 10) -> List[Passage]:
+        # TODO: this may be super slow?
+        retriever = VectorIndexRetriever(
+            index=self.index,  # does this get refreshed?
+            similarity_top_k=top_k,
+        )
+        nodes = retriever.retrieve(query)
+        results = [Passage(embedding=node.embedding, text=node.text) for node in nodes]
+        print(results)
+        return results
 
     def save(self):
-        """Save state of storage connector"""
-        pass
-
-
-# class PostgresStorageConnector:
-#
-#
-#
-#
-#
-#    def __init__(self, agent_config: AgentConfig, uri):
-#
-#        config = MemGPTConfig.load()
-#        self.table_name = self.table_name(agent_config)
-#        self.uri = uri
-#
-#        # create table
-#        # TODO: fix
-#        self.conn = psycopg.connect(dbname='pgvector_example', autocommit=True)
-#        self.conn.execute('CREATE EXTENSION IF NOT EXISTS vector')
-#        register_vector(self.conn)
-#        #self.conn.execute('DROP TABLE IF EXISTS documents') # TODO: don't do this!
-#
-#        # check if already exists
-#        self.conn.execute(f'CREATE TABLE documents (id bigserial PRIMARY KEY, content text, embedding vector({self.config.embedding_dim}))')
-#
-#
-#    @abstractmethod
-#    def get_all(self) -> List[Passage]:
-#        pass
-#
-#    @abstractmethod
-#    def get(self, id: str) -> Passage:
-#        pass
-#
-#    def insert(self, passage: Passage):
-#        self.conn.execute(f'INSERT INTO documents (content, embedding) VALUES (%s, %s)', (passage.text, passage.embedding))
-#
-#    def insert_many(self, passages: List[Passage], show_progress=True):
-#        if show_progress:
-#            for passage in tqdm(passages):
-#                self.insert(passage)
-#        else:
-#            for passage in passages:
-#                self.insert(passage)
-#
-#    def query(self, query_vector: List[float], top_k: int = 10) -> List[Passage]:
-#        results = self.conn.execute(f'SELECT * FROM item ORDER BY embedding <-> %s LIMIT {top_k}', (query_vector,)).fetchall()
-#        # TODO: convert to passages
-#
-#    @abstractmethod
-#    def save(self):
-#        """ Save state of storage connector """
-#        pass
+        # if isinstance(self.index, EmptyIndex):
+        #    print("no index to save")
+        #    return
+        assert len(self.nodes) == len(self.get_nodes()), f"Expected {len(self.nodes)} nodes, got {len(self.get_nodes())} nodes"
+        os.makedirs(self.save_directory, exist_ok=True)
+        pickle.dump(self.nodes, open(self.save_path, "wb"))
+        print("saved", self.save_path)
 
 
 Base = declarative_base()
@@ -285,4 +333,4 @@ class PostgresStorageConnector(StorageConnector):
     def save(self):
         # Since SQLAlchemy commits changes individually in `insert` and `insert_many`, this might not be needed.
         # If there's a need to handle transactions manually, you can control them using the session object.
-        pass
+        print("saving db")

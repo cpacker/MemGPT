@@ -23,6 +23,7 @@ from llama_index import (
     load_index_from_storage,
     StorageContext,
 )
+from llama_index.node_parser import SimpleNodeParser
 from llama_index.retrievers import VectorIndexRetriever
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.indices.postprocessor import SimilarityPostprocessor
@@ -831,7 +832,9 @@ class VectorStoreIndexArchivalMemory(ArchivalMemory):
         return f"Archival Memory: {len(nodes)} nodes"
 
 
-class GeneralArchivalMemory(ArchivalMemory):
+class EmbeddingArchivalMemory(ArchivalMemory):
+    """Archival memory with embedding based search"""
+
     def __init__(self, agent_config, top_k: Optional[int] = 100):
         """Init function for archival memory
 
@@ -846,6 +849,11 @@ class GeneralArchivalMemory(ArchivalMemory):
         # create embedding model
         self.embed_model = embedding_model(config)
 
+        # create parser
+        self.parser = SimpleNodeParser.from_defaults(
+            chunk_size=config.embedding_chunk_size,
+        )
+
         # create storage backend
         self.storage = StorageConnector.get_storage_connector(agent_config=agent_config)
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
@@ -857,8 +865,14 @@ class GeneralArchivalMemory(ArchivalMemory):
 
     def insert(self, memory_string):
         """Embed and save memory string"""
-        embedding = self.embed_model(memory_string)
-        self.storage.insert(Passage(text=memory_string, embedding=embedding, doc_id=f"agent_{self.agent_config.name}_memory"))
+        passages = []
+        # breakup string into passages
+        for node in self.parser.get_nodes_from_documents([memory_string]):
+            embedding = self.embed_model(node.text)
+            passages.append(Passage(text=node.text, embedding=embedding, doc_id=f"agent_{self.agent_config.name}_memory"))
+
+        # insert passages
+        self.storage.insert_many(passages)
 
     def search(self, query_string, count=None, start=None):
         """Search query string"""
@@ -867,7 +881,7 @@ class GeneralArchivalMemory(ArchivalMemory):
             if query_string not in self.cache:
                 # self.cache[query_string] = self.retriever.retrieve(query_string)
                 query_vec = self.embed_model.get_text_embedding(query_string)
-                self.cache[query_string] = self.storage.query(query_vec, top_k=self.top_k)
+                self.cache[query_string] = self.storage.query(query_string, query_vec, top_k=self.top_k)
 
             start = start if start else 0
             count = count if count else self.top_k
