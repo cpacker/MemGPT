@@ -137,11 +137,7 @@ def run(
 
         # create agent
         memgpt_agent = presets.use_preset(
-            agent_config.preset,
             agent_config,
-            agent_config.model,
-            utils.get_persona_text(agent_config.persona),
-            utils.get_human_text(agent_config.human),
             memgpt.interface,
             persistence_manager,
         )

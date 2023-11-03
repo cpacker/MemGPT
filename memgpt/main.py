@@ -333,15 +333,23 @@ async def main(
     chosen_human = cfg.human_persona
     chosen_persona = cfg.memgpt_persona
 
-    memgpt_agent = presets.use_preset(
-        presets.DEFAULT_PRESET,
-        None,  # no agent config to provide
-        cfg.model,
-        personas.get_persona_text(*chosen_persona),
-        humans.get_human_text(*chosen_human),
-        memgpt.interface,
-        persistence_manager,
+    temp_agent_config = AgentConfig(
+        model=cfg.model,
+        persona=chosen_persona,
+        human=chosen_human,
+        persistence_manager=persistence_manager,
+        preset=presets.DEFAULT_PRESET,
     )
+    memgpt_agent = presets.use_preset(temp_agent_config, memgpt.interface, persistence_manager)
+    # memgpt_agent = presets.use_preset(
+    #    presets.DEFAULT_PRESET,
+    #    None,  # no agent config to provide
+    #    cfg.model,
+    #    personas.get_persona_text(*chosen_persona),
+    #    humans.get_human_text(*chosen_human),
+    #    memgpt.interface,
+    #    persistence_manager,
+    # )
     print_messages = memgpt.interface.print_messages
     await print_messages(memgpt_agent.messages)
 

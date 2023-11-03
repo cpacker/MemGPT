@@ -129,11 +129,11 @@ def create_autogen_memgpt_agent(
     )
 
     memgpt_agent = presets.use_preset(
-        preset,
+        # preset,
         agent_config,
-        model,
-        persona_description,
-        user_description,
+        # model,
+        # persona_description,
+        # user_description,
         interface,
         persistence_manager,
     )

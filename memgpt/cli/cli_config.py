@@ -20,7 +20,7 @@ app = typer.Typer()
 def configure():
     """Updates default MemGPT configurations"""
 
-    from memgpt.presets import DEFAULT_PRESET, preset_options
+    from memgpt.presets import DEFAULT_PRESET, preset_options, preset_map, SYNC_CHAT
 
     MemGPTConfig.create_config_dir()
 
@@ -78,7 +78,12 @@ def configure():
         default_endpoint = questionary.select("Select default endpoint:", endpoint_options).ask()
 
     # configure preset
-    default_preset = questionary.select("Select default preset:", preset_options, default=DEFAULT_PRESET).ask()
+    default_preset = questionary.select(
+        "Select default preset:",
+        [preset.pretty_name for preset in preset_map.values() if preset.name != SYNC_CHAT],
+        default=preset_map[DEFAULT_PRESET].pretty_name,
+    ).ask()
+    default_preset = [preset.name for preset in preset_map.values() if preset.pretty_name == default_preset][0]
 
     # default model
     if use_openai or use_azure:
