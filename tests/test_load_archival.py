@@ -1,11 +1,13 @@
 # import tempfile
 # import asyncio
-# import os
-# import asyncio
-# from datasets import load_dataset
+import os
 
-# import memgpt
-# from memgpt.cli.cli_load import load_directory, load_database, load_webpage
+# import asyncio
+from datasets import load_dataset
+
+import memgpt
+from memgpt.cli.cli_load import load_directory, load_database, load_webpage
+
 # import memgpt.presets as presets
 # import memgpt.personas.personas as personas
 # import memgpt.humans.humans as humans
@@ -47,7 +49,8 @@ def test_postgres():
 def test_chroma():
     return
 
-    import chromadb
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "chromadb"])
+    import chromadb  # Try to import again after installing
 
     # override config path with enviornment variable
     # TODO: make into temporary file
