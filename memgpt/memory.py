@@ -730,18 +730,12 @@ class LocalArchivalMemory(ArchivalMemory):
         return self.search(query_string, count, start)
 
     def __repr__(self) -> str:
-<<<<<<< HEAD
-<<<<<<< HEAD
         if isinstance(self.index, EmptyIndex):
             memory_str = "<empty>"
         else:
             memory_str = self.index.ref_doc_info
         return f"\n### ARCHIVAL MEMORY ###" + f"\n{memory_str}"
-=======
-=======
->>>>>>> 60ecc8a (implement /attach)
-        print(self.index.ref_doc_info)
-        return ""
+
 
 
 class VectorStoreIndexArchivalMemory(ArchivalMemory):
@@ -867,11 +861,6 @@ class EmbeddingArchivalMemory(ArchivalMemory):
 
     def search(self, query_string, count=None, start=None):
         """Search query string"""
-<<<<<<< HEAD
-=======
-        print("searching", query_string)
->>>>>>> 60ecc8a (implement /attach)
-
         try:
             if query_string not in self.cache:
                 # self.cache[query_string] = self.retriever.retrieve(query_string)
@@ -903,7 +892,6 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         print("\n".join(passages))
         return ""  # TODO: fix
         # return f"Archival Memory: {len(nodes)} nodes"
-<<<<<<< HEAD
->>>>>>> 3d904f5 (working postgres integration)
-=======
->>>>>>> 60ecc8a (implement /attach)
+
+    def __len__(self):
+        return len(self.storage.get_all())
