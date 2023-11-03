@@ -16,3 +16,4 @@ tqdm
 typer
 llama_index
 prettytable
+jira
