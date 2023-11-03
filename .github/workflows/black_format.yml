@@ -26,11 +26,11 @@ jobs:
       # (Optional) If you want to automatically fix formatting issues
       # Uncomment the following steps:
 
-      # - name: Auto-fix with Black and commit
-      #   if: failure()
-      #   run: |
-      #     black .
-      #     git config --local user.email "action@github.com"
-      #     git config --local user.name "GitHub Action"
-      #     git commit -am "Apply Black formatting" || echo "No changes to commit"
-      #     git push
+      - name: Auto-fix with Black and commit
+        if: failure()
+        run: |
+           black .
+           git config --local user.email "action@github.com"
+           git config --local user.name "GitHub Action"
+           git commit -am "Apply Black formatting" || echo "No changes to commit"
+           git push

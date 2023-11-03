@@ -1,0 +1,28 @@
+name: Python Application Workflow
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository code
+      uses: actions/checkout@v2
+
+    - name: Set up Python 3.10.13
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10.13'
+
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+
+    - name: Run the application
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: python -m app.py
