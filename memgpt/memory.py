@@ -24,9 +24,13 @@ from llama_index import (
     StorageContext,
 )
 from llama_index.node_parser import SimpleNodeParser
+from llama_index.node_parser import SimpleNodeParser
 from llama_index.retrievers import VectorIndexRetriever
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.indices.postprocessor import SimilarityPostprocessor
+
+from memgpt.embeddings import embedding_model
+from memgpt.config import MemGPTConfig
 
 from memgpt.embeddings import embedding_model
 from memgpt.config import MemGPTConfig
