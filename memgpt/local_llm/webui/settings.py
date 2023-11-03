@@ -5,6 +5,9 @@ SIMPLE = {
         "\nUSER:",
         "\nASSISTANT:",
         "\nFUNCTION RETURN:",
+        "<|im_start|>",
+        "<|im_end|>",
+        "<|im_sep|>",
         # '\n' +
         # '</s>',
         # '<|',
