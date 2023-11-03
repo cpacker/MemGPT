@@ -5,9 +5,10 @@ from llama_index.embeddings import OpenAIEmbedding
 
 def embedding_model(config: MemGPTConfig):
     # TODO: use embedding_endpoint in the future
-    if config.model_endpoint == "openai":
+    endpoint = config.embedding_model
+    if endpoint == "openai":
         return OpenAIEmbedding()
-    elif config.model_endpoint == "azure":
+    elif endpoint == "azure":
         return OpenAIEmbedding(
             model="text-embedding-ada-002",
             deployment_name=config.azure_embedding_deployment,

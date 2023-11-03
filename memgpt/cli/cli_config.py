@@ -75,7 +75,13 @@ def configure():
     if len(endpoint_options) == 1:
         default_endpoint = endpoint_options[0]
     else:
-        default_endpoint = questionary.select("Select default endpoint:", endpoint_options).ask()
+        default_endpoint = questionary.select("Select default inference endpoint:", endpoint_options).ask()
+
+    # configure embedding provider
+    if len(endpoint_options) == 1:
+        default_embedding_endpoint = endpoint_options[0]
+    else:
+        default_embedding_endpoint = questionary.select("Select default embedding endpoint:", endpoint_options).ask()
 
     # configure preset
     default_preset = questionary.select("Select default preset:", preset_options, default=DEFAULT_PRESET).ask()
@@ -116,6 +122,7 @@ def configure():
         model=default_model,
         preset=default_preset,
         model_endpoint=default_endpoint,
+        embedding_model=default_embedding_endpoint,
         default_persona=default_persona,
         default_human=default_human,
         default_agent=default_agent,
