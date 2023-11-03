@@ -1,8 +1,11 @@
 import os
 from urllib.parse import urljoin
 import requests
+import tiktoken
 
 from .settings import SIMPLE
+
+from ...constants import LLM_MAX_TOKENS
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
@@ -10,8 +13,16 @@ WEBUI_API_SUFFIX = "/api/v1/generate"
 DEBUG = False
 
 
+def count_tokens(s: str, model: str = "gpt-4") -> int:
+    encoding = tiktoken.encoding_for_model(model)
+    return len(encoding.encode(s))
+
+
 def get_webui_completion(prompt, settings=SIMPLE):
     """See https://github.com/oobabooga/text-generation-webui for instructions on how to run the LLM web server"""
+    prompt_tokens = count_tokens(prompt)
+    if prompt_tokens > LLM_MAX_TOKENS:
+        raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {LLM_MAX_TOKENS} tokens)")
 
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
     request = settings
@@ -29,16 +40,10 @@ def get_webui_completion(prompt, settings=SIMPLE):
             if DEBUG:
                 print(f"json API response.text: {result}")
         else:
-            # TODO check what is web UI's error message?
-            if "context length" in str(response.text).lower():
-                # "exceeds context length" is what appears in the LM Studio error message
-                # raise an alternate exception that matches OpenAI's message, which is "maximum context length"
-                raise Exception(f"Request exceeds maximum context length (code={response.status_code}, msg={response.text}, URI={URI})")
-            else:
-                raise Exception(
-                    f"API call got non-200 response code (code={response.status_code}, msg={response.text}) for address: {URI}."
-                    + f"Make sure that the web UI server is running and reachable at {URI}."
-                )
+            raise Exception(
+                f"API call got non-200 response code (code={response.status_code}, msg={response.text}) for address: {URI}."
+                + f"Make sure that the web UI server is running and reachable at {URI}."
+            )
 
     except:
         # TODO handle gracefully
