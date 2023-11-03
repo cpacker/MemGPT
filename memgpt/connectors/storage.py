@@ -13,6 +13,22 @@ from abc import abstractmethod
 import numpy as np
 from tqdm import tqdm
 
+from llama_index import (
+    VectorStoreIndex,
+    EmptyIndex,
+    get_response_synthesizer,
+    load_index_from_storage,
+    StorageContext,
+    ServiceContext,
+)
+from llama_index.retrievers import VectorIndexRetriever
+from llama_index.query_engine import RetrieverQueryEngine
+from llama_index.indices.postprocessor import SimilarityPostprocessor
+from llama_index.schema import BaseComponent, TextNode, Document
+
+
+from memgpt.constants import MEMGPT_DIR
+
 
 from memgpt.config import AgentConfig, MemGPTConfig
 
