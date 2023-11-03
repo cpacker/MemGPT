@@ -435,7 +435,7 @@ def save_index(index, name):
     # TODO: load directory from config
     # TODO: save to vectordb/local depending on config
 
-    dir = os.pathjoin(MEMGPT_DIR, "archival", name)
+    dir = os.path.join(MEMGPT_DIR, "archival", name)
 
     ## Avoid overwriting
     ## check if directory exists
