@@ -370,6 +370,7 @@ def get_index(name, docs):
     :type docs: List[Document]
     """
     from memgpt.config import MemGPTConfig  # avoid circular import
+    from memgpt.embeddings import embedding_model  # avoid circular import
 
     # TODO: configure to work for local
     print("Warning: get_index(docs) only supported for OpenAI")
