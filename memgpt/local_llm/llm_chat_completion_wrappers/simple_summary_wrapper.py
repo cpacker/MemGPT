@@ -124,7 +124,7 @@ class SimpleSummaryWrapper(LLMChatCompletionWrapper):
             # prompt += f"\nASSISTANT:"
             prompt += f"\nSUMMARY:"
 
-        print(prompt)
+        # print(prompt)
         return prompt
 
     def output_to_chat_completion_response(self, raw_llm_output):
