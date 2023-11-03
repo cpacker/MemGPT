@@ -197,7 +197,7 @@ def load_vector_database(
 
     # Convert to a list of tuples (text, embedding)
     passages = []
-    for (text, embedding) in result:
+    for text, embedding in result:
         passages.append(Passage(text=text, embedding=embedding))
         assert config.embedding_dim == len(embedding), f"Expected embedding dimension {config.embedding_dim}, got {len(embedding)}"
 

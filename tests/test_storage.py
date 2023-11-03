@@ -7,7 +7,6 @@ import argparse
 
 
 def test_postgres():
-
     config = MemGPTConfig.load()
     embed_model = embedding_model()
 

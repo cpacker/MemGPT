@@ -27,7 +27,6 @@ class LocalStorageConnector(StorageConnector):
     """Local storage connector based on LlamaIndex"""
 
     def __init__(self, name: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
-
         from memgpt.embeddings import embedding_model
 
         config = MemGPTConfig.load()
