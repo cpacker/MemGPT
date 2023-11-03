@@ -19,7 +19,9 @@ def test_postgres():
     config = MemGPTConfig()
     config.archival_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")  # the URI for a postgres DB w/ the pgvector extension
     assert config.archival_storage_uri is not None
-    config.archival_storage_uri.replace("postgres://", "postgresql://")  # https://stackoverflow.com/a/64698899
+    config.archival_storage_uri = config.archival_storage_uri.replace(
+        "postgres://", "postgresql://"
+    )  # https://stackoverflow.com/a/64698899
     config.save()
     print(config)
 
