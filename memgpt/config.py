@@ -8,6 +8,8 @@ import textwrap
 from dataclasses import dataclass
 import configparser
 
+import openai
+
 
 import questionary
 
@@ -449,7 +451,7 @@ class Config:
         if recompute_embeddings:
             try:
                 self.archival_storage_index = await utils.prepare_archival_index_from_files_compute_embeddings(self.archival_storage_files)
-            except Exception as e:
+            except openai.OpenAIError as e:
                 if self.host:
                     print(e)
                     interface.warning_message(
