@@ -309,4 +309,40 @@ FUNCTIONS_CHAINING = {
             "required": ["method", "url", "request_heartbeat"],
         },
     },
+    "get_jira": {
+        "name": "get_jira",
+        "description": "Queries the user's JIRA instance for a given Jira issue key and returns details",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "issue_key": {
+                    "type": "string",
+                    "description": "The JIRA key of the issue. MAIN-1234 for example",
+                },
+                "request_heartbeat": {
+                    "type": "boolean",
+                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
+                },
+            },
+            "required": ["issue_key", "request_heartbeat"],
+        },
+    },
+    "query_jira": {
+        "name": "query_jira",
+        "description": "Queries the user's JIRA instance. It takes a JQL and executes it on the instance. ",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "jql": {
+                    "type": "string",
+                    "description": "JQL that is desired to run on the Jira instance. Make sure it's compatible with JIRA Cloud.",
+                },
+                "request_heartbeat": {
+                    "type": "boolean",
+                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
+                },
+            },
+            "required": ["jql", "request_heartbeat"],
+        },
+    },
 }

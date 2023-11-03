@@ -92,6 +92,8 @@ def use_preset(preset_name, agent_config, model, persona, human, interface, pers
             "append_to_text_file",
             # internet access
             "http_request",
+            "get_jira",
+            "query_jira",
         ]
         available_functions = [v for k, v in gpt_functions.FUNCTIONS_CHAINING.items() if k in functions]
         printd(f"Available functions:\n", [x["name"] for x in available_functions])
@@ -102,6 +104,7 @@ def use_preset(preset_name, agent_config, model, persona, human, interface, pers
             preset_name = "memgpt_gpt35_extralong"
 
         return AgentAsync(
+            config=agent_config,
             model=model,
             system=gpt_system.get_system_text("memgpt_chat"),
             functions=available_functions,
