@@ -3,7 +3,7 @@ import pexpect
 from .constants import TIMEOUT
 
 
-def configure_memgpt(enable_openai=False, enable_azure=False):
+def configure_memgpt(enable_openai=True, enable_azure=False):
     child = pexpect.spawn("memgpt configure")
 
     child.expect("Do you want to enable MemGPT with Open AI?", timeout=TIMEOUT)
