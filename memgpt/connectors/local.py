@@ -18,7 +18,7 @@ from llama_index.schema import TextNode
 
 from memgpt.constants import MEMGPT_DIR
 from memgpt.config import MemGPTConfig
-from memgpt.storage import StorageConnector, Passage
+from memgpt.connectors.storage import StorageConnector, Passage
 from memgpt.config import AgentConfig, MemGPTConfig
 
 
@@ -41,7 +41,7 @@ class LocalStorageConnector(StorageConnector):
             self.save_directory = f"{MEMGPT_DIR}/archival/{name}"
 
         # llama index contexts
-        self.embed_model = embedding_model(config)
+        self.embed_model = embedding_model()
         self.service_context = ServiceContext.from_defaults(llm=None, embed_model=self.embed_model, chunk_size=config.embedding_chunk_size)
 
         # load/create index
@@ -98,7 +98,7 @@ class LocalStorageConnector(StorageConnector):
             self.index = VectorStoreIndex(self.nodes, service_context=self.service_context, show_progress=True)
             print("new size", len(self.get_nodes()))
         else:
-            orig_size == len(self.get_nodes())
+            orig_size = len(self.get_nodes())
             self.index.insert_nodes(nodes)
             assert len(self.get_nodes()) == orig_size + len(
                 passages

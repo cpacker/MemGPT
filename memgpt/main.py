@@ -461,6 +461,9 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
                     # attach new data
                     attach(memgpt_agent.config.name, data_source)
 
+                    # update agent config
+                    memgpt_agent.config.attach_data_source(data_source)
+
                     # reload agent with new data source
                     # TODO: maybe make this less ugly...
                     memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_storage_connector(

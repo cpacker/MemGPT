@@ -4,6 +4,7 @@ from prettytable import PrettyTable
 import typer
 import os
 import shutil
+from collections import defaultdict
 
 # from memgpt.cli import app
 from memgpt import utils
@@ -12,6 +13,7 @@ import memgpt.humans.humans as humans
 import memgpt.personas.personas as personas
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
+from memgpt.connectors.storage import StorageConnector
 
 app = typer.Typer()
 
@@ -150,7 +152,7 @@ def list(option: str):
         for agent_file in utils.list_agent_config_files():
             agent_name = os.path.basename(agent_file).replace(".json", "")
             agent_config = AgentConfig.load(agent_name)
-            table.add_row([agent_name, agent_config.model, agent_config.persona, agent_config.human, agent_config.data_source])
+            table.add_row([agent_name, agent_config.model, agent_config.persona, agent_config.human, ",".join(agent_config.data_sources)])
         print(table)
     elif option == "humans":
         """List all humans"""
@@ -174,10 +176,23 @@ def list(option: str):
     elif option == "sources":
         """List all data sources"""
         table = PrettyTable()
-        table.field_names = ["Name", "Create Time", "Agents"]
-        for data_source_file in os.listdir(os.path.join(MEMGPT_DIR, "archival")):
-            name = os.path.basename(data_source_file)
-            table.add_row([name, "TODO", "TODO"])
+        table.field_names = ["Name", "Location", "Agents"]
+        config = MemGPTConfig.load()
+        # TODO: eventually look accross all storage connections
+        # TODO: add data source stats
+        source_to_agents = {}
+        for agent_file in utils.list_agent_config_files():
+            agent_name = os.path.basename(agent_file).replace(".json", "")
+            agent_config = AgentConfig.load(agent_name)
+            for ds in agent_config.data_sources:
+                if ds in source_to_agents:
+                    source_to_agents[ds].append(agent_name)
+                else:
+                    source_to_agents[ds] = [agent_name]
+        for data_source in StorageConnector.list_loaded_data():
+            location = config.archival_storage_type
+            agents = ",".join(source_to_agents[data_source]) if data_source in source_to_agents else ""
+            table.add_row([data_source, location, agents])
         print(table)
     else:
         raise ValueError(f"Unknown option {option}")

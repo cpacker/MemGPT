@@ -11,7 +11,7 @@ memgpt load <data-connector-type> --name <dataset-name> [ADDITIONAL ARGS]
 from typing import List
 from tqdm import tqdm
 import typer
-from memgpt.embeddings import Index, embedding_model
+from memgpt.embeddings import embedding_model
 from memgpt.connectors.storage import StorageConnector, Passage
 from memgpt.config import MemGPTConfig
 
@@ -29,7 +29,7 @@ def store_docs(name, docs, show_progress=True):
     """Common function for embedding and storing documents"""
     storage = StorageConnector.get_storage_connector(name=name)
     config = MemGPTConfig.load()
-    embed_model = embedding_model(config)
+    embed_model = embedding_model()
 
     # use llama index to run embeddings code
     service_context = ServiceContext.from_defaults(llm=None, embed_model=embed_model, chunk_size=config.embedding_chunk_size)
