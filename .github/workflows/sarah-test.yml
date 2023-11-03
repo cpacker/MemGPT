@@ -1,11 +1,14 @@
-name: MemGPT tests
+name: sarah-test
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
+  release:
+    types: [published]
+  workflow_dispatch:
+  
+env:
+  EXAMPLE_VAR: "hello_world"
+  PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 jobs:
   test:
 
@@ -22,23 +25,16 @@ jobs:
     - name: Install Poetry
       run: |
         pip install poetry
-
     - name: Install dependencies using Poetry
       run: |
         poetry install
-
-    - name: Set Poetry config
-      run: |
-        poetry config virtualenvs.in-project false
-        poetry config virtualenvs.path ~/.virtualenvs
-
     - name: Install pexpect for testing the interactive CLI
       run: |
         poetry add --dev pexpect
-
     - name: Run tests with pytest
       env:
+        EXAMPLE_VAR: "hello_world"
         PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests
+        PGVECTOR_TEST_DB_URL=${{ secrets.PGVECTOR_TEST_DB_URL }} OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} poetry run pytest -s -vv tests
