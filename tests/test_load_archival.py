@@ -45,7 +45,15 @@ def test_postgres():
 
 
 def test_chroma():
-    import chromadb
+    # Install chromadb in real-time
+    try:
+        import chromadb
+    except ImportError:
+        import subprocess
+        import sys
+
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "chromadb"])
+        import chromadb  # Try to import again after installing
 
     # override config path with enviornment variable
     # TODO: make into temporary file
@@ -198,4 +206,4 @@ def test_load_database():
 
 
 test_postgres()
-# test_chroma()
+test_chroma()
