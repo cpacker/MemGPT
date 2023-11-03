@@ -680,16 +680,41 @@ class Agent(object):
                 printd(f"step() failed with openai.InvalidRequestError, but didn't recognize the error message: '{str(e)}'")
                 raise e
 
-    def summarize_messages_inplace(self, cutoff=None):
-        if cutoff is None:
-            tokens_so_far = 0  # Smart cutoff -- just below the max.
-            cutoff = len(self.messages) - 1
-            for m in reversed(self.messages):
-                tokens_so_far += count_tokens(str(m), self.model)
-                if tokens_so_far >= MESSAGE_SUMMARY_TRUNC_TOKENS:
-                    break
-                cutoff -= 1
-            cutoff = min(len(self.messages) - 3, cutoff)  # Always keep the last two messages too
+    def summarize_messages_inplace(self, cutoff=None, preserve_last_N_messages=True):
+        assert self.messages[0]["role"] == "system", f"self.messages[0] should be system (instead got {self.messages[0]})"
+
+        # Start at index 1 (past the system message),
+        # and collect messages for summarization until we reach the desired truncation token fraction (eg 50%)
+        # Do not allow truncation of the last N messages, since these are needed for in-context examples of function calling
+        token_counts = [count_tokens(str(msg)) for msg in self.messages]
+        message_buffer_token_count = sum(token_counts[1:])  # no system message
+        desired_token_count_to_summarize = int(message_buffer_token_count * MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC)
+        candidate_messages_to_summarize = self.messages[1:]
+        if preserve_last_N_messages:
+            candidate_messages_to_summarize = candidate_messages_to_summarize[:-MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST]
+        printd(f"MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC={MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC}")
+        printd(f"MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST={MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST}")
+        printd(f"token_counts={token_counts}")
+        printd(f"message_buffer_token_count={message_buffer_token_count}")
+        printd(f"desired_token_count_to_summarize={desired_token_count_to_summarize}")
+        printd(f"len(candidate_messages_to_summarize)={len(candidate_messages_to_summarize)}")
+
+        # If at this point there's nothing to summarize, throw an error
+        if len(candidate_messages_to_summarize) == 0:
+            raise LLMError(
+                f"Summarize error: tried to run summarize, but couldn't find enough messages to compress [len={len(self.messages)}, preserve_N={MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST}]"
+            )
+
+        # Walk down the message buffer (front-to-back) until we hit the target token count
+        tokens_so_far = 0
+        cutoff = 0
+        for i, msg in enumerate(candidate_messages_to_summarize):
+            cutoff = i
+            tokens_so_far += count_tokens(str(msg))  # TODO remove duplicated token count code
+            if tokens_so_far > desired_token_count_to_summarize:
+                break
+        # Account for system message
+        cutoff += 1
 
         # Try to make an assistant message come after the cutoff
         try:
