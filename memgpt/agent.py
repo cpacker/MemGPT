@@ -5,6 +5,7 @@ import glob
 import pickle
 import math
 import os
+from typing import Optional
 import requests
 import json
 import threading
@@ -15,7 +16,7 @@ from memgpt.config import AgentConfig
 from .system import get_heartbeat, get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from .memory import CoreMemory as Memory, summarize_messages, a_summarize_messages
 from .openai_tools import acompletions_with_backoff as acreate, completions_with_backoff as create
-from .utils import get_local_time, parse_json, united_diff, printd, count_tokens
+from .utils import VectorEmbedding, get_local_time, parse_json, united_diff, printd, count_tokens
 from .constants import (
     MEMGPT_DIR,
     FIRST_MESSAGE_ATTEMPTS,
@@ -777,7 +778,7 @@ class Agent(object):
         self.rebuild_memory()
         return None
 
-    def recall_memory_search(self, query, count=5, page=0):
+    def recall_memory_search(self, query: str, count: Optional[int] = 5, page: Optional[int] = 0):
         results, total = self.persistence_manager.recall_memory.text_search(query, count=count, start=page * count)
         num_pages = math.ceil(total / count) - 1  # 0 index
         if len(results) == 0:
@@ -788,7 +789,13 @@ class Agent(object):
             results_str = f"{results_pref} {json.dumps(results_formatted)}"
         return results_str
 
-    def recall_memory_search_date(self, start_date, end_date, count=5, page=0):
+    def recall_memory_search_date(
+        self,
+        start_date: str,
+        end_date: str,
+        count: Optional[int] = 5,
+        page: Optional[int] = 0,
+    ):
         results, total = self.persistence_manager.recall_memory.date_search(start_date, end_date, count=count, start=page * count)
         num_pages = math.ceil(total / count) - 1  # 0 index
         if len(results) == 0:
@@ -799,11 +806,11 @@ class Agent(object):
             results_str = f"{results_pref} {json.dumps(results_formatted)}"
         return results_str
 
-    def archival_memory_insert(self, content, embedding=None):
-        self.persistence_manager.archival_memory.insert(content, embedding=None)
+    def archival_memory_insert(self, content: str, embedding: Optional[VectorEmbedding] = None):
+        self.persistence_manager.archival_memory.insert(content, embedding=embedding)
         return None
 
-    def archival_memory_search(self, query, count=5, page=0):
+    def archival_memory_search(self, query: str, count: Optional[int] = 5, page: Optional[int] = 0):
         results, total = self.persistence_manager.archival_memory.search(query, count=count, start=page * count)
         num_pages = math.ceil(total / count) - 1  # 0 index
         if len(results) == 0:

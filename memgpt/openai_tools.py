@@ -2,8 +2,10 @@ import asyncio
 import random
 import os
 import time
+from typing import cast
 
 from .local_llm.chat_completion_proxy import get_chat_completion
+from .utils import VectorEmbedding
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
@@ -148,12 +150,12 @@ async def acreate_embedding_with_backoff(**kwargs):
     return await openai.Embedding.acreate(**kwargs)
 
 
-async def async_get_embedding_with_backoff(text, model="text-embedding-ada-002"):
+async def async_get_embedding_with_backoff(text, model="text-embedding-ada-002") -> VectorEmbedding:
     """To get text embeddings, import/call this function
     It specifies defaults + handles rate-limiting + is async"""
     text = text.replace("\n", " ")
     response = await acreate_embedding_with_backoff(input=[text], model=model)
-    embedding = response["data"][0]["embedding"]
+    embedding = cast(VectorEmbedding, response["data"][0]["embedding"])
     return embedding
 
 
@@ -169,10 +171,10 @@ def create_embedding_with_backoff(**kwargs):
     return openai.Embedding.create(**kwargs)
 
 
-def get_embedding_with_backoff(text, model="text-embedding-ada-002"):
+def get_embedding_with_backoff(text, model="text-embedding-ada-002") -> VectorEmbedding:
     text = text.replace("\n", " ")
     response = create_embedding_with_backoff(input=[text], model=model)
-    embedding = response["data"][0]["embedding"]
+    embedding = cast(VectorEmbedding, response["data"][0]["embedding"])
     return embedding
 
 
