@@ -10,7 +10,8 @@ from ...constants import LLM_MAX_TOKENS
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
 LLAMACPP_API_SUFFIX = "/completion"
-DEBUG = False
+# DEBUG = False
+DEBUG = True
 
 
 def count_tokens(s: str, model: str = "gpt-4") -> int:
@@ -18,7 +19,7 @@ def count_tokens(s: str, model: str = "gpt-4") -> int:
     return len(encoding.encode(s))
 
 
-def get_llamacpp_completion(prompt, settings=SIMPLE):
+def get_llamacpp_completion(prompt, grammar=None, settings=SIMPLE):
     """See https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md for instructions on how to run the LLM web server"""
     prompt_tokens = count_tokens(prompt)
     if prompt_tokens > LLM_MAX_TOKENS:
@@ -27,6 +28,18 @@ def get_llamacpp_completion(prompt, settings=SIMPLE):
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
     request = settings
     request["prompt"] = prompt
+
+    # Set grammar
+    if grammar is not None:
+        grammar_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "grammars", f"{grammar}.gbnf")
+
+        # Check if the file exists
+        if not os.path.isfile(grammar_file):
+            # If the file doesn't exist, raise a FileNotFoundError
+            raise FileNotFoundError(f"The grammar file {grammar_file} does not exist.")
+
+        with open(grammar_file, "r") as file:
+            request["grammar"] = file.read()
 
     if not HOST.startswith(("http://", "https://")):
         raise ValueError(f"Provided OPENAI_API_BASE value ({HOST}) must begin with http:// or https://")

@@ -14,7 +14,8 @@ from ..errors import LocalLLMConnectionError, LocalLLMError
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
-DEBUG = False
+# DEBUG = False
+DEBUG = True
 DEFAULT_WRAPPER = airoboros.Airoboros21InnerMonologueWrapper()
 has_shown_warning = False
 
@@ -40,6 +41,10 @@ def get_chat_completion(
         llm_wrapper = simple_summary_wrapper.SimpleSummaryWrapper()
     elif model == "airoboros-l2-70b-2.1":
         llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper()
+    elif model == "airoboros-l2-70b-2.1-grammar":
+        llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper(include_opening_brace_in_prefix=False)
+        # grammar_name = "json"
+        grammar_name = "json_2space"
     elif model == "dolphin-2.1-mistral-7b":
         llm_wrapper = dolphin.Dolphin21MistralWrapper()
     elif model == "zephyr-7B-alpha" or model == "zephyr-7B-beta":
@@ -70,7 +75,7 @@ def get_chat_completion(
         elif HOST_TYPE == "lmstudio":
             result = get_lmstudio_completion(prompt)
         elif HOST_TYPE == "llamacpp":
-            result = get_llamacpp_completion(prompt)
+            result = get_llamacpp_completion(prompt, grammar=grammar_name)
         else:
             print(f"Warning: BACKEND_TYPE was not set, defaulting to webui")
             result = get_webui_completion(prompt)
@@ -80,7 +85,7 @@ def get_chat_completion(
     if result is None or result == "":
         raise LocalLLMError(f"Got back an empty response string from {HOST}")
     if DEBUG:
-        print("Raw LLM output:\n{result}")
+        print(f"Raw LLM output:\n{result}")
 
     try:
         chat_completion_result = llm_wrapper.output_to_chat_completion_response(result)
