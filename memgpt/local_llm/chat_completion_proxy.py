@@ -7,6 +7,7 @@ import json
 from .webui.api import get_webui_completion
 from .lmstudio.api import get_lmstudio_completion
 from .llamacpp.api import get_llamacpp_completion
+from .koboldcpp.api import get_koboldcpp_completion
 from .llm_chat_completion_wrappers import airoboros, dolphin, zephyr, simple_summary_wrapper
 from .utils import DotDict
 from ..prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
@@ -65,7 +66,7 @@ def get_chat_completion(
                 f"Warning: no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --model)"
             )
             has_shown_warning = True
-        if HOST_TYPE in ["llamacpp", "webui"]:
+        if HOST_TYPE in ["koboldcpp", "llamacpp", "webui"]:
             # make the default to use grammar
             llm_wrapper = DEFAULT_WRAPPER(include_opening_brace_in_prefix=False)
             # grammar_name = "json"
@@ -73,7 +74,7 @@ def get_chat_completion(
         else:
             llm_wrapper = DEFAULT_WRAPPER()
 
-    if grammar is not None and HOST_TYPE != "llamacpp":
+    if grammar is not None and HOST_TYPE not in ["koboldcpp", "llamacpp", "webui"]:
         print(f"Warning: grammars are currently only supported when using llama.cpp as the MemGPT local LLM backend")
 
     # First step: turn the message sequence into a prompt that the model expects
@@ -93,6 +94,8 @@ def get_chat_completion(
             result = get_lmstudio_completion(prompt)
         elif HOST_TYPE == "llamacpp":
             result = get_llamacpp_completion(prompt, grammar=grammar_name)
+        elif HOST_TYPE == "koboldcpp":
+            result = get_koboldcpp_completion(prompt, grammar=grammar_name)
         else:
             print(f"Warning: BACKEND_TYPE was not set, defaulting to webui")
             result = get_webui_completion(prompt)
