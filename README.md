@@ -297,6 +297,10 @@ While using MemGPT via the CLI (not Discord!) you can run various commands:
   print the current contents of agent memory
 /pop
   undo the last message in the conversation
+/rethink <text>
+  will replace the inner dialog of the last assistant message with the <text> to help shaping the conversation 
+/rewrite
+  will replace the last assistant answer with the given text to correct or force the answer 
 /heartbeat
   send a heartbeat system message to the agent
 /memorywarning
