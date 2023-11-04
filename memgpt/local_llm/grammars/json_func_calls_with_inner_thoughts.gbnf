@@ -21,5 +21,5 @@ RequestHeartbeatParam ::= "\"request_heartbeat\":"   ws   boolean
 namestring ::= "\"human\"" | "\"persona\""
 string ::= "\""   ([^"\[\]{}]*)   "\""
 boolean ::= "true" | "false"
-ws ::= [ \\t\\n]*
+ws ::= ""
 number ::= [0-9]+
