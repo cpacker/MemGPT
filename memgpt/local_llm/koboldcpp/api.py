@@ -9,8 +9,9 @@ from ...constants import LLM_MAX_TOKENS
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
-WEBUI_API_SUFFIX = "/api/v1/generate"
-DEBUG = False
+KOBOLDCPP_API_SUFFIX = "/api/v1/generate"
+# DEBUG = False
+DEBUG = True
 
 
 def count_tokens(s: str, model: str = "gpt-4") -> int:
@@ -18,8 +19,8 @@ def count_tokens(s: str, model: str = "gpt-4") -> int:
     return len(encoding.encode(s))
 
 
-def get_webui_completion(prompt, settings=SIMPLE, grammar=None):
-    """See https://github.com/oobabooga/text-generation-webui for instructions on how to run the LLM web server"""
+def get_koboldcpp_completion(prompt, grammar=None, settings=SIMPLE):
+    """See https://lite.koboldai.net/koboldcpp_api for API spec"""
     prompt_tokens = count_tokens(prompt)
     if prompt_tokens > LLM_MAX_TOKENS:
         raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {LLM_MAX_TOKENS} tokens)")
@@ -30,13 +31,15 @@ def get_webui_completion(prompt, settings=SIMPLE, grammar=None):
 
     # Set grammar
     if grammar is not None:
-        request["grammar_string"] = load_grammar_file(grammar)
+        request["grammar"] = load_grammar_file(grammar)
 
     if not HOST.startswith(("http://", "https://")):
         raise ValueError(f"Provided OPENAI_API_BASE value ({HOST}) must begin with http:// or https://")
 
     try:
-        URI = urljoin(HOST.strip("/") + "/", WEBUI_API_SUFFIX.strip("/"))
+        # NOTE: llama.cpp server returns the following when it's out of context
+        # curl: (52) Empty reply from server
+        URI = urljoin(HOST.strip("/") + "/", KOBOLDCPP_API_SUFFIX.strip("/"))
         response = requests.post(URI, json=request)
         if response.status_code == 200:
             result = response.json()
@@ -46,7 +49,7 @@ def get_webui_completion(prompt, settings=SIMPLE, grammar=None):
         else:
             raise Exception(
                 f"API call got non-200 response code (code={response.status_code}, msg={response.text}) for address: {URI}."
-                + f" Make sure that the web UI server is running and reachable at {URI}."
+                + f" Make sure that the koboldcpp server is running and reachable at {URI}."
             )
 
     except:
