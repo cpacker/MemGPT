@@ -326,7 +326,7 @@ async def main(
     else:
         persistence_manager = InMemoryStateManager()
 
-    if archival_storage_files_compute_embeddings:
+    if archival_storage_files_compute_embeddings and cfg.archival_storage_index:
         memgpt.interface.important_message(
             f"(legacy) To avoid computing embeddings next time, replace --archival_storage_files_compute_embeddings={archival_storage_files_compute_embeddings} with\n\t --archival_storage_faiss_path={cfg.archival_storage_index} (if your files haven't changed)."
         )

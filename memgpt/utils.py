@@ -232,7 +232,7 @@ async def process_chunk(i, chunk, model):
     try:
         return i, await async_get_embedding_with_backoff(chunk["content"], model=model)
     except Exception as e:
-        print(chunk)
+        printd(chunk)
         raise e
 
 
