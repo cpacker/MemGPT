@@ -476,9 +476,9 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
                     command = user_input.strip().split()
                     amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 0
                     if amount == 0:
-                        await print_messages(memgpt_agent.messages, dump=True)
+                        await memgpt.interface.print_messages(memgpt_agent.messages, dump=True)
                     else:
-                        await print_messages(memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
+                        await memgpt.interface.print_messages(memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
                     continue
 
                 elif user_input.lower() == "/dumpraw":
