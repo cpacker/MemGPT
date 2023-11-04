@@ -4,7 +4,7 @@ import requests
 import tiktoken
 
 from .settings import SIMPLE
-
+from ..utils import load_grammar_file
 from ...constants import LLM_MAX_TOKENS
 
 HOST = os.getenv("OPENAI_API_BASE")
@@ -18,7 +18,7 @@ def count_tokens(s: str, model: str = "gpt-4") -> int:
     return len(encoding.encode(s))
 
 
-def get_webui_completion(prompt, settings=SIMPLE):
+def get_webui_completion(prompt, settings=SIMPLE, grammar=None):
     """See https://github.com/oobabooga/text-generation-webui for instructions on how to run the LLM web server"""
     prompt_tokens = count_tokens(prompt)
     if prompt_tokens > LLM_MAX_TOKENS:
@@ -27,6 +27,10 @@ def get_webui_completion(prompt, settings=SIMPLE):
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
     request = settings
     request["prompt"] = prompt
+
+    # Set grammar
+    if grammar is not None:
+        request["grammar_string"] = load_grammar_file(grammar)
 
     if not HOST.startswith(("http://", "https://")):
         raise ValueError(f"Provided OPENAI_API_BASE value ({HOST}) must begin with http:// or https://")

@@ -44,17 +44,20 @@ def get_chat_completion(
         llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper()
     elif model == "airoboros-l2-70b-2.1-grammar":
         llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper(include_opening_brace_in_prefix=False)
-        grammar_name = "json"
+        # grammar_name = "json"
+        grammar_name = "json_func_calls_with_inner_thoughts"
     elif model == "dolphin-2.1-mistral-7b":
         llm_wrapper = dolphin.Dolphin21MistralWrapper()
     elif model == "dolphin-2.1-mistral-7b-grammar":
         llm_wrapper = dolphin.Dolphin21MistralWrapper(include_opening_brace_in_prefix=False)
-        grammar_name = "json"
+        # grammar_name = "json"
+        grammar_name = "json_func_calls_with_inner_thoughts"
     elif model == "zephyr-7B-alpha" or model == "zephyr-7B-beta":
         llm_wrapper = zephyr.ZephyrMistralInnerMonologueWrapper()
     elif model == "zephyr-7B-alpha-grammar" or model == "zephyr-7B-beta-grammar":
         llm_wrapper = zephyr.ZephyrMistralInnerMonologueWrapper(include_opening_brace_in_prefix=False)
-        grammar_name = "json"
+        # grammar_name = "json"
+        grammar_name = "json_func_calls_with_inner_thoughts"
     else:
         # Warn the user that we're using the fallback
         if not has_shown_warning:
@@ -62,10 +65,11 @@ def get_chat_completion(
                 f"Warning: no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --model)"
             )
             has_shown_warning = True
-        if HOST_TYPE == "llamacpp":
+        if HOST_TYPE in ["llamacpp", "webui"]:
             # make the default to use grammar
             llm_wrapper = DEFAULT_WRAPPER(include_opening_brace_in_prefix=False)
-            grammar_name = "json"
+            # grammar_name = "json"
+            grammar_name = "json_func_calls_with_inner_thoughts"
         else:
             llm_wrapper = DEFAULT_WRAPPER()
 
@@ -84,7 +88,7 @@ def get_chat_completion(
 
     try:
         if HOST_TYPE == "webui":
-            result = get_webui_completion(prompt)
+            result = get_webui_completion(prompt, grammar=grammar_name)
         elif HOST_TYPE == "lmstudio":
             result = get_lmstudio_completion(prompt)
         elif HOST_TYPE == "llamacpp":
