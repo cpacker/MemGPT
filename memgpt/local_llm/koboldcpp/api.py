@@ -9,7 +9,7 @@ from ...constants import LLM_MAX_TOKENS
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
-KOBOLDCPP_API_SUFFIX = "/generate"
+KOBOLDCPP_API_SUFFIX = "/api/v1/generate"
 # DEBUG = False
 DEBUG = True
 
@@ -43,13 +43,13 @@ def get_koboldcpp_completion(prompt, grammar=None, settings=SIMPLE):
         response = requests.post(URI, json=request)
         if response.status_code == 200:
             result = response.json()
-            result = result["content"]
+            result = result["results"][0]["text"]
             if DEBUG:
                 print(f"json API response.text: {result}")
         else:
             raise Exception(
                 f"API call got non-200 response code (code={response.status_code}, msg={response.text}) for address: {URI}."
-                + f"Make sure that the koboldcpp server is running and reachable at {URI}."
+                + f" Make sure that the koboldcpp server is running and reachable at {URI}."
             )
 
     except:

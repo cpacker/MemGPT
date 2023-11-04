@@ -46,7 +46,7 @@ def get_webui_completion(prompt, settings=SIMPLE, grammar=None):
         else:
             raise Exception(
                 f"API call got non-200 response code (code={response.status_code}, msg={response.text}) for address: {URI}."
-                + f"Make sure that the web UI server is running and reachable at {URI}."
+                + f" Make sure that the web UI server is running and reachable at {URI}."
             )
 
     except:

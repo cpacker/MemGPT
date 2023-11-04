@@ -49,7 +49,7 @@ def get_llamacpp_completion(prompt, grammar=None, settings=SIMPLE):
         else:
             raise Exception(
                 f"API call got non-200 response code (code={response.status_code}, msg={response.text}) for address: {URI}."
-                + f"Make sure that the llama.cpp server is running and reachable at {URI}."
+                + f" Make sure that the llama.cpp server is running and reachable at {URI}."
             )
 
     except:
