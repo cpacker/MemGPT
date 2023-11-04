@@ -7,7 +7,7 @@ class DotDict(dict):
     def __setattr__(self, key, value):
         self[key] = value
 
-    #following methods necessary for pickling
+    # following methods necessary for pickling
     def __getstate__(self):
         return vars(self)
 
