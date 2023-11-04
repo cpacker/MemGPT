@@ -6,6 +6,7 @@ import json
 
 from .webui.api import get_webui_completion
 from .lmstudio.api import get_lmstudio_completion
+from .llamacpp.api import get_llamacpp_completion
 from .llm_chat_completion_wrappers import airoboros, dolphin, zephyr, simple_summary_wrapper
 from .utils import DotDict
 from ..prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
@@ -68,6 +69,8 @@ def get_chat_completion(
             result = get_webui_completion(prompt)
         elif HOST_TYPE == "lmstudio":
             result = get_lmstudio_completion(prompt)
+        elif HOST_TYPE == "llamacpp":
+            result = get_llamacpp_completion(prompt)
         else:
             print(f"Warning: BACKEND_TYPE was not set, defaulting to webui")
             result = get_webui_completion(prompt)
@@ -76,6 +79,8 @@ def get_chat_completion(
 
     if result is None or result == "":
         raise LocalLLMError(f"Got back an empty response string from {HOST}")
+    if DEBUG:
+        print("Raw LLM output:\n{result}")
 
     try:
         chat_completion_result = llm_wrapper.output_to_chat_completion_response(result)
