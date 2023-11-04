@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-import os
+
+# import os
 import pickle
 from memgpt.config import AgentConfig
 from .memory import (
@@ -196,6 +197,9 @@ class InMemoryStateManagerWithPreloadedArchivalMemory(InMemoryStateManager):
     recall_memory_cls = DummyRecallMemory
 
     def __init__(self, archival_memory_db):
+        super().__init__()
+        self.archival_memory = None
+        self.recall_memory = None
         self.archival_memory_db = archival_memory_db
 
     def init(self, agent):

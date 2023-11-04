@@ -1,6 +1,7 @@
 import glob
-import random
-import string
+
+# import random
+# import string
 import json
 import os
 import uuid
@@ -20,10 +21,11 @@ import memgpt.interface as interface
 from memgpt.personas.personas import get_persona_text
 from memgpt.humans.humans import get_human_text
 from memgpt.constants import MEMGPT_DIR
-import memgpt.constants as constants
+
+# import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
-from memgpt.presets import DEFAULT_PRESET, preset_options
+from memgpt.presets import DEFAULT_PRESET  # , preset_options
 
 
 model_choices = [
@@ -248,7 +250,7 @@ class AgentConfig:
         model,
         preset=DEFAULT_PRESET,
         name=None,
-        data_sources=[],
+        data_sources=None,
         agent_config_path=None,
         create_time=None,
         data_source=None,
@@ -261,7 +263,14 @@ class AgentConfig:
         self.human = human
         self.model = model
         self.preset = preset
-        self.data_sources = data_sources
+        # FIXME: this is needed as data_source is used as argument quite a bit but should probably get changed?
+        if data_sources is None:
+            if data_source is not None:
+                self.data_sources = [data_source]
+            else:
+                self.data_sources = []
+        else:
+            self.data_sources = data_sources
         self.create_time = create_time if create_time is not None else utils.get_local_time()
         self.data_source = None  # deprecated
 
@@ -537,7 +546,7 @@ class Config:
                 questionary.Separator(),
                 questionary.Choice(
                     f"📝 You can create your own personas by adding .txt files to {Config.custom_personas_dir}.",
-                    disabled=True,
+                    disabled="disabled",  # this is meant to be a string (see: questionary/prompts/common.py:77)
                 ),
             ]
         )
@@ -565,7 +574,7 @@ class Config:
                 questionary.Separator(),
                 questionary.Choice(
                     f"📝 You can create your own human profiles by adding .txt files to {Config.custom_humans_dir}.",
-                    disabled=True,
+                    disabled="disabled",  # this is meant to be a string (see: questionary/prompts/common.py:77)
                 ),
             ]
         )

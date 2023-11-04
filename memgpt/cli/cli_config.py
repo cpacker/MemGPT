@@ -4,13 +4,14 @@ from prettytable import PrettyTable
 import typer
 import os
 import shutil
-from collections import defaultdict
+
+# from collections import defaultdict
 
 # from memgpt.cli import app
 from memgpt import utils
 
-import memgpt.humans.humans as humans
-import memgpt.personas.personas as personas
+# import memgpt.humans.humans as humans
+# import memgpt.personas.personas as personas
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
 from memgpt.connectors.storage import StorageConnector
@@ -25,6 +26,14 @@ def configure():
     from memgpt.presets import DEFAULT_PRESET, preset_options
 
     MemGPTConfig.create_config_dir()
+
+    # this is to initialize them, so we do not get linter warnings
+    openai_key = ""
+    azure_key = ""
+    azure_version = ""
+    azure_endpoint = ""
+    azure_deployment = ""
+    azure_embedding_deployment = ""
 
     # openai credentials
     use_openai = questionary.confirm("Do you want to enable MemGPT with Open AI?").ask()
@@ -102,7 +111,7 @@ def configure():
     default_human = questionary.select("Select default human:", humans, default="cs_phd").ask()
 
     # TODO: figure out if we should set a default agent or not
-    default_agent = None
+    default_agent = ""  # agent is a string, not None
     # agents = [os.path.basename(f).replace(".json", "") for f in utils.list_agent_config_files()]
     # if len(agents) > 0: # agents have been created
     #    default_agent = questionary.select(
@@ -212,7 +221,7 @@ def add(
     elif option == "human":
         directory = os.path.join(MEMGPT_DIR, "humans")
     else:
-        raise ValueError(f"Unknown kind {kind}")
+        raise ValueError(f"Unknown option {option}")
 
     if filename:
         assert text is None, f"Cannot provide both filename and text"

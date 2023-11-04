@@ -2,11 +2,11 @@ from abc import ABC, abstractmethod
 import os
 import datetime
 import re
-import faiss
+import faiss  # required as faiss_cpu
 import numpy as np
 from typing import Optional, List, Tuple
 
-from .constants import MESSAGE_SUMMARY_WARNING_TOKENS, MEMGPT_DIR
+from .constants import MESSAGE_SUMMARY_WARNING_TOKENS  # , MEMGPT_DIR
 from .utils import cosine_similarity, get_local_time, printd, count_tokens
 from .prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
 from memgpt import utils
@@ -17,21 +17,24 @@ from .openai_tools import (
     completions_with_backoff as create,
 )
 from llama_index import (
-    VectorStoreIndex,
+    # VectorStoreIndex,
     EmptyIndex,
-    get_response_synthesizer,
+    # get_response_synthesizer,
     load_index_from_storage,
     StorageContext,
     Document,
 )
-from llama_index.node_parser import SimpleNodeParser
+
+# from llama_index.node_parser import SimpleNodeParser
 from llama_index.node_parser import SimpleNodeParser
 from llama_index.retrievers import VectorIndexRetriever
-from llama_index.query_engine import RetrieverQueryEngine
-from llama_index.indices.postprocessor import SimilarityPostprocessor
+
+# from llama_index.query_engine import RetrieverQueryEngine
+# from llama_index.indices.postprocessor import SimilarityPostprocessor
 
 from memgpt.embeddings import embedding_model
-from memgpt.config import MemGPTConfig
+
+# from memgpt.config import MemGPTConfig
 
 from memgpt.embeddings import embedding_model
 from memgpt.config import MemGPTConfig
@@ -266,15 +269,17 @@ class DummyArchivalMemory(ArchivalMemory):
             return matches, len(matches)
 
     async def a_search(self, query_string, count=None, start=None):
+        # FIXME: The linter says that these parameters are wrong?
         return self.search(query_string, count=None, start=None)
 
 
 class DummyArchivalMemoryWithEmbeddings(DummyArchivalMemory):
     """Same as dummy in-memory archival memory, but with bare-bones embedding support"""
 
-    def __init__(self, archival_memory_database=None, embedding_model="text-embedding-ada-002"):
+    def __init__(self, archival_memory_database=None, embedding_model_arg="text-embedding-ada-002"):
+        super().__init__(archival_memory_database)
         self._archive = [] if archival_memory_database is None else archival_memory_database  # consists of {'content': str} dicts
-        self.embedding_model = embedding_model
+        self.embedding_model = embedding_model_arg
 
     def __len__(self):
         return len(self._archive)
@@ -336,10 +341,12 @@ class DummyArchivalMemoryWithEmbeddings(DummyArchivalMemory):
 
     def search(self, query_string, count=None, start=None):
         query_embedding = get_embedding_with_backoff(query_string, model=self.embedding_model)
+        # FIXME: "start" is an unexpected argument
         return self._search(self, query_embedding, query_string, count, start)
 
     async def a_search(self, query_string, count=None, start=None):
         query_embedding = await async_get_embedding_with_backoff(query_string, model=self.embedding_model)
+        # FIXME: "start" is an unexpected argument
         return await self._search(self, query_embedding, query_string, count, start)
 
 
@@ -356,6 +363,7 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
     """
 
     def __init__(self, index=None, archival_memory_database=None, embedding_model="text-embedding-ada-002", k=100):
+        super().__init__(archival_memory_database)
         if index is None:
             self.index = faiss.IndexFlatL2(1536)  # openai embedding vector size.
         else:
@@ -437,6 +445,7 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
             query_embedding = self.embeddings_dict[query_string]
         else:
             query_embedding = get_embedding_with_backoff(query_string, model=self.embedding_model)
+        # FIXME: "start" is not of the expected type
         return self._search(query_embedding, query_string, count, start)
 
     async def a_search(self, query_string, count=None, start=None):
@@ -557,6 +566,7 @@ class DummyRecallMemory(RecallMemory):
         match = re.match(r"(\d{4}-\d{2}-\d{2})", timestamp)
         return match.group(1) if match else None
 
+    # FIXME: Signature does not match the base class
     def date_search(self, start_date, end_date, count=None, start=None):
         message_pool = [d for d in self._message_logs if d["message"]["role"] not in ["system", "function"]]
 
@@ -585,6 +595,7 @@ class DummyRecallMemory(RecallMemory):
         else:
             return matches, len(matches)
 
+    # FIXME: Signature does not match the base class
     async def a_date_search(self, start_date, end_date, count=None, start=None):
         return self.date_search(start_date, end_date, count, start)
 
@@ -598,6 +609,7 @@ class DummyRecallMemoryWithEmbeddings(DummyRecallMemory):
         self.embedding_model = "text-embedding-ada-002"
         self.only_use_preloaded_embeddings = False
 
+    # FIXME: Signature does not match the base class
     def text_search(self, query_string, count, start):
         # in the dummy version, run an (inefficient) case-insensitive match search
         message_pool = [d for d in self._message_logs if d["message"]["role"] not in ["system", "function"]]
@@ -651,6 +663,7 @@ class LocalArchivalMemory(ArchivalMemory):
     """Archival memory built on top of Llama Index"""
 
     def __init__(self, agent_config, top_k: Optional[int] = 100):
+        # FIXME: The doc describes arguments that are not there?
         """Init function for archival memory
 
         :param archiva_memory_database: name of dataset to pre-fill archival with
@@ -665,6 +678,7 @@ class LocalArchivalMemory(ArchivalMemory):
         #    directory = f"{MEMGPT_DIR}/archival/{self.agent_config.data_source}"
         #    assert os.path.exists(directory), f"Archival memory database {self.agent_config.data_source} does not exist"
         # elif self.agent_config.name is not None:
+        directory = None
         if self.agent_config.name is not None:
             directory = agent_config.save_agent_index_dir()
             if not os.path.exists(directory):
@@ -683,6 +697,7 @@ class LocalArchivalMemory(ArchivalMemory):
             self.retriever = None  # cant create retriever over empty indes
         else:
             self.retriever = VectorIndexRetriever(
+                # FIXME: Expected type is VectorStoreIndex got BaseIndex instead
                 index=self.index,  # does this get refreshed?
                 similarity_top_k=self.top_k,
             )
@@ -698,13 +713,16 @@ class LocalArchivalMemory(ArchivalMemory):
         # else:
 
         # don't need to save data source, since we assume data source data is already loaded into the agent index
+        # FIXME: No such function in utils?
         utils.save_agent_index(self.index, self.agent_config)
 
     def insert(self, memory_string):
+        # FIXME: expected type Document but got str
         self.index.insert(memory_string)
 
         # TODO: figure out if this needs to be refreshed (probably not)
         self.retriever = VectorIndexRetriever(
+            # FIXME: Expected type is VectorStoreIndex got EmptyIndex instead
             index=self.index,
             similarity_top_k=self.top_k,
         )
@@ -746,6 +764,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
     """Archival memory with embedding based search"""
 
     def __init__(self, agent_config, top_k: Optional[int] = 100):
+        # FIXME: docstring explains non existent arguments
         """Init function for archival memory
 
         :param archiva_memory_database: name of dataset to pre-fill archival with

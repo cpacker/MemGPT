@@ -1,7 +1,7 @@
-import asyncio
-import shutil
-import configparser
-import uuid
+# import asyncio
+# import shutil
+# import configparser
+# import uuid
 import logging
 import glob
 import os
@@ -13,8 +13,25 @@ import json
 import questionary
 import typer
 
+from memgpt.cli.cli import run, attach
+from memgpt.cli.cli_config import configure, list, add
+from memgpt.cli.cli_load import app as load_app
+from memgpt.config import Config  # , MemGPTConfig, AgentConfig
+from memgpt.constants import MEMGPT_DIR
+
+# from memgpt.agent import AgentAsync
+from memgpt.openai_tools import (
+    configure_azure_support,
+    check_azure_embeddings,
+    get_set_azure_env_vars,
+)
+
+from memgpt.connectors.storage import StorageConnector
+import asyncio
+
 from rich.console import Console
-from prettytable import PrettyTable
+
+# from prettytable import PrettyTable
 from .interface import print_messages
 
 console = Console()
@@ -28,24 +45,11 @@ import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
 from memgpt.persistence_manager import (
-    LocalStateManager,
+    # LocalStateManager,
     InMemoryStateManager,
     InMemoryStateManagerWithPreloadedArchivalMemory,
     InMemoryStateManagerWithFaiss,
 )
-from memgpt.cli.cli import run, attach
-from memgpt.cli.cli_config import configure, list, add
-from memgpt.cli.cli_load import app as load_app
-from memgpt.config import Config, MemGPTConfig, AgentConfig
-from memgpt.constants import MEMGPT_DIR
-from memgpt.agent import AgentAsync
-from memgpt.openai_tools import (
-    configure_azure_support,
-    check_azure_embeddings,
-    get_set_azure_env_vars,
-)
-from memgpt.connectors.storage import StorageConnector
-import asyncio
 
 app = typer.Typer()
 app.command(name="run")(run)
@@ -241,10 +245,7 @@ async def main(
             model = constants.DEFAULT_MEMGPT_MODEL
         memgpt_persona = persona
         if memgpt_persona is None:
-            memgpt_persona = (
-                personas.GPT35_DEFAULT if "gpt-3.5" in model else personas.DEFAULT,
-                None,  # represents the personas dir in pymemgpt package
-            )
+            memgpt_persona = personas.GPT35_DEFAULT if "gpt-3.5" in model else personas.DEFAULT
         else:
             try:
                 personas.get_persona_text(memgpt_persona, Config.custom_personas_dir)
@@ -255,14 +256,14 @@ async def main(
 
         human_persona = human
         if human_persona is None:
-            human_persona = (humans.DEFAULT, None)
+            human_persona = humans.DEFAULT
         else:
             try:
                 humans.get_human_text(human_persona, Config.custom_humans_dir)
                 human_persona = (human_persona, Config.custom_humans_dir)
             except FileNotFoundError:
                 humans.get_human_text(human_persona)
-                human_persona = (human_persona, None)
+                human_persona = human_persona
 
         print(persona, model, memgpt_persona)
         if archival_storage_files:
@@ -548,9 +549,11 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
                     continue
 
                 # No skip options
-                elif user_input.lower() == "/wipe":
-                    memgpt_agent = agent.AgentAsync(memgpt.interface)
-                    user_message = None
+
+                # elif user_input.lower() == "/wipe":
+                # FIXME: Unexpected argument?
+                # memgpt_agent = agent.AgentAsync(memgpt.interface)
+                # user_message = None
 
                 elif user_input.lower() == "/heartbeat":
                     user_message = system.get_heartbeat()

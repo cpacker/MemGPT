@@ -1,15 +1,17 @@
-import asyncio
+# import asyncio
 import inspect
 import datetime
 import glob
-import pickle
+
+# import pickle
 import math
 import os
 import requests
 import json
-import threading
 
-import openai
+# import threading
+
+# import openai
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import AgentConfig
 from .system import get_heartbeat, get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
@@ -17,7 +19,7 @@ from .memory import CoreMemory as Memory, summarize_messages, a_summarize_messag
 from .openai_tools import acompletions_with_backoff as acreate, completions_with_backoff as create
 from .utils import get_local_time, parse_json, united_diff, printd, count_tokens
 from .constants import (
-    MEMGPT_DIR,
+    # MEMGPT_DIR,
     FIRST_MESSAGE_ATTEMPTS,
     MAX_PAUSE_HEARTBEATS,
     MESSAGE_CHATGPT_FUNCTION_MODEL,
@@ -418,6 +420,7 @@ class Agent(object):
 
         # Two-part load
         new_agent = cls(
+            config=None,  # FIXME: not filled?
             model=model,
             system=system,
             functions=functions,
@@ -535,6 +538,7 @@ class Agent(object):
                 return messages, None, True  # force a heartbeat to allow agent to handle error
 
             # Failure case 2: function name is OK, but function args are bad JSON
+            raw_function_args = ""
             try:
                 raw_function_args = response_message["function_call"]["arguments"]
                 function_args = parse_json(raw_function_args)
@@ -605,6 +609,7 @@ class Agent(object):
 
         try:
             # Step 0: add user message
+            packed_user_message = None
             if user_message is not None:
                 self.interface.user_message(user_message)
                 packed_user_message = {"role": "user", "content": user_message}
@@ -960,6 +965,7 @@ class AgentAsync(Agent):
                 return messages, None, True  # force a heartbeat to allow agent to handle error
 
             # Failure case 2: function name is OK, but function args are bad JSON
+            raw_function_args = None
             try:
                 raw_function_args = response_message["function_call"]["arguments"]
                 function_args = parse_json(raw_function_args)
@@ -1030,6 +1036,7 @@ class AgentAsync(Agent):
 
         try:
             # Step 0: add user message
+            packed_user_message = None
             if user_message is not None:
                 await self.interface.user_message(user_message)
                 packed_user_message = {"role": "user", "content": user_message}
