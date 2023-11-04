@@ -32,7 +32,7 @@ from memgpt.persistence_manager import (
     InMemoryStateManagerWithPreloadedArchivalMemory,
     InMemoryStateManagerWithFaiss,
 )
-from memgpt.cli.cli import run
+from memgpt.cli.cli import run, attach
 from memgpt.cli.cli_config import configure, list, add
 from memgpt.cli.cli_load import app as load_app
 from memgpt.config import Config, MemGPTConfig, AgentConfig
@@ -43,10 +43,12 @@ from memgpt.openai_tools import (
     check_azure_embeddings,
     get_set_azure_env_vars,
 )
+from memgpt.connectors.storage import StorageConnector
 import asyncio
 
 app = typer.Typer()
 app.command(name="run")(run)
+app.command(name="attach")(attach)
 app.command(name="configure")(configure)
 app.command(name="list")(list)
 app.command(name="add")(add)
@@ -54,7 +56,9 @@ app.command(name="add")(add)
 app.add_typer(load_app, name="load")
 
 
-def clear_line():
+def clear_line(strip_ui=False):
+    if strip_ui:
+        return
     if os.name == "nt":  # for windows
         console.print("\033[A\033[K", end="")
     else:  # for linux
@@ -98,9 +102,9 @@ def load(memgpt_agent, filename):
             print(f"Loading {filename} failed with: {e}")
     else:
         # Load the latest file
-        save_path = f"{constants.MEMGPT_DIR}/saved_state"
+        save_path = os.path.join(constants.MEMGPT_DIR, "saved_state")
         print(f"/load warning: no checkpoint specified, loading most recent checkpoint from {save_path} instead")
-        json_files = glob.glob(f"{save_path}/*.json")  # This will list all .json files in the current directory.
+        json_files = glob.glob(os.path.join(save_path, "*.json"))  # This will list all .json files in the current directory.
 
         # Check if there are any json files.
         if not json_files:
@@ -134,6 +138,7 @@ def legacy_run(
     human: str = typer.Option(None, help="Specify human"),
     model: str = typer.Option(constants.DEFAULT_MEMGPT_MODEL, help="Specify the LLM model"),
     first: bool = typer.Option(False, "--first", help="Use --first to send the first message in the sequence"),
+    strip_ui: bool = typer.Option(False, "--strip_ui", help="Remove all the bells and whistles in CLI output (helpful for testing)"),
     debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
     no_verify: bool = typer.Option(False, "--no_verify", help="Bypass message verification"),
     archival_storage_faiss_path: str = typer.Option(
@@ -183,6 +188,7 @@ def legacy_run(
             archival_storage_files_compute_embeddings,
             archival_storage_sqldb,
             use_azure_openai,
+            strip_ui,
         )
     )
 
@@ -199,7 +205,9 @@ async def main(
     archival_storage_files_compute_embeddings,
     archival_storage_sqldb,
     use_azure_openai,
+    strip_ui,
 ):
+    memgpt.interface.STRIP_UI = strip_ui
     utils.DEBUG = debug
     logging.getLogger().setLevel(logging.CRITICAL)
     if debug:
@@ -359,36 +367,31 @@ async def main(
             load(memgpt_agent, cfg.agent_save_file)
 
     # run agent loop
-    await run_agent_loop(memgpt_agent, first, no_verify, cfg, legacy=True)
+    await run_agent_loop(memgpt_agent, first, no_verify, cfg, strip_ui, legacy=True)
 
 
-async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=False):
+async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=False, legacy=False):
     counter = 0
     user_input = None
     skip_next_user_input = False
     user_message = None
     USER_GOES_FIRST = first
 
-    # auto-exit for
-    if "GITHUB_ACTIONS" in os.environ:
-        return
-
     if not USER_GOES_FIRST:
         console.input("[bold cyan]Hit enter to begin (will request first MemGPT message)[/bold cyan]")
-        clear_line()
+        clear_line(strip_ui)
         print()
 
     multiline_input = False
     while True:
         if not skip_next_user_input and (counter > 0 or USER_GOES_FIRST):
             # Ask for user input
-            # user_input = console.input("[bold cyan]Enter your message:[/bold cyan] ")
             user_input = await questionary.text(
                 "Enter your message:",
                 multiline=multiline_input,
                 qmark=">",
             ).ask_async()
-            clear_line()
+            clear_line(strip_ui)
 
             # Gracefully exit on Ctrl-C/D
             if user_input is None:
@@ -410,7 +413,12 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=
             if user_input.startswith("/"):
                 if legacy:
                     # legacy agent save functions (TODO: eventually remove)
-                    if user_input.lower() == "/exit":
+                    if user_input.lower() == "/load" or user_input.lower().startswith("/load "):
+                        command = user_input.strip().split()
+                        filename = command[1] if len(command) > 1 else None
+                        load(memgpt_agent=memgpt_agent, filename=filename)
+                        continue
+                    elif user_input.lower() == "/exit":
                         # autosave
                         save(memgpt_agent=memgpt_agent, cfg=cfg)
                         break
@@ -441,10 +449,26 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=
                         memgpt_agent.save()
                         continue
 
-                if user_input.lower() == "/load" or user_input.lower().startswith("/load "):
-                    command = user_input.strip().split()
-                    filename = command[1] if len(command) > 1 else None
-                    load(memgpt_agent=memgpt_agent, filename=filename)
+                if user_input.lower() == "/attach":
+                    if legacy:
+                        typer.secho("Error: /attach is not supported in legacy mode.", fg=typer.colors.RED, bold=True)
+                        continue
+
+                    # TODO: check if agent already has it
+                    data_source_options = StorageConnector.list_loaded_data()
+                    data_source = await questionary.select("Select data source", choices=data_source_options).ask_async()
+
+                    # attach new data
+                    attach(memgpt_agent.config.name, data_source)
+
+                    # update agent config
+                    memgpt_agent.config.attach_data_source(data_source)
+
+                    # reload agent with new data source
+                    # TODO: maybe make this less ugly...
+                    memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_storage_connector(
+                        agent_config=memgpt_agent.config
+                    )
                     continue
 
                 elif user_input.lower() == "/dump" or user_input.lower().startswith("/dump "):
@@ -518,27 +542,33 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=
 
         skip_next_user_input = False
 
+        async def process_agent_step(user_message, no_verify):
+            new_messages, heartbeat_request, function_failed, token_warning = await memgpt_agent.step(
+                user_message, first_message=False, skip_verify=no_verify
+            )
+
+            skip_next_user_input = False
+            if token_warning:
+                user_message = system.get_token_limit_warning()
+                skip_next_user_input = True
+            elif function_failed:
+                user_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
+                skip_next_user_input = True
+            elif heartbeat_request:
+                user_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
+                skip_next_user_input = True
+
+            return new_messages, user_message, skip_next_user_input
+
         while True:
             try:
-                with console.status("[bold cyan]Thinking...") as status:
-                    (
-                        new_messages,
-                        heartbeat_request,
-                        function_failed,
-                        token_warning,
-                    ) = await memgpt_agent.step(user_message, first_message=False, skip_verify=no_verify)
-
-                    # Skip user inputs if there's a memory warning, function execution failed, or the agent asked for control
-                    if token_warning:
-                        user_message = system.get_token_limit_warning()
-                        skip_next_user_input = True
-                    elif function_failed:
-                        user_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
-                        skip_next_user_input = True
-                    elif heartbeat_request:
-                        user_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
-                        skip_next_user_input = True
+                if strip_ui:
+                    new_messages, user_message, skip_next_user_input = await process_agent_step(user_message, no_verify)
                     break
+                else:
+                    with console.status("[bold cyan]Thinking...") as status:
+                        new_messages, user_message, skip_next_user_input = await process_agent_step(user_message, no_verify)
+                        break
             except Exception as e:
                 print("An exception ocurred when running agent.step(): ")
                 traceback.print_exc()
@@ -561,6 +591,7 @@ USER_COMMANDS = [
     ("/pop", "undo the last message in the conversation"),
     ("/heartbeat", "send a heartbeat system message to the agent"),
     ("/memorywarning", "send a memory warning system message to the agent"),
+    ("/attach", "attach data source to agent"),
 ]
 # if __name__ == "__main__":
 #

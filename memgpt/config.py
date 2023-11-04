@@ -37,7 +37,7 @@ model_choices = [
 
 @dataclass
 class MemGPTConfig:
-    config_path: str = f"{MEMGPT_DIR}/config"
+    config_path: str = os.path.join(MEMGPT_DIR, "config")
     anon_clientid: str = None
 
     # preset
@@ -65,7 +65,7 @@ class MemGPTConfig:
 
     # embedding parameters
     embedding_model: str = "openai"
-    embedding_dim: int = 768
+    embedding_dim: int = 1536
     embedding_chunk_size: int = 300  # number of tokens
 
     # database configs: archival
@@ -90,8 +90,15 @@ class MemGPTConfig:
     @classmethod
     def load(cls) -> "MemGPTConfig":
         config = configparser.ConfigParser()
-        if os.path.exists(MemGPTConfig.config_path):
-            config.read(MemGPTConfig.config_path)
+
+        # allow overriding with env variables
+        if os.getenv("MEMGPT_CONFIG_PATH"):
+            config_path = os.getenv("MEMGPT_CONFIG_PATH")
+        else:
+            config_path = MemGPTConfig.config_path
+
+        if os.path.exists(config_path):
+            config.read(config_path)
 
             # read config values
             model = config.get("defaults", "model")
@@ -119,6 +126,11 @@ class MemGPTConfig:
             embedding_dim = config.getint("embedding", "dim")
             embedding_chunk_size = config.getint("embedding", "chunk_size")
 
+            # archival storage
+            archival_storage_type = config.get("archival_storage", "type")
+            archival_storage_path = config.get("archival_storage", "path") if config.has_option("archival_storage", "path") else None
+            archival_storage_uri = config.get("archival_storage", "uri") if config.has_option("archival_storage", "uri") else None
+
             anon_clientid = config.get("client", "anon_clientid")
 
             return cls(
@@ -137,11 +149,15 @@ class MemGPTConfig:
                 embedding_model=embedding_model,
                 embedding_dim=embedding_dim,
                 embedding_chunk_size=embedding_chunk_size,
+                archival_storage_type=archival_storage_type,
+                archival_storage_path=archival_storage_path,
+                archival_storage_uri=archival_storage_uri,
                 anon_clientid=anon_clientid,
+                config_path=config_path,
             )
 
         anon_clientid = MemGPTConfig.generate_uuid()
-        config = cls(anon_clientid=anon_clientid)
+        config = cls(anon_clientid=anon_clientid, config_path=config_path)
         config.save()  # save updated config
         return config
 
@@ -179,18 +195,34 @@ class MemGPTConfig:
         config.set("embedding", "dim", str(self.embedding_dim))
         config.set("embedding", "chunk_size", str(self.embedding_chunk_size))
 
+        # archival storage
+        config.add_section("archival_storage")
+        print("archival storage", self.archival_storage_type)
+        config.set("archival_storage", "type", self.archival_storage_type)
+        if self.archival_storage_path:
+            config.set("archival_storage", "path", self.archival_storage_path)
+        if self.archival_storage_uri:
+            config.set("archival_storage", "uri", self.archival_storage_uri)
+
         # client
         config.add_section("client")
         if not self.anon_clientid:
             self.anon_clientid = self.generate_uuid()
         config.set("client", "anon_clientid", self.anon_clientid)
 
+        if not os.path.exists(MEMGPT_DIR):
+            os.makedirs(MEMGPT_DIR, exist_ok=True)
         with open(self.config_path, "w") as f:
             config.write(f)
 
     @staticmethod
     def exists():
-        return os.path.exists(MemGPTConfig.config_path)
+        # allow overriding with env variables
+        if os.getenv("MEMGPT_CONFIG_PATH"):
+            config_path = os.getenv("MEMGPT_CONFIG_PATH")
+        else:
+            config_path = MemGPTConfig.config_path
+        return os.path.exists(config_path)
 
     @staticmethod
     def create_config_dir():
@@ -209,7 +241,18 @@ class AgentConfig:
     Configuration for a specific instance of an agent
     """
 
-    def __init__(self, persona, human, model, preset=DEFAULT_PRESET, name=None, data_source=None, agent_config_path=None, create_time=None):
+    def __init__(
+        self,
+        persona,
+        human,
+        model,
+        preset=DEFAULT_PRESET,
+        name=None,
+        data_sources=[],
+        agent_config_path=None,
+        create_time=None,
+        data_source=None,
+    ):
         if name is None:
             self.name = f"agent_{self.generate_agent_id()}"
         else:
@@ -218,8 +261,9 @@ class AgentConfig:
         self.human = human
         self.model = model
         self.preset = preset
-        self.data_source = data_source
+        self.data_sources = data_sources
         self.create_time = create_time if create_time is not None else utils.get_local_time()
+        self.data_source = None  # deprecated
 
         # save agent config
         self.agent_config_path = (
@@ -240,7 +284,7 @@ class AgentConfig:
     def attach_data_source(self, data_source: str):
         # TODO: add warning that only once source can be attached
         # i.e. previous source will be overriden
-        self.data_source = data_source
+        self.data_sources.append(data_source)
         self.save()
 
     def save_state_dir(self):

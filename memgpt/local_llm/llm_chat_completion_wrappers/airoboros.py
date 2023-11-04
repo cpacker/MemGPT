@@ -1,6 +1,8 @@
 import json
 
 from .wrapper_base import LLMChatCompletionWrapper
+from ..json_parser import clean_json
+from ...errors import LLMJSONParsingError
 
 
 class Airoboros21Wrapper(LLMChatCompletionWrapper):
@@ -183,11 +185,14 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
             raw_llm_output = "{" + raw_llm_output
 
         try:
-            function_json_output = json.loads(raw_llm_output)
+            function_json_output = clean_json(raw_llm_output)
         except Exception as e:
-            raise Exception(f"Failed to decode JSON from LLM output:\n{raw_llm_output}")
-        function_name = function_json_output["function"]
-        function_parameters = function_json_output["params"]
+            raise Exception(f"Failed to decode JSON from LLM output:\n{raw_llm_output} - error\n{str(e)}")
+        try:
+            function_name = function_json_output["function"]
+            function_parameters = function_json_output["params"]
+        except KeyError as e:
+            raise LLMJSONParsingError(f"Received valid JSON from LLM, but JSON was missing fields: {str(e)}")
 
         if self.clean_func_args:
             function_name, function_parameters = self.clean_function_args(function_name, function_parameters)
@@ -389,14 +394,14 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
             raw_llm_output = "{" + raw_llm_output
 
         try:
-            function_json_output = json.loads(raw_llm_output)
+            function_json_output = clean_json(raw_llm_output)
         except Exception as e:
-            try:
-                function_json_output = json.loads(raw_llm_output + "\n}")
-            except:
-                raise Exception(f"Failed to decode JSON from LLM output:\n{raw_llm_output}")
-        function_name = function_json_output["function"]
-        function_parameters = function_json_output["params"]
+            raise Exception(f"Failed to decode JSON from LLM output:\n{raw_llm_output} - error\n{str(e)}")
+        try:
+            function_name = function_json_output["function"]
+            function_parameters = function_json_output["params"]
+        except KeyError as e:
+            raise LLMJSONParsingError(f"Received valid JSON from LLM, but JSON was missing fields: {str(e)}")
 
         if self.clean_func_args:
             (

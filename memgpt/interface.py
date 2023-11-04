@@ -10,135 +10,149 @@ init(autoreset=True)
 # DEBUG = True  # puts full message outputs in the terminal
 DEBUG = False  # only dumps important messages in the terminal
 
+STRIP_UI = False
+
 
 def important_message(msg):
-    print(f"{Fore.MAGENTA}{Style.BRIGHT}{msg}{Style.RESET_ALL}")
+    fstr = f"{Fore.MAGENTA}{Style.BRIGHT}{{msg}}{Style.RESET_ALL}"
+    if STRIP_UI:
+        fstr = "{msg}"
+    print(fstr.format(msg=msg))
 
 
 def warning_message(msg):
-    print(f"{Fore.RED}{Style.BRIGHT}{msg}{Style.RESET_ALL}")
+    fstr = f"{Fore.RED}{Style.BRIGHT}{{msg}}{Style.RESET_ALL}"
+    if STRIP_UI:
+        fstr = "{msg}"
+    else:
+        print(fstr.format(msg=msg))
 
 
 async def internal_monologue(msg):
     # ANSI escape code for italic is '\x1B[3m'
-    print(f"\x1B[3m{Fore.LIGHTBLACK_EX}💭 {msg}{Style.RESET_ALL}")
+    fstr = f"\x1B[3m{Fore.LIGHTBLACK_EX}💭 {{msg}}{Style.RESET_ALL}"
+    if STRIP_UI:
+        fstr = "{msg}"
+    print(fstr.format(msg=msg))
 
 
 async def assistant_message(msg):
-    print(f"{Fore.YELLOW}{Style.BRIGHT}🤖 {Fore.YELLOW}{msg}{Style.RESET_ALL}")
+    fstr = f"{Fore.YELLOW}{Style.BRIGHT}🤖 {Fore.YELLOW}{{msg}}{Style.RESET_ALL}"
+    if STRIP_UI:
+        fstr = "{msg}"
+    print(fstr.format(msg=msg))
 
 
 async def memory_message(msg):
-    print(f"{Fore.LIGHTMAGENTA_EX}{Style.BRIGHT}🧠 {Fore.LIGHTMAGENTA_EX}{msg}{Style.RESET_ALL}")
+    fstr = f"{Fore.LIGHTMAGENTA_EX}{Style.BRIGHT}🧠 {Fore.LIGHTMAGENTA_EX}{{msg}}{Style.RESET_ALL}"
+    if STRIP_UI:
+        fstr = "{msg}"
+    print(fstr.format(msg=msg))
 
 
-async def system_message(msg, dump=False):
-    if DEBUG:
-        printd(f"{Fore.MAGENTA}{Style.BRIGHT}🖥️ [system] {Fore.MAGENTA}{msg}{Style.RESET_ALL}")
-    elif dump:
-        print(f"{Fore.MAGENTA}{Style.BRIGHT}🖥️ [system] {Fore.MAGENTA}{msg}{Style.RESET_ALL}")
+async def system_message(msg):
+    fstr = f"{Fore.MAGENTA}{Style.BRIGHT}🖥️ [system] {Fore.MAGENTA}{msg}{Style.RESET_ALL}"
+    if STRIP_UI:
+        fstr = "{msg}"
+    print(fstr.format(msg=msg))        
 
 
-async def user_message(msg, raw=False, dump=False):
+async def user_message(msg, raw=False):
+    def print_user_message(icon, msg, printf=print):
+        if STRIP_UI:
+            printf(f"{icon} {msg}")
+        else:
+            printf(f"{Fore.GREEN}{Style.BRIGHT}{icon} {Fore.GREEN}{msg}{Style.RESET_ALL}")
+
+    def printd_user_message(icon, msg):
+        return print_user_message(icon, msg)
+
     if isinstance(msg, str):
         if raw:
-            printd(f"{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg}{Style.RESET_ALL}")
+            printd_user_message("🧑", msg)
             return
         else:
             try:
                 msg_json = json.loads(msg)
             except:
                 printd(f"Warning: failed to parse user message into json")
-                printd(f"{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg}{Style.RESET_ALL}")
+                printd_user_message("🧑", msg)
                 return
-    else: # not what we thought it is
-        return
-    msg_type = msg_json["type"]
-    if msg_type == "user_message":
-        if dump:
-            message = msg_json.get("message")
-            print(f"{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{message}{Style.RESET_ALL}")
-        else:
-            msg_json.pop("type")
-            printd(f"{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg_json}{Style.RESET_ALL}")
-    elif msg_type == "heartbeat":
+    if msg_json["type"] == "user_message":
+        msg_json.pop("type")
+        printd_user_message("🧑", msg_json)
+    elif msg_json["type"] == "heartbeat":
         if DEBUG:
             msg_json.pop("type")
-            printd(f"{Fore.GREEN}{Style.BRIGHT}💓 {Fore.GREEN}{msg_json}{Style.RESET_ALL}")
-    elif msg_type == "system_message":
+            printd_user_message("💓", msg_json)
+    elif msg_json["type"] == "system_message":
         msg_json.pop("type")
-        printd(f"{Fore.GREEN}{Style.BRIGHT}🖥️ {Fore.GREEN}{msg_json}{Style.RESET_ALL}")
-    elif msg_type == "login":
-        printd(f"{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg_json}{Style.RESET_ALL}")
+        printd_user_message("🖥️", msg_json)
     else:
-        printd(f"{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg_json}{Style.RESET_ALL}")
+        printd_user_message("🧑", msg_json)
 
 
-async def function_message(msg, dump=False):
+async def function_message(msg):
+    def print_function_message(icon, msg, color=Fore.RED, printf=print):
+        if STRIP_UI:
+            printf(f"⚡{icon} [function] {msg}")
+        else:
+            printf(f"{color}{Style.BRIGHT}⚡{icon} [function] {color}{msg}{Style.RESET_ALL}")
+
+    def printd_function_message(icon, msg, color=Fore.RED):
+        return print_function_message(icon, msg, color, printf=printd)
+
     if isinstance(msg, dict):
-        printd(f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}")
+        printd_function_message("", msg)
         return
 
     if msg.startswith("Success: "):
-        printd(f"{Fore.RED}{Style.BRIGHT}⚡🟢 [function] {Fore.RED}{msg}{Style.RESET_ALL}")
+        printd_function_message("🟢", msg)
     elif msg.startswith("Error: "):
-        printd(f"{Fore.RED}{Style.BRIGHT}⚡🔴 [function] {Fore.RED}{msg}{Style.RESET_ALL}")
+        printd_function_message("🔴", msg)
     elif msg.startswith("Running "):
         if DEBUG:
-            printd(f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}")
+            printd_function_message("", msg)
         else:
             if "memory" in msg:
                 match = re.search(r"Running (\w+)\((.*)\)", msg)
                 if match:
                     function_name = match.group(1)
                     function_args = match.group(2)
-                    print(f"{Fore.RED}{Style.BRIGHT}⚡🧠 [function] {Fore.RED}updating memory with {function_name}{Style.RESET_ALL}:")
+                    print_function_message("🧠", f"updating memory with {function_name}")
                     try:
                         msg_dict = eval(function_args)
                         if function_name == "archival_memory_search":
-                            print(f'{Fore.RED}\tquery: {msg_dict["query"]}, page: {msg_dict["page"]}')
+                            output = f'\tquery: {msg_dict["query"]}, page: {msg_dict["page"]}'
+                            if STRIP_UI:
+                                print(output)
+                            else:
+                                print(f"{Fore.RED}{output}")
                         else:
-                            print(
-                                f'{Fore.RED}{Style.BRIGHT}\t{Fore.RED} {msg_dict["old_content"]}\n\t{Fore.GREEN}→ {msg_dict["new_content"]}'
-                            )
+                            if STRIP_UI:
+                                print(f'\t {msg_dict["old_content"]}\n\t→ {msg_dict["new_content"]}')
+                            else:
+                                print(f'{Style.BRIGHT}\t{Fore.RED} {msg_dict["old_content"]}\n\t{Fore.GREEN}→ {msg_dict["new_content"]}')
                     except Exception as e:
                         printd(e)
                         printd(msg_dict)
                         pass
                 else:
                     printd(f"Warning: did not recognize function message")
-                    printd(f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}")
+                    printd_function_message("", msg)
             elif "send_message" in msg:
                 # ignore in debug mode
                 pass
             else:
-                printd(f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}")
+                printd_function_message("", msg)
     else:
         try:
             msg_dict = json.loads(msg)
             if "status" in msg_dict and msg_dict["status"] == "OK":
-                if dump:
-                    print(f"{Fore.GREEN}{Style.BRIGHT}⚡ {Fore.GREEN}OK{Style.RESET_ALL}")
-                else:
-                    printd(f"{Fore.GREEN}{Style.BRIGHT}⚡ [function] {Fore.GREEN}{msg}{Style.RESET_ALL}")
-            elif "status" in msg_dict and msg_dict["status"] != "OK":
-                if dump:
-                    status = msg_dict["status"]
-                    print(f"{Fore.GREEN}{Style.BRIGHT}⚡ {Fore.RED}{status}{Style.RESET_ALL}")
-                else:
-                    printd(f"{Fore.GREEN}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}")
-            else:
-                if dump:
-                    printd(f"{Fore.GREEN}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}")
-                else:
-                    printd(f"{Fore.GREEN}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}")
+                printd_function_message("", msg, color=Fore.GREEN)
         except Exception:
-            if dump:
-                printd(f"Warning: did not recognize function message {type(msg)} {msg}")
-                printd(f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}")
-            else:
-                print(f"Warning: did not recognize function message {type(msg)} {msg}")
-                print(f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}")
+            printd(f"Warning: did not recognize function message {type(msg)} {msg}")
+            printd_function_message(msg)
 
 
 async def print_messages(message_sequence, dump=False):
@@ -151,7 +165,7 @@ async def print_messages(message_sequence, dump=False):
         content = msg["content"]
 
         if role == "system":
-            await system_message(content, dump=dump)
+            await system_message(content)
         elif role == "assistant":
             # Differentiate between internal monologue, function calls, and messages
             if msg.get("function_call"):
@@ -165,9 +179,9 @@ async def print_messages(message_sequence, dump=False):
             else:
                 await internal_monologue(content)
         elif role == "user":
-            await user_message(content, dump=dump)
+            await user_message(content)
         elif role == "function":
-            await function_message(content, dump=dump)
+            await function_message(content)
         else:
             print(f"Unknown role: {content}")
 
