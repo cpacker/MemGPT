@@ -14,9 +14,9 @@ from ..errors import LocalLLMConnectionError, LocalLLMError
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
-# DEBUG = False
-DEBUG = True
-DEFAULT_WRAPPER = airoboros.Airoboros21InnerMonologueWrapper()
+DEBUG = False
+# DEBUG = True
+DEFAULT_WRAPPER = airoboros.Airoboros21InnerMonologueWrapper
 has_shown_warning = False
 
 
@@ -27,6 +27,7 @@ def get_chat_completion(
     function_call="auto",
 ):
     global has_shown_warning
+    grammar = None
 
     if HOST is None:
         raise ValueError(f"The OPENAI_API_BASE environment variable is not defined. Please set it in your environment.")
@@ -43,12 +44,17 @@ def get_chat_completion(
         llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper()
     elif model == "airoboros-l2-70b-2.1-grammar":
         llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper(include_opening_brace_in_prefix=False)
-        # grammar_name = "json"
-        grammar_name = "json_2space"
+        grammar_name = "json"
     elif model == "dolphin-2.1-mistral-7b":
         llm_wrapper = dolphin.Dolphin21MistralWrapper()
+    elif model == "dolphin-2.1-mistral-7b-grammar":
+        llm_wrapper = dolphin.Dolphin21MistralWrapper(include_opening_brace_in_prefix=False)
+        grammar_name = "json"
     elif model == "zephyr-7B-alpha" or model == "zephyr-7B-beta":
         llm_wrapper = zephyr.ZephyrMistralInnerMonologueWrapper()
+    elif model == "zephyr-7B-alpha-grammar" or model == "zephyr-7B-beta-grammar":
+        llm_wrapper = zephyr.ZephyrMistralInnerMonologueWrapper(include_opening_brace_in_prefix=False)
+        grammar_name = "json"
     else:
         # Warn the user that we're using the fallback
         if not has_shown_warning:
@@ -56,10 +62,17 @@ def get_chat_completion(
                 f"Warning: no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --model)"
             )
             has_shown_warning = True
-        llm_wrapper = DEFAULT_WRAPPER
+        if HOST_TYPE == "llamacpp":
+            # make the default to use grammar
+            llm_wrapper = DEFAULT_WRAPPER(include_opening_brace_in_prefix=False)
+            grammar_name = "json"
+        else:
+            llm_wrapper = DEFAULT_WRAPPER()
+
+    if grammar is not None and HOST_TYPE != "llamacpp":
+        print(f"Warning: grammars are currently only supported when using llama.cpp as the MemGPT local LLM backend")
 
     # First step: turn the message sequence into a prompt that the model expects
-
     try:
         prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
         if DEBUG:
