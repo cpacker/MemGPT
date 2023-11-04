@@ -504,11 +504,22 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
                 elif user_input.lower() == "/pop" or user_input.lower().startswith("/pop "):
                     # Check if there's an additional argument that's an integer
                     command = user_input.strip().split()
-                    amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 2
+                    amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 3
                     print(f"Popping last {amount} messages from stack")
                     for _ in range(min(amount, len(memgpt_agent.messages))):
                         memgpt_agent.messages.pop()
                     continue
+
+                elif user_input.lower() == "/retry":
+                    # TODO this needs to also modify the persistence manager
+                    print(f"Retrying for another answer")
+                    while len(memgpt_agent.messages) > 0:
+                        if memgpt_agent.messages[-1].get("role") == "user":
+                            # we want to pop up to the last user message and send it again
+                            user_message = memgpt_agent.messages[-1].get("content")
+                            memgpt_agent.messages.pop()
+                            break
+                        memgpt_agent.messages.pop()
 
                 elif user_input.lower() == "/rethink" or user_input.lower().startswith("/rethink "):
                     # TODO this needs to also modify the persistence manager
@@ -615,7 +626,8 @@ USER_COMMANDS = [
     ("/load", "load a saved checkpoint"),
     ("/dump <count>", "view the last <count> messages (all if <count> is omitted)"),
     ("/memory", "print the current contents of agent memory"),
-    ("/pop", "undo the last message in the conversation"),
+    ("/pop <count>", "undo <count> messages in the conversation (default is 3)"),
+    ("/retry", "pops the last answer and tries to get another one"),
     ("/rethink <text>", "changes the inner thoughts of the last agent message"),
     ("/rewrite <text>", "changes the reply of the last agent message"),
     ("/heartbeat", "send a heartbeat system message to the agent"),

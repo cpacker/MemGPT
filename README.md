@@ -295,8 +295,10 @@ While using MemGPT via the CLI (not Discord!) you can run various commands:
   view the last <count> messages (all if <count> is omitted)
 /memory
   print the current contents of agent memory
-/pop
-  undo the last message in the conversation
+/pop <count>
+  undo the last messages in the conversation. It defaults to 3, which usually is one turn around in the conversation
+/retry
+  pops the last answer and tries to get another one
 /rethink <text>
   will replace the inner dialog of the last assistant message with the <text> to help shaping the conversation 
 /rewrite
