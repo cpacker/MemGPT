@@ -484,23 +484,23 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=
                     continue
 
                 elif user_input.lower() == "/rethink" or user_input.lower().startswith("/rethink "):
-                    if len(user_input) < 9:
+                    if len(user_input) < len("/rethink "):
                         print("Missing text after the command")
                         continue
                     for x in range(len(memgpt_agent.messages) - 1, 0, -1):
                         if memgpt_agent.messages[x].get("role") == "assistant":
-                            text = user_input[9:].strip()
+                            text = user_input[len("/rethink ") :].strip()
                             memgpt_agent.messages[x].update({"content": text})
                             break
                     continue
 
                 elif user_input.lower() == "/rewrite" or user_input.lower().startswith("/rewrite "):
-                    if len(user_input) < 9:
+                    if len(user_input) < len("/rewrite "):
                         print("Missing text after the command")
                         continue
                     for x in range(len(memgpt_agent.messages) - 1, 0, -1):
                         if memgpt_agent.messages[x].get("role") == "assistant":
-                            text = user_input[9:].strip()
+                            text = user_input[len("/rewrite ") :].strip()
                             args = json.loads(memgpt_agent.messages[x].get("function_call").get("arguments"))
                             args["message"] = text
                             memgpt_agent.messages[x].get("function_call").update({"arguments": json.dumps(args)})
