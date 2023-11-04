@@ -97,8 +97,9 @@ def get_chat_completion(
         elif HOST_TYPE == "koboldcpp":
             result = get_koboldcpp_completion(prompt, grammar=grammar_name)
         else:
-            print(f"Warning: BACKEND_TYPE was not set, defaulting to webui")
-            result = get_webui_completion(prompt)
+            raise LocalLLMError(
+                f"BACKEND_TYPE is not set, please set variable depending on your backend (webui, lmstudio, llamacpp, koboldcpp)"
+            )
     except requests.exceptions.ConnectionError as e:
         raise LocalLLMConnectionError(f"Unable to connect to host {HOST}")
 
