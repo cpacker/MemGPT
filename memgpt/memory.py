@@ -7,7 +7,7 @@ import numpy as np
 from typing import Optional, List, Tuple
 
 from .constants import MESSAGE_SUMMARY_WARNING_TOKENS, MEMGPT_DIR
-from .utils import cosine_similarity, get_local_time, printd, count_tokens, VectorEmbedding
+from .utils import cosine_similarity, get_local_time, printd, count_tokens
 from .prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
 from memgpt import utils
 from .openai_tools import (
@@ -15,6 +15,7 @@ from .openai_tools import (
     async_get_embedding_with_backoff,
     get_embedding_with_backoff,
     completions_with_backoff as create,
+    VectorEmbedding,
 )
 from llama_index import (
     Document,

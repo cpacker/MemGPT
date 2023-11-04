@@ -15,8 +15,8 @@ from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import AgentConfig
 from .system import get_heartbeat, get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from .memory import CoreMemory as Memory, summarize_messages, a_summarize_messages
-from .openai_tools import acompletions_with_backoff as acreate, completions_with_backoff as create
-from .utils import VectorEmbedding, get_local_time, parse_json, united_diff, printd, count_tokens
+from .openai_tools import acompletions_with_backoff as acreate, completions_with_backoff as create, VectorEmbedding
+from .utils import get_local_time, parse_json, united_diff, printd, count_tokens
 from .constants import (
     MEMGPT_DIR,
     FIRST_MESSAGE_ATTEMPTS,

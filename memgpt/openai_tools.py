@@ -2,10 +2,12 @@ import asyncio
 import random
 import os
 import time
-from typing import cast
+from typing import cast, TypeAlias
 
 from .local_llm.chat_completion_proxy import get_chat_completion
-from .utils import VectorEmbedding
+
+VectorEmbedding: TypeAlias = list[float]
+"""Type for an embedding, such as returned from OpenAI's embedding API. (A list of floats)"""
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
