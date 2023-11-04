@@ -54,7 +54,7 @@ async def system_message(msg):
     fstr = f"{Fore.MAGENTA}{Style.BRIGHT}🖥️ [system] {Fore.MAGENTA}{msg}{Style.RESET_ALL}"
     if STRIP_UI:
         fstr = "{msg}"
-    print(fstr.format(msg=msg))        
+    print(fstr.format(msg=msg))
 
 
 async def user_message(msg, raw=False):
@@ -172,7 +172,7 @@ async def print_messages(message_sequence, dump=False):
                 if content is not None:
                     await internal_monologue(content)
                 # I think the next one is not up to date
-                #await function_message(msg["function_call"])
+                # await function_message(msg["function_call"])
                 args = json.loads(msg["function_call"].get("arguments"))
                 await assistant_message(args.get("message"))
                 # assistant_message(content)
