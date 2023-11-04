@@ -1007,7 +1007,10 @@ class AgentAsync(Agent):
 
             # If no failures happened along the way: ...
             # Step 4: send the info on the function call and function response to GPT
-            await self.interface.function_message(f"Success: {function_response_string}")
+            if function_response_string:
+                await self.interface.function_message(f"Success: {function_response_string}")
+            else:
+                await self.interface.function_message(f"Success")
             messages.append(
                 {
                     "role": "function",
