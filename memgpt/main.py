@@ -484,6 +484,7 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=
                     continue
 
                 elif user_input.lower() == "/rethink" or user_input.lower().startswith("/rethink "):
+                    # TODO this needs to also modify the persistence manager
                     if len(user_input) < len("/rethink "):
                         print("Missing text after the command")
                         continue
@@ -495,6 +496,7 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, legacy=
                     continue
 
                 elif user_input.lower() == "/rewrite" or user_input.lower().startswith("/rewrite "):
+                    # TODO this needs to also modify the persistence manager
                     if len(user_input) < len("/rewrite "):
                         print("Missing text after the command")
                         continue
