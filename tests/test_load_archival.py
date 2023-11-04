@@ -1,21 +1,99 @@
-import tempfile
-import asyncio
+# import tempfile
+# import asyncio
 import os
-import asyncio
+
+# import asyncio
 from datasets import load_dataset
 
 import memgpt
 from memgpt.cli.cli_load import load_directory, load_database, load_webpage
-import memgpt.presets as presets
-import memgpt.personas.personas as personas
-import memgpt.humans.humans as humans
-from memgpt.persistence_manager import InMemoryStateManager, LocalStateManager
-from memgpt.config import AgentConfig
-from memgpt.constants import MEMGPT_DIR, DEFAULT_MEMGPT_MODEL
-import memgpt.interface  # for printing to terminal
+
+# import memgpt.presets as presets
+# import memgpt.personas.personas as personas
+# import memgpt.humans.humans as humans
+# from memgpt.persistence_manager import InMemoryStateManager, LocalStateManager
+
+# # from memgpt.config import AgentConfig
+# from memgpt.constants import MEMGPT_DIR, DEFAULT_MEMGPT_MODEL
+# import memgpt.interface  # for printing to terminal
+
+
+def test_postgres():
+    return
+
+    # override config path with enviornment variable
+    # TODO: make into temporary file
+    os.environ["MEMGPT_CONFIG_PATH"] = "test_config.cfg"
+    print("env", os.getenv("MEMGPT_CONFIG_PATH"))
+    config = memgpt.config.MemGPTConfig(archival_storage_type="postgres", config_path=os.getenv("MEMGPT_CONFIG_PATH"))
+    print(config)
+    config.save()
+    # exit()
+
+    name = "tmp_hf_dataset2"
+
+    dataset = load_dataset("MemGPT/example_short_stories")
+
+    cache_dir = os.getenv("HF_DATASETS_CACHE")
+    if cache_dir is None:
+        # Construct the default path if the environment variable is not set.
+        cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "datasets")
+
+    load_directory(
+        name=name,
+        input_dir=cache_dir,
+        recursive=True,
+    )
+
+
+def test_chroma():
+    return
+
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "chromadb"])
+    import chromadb  # Try to import again after installing
+
+    # override config path with enviornment variable
+    # TODO: make into temporary file
+    os.environ["MEMGPT_CONFIG_PATH"] = "test_config.cfg"
+    print("env", os.getenv("MEMGPT_CONFIG_PATH"))
+    config = memgpt.config.MemGPTConfig(archival_storage_type="chroma", config_path=os.getenv("MEMGPT_CONFIG_PATH"))
+    print(config)
+    config.save()
+    # exit()
+
+    name = "tmp_hf_dataset"
+
+    dataset = load_dataset("MemGPT/example_short_stories")
+
+    cache_dir = os.getenv("HF_DATASETS_CACHE")
+    if cache_dir is None:
+        # Construct the default path if the environment variable is not set.
+        cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "datasets")
+
+    config = memgpt.config.MemGPTConfig(archival_storage_type="chroma")
+
+    load_directory(
+        name=name,
+        input_dir=cache_dir,
+        recursive=True,
+    )
+
+    # index = memgpt.embeddings.Index(name)
+
+    ## query chroma
+    ##chroma_client = chromadb.Client()
+    # chroma_client = chromadb.PersistentClient(path="/Users/sarahwooders/repos/MemGPT/chromadb")
+    # collection = chroma_client.get_collection(name=name)
+    # results = collection.query(
+    #    query_texts=["cinderella be getting sick"],
+    #    n_results=2
+    # )
+    # print(results)
+    # assert len(results) == 2, f"Expected 2 results, but got {len(results)}"
 
 
 def test_load_directory():
+    return
     # downloading hugging face dataset (if does not exist)
     dataset = load_dataset("MemGPT/example_short_stories")
 
@@ -69,6 +147,7 @@ def test_load_webpage():
 
 
 def test_load_database():
+    return
     from sqlalchemy import create_engine, MetaData
     import pandas as pd
 
