@@ -6,7 +6,7 @@ import json
 
 from .webui.api import get_webui_completion
 from .lmstudio.api import get_lmstudio_completion
-from .llm_chat_completion_wrappers import airoboros, dolphin, zephyr, simple_summary_wrapper
+from .llm_chat_completion_wrappers import airoboros, dolphin, zephyr, simple_summary_wrapper, mistral
 from .utils import DotDict
 from ..prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
 from ..errors import LocalLLMConnectionError, LocalLLMError
@@ -43,6 +43,8 @@ def get_chat_completion(
         llm_wrapper = dolphin.Dolphin21MistralWrapper()
     elif model == "zephyr-7B-alpha" or model == "zephyr-7B-beta":
         llm_wrapper = zephyr.ZephyrMistralInnerMonologueWrapper()
+    elif model == "mistral":
+        llm_wrapper = mistral.MistralChatCompletionWrapper()
     else:
         # Warn the user that we're using the fallback
         if not has_shown_warning:
@@ -65,6 +67,7 @@ def get_chat_completion(
 
     try:
         if HOST_TYPE == "webui":
+            print(prompt)
             result = get_webui_completion(prompt)
         elif HOST_TYPE == "lmstudio":
             result = get_lmstudio_completion(prompt)
@@ -106,4 +109,6 @@ def get_chat_completion(
             ),
         }
     )
+    print("response VVVVV")
+    print(response)
     return response
