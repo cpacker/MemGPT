@@ -511,6 +511,7 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
                     continue
 
                 elif user_input.lower() == "/retry":
+                    # TODO this needs to also modify the persistence manager
                     print(f"Retrying for another answer")
                     while len(memgpt_agent.messages) > 0:
                         if memgpt_agent.messages[-1].get("role") == "user":
