@@ -20,7 +20,7 @@ class DotDict(dict):
 
 def load_grammar_file(grammar):
     # Set grammar
-    grammar_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "grammars", f"{grammar}.gbnf")
+    grammar_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "grammars", f"{grammar}.gbnf")
 
     # Check if the file exists
     if not os.path.isfile(grammar_file):
