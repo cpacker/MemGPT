@@ -36,11 +36,13 @@ llama-index = "^0.8.53.post3"
 setuptools = "^68.2.2"
 datasets = "^2.14.6"
 prettytable = "^3.9.0"
-pgvector = "^0.2.3"
-psycopg = "^3.1.12"
-psycopg-binary = "^3.1.12"
-psycopg2-binary = "^2.9.9"
+pgvector = { version = "^0.2.3", optional = true }
+psycopg = { version = "^3.1.12", optional = true }
+psycopg-binary = { version = "^3.1.12", optional = true }
+psycopg2-binary = { version = "^2.9.9", optional = true }
 
+[tool.poetry.extras]
+postgres = ["pgvector", "psycopg", "psycopg-binary", "psycopg2-binary"]
 
 [build-system]
 requires = ["poetry-core"]
