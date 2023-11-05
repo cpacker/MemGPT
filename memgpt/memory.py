@@ -826,4 +826,5 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         return f"\n### ARCHIVAL MEMORY ###" + f"\n{memory_str}"
 
     def __len__(self):
+        print("get archival storage size")
         return len(self.storage.get_all())
