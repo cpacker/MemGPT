@@ -78,6 +78,10 @@ async def user_message(msg, raw=False, debug=DEBUG):
                 printd(f"Warning: failed to parse user message into json")
                 printd_user_message("🧑", msg)
                 return
+    else:
+        # there is no msg_json here
+        return
+
     if msg_json["type"] == "user_message":
         msg_json.pop("type")
         printd_user_message("🧑", msg_json)
@@ -120,6 +124,7 @@ async def function_message(msg, debug=DEBUG):
                     function_name = match.group(1)
                     function_args = match.group(2)
                     print_function_message("🧠", f"updating memory with {function_name}")
+                    msg_dict = None
                     try:
                         msg_dict = eval(function_args)
                         if function_name == "archival_memory_search":
