@@ -1,5 +1,5 @@
-site_name: MkLorum
-site_url: https://example.com/
+site_name: MemGPT
+site_url: https://memgpt.ai
 nav:
   - Home: index.md
   - 'User Guide':
