@@ -60,18 +60,31 @@ def get_local_time_military():
     return formatted_time
 
 
-def get_local_time():
+def get_local_time_timezone(timezone="America/Los_Angeles"):
     # Get the current time in UTC
     current_time_utc = datetime.now(pytz.utc)
 
     # Convert to San Francisco's time zone (PST/PDT)
-    sf_time_zone = pytz.timezone("America/Los_Angeles")
+    sf_time_zone = pytz.timezone(timezone)
     local_time = current_time_utc.astimezone(sf_time_zone)
 
     # You may format it as you desire, including AM/PM
     formatted_time = local_time.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
 
     return formatted_time
+
+
+def get_local_time(timezone=None):
+    if timezone is not None:
+        return get_local_time_timezone(timezone)
+    else:
+        # Get the current time, which will be in the local timezone of the computer
+        local_time = datetime.now()
+
+        # You may format it as you desire, including AM/PM
+        formatted_time = local_time.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
+
+        return formatted_time
 
 
 def parse_json(string):
