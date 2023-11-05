@@ -176,13 +176,15 @@ def attach(
 
     size = source_storage.size()
     print(f"Ingesting {size} passages into {agent_config.name}")
-    page_size = 100
+    page_size = 1000
     pages = size // page_size + 1
+    print(pages)
     generator = source_storage.get_all_paginated(page_size=page_size)  # yields List[Passage]
-    for i in tqdm(range(pages)):
-        passages = generator.next()
-        dest_storage.insert_many(passages)
-        dest_storage.save()
+    for i in tqdm(range(0, size, page_size)):
+        passages = next(generator)
+        dest_storage.insert_many(passages, show_progress=False)
+
+    dest_storage.save()
 
     # passages = source_storage.get_all()
     # for p in passages:
@@ -191,6 +193,8 @@ def attach(
     # dest_storage.save()
 
     # total_agent_passages = len(dest_storage.get_all())
+
+    total_agent_passages = dest_storage.count()
 
     typer.secho(
         f"Attached data source {data_source} to agent {agent}, consisting of {len(passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
