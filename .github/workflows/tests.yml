@@ -1,5 +1,9 @@
 name: MemGPT tests
 
+env:
+  PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
 on:
   push:
     branches: [ main ]
@@ -11,26 +15,47 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    env:
+      PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+    timeout-minutes: 5
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v1
+
+    - name: Install poetry
+      run: pipx install poetry
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
-        python-version: 3.10.10  # Set this to your Python version
+        python-version: "3.10"
+        cache: "poetry"
 
-    - name: Install Poetry
+    - name: Set Poetry config
       run: |
-        pip install poetry
+        poetry config virtualenvs.in-project false
+        poetry config virtualenvs.path ~/.virtualenvs
 
     - name: Install dependencies using Poetry
+      env:
+        PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         poetry install
 
-    - name: Install pexpect for testing the interactive CLI
+    - name: Set Poetry config
+      env:
+        PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry add --dev pexpect
+        poetry config virtualenvs.in-project false
+        poetry config virtualenvs.path ~/.virtualenvs
 
     - name: Run tests with pytest
+      env:
+        PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests
+        PGVECTOR_TEST_DB_URL=${{ secrets.PGVECTOR_TEST_DB_URL }} OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} poetry run pytest -s -vv tests

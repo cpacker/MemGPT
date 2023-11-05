@@ -60,18 +60,31 @@ def get_local_time_military():
     return formatted_time
 
 
-def get_local_time():
+def get_local_time_timezone(timezone="America/Los_Angeles"):
     # Get the current time in UTC
     current_time_utc = datetime.now(pytz.utc)
 
     # Convert to San Francisco's time zone (PST/PDT)
-    sf_time_zone = pytz.timezone("America/Los_Angeles")
+    sf_time_zone = pytz.timezone(timezone)
     local_time = current_time_utc.astimezone(sf_time_zone)
 
     # You may format it as you desire, including AM/PM
     formatted_time = local_time.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
 
     return formatted_time
+
+
+def get_local_time(timezone=None):
+    if timezone is not None:
+        return get_local_time_timezone(timezone)
+    else:
+        # Get the current time, which will be in the local timezone of the computer
+        local_time = datetime.now()
+
+        # You may format it as you desire, including AM/PM
+        formatted_time = local_time.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
+
+        return formatted_time
 
 
 def parse_json(string):
@@ -200,7 +213,7 @@ def chunk_files(files, tkns_per_chunk=300, model="gpt-4"):
     for file in files:
         timestamp = os.path.getmtime(file)
         formatted_time = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
-        file_stem = file.split("/")[-1]
+        file_stem = file.split(os.sep)[-1]
         chunks = [c for c in chunk_file(file, tkns_per_chunk, model)]
         for i, chunk in enumerate(chunks):
             archival_database.append(
@@ -215,7 +228,7 @@ def chunk_files(files, tkns_per_chunk=300, model="gpt-4"):
 def chunk_files_for_jsonl(files, tkns_per_chunk=300, model="gpt-4"):
     ret = []
     for file in files:
-        file_stem = file.split("/")[-1]
+        file_stem = file.split(os.sep)[-1]
         curr_file = []
         for chunk in chunk_file(file, tkns_per_chunk, model):
             curr_file.append(
@@ -361,94 +374,6 @@ def estimate_openai_cost(docs):
     cost = 0.0001 * token_counter.total_embedding_token_count / 1000
     token_counter.reset_counts()
     return cost
-
-
-def get_index(name, docs):
-    """Index documents
-
-    :param docs: Documents to be embedded
-    :type docs: List[Document]
-    """
-    from memgpt.config import MemGPTConfig  # avoid circular import
-    from memgpt.embeddings import embedding_model  # avoid circular import
-
-    # TODO: configure to work for local
-    print("Warning: get_index(docs) only supported for OpenAI")
-
-    # check if directory exists
-    dir = f"{MEMGPT_DIR}/archival/{name}"
-    if os.path.exists(dir):
-        confirm = typer.confirm(typer.style(f"Index with name {name} already exists -- re-index?", fg="yellow"), default=False)
-        if not confirm:
-            # return existing index
-            storage_context = StorageContext.from_defaults(persist_dir=dir)
-            return load_index_from_storage(storage_context)
-
-    # TODO: support configurable embeddings
-    # TODO: read from config how to index (open ai vs. local): then embed_mode="local"
-
-    estimated_cost = estimate_openai_cost(docs)
-    # TODO: prettier cost formatting
-    confirm = typer.confirm(
-        typer.style(f"Open AI embedding cost will be approximately ${estimated_cost} - continue?", fg="yellow"), default=True
-    )
-
-    if not confirm:
-        typer.secho("Aborting.", fg="red")
-        exit()
-
-    # read embedding confirguration
-    # TODO: in the future, make an IngestData class that loads the config once
-    config = MemGPTConfig.load()
-    embed_model = embedding_model(config)
-    chunk_size = config.embedding_chunk_size
-    service_context = ServiceContext.from_defaults(embed_model=embed_model, chunk_size=chunk_size)
-    set_global_service_context(service_context)
-
-    # index documents
-    index = VectorStoreIndex.from_documents(docs)
-    return index
-
-
-def save_agent_index(index, agent_config):
-    """Save agent index inside of ~/.memgpt/agents/<agent_name>
-
-    :param index: Index to save
-    :type index: VectorStoreIndex
-    :param agent_name: Name of agent that the archival memory belonds to
-    :type agent_name: str
-    """
-    dir = agent_config.save_agent_index_dir()
-    os.makedirs(dir, exist_ok=True)
-    index.storage_context.persist(dir)
-
-
-def save_index(index, name):
-    """Save index ~/.memgpt/archival/<name> to load into agents
-
-    :param index: Index to save
-    :type index: VectorStoreIndex
-    :param name: Name of index
-    :type name: str
-    """
-    # save
-    # TODO: load directory from config
-    # TODO: save to vectordb/local depending on config
-
-    dir = f"{MEMGPT_DIR}/archival/{name}"
-
-    ## Avoid overwriting
-    ## check if directory exists
-    # if os.path.exists(dir):
-    #    confirm = typer.confirm(typer.style(f"Index with name {name} already exists -- overwrite?", fg="red"), default=False)
-    #    if not confirm:
-    #        typer.secho("Aborting.", fg="red")
-    #        exit()
-
-    # create directory, even if it already exists
-    os.makedirs(dir, exist_ok=True)
-    index.storage_context.persist(dir)
-    print(dir)
 
 
 def list_agent_config_files():

@@ -80,7 +80,6 @@ The `run` command supports the following optional flags (if set, will override c
 * `--persona`: (str) Name of agent persona to use.
 * `--model`: (str) LLM model to run [gpt-4, gpt-3.5].
 * `--preset`: (str) MemGPT preset to run agent with.
-* `--data-source`: (str) Name of data source (loaded with `memgpt load`) to connect to agent.
 * `--first`: (str) Allow user to sent the first message.
 * `--debug`: (bool) Show debug logs (default=False)
 * `--no-verify`: (bool) Bypass message verification (default=False)
@@ -88,6 +87,7 @@ The `run` command supports the following optional flags (if set, will override c
 
 You can run the following commands in the MemGPT CLI prompt:
 * `/exit`: Exit the CLI
+* `/attach`: Attach a loaded data source to the agent
 * `/save`: Save a checkpoint of the current agent/conversation state
 * `/dump`: View the current message log (see the contents of main context)
 * `/memory`: Print the current contents of agent memory
@@ -114,7 +114,10 @@ memgpt list [human/persona]
 ```
 
 ### Data Sources (i.e. chat with your data)
-MemGPT supports pre-loading data into archival memory, so your agent can reference loaded data in your conversations with an agent by specifying the data source with the flag `memgpt run --data-source <NAME>`.
+MemGPT supports pre-loading data into archival memory. You can attach data to your agent (which will place the data in your agent's archival memory) in two ways:
+
+1. Run `memgpt attach --agent <AGENT-NAME> --data-source <DATA-SOURCE-NAME>
+2. While chatting with the agent, enter the `/attach` command and select the data source.
 
 #### Loading Data
 We currently support loading from a directory and database dumps. We highly encourage contributions for new data sources, which can be added as a new [CLI data load command](https://github.com/cpacker/MemGPT/blob/main/memgpt/cli/cli_load.py).
@@ -159,6 +162,7 @@ export AZURE_OPENAI_VERSION = ...
 export AZURE_OPENAI_DEPLOYMENT = ...
 export AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT = ...
 ```
+
 Note: your Azure endpoint must support functions or you will get an error. See https://github.com/cpacker/MemGPT/issues/91 for more information.
 
 #### Custom Endpoints
@@ -287,12 +291,18 @@ While using MemGPT via the CLI (not Discord!) you can run various commands:
   save a checkpoint of the current agent/conversation state
 /load
   load a saved checkpoint
-/dump
-  view the current message log (see the contents of main context)
+/dump <count>
+  view the last <count> messages (all if <count> is omitted)
 /memory
   print the current contents of agent memory
-/pop
-  undo the last message in the conversation
+/pop <count>
+  undo the last messages in the conversation. It defaults to 3, which usually is one turn around in the conversation
+/retry
+  pops the last answer and tries to get another one
+/rethink <text>
+  will replace the inner dialog of the last assistant message with the <text> to help shaping the conversation 
+/rewrite
+  will replace the last assistant answer with the given text to correct or force the answer 
 /heartbeat
   send a heartbeat system message to the agent
 /memorywarning

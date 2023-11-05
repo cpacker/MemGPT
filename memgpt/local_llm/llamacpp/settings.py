@@ -1,7 +1,8 @@
 from ...constants import LLM_MAX_TOKENS
 
+# see https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md#api-endpoints for options
 SIMPLE = {
-    "stopping_strings": [
+    "stop": [
         "\nUSER:",
         "\nASSISTANT:",
         "\nFUNCTION RETURN:",
@@ -19,7 +20,5 @@ SIMPLE = {
         # '\n#',
         # '\n\n\n',
     ],
-    "max_new_tokens": 3072,
-    # "truncation_length": 4096,  # assuming llama2 models
-    "truncation_length": LLM_MAX_TOKENS,  # assuming mistral 7b
+    # "n_predict": 3072,
 }

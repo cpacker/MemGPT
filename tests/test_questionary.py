@@ -1,3 +1,7 @@
+import subprocess
+import sys
+
+subprocess.check_call([sys.executable, "-m", "pip", "install", "pexpect"])
 import pexpect
 
 
@@ -36,6 +40,11 @@ def test_legacy_cli_sequence():
     child.sendline("/load")
 
     child.expect("Loaded persistence manager", timeout=TIMEOUT)
+
+    child.sendline("/dump")  # just testing no-crash
+    # child.expect("", timeout=TIMEOUT)
+    child.sendline("/dump 3")  # just testing no-crash
+
     child.sendline("/exit")
     child.expect("Finished.", timeout=TIMEOUT)
 
