@@ -8,12 +8,14 @@ import os
 import sys
 import pickle
 import traceback
+import json
 
 import questionary
 import typer
 
 from rich.console import Console
 from prettytable import PrettyTable
+from .interface import print_messages
 
 console = Console()
 
@@ -470,16 +472,18 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
                     )
                     continue
 
-                elif user_input.lower() == "/dump":
-                    await memgpt.interface.print_messages(memgpt_agent.messages)
+                elif user_input.lower() == "/dump" or user_input.lower().startswith("/dump "):
+                    # Check if there's an additional argument that's an integer
+                    command = user_input.strip().split()
+                    amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 0
+                    if amount == 0:
+                        await memgpt.interface.print_messages(memgpt_agent.messages, dump=True)
+                    else:
+                        await memgpt.interface.print_messages(memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
                     continue
 
                 elif user_input.lower() == "/dumpraw":
                     await memgpt.interface.print_messages_raw(memgpt_agent.messages)
-                    continue
-
-                elif user_input.lower() == "/dump1":
-                    await memgpt.interface.print_messages(memgpt_agent.messages[-1])
                     continue
 
                 elif user_input.lower() == "/memory":
@@ -500,10 +504,47 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
                 elif user_input.lower() == "/pop" or user_input.lower().startswith("/pop "):
                     # Check if there's an additional argument that's an integer
                     command = user_input.strip().split()
-                    amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 2
+                    amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 3
                     print(f"Popping last {amount} messages from stack")
                     for _ in range(min(amount, len(memgpt_agent.messages))):
                         memgpt_agent.messages.pop()
+                    continue
+
+                elif user_input.lower() == "/retry":
+                    # TODO this needs to also modify the persistence manager
+                    print(f"Retrying for another answer")
+                    while len(memgpt_agent.messages) > 0:
+                        if memgpt_agent.messages[-1].get("role") == "user":
+                            # we want to pop up to the last user message and send it again
+                            user_message = memgpt_agent.messages[-1].get("content")
+                            memgpt_agent.messages.pop()
+                            break
+                        memgpt_agent.messages.pop()
+
+                elif user_input.lower() == "/rethink" or user_input.lower().startswith("/rethink "):
+                    # TODO this needs to also modify the persistence manager
+                    if len(user_input) < len("/rethink "):
+                        print("Missing text after the command")
+                        continue
+                    for x in range(len(memgpt_agent.messages) - 1, 0, -1):
+                        if memgpt_agent.messages[x].get("role") == "assistant":
+                            text = user_input[len("/rethink ") :].strip()
+                            memgpt_agent.messages[x].update({"content": text})
+                            break
+                    continue
+
+                elif user_input.lower() == "/rewrite" or user_input.lower().startswith("/rewrite "):
+                    # TODO this needs to also modify the persistence manager
+                    if len(user_input) < len("/rewrite "):
+                        print("Missing text after the command")
+                        continue
+                    for x in range(len(memgpt_agent.messages) - 1, 0, -1):
+                        if memgpt_agent.messages[x].get("role") == "assistant":
+                            text = user_input[len("/rewrite ") :].strip()
+                            args = json.loads(memgpt_agent.messages[x].get("function_call").get("arguments"))
+                            args["message"] = text
+                            memgpt_agent.messages[x].get("function_call").update({"arguments": json.dumps(args)})
+                            break
                     continue
 
                 # No skip options
@@ -583,9 +624,12 @@ USER_COMMANDS = [
     ("/exit", "exit the CLI"),
     ("/save", "save a checkpoint of the current agent/conversation state"),
     ("/load", "load a saved checkpoint"),
-    ("/dump", "view the current message log (see the contents of main context)"),
+    ("/dump <count>", "view the last <count> messages (all if <count> is omitted)"),
     ("/memory", "print the current contents of agent memory"),
-    ("/pop", "undo the last message in the conversation"),
+    ("/pop <count>", "undo <count> messages in the conversation (default is 3)"),
+    ("/retry", "pops the last answer and tries to get another one"),
+    ("/rethink <text>", "changes the inner thoughts of the last agent message"),
+    ("/rewrite <text>", "changes the reply of the last agent message"),
     ("/heartbeat", "send a heartbeat system message to the agent"),
     ("/memorywarning", "send a memory warning system message to the agent"),
     ("/attach", "attach data source to agent"),

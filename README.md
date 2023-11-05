@@ -291,12 +291,18 @@ While using MemGPT via the CLI (not Discord!) you can run various commands:
   save a checkpoint of the current agent/conversation state
 /load
   load a saved checkpoint
-/dump
-  view the current message log (see the contents of main context)
+/dump <count>
+  view the last <count> messages (all if <count> is omitted)
 /memory
   print the current contents of agent memory
-/pop
-  undo the last message in the conversation
+/pop <count>
+  undo the last messages in the conversation. It defaults to 3, which usually is one turn around in the conversation
+/retry
+  pops the last answer and tries to get another one
+/rethink <text>
+  will replace the inner dialog of the last assistant message with the <text> to help shaping the conversation 
+/rewrite
+  will replace the last assistant answer with the given text to correct or force the answer 
 /heartbeat
   send a heartbeat system message to the agent
 /memorywarning
