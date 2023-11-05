@@ -36,14 +36,18 @@ class Passage:
 class StorageConnector:
     @staticmethod
     def get_storage_connector(name: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
-        from memgpt.connectors.db import PostgresStorageConnector
-        from memgpt.connectors.local import LocalStorageConnector
-
         storage_type = MemGPTConfig.load().archival_storage_type
+
         if storage_type == "local":
+            from memgpt.connectors.local import LocalStorageConnector
+
             return LocalStorageConnector(name=name, agent_config=agent_config)
+
         elif storage_type == "postgres":
+            from memgpt.connectors.db import PostgresStorageConnector
+
             return PostgresStorageConnector(name=name, agent_config=agent_config)
+
         else:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")
 
