@@ -53,13 +53,15 @@ class StorageConnector:
 
     @staticmethod
     def list_loaded_data():
-        from memgpt.connectors.db import PostgresStorageConnector
-        from memgpt.connectors.local import LocalStorageConnector
 
         storage_type = MemGPTConfig.load().archival_storage_type
         if storage_type == "local":
+            from memgpt.connectors.db import PostgresStorageConnector
+
             return LocalStorageConnector.list_loaded_data()
         elif storage_type == "postgres":
+            from memgpt.connectors.local import LocalStorageConnector
+
             return PostgresStorageConnector.list_loaded_data()
         else:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")
