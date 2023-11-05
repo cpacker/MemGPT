@@ -165,6 +165,7 @@ def attach(
 ):
     # loads the data contained in data source into the agent's memory
     from memgpt.connectors.storage import StorageConnector
+    from tqdm import tqdm
 
     agent_config = AgentConfig.load(agent)
     config = MemGPTConfig.load()
@@ -173,13 +174,23 @@ def attach(
     source_storage = StorageConnector.get_storage_connector(name=data_source)
     dest_storage = StorageConnector.get_storage_connector(agent_config=agent_config)
 
-    passages = source_storage.get_all()
-    for p in passages:
-        len(p.embedding) == config.embedding_dim, f"Mismatched embedding sizes {len(p.embedding)} != {config.embedding_dim}"
-    dest_storage.insert_many(passages)
-    dest_storage.save()
+    size = source_storage.size()
+    print(f"Ingesting {size} passages into {agent_config.name}")
+    page_size = 100
+    pages = size // page_size + 1
+    generator = source_storage.get_all_paginated(page_size=page_size)  # yields List[Passage]
+    for i in tqdm(range(pages)):
+        passages = generator.next()
+        dest_storage.insert_many(passages)
+        dest_storage.save()
 
-    total_agent_passages = len(dest_storage.get_all())
+    # passages = source_storage.get_all()
+    # for p in passages:
+    #    len(p.embedding) == config.embedding_dim, f"Mismatched embedding sizes {len(p.embedding)} != {config.embedding_dim}"
+    # dest_storage.insert_many(passages)
+    # dest_storage.save()
+
+    # total_agent_passages = len(dest_storage.get_all())
 
     typer.secho(
         f"Attached data source {data_source} to agent {agent}, consisting of {len(passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",

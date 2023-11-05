@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Iterator
 from memgpt.config import AgentConfig, MemGPTConfig
 from tqdm import tqdm
 import re
@@ -71,6 +71,12 @@ class LocalStorageConnector(StorageConnector):
     def add_nodes(self, nodes: List[TextNode]):
         self.nodes += nodes
         self.index = VectorStoreIndex(self.nodes)
+
+    def get_all_paginated(self, page_size: int = 100) -> Iterator[List[Passage]]:
+        """Get all passages in the index"""
+        nodes = self.get_nodes()
+        for i in tqdm(range(0, len(nodes), page_size)):
+            yield [Passage(text=node.text, embedding=node.embedding) for node in nodes[i : i + page_size]]
 
     def get_all(self) -> List[Passage]:
         passages = []
