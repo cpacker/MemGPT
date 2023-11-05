@@ -1,0 +1,36 @@
+name: Black Code Formatter
+
+on:
+  pull_request:
+    paths:
+      - '**.py'
+
+jobs:
+  black-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.10.10
+
+      - name: Install Black
+        run: pip install black
+
+      - name: Run Black
+        run: black --check . -l 140
+
+      # (Optional) If you want to automatically fix formatting issues
+      # Uncomment the following steps:
+
+      # - name: Auto-fix with Black and commit
+      #   if: failure()
+      #   run: |
+      #     black .
+      #     git config --local user.email "action@github.com"
+      #     git config --local user.name "GitHub Action"
+      #     git commit -am "Apply Black formatting" || echo "No changes to commit"
+      #     git push

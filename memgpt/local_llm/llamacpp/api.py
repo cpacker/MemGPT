@@ -1,0 +1,59 @@
+import os
+from urllib.parse import urljoin
+import requests
+import tiktoken
+
+from .settings import SIMPLE
+from ..utils import load_grammar_file
+from ...constants import LLM_MAX_TOKENS
+
+HOST = os.getenv("OPENAI_API_BASE")
+HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
+LLAMACPP_API_SUFFIX = "/completion"
+# DEBUG = False
+DEBUG = True
+
+
+def count_tokens(s: str, model: str = "gpt-4") -> int:
+    encoding = tiktoken.encoding_for_model(model)
+    return len(encoding.encode(s))
+
+
+def get_llamacpp_completion(prompt, grammar=None, settings=SIMPLE):
+    """See https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md for instructions on how to run the LLM web server"""
+    prompt_tokens = count_tokens(prompt)
+    if prompt_tokens > LLM_MAX_TOKENS:
+        raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {LLM_MAX_TOKENS} tokens)")
+
+    # Settings for the generation, includes the prompt + stop tokens, max length, etc
+    request = settings
+    request["prompt"] = prompt
+
+    # Set grammar
+    if grammar is not None:
+        request["grammar"] = load_grammar_file(grammar)
+
+    if not HOST.startswith(("http://", "https://")):
+        raise ValueError(f"Provided OPENAI_API_BASE value ({HOST}) must begin with http:// or https://")
+
+    try:
+        # NOTE: llama.cpp server returns the following when it's out of context
+        # curl: (52) Empty reply from server
+        URI = urljoin(HOST.strip("/") + "/", LLAMACPP_API_SUFFIX.strip("/"))
+        response = requests.post(URI, json=request)
+        if response.status_code == 200:
+            result = response.json()
+            result = result["content"]
+            if DEBUG:
+                print(f"json API response.text: {result}")
+        else:
+            raise Exception(
+                f"API call got non-200 response code (code={response.status_code}, msg={response.text}) for address: {URI}."
+                + f" Make sure that the llama.cpp server is running and reachable at {URI}."
+            )
+
+    except:
+        # TODO handle gracefully
+        raise
+
+    return result

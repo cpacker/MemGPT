@@ -1,0 +1,47 @@
+[tool.poetry]
+name = "pymemgpt"
+version = "0.1.18-alpha.1"
+packages = [
+    {include = "memgpt"}
+]
+description = "Teaching LLMs memory management for unbounded context"
+authors = [
+    "Charles Packer <contact@charlespacker.com>",
+    "Vivian Fang <hi@vivi.sh>",
+    "Sarah Wooders <sarahwooders@gmail.com>",
+    "Shishir Patil <shishirpatil@berkeley.edu>",
+    "Kevin Lin <kevinlin@eecs.berkeley.edu>"
+]
+license = "Apache License"
+readme = "README.md"
+
+[tool.poetry.scripts]
+memgpt = "memgpt.main:app"
+
+[tool.poetry.dependencies]
+python = "<3.12,>=3.9"
+typer = {extras = ["all"], version = "^0.9.0"}
+questionary = "^2.0.1"
+demjson3 = "^3.0.6"
+numpy = "^1.26.1"
+pytz = "^2023.3.post1"
+faiss-cpu = "^1.7.4"
+tiktoken = "^0.5.1"
+pymupdf = "^1.23.5"
+tqdm = "^4.66.1"
+openai = "^0.28.1"
+black = "^23.10.1"
+pytest = "^7.4.3"
+llama-index = "^0.8.53.post3"
+setuptools = "^68.2.2"
+datasets = "^2.14.6"
+prettytable = "^3.9.0"
+pgvector = "^0.2.3"
+psycopg = "^3.1.12"
+psycopg-binary = "^3.1.12"
+psycopg2-binary = "^2.9.9"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
