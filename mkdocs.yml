@@ -1,0 +1,15 @@
+site_name: MkLorum
+site_url: https://example.com/
+nav:
+  - Home: index.md
+  - 'User Guide':
+    - quickstart.md
+    - config.md
+    - data_sources.md
+  - 'Local LLMs':
+    - webui.md
+    - lmstudio.md
+    - custom_llm.md
+  - 'Advanced'
+  - About: about.md
+theme: readthedocs
