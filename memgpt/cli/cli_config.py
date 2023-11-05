@@ -43,7 +43,7 @@ def configure():
         azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         azure_version = os.getenv("AZURE_OPENAI_VERSION")
         azure_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-        azure_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")
+        azure_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT")
 
         if all([azure_key, azure_endpoint, azure_version]):
             print(f"Using Microsoft endpoint {azure_endpoint}.")
