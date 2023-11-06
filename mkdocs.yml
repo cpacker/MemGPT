@@ -18,7 +18,6 @@ nav:
     - local_llm_faq.md
   - 'Advanced'
     - adding_wrappers.md
-    - adding_wrappers.md
 theme: readthedocs
   highlightjs: true
   hljs_languages:
