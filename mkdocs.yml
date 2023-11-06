@@ -16,12 +16,12 @@ nav:
     - lmstudio.md
     - custom_llm.md
     - local_llm_faq.md
-  - 'Advanced'
+  - 'Advanced':
     - adding_wrappers.md
 theme: readthedocs
-  # highlightjs: true
-  # hljs_languages:
-  #   - yaml
-  #   - json
-  #   - python
+  highlightjs: true
+  hljs_languages:
+    - yaml
+    - json
+    - python
 # include_homepage_in_sidebar: false
