@@ -38,6 +38,7 @@ In this example we use the OpenAI API, but you can run MemGPT with other backend
 ### Command-line arguments
 
 The `run` command supports the following optional flags (if set, will override config defaults):
+
 * `--agent`: (str) Name of agent to create or to resume chatting with.
 * `--human`: (str) Name of the human to run the agent with.
 * `--persona`: (str) Name of agent persona to use.
