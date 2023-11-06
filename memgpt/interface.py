@@ -117,7 +117,7 @@ async def function_message(msg, debug=DEBUG):
         printd_function_message("", msg)
         return
 
-    if msg.startswith("Success: "):
+    if msg.startswith("Success"):
         printd_function_message("🟢", msg)
     elif msg.startswith("Error: "):
         printd_function_message("🔴", msg)
@@ -125,11 +125,11 @@ async def function_message(msg, debug=DEBUG):
         if debug:
             printd_function_message("", msg)
         else:
-            if "memory" in msg:
-                match = re.search(r"Running (\w+)\((.*)\)", msg)
-                if match:
-                    function_name = match.group(1)
-                    function_args = match.group(2)
+            match = re.search(r"Running (\w+)\((.*)\)", msg)
+            if match:
+                function_name = match.group(1)
+                function_args = match.group(2)
+                if "memory" in function_name:
                     print_function_message("🧠", f"updating memory with {function_name}")
                     try:
                         msg_dict = eval(function_args)
@@ -138,23 +138,26 @@ async def function_message(msg, debug=DEBUG):
                             if STRIP_UI:
                                 print(output)
                             else:
-                                print(f"{Fore.RED}{output}")
+                                print(f"{Fore.RED}{output}{Style.RESET_ALL}")
+                        elif function_name == "archival_memory_insert":
+                            output = f'\t→ {msg_dict["content"]}'
+                            if STRIP_UI:
+                                print(output)
+                            else:
+                                print(f"{Style.BRIGHT}{Fore.RED}{output}{Style.RESET_ALL}")
                         else:
                             if STRIP_UI:
                                 print(f'\t {msg_dict["old_content"]}\n\t→ {msg_dict["new_content"]}')
                             else:
-                                print(f'{Style.BRIGHT}\t{Fore.RED} {msg_dict["old_content"]}\n\t{Fore.GREEN}→ {msg_dict["new_content"]}')
+                                print(
+                                    f'{Style.BRIGHT}\t{Fore.RED} {msg_dict["old_content"]}\n\t{Fore.GREEN}→ {msg_dict["new_content"]}{Style.RESET_ALL}'
+                                )
                     except Exception as e:
-                        printd(e)
+                        printd(str(e))
                         printd(msg_dict)
                         pass
-                else:
-                    printd(f"Warning: did not recognize function message")
-                    printd_function_message("", msg)
-            elif "send_message" in msg:
-                # ignore in debug mode
-                pass
             else:
+                printd(f"Warning: did not recognize function message")
                 printd_function_message("", msg)
     else:
         try:
