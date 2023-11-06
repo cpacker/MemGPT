@@ -4,7 +4,7 @@ on:
   release:
     types: [published]
   workflow_dispatch:
-  
+
 env:
   EXAMPLE_VAR: "hello_world"
   PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
