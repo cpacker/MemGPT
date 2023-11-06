@@ -1,6 +1,8 @@
 ## Loading External Data
 MemGPT supports pre-loading data into archival memory. In order to made data accessible to your agent, you must:
+
 1. Load the data into MemGPT as a *data source*.
+
 2. Attach the data source to your agent, which will load it into archival memory.
 
 ### Loading External Data

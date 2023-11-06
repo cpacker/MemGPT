@@ -1,28 +1,34 @@
 ## Configuration
 
-### LLM Backends
+### Configuring the agent 
+You can set agent defaults by running `memgpt configure`.  
 
-#### Azure
-To use MemGPT with Azure, expore the following variables and then re-run `memgpt configure`:
+The `memgpt run` command supports the following optional flags (if set, will override config defaults):
 
-```sh
-# see https://github.com/openai/openai-python#microsoft-azure-endpoints
-export AZURE_OPENAI_KEY = ...
-export AZURE_OPENAI_ENDPOINT = ...
-export AZURE_OPENAI_VERSION = ...
+* `--agent`: (str) Name of agent to create or to resume chatting with.
+* `--human`: (str) Name of the human to run the agent with.
+* `--persona`: (str) Name of agent persona to use.
+* `--model`: (str) LLM model to run [gpt-4, gpt-3.5].
+* `--preset`: (str) MemGPT preset to run agent with.
+* `--first`: (str) Allow user to sent the first message.
+* `--debug`: (bool) Show debug logs (default=False)
+* `--no-verify`: (bool) Bypass message verification (default=False)
+* `--yes`/`-y`: (bool) Skip confirmation prompt and use defaults (default=False)
 
-# set the below if you are using deployment ids
-export AZURE_OPENAI_DEPLOYMENT = ...
-export AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT = ...
+
+### Adding Custom Personas/Humans
+You can add new human or persona definitions either by providing a file (using the `-f` flag) or text (using the `--text` flag).
+```
+# add a human
+memgpt add human [-f <FILENAME>] [--text <TEXT>]
+
+# add a persona
+memgpt add persona [-f <FILENAME>] [--text <TEXT>]
 ```
 
-Note: your Azure endpoint must support functions or you will get an error. See https://github.com/cpacker/MemGPT/issues/91 for more information.
-
-#### Custom Endpoints
-To use custom endpoints, run `export OPENAI_API_BASE=<MY_CUSTOM_URL>` and then re-run `memgpt configure` to set the custom endpoint as the default endpoint.
-
-### Custom Personas
-
-### Custom Humans
+You can view available persona and human files with the following command:
+```
+memgpt list [human/persona]
+```
 
 ### Custom Presets

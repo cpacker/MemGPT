@@ -22,18 +22,6 @@ Now, you can run MemGPT with:
 ```sh
 memgpt run
 ```
-The `run` command supports the following optional flags (if set, will override config defaults):
-
-* `--agent`: (str) Name of agent to create or to resume chatting with.
-* `--human`: (str) Name of the human to run the agent with.
-* `--persona`: (str) Name of agent persona to use.
-* `--model`: (str) LLM model to run [gpt-4, gpt-3.5].
-* `--preset`: (str) MemGPT preset to run agent with.
-* `--first`: (str) Allow user to sent the first message.
-* `--debug`: (bool) Show debug logs (default=False)
-* `--no-verify`: (bool) Bypass message verification (default=False)
-* `--yes`/`-y`: (bool) Skip confirmation prompt and use defaults (default=False)
-
 You can run the following commands in the MemGPT CLI prompt:
 
 * `/exit`: Exit the CLI

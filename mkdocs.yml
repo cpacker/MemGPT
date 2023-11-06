@@ -4,9 +4,10 @@ nav:
   - Home: index.md
   - 'User Guide':
     - quickstart.md
-    - config.md
-    - data_sources.md
-    - cli_faq.md
+    - 'Configuration': config.md
+    - 'LLM Endpoints': endpoints.md
+    - 'External Data Sources': data_sources.md
+    - 'FAQ': cli_faq.md
   - 'Discord Bot':
     - setup.md
     - discord_bot_faq.md
@@ -17,7 +18,9 @@ nav:
     - custom_llm.md
     - local_llm_faq.md
   - 'Advanced':
+    - 'Configuring Storage Backends': storage.md
     - adding_wrappers.md
+  - 'Contributing': contributing.md
 theme: readthedocs
   # highlightjs: true
   # hljs_languages:
