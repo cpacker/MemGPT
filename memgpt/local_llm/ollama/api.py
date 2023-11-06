@@ -4,7 +4,6 @@ import requests
 import tiktoken
 
 from .settings import SIMPLE
-from ..utils import load_grammar_file
 from ...constants import LLM_MAX_TOKENS
 from ...errors import LocalLLMError
 

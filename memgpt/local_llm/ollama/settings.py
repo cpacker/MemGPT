@@ -24,4 +24,8 @@ SIMPLE = {
         ],
     },
     "stream": False,
+    # turn off Ollama's own prompt formatting
+    "system": None,
+    "template": None,
+    "context": None,
 }
