@@ -9,6 +9,10 @@ You can use MemGPT to:
 
 ## Getting started
 
-* [Try out the MemGPT Discord bot]()
+* [Start chatting with the MemGPT Discord bot]()
 * [Run MemGPT locally using the OpenAI API]()
 * [Run MemGPT locally using local LLMs]()
+
+## Contributing
+
+MemGPT is an open source project under active development. If you'd like to help make MemGPT even better, you can come chat with the community on [our Discord server](https://discord.gg/9GEQrxmVyE) or on our [GitHub](https://github.com/cpacker/MemGPT).
