@@ -1,4 +1,14 @@
-# FAQ
+# Frequently asked questions
+
+## MemGPT CLI
+
+### How can I use MemGPT to chat with my docs?
+
+Check out our [chat with your docs example](../example_data) to get started.
+
+### How do I save a chat and continue it later?
+
+When you want to end a chat, run `/exit`, and MemGPT will save your current chat with your agent (make a note of the agent name, e.g. `agent_N`). Later, when you want to start a chat with that same agent, you can run `memgpt run --agent <NAME>`.
 
 ## OpenAI-related
 
