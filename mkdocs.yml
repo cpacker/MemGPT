@@ -1,5 +1,7 @@
 site_name: MemGPT
 site_url: https://memgpt.ai/
+repo_url: https://github.com/cpacker/MemGPT
+site_description: MemGPT documentation
 nav:
   - Home: index.md
   - 'User Guide':
