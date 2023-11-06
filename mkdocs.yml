@@ -3,7 +3,8 @@ site_url: https://memgpt.ai/
 nav:
   - Home: index.md
   - 'User Guide':
-    - quickstart.md
+    - 'Quickstart': quickstart.md
+    - 'Examples': examples.md
     - 'Configuration': config.md
     - 'LLM Endpoints': endpoints.md
     - 'External Data Sources': data_sources.md
