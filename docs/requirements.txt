@@ -1,9 +1,4 @@
 docutils>=0.18
 furo
 myst-parser
-sphinx-autobuild
-sphinx-autodoc-typehints
-sphinx-click
-sphinx-copybutton
-sphinx>=4.4,!=5.1
-sphinxext.opengraph
+mkdocs
