@@ -27,12 +27,6 @@ nav:
     - 'Adding support for new LLMs': adding_wrappers.md
     - 'Contributing to the codebase': contributing.md
 theme: readthedocs
-  # highlightjs: true
-  # hljs_languages:
-  #   - yaml
-  #   - json
-  #   - python
-# include_homepage_in_sidebar: false
 markdown_extensions:
   - admonition
 plugins:
