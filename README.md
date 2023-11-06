@@ -90,8 +90,13 @@ You can run the following commands in the MemGPT CLI prompt:
 * `/attach`: Attach a loaded data source to the agent
 * `/save`: Save a checkpoint of the current agent/conversation state
 * `/dump`: View the current message log (see the contents of main context)
+* `/dump <count>`: View the last <count> messages (all if <count> is omitted)
 * `/memory`: Print the current contents of agent memory
 * `/pop`: Undo the last message in the conversation
+* `/pop <count>`: Undo the last messages in the conversation. It defaults to 3, which usually is one turn around in the conversation
+* `/retry`: Pops the last answer and tries to get another one
+* `/rethink <text>`: Will replace the inner dialog of the last assistant message with the <text> to help shaping the conversation
+* `/rewrite`: Will replace the last assistant answer with the given text to correct or force the answer
 * `/heartbeat`: Send a heartbeat system message to the agent
 * `/memorywarning`: Send a memory warning system message to the agent
 
@@ -167,10 +172,6 @@ Note: your Azure endpoint must support functions or you will get an error. See h
 
 #### Custom Endpoints
 To use custom endpoints, run `export OPENAI_API_BASE=<MY_CUSTOM_URL>` and then re-run `memgpt configure` to set the custom endpoint as the default endpoint.
-
-
-
-
 
 <details>
 <summary><h2>Deprecated API</h2></summary>
@@ -275,39 +276,6 @@ You can run MemGPT with local LLMs too. See [instructions here](/memgpt/local_ll
 ```
 </details>
 
-
-### Interactive CLI commands
-
-These are the commands for the CLI, **not the Discord bot**! The Discord bot has separate commands you can see in Discord by typing `/`.
-
-While using MemGPT via the CLI (not Discord!) you can run various commands:
-
-```text
-//
-  toggle multiline input mode
-/exit
-  exit the CLI
-/save
-  save a checkpoint of the current agent/conversation state
-/load
-  load a saved checkpoint
-/dump <count>
-  view the last <count> messages (all if <count> is omitted)
-/memory
-  print the current contents of agent memory
-/pop <count>
-  undo the last messages in the conversation. It defaults to 3, which usually is one turn around in the conversation
-/retry
-  pops the last answer and tries to get another one
-/rethink <text>
-  will replace the inner dialog of the last assistant message with the <text> to help shaping the conversation
-/rewrite
-  will replace the last assistant answer with the given text to correct or force the answer
-/heartbeat
-  send a heartbeat system message to the agent
-/memorywarning
-  send a memory warning system message to the agent
-```
 ## Example applications
 <details open>
 <summary><h3>Use MemGPT to talk to your Database!</h3></summary>
