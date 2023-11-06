@@ -11,8 +11,8 @@ You can read more about the research behind MemGPT at [https://memgpt.ai](https:
 
 ## Getting started
 
-* [Chat with the MemGPT Discord bot](discord_bot.md)
-* [Run MemGPT locally on your own computer](quickstart.md)
+* [Chat with the MemGPT Discord bot](../discord_bot)
+* [Run MemGPT locally on your own computer](../quickstart)
 
 ## Join the community!
 
