@@ -1,9 +1,9 @@
 import os
 from urllib.parse import urljoin
 import requests
-import tiktoken
 
 from .settings import SIMPLE
+from ..utils import count_tokens
 from ...constants import LLM_MAX_TOKENS
 from ...errors import LocalLLMError
 
@@ -12,11 +12,6 @@ HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
 MODEL_NAME = os.getenv("OLLAMA_MODEL")  # ollama API requires this in the request
 OLLAMA_API_SUFFIX = "/api/generate"
 DEBUG = False
-
-
-def count_tokens(s: str, model: str = "gpt-4") -> int:
-    encoding = tiktoken.encoding_for_model(model)
-    return len(encoding.encode(s))
 
 
 def get_ollama_completion(prompt, settings=SIMPLE, grammar=None):
