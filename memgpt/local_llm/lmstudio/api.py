@@ -53,7 +53,7 @@ def get_lmstudio_completion(prompt, settings=SIMPLE, api="chat"):
             else:
                 raise Exception(
                     f"API call got non-200 response code (code={response.status_code}, msg={response.text}) for address: {URI}."
-                    + f"Make sure that the LM Studio local inference server is running and reachable at {URI}."
+                    + f" Make sure that the LM Studio local inference server is running and reachable at {URI}."
                 )
     except:
         # TODO handle gracefully

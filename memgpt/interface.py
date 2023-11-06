@@ -57,7 +57,7 @@ async def system_message(msg):
     print(fstr.format(msg=msg))
 
 
-async def user_message(msg, raw=False):
+async def user_message(msg, raw=False, dump=False, debug=DEBUG):
     def print_user_message(icon, msg, printf=print):
         if STRIP_UI:
             printf(f"{icon} {msg}")
@@ -66,6 +66,10 @@ async def user_message(msg, raw=False):
 
     def printd_user_message(icon, msg):
         return print_user_message(icon, msg)
+
+    if not (raw or dump or debug):
+        # we do not want to repeat the message in normal use
+        return
 
     if isinstance(msg, str):
         if raw:
@@ -78,14 +82,20 @@ async def user_message(msg, raw=False):
                 printd(f"Warning: failed to parse user message into json")
                 printd_user_message("🧑", msg)
                 return
-
     if msg_json["type"] == "user_message":
+        if dump:
+            print_user_message("🧑", msg_json["message"])
+            return
         msg_json.pop("type")
         printd_user_message("🧑", msg_json)
     elif msg_json["type"] == "heartbeat":
-        if DEBUG:
+        if debug:
             msg_json.pop("type")
             printd_user_message("💓", msg_json)
+        elif dump:
+            print_user_message("💓", msg_json)
+            return
+
     elif msg_json["type"] == "system_message":
         msg_json.pop("type")
         printd_user_message("🖥️", msg_json)
@@ -93,7 +103,7 @@ async def user_message(msg, raw=False):
         printd_user_message("🧑", msg_json)
 
 
-async def function_message(msg):
+async def function_message(msg, debug=DEBUG):
     def print_function_message(icon, msg, color=Fore.RED, printf=print):
         if STRIP_UI:
             printf(f"⚡{icon} [function] {msg}")
@@ -101,7 +111,7 @@ async def function_message(msg):
             printf(f"{color}{Style.BRIGHT}⚡{icon} [function] {color}{msg}{Style.RESET_ALL}")
 
     def printd_function_message(icon, msg, color=Fore.RED):
-        return print_function_message(icon, msg, color, printf=printd)
+        return print_function_message(icon, msg, color, printf=(print if debug else printd))
 
     if isinstance(msg, dict):
         printd_function_message("", msg)
@@ -112,7 +122,7 @@ async def function_message(msg):
     elif msg.startswith("Error: "):
         printd_function_message("🔴", msg)
     elif msg.startswith("Running "):
-        if DEBUG:
+        if debug:
             printd_function_message("", msg)
         else:
             match = re.search(r"Running (\w+)\((.*)\)", msg)
@@ -153,14 +163,20 @@ async def function_message(msg):
         try:
             msg_dict = json.loads(msg)
             if "status" in msg_dict and msg_dict["status"] == "OK":
-                printd_function_message("", msg, color=Fore.GREEN)
+                printd_function_message("", str(msg), color=Fore.GREEN)
+            else:
+                printd_function_message("", str(msg), color=Fore.RED)
         except Exception:
-            printd(f"Warning: did not recognize function message {type(msg)} {msg}")
+            print(f"Warning: did not recognize function message {type(msg)} {msg}")
             printd_function_message("", msg)
 
 
-async def print_messages(message_sequence):
+async def print_messages(message_sequence, dump=False):
+    idx = len(message_sequence)
     for msg in message_sequence:
+        if dump:
+            print(f"[{idx}] ", end="")
+            idx -= 1
         role = msg["role"]
         content = msg["content"]
 
@@ -171,14 +187,17 @@ async def print_messages(message_sequence):
             if msg.get("function_call"):
                 if content is not None:
                     await internal_monologue(content)
-                await function_message(msg["function_call"])
+                # I think the next one is not up to date
+                # await function_message(msg["function_call"])
+                args = json.loads(msg["function_call"].get("arguments"))
+                await assistant_message(args.get("message"))
                 # assistant_message(content)
             else:
                 await internal_monologue(content)
         elif role == "user":
-            await user_message(content)
+            await user_message(content, dump=dump)
         elif role == "function":
-            await function_message(content)
+            await function_message(content, debug=dump)
         else:
             print(f"Unknown role: {content}")
 

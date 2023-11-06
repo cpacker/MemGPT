@@ -19,6 +19,8 @@ jobs:
       PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
+    timeout-minutes: 5
+
     steps:
     - uses: actions/checkout@v1
 
