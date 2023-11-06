@@ -7,12 +7,11 @@ nav:
     - 'Example - perpetual chatbot': example_chat.md
     - 'Example - chat with your data': example_data.md
     - 'Configuration': config.md
-    - 'LLM Endpoints': endpoints.md
-    - 'External Data Sources': data_sources.md
+    - 'Changing the LLM backend': endpoints.md
+    - 'External data sources': data_sources.md
     - 'FAQ': cli_faq.md
   - 'Discord Bot':
-    - discord_bot.md
-    - discord_bot_faq.md
+    - 'Chatting with MemGPT Bot': discord_bot.md
   - 'Local LLM':
     - local_llm.md
     - webui.md
@@ -20,9 +19,10 @@ nav:
     - custom_llm.md
     - local_llm_faq.md
   - 'Advanced':
-    - 'Configuring Storage Backends': storage.md
-    - adding_wrappers.md
-  - 'Contributing': contributing.md
+    - 'Configuring storage backends': storage.md
+    - 'Supporting new LLM backends': adding_wrappers.md
+    - 'Improving local LLM performance': adding_wrappers.md
+    - 'Contributing to the codebase': contributing.md
 theme: readthedocs
   # highlightjs: true
   # hljs_languages:

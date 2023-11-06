@@ -1,5 +1,3 @@
-## Configuration
-
 ### Configuring the agent
 You can set agent defaults by running `memgpt configure`.
 
@@ -20,15 +18,15 @@ The `memgpt run` command supports the following optional flags (if set, will ove
 You can add new human or persona definitions either by providing a file (using the `-f` flag) or text (using the `--text` flag).
 ```sh
 # add a human
-memgpt add human [-f <FILENAME>] [--text <TEXT>]
+memgpt add human [--name <NAME>] [-f <FILENAME>] [--text <TEXT>]
 
 # add a persona
-memgpt add persona [-f <FILENAME>] [--text <TEXT>]
+memgpt add persona [--name <NAME>] [-f <FILENAME>] [--text <TEXT>]
 ```
 
 You can view available persona and human files with the following command:
 ```sh
-memgpt list [human/persona]
+memgpt list [humans/personas]
 ```
 
 ### Custom Presets
