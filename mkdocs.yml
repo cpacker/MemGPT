@@ -21,6 +21,7 @@ nav:
     - 'LM Studio': lmstudio.md
     - 'llama.cpp': llamacpp.md
     - 'koboldcpp': koboldcpp.md
+    - 'ollama': ollama.md
     - 'Troubleshooting': local_llm_faq.md
   - 'Advanced':
     - 'Configuring storage backends': storage.md
