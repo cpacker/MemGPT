@@ -4,7 +4,9 @@ MemGPT enables LLMs to manage their own memory and overcome limited context wind
 
 You can use MemGPT to:
 * create perpetual chatbots that learn about you and change their own personalities over time
-* create chatbots that can read (and write to!) large data stores
+* create perpetual chatbots that can read (and write to!) large data stores
+
+You can read more about the research behind MemGPT at [https://memgpt.ai](https://memgpt.ai).
 
 ## Getting started
 
