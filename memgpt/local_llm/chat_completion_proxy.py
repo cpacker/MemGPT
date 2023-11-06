@@ -29,6 +29,7 @@ def get_chat_completion(
 ):
     global has_shown_warning
     grammar = None
+    grammar_name = None
 
     if HOST is None:
         raise ValueError(f"The OPENAI_API_BASE environment variable is not defined. Please set it in your environment.")
