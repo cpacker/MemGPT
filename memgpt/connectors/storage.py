@@ -53,7 +53,6 @@ class StorageConnector:
 
     @staticmethod
     def list_loaded_data():
-
         storage_type = MemGPTConfig.load().archival_storage_type
         if storage_type == "local":
             from memgpt.connectors.local import LocalStorageConnector

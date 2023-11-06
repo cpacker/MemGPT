@@ -57,7 +57,7 @@ async def system_message(msg):
     print(fstr.format(msg=msg))
 
 
-async def user_message(msg, raw=False, debug=DEBUG):
+async def user_message(msg, raw=False, dump=False, debug=DEBUG):
     def print_user_message(icon, msg, printf=print):
         if STRIP_UI:
             printf(f"{icon} {msg}")
@@ -66,6 +66,10 @@ async def user_message(msg, raw=False, debug=DEBUG):
 
     def printd_user_message(icon, msg):
         return print_user_message(icon, msg)
+
+    if not (raw or dump or debug):
+        # we do not want to repeat the message in normal use
+        return
 
     if isinstance(msg, str):
         if raw:
@@ -79,12 +83,19 @@ async def user_message(msg, raw=False, debug=DEBUG):
                 printd_user_message("🧑", msg)
                 return
     if msg_json["type"] == "user_message":
+        if dump:
+            print_user_message("🧑", msg_json["message"])
+            return
         msg_json.pop("type")
         printd_user_message("🧑", msg_json)
     elif msg_json["type"] == "heartbeat":
         if debug:
             msg_json.pop("type")
             printd_user_message("💓", msg_json)
+        elif dump:
+            print_user_message("💓", msg_json)
+            return
+
     elif msg_json["type"] == "system_message":
         msg_json.pop("type")
         printd_user_message("🖥️", msg_json)
@@ -181,7 +192,7 @@ async def print_messages(message_sequence, dump=False):
             else:
                 await internal_monologue(content)
         elif role == "user":
-            await user_message(content, debug=dump)
+            await user_message(content, dump=dump)
         elif role == "function":
             await function_message(content, debug=dump)
         else:
