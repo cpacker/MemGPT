@@ -103,6 +103,9 @@ You can run the following commands in the MemGPT CLI prompt:
 
 Once you exit the CLI with `/exit`, you can resume chatting with the same agent by specifying the agent name in `memgpt run --agent <NAME>`.
 
+## Documentation 
+See full documentation at: https://memgpt.readthedocs.io/
+
 ## Support
 For issues and feature requests, please [open a GitHub issue](https://github.com/cpacker/MemGPT/issues) or message us on our `#support` channel on [Discord](https://discord.gg/9GEQrxmVyE)
 
