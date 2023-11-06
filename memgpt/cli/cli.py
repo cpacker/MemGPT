@@ -186,7 +186,9 @@ def attach(
         fg=typer.colors.GREEN,
     )
 
-def version(): 
-    import memgpt 
+
+def version():
+    import memgpt
+
     print(memgpt.__version__)
     return memgpt.__version__
