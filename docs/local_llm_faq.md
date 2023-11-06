@@ -53,9 +53,13 @@ This warning means that you did not specify a specific wrapper using the `--mode
 
 #### "Failed to parse JSON from local LLM response"
 
-This error occurs when the LLM you're using outputs a string that cannot be parsed into a MemGPT function call.
+This error occurs when the LLM you're using outputs a string that cannot be parsed into a MemGPT function call. This is basically an LLM output error - the LLM was not able to properly follow MemGPT instructions and generate a MemGPT-compatible function call string.
 
-Many of these errors can be fixed by using a wrapper that uses grammars (required a grammar-enabled backend). See instructions about [grammars here](../local_llm).
+**You can reduce the frequency of these errors by using better models, and wrappers with grammar-based sampling**. For example, moving from a 2B model to a 70B model, or moving from a quantized model to the full unquantized version of the same model.
+
+**If you use really small models (< 7B) or heavily quantized models (< Q5), you are likely to run into many MemGPT LLM output errors.** Try using the [recommended models first](../local_llm) before experimenting with your own custom models.
+
+Many JSON-related output errors can be fixed by using a wrapper that uses grammars (required a grammar-enabled backend). See instructions about [grammars here](../local_llm).
 
 For example, let's look at the following error:
 ```text
