@@ -769,11 +769,8 @@ class Agent(object):
         return None
 
     def edit_memory_append(self, name, content):
-        print("edit append")
         new_len = self.memory.edit_append(name, content)
-        print("rebuild memory")
         self.rebuild_memory()
-        print("done")
         return None
 
     def edit_memory_replace(self, name, old_content, new_content):
