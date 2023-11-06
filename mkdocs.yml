@@ -4,7 +4,8 @@ nav:
   - Home: index.md
   - 'User Guide':
     - 'Quickstart': quickstart.md
-    - 'Examples': examples.md
+    - 'Example - perpetual chatbot': example_chat.md
+    - 'Example - chat with your data': example_data.md
     - 'Configuration': config.md
     - 'LLM Endpoints': endpoints.md
     - 'External Data Sources': data_sources.md
