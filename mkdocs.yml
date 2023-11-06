@@ -36,3 +36,5 @@ theme: readthedocs
 # include_homepage_in_sidebar: false
 markdown_extensions:
   - admonition
+plugins:
+  - search
