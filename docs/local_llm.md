@@ -34,7 +34,7 @@ The default wrapper is `airoboros-l2-70b-2.1-grammar` if you are using a backend
 
 Note: the wrapper name does **not** have to match the model name. For example, the `dolphin-2.1-mistral-7b` model works better with the `airoboros-l2-70b-2.1` wrapper than the `dolphin-2.1-mistral-7b` wrapper. The model you load inside your LLM backend (e.g. LM Studio) determines what model is actually run, the `--model` flag just determines how the prompt is formatted before it is passed to the LLM backend.
 
-### Grammar
+### Grammars
 
 Grammar-based sampling can help improve the performance of MemGPT when using local LLMs. Grammar-based sampling works by restricting the outputs of an LLM to a "grammar", for example, the MemGPT JSON function call grammar. Without grammar-based sampling, it is common to encounter JSON-related errors when using local LLMs with MemGPT.
 
