@@ -14,3 +14,6 @@ In your terminal where you're running MemGPT, run:
 export OPENAI_API_BASE=http://localhost:1234
 export BACKEND_TYPE=lmstudio
 ```
+
+* **Make sure that "context length" is set to the max context length of the model you're using (e.g. 8000 for Mistral 7B variants)**
+* **If you see "Prompt Formatting" in your menu, turn it off**
