@@ -1,7 +1,6 @@
 import os
 from urllib.parse import urljoin
 import requests
-import tiktoken
 
 from .settings import SIMPLE
 from ..utils import load_grammar_file, count_tokens
