@@ -7,13 +7,12 @@ Then, you can install MemGPT from source with:
 ```sh
 git clone git@github.com:cpacker/MemGPT.git
 poetry shell
-poetry install
+poetry install -E dev
 ```
 We recommend installing pre-commit to ensure proper formatting during development:
 ```sh
-pip install pre-commit
-pre-commit install
-pre-commit run --all-files
+poetry run pre-commit install
+poetry run pre-commit run --all-files
 ```
 
 ### Formatting

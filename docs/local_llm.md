@@ -6,6 +6,12 @@
 
     Make sure to check the [local LLM troubleshooting page](../local_llm_faq) to see common issues before raising a new issue or posting on Discord.
 
+### Installing dependencies
+To install dependencies required for running local models, run:
+```
+pip install `pymemgpt[local]`
+```
+
 ### Quick overview
 
 1. Put your own LLM behind a web server API (e.g. [oobabooga web UI](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui))
