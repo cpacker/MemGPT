@@ -1,6 +1,6 @@
 ## Using MemGPT to create a perpetual chatbot
 
-_Before starting any of these examples, make sure that you've properly installed MemGPT via the [installation instructions]()._
+_Before starting any of these examples, make sure that you've properly installed MemGPT via the [installation instructions](quickstart.md)._
 
 In this example, we're going to use MemGPT to create a chatbot with a custom persona. MemGPT chatbots are "perpetual chatbots", meaning that they can be run indefinitely without any context length limitations. MemGPT chatbots are self-aware that they have a "fixed context window", and will manually manage their own memories to get around this problem by moving information in and out of their small memory window and larger external storage.
 
@@ -63,4 +63,22 @@ memgpt list humans
 |         |                                                                                                                                                |
 |   bob   | Name: Bob Builder. Occupation: Software Engineer at a big tech company. Hobbies: running, hiking, rock climbing, craft beer, ultimate frisbee. |
 +---------+------------------------------------------------------------------------------------------------------------------------------------------------+
+```
+
+### Testing out our new chatbot
+
+Let's try out our new chatbot Chaz, combined with our new user profile Bob:
+
+```sh
+# Alternatively we can run `memgpt configure`, then `memgpt run` without the --persona and --human flags
+memgpt run --persona chaz --human bob
+```
+```text
+💭 First login detected. Prepare to introduce myself as Chaz, the AI life coach. Also, inquire about Bob's day and his expectations from our interaction.
+🤖 Hello Bob! I'm Chaz, your AI life coach. I'm here to help you achieve your full potential! How was your day? And how may I assist you in becoming your best self?
+> Enter your message: I'm trying to find out what to do with my life. Maybe tech just isn't for me...
+
+💭 Career crisis detected. Commence motivational dialogue and initiate discussions to understand user's aspirations and insecurities. Validate feelings and offer hope. Also, determine interest in exploring alternatives outside the tech field.
+🤖 It's perfectly okay to feel uncertain, Bob. Life is a journey and it's never a straight path. If you feel tech isn't your calling, we can explore your passions and look for alternatives. But remember, there's a reason you've come this far in tech. Let's uncover your true potential together, shall we?
+> Enter your message:
 ```

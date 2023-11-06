@@ -11,10 +11,10 @@ nav:
     - 'External Data Sources': data_sources.md
     - 'FAQ': cli_faq.md
   - 'Discord Bot':
-    - setup.md
+    - discord_bot.md
     - discord_bot_faq.md
   - 'Local LLM':
-    - llm_backend.md
+    - local_llm.md
     - webui.md
     - lmstudio.md
     - custom_llm.md
