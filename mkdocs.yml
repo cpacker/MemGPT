@@ -6,10 +6,23 @@ nav:
     - quickstart.md
     - config.md
     - data_sources.md
-  - 'Local LLMs':
+    - cli_faq.md
+  - 'Discord Bot':
+    - setup.md
+    - discord_bot_faq.md
+  - 'Local LLM':
+    - llm_backend.md
     - webui.md
     - lmstudio.md
     - custom_llm.md
+    - local_llm_faq.md
   - 'Advanced'
-  - About: about.md
+    - adding_wrappers.md
+    - adding_wrappers.md
 theme: readthedocs
+  highlightjs: true
+  hljs_languages:
+    - yaml
+    - json
+    - python
+# include_homepage_in_sidebar: false

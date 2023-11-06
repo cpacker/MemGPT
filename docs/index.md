@@ -1,18 +1,14 @@
-# Welcome to MkDocs
+# Welcome to MemGPT 📚🦙
 
-For full documentation visit [mkdocs.org](https://www.mkdocs.org).
+MemGPT gives LLMs the tools to manage their own memory and overcome limited context windows!
 
+You can use MemGPT to:
 
-## Commands
+* create perpetual chatbots that learn about you and change their own personalities over time
+* create chatbots that can read (and write to!) large data stores
 
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs -h` - Print help message and exit.
+## Getting started
 
-## Project layout
-
-    mkdocs.yml    # The configuration file.
-    docs/
-        index.md  # The documentation homepage.
-        ...       # Other markdown pages, images and other files.
+* [Try out the MemGPT Discord bot]()
+* [Run MemGPT locally using the OpenAI API]()
+* [Run MemGPT locally using local LLMs]()
