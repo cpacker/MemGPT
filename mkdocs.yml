@@ -17,7 +17,7 @@ nav:
   - 'Local LLM':
     - 'Overview': local_llm.md
     - 'oobabooga web UI': webui.md
-    - 'oobabooga web UI (via RunPod)': webui_runpod.md
+    - 'oobabooga web UI (on RunPod)': webui_runpod.md
     - 'LM Studio': lmstudio.md
     - 'llama.cpp': llamacpp.md
     - 'koboldcpp': koboldcpp.md
