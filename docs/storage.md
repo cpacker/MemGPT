@@ -11,7 +11,7 @@ MemGPT will default to using local storage (saved at `~/.memgpt/archival/` for l
 ## Postgres
 In user to us the Postgres backend, you must have a running Postgres database that MemGPT can write to. You can enable the Postgres backend by running `memgpt configure` and selecting `postgres` for archival storage, which will then prompt for the database URI (e.g. `postgresql+pg8000://<USER>:<PASSWORD>@<IP>:5432/<DB_NAME>`). To enable the Postgres backend, make sure to install the required dependencies with:
 ```
-pip install `pymemgpt[postgres]`
+pip install 'pymemgpt[postgres]'
 ```
 
 

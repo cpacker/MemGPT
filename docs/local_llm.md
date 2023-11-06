@@ -9,7 +9,7 @@
 ### Installing dependencies
 To install dependencies required for running local models, run:
 ```
-pip install `pymemgpt[local]`
+pip install 'pymemgpt[local]'
 ```
 
 ### Quick overview

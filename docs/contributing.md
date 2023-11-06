@@ -6,7 +6,6 @@ First, install Poetry using [the official instructions here](https://python-poet
 Then, you can install MemGPT from source with:
 ```sh
 git clone git@github.com:cpacker/MemGPT.git
-poetry shell
 poetry install -E dev
 ```
 We recommend installing pre-commit to ensure proper formatting during development:
