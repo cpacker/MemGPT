@@ -34,3 +34,5 @@ theme: readthedocs
   #   - json
   #   - python
 # include_homepage_in_sidebar: false
+markdown_extensions:
+  - admonition

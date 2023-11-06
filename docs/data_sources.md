@@ -1,14 +1,42 @@
 ## Loading External Data
-MemGPT supports pre-loading data into archival memory. In order to made data accessible to your agent, you must load data in with `memgpt load`, then attach the data source to your agent. You can view available data sources with: 
+MemGPT supports pre-loading data into archival memory. In order to made data accessible to your agent, you must load data in with `memgpt load`, then attach the data source to your agent. 
+
+### Viewing available data sources
+You can view available data sources with: 
 ```
 memgpt list sources
 ```
-You can attach data to your agent (which will place the data in your agent's archival memory) in two ways:
+```
++----------------+----------+----------+
+|      Name      | Location | Agents   |
++----------------+----------+----------+
+| short-stories  |  local   |  agent_1 |
+|      arxiv     |  local   |          |
+|  memgpt-docs   |  local   |  agent_1 |
++----------------+----------+----------+
+```
+The `Agents` column indicates which agents have access to the data, while `Location` indicates what storage backend the data has been loaded into. 
 
-1. Run `memgpt attach --agent <AGENT-NAME> --data-source <DATA-SOURCE-NAME>`
-2. While chatting with the agent, enter the `/attach` command and select the data source
+### Attaching data to agents
+Attaching a data source to your agent loads the data into your agent's archival memory to access. You can attach data to your agent in two ways:
 
-To encourage your agent to reference its archival memory, we recommend adding phrases like "_search your archival memory..._" for the best results.
+*[Option 1]* From the CLI, run: 
+```
+memgpt attach --agent <AGENT-NAME> --data-source <DATA-SOURCE-NAME>
+```
+
+*[Option 2]*  While chatting with the agent, enter the `/attach` command and select the data source
+```
+> Enter your message: /attach
+? Select data source (Use arrow keys)
+ » short-stories
+   arxiv
+   memgpt-docs
+```
+
+
+!!! note "Hint"
+    To encourage your agent to reference its archival memory, we recommend adding phrases like "_search your archival memory..._" for the best results.
 
 
 
@@ -45,7 +73,7 @@ memgpt load vector-database --name <NAME> \
 ```
 Since embeddings are already provided, MemGPT will not re-compute the embeddings. 
 
-### Loading a Llama Index dump 
+### Loading a LlamaIndex dump 
 If you have a Llama Index `VectorIndex` which was saved to disk, you can load it into MemGPT by specifying the directory the index was saved to: 
 ```sh
 memgpt load index --name <NAME> --dir <INDEX-DIR>
@@ -53,5 +81,5 @@ memgpt load index --name <NAME> --dir <INDEX-DIR>
 Since Llama Index will have already computing embeddings, MemGPT will not re-compute embeddings. 
 
 
-### Loading custom data sources
-We highly encourage contributions for new data sources, which can be added as a new [CLI data load command](https://github.com/cpacker/MemGPT/blob/main/memgpt/cli/cli_load.py).
+### Loading other types of data
+We highly encourage contributions for new data sources, which can be added as a new [CLI data load command](https://github.com/cpacker/MemGPT/blob/main/memgpt/cli/cli_load.py). We recommend checking for [Llama Index connectors](https://gpt-index.readthedocs.io/en/v0.6.3/how_to/data_connectors.html) that may support ingesting the data you're interested in loading. 
