@@ -24,7 +24,7 @@ nav:
     - 'Troubleshooting': local_llm_faq.md
   - 'Advanced':
     - 'Configuring storage backends': storage.md
-    - 'Adding local LLM wrappers': adding_wrappers.md
+    - 'Adding support for new LLMs': adding_wrappers.md
     - 'Contributing to the codebase': contributing.md
 theme: readthedocs
   # highlightjs: true

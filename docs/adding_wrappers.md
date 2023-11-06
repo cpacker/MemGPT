@@ -1,5 +1,4 @@
-<details>
- <summary><h2>🙋 Adding support for new LLMs + improving performance</strong></h2></summary>
+## Adding support for new LLMs + improving performance
 
 ⁉️ When using open LLMs with MemGPT, **the main failure case will be your LLM outputting a string that cannot be understood by MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)`) and interact with the user (`send_message(...)`), so your LLM needs generate outputs that can be parsed into MemGPT function calls.
 
@@ -14,8 +13,7 @@ Different LLMs are trained using different prompt formats (eg `#USER:` vs `<im_s
 
 We currently only support a few prompt formats in this repo ([located here](https://github.com/cpacker/MemGPT/tree/main/memgpt/local_llm/llm_chat_completion_wrappers))! If you write a new parser, please open a PR and we'll merge it in.
 
-<details>
- <summary><h3>Adding a new wrapper (change the prompt format + function parser)</strong></h3></summary>
+### Adding a new wrapper (change the prompt format + function parser)
 
 To make a new wrapper (for example, because you want to try a different prompt format), you just need to subclass `LLMChatCompletionWrapper`. Your new wrapper class needs to implement two functions:
 
@@ -38,12 +36,8 @@ class LLMChatCompletionWrapper(ABC):
 
 You can follow our example wrappers ([located here](https://github.com/cpacker/MemGPT/tree/main/memgpt/local_llm/llm_chat_completion_wrappers)).
 
-</details>
 
-<details>
- <summary><h3>Example wrapper for Airoboros</strong></h3></summary>
-
-## Example with [Airoboros](https://huggingface.co/jondurbin/airoboros-l2-70b-2.1) (llama2 finetune)
+### Example with [Airoboros](https://huggingface.co/jondurbin/airoboros-l2-70b-2.1) (llama2 finetune)
 
 To help you get started, we've implemented an example wrapper class for a popular llama2 model **finetuned on function calling** (Airoboros). We want MemGPT to run well on open models as much as you do, so we'll be actively updating this page with more examples. Additionally, we welcome contributions from the community! If you find an open LLM that works well with MemGPT, please open a PR with a model wrapper and we'll merge it ASAP.
 
@@ -75,16 +69,11 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
 
 See full file [here](llm_chat_completion_wrappers/airoboros.py).
 
-</details>
-
-</details>
-
 ---
 
 ## Wrapper FAQ
 
-<details>
- <summary><h3>Status of ChatCompletion w/ function calling and open LLMs</strong></h3></summary>
+### Status of ChatCompletion w/ function calling and open LLMs
 
 MemGPT uses function calling to do memory management. With [OpenAI's ChatCompletion API](https://platform.openai.com/docs/api-reference/chat/), you can pass in a function schema in the `functions` keyword arg, and the API response will include a `function_call` field that includes the function name and the function arguments (generated JSON). How this works under the hood is your `functions` keyword is combined with the `messages` and `system` to form one big string input to the transformer, and the output of the transformer is parsed to extract the JSON function call.
 
@@ -94,13 +83,8 @@ In the future, more open LLMs and LLM servers (that can host OpenAI-compatable C
 
 2. Partly because of how complex it is to support function calling, most (all?) of the community projects that do OpenAI ChatCompletion endpoints for arbitrary open LLMs do not support function calling, because if they did, they would need to write model-specific parsing code for each one.
 
-</details>
-
-<details>
- <summary><h3>What is this all this extra code for?</strong></h3></summary>
+### What is this all this extra code for?
 
 Because of the poor state of function calling support in existing ChatCompletion API serving code, we instead provide a light wrapper on top of ChatCompletion that adds parsers to handle function calling support. These parsers need to be specific to the model you're using (or at least specific to the way it was trained on function calling). We hope that our example code will help the community add additional compatability of MemGPT with more function-calling LLMs - we will also add more model support as we test more models and find those that work well enough to run MemGPT's function set.
 
 To run the example of MemGPT with Airoboros, you'll need to host the model behind some LLM web server (for example [webui](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui)). Then, all you need to do is point MemGPT to this API endpoint by setting the environment variables `OPENAI_API_BASE` and `BACKEND_TYPE`. Now, instead of calling ChatCompletion on OpenAI's API, MemGPT will use it's own ChatCompletion wrapper that parses the system, messages, and function arguments into a format that Airoboros has been finetuned on, and once Airoboros generates a string output, MemGPT will parse the response to extract a potential function call (knowing what we know about Airoboros expected function call output).
-
-</details>
