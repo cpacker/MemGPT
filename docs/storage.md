@@ -1,9 +1,9 @@
 # Configuring Storage Backends 
 MemGPT supports both local and database storage for archival memory. You can configure which storage backend to use via `memgpt configure`. For larger datasets, we recommend using a database backend. 
 
-Note that MemGPT can only use one storage backend at a time. If you switch from local to database storage, you will need to re-load data and start agents from scratch. We currently do not support migrating between storage backends.   
+!!! warning "Switching storage backends"
 
-In order to load data into archival memory, use the `memgpt load` command (TODO: link)
+    MemGPT can only use one storage backend at a time. If you switch from local to database storage, you will need to re-load data and start agents from scratch. We currently do not support migrating between storage backends.   
 
 ## Local
 MemGPT will default to using local storage (saved at `~/.memgpt/archival/` for loaded data sources, and `~/.memgpt/agents/` for agent storage). 

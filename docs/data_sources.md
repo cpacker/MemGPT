@@ -1,5 +1,5 @@
 ## Loading External Data
-MemGPT supports pre-loading data into archival memory. In order to made data accessible to your agent, you must load data in with `memgpt load`, then attach the data source to your agent. 
+MemGPT supports pre-loading data into archival memory. In order to made data accessible to your agent, you must load data in with `memgpt load`, then attach the data source to your agent. You can configure where archival memory is stored by configuring the [storage backend](storage.md).
 
 ### Viewing available data sources
 You can view available data sources with: 
@@ -83,3 +83,4 @@ Since Llama Index will have already computing embeddings, MemGPT will not re-com
 
 ### Loading other types of data
 We highly encourage contributions for new data sources, which can be added as a new [CLI data load command](https://github.com/cpacker/MemGPT/blob/main/memgpt/cli/cli_load.py). We recommend checking for [Llama Index connectors](https://gpt-index.readthedocs.io/en/v0.6.3/how_to/data_connectors.html) that may support ingesting the data you're interested in loading. 
+
