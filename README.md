@@ -300,9 +300,9 @@ While using MemGPT via the CLI (not Discord!) you can run various commands:
 /retry
   pops the last answer and tries to get another one
 /rethink <text>
-  will replace the inner dialog of the last assistant message with the <text> to help shaping the conversation 
+  will replace the inner dialog of the last assistant message with the <text> to help shaping the conversation
 /rewrite
-  will replace the last assistant answer with the given text to correct or force the answer 
+  will replace the last assistant answer with the given text to correct or force the answer
 /heartbeat
   send a heartbeat system message to the agent
 /memorywarning
