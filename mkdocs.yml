@@ -13,11 +13,12 @@ nav:
   - 'Discord Bot':
     - 'Chatting with MemGPT Bot': discord_bot.md
   - 'Local LLM':
-    - local_llm.md
-    - webui.md
-    - lmstudio.md
-    - custom_llm.md
-    - local_llm_faq.md
+    - 'Overview': local_llm.md
+    - 'oobabooga web UI': webui.md
+    - 'LM Studio': lmstudio.md
+    - 'llama.cpp': llamacpp.md
+    - 'koboldcpp': koboldcpp.md
+    - 'Troubleshooting': local_llm_faq.md
   - 'Advanced':
     - 'Configuring storage backends': storage.md
     - 'Supporting new LLM backends': adding_wrappers.md
