@@ -116,7 +116,7 @@ memgpt list [human/persona]
 ### Data Sources (i.e. chat with your data)
 MemGPT supports pre-loading data into archival memory. You can attach data to your agent (which will place the data in your agent's archival memory) in two ways:
 
-1. Run `memgpt attach --agent <AGENT-NAME> --data-source <DATA-SOURCE-NAME>
+1. Run `memgpt attach --agent <AGENT-NAME> --data-source <DATA-SOURCE-NAME>`
 2. While chatting with the agent, enter the `/attach` command and select the data source.
 
 #### Loading Data

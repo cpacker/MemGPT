@@ -769,8 +769,11 @@ class Agent(object):
         return None
 
     def edit_memory_append(self, name, content):
+        print("edit append")
         new_len = self.memory.edit_append(name, content)
+        print("rebuild memory")
         self.rebuild_memory()
+        print("done")
         return None
 
     def edit_memory_replace(self, name, old_content, new_content):
@@ -800,8 +803,8 @@ class Agent(object):
             results_str = f"{results_pref} {json.dumps(results_formatted)}"
         return results_str
 
-    def archival_memory_insert(self, content, embedding=None):
-        self.persistence_manager.archival_memory.insert(content, embedding=None)
+    def archival_memory_insert(self, content):
+        self.persistence_manager.archival_memory.insert(content)
         return None
 
     def archival_memory_search(self, query, count=5, page=0):
@@ -1245,8 +1248,8 @@ class AgentAsync(Agent):
             results_str = f"{results_pref} {json.dumps(results_formatted)}"
         return results_str
 
-    async def archival_memory_insert(self, content, embedding=None):
-        await self.persistence_manager.archival_memory.a_insert(content, embedding=None)
+    async def archival_memory_insert(self, content):
+        await self.persistence_manager.archival_memory.a_insert(content)
         return None
 
     async def archival_memory_search(self, query, count=5, page=0):
