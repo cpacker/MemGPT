@@ -7,8 +7,8 @@ nav:
     - 'Example - perpetual chatbot': example_chat.md
     - 'Example - chat with your data': example_data.md
     - 'Configuration': config.md
-    - 'Changing the LLM backend': endpoints.md
     - 'External data sources': data_sources.md
+    - 'Changing the LLM backend': endpoints.md
     - 'FAQ': cli_faq.md
   - 'Discord Bot':
     - 'Chatting with MemGPT Bot': discord_bot.md
