@@ -10,7 +10,7 @@ MemGPT supports pre-loading data into archival memory. In order to made data acc
 We currently support loading from a directory and database dumps. We highly encourage contributions for new data sources, which can be added as a new [CLI data load command](https://github.com/cpacker/MemGPT/blob/main/memgpt/cli/cli_load.py).
 
 Loading from a directory:
-```
+```sh
 # loading a directory
 memgpt load directory --name <NAME> \
     [--input-dir <DIRECTORY>] [--input-files <FILE1> <FILE2>...] [--recursive]
@@ -27,12 +27,12 @@ memgpt load database --name <NAME>  \
     --password <PASSWORD> \ # Database password
     --dbname <DB_NAME> # Database name
 ```
-To encourage your agent to reference its archival memory, we recommend adding phrases like "search your archival memory..." for the best results.
+To encourage your agent to reference its archival memory, we recommend adding phrases like "_search your archival memory..._" for the best results.
 
 
 ### Connecting data to an agent
 
- You can attach data to your agent (which will place the data in your agent's archival memory) in two ways:
+You can attach data to your agent (which will place the data in your agent's archival memory) in two ways:
 
 1. Run `memgpt attach --agent <AGENT-NAME> --data-source <DATA-SOURCE-NAME>`
 2. While chatting with the agent, enter the `/attach` command and select the data source
