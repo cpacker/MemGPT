@@ -12,8 +12,9 @@ def embedding_model():
 
     # TODO: use embedding_endpoint in the future
     endpoint = config.embedding_model
+    print("Embedding endpoint", endpoint)
     if endpoint == "openai":
-        return OpenAIEmbedding()
+        return OpenAIEmbedding(api_base="https://api.openai.com", api_key=config.openai_key)
     elif endpoint == "azure":
         return OpenAIEmbedding(
             model="text-embedding-ada-002",
