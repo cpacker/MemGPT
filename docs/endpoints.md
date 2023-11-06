@@ -1,6 +1,6 @@
 ### LLM Backends
 
-You can use MemGPT with various LLM backends
+You can use MemGPT with various LLM backends, including the OpenAI API, Azure OpenAI, and various local (or self-hosted) LLM backends.
 
 #### OpenAI
 To use MemGPT with an OpenAI API key, simply set the `OPENAI_API_KEY` variable:
