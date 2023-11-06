@@ -28,7 +28,6 @@ def get_chat_completion(
     function_call="auto",
 ):
     global has_shown_warning
-    grammar = None
     grammar_name = None
 
     if HOST is None:
@@ -75,7 +74,7 @@ def get_chat_completion(
         else:
             llm_wrapper = DEFAULT_WRAPPER()
 
-    if grammar is not None and HOST_TYPE not in ["koboldcpp", "llamacpp", "webui"]:
+    if grammar_name is not None and HOST_TYPE not in ["koboldcpp", "llamacpp", "webui"]:
         print(f"Warning: grammars are currently only supported when using llama.cpp as the MemGPT local LLM backend")
 
     # First step: turn the message sequence into a prompt that the model expects
