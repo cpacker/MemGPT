@@ -22,6 +22,8 @@ nav:
     - 'llama.cpp': llamacpp.md
     - 'koboldcpp': koboldcpp.md
     - 'Troubleshooting': local_llm_faq.md
+  - 'Integrations':
+    - 'Autogen': autogen.md
   - 'Advanced':
     - 'Configuring storage backends': storage.md
     - 'Adding support for new LLMs': adding_wrappers.md
