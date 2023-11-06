@@ -1,6 +1,6 @@
-## Quick Start
+## Installation
 
-Install MemGPT:
+To install MemGPT, make sure you have Python installed on your computer, then run:
 
 ```sh
 pip install pymemgpt
@@ -30,11 +30,10 @@ Now, you can run MemGPT with:
 memgpt run
 ```
 
-### Examples
+In this example we use the OpenAI API, but you can run MemGPT with other backends! See:
 
-* [Using MemGPT to create a perpetual chatbot]()
-* [Using MemGPT to chat with your own data]()
-
+* [Running MemGPT on OpenAI Azure and custom OpenAI endpoints](endpoints.md)
+* [Running MemGPT with your own LLMs (Llama 2, Mistral 7B, etc.)](local_llm.md)
 
 ### In-chat commands
 
@@ -50,3 +49,10 @@ You can run the following commands during an active chat session in the MemGPT C
 * `/memorywarning`: Send a memory warning system message to the agent
 
 Once you exit the CLI with `/exit`, you can resume chatting with the same agent by specifying the agent name in `memgpt run --agent <NAME>`.
+
+### Examples
+
+Check out the following tutorials on how to set up custom chatbots and chatbots for talking to your data:
+
+* [Using MemGPT to create a perpetual chatbot](example_chat.md)
+* [Using MemGPT to chat with your own data](example_data.md)
