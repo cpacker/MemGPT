@@ -6,9 +6,11 @@ import tiktoken
 from .settings import SIMPLE
 from ..utils import load_grammar_file
 from ...constants import LLM_MAX_TOKENS
+from ...errors import LocalLLMError
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
+MODEL_NAME = os.getenv("OLLAMA_MODEL")  # ollama API requires this in the request
 OLLAMA_API_SUFFIX = "/api/generate"
 DEBUG = False
 
@@ -24,14 +26,18 @@ def get_ollama_completion(prompt, settings=SIMPLE, grammar=None):
     if prompt_tokens > LLM_MAX_TOKENS:
         raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {LLM_MAX_TOKENS} tokens)")
 
+    if MODEL_NAME is None:
+        raise LocalLLMError(f"Error: OLLAMA_MODEL not specified. Set OLLAMA_MODEL to the model you want to run (e.g. 'dolphin2.2-mistral')")
+
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
     request = settings
     request["prompt"] = prompt
-    request["model"] = TODO
+    request["model"] = MODEL_NAME
 
     # Set grammar
-    # if grammar is not None:
-    # request["grammar_string"] = load_grammar_file(grammar)
+    if grammar is not None:
+        # request["grammar_string"] = load_grammar_file(grammar)
+        raise NotImplementedError(f"Ollama does not support grammars")
 
     if not HOST.startswith(("http://", "https://")):
         raise ValueError(f"Provided OPENAI_API_BASE value ({HOST}) must begin with http:// or https://")
