@@ -31,4 +31,4 @@ Note: **your Azure endpoint must support functions** or you will get an error. S
 To use custom endpoints, run `export OPENAI_API_BASE=<MY_CUSTOM_URL>` and then re-run `memgpt configure` to set the custom endpoint as the default endpoint.
 
 #### Local LLMs
-Setting up MemGPT to run with local LLMs requires a bit more setup, follow [the instructions here](../local_llm)
+Setting up MemGPT to run with local LLMs requires a bit more setup, follow [the instructions here](../local_llm).
