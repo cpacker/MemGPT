@@ -165,7 +165,7 @@ class Dolphin21MistralWrapper(LLMChatCompletionWrapper):
                     prompt += f"\n{message['content']}"
                 # prompt += f"\nASSISTANT: {message['content']}"
                 # need to add the function call if there was one
-                if message["function_call"]:
+                if "function_call" in message and message["function_call"]:
                     prompt += f"\n{create_function_call(message['function_call'])}"
                 prompt += f"{IM_END_TOKEN}"
             elif message["role"] == "function":
