@@ -8,6 +8,7 @@ from .webui.api import get_webui_completion
 from .lmstudio.api import get_lmstudio_completion
 from .llamacpp.api import get_llamacpp_completion
 from .koboldcpp.api import get_koboldcpp_completion
+from .ollama.api import get_ollama_completion
 from .llm_chat_completion_wrappers import airoboros, dolphin, zephyr, simple_summary_wrapper
 from .utils import DotDict
 from ..prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
@@ -28,7 +29,7 @@ def get_chat_completion(
     function_call="auto",
 ):
     global has_shown_warning
-    grammar = None
+    grammar_name = None
 
     if HOST is None:
         raise ValueError(f"The OPENAI_API_BASE environment variable is not defined. Please set it in your environment.")
@@ -74,7 +75,7 @@ def get_chat_completion(
         else:
             llm_wrapper = DEFAULT_WRAPPER()
 
-    if grammar is not None and HOST_TYPE not in ["koboldcpp", "llamacpp", "webui"]:
+    if grammar_name is not None and HOST_TYPE not in ["koboldcpp", "llamacpp", "webui"]:
         print(f"Warning: grammars are currently only supported when using llama.cpp as the MemGPT local LLM backend")
 
     # First step: turn the message sequence into a prompt that the model expects
@@ -96,6 +97,8 @@ def get_chat_completion(
             result = get_llamacpp_completion(prompt, grammar=grammar_name)
         elif HOST_TYPE == "koboldcpp":
             result = get_koboldcpp_completion(prompt, grammar=grammar_name)
+        elif HOST_TYPE == "ollama":
+            result = get_ollama_completion(prompt)
         else:
             raise LocalLLMError(
                 f"BACKEND_TYPE is not set, please set variable depending on your backend (webui, lmstudio, llamacpp, koboldcpp)"
