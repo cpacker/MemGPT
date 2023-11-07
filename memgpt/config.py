@@ -29,6 +29,10 @@ from memgpt.presets import DEFAULT_PRESET, preset_options
 model_choices = [
     questionary.Choice("gpt-4"),
     questionary.Choice(
+        "gpt-4-turbo (developer preview)",
+        value="gpt-4-1106-preview",
+    ),
+    questionary.Choice(
         "gpt-3.5-turbo (experimental! function-calling performance is not quite at the level of gpt-4 yet)",
         value="gpt-3.5-turbo",
     ),
