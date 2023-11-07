@@ -122,27 +122,29 @@ def repair_even_worse_json(json_string):
 
 
 def clean_json(raw_llm_output, messages=None, functions=None):
+    from memgpt.utils import printd
+
     """Try a bunch of hacks to parse the data coming out of the LLM"""
     try:
-        print("clean json runs:", raw_llm_output)
+        # printd("clean json runs:", raw_llm_output)
         data = json.loads(raw_llm_output)
     except json.JSONDecodeError:
         try:
-            print("trying adding }")
+            printd("trying adding }")
             data = json.loads(raw_llm_output + "}")
         except json.JSONDecodeError:
             try:
                 repaired = repair_json_string(raw_llm_output)
-                print("trying my repair json:", repaired)
+                printd("trying my repair json:", repaired)
                 data = json.loads(repaired)
             except json.JSONDecodeError:
                 try:
                     repaired = repair_json_string(raw_llm_output)
-                    print("trying my repair json:", repaired)
+                    printd("trying my repair json:", repaired)
                     data = json.loads(repaired)
                 except json.JSONDecodeError:
                     try:
-                        print("trying first_json")
+                        printd("trying first_json")
                         data = extract_first_json(raw_llm_output + "}")
                     except:
                         raise
