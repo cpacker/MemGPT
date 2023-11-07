@@ -108,10 +108,10 @@ def initialize_message_sequence(
 def clean_img_tags(message_sequence):
     for message in message_sequence[:-1]:
         # Search image_id tag in messages
-        match = re.search(r'\[img-(\d+)\]', message["content"])
+        match = re.search(r"\[img-(\d+)\]", message["content"])
         if match:
             # Replace image_id tag
-            message["content"] = re.sub(r'\[img-(\d+)\]', r'image \1', message["content"])
+            message["content"] = re.sub(r"\[img-(\d+)\]", r"image \1", message["content"])
     return message_sequence
 
 
@@ -123,7 +123,7 @@ def get_ai_reply(
     function_call="auto",
 ):
     try:
-        message_sequence=clean_img_tags(message_sequence)
+        message_sequence = clean_img_tags(message_sequence)
         response = create(
             model=model,
             messages=message_sequence,
@@ -157,7 +157,7 @@ async def get_ai_reply_async(
     """Base call to GPT API w/ functions"""
 
     try:
-        message_sequence=clean_img_tags(message_sequence)
+        message_sequence = clean_img_tags(message_sequence)
         response = await acreate(
             model=model,
             messages=message_sequence,
@@ -639,7 +639,9 @@ class Agent(object):
                 printd(f"This is the first message. Running extra verifier on AI response.")
                 counter = 0
                 while True:
-                    response = get_ai_reply(model=self.model, message_sequence=input_message_sequence, functions=self.functions, image_data=image_data)
+                    response = get_ai_reply(
+                        model=self.model, message_sequence=input_message_sequence, functions=self.functions, image_data=image_data
+                    )
                     if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
 
@@ -648,7 +650,9 @@ class Agent(object):
                         raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
 
             else:
-                response = get_ai_reply(model=self.model, message_sequence=input_message_sequence, functions=self.functions, image_data=image_data)
+                response = get_ai_reply(
+                    model=self.model, message_sequence=input_message_sequence, functions=self.functions, image_data=image_data
+                )
 
             # Step 2: check if LLM wanted to call a function
             # (if yes) Step 3: call the function
@@ -1051,7 +1055,9 @@ class AgentAsync(Agent):
 
         return messages, heartbeat_request, function_failed
 
-    async def step(self, user_message, image_data, first_message=False, first_message_retry_limit=FIRST_MESSAGE_ATTEMPTS, skip_verify=False):
+    async def step(
+        self, user_message, image_data, first_message=False, first_message_retry_limit=FIRST_MESSAGE_ATTEMPTS, skip_verify=False
+    ):
         """Top-level event message handler for the MemGPT agent"""
 
         try:
@@ -1074,7 +1080,9 @@ class AgentAsync(Agent):
                 printd(f"This is the first message. Running extra verifier on AI response.")
                 counter = 0
                 while True:
-                    response = await get_ai_reply_async(model=self.model, message_sequence=input_message_sequence, functions=self.functions, image_data=image_data)
+                    response = await get_ai_reply_async(
+                        model=self.model, message_sequence=input_message_sequence, functions=self.functions, image_data=image_data
+                    )
                     if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
 
@@ -1083,7 +1091,9 @@ class AgentAsync(Agent):
                         raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
 
             else:
-                response = await get_ai_reply_async(model=self.model, message_sequence=input_message_sequence, functions=self.functions, image_data=image_data)
+                response = await get_ai_reply_async(
+                    model=self.model, message_sequence=input_message_sequence, functions=self.functions, image_data=image_data
+                )
 
             # Step 2: check if LLM wanted to call a function
             # (if yes) Step 3: call the function
