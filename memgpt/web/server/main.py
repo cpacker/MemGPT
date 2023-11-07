@@ -1,4 +1,6 @@
+import datetime
 import os
+from copy import deepcopy
 from os import getcwd
 
 from memgpt.agent import AgentAsync
@@ -6,10 +8,15 @@ from memgpt.config import MemGPTConfig
 from memgpt.utils import parse_json
 
 
-def find_last_bot_message(all_messages: list):
-    for i in reversed(range(len(all_messages))):
-        if all_messages[i]["role"] == "assistant" and all_messages[i]["function_call"]["name"] == "send_message":
-            return all_messages[i]
+def parse_function_call(message):
+    new_message = deepcopy(message)
+    if new_message["role"] == "assistant" and new_message["function_call"]["name"] == "send_message":
+        new_message["function_call"]["arguments"] = parse_json(new_message["function_call"]["arguments"])
+    return new_message
+
+
+def map_messages_to_parsed_function_call_arguments(all_messages: list):
+    return list(map(parse_function_call, all_messages))
 
 
 def start_uvicorn_fastapi_server(agent: AgentAsync, config: MemGPTConfig):
@@ -51,11 +58,19 @@ def setup_endpoints(app, memgpt_agent: AgentAsync, config: MemGPTConfig):
                 function_failed,
                 token_warning,
             ) = await memgpt_agent.step(user_message, first_message=False, skip_verify=True)
-            bot_response = find_last_bot_message(new_messages)
-            bot_function_call_string_arguments = bot_response["function_call"]["arguments"]
-            bot_function_call_json_arguments = parse_json(bot_function_call_string_arguments)
 
-            await websocket.send_text(bot_function_call_json_arguments["message"])
+            non_user_messages = [new_message for new_message in new_messages if new_message["role"] != "user"]
+
+            mapped_messages = map_messages_to_parsed_function_call_arguments(non_user_messages)
+
+            print(mapped_messages)
+
+            await websocket.send_json(
+                {
+                    "new_messages": mapped_messages,
+                    "time": datetime.datetime.now().isoformat(),
+                }
+            )
 
     app.mount(
         "/",
