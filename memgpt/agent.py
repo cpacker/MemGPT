@@ -484,8 +484,20 @@ class Agent(object):
         if require_monologue and (
             not response_message.get("content") or response_message["content"] is None or response_message["content"] == ""
         ):
-            printd(f"First message missing internal monologue: {response_message}")
-            return False
+            if function_name in expected_function_calls:
+                try:
+                    raw_function_args = response_message["function_call"]["arguments"]
+                    function_args = parse_json(raw_function_args)
+                except Exception as e:
+                    printd(f"First message missing internal monologue and has badly formed arguments: {response_message}")
+                    return False
+                if function_args["request_heartbeat"] != True:
+                    printd(f"First message missing internal monologue and does not chain further functions: {response_message}")
+                    return False
+                print("No internal monologue but that's ok bc request_heartbeats")
+            else:
+                printd(f"First message missing internal monologue: {response_message}")
+                return False
 
         if response_message.get("content"):
             ### Extras
