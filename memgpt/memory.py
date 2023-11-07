@@ -2,8 +2,6 @@ from abc import ABC, abstractmethod
 import os
 import datetime
 import re
-import faiss
-import numpy as np
 from typing import Optional, List, Tuple
 
 from .constants import MESSAGE_SUMMARY_WARNING_TOKENS, MEMGPT_DIR
@@ -353,6 +351,8 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
 
     def __init__(self, index=None, archival_memory_database=None, embedding_model="text-embedding-ada-002", k=100):
         if index is None:
+            import faiss
+
             self.index = faiss.IndexFlatL2(1536)  # openai embedding vector size.
         else:
             self.index = index
@@ -366,6 +366,8 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
         return len(self._archive)
 
     def _insert(self, memory_string, embedding):
+        import numpy as np
+
         print(f"Got an embedding, type {type(embedding)}, len {len(embedding)}")
 
         self._archive.append(
@@ -394,6 +396,8 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
 
         # query_embedding = get_embedding(query_string, model=self.embedding_model)
         # our wrapped version supports backoff/rate-limits
+        import numpy as np
+
         if query_string in self.embeddings_dict:
             search_result = self.search_results[query_string]
         else:

@@ -127,9 +127,11 @@ class MemGPTConfig:
             embedding_chunk_size = config.getint("embedding", "chunk_size")
 
             # archival storage
-            archival_storage_type = config.get("archival_storage", "type")
-            archival_storage_path = config.get("archival_storage", "path") if config.has_option("archival_storage", "path") else None
-            archival_storage_uri = config.get("archival_storage", "uri") if config.has_option("archival_storage", "uri") else None
+            archival_storage_type, archival_storage_path, archival_storage_uri = "local", None, None
+            if "archival_storage" in config:
+                archival_storage_type = config.get("archival_storage", "type")
+                archival_storage_path = config.get("archival_storage", "path") if config.has_option("archival_storage", "path") else None
+                archival_storage_uri = config.get("archival_storage", "uri") if config.has_option("archival_storage", "uri") else None
 
             anon_clientid = config.get("client", "anon_clientid")
 
