@@ -93,9 +93,9 @@ class PostgresStorageConnector(StorageConnector):
             # Increment the offset to get the next chunk in the next iteration
             offset += page_size
 
-    def get_all(self) -> List[Passage]:
+    def get_all(self, limit=10) -> List[Passage]:
         session = self.Session()
-        db_passages = session.query(self.db_model).all()
+        db_passages = session.query(self.db_model).limit(limit).all()
         return [Passage(text=p.text, embedding=p.embedding, doc_id=p.doc_id, passage_id=p.id) for p in db_passages]
 
     def get(self, id: str) -> Optional[Passage]:
