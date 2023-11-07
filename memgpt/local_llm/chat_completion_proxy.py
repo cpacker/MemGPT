@@ -8,6 +8,7 @@ from .webui.api import get_webui_completion
 from .lmstudio.api import get_lmstudio_completion
 from .llamacpp.api import get_llamacpp_completion
 from .koboldcpp.api import get_koboldcpp_completion
+from .ollama.api import get_ollama_completion
 from .llm_chat_completion_wrappers import airoboros, dolphin, zephyr, simple_summary_wrapper
 from .utils import DotDict
 from ..prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
@@ -96,6 +97,8 @@ def get_chat_completion(
             result = get_llamacpp_completion(prompt, grammar=grammar_name)
         elif HOST_TYPE == "koboldcpp":
             result = get_koboldcpp_completion(prompt, grammar=grammar_name)
+        elif HOST_TYPE == "ollama":
+            result = get_ollama_completion(prompt)
         else:
             raise LocalLLMError(
                 f"BACKEND_TYPE is not set, please set variable depending on your backend (webui, lmstudio, llamacpp, koboldcpp)"
