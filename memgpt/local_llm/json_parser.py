@@ -134,18 +134,26 @@ def clean_json(raw_llm_output, messages=None, functions=None):
             data = json.loads(raw_llm_output + "}")
         except json.JSONDecodeError:
             try:
-                repaired = repair_json_string(raw_llm_output)
-                printd("trying my repair json:", repaired)
-                data = json.loads(repaired)
+                printd("trying adding }}")
+                data = json.loads(raw_llm_output + "}}")
             except json.JSONDecodeError:
                 try:
-                    repaired = repair_json_string(raw_llm_output)
-                    printd("trying my repair json:", repaired)
-                    data = json.loads(repaired)
+                    printd("trying adding \"}}")
+                    data = json.loads(raw_llm_output + "\"}}")
                 except json.JSONDecodeError:
                     try:
-                        printd("trying first_json")
-                        data = extract_first_json(raw_llm_output + "}")
-                    except:
-                        raise
+                        repaired = repair_json_string(raw_llm_output)
+                        printd("trying repair_json_string:", repaired)
+                        data = json.loads(repaired)
+                    except json.JSONDecodeError:
+                        try:
+                            repaired = repair_even_worse_json(raw_llm_output)
+                            printd("trying repair_even_worse_json:", repaired)
+                            data = json.loads(repaired)
+                        except json.JSONDecodeError:
+                            try:
+                                printd("trying first_json")
+                                data = extract_first_json(raw_llm_output + "}")
+                            except:
+                                raise
     return data
