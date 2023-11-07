@@ -1,10 +1,9 @@
 import os
 from urllib.parse import urljoin
 import requests
-import tiktoken
 
 from .settings import SIMPLE
-from ..utils import load_grammar_file
+from ..utils import load_grammar_file, count_tokens
 from ...constants import LLM_MAX_TOKENS
 
 HOST = os.getenv("OPENAI_API_BASE")
@@ -12,11 +11,6 @@ HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
 KOBOLDCPP_API_SUFFIX = "/api/v1/generate"
 # DEBUG = False
 DEBUG = True
-
-
-def count_tokens(s: str, model: str = "gpt-4") -> int:
-    encoding = tiktoken.encoding_for_model(model)
-    return len(encoding.encode(s))
 
 
 def get_koboldcpp_completion(prompt, grammar=None, settings=SIMPLE):

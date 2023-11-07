@@ -32,7 +32,9 @@ def configure():
         # search for key in enviornment
         openai_key = os.getenv("OPENAI_API_KEY")
         if not openai_key:
-            openai_key = questionary.text("Open AI API keys not found in enviornment - please enter:").ask()
+            print("Missing enviornment variables for OpenAI. Please set them and run `memgpt configure` again.")
+            # TODO: eventually stop relying on env variables and pass in keys explicitly
+            # openai_key = questionary.text("Open AI API keys not found in enviornment - please enter:").ask()
 
     # azure credentials
     use_azure = questionary.confirm("Do you want to enable MemGPT with Azure?", default=False).ask()
@@ -80,10 +82,18 @@ def configure():
         default_endpoint = questionary.select("Select default inference endpoint:", endpoint_options).ask()
 
     # configure embedding provider
+    endpoint_options.append("local")  # can compute embeddings locally
     if len(endpoint_options) == 1:
         default_embedding_endpoint = endpoint_options[0]
+        print(f"Using embedding endpoint {default_embedding_endpoint}")
     else:
         default_embedding_endpoint = questionary.select("Select default embedding endpoint:", endpoint_options).ask()
+
+    # configure embedding dimentions
+    default_embedding_dim = 1536
+    if default_embedding_endpoint == "local":
+        # HF model uses lower dimentionality
+        default_embedding_dim = 384
 
     # configure preset
     default_preset = questionary.select("Select default preset:", preset_options, default=DEFAULT_PRESET).ask()
@@ -134,6 +144,7 @@ def configure():
         preset=default_preset,
         model_endpoint=default_endpoint,
         embedding_model=default_embedding_endpoint,
+        embedding_dim=default_embedding_dim,
         default_persona=default_persona,
         default_human=default_human,
         default_agent=default_agent,

@@ -8,6 +8,7 @@ import os
 import requests
 import json
 import threading
+import traceback
 
 import openai
 from memgpt.persistence_manager import LocalStateManager
@@ -568,7 +569,8 @@ class Agent(object):
                 function_failed = False
             except Exception as e:
                 error_msg = f"Error calling function {function_name} with args {function_args}: {str(e)}"
-                printd(error_msg)
+                error_msg_user = f"{error_msg}\n{traceback.format_exc()}"
+                printd(error_msg_user)
                 function_response = package_function_response(False, error_msg)
                 messages.append(
                     {
@@ -996,7 +998,8 @@ class AgentAsync(Agent):
                 function_failed = False
             except Exception as e:
                 error_msg = f"Error calling function {function_name} with args {function_args}: {str(e)}"
-                printd(error_msg)
+                error_msg_user = f"{error_msg}\n{traceback.format_exc()}"
+                printd(error_msg_user)
                 function_response = package_function_response(False, error_msg)
                 messages.append(
                     {
@@ -1010,7 +1013,10 @@ class AgentAsync(Agent):
 
             # If no failures happened along the way: ...
             # Step 4: send the info on the function call and function response to GPT
-            await self.interface.function_message(f"Success: {function_response_string}")
+            if function_response_string:
+                await self.interface.function_message(f"Success: {function_response_string}")
+            else:
+                await self.interface.function_message(f"Success")
             messages.append(
                 {
                     "role": "function",
