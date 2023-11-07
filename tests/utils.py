@@ -18,6 +18,12 @@ def configure_memgpt(enable_openai=True, enable_azure=False):
     else:
         child.sendline("n")
 
+    child.expect("Select default inference endpoint:", timeout=TIMEOUT)
+    child.sendline()
+
+    child.expect("Select default embedding endpoint:", timeout=TIMEOUT)
+    child.sendline()
+
     child.expect("Select default preset:", timeout=TIMEOUT)
     child.sendline()
 
