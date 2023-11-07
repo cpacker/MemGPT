@@ -500,8 +500,8 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
 
                 elif user_input.lower() == "/model":
                     if memgpt_agent.model == "gpt-4":
-                        memgpt_agent.model = "gpt-3.5-turbo"
-                    elif memgpt_agent.model == "gpt-3.5-turbo":
+                        memgpt_agent.model = "gpt-3.5-turbo-16k"
+                    elif memgpt_agent.model == "gpt-3.5-turbo-16k":
                         memgpt_agent.model = "gpt-4"
                     print(f"Updated model to:\n{str(memgpt_agent.model)}")
                     continue
