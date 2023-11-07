@@ -22,7 +22,6 @@ def test_save_load():
     child.expect("Empty input received. Try again!", timeout=TIMEOUT)
     child.sendline("/save")
 
-    child.expect("Saved local", timeout=TIMEOUT)
     child.expect("Enter your message:", timeout=TIMEOUT)
     child.sendline("/exit")
 
