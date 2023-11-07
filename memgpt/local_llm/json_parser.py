@@ -46,18 +46,104 @@ def add_missing_heartbeat(llm_json):
     raise NotImplementedError
 
 
+def repair_json_string(json_string):
+    """
+    This function repairs a JSON string where line feeds were accidentally added
+    within string literals. The line feeds are replaced with the escaped line
+    feed sequence '\\n'.
+    """
+    new_string = ""
+    in_string = False
+    escape = False
+
+    for char in json_string:
+        if char == '"' and not escape:
+            in_string = not in_string
+        if char == "\\" and not escape:
+            escape = True
+        else:
+            escape = False
+        if char == "\n" and in_string:
+            new_string += "\\n"
+        else:
+            new_string += char
+
+    return new_string
+
+
+def repair_even_worse_json(json_string):
+    """
+    This function repairs a malformed JSON string where string literals are broken up and
+    not properly enclosed in quotes. It aims to consolidate everything between 'message': and
+    the two ending curly braces into one string for the 'message' field.
+    """
+    # State flags
+    in_message = False
+    in_string = False
+    escape = False
+    message_content = []
+
+    # Storage for the new JSON
+    new_json_parts = []
+
+    # Iterating through each character
+    for char in json_string:
+        if char == '"' and not escape:
+            in_string = not in_string
+            if not in_message:
+                # If we encounter a quote and are not in message, append normally
+                new_json_parts.append(char)
+        elif char == "\\" and not escape:
+            escape = True
+            new_json_parts.append(char)
+        else:
+            if escape:
+                escape = False
+            if in_message:
+                if char == "}":
+                    # Append the consolidated message and the closing characters then reset the flag
+                    new_json_parts.append('"{}"'.format("".join(message_content).replace("\n", " ")))
+                    new_json_parts.append(char)
+                    in_message = False
+                elif in_string or char.isalnum() or char.isspace() or char in ".',;:!":
+                    # Collect the message content, excluding structural characters
+                    message_content.append(char)
+            else:
+                # If we're not in message mode, append character to the output as is
+                new_json_parts.append(char)
+                if '"message":' in "".join(new_json_parts[-10:]):
+                    # If we detect "message": pattern, switch to message mode
+                    in_message = True
+                    message_content = []
+
+    # Joining everything to form the new JSON
+    repaired_json = "".join(new_json_parts)
+    return repaired_json
+
+
 def clean_json(raw_llm_output, messages=None, functions=None):
     """Try a bunch of hacks to parse the data coming out of the LLM"""
-
     try:
+        print("clean json runs:", raw_llm_output)
         data = json.loads(raw_llm_output)
     except json.JSONDecodeError:
         try:
+            print("trying adding }")
             data = json.loads(raw_llm_output + "}")
         except json.JSONDecodeError:
             try:
-                data = extract_first_json(raw_llm_output + "}")
-            except:
-                raise
-
+                repaired = repair_json_string(raw_llm_output)
+                print("trying my repair json:", repaired)
+                data = json.loads(repaired)
+            except json.JSONDecodeError:
+                try:
+                    repaired = repair_json_string(raw_llm_output)
+                    print("trying my repair json:", repaired)
+                    data = json.loads(repaired)
+                except json.JSONDecodeError:
+                    try:
+                        print("trying first_json")
+                        data = extract_first_json(raw_llm_output + "}")
+                    except:
+                        raise
     return data
