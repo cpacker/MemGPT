@@ -135,7 +135,6 @@ def create_autogen_memgpt_agent(
             "agent_config": agent_config,
         }
     persistence_manager = LocalStateManager(**persistence_manager_kwargs) if persistence_manager is None else persistence_manager
-    print(agent_config)
 
     memgpt_agent = presets.use_preset(
         preset,

@@ -94,3 +94,57 @@ config_list_memgpt = [
 If you're using WebUI and want to run the non-MemGPT agents with a local LLM instead of OpenAI, enable the [openai extension](https://github.com/oobabooga/text-generation-webui/tree/main/extensions/openai) and point `config_list`'s `api_base` to the appropriate URL (usually port 5001).
 Then, for MemGPT agents, export `OPENAI_API_BASE` and `BACKEND_TYPE` as described in [Local LLM support](../local_llm) (usually port 5000).
 
+
+## Loading documents
+[examples/agent_docs.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_docs.py) contains an example of a groupchat where the MemGPT autogen agent has access to documents.
+
+First, follow the instructions in [Example - chat with your data - Creating an external data source](../example_data/#creating-an-external-data-source):
+
+To download the MemGPT research paper we'll use `curl` (you can also just download the PDF from your browser):
+```sh
+# we're saving the file as "memgpt_research_paper.pdf"
+curl -L -o memgpt_research_paper.pdf https://arxiv.org/pdf/2310.08560.pdf
+```
+
+Now that we have the paper downloaded, we can create a MemGPT data source using `memgpt load`:
+```sh
+memgpt load directory --name memgpt_research_paper --input-files=memgpt_research_paper.pdf
+```
+```text
+loading data
+done loading data
+LLM is explicitly disabled. Using MockLLM.
+LLM is explicitly disabled. Using MockLLM.
+Parsing documents into nodes: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 15/15 [00:00<00:00, 392.09it/s]
+Generating embeddings: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 65/65 [00:01<00:00, 37.34it/s]
+100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 65/65 [00:00<00:00, 388361.48it/s]
+Saved local /home/user/.memgpt/archival/memgpt_research_paper/nodes.pkl
+```
+
+Note: you can ignore the "_LLM is explicitly disabled_" message.
+
+Now, you can run `agent_docs.py`, which asks `MemGPT_coder` what a virtual context is:
+```
+❯ python3 agent_docs.py
+LLM is explicitly disabled. Using MockLLM.
+LLM is explicitly disabled. Using MockLLM.
+LLM is explicitly disabled. Using MockLLM.
+Generating embeddings: 0it [00:00, ?it/s]
+new size 60
+Saved local /Users/vivian/.memgpt/agents/agent_25/persistence_manager/index/nodes.pkl
+Attached data source memgpt_research_paper to agent agent_25, consisting of 60. Agent now has 60 embeddings in archival memory.
+LLM is explicitly disabled. Using MockLLM.
+User_proxy (to chat_manager):
+
+Tell me what a virtual context in MemGPT is. Search your archival memory.
+
+--------------------------------------------------------------------------------
+GroupChat is underpopulated with 2 agents. Direct communication would be more efficient.
+
+MemGPT_coder (to chat_manager):
+
+Virtual context management is a technique used in large language models like MemGPT. It's used to handle context beyond limited context windows, which is crucial for tasks such as extended conversations and document analysis. The technique was inspired by hierarchical memory systems in traditional operating systems that provide the appearance of large memory resources through data movement between fast and slow memory. This system intelligently manages different memory tiers to effectively provide extended context within the model's limited context window.
+
+--------------------------------------------------------------------------------
+...
+```
