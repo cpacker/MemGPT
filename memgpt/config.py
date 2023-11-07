@@ -34,7 +34,7 @@ model_choices = [
     ),
     questionary.Choice(
         "gpt-3.5-turbo (experimental! function-calling performance is not quite at the level of gpt-4 yet)",
-        value="gpt-3.5-turbo",
+        value="gpt-3.5-turbo-16k",
     ),
 ]
 
