@@ -172,7 +172,11 @@ def legacy_run(
     if ctx.invoked_subcommand is not None:
         return
 
-    typer.secho("Warning: Running legacy run command. Run `memgpt run` instead.", fg=typer.colors.RED, bold=True)
+    typer.secho(
+        "Warning: Running legacy run command. You may need to `pip install pymemgpt[legacy] -U`. Run `memgpt run` instead.",
+        fg=typer.colors.RED,
+        bold=True,
+    )
     if not questionary.confirm("Continue with legacy CLI?", default=False).ask():
         return
 
