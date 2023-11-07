@@ -494,7 +494,6 @@ class Agent(object):
                 if function_args["request_heartbeat"] != True:
                     printd(f"First message missing internal monologue and does not chain further functions: {response_message}")
                     return False
-                print("No internal monologue but that's ok bc request_heartbeats")
             else:
                 printd(f"First message missing internal monologue: {response_message}")
                 return False
