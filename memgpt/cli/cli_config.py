@@ -76,18 +76,11 @@ def configure():
         endpoint_options += ["openai"]
 
     assert len(endpoint_options) > 0, "No endpoints found. Please enable OpenAI, Azure, or set OPENAI_API_BASE."
-    if len(endpoint_options) == 1:
-        default_endpoint = endpoint_options[0]
-    else:
-        default_endpoint = questionary.select("Select default inference endpoint:", endpoint_options).ask()
+    default_endpoint = questionary.select("Select default inference endpoint:", endpoint_options).ask()
 
     # configure embedding provider
     endpoint_options.append("local")  # can compute embeddings locally
-    if len(endpoint_options) == 1:
-        default_embedding_endpoint = endpoint_options[0]
-        print(f"Using embedding endpoint {default_embedding_endpoint}")
-    else:
-        default_embedding_endpoint = questionary.select("Select default embedding endpoint:", endpoint_options).ask()
+    default_embedding_endpoint = questionary.select("Select default embedding endpoint:", endpoint_options).ask()
 
     # configure embedding dimentions
     default_embedding_dim = 1536
