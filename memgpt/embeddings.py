@@ -28,7 +28,7 @@ def embedding_model():
         # default to hugging face model
         from llama_index.embeddings import HuggingFaceEmbedding
 
-        os.environ["TOKENIZERS_PARALLELISM"] = False
+        os.environ["TOKENIZERS_PARALLELISM"] = "False"
         model = "BAAI/bge-small-en-v1.5"
         return HuggingFaceEmbedding(model_name=model)
     else:
