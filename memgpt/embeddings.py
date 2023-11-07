@@ -1,4 +1,5 @@
 import typer
+import os
 from llama_index.embeddings import OpenAIEmbedding
 
 
@@ -27,15 +28,8 @@ def embedding_model():
         # default to hugging face model
         from llama_index.embeddings import HuggingFaceEmbedding
 
+        os.environ["TOKENIZERS_PARALLELISM"] = False
         model = "BAAI/bge-small-en-v1.5"
-        typer.secho(
-            f"Warning: defaulting to HuggingFace embedding model {model} since model endpoint is not OpenAI or Azure.",
-            fg=typer.colors.YELLOW,
-        )
-        typer.secho(f"Warning: ensure torch and transformers are installed")
-        # return f"local:{model}"
-
-        # loads BAAI/bge-small-en-v1.5
         return HuggingFaceEmbedding(model_name=model)
     else:
         # use env variable OPENAI_API_BASE

@@ -84,7 +84,6 @@ class LocalStorageConnector(StorageConnector):
 
     def insert(self, passage: Passage):
         nodes = [TextNode(text=passage.text, embedding=passage.embedding)]
-        print("nodes", nodes)
         self.nodes += nodes
         if isinstance(self.index, EmptyIndex):
             self.index = VectorStoreIndex(self.nodes, service_context=self.service_context, show_progress=True)
@@ -96,7 +95,6 @@ class LocalStorageConnector(StorageConnector):
         self.nodes += nodes
         if isinstance(self.index, EmptyIndex):
             self.index = VectorStoreIndex(self.nodes, service_context=self.service_context, show_progress=True)
-            print("new size", len(self.get_nodes()))
         else:
             orig_size = len(self.get_nodes())
             self.index.insert_nodes(nodes)
@@ -113,7 +111,6 @@ class LocalStorageConnector(StorageConnector):
         )
         nodes = retriever.retrieve(query)
         results = [Passage(embedding=node.embedding, text=node.text) for node in nodes]
-        print(results)
         return results
 
     def save(self):
@@ -121,7 +118,6 @@ class LocalStorageConnector(StorageConnector):
         self.nodes = self.get_nodes()
         os.makedirs(self.save_directory, exist_ok=True)
         pickle.dump(self.nodes, open(self.save_path, "wb"))
-        print("Saved local", self.save_path)
 
     @staticmethod
     def list_loaded_data():
