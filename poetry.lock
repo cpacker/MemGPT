@@ -264,7 +264,7 @@ name = "cfgv"
 version = "3.4.0"
 description = "Validate configuration and produce human readable error messages."
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "cfgv-3.4.0-py2.py3-none-any.whl", hash = "sha256:b7265b1f29fd3316bfcd2b330d63d024f2bfd8bcb8b0272f8e19a504856c48f9"},
@@ -506,7 +506,7 @@ name = "distlib"
 version = "0.3.7"
 description = "Distribution utilities"
 category = "main"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "distlib-0.3.7-py2.py3-none-any.whl", hash = "sha256:2e24928bc811348f0feb63014e97aaae3037f2cf48712d51ae61df7fd6075057"},
@@ -568,7 +568,7 @@ name = "filelock"
 version = "3.13.1"
 description = "A platform independent file lock."
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "filelock-3.13.1-py3-none-any.whl", hash = "sha256:57dbda9b35157b05fb3e58ee91448612eb674172fab98ee235ccb0b5bee19a1c"},
@@ -801,7 +801,7 @@ name = "identify"
 version = "2.5.31"
 description = "File identification library for Python"
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "identify-2.5.31-py2.py3-none-any.whl", hash = "sha256:90199cb9e7bd3c5407a9b7e81b4abec4bb9d249991c79439ec8af740afc6293d"},
@@ -935,14 +935,14 @@ text-helpers = ["chardet (>=5.1.0,<6.0.0)"]
 
 [[package]]
 name = "langsmith"
-version = "0.0.58"
+version = "0.0.59"
 description = "Client library to connect to the LangSmith LLM Tracing and Evaluation Platform."
 category = "main"
 optional = false
 python-versions = ">=3.8.1,<4.0"
 files = [
-    {file = "langsmith-0.0.58-py3-none-any.whl", hash = "sha256:75a82744da2d2fa647d8d8d66a2b3791edc914a640516fa2f46cd5502b697380"},
-    {file = "langsmith-0.0.58.tar.gz", hash = "sha256:b935b37b7ce09d998e572e5e3a25f022c283eee6a8de661d41cbda02ce09c6b5"},
+    {file = "langsmith-0.0.59-py3-none-any.whl", hash = "sha256:67e674cf0db479adf8153ed151c4e39b4eaec5f62e7704a7f85294e4755f6e02"},
+    {file = "langsmith-0.0.59.tar.gz", hash = "sha256:d512b856357ff479cdd6a224aafe38ef6f82ff6c8bdd4ba44e4e588b1aeb52ad"},
 ]
 
 [package.dependencies]
@@ -1317,7 +1317,7 @@ name = "nodeenv"
 version = "1.8.0"
 description = "Node.js virtual environment builder"
 category = "main"
-optional = false
+optional = true
 python-versions = ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*"
 files = [
     {file = "nodeenv-1.8.0-py2.py3-none-any.whl", hash = "sha256:df865724bb3c3adc86b3876fa209771517b0cfe596beff01a92700e0e8be4cec"},
@@ -1503,7 +1503,7 @@ name = "platformdirs"
 version = "3.11.0"
 description = "A small Python package for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "platformdirs-3.11.0-py3-none-any.whl", hash = "sha256:e9d171d00af68be50e9202731309c4e658fd8bc76f55c11c7dd760d023bda68e"},
@@ -1535,7 +1535,7 @@ name = "pre-commit"
 version = "3.5.0"
 description = "A framework for managing and maintaining multi-language pre-commit hooks."
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "pre_commit-3.5.0-py2.py3-none-any.whl", hash = "sha256:841dc9aef25daba9a0238cd27984041fa0467b4199fc4852e27950664919f660"},
@@ -2968,7 +2968,7 @@ name = "virtualenv"
 version = "20.24.6"
 description = "Virtual Python Environment builder"
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "virtualenv-20.24.6-py3-none-any.whl", hash = "sha256:520d056652454c5098a00c0f073611ccbea4c79089331f60bf9d7ba247bb7381"},
@@ -3288,7 +3288,7 @@ idna = ">=2.0"
 multidict = ">=4.0"
 
 [extras]
-dev = ["black", "pytest"]
+dev = ["black", "datasets", "pre-commit", "pytest"]
 legacy = ["faiss-cpu", "numpy"]
 local = ["huggingface-hub", "torch", "transformers"]
 postgres = ["pgvector", "psycopg", "psycopg-binary", "psycopg2-binary"]
@@ -3296,4 +3296,4 @@ postgres = ["pgvector", "psycopg", "psycopg-binary", "psycopg2-binary"]
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.12,>=3.9"
-content-hash = "8228e631e8105969212b018382e2b86c9ab58171239c2bcc97b11235c8b071c0"
+content-hash = "bfb1ab32dc7d84b42030929a352afc711da97eddd4606c0fe1477fce79b6187d"
