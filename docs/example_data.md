@@ -6,7 +6,7 @@ In this example, we're going to use MemGPT to chat with a custom data source. Sp
 
 ### Creating an external data source
 
-To feed an external data source into a MemGPT chatbot, we first need to create .
+To feed external data into a MemGPT chatbot, we first need to create a data source.
 
 To download the MemGPT research paper we'll use `curl` (you can also just download the PDF from your browser):
 ```sh
