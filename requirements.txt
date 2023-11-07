@@ -3,7 +3,7 @@ demjson3
 faiss-cpu
 geopy
 numpy
-openai
+openai==0.28.1
 pybars3
 pymupdf
 python-dotenv
