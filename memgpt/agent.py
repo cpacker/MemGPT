@@ -9,6 +9,7 @@ import requests
 import json
 import threading
 import traceback
+import re
 
 import openai
 from memgpt.persistence_manager import LocalStateManager
@@ -104,18 +105,31 @@ def initialize_message_sequence(
     return messages
 
 
+def clean_img_tags(message_sequence):
+    for message in message_sequence[:-1]:
+        # Search image_id tag in messages
+        match = re.search(r'\[img-(\d+)\]', message["content"])
+        if match:
+            # Replace image_id tag
+            message["content"] = re.sub(r'\[img-(\d+)\]', r'image \1', message["content"])
+    return message_sequence
+
+
 def get_ai_reply(
     model,
     message_sequence,
+    image_data,
     functions,
     function_call="auto",
 ):
     try:
+        message_sequence=clean_img_tags(message_sequence)
         response = create(
             model=model,
             messages=message_sequence,
             functions=functions,
             function_call=function_call,
+            image_data=image_data,
         )
 
         # special case for 'length'
@@ -136,17 +150,20 @@ def get_ai_reply(
 async def get_ai_reply_async(
     model,
     message_sequence,
+    image_data,
     functions,
     function_call="auto",
 ):
     """Base call to GPT API w/ functions"""
 
     try:
+        message_sequence=clean_img_tags(message_sequence)
         response = await acreate(
             model=model,
             messages=message_sequence,
             functions=functions,
             function_call=function_call,
+            image_data=image_data,
         )
 
         # special case for 'length'
@@ -602,7 +619,7 @@ class Agent(object):
 
         return messages, heartbeat_request, function_failed
 
-    def step(self, user_message, first_message=False, first_message_retry_limit=FIRST_MESSAGE_ATTEMPTS, skip_verify=False):
+    def step(self, user_message, image_data, first_message=False, first_message_retry_limit=FIRST_MESSAGE_ATTEMPTS, skip_verify=False):
         """Top-level event message handler for the MemGPT agent"""
 
         try:
@@ -622,7 +639,7 @@ class Agent(object):
                 printd(f"This is the first message. Running extra verifier on AI response.")
                 counter = 0
                 while True:
-                    response = get_ai_reply(model=self.model, message_sequence=input_message_sequence, functions=self.functions)
+                    response = get_ai_reply(model=self.model, message_sequence=input_message_sequence, functions=self.functions, image_data=image_data)
                     if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
 
@@ -631,7 +648,7 @@ class Agent(object):
                         raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
 
             else:
-                response = get_ai_reply(model=self.model, message_sequence=input_message_sequence, functions=self.functions)
+                response = get_ai_reply(model=self.model, message_sequence=input_message_sequence, functions=self.functions, image_data=image_data)
 
             # Step 2: check if LLM wanted to call a function
             # (if yes) Step 3: call the function
@@ -1034,7 +1051,7 @@ class AgentAsync(Agent):
 
         return messages, heartbeat_request, function_failed
 
-    async def step(self, user_message, first_message=False, first_message_retry_limit=FIRST_MESSAGE_ATTEMPTS, skip_verify=False):
+    async def step(self, user_message, image_data, first_message=False, first_message_retry_limit=FIRST_MESSAGE_ATTEMPTS, skip_verify=False):
         """Top-level event message handler for the MemGPT agent"""
 
         try:
@@ -1057,7 +1074,7 @@ class AgentAsync(Agent):
                 printd(f"This is the first message. Running extra verifier on AI response.")
                 counter = 0
                 while True:
-                    response = await get_ai_reply_async(model=self.model, message_sequence=input_message_sequence, functions=self.functions)
+                    response = await get_ai_reply_async(model=self.model, message_sequence=input_message_sequence, functions=self.functions, image_data=image_data)
                     if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
 
@@ -1066,7 +1083,7 @@ class AgentAsync(Agent):
                         raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
 
             else:
-                response = await get_ai_reply_async(model=self.model, message_sequence=input_message_sequence, functions=self.functions)
+                response = await get_ai_reply_async(model=self.model, message_sequence=input_message_sequence, functions=self.functions, image_data=image_data)
 
             # Step 2: check if LLM wanted to call a function
             # (if yes) Step 3: call the function
@@ -1117,7 +1134,7 @@ class AgentAsync(Agent):
                 await self.summarize_messages_inplace()
 
                 # Try step again
-                return await self.step(user_message, first_message=first_message)
+                return await self.step(user_message, image_data, first_message=first_message)
             else:
                 printd(f"step() failed with openai.InvalidRequestError, but didn't recognize the error message: '{str(e)}'")
                 print(e)

@@ -13,7 +13,7 @@ LLAMACPP_API_SUFFIX = "/completion"
 DEBUG = True
 
 
-def get_llamacpp_completion(prompt, grammar=None, settings=SIMPLE):
+def get_llamacpp_completion(prompt, image_data, grammar=None, settings=SIMPLE):
     """See https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md for instructions on how to run the LLM web server"""
     prompt_tokens = count_tokens(prompt)
     if prompt_tokens > LLM_MAX_TOKENS:
@@ -22,6 +22,7 @@ def get_llamacpp_completion(prompt, grammar=None, settings=SIMPLE):
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
     request = settings
     request["prompt"] = prompt
+    request["image_data"] = image_data
 
     # Set grammar
     if grammar is not None:

@@ -25,6 +25,7 @@ has_shown_warning = False
 def get_chat_completion(
     model,  # no model, since the model is fixed to whatever you set in your own backend
     messages,
+    image_data,
     functions=None,
     function_call="auto",
 ):
@@ -94,7 +95,7 @@ def get_chat_completion(
         elif HOST_TYPE == "lmstudio":
             result = get_lmstudio_completion(prompt)
         elif HOST_TYPE == "llamacpp":
-            result = get_llamacpp_completion(prompt, grammar=grammar_name)
+            result = get_llamacpp_completion(prompt, image_data, grammar=grammar_name)
         elif HOST_TYPE == "koboldcpp":
             result = get_koboldcpp_completion(prompt, grammar=grammar_name)
         elif HOST_TYPE == "ollama":
