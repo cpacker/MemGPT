@@ -818,11 +818,10 @@ class EmbeddingArchivalMemory(ArchivalMemory):
     def __repr__(self) -> str:
         limit = 10
         passages = []
-        for passage in list(self.storage.get_all())[:limit]:  # TODO: only get first 10
+        for passage in list(self.storage.get_all(limit)):  # TODO: only get first 10
             passages.append(str(passage.text))
         memory_str = "\n".join(passages)
         return f"\n### ARCHIVAL MEMORY ###" + f"\n{memory_str}"
 
     def __len__(self):
-        print("get archival storage size")
-        return len(self.storage.get_all())
+        return self.storage.size()

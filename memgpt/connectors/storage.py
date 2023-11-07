@@ -2,7 +2,7 @@
 
 We originally tried to use Llama Index VectorIndex, but their limited API was extremely problematic.
 """
-from typing import Optional, List
+from typing import Optional, List, Iterator
 import re
 import pickle
 import os
@@ -66,7 +66,11 @@ class StorageConnector:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")
 
     @abstractmethod
-    def get_all(self) -> List[Passage]:
+    def get_all_paginated(self, page_size: int) -> Iterator[List[Passage]]:
+        pass
+
+    @abstractmethod
+    def get_all(self, limit: int) -> List[Passage]:
         pass
 
     @abstractmethod
@@ -88,4 +92,9 @@ class StorageConnector:
     @abstractmethod
     def save(self):
         """Save state of storage connector"""
+        pass
+
+    @abstractmethod
+    def size(self):
+        """Get number of passages (text/embedding pairs) in storage"""
         pass
