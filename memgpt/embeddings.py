@@ -12,9 +12,9 @@ def embedding_model():
 
     # TODO: use embedding_endpoint in the future
     endpoint = config.embedding_model
-    print("Embedding endpoint", endpoint)
     if endpoint == "openai":
-        return OpenAIEmbedding(api_base="https://api.openai.com", api_key=config.openai_key)
+        model = OpenAIEmbedding(api_base="https://api.openai.com/v1", api_key=config.openai_key)
+        return model
     elif endpoint == "azure":
         return OpenAIEmbedding(
             model="text-embedding-ada-002",
@@ -24,7 +24,7 @@ def embedding_model():
             api_type="azure",
             api_version=config.azure_version,
         )
-    else:
+    elif endpoint == "local":
         # default to hugging face model
         from llama_index.embeddings import HuggingFaceEmbedding
 
@@ -38,3 +38,7 @@ def embedding_model():
 
         # loads BAAI/bge-small-en-v1.5
         return HuggingFaceEmbedding(model_name=model)
+    else:
+        # use env variable OPENAI_API_BASE
+        model = OpenAIEmbedding()
+        return model
