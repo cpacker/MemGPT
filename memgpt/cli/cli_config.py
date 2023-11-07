@@ -32,7 +32,9 @@ def configure():
         # search for key in enviornment
         openai_key = os.getenv("OPENAI_API_KEY")
         if not openai_key:
-            openai_key = questionary.text("Open AI API keys not found in enviornment - please enter:").ask()
+            print("Missing enviornment variables for OpenAI. Please set them and run `memgpt configure` again.")
+            # TODO: eventually stop relying on env variables and pass in keys explicitly
+            # openai_key = questionary.text("Open AI API keys not found in enviornment - please enter:").ask()
 
     # azure credentials
     use_azure = questionary.confirm("Do you want to enable MemGPT with Azure?", default=False).ask()
