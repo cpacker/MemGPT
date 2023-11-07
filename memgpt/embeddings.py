@@ -10,7 +10,6 @@ def embedding_model():
     # load config
     config = MemGPTConfig.load()
 
-    # TODO: use embedding_endpoint in the future
     endpoint = config.embedding_model
     if endpoint == "openai":
         model = OpenAIEmbedding(api_base="https://api.openai.com/v1", api_key=config.openai_key)
