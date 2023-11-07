@@ -24,14 +24,13 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
-    - name: Install poetry
-      run: pipx install poetry
-
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: "3.10"
-        cache: "poetry"
+
+    - name: Install poetry
+      run: pip install poetry
 
     - name: Set Poetry config
       run: |
