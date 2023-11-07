@@ -491,7 +491,7 @@ class Agent(object):
                 except Exception as e:
                     printd(f"First message missing internal monologue and has badly formed arguments: {response_message}")
                     return False
-                if function_args["request_heartbeat"] != True:
+                if function_args.get("request_heartbeat") != True:
                     printd(f"First message missing internal monologue and does not chain further functions: {response_message}")
                     return False
             else:
