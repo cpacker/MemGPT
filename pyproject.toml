@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pymemgpt"
-version = "0.1.18-alpha.1"
+version = "0.1.18"
 packages = [
     {include = "memgpt"}
 ]
@@ -25,22 +25,31 @@ questionary = "^2.0.1"
 demjson3 = "^3.0.6"
 numpy = "^1.26.1"
 pytz = "^2023.3.post1"
-faiss-cpu = "^1.7.4"
+faiss-cpu = { version = "^1.7.4", optional = true }
 tiktoken = "^0.5.1"
 pymupdf = "^1.23.5"
 tqdm = "^4.66.1"
 openai = "^0.28.1"
-black = "^23.10.1"
-pytest = "^7.4.3"
+black = { version = "^23.10.1", optional = true }
+pytest = { version = "^7.4.3", optional = true }
 llama-index = "^0.8.53.post3"
 setuptools = "^68.2.2"
-datasets = "^2.14.6"
+datasets = { version = "^2.14.6", optional = true}
 prettytable = "^3.9.0"
-pgvector = "^0.2.3"
-psycopg = "^3.1.12"
-psycopg-binary = "^3.1.12"
-psycopg2-binary = "^2.9.9"
+pgvector = { version = "^0.2.3", optional = true }
+psycopg = { version = "^3.1.12", optional = true }
+psycopg-binary = { version = "^3.1.12", optional = true }
+psycopg2-binary = { version = "^2.9.9", optional = true }
+torch = { version = "2.1.0", optional = true }
+huggingface-hub = { version = "0.17.3", optional = true }
+transformers = { version = "4.34.1", optional = true }
+pre-commit = {version = "^3.5.0", optional = true }
 
+[tool.poetry.extras]
+legacy = ["faiss-cpu", "numpy"]
+local = ["torch", "huggingface-hub", "transformers"]
+postgres = ["pgvector", "psycopg", "psycopg-binary", "psycopg2-binary"]
+dev = ["pytest", "black", "pre-commit", "datasets"]
 
 [build-system]
 requires = ["poetry-core"]

@@ -476,8 +476,8 @@ class Agent(object):
             return False
 
         function_name = response_message["function_call"]["name"]
-        if require_send_message and function_name != "send_message":
-            printd(f"First message function call wasn't send_message: {response_message}")
+        if require_send_message and function_name != "send_message" and function_name != "archival_memory_search":
+            printd(f"First message function call wasn't send_message or archival_memory_search: {response_message}")
             return False
 
         if require_monologue and (
