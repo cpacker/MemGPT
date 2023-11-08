@@ -24,14 +24,16 @@ def embedding_model():
             api_type="azure",
             api_version=config.azure_version,
         )
-    elif endpoint == "local":
+    else:
         # default to hugging face model
         from llama_index.embeddings import HuggingFaceEmbedding
 
         os.environ["TOKENIZERS_PARALLELISM"] = "False"
         model = "BAAI/bge-small-en-v1.5"
         return HuggingFaceEmbedding(model_name=model)
-    else:
-        # use env variable OPENAI_API_BASE
-        model = OpenAIEmbedding()
-        return model
+
+    # TODO: add back if we decide to support custom embedding endpoints
+    # else:
+    #    # use env variable OPENAI_API_BASE
+    #    model = OpenAIEmbedding()
+    #    return model
