@@ -51,7 +51,7 @@ class MemGPTConfig:
     # provider: str = "openai"  # openai, azure, local (TODO)
     model_endpoint: str = "openai"
     model: str = "gpt-4"  # gpt-4, gpt-3.5-turbo, local
-    context_window: int = LLM_MAX_TOKENS[model]
+    context_window: int = LLM_MAX_TOKENS[model] if model in LLM_MAX_TOKENS else LLM_MAX_TOKENS["DEFAULT"]
 
     # model parameters: openai
     openai_key: str = None
