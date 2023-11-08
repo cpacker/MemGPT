@@ -11,7 +11,7 @@ import openai
 from llama_index import set_global_service_context
 from llama_index import VectorStoreIndex, SimpleDirectoryReader, ServiceContext
 
-import memgpt.interface  # for printing to terminal
+from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.cli.cli_config import configure
 import memgpt.agent as agent
 import memgpt.system as system

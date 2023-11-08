@@ -19,7 +19,8 @@ from .interface import print_messages
 
 console = Console()
 
-import memgpt.interface  # for printing to terminal
+import memgpt.interface
+from memgpt.interface import CLIInterface as interface  # for printing to terminal
 import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.utils as utils
@@ -236,7 +237,7 @@ async def main(
             archival_storage_sqldb,
         )
     ):
-        memgpt.interface.important_message("⚙️ Using legacy command line arguments.")
+        interface.important_message("⚙️ Using legacy command line arguments.")
         model = model
         if model is None:
             model = constants.DEFAULT_MEMGPT_MODEL
@@ -315,9 +316,9 @@ async def main(
     else:
         cfg = await Config.config_init()
 
-    memgpt.interface.important_message("Running... [exit by typing '/exit', list available commands with '/help']")
+    interface.important_message("Running... [exit by typing '/exit', list available commands with '/help']")
     if cfg.model != constants.DEFAULT_MEMGPT_MODEL:
-        memgpt.interface.warning_message(
+        interface.warning_message(
             f"⛔️ Warning - you are running MemGPT with {cfg.model}, which is not officially supported (yet). Expect bugs!"
         )
 
@@ -330,7 +331,7 @@ async def main(
         persistence_manager = InMemoryStateManager()
 
     if archival_storage_files_compute_embeddings:
-        memgpt.interface.important_message(
+        interface.important_message(
             f"(legacy) To avoid computing embeddings next time, replace --archival_storage_files_compute_embeddings={archival_storage_files_compute_embeddings} with\n\t --archival_storage_faiss_path={cfg.archival_storage_index} (if your files haven't changed)."
         )
 
@@ -347,8 +348,7 @@ async def main(
         memgpt.interface,
         persistence_manager,
     )
-    print_messages = memgpt.interface.print_messages
-    await print_messages(memgpt_agent.messages)
+    await interface.print_messages(memgpt_agent.messages)
 
     if cfg.load_type == "sql":  # TODO: move this into config.py in a clean manner
         if not os.path.exists(cfg.archival_storage_files):
@@ -478,13 +478,13 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
                     command = user_input.strip().split()
                     amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 0
                     if amount == 0:
-                        await memgpt.interface.print_messages(memgpt_agent.messages, dump=True)
+                        await interface.print_messages(memgpt_agent.messages, dump=True)
                     else:
-                        await memgpt.interface.print_messages(memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
+                        await interface.print_messages(memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
                     continue
 
                 elif user_input.lower() == "/dumpraw":
-                    await memgpt.interface.print_messages_raw(memgpt_agent.messages)
+                    await interface.print_messages_raw(memgpt_agent.messages)
                     continue
 
                 elif user_input.lower() == "/memory":
@@ -550,7 +550,7 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
 
                 # No skip options
                 elif user_input.lower() == "/wipe":
-                    memgpt_agent = agent.AgentAsync(memgpt.interface)
+                    memgpt_agent = agent.AgentAsync(interface)
                     user_message = None
 
                 elif user_input.lower() == "/heartbeat":
