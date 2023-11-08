@@ -124,8 +124,6 @@ class PostgresStorageConnector(StorageConnector):
         self.db_model.__table__.drop(self.engine)
 
     def save(self):
-        # don't need to save
-        print("Saving db")
         return
 
     @staticmethod

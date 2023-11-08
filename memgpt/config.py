@@ -29,8 +29,12 @@ from memgpt.presets import DEFAULT_PRESET, preset_options
 model_choices = [
     questionary.Choice("gpt-4"),
     questionary.Choice(
+        "gpt-4-turbo (developer preview)",
+        value="gpt-4-1106-preview",
+    ),
+    questionary.Choice(
         "gpt-3.5-turbo (experimental! function-calling performance is not quite at the level of gpt-4 yet)",
-        value="gpt-3.5-turbo",
+        value="gpt-3.5-turbo-16k",
     ),
 ]
 
@@ -127,9 +131,11 @@ class MemGPTConfig:
             embedding_chunk_size = config.getint("embedding", "chunk_size")
 
             # archival storage
-            archival_storage_type = config.get("archival_storage", "type")
-            archival_storage_path = config.get("archival_storage", "path") if config.has_option("archival_storage", "path") else None
-            archival_storage_uri = config.get("archival_storage", "uri") if config.has_option("archival_storage", "uri") else None
+            archival_storage_type, archival_storage_path, archival_storage_uri = "local", None, None
+            if "archival_storage" in config:
+                archival_storage_type = config.get("archival_storage", "type")
+                archival_storage_path = config.get("archival_storage", "path") if config.has_option("archival_storage", "path") else None
+                archival_storage_uri = config.get("archival_storage", "uri") if config.has_option("archival_storage", "uri") else None
 
             anon_clientid = config.get("client", "anon_clientid")
 

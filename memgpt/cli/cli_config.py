@@ -32,7 +32,9 @@ def configure():
         # search for key in enviornment
         openai_key = os.getenv("OPENAI_API_KEY")
         if not openai_key:
-            openai_key = questionary.text("Open AI API keys not found in enviornment - please enter:").ask()
+            print("Missing enviornment variables for OpenAI. Please set them and run `memgpt configure` again.")
+            # TODO: eventually stop relying on env variables and pass in keys explicitly
+            # openai_key = questionary.text("Open AI API keys not found in enviornment - please enter:").ask()
 
     # azure credentials
     use_azure = questionary.confirm("Do you want to enable MemGPT with Azure?", default=False).ask()
@@ -43,7 +45,7 @@ def configure():
         azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         azure_version = os.getenv("AZURE_OPENAI_VERSION")
         azure_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-        azure_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")
+        azure_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT")
 
         if all([azure_key, azure_endpoint, azure_version]):
             print(f"Using Microsoft endpoint {azure_endpoint}.")
@@ -74,10 +76,17 @@ def configure():
         endpoint_options += ["openai"]
 
     assert len(endpoint_options) > 0, "No endpoints found. Please enable OpenAI, Azure, or set OPENAI_API_BASE."
-    if len(endpoint_options) == 1:
-        default_endpoint = endpoint_options[0]
-    else:
-        default_endpoint = questionary.select("Select default endpoint:", endpoint_options).ask()
+    default_endpoint = questionary.select("Select default inference endpoint:", endpoint_options).ask()
+
+    # configure embedding provider
+    endpoint_options.append("local")  # can compute embeddings locally
+    default_embedding_endpoint = questionary.select("Select default embedding endpoint:", endpoint_options).ask()
+
+    # configure embedding dimentions
+    default_embedding_dim = 1536
+    if default_embedding_endpoint == "local":
+        # HF model uses lower dimentionality
+        default_embedding_dim = 384
 
     # configure preset
     default_preset = questionary.select("Select default preset:", preset_options, default=DEFAULT_PRESET).ask()
@@ -86,9 +95,9 @@ def configure():
     if use_openai or use_azure:
         model_options = []
         if use_openai:
-            model_options += ["gpt-3.5-turbo", "gpt-3.5", "gpt-4"]
+            model_options += ["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo-16k"]
         default_model = questionary.select(
-            "Select default model (recommended: gpt-4):", choices=["gpt-3.5-turbo", "gpt-3.5", "gpt-4"], default="gpt-4"
+            "Select default model (recommended: gpt-4):", choices=["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo-16k"], default="gpt-4"
         ).ask()
     else:
         default_model = "local"  # TODO: figure out if this is ok? this is for local endpoint
@@ -127,6 +136,8 @@ def configure():
         model=default_model,
         preset=default_preset,
         model_endpoint=default_endpoint,
+        embedding_model=default_embedding_endpoint,
+        embedding_dim=default_embedding_dim,
         default_persona=default_persona,
         default_human=default_human,
         default_agent=default_agent,

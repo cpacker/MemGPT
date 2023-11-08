@@ -57,7 +57,7 @@ async def system_message(msg):
     print(fstr.format(msg=msg))
 
 
-async def user_message(msg, raw=False, debug=DEBUG):
+async def user_message(msg, raw=False, dump=False, debug=DEBUG):
     def print_user_message(icon, msg, printf=print):
         if STRIP_UI:
             printf(f"{icon} {msg}")
@@ -66,6 +66,10 @@ async def user_message(msg, raw=False, debug=DEBUG):
 
     def printd_user_message(icon, msg):
         return print_user_message(icon, msg)
+
+    if not (raw or dump or debug):
+        # we do not want to repeat the message in normal use
+        return
 
     if isinstance(msg, str):
         if raw:
@@ -79,12 +83,19 @@ async def user_message(msg, raw=False, debug=DEBUG):
                 printd_user_message("🧑", msg)
                 return
     if msg_json["type"] == "user_message":
+        if dump:
+            print_user_message("🧑", msg_json["message"])
+            return
         msg_json.pop("type")
         printd_user_message("🧑", msg_json)
     elif msg_json["type"] == "heartbeat":
         if debug:
             msg_json.pop("type")
             printd_user_message("💓", msg_json)
+        elif dump:
+            print_user_message("💓", msg_json)
+            return
+
     elif msg_json["type"] == "system_message":
         msg_json.pop("type")
         printd_user_message("🖥️", msg_json)
@@ -106,7 +117,7 @@ async def function_message(msg, debug=DEBUG):
         printd_function_message("", msg)
         return
 
-    if msg.startswith("Success: "):
+    if msg.startswith("Success"):
         printd_function_message("🟢", msg)
     elif msg.startswith("Error: "):
         printd_function_message("🔴", msg)
@@ -114,11 +125,11 @@ async def function_message(msg, debug=DEBUG):
         if debug:
             printd_function_message("", msg)
         else:
-            if "memory" in msg:
-                match = re.search(r"Running (\w+)\((.*)\)", msg)
-                if match:
-                    function_name = match.group(1)
-                    function_args = match.group(2)
+            match = re.search(r"Running (\w+)\((.*)\)", msg)
+            if match:
+                function_name = match.group(1)
+                function_args = match.group(2)
+                if "memory" in function_name:
                     print_function_message("🧠", f"updating memory with {function_name}")
                     try:
                         msg_dict = eval(function_args)
@@ -127,23 +138,26 @@ async def function_message(msg, debug=DEBUG):
                             if STRIP_UI:
                                 print(output)
                             else:
-                                print(f"{Fore.RED}{output}")
+                                print(f"{Fore.RED}{output}{Style.RESET_ALL}")
+                        elif function_name == "archival_memory_insert":
+                            output = f'\t→ {msg_dict["content"]}'
+                            if STRIP_UI:
+                                print(output)
+                            else:
+                                print(f"{Style.BRIGHT}{Fore.RED}{output}{Style.RESET_ALL}")
                         else:
                             if STRIP_UI:
                                 print(f'\t {msg_dict["old_content"]}\n\t→ {msg_dict["new_content"]}')
                             else:
-                                print(f'{Style.BRIGHT}\t{Fore.RED} {msg_dict["old_content"]}\n\t{Fore.GREEN}→ {msg_dict["new_content"]}')
+                                print(
+                                    f'{Style.BRIGHT}\t{Fore.RED} {msg_dict["old_content"]}\n\t{Fore.GREEN}→ {msg_dict["new_content"]}{Style.RESET_ALL}'
+                                )
                     except Exception as e:
-                        printd(e)
+                        printd(str(e))
                         printd(msg_dict)
                         pass
-                else:
-                    printd(f"Warning: did not recognize function message")
-                    printd_function_message("", msg)
-            elif "send_message" in msg:
-                # ignore in debug mode
-                pass
             else:
+                printd(f"Warning: did not recognize function message")
                 printd_function_message("", msg)
     else:
         try:
@@ -181,7 +195,7 @@ async def print_messages(message_sequence, dump=False):
             else:
                 await internal_monologue(content)
         elif role == "user":
-            await user_message(content, debug=dump)
+            await user_message(content, dump=dump)
         elif role == "function":
             await function_message(content, debug=dump)
         else:

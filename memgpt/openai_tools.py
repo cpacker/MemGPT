@@ -152,7 +152,7 @@ async def acreate_embedding_with_backoff(**kwargs):
     return await openai.Embedding.acreate(**kwargs)
 
 
-async def async_get_embedding_with_backoff(text, model="text-embedding-ada-002") -> VectorEmbedding:
+async def async_get_embedding_with_backoff(text: str, model: str = "text-embedding-ada-002") -> VectorEmbedding:
     """To get text embeddings, import/call this function
     It specifies defaults + handles rate-limiting + is async"""
     text = text.replace("\n", " ")
@@ -173,7 +173,7 @@ def create_embedding_with_backoff(**kwargs):
     return openai.Embedding.create(**kwargs)
 
 
-def get_embedding_with_backoff(text, model="text-embedding-ada-002") -> VectorEmbedding:
+def get_embedding_with_backoff(text: str, model: str = "text-embedding-ada-002") -> VectorEmbedding:
     text = text.replace("\n", " ")
     response = create_embedding_with_backoff(input=[text], model=model)
     embedding = cast(VectorEmbedding, response["data"][0]["embedding"])

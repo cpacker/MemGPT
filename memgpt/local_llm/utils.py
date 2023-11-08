@@ -1,4 +1,5 @@
 import os
+import tiktoken
 
 
 class DotDict(dict):
@@ -31,3 +32,8 @@ def load_grammar_file(grammar):
         grammar_str = file.read()
 
     return grammar_str
+
+
+def count_tokens(s: str, model: str = "gpt-4") -> int:
+    encoding = tiktoken.encoding_for_model(model)
+    return len(encoding.encode(s))

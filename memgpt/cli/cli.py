@@ -185,3 +185,10 @@ def attach(
         f"Attached data source {data_source} to agent {agent}, consisting of {len(passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
         fg=typer.colors.GREEN,
     )
+
+
+def version():
+    import memgpt
+
+    print(memgpt.__version__)
+    return memgpt.__version__

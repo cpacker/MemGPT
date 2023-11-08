@@ -2,8 +2,6 @@ from abc import ABC, abstractmethod
 import os
 import datetime
 import re
-import faiss
-import numpy as np
 from typing import Optional, List, Tuple
 
 from .constants import MESSAGE_SUMMARY_WARNING_TOKENS, MEMGPT_DIR
@@ -184,7 +182,7 @@ async def a_summarize_messages(
 
 class ArchivalMemory(ABC):
     @abstractmethod
-    def insert(self, memory_string: str, embedding: Optional[VectorEmbedding] = None):
+    def insert(self, memory_string: str):
         """Insert new archival memory
 
         :param memory_string: Memory string to insert
@@ -196,7 +194,7 @@ class ArchivalMemory(ABC):
         pass
 
     @abstractmethod
-    def search(self, query_string, count=None, start=None) -> Tuple[List[str], int]:
+    def search(self, query_string: str, count: Optional[int] = None, start: Optional[int] = None) -> Tuple[List[str], int]:
         """Search archival memory
 
         :param query_string: Query string
@@ -236,9 +234,7 @@ class DummyArchivalMemory(ArchivalMemory):
             memory_str = "\n".join([d["content"] for d in self._archive])
         return f"\n### ARCHIVAL MEMORY ###" + f"\n{memory_str}"
 
-    def insert(self, memory_string: str, embedding: Optional[VectorEmbedding] = None):
-        if embedding is not None:
-            raise ValueError("Basic text-based archival memory does not support embeddings")
+    def insert(self, memory_string: str):
         self._archive.append(
             {
                 # can eventually upgrade to adding semantic tags, etc
@@ -247,10 +243,10 @@ class DummyArchivalMemory(ArchivalMemory):
             }
         )
 
-    async def a_insert(self, memory_string: str, embedding: Optional[VectorEmbedding] = None):
-        return self.insert(memory_string, embedding)
+    async def a_insert(self, memory_string: str):
+        return self.insert(memory_string)
 
-    def search(self, query_string, count=None, start=None):
+    def search(self, query_string: str, count: Optional[int] = None, start: Optional[int] = None):
         """Simple text-based search"""
         # in the dummy version, run an (inefficient) case-insensitive match search
         # printd(f"query_string: {query_string}")
@@ -270,7 +266,7 @@ class DummyArchivalMemory(ArchivalMemory):
         else:
             return matches, len(matches)
 
-    async def a_search(self, query_string, count=None, start=None):
+    async def a_search(self, query_string: str, count: Optional[int] = None, start: Optional[int] = None):
         return self.search(query_string, count=None, start=None)
 
 
@@ -298,14 +294,12 @@ class DummyArchivalMemoryWithEmbeddings(DummyArchivalMemory):
             }
         )
 
-    def insert(self, memory_string: str, embedding: Optional[VectorEmbedding] = None):
-        if embedding is None:
-            embedding = get_embedding_with_backoff(memory_string, model=self.embedding_model)
+    def insert(self, memory_string: str):
+        embedding = get_embedding_with_backoff(memory_string, model=self.embedding_model)
         return self._insert(memory_string, embedding)
 
-    async def a_insert(self, memory_string: str, embedding: Optional[VectorEmbedding] = None):
-        if embedding is None:
-            embedding = await async_get_embedding_with_backoff(memory_string, model=self.embedding_model)
+    async def a_insert(self, memory_string: str):
+        embedding = await async_get_embedding_with_backoff(memory_string, model=self.embedding_model)
         return self._insert(memory_string, embedding)
 
     def _search(self, query_embedding: VectorEmbedding, query_string: str, count: Optional[int], start: Optional[int]):
@@ -339,11 +333,11 @@ class DummyArchivalMemoryWithEmbeddings(DummyArchivalMemory):
         else:
             return matches, len(matches)
 
-    def search(self, query_string, count=None, start=None):
+    def search(self, query_string: str, count: Optional[int] = None, start: Optional[int] = None):
         query_embedding = get_embedding_with_backoff(query_string, model=self.embedding_model)
         return self._search(query_embedding, query_string, count, start)
 
-    async def a_search(self, query_string, count=None, start=None):
+    async def a_search(self, query_string: str, count: Optional[int] = None, start: Optional[int] = None):
         query_embedding = await async_get_embedding_with_backoff(query_string, model=self.embedding_model)
         return await self._search(query_embedding, query_string, count, start)
 
@@ -362,6 +356,8 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
 
     def __init__(self, index=None, archival_memory_database=None, embedding_model="text-embedding-ada-002", k=100):
         if index is None:
+            import faiss
+
             self.index = faiss.IndexFlatL2(1536)  # openai embedding vector size.
         else:
             self.index = index
@@ -375,6 +371,8 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
         return len(self._archive)
 
     def _insert(self, memory_string: str, embedding: VectorEmbedding):
+        import numpy as np
+
         print(f"Got an embedding, type {type(embedding)}, len {len(embedding)}")
 
         self._archive.append(
@@ -387,16 +385,14 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
         npembedding = np.array([embedding]).astype("float32")
         self.index.add(npembedding)
 
-    def insert(self, memory_string: str, embedding: Optional[VectorEmbedding] = None):
-        if embedding is None:
-            # Get the embedding
-            embedding = get_embedding_with_backoff(memory_string, model=self.embedding_model)
+    def insert(self, memory_string: str):
+        # Get the embedding
+        embedding = get_embedding_with_backoff(memory_string, model=self.embedding_model)
         return self._insert(memory_string, embedding)
 
-    async def a_insert(self, memory_string: str, embedding: Optional[VectorEmbedding] = None):
-        if embedding is None:
-            # Get the embedding
-            embedding = await async_get_embedding_with_backoff(memory_string, model=self.embedding_model)
+    async def a_insert(self, memory_string: str):
+        # Get the embedding
+        embedding = await async_get_embedding_with_backoff(memory_string, model=self.embedding_model)
         return self._insert(memory_string, embedding)
 
     def _search(self, query_embedding: VectorEmbedding, query_string: str, count: Optional[int] = None, start: Optional[int] = None):
@@ -405,6 +401,8 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
 
         # query_embedding = get_embedding(query_string, model=self.embedding_model)
         # our wrapped version supports backoff/rate-limits
+        import numpy as np
+
         if query_string in self.embeddings_dict:
             search_result = self.search_results[query_string]
         else:
@@ -454,19 +452,19 @@ class DummyArchivalMemoryWithFaiss(DummyArchivalMemory):
 
 class RecallMemory(ABC):
     @abstractmethod
-    def text_search(self, query_string, count=None, start=None):
+    def text_search(self, query_string: str, count: Optional[int] = None, start: Optional[int] = None):
         pass
 
     @abstractmethod
-    async def a_text_search(self, query_string, count=None, start=None):
+    async def a_text_search(self, query_string: str, count: Optional[int] = None, start: Optional[int] = None):
         pass
 
     @abstractmethod
-    def date_search(self, query_string, count=None, start=None):
+    def date_search(self, query_string: str, count: Optional[int] = None, start: Optional[int] = None):
         pass
 
     @abstractmethod
-    async def a_date_search(self, query_string, count=None, start=None):
+    async def a_date_search(self, query_string: str, count: Optional[int] = None, start: Optional[int] = None):
         pass
 
     @abstractmethod
@@ -520,7 +518,7 @@ class DummyRecallMemory(RecallMemory):
         )
         return f"\n### RECALL MEMORY ###" + f"\n{memory_str}"
 
-    async def insert(self, message):
+    async def insert(self, message: str):
         raise NotImplementedError("This should be handled by the PersistenceManager, recall memory is just a search layer on top")
 
     def text_search(self, query_string: str, count: Optional[int] = None, start: Optional[int] = None):
@@ -727,12 +725,13 @@ class LocalArchivalMemory(ArchivalMemory):
         # don't need to save data source, since we assume data source data is already loaded into the agent index
         utils.save_agent_index(self.index, self.agent_config)
 
-    def insert(self, memory_string: str, embedding: Optional[VectorEmbedding] = None):
+    def insert(self, memory_string: str):
         model_name = self.agent_config.embedding_model
         metadata = {
             "timestamp": get_local_time(),
             **({"model_name": model_name} if self.model_name else {}),
         }
+        embedding = get_embedding_with_backoff(memory_string, model=model_name)
         document = Document(text=memory_string, embedding=embedding, metadata=metadata)
         self.index.insert(document)
 
@@ -742,10 +741,16 @@ class LocalArchivalMemory(ArchivalMemory):
             similarity_top_k=self.top_k,
         )
 
-    async def a_insert(self, memory_string: str, embedding: Optional[VectorEmbedding] = None):
+    async def a_insert(self, memory_string: str):
+        model_name = self.agent_config.embedding_model
+        metadata = {
+            "timestamp": get_local_time(),
+            **({"model_name": model_name} if self.model_name else {}),
+        }
+        embedding = await async_get_embedding_with_backoff(memory_string, model=model_name)
         return self.insert(memory_string, embedding)
 
-    def search(self, query_string, count=None, start=None):
+    def search(self, query_string: str, count: Optional[int] = None, start: Optional[int] = None):
         print("searching with local")
         if self.retriever is None:
             print("Warning: archival memory is empty")
@@ -803,7 +808,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         """Save the index to disk"""
         self.storage.save()
 
-    def insert(self, memory_string):
+    def insert(self, memory_string: str):
         """Embed and save memory string"""
         from memgpt.connectors.storage import Passage
 
@@ -813,8 +818,13 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             # create parser
             parser = SimpleNodeParser.from_defaults(chunk_size=self.embedding_chunk_size)
 
+            metadata = {
+                "timestamp": get_local_time(),
+                **({"model_name": self.agent_config.embedding_model} if self.agent_config.embedding_model else {}),
+            }
+
             # breakup string into passages
-            for node in parser.get_nodes_from_documents([Document(text=memory_string)]):
+            for node in parser.get_nodes_from_documents([Document(text=memory_string, metadata=metadata)]):
                 embedding = self.embed_model.get_text_embedding(node.text)
                 passages.append(Passage(text=node.text, embedding=embedding, doc_id=f"agent_{self.agent_config.name}_memory"))
 
@@ -825,7 +835,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             print("Archival insert error", e)
             raise e
 
-    def search(self, query_string, count=None, start=None):
+    def search(self, query_string: str, count: Optional[int] = None, start: Optional[int] = None):
         """Search query string"""
         try:
             if query_string not in self.cache:
@@ -844,10 +854,10 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             print("Archival search error", e)
             raise e
 
-    async def a_search(self, query_string, count=None, start=None):
+    async def a_search(self, query_string: str, count: Optional[int] = None, start: Optional[int] = None):
         return self.search(query_string, count, start)
 
-    async def a_insert(self, memory_string, embedding=None):
+    async def a_insert(self, memory_string: str):
         return self.insert(memory_string)
 
     def __repr__(self) -> str:
@@ -859,4 +869,5 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         return f"\n### ARCHIVAL MEMORY ###" + f"\n{memory_str}"
 
     def __len__(self):
+        print("get archival storage size")
         return len(self.storage.get_all())
