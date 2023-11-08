@@ -47,7 +47,7 @@ from memgpt.openai_tools import (
 from memgpt.connectors.storage import StorageConnector
 import asyncio
 
-app = typer.Typer()
+app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
 app.command(name="version")(version)
 app.command(name="attach")(attach)
