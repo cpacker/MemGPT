@@ -1,0 +1,36 @@
+site_name: MemGPT
+site_url: https://memgpt.ai/
+repo_url: https://github.com/cpacker/MemGPT
+site_description: MemGPT documentation
+nav:
+  - Home: index.md
+  - 'User Guide':
+    - 'Quickstart': quickstart.md
+    - 'Example - perpetual chatbot': example_chat.md
+    - 'Example - chat with your data': example_data.md
+    - 'Configuration': config.md
+    - 'External data sources': data_sources.md
+    - 'Changing the LLM backend': endpoints.md
+    - 'FAQ': cli_faq.md
+  - 'Discord Bot':
+    - 'Chatting with MemGPT Bot': discord_bot.md
+  - 'Local LLM':
+    - 'Overview': local_llm.md
+    - 'oobabooga web UI': webui.md
+    - 'oobabooga web UI (on RunPod)': webui_runpod.md
+    - 'LM Studio': lmstudio.md
+    - 'llama.cpp': llamacpp.md
+    - 'koboldcpp': koboldcpp.md
+    - 'ollama': ollama.md
+    - 'Troubleshooting': local_llm_faq.md
+  - 'Integrations':
+    - 'Autogen': autogen.md
+  - 'Advanced':
+    - 'Configuring storage backends': storage.md
+    - 'Adding support for new LLMs': adding_wrappers.md
+    - 'Contributing to the codebase': contributing.md
+theme: readthedocs
+markdown_extensions:
+  - admonition
+plugins:
+  - search
