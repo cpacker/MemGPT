@@ -125,6 +125,8 @@ def summarize_messages(
     message_sequence_to_summarize,
 ):
     """Summarize a message sequence using GPT"""
+    if "gpt-" in model:
+        model = "gpt-3.5-turbo-16k"
 
     summary_prompt = SUMMARY_PROMPT_SYSTEM
     summary_input = str(message_sequence_to_summarize)
@@ -153,6 +155,8 @@ async def a_summarize_messages(
     message_sequence_to_summarize,
 ):
     """Summarize a message sequence using GPT"""
+    if "gpt-" in model:
+        model = "gpt-3.5-turbo-16k"
 
     summary_prompt = SUMMARY_PROMPT_SYSTEM
     summary_input = str(message_sequence_to_summarize)
