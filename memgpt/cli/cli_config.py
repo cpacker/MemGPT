@@ -162,11 +162,20 @@ def list(option: str):
     if option == "agents":
         """List all agents"""
         table = PrettyTable()
-        table.field_names = ["Name", "Model", "Persona", "Human", "Data Source"]
+        table.field_names = ["Name", "Model", "Persona", "Human", "Data Source", "Create Time"]
         for agent_file in utils.list_agent_config_files():
             agent_name = os.path.basename(agent_file).replace(".json", "")
             agent_config = AgentConfig.load(agent_name)
-            table.add_row([agent_name, agent_config.model, agent_config.persona, agent_config.human, ",".join(agent_config.data_sources)])
+            table.add_row(
+                [
+                    agent_name,
+                    agent_config.model,
+                    agent_config.persona,
+                    agent_config.human,
+                    ",".join(agent_config.data_sources),
+                    agent_config.create_time,
+                ]
+            )
         print(table)
     elif option == "humans":
         """List all humans"""
