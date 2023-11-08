@@ -1,16 +1,12 @@
-import asyncio
 import inspect
 import datetime
 import glob
-import pickle
 import math
 import os
 import requests
 import json
-import threading
 import traceback
 
-import openai
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import AgentConfig
 from .system import get_heartbeat, get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
@@ -18,13 +14,11 @@ from .memory import CoreMemory as Memory, summarize_messages, a_summarize_messag
 from .openai_tools import acompletions_with_backoff as acreate, completions_with_backoff as create
 from .utils import get_local_time, parse_json, united_diff, printd, count_tokens
 from .constants import (
-    MEMGPT_DIR,
     FIRST_MESSAGE_ATTEMPTS,
     MAX_PAUSE_HEARTBEATS,
     MESSAGE_CHATGPT_FUNCTION_MODEL,
     MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
     MESSAGE_SUMMARY_WARNING_FRAC,
-    LLM_MAX_TOKENS,
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
