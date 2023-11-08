@@ -2,7 +2,7 @@
 
 ## Installing from source
 
-To install MemGPT from source, you can simply clone the repo:
+To install MemGPT from source, start by cloning the repo:
 ```sh
 git clone git@github.com:cpacker/MemGPT.git
 ```
@@ -12,7 +12,7 @@ Then navigate to the main `MemGPT` directory, and do:
 pip install -e .
 ```
 
-Now, you should be able to run `memgpt` from that command-line (using the downloaded source code).
+Now, you should be able to run `memgpt` from the command-line using the downloaded source code.
 
 If you are having dependency issues using `pip install -e .`, we recommend you install the package using Poetry (see below). Installing MemGPT from source using Poetry will ensure that you are using exact package versions that have been tested for the production build.
 
