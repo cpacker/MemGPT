@@ -412,7 +412,6 @@ def list_persona_files():
 
 def list_prompt_files():
     """List all prompt files"""
-    print("LIST PROMPTS")
     defaults_dir = os.path.join(memgpt.__path__[0], "prompts", "system")
     user_dir = os.path.join(MEMGPT_DIR, "prompts")
 
