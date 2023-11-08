@@ -107,7 +107,9 @@ class MemGPTConfig:
 
             # read config values
             model = config.get("defaults", "model")
-            context_window = config.get("defaults", "context_window")
+            context_window = (
+                config.get("defaults", "context_window") if config.has_option("defaults", "context_window") else LLM_MAX_TOKENS["DEFAULT"]
+            )
             preset = config.get("defaults", "preset")
             model_endpoint = config.get("defaults", "model_endpoint")
             default_persona = config.get("defaults", "persona")
