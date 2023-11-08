@@ -23,7 +23,8 @@ from .constants import (
     MAX_PAUSE_HEARTBEATS,
     MESSAGE_CHATGPT_FUNCTION_MODEL,
     MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
-    MESSAGE_SUMMARY_WARNING_TOKENS,
+    MESSAGE_SUMMARY_WARNING_FRAC,
+    LLM_MAX_TOKENS,
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
@@ -109,10 +110,12 @@ def get_ai_reply(
     message_sequence,
     functions,
     function_call="auto",
+    context_length=None,
 ):
     try:
         response = create(
             model=model,
+            context_length=context_length,
             messages=message_sequence,
             functions=functions,
             function_call=function_call,
@@ -138,12 +141,14 @@ async def get_ai_reply_async(
     message_sequence,
     functions,
     function_call="auto",
+    context_length=None,
 ):
     """Base call to GPT API w/ functions"""
 
     try:
         response = await acreate(
             model=model,
+            context_length=context_length,
             messages=message_sequence,
             functions=functions,
             function_call=function_call,
@@ -622,7 +627,12 @@ class Agent(object):
                 printd(f"This is the first message. Running extra verifier on AI response.")
                 counter = 0
                 while True:
-                    response = get_ai_reply(model=self.model, message_sequence=input_message_sequence, functions=self.functions)
+                    response = get_ai_reply(
+                        model=self.model,
+                        message_sequence=input_message_sequence,
+                        functions=self.functions,
+                        context_length=self.config.context_length,
+                    )
                     if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
 
@@ -631,7 +641,12 @@ class Agent(object):
                         raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
 
             else:
-                response = get_ai_reply(model=self.model, message_sequence=input_message_sequence, functions=self.functions)
+                response = get_ai_reply(
+                    model=self.model,
+                    message_sequence=input_message_sequence,
+                    functions=self.functions,
+                    context_length=self.config.context_length,
+                )
 
             # Step 2: check if LLM wanted to call a function
             # (if yes) Step 3: call the function
@@ -660,14 +675,18 @@ class Agent(object):
             # Check the memory pressure and potentially issue a memory pressure warning
             current_total_tokens = response["usage"]["total_tokens"]
             active_memory_warning = False
-            if current_total_tokens > MESSAGE_SUMMARY_WARNING_TOKENS:
-                printd(f"WARNING: last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_TOKENS}")
+            # if current_total_tokens > MESSAGE_SUMMARY_WARNING_TOKENS:
+            # if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * LLM_MAX_TOKENS[self.model]:
+            if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * self.config.context_window:
+                printd(
+                    f"WARNING: last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * self.config.context_window}"
+                )
                 # Only deliver the alert if we haven't already (this period)
                 if not self.agent_alerted_about_memory_pressure:
                     active_memory_warning = True
                     self.agent_alerted_about_memory_pressure = True  # it's up to the outer loop to handle this
             else:
-                printd(f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_TOKENS}")
+                printd(f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * self.config.context_window}")
 
             self.append_to_messages(all_new_messages)
             return all_new_messages, heartbeat_request, function_failed, active_memory_warning
@@ -738,7 +757,9 @@ class Agent(object):
         message_sequence_to_summarize = self.messages[1:cutoff]  # do NOT get rid of the system message
         printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
 
-        summary = summarize_messages(self.model, message_sequence_to_summarize)
+        summary = summarize_messages(
+            model=self.model, context_window=self.config.context_window, message_sequence_to_summarize=message_sequence_to_summarize
+        )
         printd(f"Got summary: {summary}")
 
         # Metadata that's useful for the agent to see
@@ -1057,7 +1078,12 @@ class AgentAsync(Agent):
                 printd(f"This is the first message. Running extra verifier on AI response.")
                 counter = 0
                 while True:
-                    response = await get_ai_reply_async(model=self.model, message_sequence=input_message_sequence, functions=self.functions)
+                    response = await get_ai_reply_async(
+                        model=self.model,
+                        message_sequence=input_message_sequence,
+                        functions=self.functions,
+                        context_length=self.config.context_length,
+                    )
                     if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
 
@@ -1066,7 +1092,12 @@ class AgentAsync(Agent):
                         raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
 
             else:
-                response = await get_ai_reply_async(model=self.model, message_sequence=input_message_sequence, functions=self.functions)
+                response = await get_ai_reply_async(
+                    model=self.model,
+                    message_sequence=input_message_sequence,
+                    functions=self.functions,
+                    context_length=self.config.context_length,
+                )
 
             # Step 2: check if LLM wanted to call a function
             # (if yes) Step 3: call the function
@@ -1095,14 +1126,16 @@ class AgentAsync(Agent):
             # Check the memory pressure and potentially issue a memory pressure warning
             current_total_tokens = response["usage"]["total_tokens"]
             active_memory_warning = False
-            if current_total_tokens > MESSAGE_SUMMARY_WARNING_TOKENS:
-                printd(f"WARNING: last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_TOKENS}")
+            if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * self.config.context_window:
+                printd(
+                    f"WARNING: last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * self.config.context_window}"
+                )
                 # Only deliver the alert if we haven't already (this period)
                 if not self.agent_alerted_about_memory_pressure:
                     active_memory_warning = True
                     self.agent_alerted_about_memory_pressure = True  # it's up to the outer loop to handle this
             else:
-                printd(f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_TOKENS}")
+                printd(f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * self.config.context_window}")
 
             self.append_to_messages(all_new_messages)
             return all_new_messages, heartbeat_request, function_failed, active_memory_warning
@@ -1180,7 +1213,9 @@ class AgentAsync(Agent):
             )
 
         printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
-        summary = await a_summarize_messages(self.model, message_sequence_to_summarize)
+        summary = await a_summarize_messages(
+            model=self.model, context_window=self.config.context_window, message_sequence_to_summarize=message_sequence_to_summarize
+        )
         printd(f"Got summary: {summary}")
 
         # Metadata that's useful for the agent to see
@@ -1281,6 +1316,7 @@ class AgentAsync(Agent):
             messages=message_sequence,
             # functions=functions,
             # function_call=function_call,
+            context_length=self.config.context_length,
         )
 
         reply = response.choices[0].message.content

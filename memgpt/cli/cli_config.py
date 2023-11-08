@@ -14,6 +14,7 @@ import memgpt.personas.personas as personas
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
 from memgpt.connectors.storage import StorageConnector
+from memgpt.constants import LLM_MAX_TOKENS
 
 app = typer.Typer()
 
@@ -102,6 +103,9 @@ def configure():
     else:
         default_model = "local"  # TODO: figure out if this is ok? this is for local endpoint
 
+    # get the max tokens (context window) for the model
+    default_model_context_window = LLM_MAX_TOKENS[default_model] if default_model in LLM_MAX_TOKENS else LLM_MAX_TOKENS["DEFAULT"]
+
     # defaults
     personas = [os.path.basename(f).replace(".txt", "") for f in utils.list_persona_files()]
     print(personas)
@@ -134,6 +138,7 @@ def configure():
 
     config = MemGPTConfig(
         model=default_model,
+        context_window=default_model_context_window,
         preset=default_preset,
         model_endpoint=default_endpoint,
         embedding_model=default_embedding_endpoint,
