@@ -29,8 +29,7 @@ class WebSocketInterface(AgentInterface):
 class WebSocketInterface(AgentInterface):
     """Interface for interacting with a MemGPT agent over a WebSocket"""
 
-    def __init__(self, websocket):
-        self.websocket = websocket
+    def __init__(self):
         self.clients = set()
 
     async def register_client(self, websocket):
