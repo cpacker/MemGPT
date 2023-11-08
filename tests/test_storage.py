@@ -16,6 +16,9 @@ import argparse
 
 
 def test_postgres():
+    if os.getenv("OPENAI_API_KEY") is None:
+        return
+
     config = MemGPTConfig()
     config.archival_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")  # the URI for a postgres DB w/ the pgvector extension
     assert config.archival_storage_uri is not None
