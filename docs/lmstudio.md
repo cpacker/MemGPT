@@ -1,6 +1,6 @@
 ### MemGPT + LM Studio
 
-!!! warning "Be careful when downloading Ollama models!"
+!!! warning "Important LM Studio settings"
 
     Make sure that "context length" is set (inside LM Studio's "Model Configuration" panel) to the max context length of the model you're using (e.g. 8000 for Mistral 7B variants).
 
