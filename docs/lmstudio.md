@@ -1,5 +1,11 @@
 ### MemGPT + LM Studio
 
+!!! warning "Be careful when downloading Ollama models!"
+
+    Make sure that "context length" is set (inside LM Studio's "Model Configuration" panel) to the max context length of the model you're using (e.g. 8000 for Mistral 7B variants).
+
+    If you see "Prompt Formatting" (inside LM Studio's "Server Options" panel), turn it **OFF**. Leaving it **ON** will break MemGPT.
+
 ![image](https://github.com/cpacker/MemGPT/assets/5475622/abc8ce2d-4130-4c51-8169-83e682db625d)
 
 1. Download [LM Studio](https://lmstudio.ai/) and the model you want to test with
@@ -14,6 +20,3 @@ In your terminal where you're running MemGPT, run:
 export OPENAI_API_BASE=http://localhost:1234
 export BACKEND_TYPE=lmstudio
 ```
-
-* **Make sure that "context length" is set to the max context length of the model you're using (e.g. 8000 for Mistral 7B variants)**
-* **If you see "Prompt Formatting" in your menu, turn it off**
