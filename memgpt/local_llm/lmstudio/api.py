@@ -12,11 +12,11 @@ LMSTUDIO_API_COMPLETIONS_SUFFIX = "/v1/completions"
 DEBUG = False
 
 
-def get_lmstudio_completion(prompt, context_length, settings=SIMPLE, api="chat"):
+def get_lmstudio_completion(prompt, context_window, settings=SIMPLE, api="chat"):
     """Based on the example for using LM Studio as a backend from https://github.com/lmstudio-ai/examples/tree/main/Hello%2C%20world%20-%20OpenAI%20python%20client"""
     prompt_tokens = count_tokens(prompt)
-    if prompt_tokens > context_length:
-        raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_length} tokens)")
+    if prompt_tokens > context_window:
+        raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_window} tokens)")
 
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
     request = settings

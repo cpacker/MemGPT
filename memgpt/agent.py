@@ -104,12 +104,12 @@ def get_ai_reply(
     message_sequence,
     functions,
     function_call="auto",
-    context_length=None,
+    context_window=None,
 ):
     try:
         response = create(
             model=model,
-            context_length=context_length,
+            context_window=context_window,
             messages=message_sequence,
             functions=functions,
             function_call=function_call,
@@ -135,14 +135,14 @@ async def get_ai_reply_async(
     message_sequence,
     functions,
     function_call="auto",
-    context_length=None,
+    context_window=None,
 ):
     """Base call to GPT API w/ functions"""
 
     try:
         response = await acreate(
             model=model,
-            context_length=context_length,
+            context_window=context_window,
             messages=message_sequence,
             functions=functions,
             function_call=function_call,
@@ -625,7 +625,7 @@ class Agent(object):
                         model=self.model,
                         message_sequence=input_message_sequence,
                         functions=self.functions,
-                        context_length=self.config.context_length,
+                        context_window=self.config.context_window,
                     )
                     if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
@@ -639,7 +639,7 @@ class Agent(object):
                     model=self.model,
                     message_sequence=input_message_sequence,
                     functions=self.functions,
-                    context_length=self.config.context_length,
+                    context_window=self.config.context_window,
                 )
 
             # Step 2: check if LLM wanted to call a function
@@ -1076,7 +1076,7 @@ class AgentAsync(Agent):
                         model=self.model,
                         message_sequence=input_message_sequence,
                         functions=self.functions,
-                        context_length=self.config.context_length,
+                        context_window=self.config.context_window,
                     )
                     if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
@@ -1090,7 +1090,7 @@ class AgentAsync(Agent):
                     model=self.model,
                     message_sequence=input_message_sequence,
                     functions=self.functions,
-                    context_length=self.config.context_length,
+                    context_window=self.config.context_window,
                 )
 
             # Step 2: check if LLM wanted to call a function
@@ -1310,7 +1310,7 @@ class AgentAsync(Agent):
             messages=message_sequence,
             # functions=functions,
             # function_call=function_call,
-            context_length=self.config.context_length,
+            context_window=self.config.context_window,
         )
 
         reply = response.choices[0].message.content

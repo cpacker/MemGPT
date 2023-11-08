@@ -12,11 +12,11 @@ KOBOLDCPP_API_SUFFIX = "/api/v1/generate"
 DEBUG = True
 
 
-def get_koboldcpp_completion(prompt, context_length, grammar=None, settings=SIMPLE):
+def get_koboldcpp_completion(prompt, context_window, grammar=None, settings=SIMPLE):
     """See https://lite.koboldai.net/koboldcpp_api for API spec"""
     prompt_tokens = count_tokens(prompt)
-    if prompt_tokens > context_length:
-        raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_length} tokens)")
+    if prompt_tokens > context_window:
+        raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_window} tokens)")
 
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
     request = settings

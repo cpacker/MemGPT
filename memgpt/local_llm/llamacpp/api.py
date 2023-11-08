@@ -12,11 +12,11 @@ LLAMACPP_API_SUFFIX = "/completion"
 DEBUG = True
 
 
-def get_llamacpp_completion(prompt, context_length, grammar=None, settings=SIMPLE):
+def get_llamacpp_completion(prompt, context_window, grammar=None, settings=SIMPLE):
     """See https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md for instructions on how to run the LLM web server"""
     prompt_tokens = count_tokens(prompt)
-    if prompt_tokens > context_length:
-        raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_length} tokens)")
+    if prompt_tokens > context_window:
+        raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_window} tokens)")
 
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
     request = settings
