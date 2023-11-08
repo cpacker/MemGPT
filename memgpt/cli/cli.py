@@ -38,7 +38,7 @@ def run(
     human: str = typer.Option(None, help="Specify human"),
     model: str = typer.Option(None, help="Specify the LLM model"),
     preset: str = typer.Option(None, help="Specify preset"),
-    prompt: str = typer.Option(None, help="Specify prompt"),
+    prompt: str = typer.Option(None, help="Specify system prompt"),
     first: bool = typer.Option(False, "--first", help="Use --first to send the first message in the sequence"),
     strip_ui: bool = typer.Option(False, "--strip_ui", help="Remove all the bells and whistles in CLI output (helpful for testing)"),
     debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),

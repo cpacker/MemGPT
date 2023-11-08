@@ -92,7 +92,7 @@ def configure():
     default_preset = questionary.select("Select default preset:", preset_options, default=DEFAULT_PRESET).ask()
 
     # configure prompt
-    default_prompt = questionary.select("Select default prompt:", prompt_options, default=DEFAULT_PROMPT).ask()
+    default_prompt = questionary.select("Select default system prompt:", prompt_options, default=DEFAULT_PROMPT).ask()
 
     # default model
     if use_openai or use_azure:
