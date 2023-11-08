@@ -7,7 +7,6 @@ import numpy as np
 import json
 import pytz
 import os
-import faiss
 import tiktoken
 import glob
 import sqlite3
@@ -104,6 +103,8 @@ def parse_json(string):
 
 
 def prepare_archival_index(folder):
+    import faiss
+
     index_file = os.path.join(folder, "all_docs.index")
     index = faiss.read_index(index_file)
 
@@ -308,6 +309,8 @@ async def prepare_archival_index_from_files_compute_embeddings(
             f.write("\n")
 
     # make the faiss index
+    import faiss
+
     index = faiss.IndexFlatL2(1536)
     data = np.array(embedding_data).astype("float32")
     try:

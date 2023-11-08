@@ -76,18 +76,11 @@ def configure():
         endpoint_options += ["openai"]
 
     assert len(endpoint_options) > 0, "No endpoints found. Please enable OpenAI, Azure, or set OPENAI_API_BASE."
-    if len(endpoint_options) == 1:
-        default_endpoint = endpoint_options[0]
-    else:
-        default_endpoint = questionary.select("Select default inference endpoint:", endpoint_options).ask()
+    default_endpoint = questionary.select("Select default inference endpoint:", endpoint_options).ask()
 
     # configure embedding provider
     endpoint_options.append("local")  # can compute embeddings locally
-    if len(endpoint_options) == 1:
-        default_embedding_endpoint = endpoint_options[0]
-        print(f"Using embedding endpoint {default_embedding_endpoint}")
-    else:
-        default_embedding_endpoint = questionary.select("Select default embedding endpoint:", endpoint_options).ask()
+    default_embedding_endpoint = questionary.select("Select default embedding endpoint:", endpoint_options).ask()
 
     # configure embedding dimentions
     default_embedding_dim = 1536
@@ -102,9 +95,9 @@ def configure():
     if use_openai or use_azure:
         model_options = []
         if use_openai:
-            model_options += ["gpt-3.5-turbo", "gpt-3.5", "gpt-4"]
+            model_options += ["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo-16k"]
         default_model = questionary.select(
-            "Select default model (recommended: gpt-4):", choices=["gpt-3.5-turbo", "gpt-3.5", "gpt-4"], default="gpt-4"
+            "Select default model (recommended: gpt-4):", choices=["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo-16k"], default="gpt-4"
         ).ask()
     else:
         default_model = "local"  # TODO: figure out if this is ok? this is for local endpoint
