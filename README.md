@@ -113,7 +113,10 @@ Now, you should be able to run `memgpt` from the command-line using the download
 
 If you are having dependency issues using `pip install -e .`, we recommend you install the package using Poetry (see below). Installing MemGPT from source using Poetry will ensure that you are using exact package versions that have been tested for the production build.
 
-## Installing from source (using Poetry)
+<details>
+ <summary>
+  <strong>Installing from source (using Poetry)</strong>
+ </summary>
 
 First, install Poetry using [the official instructions here](https://python-poetry.org/docs/#installing-with-the-official-installer).
 
@@ -123,6 +126,7 @@ git clone git@github.com:cpacker/MemGPT.git
 poetry shell
 poetry install
 ```
+</details>
 
 ## Support
 For issues and feature requests, please [open a GitHub issue](https://github.com/cpacker/MemGPT/issues) or message us on our `#support` channel on [Discord](https://discord.gg/9GEQrxmVyE)
