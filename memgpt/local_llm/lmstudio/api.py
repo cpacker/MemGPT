@@ -3,6 +3,7 @@ from urllib.parse import urljoin
 import requests
 
 from .settings import SIMPLE
+from ..utils import count_tokens
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
@@ -11,8 +12,11 @@ LMSTUDIO_API_COMPLETIONS_SUFFIX = "/v1/completions"
 DEBUG = False
 
 
-def get_lmstudio_completion(prompt, settings=SIMPLE, api="chat"):
+def get_lmstudio_completion(prompt, context_length, settings=SIMPLE, api="chat"):
     """Based on the example for using LM Studio as a backend from https://github.com/lmstudio-ai/examples/tree/main/Hello%2C%20world%20-%20OpenAI%20python%20client"""
+    prompt_tokens = count_tokens(prompt)
+    if prompt_tokens > context_length:
+        raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_length} tokens)")
 
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
     request = settings
