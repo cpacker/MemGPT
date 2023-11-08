@@ -228,6 +228,8 @@ class MemGPTConfig:
             config_path = os.getenv("MEMGPT_CONFIG_PATH")
         else:
             config_path = MemGPTConfig.config_path
+
+        assert not os.path.isdir(config_path), f"Config path {config_path} cannot be set to a directory."
         return os.path.exists(config_path)
 
     @staticmethod
