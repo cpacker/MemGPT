@@ -94,8 +94,39 @@ You can run the following commands in the MemGPT CLI prompt:
 
 Once you exit the CLI with `/exit`, you can resume chatting with the same agent by specifying the agent name in `memgpt run --agent <NAME>`.
 
-## Documentation 
+## Documentation
 See full documentation at: https://memgpt.readthedocs.io/
+
+## Installing from source
+
+To install MemGPT from source, start by cloning the repo:
+```sh
+git clone git@github.com:cpacker/MemGPT.git
+```
+
+Then navigate to the main `MemGPT` directory, and do:
+```sh
+pip install -e .
+```
+
+Now, you should be able to run `memgpt` from the command-line using the downloaded source code.
+
+If you are having dependency issues using `pip install -e .`, we recommend you install the package using Poetry (see below). Installing MemGPT from source using Poetry will ensure that you are using exact package versions that have been tested for the production build.
+
+<details>
+ <summary>
+  <strong>Installing from source (using Poetry)</strong>
+ </summary>
+
+First, install Poetry using [the official instructions here](https://python-poetry.org/docs/#installing-with-the-official-installer).
+
+Then, you can install MemGPT from source with:
+```sh
+git clone git@github.com:cpacker/MemGPT.git
+poetry shell
+poetry install
+```
+</details>
 
 ## Support
 For issues and feature requests, please [open a GitHub issue](https://github.com/cpacker/MemGPT/issues) or message us on our `#support` channel on [Discord](https://discord.gg/9GEQrxmVyE)
