@@ -435,8 +435,8 @@ def get_human_text(name: str):
             return open(file_path, "r").read().strip()
 
 
-def process_image(image_path, image_id):
+def process_image(image_path):
     with open(image_path, "rb") as image_file:
         encoded_image = base64.b64encode(image_file.read()).decode()
-    image_data = [{"data": encoded_image, "id": image_id}]
+    image_data = encoded_image
     return image_data

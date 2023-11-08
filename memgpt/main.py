@@ -416,15 +416,6 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
                 print("Empty input received. Try again!")
                 continue
 
-            # Search for the image tag in the message. [img=route/to/file.jpg, id=1]
-            match = re.search(r"\[img=(.*?), id=(\d+)\]", user_input)
-            if match:
-                image_path = match.group(1)
-                image_id = int(match.group(2))
-                image_data = utils.process_image(image_path, image_id)
-                # Replace route with image_id tag
-                user_input = user_input.replace(f"[img={image_path}, id={image_id}]", f"[img-{image_id}]")
-
             # Handle CLI commands
             # Commands to not get passed as input to MemGPT
             if user_input.startswith("/"):
@@ -591,6 +582,26 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
 
             else:
                 # If message did not begin with command prefix, pass inputs to MemGPT
+
+                # Clear image, llamacpp process image everytime if it is sent
+                image_data = None
+
+                # Search for the image tag in the message. [img=route/to/file.jpg, id=1]
+                match = re.search(r"\[img=(.*?), id=(\d+)\]", user_input)
+                if match:
+                    try:
+                        image_path = match.group(1)
+                        image_id = int(match.group(2))
+                        # Try to open the file to see if it exists
+                        with open(image_path, "rb") as image_file:
+                            pass
+                        image_data = [{"data": utils.process_image(image_path), "id": image_id}]
+                        # Replace route with image_id tag
+                        user_input = user_input.replace(f"[img={image_path}, id={image_id}]", f"[img-{image_id}]")
+                    except Exception as e:
+                        print(f"Opening {image_path} failed with: {e}")
+                        continue
+
                 # Handle user message and append to messages
                 user_message = system.package_user_message(user_input)
 
@@ -618,12 +629,10 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
             try:
                 if strip_ui:
                     new_messages, user_message, skip_next_user_input = await process_agent_step(user_message, no_verify, image_data)
-                    image_data = None
                     break
                 else:
                     with console.status("[bold cyan]Thinking...") as status:
                         new_messages, user_message, skip_next_user_input = await process_agent_step(user_message, no_verify, image_data)
-                        image_data = None
                         break
             except Exception as e:
                 print("An exception ocurred when running agent.step(): ")
