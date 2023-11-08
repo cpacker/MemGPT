@@ -51,10 +51,10 @@ jobs:
           cat memgpt/__init__.py
       - name: Configure poetry
         run: |
-          poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+          poetry config pypi-token.pypi ${{ secrets.PYPI_NIGHTLY_TOKEN }}
       - name: Build the Python package
         run: poetry build
       - name: Publish the package to PyPI
         run: poetry publish
         env:
-          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_NIGHTLY_TOKEN }}
