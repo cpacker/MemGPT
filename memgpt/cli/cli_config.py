@@ -22,7 +22,7 @@ app = typer.Typer()
 def configure():
     """Updates default MemGPT configurations"""
 
-    from memgpt.presets import DEFAULT_PRESET, preset_options
+    from memgpt.presets import DEFAULT_PRESET, preset_options, DEFAULT_PROMPT, prompt_options
 
     MemGPTConfig.create_config_dir()
 
@@ -91,6 +91,9 @@ def configure():
     # configure preset
     default_preset = questionary.select("Select default preset:", preset_options, default=DEFAULT_PRESET).ask()
 
+    # configure prompt
+    default_prompt = questionary.select("Select default prompt:", prompt_options, default=DEFAULT_PROMPT).ask()
+
     # default model
     if use_openai or use_azure:
         model_options = []
@@ -135,6 +138,7 @@ def configure():
     config = MemGPTConfig(
         model=default_model,
         preset=default_preset,
+        prompt=default_prompt,
         model_endpoint=default_endpoint,
         embedding_model=default_embedding_endpoint,
         embedding_dim=default_embedding_dim,

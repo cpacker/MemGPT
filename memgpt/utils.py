@@ -410,6 +410,21 @@ def list_persona_files():
     return memgpt_defaults + user_added
 
 
+def list_prompt_files():
+    """List all prompt files"""
+    print("LIST PROMPTS")
+    defaults_dir = os.path.join(memgpt.__path__[0], "prompts", "system")
+    user_dir = os.path.join(MEMGPT_DIR, "prompts")
+
+    memgpt_defaults = os.listdir(defaults_dir)
+    memgpt_defaults = [os.path.splitext(os.path.basename(f))[0] for f in memgpt_defaults if f.endswith(".txt")]
+
+    user_added = os.listdir(user_dir)
+    user_added = [os.path.splitext(os.path.basename(f))[0] for f in user_added if f.endswith(".txt")]
+
+    return memgpt_defaults + user_added
+
+
 def get_human_text(name: str):
     for file_path in list_human_files():
         file = os.path.basename(file_path)

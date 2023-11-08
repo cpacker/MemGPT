@@ -23,8 +23,7 @@ from memgpt.constants import MEMGPT_DIR
 import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
-from memgpt.presets import DEFAULT_PRESET, preset_options
-
+from memgpt.presets import DEFAULT_PRESET, preset_options, DEFAULT_PROMPT, prompt_options
 
 model_choices = [
     questionary.Choice("gpt-4"),
@@ -46,6 +45,8 @@ class MemGPTConfig:
 
     # preset
     preset: str = DEFAULT_PRESET
+    # prompt
+    prompt: str = DEFAULT_PROMPT
 
     # model parameters
     # provider: str = "openai"  # openai, azure, local (TODO)
@@ -107,6 +108,7 @@ class MemGPTConfig:
             # read config values
             model = config.get("defaults", "model")
             preset = config.get("defaults", "preset")
+            prompt = config.get("defaults", "prompt")
             model_endpoint = config.get("defaults", "model_endpoint")
             default_persona = config.get("defaults", "persona")
             default_human = config.get("defaults", "human")
@@ -142,6 +144,7 @@ class MemGPTConfig:
             return cls(
                 model=model,
                 preset=preset,
+                prompt=prompt,
                 model_endpoint=model_endpoint,
                 default_persona=default_persona,
                 default_human=default_human,
@@ -174,6 +177,7 @@ class MemGPTConfig:
         config.add_section("defaults")
         config.set("defaults", "model", self.model)
         config.set("defaults", "preset", self.preset)
+        config.set("defaults", "prompt", self.prompt)
         assert self.model_endpoint is not None, "Endpoint must be set"
         config.set("defaults", "model_endpoint", self.model_endpoint)
         config.set("defaults", "persona", self.default_persona)
@@ -235,7 +239,7 @@ class MemGPTConfig:
         if not os.path.exists(MEMGPT_DIR):
             os.makedirs(MEMGPT_DIR, exist_ok=True)
 
-        folders = ["personas", "humans", "archival", "agents"]
+        folders = ["personas", "humans", "prompts", "archival", "agents"]
         for folder in folders:
             if not os.path.exists(os.path.join(MEMGPT_DIR, folder)):
                 os.makedirs(os.path.join(MEMGPT_DIR, folder))
@@ -253,6 +257,7 @@ class AgentConfig:
         human,
         model,
         preset=DEFAULT_PRESET,
+        prompt=DEFAULT_PROMPT,
         name=None,
         data_sources=[],
         agent_config_path=None,
@@ -267,6 +272,7 @@ class AgentConfig:
         self.human = human
         self.model = model
         self.preset = preset
+        self.prompt = prompt
         self.data_sources = data_sources
         self.create_time = create_time if create_time is not None else utils.get_local_time()
         self.data_source = None  # deprecated

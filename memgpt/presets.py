@@ -1,13 +1,15 @@
 from .prompts import gpt_functions
 from .prompts import gpt_system
+from memgpt.utils import list_prompt_files
 
 DEFAULT_PRESET = "memgpt_chat"
 preset_options = [DEFAULT_PRESET]
-
+DEFAULT_PROMPT = "memgpt_chat"
+prompt_options = list_prompt_files()
 SYNC_CHAT = "memgpt_chat_sync"  # TODO: remove me after we move the CLI to AgentSync
 
 
-def use_preset(preset_name, agent_config, model, persona, human, interface, persistence_manager):
+def use_preset(preset_name, prompt_name, agent_config, model, persona, human, interface, persistence_manager):
     """Storing combinations of SYSTEM + FUNCTION prompts"""
 
     from memgpt.agent import AgentAsync, Agent
@@ -30,12 +32,12 @@ def use_preset(preset_name, agent_config, model, persona, human, interface, pers
 
         if "gpt-3.5" in model:
             # use a different system message for gpt-3.5
-            preset_name = "memgpt_gpt35_extralong"
+            preset_name, prompt_name = "memgpt_gpt35_extralong"
 
         return AgentAsync(
             config=agent_config,
             model=model,
-            system=gpt_system.get_system_text(preset_name),
+            system=gpt_system.get_system_text(prompt_name),
             functions=available_functions,
             interface=interface,
             persistence_manager=persistence_manager,
@@ -62,12 +64,12 @@ def use_preset(preset_name, agent_config, model, persona, human, interface, pers
 
         if "gpt-3.5" in model:
             # use a different system message for gpt-3.5
-            preset_name = "memgpt_gpt35_extralong"
+            preset_name, prompt_name = "memgpt_gpt35_extralong"
 
         return Agent(
             config=agent_config,
             model=model,
-            system=gpt_system.get_system_text(DEFAULT_PRESET),
+            system=gpt_system.get_system_text(prompt_name),
             functions=available_functions,
             interface=interface,
             persistence_manager=persistence_manager,
@@ -99,11 +101,11 @@ def use_preset(preset_name, agent_config, model, persona, human, interface, pers
 
         if "gpt-3.5" in model:
             # use a different system message for gpt-3.5
-            preset_name = "memgpt_gpt35_extralong"
+            preset_name, prompt_name = "memgpt_gpt35_extralong"
 
         return AgentAsync(
             model=model,
-            system=gpt_system.get_system_text("memgpt_chat"),
+            system=gpt_system.get_system_text("prompt_name"),
             functions=available_functions,
             interface=interface,
             persistence_manager=persistence_manager,
