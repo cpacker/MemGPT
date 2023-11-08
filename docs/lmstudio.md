@@ -6,7 +6,7 @@
 
     If you see "Prompt Formatting" (inside LM Studio's "Server Options" panel), turn it **OFF**. Leaving it **ON** will break MemGPT.
 
-![image](https://github.com/cpacker/MemGPT/assets/5475622/abc8ce2d-4130-4c51-8169-83e682db625d)
+![LMS PF](https://github.com/cpacker/MemGPT/assets/65172063/673cbd17-31eb-4292-8021-b6010894bc36)
 
 1. Download [LM Studio](https://lmstudio.ai/) and the model you want to test with
 2. Go to the "local inference server" tab, load the model and configure your settings (make sure to set the context length to something reasonable like 8k!)
