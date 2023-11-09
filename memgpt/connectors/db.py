@@ -23,23 +23,27 @@ from memgpt.utils import printd
 Base = declarative_base()
 
 
-class PassageModel(Base):
-    """Defines data model for storing Passages (consisting of text, embedding)"""
-
-    __abstract__ = True  # this line is necessary
-
-    # Assuming passage_id is the primary key
-    id = Column(BIGINT, primary_key=True, nullable=False, autoincrement=True)
-    doc_id = Column(String)
-    text = Column(String, nullable=False)
-    embedding = mapped_column(Vector(1536))  # TODO: don't hard-code
-    # metadata_ = Column(JSON(astext_type=Text()))
-
-    def __repr__(self):
-        return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
-
 
 def get_db_model(table_name: str):
+
+    config = MemGPTConfig.load()
+
+    class PassageModel(Base):
+        """Defines data model for storing Passages (consisting of text, embedding)"""
+    
+        __abstract__ = True  # this line is necessary
+    
+        # Assuming passage_id is the primary key
+        id = Column(BIGINT, primary_key=True, nullable=False, autoincrement=True)
+        doc_id = Column(String)
+        text = Column(String, nullable=False)
+        embedding = mapped_column(Vector(config.embedding_dim))  
+        # metadata_ = Column(JSON(astext_type=Text()))
+    
+        def __repr__(self):
+            return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
+
+
     """Create database model for table_name"""
     class_name = f"{table_name.capitalize()}Model"
     Model = type(class_name, (PassageModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
