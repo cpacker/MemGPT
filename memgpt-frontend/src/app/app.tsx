@@ -2,8 +2,7 @@ import Footer from './footer';
 import UserInput from './user-input';
 import Header from './header';
 import MessageContainer from './messages/message-container';
-import { useCallback, useEffect, useState } from 'react';
-import useWebSocket, { ReadyState } from 'react-use-websocket';
+import { ReadyState } from 'react-use-websocket';
 import { useMessages } from './use-messages';
 import StatusIndicator from './status-indicator';
 
@@ -17,7 +16,7 @@ export function App() {
         <StatusIndicator readyState={readyState}/>
       </Header>
         <MessageContainer messages={messageHistory} />
-      <UserInput onSend={sendMessage} />
+      <UserInput enabled={readyState === ReadyState.OPEN} onSend={sendMessage} />
       <Footer />
     </div>
   );
