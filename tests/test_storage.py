@@ -20,8 +20,9 @@ def test_postgres_openai():
     if os.getenv("OPENAI_API_KEY") is None:
         return  # soft pass
 
-    os.environ["MEMGPT_CONFIG_FILE"] = "./config"
+    # os.environ["MEMGPT_CONFIG_PATH"] = "./config"
     config = MemGPTConfig(archival_storage_type="postgres", archival_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"))
+    print(config.config_path)
     assert config.archival_storage_uri is not None
     config.archival_storage_uri = config.archival_storage_uri.replace(
         "postgres://", "postgresql://"
@@ -55,7 +56,7 @@ def test_postgres_openai():
 
 def test_postgres_local():
     assert os.getenv("PGVECTOR_TEST_DB_URL") is not None
-    os.environ["MEMGPT_CONFIG_FILE"] = "./config"
+    # os.environ["MEMGPT_CONFIG_PATH"] = "./config"
 
     config = MemGPTConfig(
         archival_storage_type="postgres",
@@ -63,6 +64,7 @@ def test_postgres_local():
         embedding_model="local",
         embedding_dim=384,  # use HF model
     )
+    print(config.config_path)
     assert config.archival_storage_uri is not None
     config.archival_storage_uri = config.archival_storage_uri.replace(
         "postgres://", "postgresql://"
