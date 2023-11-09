@@ -95,12 +95,17 @@ def configure():
         embedding_endpoint_options += ["openai"]
     embedding_endpoint_options += ["local"]
     valid_default_embedding = config.embedding_model in embedding_endpoint_options
+    # determine the default selection in a smart way
+    if "openai" in embedding_endpoint_options and default_endpoint == "openai":
+        # openai llm -> openai embeddings
+        default_embedding_endpoint_default = "openai"
+    elif default_endpoint not in ["openai", "azure"]:  # is local
+        # local llm -> local embeddings
+        default_embedding_endpoint_default = "local"
+    else:
+        default_embedding_endpoint_default = config.embedding_model if valid_default_embedding else embedding_endpoint_options[-1]
     default_embedding_endpoint = questionary.select(
-        "Select default embedding endpoint:",
-        embedding_endpoint_options,
-        default="openai"
-        if "openai" in embedding_endpoint_options and default_endpoint == "openai"
-        else (config.embedding_model if valid_default_embedding else embedding_endpoint_options[-1]),
+        "Select default embedding endpoint:", embedding_endpoint_options, default=default_embedding_endpoint_default
     ).ask()
 
     # configure embedding dimentions
