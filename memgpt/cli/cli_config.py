@@ -88,11 +88,12 @@ def configure():
     ).ask()
 
     # configure embedding provider
-    embedding_endpoint_options = ["local"]  # cannot configure custom endpoint (too confusing)
+    embedding_endpoint_options = []
     if use_azure:
         embedding_endpoint_options += ["azure"]
     if use_openai:
         embedding_endpoint_options += ["openai"]
+    embedding_endpoint_options += ["local"]
     valid_default_embedding = config.embedding_model in embedding_endpoint_options
     default_embedding_endpoint = questionary.select(
         "Select default embedding endpoint:",
