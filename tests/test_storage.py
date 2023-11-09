@@ -20,6 +20,7 @@ def test_postgres_openai():
     if os.getenv("OPENAI_API_KEY") is None:
         return  # soft pass
 
+    os.environ["MEMGPT_CONFIG_FILE"] = "./config"
     config = MemGPTConfig()
     config.archival_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")  # the URI for a postgres DB w/ the pgvector extension
     assert config.archival_storage_uri is not None
@@ -33,7 +34,7 @@ def test_postgres_openai():
 
     passage = ["This is a test passage", "This is another test passage", "Cinderella wept"]
 
-    db = PostgresStorageConnector(name="test2")
+    db = PostgresStorageConnector(name="test-openai")
 
     for passage in passage:
         db.insert(Passage(text=passage, embedding=embed_model.get_text_embedding(passage)))
@@ -70,7 +71,7 @@ def test_postgres_local():
 
     passage = ["This is a test passage", "This is another test passage", "Cinderella wept"]
 
-    db = PostgresStorageConnector(name="test2")
+    db = PostgresStorageConnector(name="test-local")
 
     for passage in passage:
         db.insert(Passage(text=passage, embedding=embed_model.get_text_embedding(passage)))
