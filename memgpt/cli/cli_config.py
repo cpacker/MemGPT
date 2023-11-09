@@ -124,7 +124,7 @@ def configure():
         default_model = "local"  # TODO: figure out if this is ok? this is for local endpoint
 
     # get the max tokens (context window) for the model
-    if default_model != "local" or str(default_model) not in LLM_MAX_TOKENS:
+    if default_model == "local" or str(default_model) not in LLM_MAX_TOKENS:
         # Ask the user to specify the context length
         context_length_options = [
             str(2**12),  # 4096
