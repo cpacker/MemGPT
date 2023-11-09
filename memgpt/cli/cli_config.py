@@ -76,7 +76,9 @@ def configure():
     if use_openai:
         endpoint_options += ["openai"]
 
-    assert len(endpoint_options) > 0, "No endpoints found. Please enable OpenAI, Azure, or set OPENAI_API_BASE."
+    assert (
+        len(endpoint_options) > 0
+    ), "No endpoints found. Please enable OpenAI, Azure, or set OPENAI_API_BASE to point at the IP address of your LLM server."
     default_endpoint = questionary.select("Select default inference endpoint:", endpoint_options).ask()
 
     # configure embedding provider
@@ -117,7 +119,7 @@ def configure():
         default_model_context_window = questionary.select(
             "Select your model's context window (for Mistral 7B models, this is probably 8k / 8192):",
             choices=context_length_options,
-            default=LLM_MAX_TOKENS["DEFAULT"],
+            default=str(LLM_MAX_TOKENS["DEFAULT"]),
         ).ask()
 
         # If custom, ask for input
@@ -129,6 +131,8 @@ def configure():
                     break
                 except ValueError:
                     print(f"Context window must be a valid integer")
+        else:
+            default_model_context_window = int(default_model_context_window)
     else:
         # Pull the context length from the models
         default_model_context_window = LLM_MAX_TOKENS[default_model]
