@@ -2,7 +2,6 @@ import typer
 import sys
 import io
 import logging
-import asyncio
 import os
 from prettytable import PrettyTable
 import questionary
@@ -24,7 +23,7 @@ from memgpt.utils import printd
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
-from memgpt.agent import AgentAsync
+from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 from memgpt.openai_tools import (
     configure_azure_support,
@@ -121,7 +120,7 @@ def run(
         agent_config.save()
 
         # load existing agent
-        memgpt_agent = AgentAsync.load_agent(memgpt.interface, agent_config)
+        memgpt_agent = Agent.load_agent(memgpt.interface, agent_config)
     else:  # create new agent
         # create new agent config: override defaults with args if provided
         typer.secho("Creating new agent...", fg=typer.colors.GREEN)
@@ -162,8 +161,7 @@ def run(
     if config.model_endpoint == "azure":
         configure_azure_support()
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(run_agent_loop(memgpt_agent, first, no_verify, config))  # TODO: add back no_verify
+    run_agent_loop(memgpt_agent, first, no_verify, config)  # TODO: add back no_verify
 
 
 def attach(
