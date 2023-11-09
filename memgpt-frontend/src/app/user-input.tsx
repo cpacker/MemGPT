@@ -19,7 +19,7 @@ import {
 const formSchema = z.object({
   message: z.string().min(1),
 });
-const UserInput = (props: { onSend: (message: string) => void }) => {
+const UserInput = (props: { enabled: boolean; onSend: (message: string) => void }) => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -51,7 +51,7 @@ const UserInput = (props: { onSend: (message: string) => void }) => {
             </FormItem>
           )}
         ></FormField>
-        <Button className="mt-8" type="submit">
+        <Button disabled={!props.enabled} className="mt-8" type="submit">
           Send
         </Button>
       </form>
