@@ -107,10 +107,10 @@ def configure():
 
     # defaults
     personas = [os.path.basename(f).replace(".txt", "") for f in utils.list_persona_files()]
-    print(personas)
+    # print(personas)
     default_persona = questionary.select("Select default persona:", personas, default="sam_pov").ask()
     humans = [os.path.basename(f).replace(".txt", "") for f in utils.list_human_files()]
-    print(humans)
+    # print(humans)
     default_human = questionary.select("Select default human:", humans, default="cs_phd").ask()
 
     # TODO: figure out if we should set a default agent or not
