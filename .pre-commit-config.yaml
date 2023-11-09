@@ -3,10 +3,14 @@ repos:
     rev: v2.3.0
     hooks:
     -   id: check-yaml
+        exclude: ^docs/
     -   id: end-of-file-fixer
+        exclude: ^docs/
     -   id: trailing-whitespace
+        exclude: ^docs/
 -   repo: https://github.com/psf/black
     rev: 22.10.0
     hooks:
     -   id: black
+        exclude: ^docs/
         args: ['--line-length', '140']
