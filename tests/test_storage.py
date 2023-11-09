@@ -55,7 +55,7 @@ def test_postgres_openai():
 
 def test_postgres_local():
     assert os.getenv("PGVECTOR_TEST_DB_URL") is not None
-    os.setenv("MEMGPT_CONFIG_FILE", "./config")
+    os.environ["MEMGPT_CONFIG_FILE"] = "./config"
 
     config = MemGPTConfig(embedding_model="local", embedding_dim=384)  # use HF model
     config.archival_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")  # the URI for a postgres DB w/ the pgvector extension
