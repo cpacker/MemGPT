@@ -174,6 +174,18 @@ test = ["anyio[trio]", "coverage[toml] (>=4.5)", "hypothesis (>=4.0)", "mock (>=
 trio = ["trio (<0.22)"]
 
 [[package]]
+name = "asn1crypto"
+version = "1.5.1"
+description = "Fast ASN.1 parser and serializer with definitions for private keys, public keys, certificates, CRL, OCSP, CMS, PKCS#3, PKCS#7, PKCS#8, PKCS#12, PKCS#5, X.509 and TSP"
+category = "main"
+optional = true
+python-versions = "*"
+files = [
+    {file = "asn1crypto-1.5.1-py2.py3-none-any.whl", hash = "sha256:db4e40728b728508912cbb3d44f19ce188f218e9eba635821bb4b68564f8fd67"},
+    {file = "asn1crypto-1.5.1.tar.gz", hash = "sha256:13ae38502be632115abf8a24cbe5f4da52e3b5231990aff31123c805306ccb9c"},
+]
+
+[[package]]
 name = "async-timeout"
 version = "4.0.3"
 description = "Timeout context manager for asyncio programs"
@@ -1485,6 +1497,22 @@ files = [
 ]
 
 [[package]]
+name = "pg8000"
+version = "1.30.3"
+description = "PostgreSQL interface library"
+category = "main"
+optional = true
+python-versions = ">=3.8"
+files = [
+    {file = "pg8000-1.30.3-py3-none-any.whl", hash = "sha256:42bc7fd0db5ceef7dcf8e07819e6427fcfb44384e2d6683928306916b0d696eb"},
+    {file = "pg8000-1.30.3.tar.gz", hash = "sha256:4e7c75747a43a49c15623f92583bb6e1d023eae6eaf2c2e1e6de4d7fb7fa404f"},
+]
+
+[package.dependencies]
+python-dateutil = ">=2.8.2"
+scramp = ">=1.4.4"
+
+[[package]]
 name = "pgvector"
 version = "0.2.3"
 description = "pgvector support for Python"
@@ -2405,6 +2433,21 @@ testing = ["h5py (>=3.7.0)", "huggingface_hub (>=0.12.1)", "hypothesis (>=6.70.2
 torch = ["safetensors[numpy]", "torch (>=1.10)"]
 
 [[package]]
+name = "scramp"
+version = "1.4.4"
+description = "An implementation of the SCRAM protocol."
+category = "main"
+optional = true
+python-versions = ">=3.7"
+files = [
+    {file = "scramp-1.4.4-py3-none-any.whl", hash = "sha256:b142312df7c2977241d951318b7ee923d6b7a4f75ba0f05b621ece1ed616faa3"},
+    {file = "scramp-1.4.4.tar.gz", hash = "sha256:b7022a140040f33cf863ab2657917ed05287a807b917950489b89b9f685d59bc"},
+]
+
+[package.dependencies]
+asn1crypto = ">=1.5.1"
+
+[[package]]
 name = "setuptools"
 version = "68.2.2"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
@@ -3296,4 +3339,4 @@ postgres = ["pgvector", "psycopg", "psycopg-binary", "psycopg2-binary"]
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.12,>=3.9"
-content-hash = "bfb1ab32dc7d84b42030929a352afc711da97eddd4606c0fe1477fce79b6187d"
+content-hash = "9de914158221f5b4de30017319a672bac72eb20c19e6bd86199049bbef44798c"
