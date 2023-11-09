@@ -10,7 +10,7 @@ from sqlalchemy.sql import func
 
 import re
 from tqdm import tqdm
-from typing import Optional, List
+from typing import Optional, List, Iterator
 import numpy as np
 from tqdm import tqdm
 
@@ -76,9 +76,26 @@ class PostgresStorageConnector(StorageConnector):
         self.Session = sessionmaker(bind=self.engine)
         self.Session().execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
 
-    def get_all(self) -> List[Passage]:
+    def get_all_paginated(self, page_size: int) -> Iterator[List[Passage]]:
         session = self.Session()
-        db_passages = session.query(self.db_model).all()
+        offset = 0
+        while True:
+            # Retrieve a chunk of records with the given page_size
+            db_passages_chunk = session.query(self.db_model).offset(offset).limit(page_size).all()
+
+            # If the chunk is empty, we've retrieved all records
+            if not db_passages_chunk:
+                break
+
+            # Yield a list of Passage objects converted from the chunk
+            yield [Passage(text=p.text, embedding=p.embedding, doc_id=p.doc_id, passage_id=p.id) for p in db_passages_chunk]
+
+            # Increment the offset to get the next chunk in the next iteration
+            offset += page_size
+
+    def get_all(self, limit=10) -> List[Passage]:
+        session = self.Session()
+        db_passages = session.query(self.db_model).limit(limit).all()
         return [Passage(text=p.text, embedding=p.embedding, doc_id=p.doc_id, passage_id=p.id) for p in db_passages]
 
     def get(self, id: str) -> Optional[Passage]:
@@ -87,6 +104,11 @@ class PostgresStorageConnector(StorageConnector):
         if db_passage is None:
             return None
         return Passage(text=db_passage.text, embedding=db_passage.embedding, doc_id=db_passage.doc_id, passage_id=db_passage.passage_id)
+
+    def size(self) -> int:
+        # return size of table
+        session = self.Session()
+        return session.query(self.db_model).count()
 
     def insert(self, passage: Passage):
         session = self.Session()
