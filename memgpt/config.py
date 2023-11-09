@@ -203,7 +203,7 @@ class MemGPTConfig:
 
         # archival storage
         config.add_section("archival_storage")
-        print("archival storage", self.archival_storage_type)
+        # print("archival storage", self.archival_storage_type)
         config.set("archival_storage", "type", self.archival_storage_type)
         if self.archival_storage_path:
             config.set("archival_storage", "path", self.archival_storage_path)
