@@ -104,7 +104,34 @@ def configure():
         default_model = "local"  # TODO: figure out if this is ok? this is for local endpoint
 
     # get the max tokens (context window) for the model
-    default_model_context_window = LLM_MAX_TOKENS[default_model] if default_model in LLM_MAX_TOKENS else LLM_MAX_TOKENS["DEFAULT"]
+    if default_model != "local" or default_model not in LLM_MAX_TOKENS:
+        # Ask the user to specify the context length
+        context_length_options = [
+            str(2**12),  # 4096
+            str(2**13),  # 8192
+            str(2**14),  # 16384
+            str(2**15),  # 32768
+            str(2**18),  # 262144
+            "custom",  # enter yourself
+        ]
+        default_model_context_window = questionary.select(
+            "Select your model's context window (for Mistral 7B models, this is probably 8k / 8192):",
+            choices=context_length_options,
+            default=LLM_MAX_TOKENS["DEFAULT"],
+        ).ask()
+
+        # If custom, ask for input
+        if default_model_context_window == "custom":
+            while True:
+                default_model_context_window = questionary.text("Enter context window (e.g. 8192)").ask()
+                try:
+                    default_model_context_window = int(default_model_context_window)
+                    break
+                except ValueError:
+                    print(f"Context window must be a valid integer")
+    else:
+        # Pull the context length from the models
+        default_model_context_window = LLM_MAX_TOKENS[default_model]
 
     # defaults
     personas = [os.path.basename(f).replace(".txt", "") for f in utils.list_persona_files()]
