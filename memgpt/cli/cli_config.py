@@ -76,12 +76,12 @@ def configure():
         model_endpoint_options += ["openai"]
     if use_azure:
         model_endpoint_options += ["azure"]
-    assert len(endpoint_options) > 0, "No endpoints found. Please enable OpenAI, Azure, or set OPENAI_API_BASE."
-    valid_default_model = config.model_endpoint in endpoint_options
+    assert len(model_endpoint_options) > 0, "No endpoints found. Please enable OpenAI, Azure, or set OPENAI_API_BASE."
+    valid_default_model = config.model_endpoint in model_endpoint_options
     default_endpoint = questionary.select(
         "Select default inference endpoint:",
-        endpoint_options,
-        default=config.model_endpoint if valid_default_model else endpoint_options[0],
+        model_endpoint_options,
+        default=config.model_endpoint if valid_default_model else model_endpoint_options[0],
     ).ask()
 
     # configure embedding provider
