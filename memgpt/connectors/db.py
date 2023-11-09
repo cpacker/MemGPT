@@ -24,7 +24,6 @@ Base = declarative_base()
 
 
 def get_db_model(table_name: str):
-
     config = MemGPTConfig.load()
 
     class PassageModel(Base):
