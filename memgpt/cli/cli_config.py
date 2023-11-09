@@ -27,7 +27,7 @@ def configure():
     MemGPTConfig.create_config_dir()
 
     # openai credentials
-    use_openai = questionary.confirm("Do you want to enable MemGPT with Open AI?").ask()
+    use_openai = questionary.confirm("Do you want to enable MemGPT with OpenAI?").ask()
     if use_openai:
         # search for key in enviornment
         openai_key = os.getenv("OPENAI_API_KEY")
