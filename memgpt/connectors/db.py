@@ -70,7 +70,7 @@ class PostgresStorageConnector(StorageConnector):
         # create table
         self.uri = config.archival_storage_uri
         if config.archival_storage_uri is None:
-            raise ValueError(f"Must specifiy archival_storage_uri in config")
+            raise ValueError(f"Must specifiy archival_storage_uri in config {config.config_path}")
         self.db_model = get_db_model(self.table_name)
         self.engine = create_engine(self.uri)
         Base.metadata.create_all(self.engine)  # Create the table if it doesn't exist
