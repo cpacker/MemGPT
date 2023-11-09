@@ -30,7 +30,7 @@ def configure():
     config = MemGPTConfig.load()
 
     # openai credentials
-    use_openai = questionary.confirm("Do you want to enable MemGPT with Open AI?", default=True).ask()
+    use_openai = questionary.confirm("Do you want to enable MemGPT with OpenAI?", default=True).ask()
     if use_openai:
         # search for key in enviornment
         openai_key = os.getenv("OPENAI_API_KEY")
@@ -119,10 +119,10 @@ def configure():
 
     # defaults
     personas = [os.path.basename(f).replace(".txt", "") for f in utils.list_persona_files()]
-    print(personas)
+    # print(personas)
     default_persona = questionary.select("Select default persona:", personas, default=config.default_persona).ask()
     humans = [os.path.basename(f).replace(".txt", "") for f in utils.list_human_files()]
-    print(humans)
+    # print(humans)
     default_human = questionary.select("Select default human:", humans, default=config.default_human).ask()
 
     # TODO: figure out if we should set a default agent or not
