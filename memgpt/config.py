@@ -203,7 +203,7 @@ class MemGPTConfig:
 
         # archival storage
         config.add_section("archival_storage")
-        print("archival storage", self.archival_storage_type)
+        # print("archival storage", self.archival_storage_type)
         config.set("archival_storage", "type", self.archival_storage_type)
         if self.archival_storage_path:
             config.set("archival_storage", "path", self.archival_storage_path)
@@ -350,7 +350,7 @@ class Config:
         self.preload_archival = False
 
     @classmethod
-    async def legacy_flags_init(
+    def legacy_flags_init(
         cls: Type["Config"],
         model: str,
         memgpt_persona: str,
@@ -372,11 +372,11 @@ class Config:
         if self.archival_storage_index:
             recompute_embeddings = False  # TODO Legacy support -- can't recompute embeddings on a path that's not specified.
         if self.archival_storage_files:
-            await self.configure_archival_storage(recompute_embeddings)
+            self.configure_archival_storage(recompute_embeddings)
         return self
 
     @classmethod
-    async def config_init(cls: Type["Config"], config_file: str = None):
+    def config_init(cls: Type["Config"], config_file: str = None):
         self = cls()
         self.config_file = config_file
         if self.config_file is None:
@@ -384,7 +384,7 @@ class Config:
             use_cfg = False
             if cfg:
                 print(f"{Style.BRIGHT}{Fore.MAGENTA}⚙️ Found saved config file.{Style.RESET_ALL}")
-                use_cfg = await questionary.confirm(f"Use most recent config file '{cfg}'?").ask_async()
+                use_cfg = questionary.confirm(f"Use most recent config file '{cfg}'?").ask()
             if use_cfg:
                 self.config_file = cfg
 
@@ -393,74 +393,74 @@ class Config:
             recompute_embeddings = False
             if self.compute_embeddings:
                 if self.archival_storage_index:
-                    recompute_embeddings = await questionary.confirm(
+                    recompute_embeddings = questionary.confirm(
                         f"Would you like to recompute embeddings? Do this if your files have changed.\n    Files: {self.archival_storage_files}",
                         default=False,
-                    ).ask_async()
+                    ).ask()
                 else:
                     recompute_embeddings = True
             if self.load_type:
-                await self.configure_archival_storage(recompute_embeddings)
+                self.configure_archival_storage(recompute_embeddings)
                 self.write_config()
             return self
 
         # print("No settings file found, configuring MemGPT...")
         print(f"{Style.BRIGHT}{Fore.MAGENTA}⚙️ No settings file found, configuring MemGPT...{Style.RESET_ALL}")
 
-        self.model = await questionary.select(
+        self.model = questionary.select(
             "Which model would you like to use?",
             model_choices,
             default=model_choices[0],
-        ).ask_async()
+        ).ask()
 
-        self.memgpt_persona = await questionary.select(
+        self.memgpt_persona = questionary.select(
             "Which persona would you like MemGPT to use?",
             Config.get_memgpt_personas(),
-        ).ask_async()
+        ).ask()
         print(self.memgpt_persona)
 
-        self.human_persona = await questionary.select(
+        self.human_persona = questionary.select(
             "Which user would you like to use?",
             Config.get_user_personas(),
-        ).ask_async()
+        ).ask()
 
         self.archival_storage_index = None
-        self.preload_archival = await questionary.confirm(
+        self.preload_archival = questionary.confirm(
             "Would you like to preload anything into MemGPT's archival memory?", default=False
-        ).ask_async()
+        ).ask()
         if self.preload_archival:
-            self.load_type = await questionary.select(
+            self.load_type = questionary.select(
                 "What would you like to load?",
                 choices=[
                     questionary.Choice("A folder or file", value="folder"),
                     questionary.Choice("A SQL database", value="sql"),
                     questionary.Choice("A glob pattern", value="glob"),
                 ],
-            ).ask_async()
+            ).ask()
             if self.load_type == "folder" or self.load_type == "sql":
-                archival_storage_path = await questionary.path("Please enter the folder or file (tab for autocomplete):").ask_async()
+                archival_storage_path = questionary.path("Please enter the folder or file (tab for autocomplete):").ask()
                 if os.path.isdir(archival_storage_path):
                     self.archival_storage_files = os.path.join(archival_storage_path, "*")
                 else:
                     self.archival_storage_files = archival_storage_path
             else:
-                self.archival_storage_files = await questionary.path("Please enter the glob pattern (tab for autocomplete):").ask_async()
-            self.compute_embeddings = await questionary.confirm(
+                self.archival_storage_files = questionary.path("Please enter the glob pattern (tab for autocomplete):").ask()
+            self.compute_embeddings = questionary.confirm(
                 "Would you like to compute embeddings over these files to enable embeddings search?"
-            ).ask_async()
-            await self.configure_archival_storage(self.compute_embeddings)
+            ).ask()
+            self.configure_archival_storage(self.compute_embeddings)
 
         self.write_config()
         return self
 
-    async def configure_archival_storage(self, recompute_embeddings):
+    def configure_archival_storage(self, recompute_embeddings):
         if recompute_embeddings:
             if self.host:
                 interface.warning_message(
                     "⛔️ Embeddings on a non-OpenAI endpoint are not yet supported, falling back to substring matching search."
                 )
             else:
-                self.archival_storage_index = await utils.prepare_archival_index_from_files_compute_embeddings(self.archival_storage_files)
+                self.archival_storage_index = utils.prepare_archival_index_from_files_compute_embeddings(self.archival_storage_files)
         if self.compute_embeddings and self.archival_storage_index:
             self.index, self.archival_database = utils.prepare_archival_index(self.archival_storage_index)
         else:
