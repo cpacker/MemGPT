@@ -69,15 +69,13 @@ def configure():
     # TODO: configure local model
 
     # configure provider
-    use_local = not use_openai and os.getenv("OPENAI_API_BASE")
-    endpoint_options = []
+    model_endpoint_options = []
     if os.getenv("OPENAI_API_BASE") is not None:
-        endpoint_options.append(os.getenv("OPENAI_API_BASE"))
-    if use_azure:
-        endpoint_options += ["azure"]
+        model_endpoint_options.append(os.getenv("OPENAI_API_BASE"))
     if use_openai:
-        endpoint_options += ["openai"]
-
+        model_endpoint_options += ["openai"]
+    if use_azure:
+        model_endpoint_options += ["azure"]
     assert len(endpoint_options) > 0, "No endpoints found. Please enable OpenAI, Azure, or set OPENAI_API_BASE."
     valid_default_model = config.model_endpoint in endpoint_options
     default_endpoint = questionary.select(
@@ -87,12 +85,16 @@ def configure():
     ).ask()
 
     # configure embedding provider
-    endpoint_options.append("local")  # can compute embeddings locally
-    valid_default_embedding = config.embedding_model in endpoint_options
+    embedding_endpoint_options = ["local"]  # cannot configure custom endpoint (too confusing)
+    if use_azure:
+        embedding_endpoint_options += ["azure"]
+    if use_openai:
+        embedding_endpoint_options += ["openai"]
+    valid_default_embedding = config.embedding_model in embedding_endpoint_options
     default_embedding_endpoint = questionary.select(
         "Select default embedding endpoint:",
-        endpoint_options,
-        default=config.embedding_model if valid_default_embedding else endpoint_options[0],
+        embedding_endpoint_options,
+        default=config.embedding_model if valid_default_embedding else embedding_endpoint_options[-1],
     ).ask()
 
     # configure embedding dimentions
@@ -175,11 +177,20 @@ def list(option: str):
     if option == "agents":
         """List all agents"""
         table = PrettyTable()
-        table.field_names = ["Name", "Model", "Persona", "Human", "Data Source"]
+        table.field_names = ["Name", "Model", "Persona", "Human", "Data Source", "Create Time"]
         for agent_file in utils.list_agent_config_files():
             agent_name = os.path.basename(agent_file).replace(".json", "")
             agent_config = AgentConfig.load(agent_name)
-            table.add_row([agent_name, agent_config.model, agent_config.persona, agent_config.human, ",".join(agent_config.data_sources)])
+            table.add_row(
+                [
+                    agent_name,
+                    agent_config.model,
+                    agent_config.persona,
+                    agent_config.human,
+                    ",".join(agent_config.data_sources),
+                    agent_config.create_time,
+                ]
+            )
         print(table)
     elif option == "humans":
         """List all humans"""
