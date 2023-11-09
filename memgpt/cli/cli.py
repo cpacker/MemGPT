@@ -107,11 +107,18 @@ def run(
         # persistence_manager = LocalStateManager(agent_config).load() # TODO: implement load
         # TODO: load prior agent state
         if persona and persona != agent_config.persona:
-            raise ValueError(f"Cannot override {agent_config.name} existing persona {agent_config.persona} with {persona}")
+            typer.secho(f"Warning: Overriding existing persona {agent_config.persona} with {persona}", fg=typer.colors.YELLOW)
+            agent_config.persona = persona
+            # raise ValueError(f"Cannot override {agent_config.name} existing persona {agent_config.persona} with {persona}")
         if human and human != agent_config.human:
-            raise ValueError(f"Cannot override {agent_config.name} existing human {agent_config.human} with {human}")
+            typer.secho(f"Warning: Overriding existing human {agent_config.human} with {human}", fg=typer.colors.YELLOW)
+            agent_config.human = human
+            # raise ValueError(f"Cannot override {agent_config.name} existing human {agent_config.human} with {human}")
         if model and model != agent_config.model:
-            raise ValueError(f"Cannot override {agent_config.name} existing model {agent_config.model} with {model}")
+            typer.secho(f"Warning: Overriding existing model {agent_config.model} with {model}", fg=typer.colors.YELLOW)
+            agent_config.model = model
+            # raise ValueError(f"Cannot override {agent_config.name} existing model {agent_config.model} with {model}")
+        agent_config.save()
 
         # load existing agent
         memgpt_agent = AgentAsync.load_agent(memgpt.interface, agent_config)
