@@ -111,6 +111,8 @@ class LocalStorageConnector(StorageConnector):
             ), f"expected {orig_size + len(passages)} nodes, got {len(self.get_nodes())} nodes"
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10) -> List[Passage]:
+        if isinstance(self.index, EmptyIndex):  # empty index
+            return []
         # TODO: this may be super slow?
         # the nice thing about creating this here is that now we can save the persistent storage manager
         retriever = VectorIndexRetriever(
