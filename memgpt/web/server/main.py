@@ -1,5 +1,4 @@
 import datetime
-import json
 import os
 from copy import deepcopy
 from os import getcwd
@@ -83,6 +82,8 @@ def setup_endpoints(app, memgpt_agent: AgentAsync, config: MemGPTConfig):
             if first_message:
                 first_message = False
                 internal_message = ""
+
+            memgpt_agent.save()
 
     app.mount(
         "/",
