@@ -14,6 +14,9 @@ In user to us the Postgres backend, you must have a running Postgres database th
 pip install 'pymemgpt[postgres]'
 ```
 
+### Running Postgres
+You will need to have a URI to a Postgres database which support [pgvector](https://github.com/pgvector/pgvector). You can either use a [hosted provider](https://github.com/pgvector/pgvector/issues/54) or [install pgvector](https://github.com/pgvector/pgvector#installation).
+
 
 ## Chroma
 (Coming soon)
