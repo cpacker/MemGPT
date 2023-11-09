@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
 import * as z from 'zod';
 
-const SOCKET_URL = 'ws://localhost:8000/api/ws';
+const SOCKET_URL = 'ws://localhost:8000/api/chat';
 
 const messageSchema = z.object({
   role: z.enum(['user', 'assistant', 'function']),

@@ -2,9 +2,11 @@ import React, { useEffect, useRef } from 'react';
 import MemgptMessage from './message/memgpt-message';
 import UserMessage from './message/user-message';
 import { cnMuted } from '@memgpt/components/typography';
-import { Message } from '../use-messages';
+import { Message } from '../../../hooks/messages/use-messages';
 import MessageContainerLayout from './message-container-layout';
 import { LucideLoader } from 'lucide-react';
+import StatusIndicator from '../../../shared/layout/status-indicator';
+import { ReadyState } from 'react-use-websocket';
 
 const getMessage = ({ role, content, function_call }: Message, key: number) => {
   if (role === 'user') {
@@ -19,10 +21,12 @@ const getMessage = ({ role, content, function_call }: Message, key: number) => {
   return undefined;
 };
 
-const MessageContainer = ({ messages }: { messages: Message[] }) => {
+const MessageContainer = ({ messages, readyState }: { messages: Message[]; readyState: ReadyState }) => {
   const messageBox = useRef<HTMLDivElement>(null);
   useEffect(() => messageBox.current?.scrollIntoView(false), [messages]);
-  return <MessageContainerLayout>{
+  return <MessageContainerLayout>
+    {<StatusIndicator readyState={readyState} />}
+    {
     messages.length === 0 ? (
       <p className={cnMuted('flex flex-col items-center justify-center p-20')}>
         <LucideLoader className="animate-spin h-8 w-8 mb-8"/>

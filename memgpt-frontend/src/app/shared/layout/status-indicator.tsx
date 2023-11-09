@@ -2,15 +2,16 @@ import React from 'react';
 import { ReadyState } from 'react-use-websocket';
 import { Badge } from '@memgpt/components/badge';
 
+const twPos = (extraClasses?: string) => 'absolute h-4 w-4 p-0 top-4 right-4 ' + (extraClasses ?? '');
 const StatusIndicator = ({ readyState }: {readyState: ReadyState}) => {
   if (readyState === ReadyState.OPEN) {
-    return <Badge className="bg-emerald-600">Connected</Badge>
+    return <Badge className={twPos('hover:bg-emerald-600 bg-emerald-500')}/>
   }
   if (readyState === ReadyState.CLOSED) {
-    return <Badge variant="destructive">Disconnected</Badge>
+    return <Badge className={twPos()} variant="destructive"/>
   }
   if (readyState === ReadyState.CONNECTING) {
-    return <Badge variant="secondary">Connecting...</Badge>
+    return <Badge className={twPos('animate-pulse')} variant="outline"/>
   }
   return <></>
 };

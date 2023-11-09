@@ -1,12 +1,5 @@
-import {
-  Toast,
-  ToastClose,
-  ToastDescription,
-  ToastProvider,
-  ToastTitle,
-  ToastViewport,
-} from '@memgpt/components/ui/toast';
-import { useToast } from '@memgpt/components/ui/use-toast';
+import { useToast } from './use-toast';
+import { Toast, ToastProvider, ToastTitle, ToastDescription, ToastClose, ToastViewport } from './toast';
 
 export function Toaster() {
   const { toasts } = useToast();
