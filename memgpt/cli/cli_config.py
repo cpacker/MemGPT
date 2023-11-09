@@ -30,7 +30,7 @@ def configure():
     config = MemGPTConfig.load()
 
     # openai credentials
-    use_openai = questionary.confirm("Do you want to enable MemGPT with Open AI?", default=(config.openai_key is not None)).ask()
+    use_openai = questionary.confirm("Do you want to enable MemGPT with Open AI?", default=True).ask()
     if use_openai:
         # search for key in enviornment
         openai_key = os.getenv("OPENAI_API_KEY")
@@ -143,7 +143,7 @@ def configure():
     if archival_storage_type == "postgres":
         archival_storage_uri = questionary.text(
             "Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}):",
-            default=config.archival_storage_uri,
+            default=config.archival_storage_uri if config.archival_storage_uri else "",
         ).ask()
 
     # TODO: allow configuring embedding model
