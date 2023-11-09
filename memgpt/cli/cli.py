@@ -2,7 +2,6 @@ import typer
 import sys
 import io
 import logging
-import asyncio
 import os
 from prettytable import PrettyTable
 import questionary
@@ -24,7 +23,7 @@ from memgpt.utils import printd
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
-from memgpt.agent import AgentAsync
+from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 from memgpt.openai_tools import (
     configure_azure_support,
@@ -107,14 +106,21 @@ def run(
         # persistence_manager = LocalStateManager(agent_config).load() # TODO: implement load
         # TODO: load prior agent state
         if persona and persona != agent_config.persona:
-            raise ValueError(f"Cannot override {agent_config.name} existing persona {agent_config.persona} with {persona}")
+            typer.secho(f"Warning: Overriding existing persona {agent_config.persona} with {persona}", fg=typer.colors.YELLOW)
+            agent_config.persona = persona
+            # raise ValueError(f"Cannot override {agent_config.name} existing persona {agent_config.persona} with {persona}")
         if human and human != agent_config.human:
-            raise ValueError(f"Cannot override {agent_config.name} existing human {agent_config.human} with {human}")
+            typer.secho(f"Warning: Overriding existing human {agent_config.human} with {human}", fg=typer.colors.YELLOW)
+            agent_config.human = human
+            # raise ValueError(f"Cannot override {agent_config.name} existing human {agent_config.human} with {human}")
         if model and model != agent_config.model:
-            raise ValueError(f"Cannot override {agent_config.name} existing model {agent_config.model} with {model}")
+            typer.secho(f"Warning: Overriding existing model {agent_config.model} with {model}", fg=typer.colors.YELLOW)
+            agent_config.model = model
+            # raise ValueError(f"Cannot override {agent_config.name} existing model {agent_config.model} with {model}")
+        agent_config.save()
 
         # load existing agent
-        memgpt_agent = AgentAsync.load_agent(memgpt.interface, agent_config)
+        memgpt_agent = Agent.load_agent(memgpt.interface, agent_config)
     else:  # create new agent
         # create new agent config: override defaults with args if provided
         typer.secho("Creating new agent...", fg=typer.colors.GREEN)
@@ -155,8 +161,7 @@ def run(
     if config.model_endpoint == "azure":
         configure_azure_support()
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(run_agent_loop(memgpt_agent, first, no_verify, config))  # TODO: add back no_verify
+    run_agent_loop(memgpt_agent, first, no_verify, config)  # TODO: add back no_verify
 
 
 def attach(
@@ -165,21 +170,26 @@ def attach(
 ):
     # loads the data contained in data source into the agent's memory
     from memgpt.connectors.storage import StorageConnector
+    from tqdm import tqdm
 
     agent_config = AgentConfig.load(agent)
-    config = MemGPTConfig.load()
 
     # get storage connectors
     source_storage = StorageConnector.get_storage_connector(name=data_source)
     dest_storage = StorageConnector.get_storage_connector(agent_config=agent_config)
 
-    passages = source_storage.get_all()
-    for p in passages:
-        len(p.embedding) == config.embedding_dim, f"Mismatched embedding sizes {len(p.embedding)} != {config.embedding_dim}"
-    dest_storage.insert_many(passages)
+    size = source_storage.size()
+    typer.secho(f"Ingesting {size} passages into {agent_config.name}", fg=typer.colors.GREEN)
+    page_size = 100
+    generator = source_storage.get_all_paginated(page_size=page_size)  # yields List[Passage]
+    for i in tqdm(range(0, size, page_size)):
+        passages = next(generator)
+        dest_storage.insert_many(passages, show_progress=False)
+
+    # save destination storage
     dest_storage.save()
 
-    total_agent_passages = len(dest_storage.get_all())
+    total_agent_passages = dest_storage.size()
 
     typer.secho(
         f"Attached data source {data_source} to agent {agent}, consisting of {len(passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",

@@ -27,8 +27,11 @@ def configure():
 
     MemGPTConfig.create_config_dir()
 
+    # Will pre-populate with defaults, or what the user previously set
+    config = MemGPTConfig.load()
+
     # openai credentials
-    use_openai = questionary.confirm("Do you want to enable MemGPT with Open AI?").ask()
+    use_openai = questionary.confirm("Do you want to enable MemGPT with OpenAI?", default=True).ask()
     if use_openai:
         # search for key in enviornment
         openai_key = os.getenv("OPENAI_API_KEY")
@@ -38,7 +41,7 @@ def configure():
             # openai_key = questionary.text("Open AI API keys not found in enviornment - please enter:").ask()
 
     # azure credentials
-    use_azure = questionary.confirm("Do you want to enable MemGPT with Azure?", default=False).ask()
+    use_azure = questionary.confirm("Do you want to enable MemGPT with Azure?", default=(config.azure_key is not None)).ask()
     use_azure_deployment_ids = False
     if use_azure:
         # search for key in enviornment
@@ -67,32 +70,44 @@ def configure():
     # TODO: configure local model
 
     # configure provider
-    use_local = not use_openai and os.getenv("OPENAI_API_BASE")
-    endpoint_options = []
+    model_endpoint_options = []
     if os.getenv("OPENAI_API_BASE") is not None:
-        endpoint_options.append(os.getenv("OPENAI_API_BASE"))
-    if use_azure:
-        endpoint_options += ["azure"]
+        model_endpoint_options.append(os.getenv("OPENAI_API_BASE"))
     if use_openai:
-        endpoint_options += ["openai"]
-
+        model_endpoint_options += ["openai"]
+    if use_azure:
+        model_endpoint_options += ["azure"]
     assert (
-        len(endpoint_options) > 0
+        len(model_endpoint_options) > 0
     ), "No endpoints found. Please enable OpenAI, Azure, or set OPENAI_API_BASE to point at the IP address of your LLM server."
-    default_endpoint = questionary.select("Select default inference endpoint:", endpoint_options).ask()
+    valid_default_model = config.model_endpoint in model_endpoint_options
+    default_endpoint = questionary.select(
+        "Select default inference endpoint:",
+        model_endpoint_options,
+        default=config.model_endpoint if valid_default_model else model_endpoint_options[0],
+    ).ask()
 
     # configure embedding provider
-    endpoint_options.append("local")  # can compute embeddings locally
-    default_embedding_endpoint = questionary.select("Select default embedding endpoint:", endpoint_options).ask()
+    embedding_endpoint_options = ["local"]  # cannot configure custom endpoint (too confusing)
+    if use_azure:
+        embedding_endpoint_options += ["azure"]
+    if use_openai:
+        embedding_endpoint_options += ["openai"]
+    valid_default_embedding = config.embedding_model in embedding_endpoint_options
+    default_embedding_endpoint = questionary.select(
+        "Select default embedding endpoint:",
+        embedding_endpoint_options,
+        default=config.embedding_model if valid_default_embedding else embedding_endpoint_options[-1],
+    ).ask()
 
     # configure embedding dimentions
-    default_embedding_dim = 1536
+    default_embedding_dim = config.embedding_dim
     if default_embedding_endpoint == "local":
         # HF model uses lower dimentionality
         default_embedding_dim = 384
 
     # configure preset
-    default_preset = questionary.select("Select default preset:", preset_options, default=DEFAULT_PRESET).ask()
+    default_preset = questionary.select("Select default preset:", preset_options, default=config.preset).ask()
 
     # default model
     if use_openai or use_azure:
@@ -100,7 +115,7 @@ def configure():
         if use_openai:
             model_options += ["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo-16k"]
         default_model = questionary.select(
-            "Select default model (recommended: gpt-4):", choices=["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo-16k"], default="gpt-4"
+            "Select default model (recommended: gpt-4):", choices=["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo-16k"], default=config.model
         ).ask()
     else:
         default_model = "local"  # TODO: figure out if this is ok? this is for local endpoint
@@ -139,11 +154,11 @@ def configure():
 
     # defaults
     personas = [os.path.basename(f).replace(".txt", "") for f in utils.list_persona_files()]
-    print(personas)
-    default_persona = questionary.select("Select default persona:", personas, default="sam_pov").ask()
+    # print(personas)
+    default_persona = questionary.select("Select default persona:", personas, default=config.default_persona).ask()
     humans = [os.path.basename(f).replace(".txt", "") for f in utils.list_human_files()]
-    print(humans)
-    default_human = questionary.select("Select default human:", humans, default="cs_phd").ask()
+    # print(humans)
+    default_human = questionary.select("Select default human:", humans, default=config.default_human).ask()
 
     # TODO: figure out if we should set a default agent or not
     default_agent = None
@@ -158,11 +173,14 @@ def configure():
 
     # Configure archival storage backend
     archival_storage_options = ["local", "postgres"]
-    archival_storage_type = questionary.select("Select storage backend for archival data:", archival_storage_options, default="local").ask()
+    archival_storage_type = questionary.select(
+        "Select storage backend for archival data:", archival_storage_options, default=config.archival_storage_type
+    ).ask()
     archival_storage_uri = None
     if archival_storage_type == "postgres":
         archival_storage_uri = questionary.text(
-            "Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}):"
+            "Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}):",
+            default=config.archival_storage_uri if config.archival_storage_uri else "",
         ).ask()
 
     # TODO: allow configuring embedding model
@@ -195,11 +213,20 @@ def list(option: str):
     if option == "agents":
         """List all agents"""
         table = PrettyTable()
-        table.field_names = ["Name", "Model", "Persona", "Human", "Data Source"]
+        table.field_names = ["Name", "Model", "Persona", "Human", "Data Source", "Create Time"]
         for agent_file in utils.list_agent_config_files():
             agent_name = os.path.basename(agent_file).replace(".json", "")
             agent_config = AgentConfig.load(agent_name)
-            table.add_row([agent_name, agent_config.model, agent_config.persona, agent_config.human, ",".join(agent_config.data_sources)])
+            table.add_row(
+                [
+                    agent_name,
+                    agent_config.model,
+                    agent_config.persona,
+                    agent_config.human,
+                    ",".join(agent_config.data_sources),
+                    agent_config.create_time,
+                ]
+            )
         print(table)
     elif option == "humans":
         """List all humans"""

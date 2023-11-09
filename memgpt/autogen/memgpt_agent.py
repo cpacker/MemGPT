@@ -46,7 +46,7 @@ def create_memgpt_autogen_agent_from_config(
 
     autogen_memgpt_agent = create_autogen_memgpt_agent(
         name,
-        preset=presets.SYNC_CHAT,
+        preset=presets.DEFAULT_PRESET,
         model=model,
         persona_description=persona_desc,
         user_description=user_desc,
@@ -57,7 +57,7 @@ def create_memgpt_autogen_agent_from_config(
     if human_input_mode != "ALWAYS":
         coop_agent1 = create_autogen_memgpt_agent(
             name,
-            preset=presets.SYNC_CHAT,
+            preset=presets.DEFAULT_PRESET,
             model=model,
             persona_description=persona_desc,
             user_description=user_desc,
@@ -73,7 +73,7 @@ def create_memgpt_autogen_agent_from_config(
         else:
             coop_agent2 = create_autogen_memgpt_agent(
                 name,
-                preset=presets.SYNC_CHAT,
+                preset=presets.DEFAULT_PRESET,
                 model=model,
                 persona_description=persona_desc,
                 user_description=user_desc,
@@ -95,7 +95,7 @@ def create_memgpt_autogen_agent_from_config(
 
 def create_autogen_memgpt_agent(
     autogen_name,
-    preset=presets.SYNC_CHAT,
+    preset=presets.DEFAULT_PRESET,
     model=constants.DEFAULT_MEMGPT_MODEL,
     persona_description=personas.DEFAULT,
     user_description=humans.DEFAULT,
@@ -126,7 +126,7 @@ def create_autogen_memgpt_agent(
         persona=persona_description,
         human=user_description,
         model=model,
-        preset=presets.SYNC_CHAT,
+        preset=presets.DEFAULT_PRESET,
     )
 
     interface = AutoGenInterface(**interface_kwargs) if interface is None else interface
