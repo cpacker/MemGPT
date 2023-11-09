@@ -1,5 +1,5 @@
 ### Configuring the agent
-You can set agent defaults by running `memgpt configure`.
+You can set agent defaults by running `memgpt configure`, which will store config information at `~/.memgpt/config` by default.
 
 The `memgpt run` command supports the following optional flags (if set, will override config defaults):
 
@@ -12,6 +12,12 @@ The `memgpt run` command supports the following optional flags (if set, will ove
 * `--debug`: (bool) Show debug logs (default=False)
 * `--no-verify`: (bool) Bypass message verification (default=False)
 * `--yes`/`-y`: (bool) Skip confirmation prompt and use defaults (default=False)
+
+#### Updating the config location
+You can override the location of the config path by setting the enviornment variable `MEMGPT_CONFIG_PATH`:
+```
+export MEMGPT_CONFIG_PATH=/my/custom/path/config # make sure this is a file, not a directory
+```
 
 
 ### Adding Custom Personas/Humans
