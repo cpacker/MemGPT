@@ -21,6 +21,7 @@ def get_koboldcpp_completion(prompt, context_window, grammar=None, settings=SIMP
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
     request = settings
     request["prompt"] = prompt
+    request["max_context_length"] = context_window
 
     # Set grammar
     if grammar is not None:
