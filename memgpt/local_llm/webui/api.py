@@ -20,6 +20,7 @@ def get_webui_completion(prompt, context_window, settings=SIMPLE, grammar=None):
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
     request = settings
     request["prompt"] = prompt
+    request["truncation_length"] = context_window  # assuming mistral 7b
 
     # Set grammar
     if grammar is not None:
