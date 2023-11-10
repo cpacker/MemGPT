@@ -20,6 +20,7 @@ def get_lmstudio_completion(prompt, context_window, settings=SIMPLE, api="chat")
 
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
     request = settings
+    request["max_tokens"] = context_window
 
     if api == "chat":
         # Uses the ChatCompletions API style

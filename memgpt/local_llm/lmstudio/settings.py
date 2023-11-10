@@ -22,7 +22,7 @@ SIMPLE = {
     # This controls the maximum number of tokens that the model can generate
     # Cap this at the model context length (assuming 8k for Mistral 7B)
     # "max_tokens": 8000,
-    "max_tokens": LLM_MAX_TOKENS,
+    # "max_tokens": LLM_MAX_TOKENS,
     # This controls how LM studio handles context overflow
     # In MemGPT we handle this ourselves, so this should be commented out
     # "lmstudio": {"context_overflow_policy": 2},
