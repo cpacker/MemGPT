@@ -19,7 +19,7 @@ import memgpt.utils as utils
 import memgpt.interface as interface
 from memgpt.personas.personas import get_persona_text
 from memgpt.humans.humans import get_human_text
-from memgpt.constants import MEMGPT_DIR
+from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS
 import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
@@ -51,6 +51,7 @@ class MemGPTConfig:
     # provider: str = "openai"  # openai, azure, local (TODO)
     model_endpoint: str = "openai"
     model: str = "gpt-4"  # gpt-4, gpt-3.5-turbo, local
+    context_window: int = LLM_MAX_TOKENS[model] if model in LLM_MAX_TOKENS else LLM_MAX_TOKENS["DEFAULT"]
 
     # model parameters: openai
     openai_key: str = None
@@ -106,6 +107,9 @@ class MemGPTConfig:
 
             # read config values
             model = config.get("defaults", "model")
+            context_window = (
+                config.get("defaults", "context_window") if config.has_option("defaults", "context_window") else LLM_MAX_TOKENS["DEFAULT"]
+            )
             preset = config.get("defaults", "preset")
             model_endpoint = config.get("defaults", "model_endpoint")
             default_persona = config.get("defaults", "persona")
@@ -141,6 +145,7 @@ class MemGPTConfig:
 
             return cls(
                 model=model,
+                context_window=context_window,
                 preset=preset,
                 model_endpoint=model_endpoint,
                 default_persona=default_persona,
@@ -254,6 +259,7 @@ class AgentConfig:
         persona,
         human,
         model,
+        context_window,
         preset=DEFAULT_PRESET,
         name=None,
         data_sources=[],
@@ -268,6 +274,7 @@ class AgentConfig:
         self.persona = persona
         self.human = human
         self.model = model
+        self.context_window = context_window
         self.preset = preset
         self.data_sources = data_sources
         self.create_time = create_time if create_time is not None else utils.get_local_time()

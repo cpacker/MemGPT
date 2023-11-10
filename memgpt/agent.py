@@ -1,15 +1,12 @@
 import inspect
 import datetime
 import glob
-import pickle
 import math
 import os
 import requests
 import json
-import threading
 import traceback
 
-import openai
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import AgentConfig
 from .system import get_heartbeat, get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
@@ -17,12 +14,11 @@ from .memory import CoreMemory as Memory, summarize_messages
 from .openai_tools import completions_with_backoff as create
 from .utils import get_local_time, parse_json, united_diff, printd, count_tokens
 from .constants import (
-    MEMGPT_DIR,
     FIRST_MESSAGE_ATTEMPTS,
     MAX_PAUSE_HEARTBEATS,
     MESSAGE_CHATGPT_FUNCTION_MODEL,
     MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
-    MESSAGE_SUMMARY_WARNING_TOKENS,
+    MESSAGE_SUMMARY_WARNING_FRAC,
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
@@ -108,10 +104,12 @@ def get_ai_reply(
     message_sequence,
     functions,
     function_call="auto",
+    context_window=None,
 ):
     try:
         response = create(
             model=model,
+            context_window=context_window,
             messages=message_sequence,
             functions=functions,
             function_call=function_call,
@@ -582,7 +580,12 @@ class Agent(object):
                 printd(f"This is the first message. Running extra verifier on AI response.")
                 counter = 0
                 while True:
-                    response = get_ai_reply(model=self.model, message_sequence=input_message_sequence, functions=self.functions)
+                    response = get_ai_reply(
+                        model=self.model,
+                        message_sequence=input_message_sequence,
+                        functions=self.functions,
+                        context_window=self.config.context_window,
+                    )
                     if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
 
@@ -591,7 +594,12 @@ class Agent(object):
                         raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
 
             else:
-                response = get_ai_reply(model=self.model, message_sequence=input_message_sequence, functions=self.functions)
+                response = get_ai_reply(
+                    model=self.model,
+                    message_sequence=input_message_sequence,
+                    functions=self.functions,
+                    context_window=self.config.context_window,
+                )
 
             # Step 2: check if LLM wanted to call a function
             # (if yes) Step 3: call the function
@@ -620,14 +628,16 @@ class Agent(object):
             # Check the memory pressure and potentially issue a memory pressure warning
             current_total_tokens = response["usage"]["total_tokens"]
             active_memory_warning = False
-            if current_total_tokens > MESSAGE_SUMMARY_WARNING_TOKENS:
-                printd(f"WARNING: last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_TOKENS}")
+            if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * self.config.context_window:
+                printd(
+                    f"WARNING: last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * self.config.context_window}"
+                )
                 # Only deliver the alert if we haven't already (this period)
                 if not self.agent_alerted_about_memory_pressure:
                     active_memory_warning = True
                     self.agent_alerted_about_memory_pressure = True  # it's up to the outer loop to handle this
             else:
-                printd(f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_TOKENS}")
+                printd(f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * self.config.context_window}")
 
             self.append_to_messages(all_new_messages)
             return all_new_messages, heartbeat_request, function_failed, active_memory_warning
@@ -698,7 +708,9 @@ class Agent(object):
         message_sequence_to_summarize = self.messages[1:cutoff]  # do NOT get rid of the system message
         printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
 
-        summary = summarize_messages(self.model, message_sequence_to_summarize)
+        summary = summarize_messages(
+            model=self.model, context_window=self.config.context_window, message_sequence_to_summarize=message_sequence_to_summarize
+        )
         printd(f"Got summary: {summary}")
 
         # Metadata that's useful for the agent to see
