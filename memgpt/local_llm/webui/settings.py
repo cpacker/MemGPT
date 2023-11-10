@@ -21,5 +21,5 @@ SIMPLE = {
     ],
     "max_new_tokens": 3072,
     # "truncation_length": 4096,  # assuming llama2 models
-    "truncation_length": LLM_MAX_TOKENS,  # assuming mistral 7b
+    # "truncation_length": LLM_MAX_TOKENS,  # assuming mistral 7b
 }

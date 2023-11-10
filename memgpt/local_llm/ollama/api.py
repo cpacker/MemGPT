@@ -26,6 +26,7 @@ def get_ollama_completion(prompt, context_window, settings=SIMPLE, grammar=None)
     request = settings
     request["prompt"] = prompt
     request["model"] = MODEL_NAME
+    request["options"]["num_ctx"] = context_window
 
     # Set grammar
     if grammar is not None:
