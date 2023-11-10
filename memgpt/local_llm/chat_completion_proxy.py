@@ -27,7 +27,9 @@ def get_chat_completion(
     messages,
     functions=None,
     function_call="auto",
+    context_window=None,
 ):
+    assert context_window is not None, "Local LLM calls need the context length to be explicitly set"
     global has_shown_warning
     grammar_name = None
 
@@ -90,15 +92,15 @@ def get_chat_completion(
 
     try:
         if HOST_TYPE == "webui":
-            result = get_webui_completion(prompt, grammar=grammar_name)
+            result = get_webui_completion(prompt, context_window, grammar=grammar_name)
         elif HOST_TYPE == "lmstudio":
-            result = get_lmstudio_completion(prompt)
+            result = get_lmstudio_completion(prompt, context_window)
         elif HOST_TYPE == "llamacpp":
-            result = get_llamacpp_completion(prompt, grammar=grammar_name)
+            result = get_llamacpp_completion(prompt, context_window, grammar=grammar_name)
         elif HOST_TYPE == "koboldcpp":
-            result = get_koboldcpp_completion(prompt, grammar=grammar_name)
+            result = get_koboldcpp_completion(prompt, context_window, grammar=grammar_name)
         elif HOST_TYPE == "ollama":
-            result = get_ollama_completion(prompt)
+            result = get_ollama_completion(prompt, context_window)
         else:
             raise LocalLLMError(
                 f"BACKEND_TYPE is not set, please set variable depending on your backend (webui, lmstudio, llamacpp, koboldcpp)"

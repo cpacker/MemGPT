@@ -28,7 +28,7 @@ def warning_message(msg):
         print(fstr.format(msg=msg))
 
 
-async def internal_monologue(msg):
+def internal_monologue(msg):
     # ANSI escape code for italic is '\x1B[3m'
     fstr = f"\x1B[3m{Fore.LIGHTBLACK_EX}💭 {{msg}}{Style.RESET_ALL}"
     if STRIP_UI:
@@ -36,28 +36,28 @@ async def internal_monologue(msg):
     print(fstr.format(msg=msg))
 
 
-async def assistant_message(msg):
+def assistant_message(msg):
     fstr = f"{Fore.YELLOW}{Style.BRIGHT}🤖 {Fore.YELLOW}{{msg}}{Style.RESET_ALL}"
     if STRIP_UI:
         fstr = "{msg}"
     print(fstr.format(msg=msg))
 
 
-async def memory_message(msg):
+def memory_message(msg):
     fstr = f"{Fore.LIGHTMAGENTA_EX}{Style.BRIGHT}🧠 {Fore.LIGHTMAGENTA_EX}{{msg}}{Style.RESET_ALL}"
     if STRIP_UI:
         fstr = "{msg}"
     print(fstr.format(msg=msg))
 
 
-async def system_message(msg):
+def system_message(msg):
     fstr = f"{Fore.MAGENTA}{Style.BRIGHT}🖥️ [system] {Fore.MAGENTA}{msg}{Style.RESET_ALL}"
     if STRIP_UI:
         fstr = "{msg}"
     print(fstr.format(msg=msg))
 
 
-async def user_message(msg, raw=False, dump=False, debug=DEBUG):
+def user_message(msg, raw=False, dump=False, debug=DEBUG):
     def print_user_message(icon, msg, printf=print):
         if STRIP_UI:
             printf(f"{icon} {msg}")
@@ -103,7 +103,7 @@ async def user_message(msg, raw=False, dump=False, debug=DEBUG):
         printd_user_message("🧑", msg_json)
 
 
-async def function_message(msg, debug=DEBUG):
+def function_message(msg, debug=DEBUG):
     def print_function_message(icon, msg, color=Fore.RED, printf=print):
         if STRIP_UI:
             printf(f"⚡{icon} [function] {msg}")
@@ -171,7 +171,7 @@ async def function_message(msg, debug=DEBUG):
             printd_function_message("", msg)
 
 
-async def print_messages(message_sequence, dump=False):
+def print_messages(message_sequence, dump=False):
     idx = len(message_sequence)
     for msg in message_sequence:
         if dump:
@@ -181,42 +181,42 @@ async def print_messages(message_sequence, dump=False):
         content = msg["content"]
 
         if role == "system":
-            await system_message(content)
+            system_message(content)
         elif role == "assistant":
             # Differentiate between internal monologue, function calls, and messages
             if msg.get("function_call"):
                 if content is not None:
-                    await internal_monologue(content)
+                    internal_monologue(content)
                 # I think the next one is not up to date
-                # await function_message(msg["function_call"])
+                # function_message(msg["function_call"])
                 args = json.loads(msg["function_call"].get("arguments"))
-                await assistant_message(args.get("message"))
+                assistant_message(args.get("message"))
                 # assistant_message(content)
             else:
-                await internal_monologue(content)
+                internal_monologue(content)
         elif role == "user":
-            await user_message(content, dump=dump)
+            user_message(content, dump=dump)
         elif role == "function":
-            await function_message(content, debug=dump)
+            function_message(content, debug=dump)
         else:
             print(f"Unknown role: {content}")
 
 
-async def print_messages_simple(message_sequence):
+def print_messages_simple(message_sequence):
     for msg in message_sequence:
         role = msg["role"]
         content = msg["content"]
 
         if role == "system":
-            await system_message(content)
+            system_message(content)
         elif role == "assistant":
-            await assistant_message(content)
+            assistant_message(content)
         elif role == "user":
-            await user_message(content, raw=True)
+            user_message(content, raw=True)
         else:
             print(f"Unknown role: {content}")
 
 
-async def print_messages_raw(message_sequence):
+def print_messages_raw(message_sequence):
     for msg in message_sequence:
         print(msg)

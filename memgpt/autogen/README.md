@@ -20,7 +20,7 @@ config_list_memgpt = [
     },
 ]
 ```
-`config_list` is used by non-MemGPT agents, which expect an OpenAI-compatible API. 
+`config_list` is used by non-MemGPT agents, which expect an OpenAI-compatible API.
 
 `config_list_memgpt` is used by MemGPT agents. Currently, MemGPT interfaces with the LLM backend by exporting `OPENAI_API_BASE` and `BACKEND_TYPE` as described in [Local LLM support](../local_llm). Note that MemGPT does not use the OpenAI-compatible API (it uses the direct API).
 

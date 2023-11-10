@@ -1,8 +1,10 @@
 ### MemGPT + web UI
 
-⁉️ If you have problems getting WebUI setup, please use the [official web UI repo for support](https://github.com/oobabooga/text-generation-webui)! There will be more answered questions about web UI there vs here on the MemGPT repo.
+!!! warning "Important web UI settings"
 
-⁉️ Do **NOT** enable any extensions in web UI, including the [openai extension](https://github.com/oobabooga/text-generation-webui/tree/main/extensions/openai)! Just run web UI as-is, unless you are running [MemGPT+Autogen](https://github.com/cpacker/MemGPT/tree/main/memgpt/autogen) with non-MemGPT agents.
+    If you have problems getting web UI set up, please use the [official web UI repo for support](https://github.com/oobabooga/text-generation-webui)! There will be more answered questions about web UI there vs here on the MemGPT repo.
+
+    Do **NOT** enable any extensions in web UI, including the [openai extension](https://github.com/oobabooga/text-generation-webui/tree/main/extensions/openai)! Just run web UI as-is, unless you are running [MemGPT+Autogen](https://github.com/cpacker/MemGPT/tree/main/memgpt/autogen) with non-MemGPT agents.
 
 To get MemGPT to work with a local LLM, you need to have the LLM running on a server that takes API requests.
 
@@ -22,4 +24,4 @@ export OPENAI_API_BASE=http://127.0.0.1:5000
 export BACKEND_TYPE=webui
 ```
 
-WebUI exposes a lot of parameters that can dramatically change LLM outputs, to change these you can modify the [WebUI settings file](https://github.com/cpacker/MemGPT/blob/main/memgpt/local_llm/webui/settings.py).
+Text gen web UI exposes a lot of parameters that can dramatically change LLM outputs, to change these you can modify the [web UI settings file](https://github.com/cpacker/MemGPT/blob/main/memgpt/local_llm/webui/settings.py).

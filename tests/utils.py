@@ -6,7 +6,7 @@ from .constants import TIMEOUT
 def configure_memgpt(enable_openai=True, enable_azure=False):
     child = pexpect.spawn("memgpt configure")
 
-    child.expect("Do you want to enable MemGPT with Open AI?", timeout=TIMEOUT)
+    child.expect("Do you want to enable MemGPT with OpenAI?", timeout=TIMEOUT)
     if enable_openai:
         child.sendline("y")
     else:
@@ -18,7 +18,16 @@ def configure_memgpt(enable_openai=True, enable_azure=False):
     else:
         child.sendline("n")
 
+    child.expect("Select default inference endpoint:", timeout=TIMEOUT)
+    child.sendline()
+
+    child.expect("Select default embedding endpoint:", timeout=TIMEOUT)
+    child.sendline()
+
     child.expect("Select default preset:", timeout=TIMEOUT)
+    child.sendline()
+
+    child.expect("Select default model", timeout=TIMEOUT)
     child.sendline()
 
     child.expect("Select default persona:", timeout=TIMEOUT)
