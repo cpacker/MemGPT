@@ -170,6 +170,16 @@ def run(
     if config.model_endpoint == "azure":
         configure_azure_support()
 
+    # TODO: remove once model calling logic is cleaner
+    if memgpt_agent.model != "local":
+        assert (
+            os.getenv("OPENAI_API_BASE") is None and os.getenv("BACKEND_TYPE") is None
+        ), f"Please make sure your enviornment variables OPENAI_API_BASE and BACKEND_TYPE are unset"
+    else:
+        assert os.getenv("OPENAI_API_BASE") and os.getenv(
+            "BACKEND_TYPE"
+        ), f"Please make sure your enviornment variables OPENAI_API_BASE and BACKEND_TYPE are set to run a model with a local endpoint"
+
     run_agent_loop(memgpt_agent, first, no_verify, config)  # TODO: add back no_verify
 
 
