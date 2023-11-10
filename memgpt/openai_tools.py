@@ -70,6 +70,8 @@ def completions_with_backoff(**kwargs):
             else:
                 kwargs["engine"] = MODEL_TO_AZURE_ENGINE[kwargs["model"]]
                 kwargs.pop("model")
+        if "context_window" in kwargs:
+            kwargs.pop("context_window")
         return openai.ChatCompletion.create(**kwargs)
 
 
