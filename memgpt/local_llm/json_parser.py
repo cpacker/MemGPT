@@ -153,7 +153,7 @@ def clean_json(raw_llm_output, messages=None, functions=None):
                         except json.JSONDecodeError:
                             try:
                                 printd("trying first_json")
-                                data = extract_first_json(raw_llm_output + "}")
+                                data = extract_first_json(raw_llm_output + "}}")
                             except:
                                 raise
     return data
