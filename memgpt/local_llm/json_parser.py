@@ -138,8 +138,8 @@ def clean_json(raw_llm_output, messages=None, functions=None):
                 data = json.loads(raw_llm_output + "}}")
             except json.JSONDecodeError:
                 try:
-                    printd("trying adding \"}}")
-                    data = json.loads(raw_llm_output + "\"}}")
+                    printd('trying adding "}}')
+                    data = json.loads(raw_llm_output + '"}}')
                 except json.JSONDecodeError:
                     try:
                         repaired = repair_json_string(raw_llm_output)
