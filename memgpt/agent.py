@@ -628,8 +628,6 @@ class Agent(object):
             # Check the memory pressure and potentially issue a memory pressure warning
             current_total_tokens = response["usage"]["total_tokens"]
             active_memory_warning = False
-            # if current_total_tokens > MESSAGE_SUMMARY_WARNING_TOKENS:
-            # if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * LLM_MAX_TOKENS[self.model]:
             if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * self.config.context_window:
                 printd(
                     f"WARNING: last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * self.config.context_window}"
