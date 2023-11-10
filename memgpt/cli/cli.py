@@ -100,7 +100,7 @@ def run(
     sys.stdout = original_stdout
 
     # overwrite the context_window if specified
-    if int(context_window) and int(context_window) != config.context_window:
+    if context_window is not None and int(context_window) != config.context_window:
         typer.secho(f"Warning: Overriding existing context window {config.context_window} with {context_window}", fg=typer.colors.YELLOW)
         config.context_window = context_window
 
