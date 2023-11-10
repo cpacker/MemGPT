@@ -122,8 +122,9 @@ def configure():
         model_options = []
         if use_openai:
             model_options += ["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo-16k"]
+        valid_model = config.model in model_options
         default_model = questionary.select(
-            "Select default model (recommended: gpt-4):", choices=["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo-16k"], default=config.model
+            "Select default model (recommended: gpt-4):", choices=model_options, default=config.model if valid_model else model_options[0]
         ).ask()
     else:
         default_model = "local"  # TODO: figure out if this is ok? this is for local endpoint
