@@ -2,7 +2,6 @@ import typer
 import sys
 import io
 import logging
-import asyncio
 import os
 from prettytable import PrettyTable
 import questionary
@@ -24,7 +23,7 @@ from memgpt.utils import printd
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
-from memgpt.agent import AgentAsync
+from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 from memgpt.openai_tools import (
     configure_azure_support,
@@ -43,6 +42,9 @@ def run(
     debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
     no_verify: bool = typer.Option(False, "--no_verify", help="Bypass message verification"),
     yes: bool = typer.Option(False, "-y", help="Skip confirmation prompt and use defaults"),
+    context_window: int = typer.Option(
+        None, "--context_window", help="The context window of the LLM you are using (e.g. 8k for most Mistral 7B variants)"
+    ),
 ):
     """Start chatting with an MemGPT agent
 
@@ -97,6 +99,11 @@ def run(
     set_global_service_context(service_context)
     sys.stdout = original_stdout
 
+    # overwrite the context_window if specified
+    if context_window is not None and int(context_window) != config.context_window:
+        typer.secho(f"Warning: Overriding existing context window {config.context_window} with {context_window}", fg=typer.colors.YELLOW)
+        config.context_window = context_window
+
     # create agent config
     if agent and AgentConfig.exists(agent):  # use existing agent
         typer.secho(f"Using existing agent {agent}", fg=typer.colors.GREEN)
@@ -121,7 +128,7 @@ def run(
         agent_config.save()
 
         # load existing agent
-        memgpt_agent = AgentAsync.load_agent(memgpt.interface, agent_config)
+        memgpt_agent = Agent.load_agent(memgpt.interface, agent_config)
     else:  # create new agent
         # create new agent config: override defaults with args if provided
         typer.secho("Creating new agent...", fg=typer.colors.GREEN)
@@ -130,6 +137,7 @@ def run(
             persona=persona if persona else config.default_persona,
             human=human if human else config.default_human,
             model=model if model else config.model,
+            context_window=context_window if context_window else config.context_window,
             preset=preset if preset else config.preset,
         )
 
@@ -162,8 +170,17 @@ def run(
     if config.model_endpoint == "azure":
         configure_azure_support()
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(run_agent_loop(memgpt_agent, first, no_verify, config))  # TODO: add back no_verify
+    # TODO: remove once model calling logic is cleaner
+    if memgpt_agent.model != "local":
+        assert (
+            os.getenv("OPENAI_API_BASE") is None and os.getenv("BACKEND_TYPE") is None
+        ), f"Please make sure your enviornment variables OPENAI_API_BASE and BACKEND_TYPE are unset"
+    else:
+        assert os.getenv("OPENAI_API_BASE") and os.getenv(
+            "BACKEND_TYPE"
+        ), f"Please make sure your enviornment variables OPENAI_API_BASE and BACKEND_TYPE are set to run a model with a local endpoint"
+
+    run_agent_loop(memgpt_agent, first, no_verify, config)  # TODO: add back no_verify
 
 
 def attach(
