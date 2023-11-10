@@ -37,7 +37,6 @@ LLM_MAX_TOKENS = {
     "gpt-3.5-turbo-0301": 4096,  # legacy
 }
 # The amount of tokens before a sytem warning about upcoming truncation is sent to MemGPT
-# MESSAGE_SUMMARY_WARNING_TOKENS = {k: int(0.75 * v) for k, v in LLM_MAX_TOKENS.items()}
 MESSAGE_SUMMARY_WARNING_FRAC = 0.75
 # The error message that MemGPT will receive
 MESSAGE_SUMMARY_WARNING_STR = f"Warning: the conversation history will soon reach its maximum length and be trimmed. Make sure to save any important information from the conversation to your memory before it is removed."
