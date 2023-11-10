@@ -259,7 +259,7 @@ class AgentConfig:
         persona,
         human,
         model,
-        context_window,
+        context_window=None,
         preset=DEFAULT_PRESET,
         name=None,
         data_sources=[],
@@ -279,6 +279,11 @@ class AgentConfig:
         self.data_sources = data_sources
         self.create_time = create_time if create_time is not None else utils.get_local_time()
         self.data_source = None  # deprecated
+
+        if context_window is None:
+            self.context_window = LLM_MAX_TOKENS[self.model] if self.model in LLM_MAX_TOKENS else LLM_MAX_TOKENS["DEFAULT"]
+        else:
+            self.context_window = context_window
 
         # save agent config
         self.agent_config_path = (
