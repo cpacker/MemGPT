@@ -4,7 +4,6 @@ import requests
 
 from .settings import SIMPLE
 from ..utils import load_grammar_file, count_tokens
-from ...constants import LLM_MAX_TOKENS
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
@@ -13,11 +12,11 @@ KOBOLDCPP_API_SUFFIX = "/api/v1/generate"
 DEBUG = True
 
 
-def get_koboldcpp_completion(prompt, grammar=None, settings=SIMPLE):
+def get_koboldcpp_completion(prompt, context_window, grammar=None, settings=SIMPLE):
     """See https://lite.koboldai.net/koboldcpp_api for API spec"""
     prompt_tokens = count_tokens(prompt)
-    if prompt_tokens > LLM_MAX_TOKENS:
-        raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {LLM_MAX_TOKENS} tokens)")
+    if prompt_tokens > context_window:
+        raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_window} tokens)")
 
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
     request = settings

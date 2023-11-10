@@ -42,6 +42,9 @@ def run(
     debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
     no_verify: bool = typer.Option(False, "--no_verify", help="Bypass message verification"),
     yes: bool = typer.Option(False, "-y", help="Skip confirmation prompt and use defaults"),
+    context_window: int = typer.Option(
+        None, "--context_window", help="The context window of the LLM you are using (e.g. 8k for most Mistral 7B variants)"
+    ),
 ):
     """Start chatting with an MemGPT agent
 
@@ -96,6 +99,11 @@ def run(
     set_global_service_context(service_context)
     sys.stdout = original_stdout
 
+    # overwrite the context_window if specified
+    if context_window is not None and int(context_window) != config.context_window:
+        typer.secho(f"Warning: Overriding existing context window {config.context_window} with {context_window}", fg=typer.colors.YELLOW)
+        config.context_window = context_window
+
     # create agent config
     if agent and AgentConfig.exists(agent):  # use existing agent
         typer.secho(f"Using existing agent {agent}", fg=typer.colors.GREEN)
@@ -129,6 +137,7 @@ def run(
             persona=persona if persona else config.default_persona,
             human=human if human else config.default_human,
             model=model if model else config.model,
+            context_window=context_window if context_window else config.context_window,
             preset=preset if preset else config.preset,
         )
 

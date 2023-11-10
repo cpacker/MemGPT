@@ -14,6 +14,7 @@ import memgpt.personas.personas as personas
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
 from memgpt.connectors.storage import StorageConnector
+from memgpt.constants import LLM_MAX_TOKENS
 
 app = typer.Typer()
 
@@ -76,7 +77,9 @@ def configure():
         model_endpoint_options += ["openai"]
     if use_azure:
         model_endpoint_options += ["azure"]
-    assert len(model_endpoint_options) > 0, "No endpoints found. Please enable OpenAI, Azure, or set OPENAI_API_BASE."
+    assert (
+        len(model_endpoint_options) > 0
+    ), "No endpoints found. Please enable OpenAI, Azure, or set OPENAI_API_BASE to point at the IP address of your LLM server."
     valid_default_model = config.model_endpoint in model_endpoint_options
     default_endpoint = questionary.select(
         "Select default inference endpoint:",
@@ -85,16 +88,24 @@ def configure():
     ).ask()
 
     # configure embedding provider
-    embedding_endpoint_options = ["local"]  # cannot configure custom endpoint (too confusing)
+    embedding_endpoint_options = []
     if use_azure:
         embedding_endpoint_options += ["azure"]
     if use_openai:
         embedding_endpoint_options += ["openai"]
+    embedding_endpoint_options += ["local"]
     valid_default_embedding = config.embedding_model in embedding_endpoint_options
+    # determine the default selection in a smart way
+    if "openai" in embedding_endpoint_options and default_endpoint == "openai":
+        # openai llm -> openai embeddings
+        default_embedding_endpoint_default = "openai"
+    elif default_endpoint not in ["openai", "azure"]:  # is local
+        # local llm -> local embeddings
+        default_embedding_endpoint_default = "local"
+    else:
+        default_embedding_endpoint_default = config.embedding_model if valid_default_embedding else embedding_endpoint_options[-1]
     default_embedding_endpoint = questionary.select(
-        "Select default embedding endpoint:",
-        embedding_endpoint_options,
-        default=config.embedding_model if valid_default_embedding else embedding_endpoint_options[-1],
+        "Select default embedding endpoint:", embedding_endpoint_options, default=default_embedding_endpoint_default
     ).ask()
 
     # configure embedding dimentions
@@ -116,6 +127,38 @@ def configure():
         ).ask()
     else:
         default_model = "local"  # TODO: figure out if this is ok? this is for local endpoint
+
+    # get the max tokens (context window) for the model
+    if default_model == "local" or str(default_model) not in LLM_MAX_TOKENS:
+        # Ask the user to specify the context length
+        context_length_options = [
+            str(2**12),  # 4096
+            str(2**13),  # 8192
+            str(2**14),  # 16384
+            str(2**15),  # 32768
+            str(2**18),  # 262144
+            "custom",  # enter yourself
+        ]
+        default_model_context_window = questionary.select(
+            "Select your model's context window (for Mistral 7B models, this is probably 8k / 8192):",
+            choices=context_length_options,
+            default=str(LLM_MAX_TOKENS["DEFAULT"]),
+        ).ask()
+
+        # If custom, ask for input
+        if default_model_context_window == "custom":
+            while True:
+                default_model_context_window = questionary.text("Enter context window (e.g. 8192)").ask()
+                try:
+                    default_model_context_window = int(default_model_context_window)
+                    break
+                except ValueError:
+                    print(f"Context window must be a valid integer")
+        else:
+            default_model_context_window = int(default_model_context_window)
+    else:
+        # Pull the context length from the models
+        default_model_context_window = LLM_MAX_TOKENS[default_model]
 
     # defaults
     personas = [os.path.basename(f).replace(".txt", "") for f in utils.list_persona_files()]
@@ -152,6 +195,7 @@ def configure():
 
     config = MemGPTConfig(
         model=default_model,
+        context_window=default_model_context_window,
         preset=default_preset,
         model_endpoint=default_endpoint,
         embedding_model=default_embedding_endpoint,

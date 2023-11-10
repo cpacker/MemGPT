@@ -4,7 +4,6 @@ import requests
 
 from .settings import SIMPLE
 from ..utils import count_tokens
-from ...constants import LLM_MAX_TOKENS
 from ...errors import LocalLLMError
 
 HOST = os.getenv("OPENAI_API_BASE")
@@ -14,11 +13,11 @@ OLLAMA_API_SUFFIX = "/api/generate"
 DEBUG = False
 
 
-def get_ollama_completion(prompt, settings=SIMPLE, grammar=None):
+def get_ollama_completion(prompt, context_window, settings=SIMPLE, grammar=None):
     """See https://github.com/jmorganca/ollama/blob/main/docs/api.md for instructions on how to run the LLM web server"""
     prompt_tokens = count_tokens(prompt)
-    if prompt_tokens > LLM_MAX_TOKENS:
-        raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {LLM_MAX_TOKENS} tokens)")
+    if prompt_tokens > context_window:
+        raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_window} tokens)")
 
     if MODEL_NAME is None:
         raise LocalLLMError(f"Error: OLLAMA_MODEL not specified. Set OLLAMA_MODEL to the model you want to run (e.g. 'dolphin2.2-mistral')")
