@@ -38,6 +38,23 @@ model_choices = [
     ),
 ]
 
+# helper functions for writing to configs
+def get_field(config, section, field):
+    if section not in config:
+        return None
+    if config.has_option(section, field):
+        return config.get(section, field)
+    else:
+        return None
+
+
+def set_field(config, section, field, value):
+    if value is None:  # cannot write None
+        return
+    if section not in config:  # create section
+        config.add_section(section)
+    config.set(section, field, value)
+
 
 @dataclass
 class MemGPTConfig:
@@ -48,9 +65,10 @@ class MemGPTConfig:
     preset: str = DEFAULT_PRESET
 
     # model parameters
-    # provider: str = "openai"  # openai, azure, local (TODO)
-    model_endpoint: str = "openai"
-    model: str = "gpt-4"  # gpt-4, gpt-3.5-turbo, local
+    model: str = "gpt-4"  # gpt-4, gpt-3.5-turbo, dolphin
+    model_endpoint_type: str = "openai"  # openai, azure, webui, ollama, lmstudio
+    model_endpoint: str = None  # localhost:8000
+    model_wrapper: str = None
     context_window: int = LLM_MAX_TOKENS[model] if model in LLM_MAX_TOKENS else LLM_MAX_TOKENS["DEFAULT"]
 
     # model parameters: openai
@@ -69,7 +87,8 @@ class MemGPTConfig:
     default_agent: str = None
 
     # embedding parameters
-    embedding_model: str = "openai"
+    embedding_endpoint_type: str = "openai"  # openai, azure, local
+    embedding_endpoint: str = None
     embedding_dim: int = 1536
     embedding_chunk_size: int = 300  # number of tokens
 
@@ -103,70 +122,36 @@ class MemGPTConfig:
             config_path = MemGPTConfig.config_path
 
         if os.path.exists(config_path):
+            # read existing config
             config.read(config_path)
-
-            # read config values
-            model = config.get("defaults", "model")
-            context_window = (
-                config.get("defaults", "context_window") if config.has_option("defaults", "context_window") else LLM_MAX_TOKENS["DEFAULT"]
-            )
-            preset = config.get("defaults", "preset")
-            model_endpoint = config.get("defaults", "model_endpoint")
-            default_persona = config.get("defaults", "persona")
-            default_human = config.get("defaults", "human")
-            default_agent = config.get("defaults", "agent") if config.has_option("defaults", "agent") else None
-
-            openai_key, openai_model = None, None
-            if "openai" in config:
-                openai_key = config.get("openai", "key")
-
-            azure_key, azure_endpoint, azure_version, azure_deployment, azure_embedding_deployment = None, None, None, None, None
-            if "azure" in config:
-                azure_key = config.get("azure", "key")
-                azure_endpoint = config.get("azure", "endpoint")
-                azure_version = config.get("azure", "version")
-                azure_deployment = config.get("azure", "deployment") if config.has_option("azure", "deployment") else None
-                azure_embedding_deployment = (
-                    config.get("azure", "embedding_deployment") if config.has_option("azure", "embedding_deployment") else None
-                )
-
-            embedding_model = config.get("embedding", "model")
-            embedding_dim = config.getint("embedding", "dim")
-            embedding_chunk_size = config.getint("embedding", "chunk_size")
-
-            # archival storage
-            archival_storage_type, archival_storage_path, archival_storage_uri = "local", None, None
-            if "archival_storage" in config:
-                archival_storage_type = config.get("archival_storage", "type")
-                archival_storage_path = config.get("archival_storage", "path") if config.has_option("archival_storage", "path") else None
-                archival_storage_uri = config.get("archival_storage", "uri") if config.has_option("archival_storage", "uri") else None
-
-            anon_clientid = config.get("client", "anon_clientid")
-
             return cls(
-                model=model,
-                context_window=context_window,
-                preset=preset,
-                model_endpoint=model_endpoint,
-                default_persona=default_persona,
-                default_human=default_human,
-                default_agent=default_agent,
-                openai_key=openai_key,
-                azure_key=azure_key,
-                azure_endpoint=azure_endpoint,
-                azure_version=azure_version,
-                azure_deployment=azure_deployment,
-                azure_embedding_deployment=azure_embedding_deployment,
-                embedding_model=embedding_model,
-                embedding_dim=embedding_dim,
-                embedding_chunk_size=embedding_chunk_size,
-                archival_storage_type=archival_storage_type,
-                archival_storage_path=archival_storage_path,
-                archival_storage_uri=archival_storage_uri,
-                anon_clientid=anon_clientid,
+                model=get_field(config, "model", "model"),
+                model_endpoint=get_field(config, "model", "model_endpoint"),
+                model_endpoint_type=get_field(config, "model", "model_endpoint_type"),
+                model_wrapper=get_field(config, "model", "model_wrapper"),
+                context_window=get_field(config, "defaults", "context_window"),
+                preset=get_field(config, "defaults", "preset"),
+                default_persona=get_field(config, "defaults", "persona"),
+                default_human=get_field(config, "defaults", "human"),
+                default_agent=get_field(config, "defaults", "agent"),
+                openai_key=get_field(config, "openai", "key"),
+                azure_key=get_field(config, "azure", "key"),
+                azure_endpoint=get_field(config, "azure", "endpoint"),
+                azure_version=get_field(config, "azure", "version"),
+                azure_deployment=get_field(config, "azure", "deployment"),
+                azure_embedding_deployment=get_field(config, "azure", "embedding_deployment"),
+                embedding_endpoint=get_field(config, "embedding", "embedding_endpoint"),
+                embedding_endpoint_type=get_field(config, "embedding", "embedding_endpoint_type"),
+                embedding_dim=get_field(config, "embedding", "dim"),
+                embedding_chunk_size=get_field(config, "embedding", "chunk_size"),
+                archival_storage_type=get_field(config, "archival_storage", "type"),
+                archival_storage_path=get_field(config, "archival_storage", "path"),
+                archival_storage_uri=get_field(config, "archival_storage", "uri"),
+                anon_clientid=get_field(config, "client", "anon_clientid"),
                 config_path=config_path,
             )
 
+        # create new config
         anon_clientid = MemGPTConfig.generate_uuid()
         config = cls(anon_clientid=anon_clientid, config_path=config_path)
         config.save()  # save updated config
@@ -176,50 +161,42 @@ class MemGPTConfig:
         config = configparser.ConfigParser()
 
         # CLI defaults
-        config.add_section("defaults")
-        config.set("defaults", "model", self.model)
-        config.set("defaults", "preset", self.preset)
-        assert self.model_endpoint is not None, "Endpoint must be set"
-        config.set("defaults", "model_endpoint", self.model_endpoint)
-        config.set("defaults", "persona", self.default_persona)
-        config.set("defaults", "human", self.default_human)
-        if self.default_agent:
-            config.set("defaults", "agent", self.default_agent)
+        set_field(config, "defaults", "preset", self.preset)
+        set_field(config, "defaults", "persona", self.default_persona)
+        set_field(config, "defaults", "human", self.default_human)
+        set_field(config, "defaults", "agent", self.default_agent)
 
-        # security credentials
-        if self.openai_key:
-            config.add_section("openai")
-            config.set("openai", "key", self.openai_key)
+        # model defaults
+        set_field(config, "model", "model", self.model)
+        set_field(config, "model", "model_endpoint", self.model_endpoint)
+        set_field(config, "model", "model_endpoint_type", self.model_endpoint_type)
+        set_field(config, "model", "model_wrapper", self.model_wrapper)
 
-        if self.azure_key:
-            config.add_section("azure")
-            config.set("azure", "key", self.azure_key)
-            config.set("azure", "endpoint", self.azure_endpoint)
-            config.set("azure", "version", self.azure_version)
-            if self.azure_deployment:
-                config.set("azure", "deployment", self.azure_deployment)
-                config.set("azure", "embedding_deployment", self.azure_embedding_deployment)
+        # security credentials: openai
+        set_field(config, "openai", "key", self.openai_key)
+
+        # security credentials: azure
+        set_field(config, "azure", "key", self.azure_key)
+        set_field(config, "azure", "endpoint", self.azure_endpoint)
+        set_field(config, "azure", "version", self.azure_version)
+        set_field(config, "azure", "deployment", self.azure_deployment)
+        set_field(config, "azure", "embedding_deployment", self.azure_embedding_deployment)
 
         # embeddings
-        config.add_section("embedding")
-        config.set("embedding", "model", self.embedding_model)
-        config.set("embedding", "dim", str(self.embedding_dim))
-        config.set("embedding", "chunk_size", str(self.embedding_chunk_size))
+        set_field(config, "embedding", "endpoint_type", self.embedding_endpoint_type)
+        set_field(config, "embedding", "endpoint", self.embedding_endpoint)
+        set_field(config, "embedding", "dim", str(self.embedding_dim))
+        set_field(config, "embedding", "chunk_size", str(self.embedding_chunk_size))
 
         # archival storage
-        config.add_section("archival_storage")
-        # print("archival storage", self.archival_storage_type)
-        config.set("archival_storage", "type", self.archival_storage_type)
-        if self.archival_storage_path:
-            config.set("archival_storage", "path", self.archival_storage_path)
-        if self.archival_storage_uri:
-            config.set("archival_storage", "uri", self.archival_storage_uri)
+        set_field(config, "archival_storage", "type", self.archival_storage_type)
+        set_field(config, "archival_storage", "path", self.archival_storage_path)
+        set_field(config, "archival_storage", "uri", self.archival_storage_uri)
 
         # client
-        config.add_section("client")
         if not self.anon_clientid:
             self.anon_clientid = self.generate_uuid()
-        config.set("client", "anon_clientid", self.anon_clientid)
+        set_field(config, "client", "anon_clientid", self.anon_clientid)
 
         if not os.path.exists(MEMGPT_DIR):
             os.makedirs(MEMGPT_DIR, exist_ok=True)

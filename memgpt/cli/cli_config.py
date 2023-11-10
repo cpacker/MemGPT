@@ -31,7 +31,7 @@ def configure():
     config = MemGPTConfig.load()
 
     # openai credentials
-    use_openai = questionary.confirm("Do you want to enable MemGPT with OpenAI?", default=True).ask()
+    use_openai = questionary.confirm("DOO you want to enable MemGPT with OpenAI?", default=True).ask()
     if use_openai:
         # search for key in enviornment
         openai_key = os.getenv("OPENAI_API_KEY")
@@ -67,70 +67,52 @@ def configure():
             # TODO: allow for manual setting
             use_azure = False
 
-    # TODO: configure local model
-
     # configure provider
     model_endpoint_options = []
-    if os.getenv("OPENAI_API_BASE") is not None:
-        model_endpoint_options.append(os.getenv("OPENAI_API_BASE"))
     if use_openai:
         model_endpoint_options += ["openai"]
     if use_azure:
         model_endpoint_options += ["azure"]
+    model_endpoint_options += ["webui", "llamacpp", "koboldcpp", "ollama", "lmstudio"]
     assert (
         len(model_endpoint_options) > 0
     ), "No endpoints found. Please enable OpenAI, Azure, or set OPENAI_API_BASE to point at the IP address of your LLM server."
-    valid_default_model = config.model_endpoint in model_endpoint_options
-    default_endpoint = questionary.select(
-        "Select default inference endpoint:",
+    valid_default_model = config.model_endpoint_type in model_endpoint_options
+    default_model_endpoint_type = questionary.select(
+        "Select default inference provider:",
         model_endpoint_options,
         default=config.model_endpoint if valid_default_model else model_endpoint_options[0],
     ).ask()
 
-    # configure embedding provider
-    embedding_endpoint_options = []
-    if use_azure:
-        embedding_endpoint_options += ["azure"]
-    if use_openai:
-        embedding_endpoint_options += ["openai"]
-    embedding_endpoint_options += ["local"]
-    valid_default_embedding = config.embedding_model in embedding_endpoint_options
-    # determine the default selection in a smart way
-    if "openai" in embedding_endpoint_options and default_endpoint == "openai":
-        # openai llm -> openai embeddings
-        default_embedding_endpoint_default = "openai"
-    elif default_endpoint not in ["openai", "azure"]:  # is local
-        # local llm -> local embeddings
-        default_embedding_endpoint_default = "local"
-    else:
-        default_embedding_endpoint_default = config.embedding_model if valid_default_embedding else embedding_endpoint_options[-1]
-    default_embedding_endpoint = questionary.select(
-        "Select default embedding endpoint:", embedding_endpoint_options, default=default_embedding_endpoint_default
-    ).ask()
-
-    # configure embedding dimentions
-    default_embedding_dim = config.embedding_dim
-    if default_embedding_endpoint == "local":
-        # HF model uses lower dimentionality
-        default_embedding_dim = 384
-
-    # configure preset
-    default_preset = questionary.select("Select default preset:", preset_options, default=config.preset).ask()
-
-    # default model
-    if use_openai or use_azure:
-        model_options = []
-        if use_openai:
-            model_options += ["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo-16k"]
+    # configure model/model wrapper
+    default_model, default_model_wrapper = None, None
+    default_model_endpoint = os.getenv("OPENAI_API_BASE")
+    if default_model_endpoint_type == "openai" or default_model_endpoint_type == "azure":
+        model_options = ["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo-16k"]
+        # TODO: select
         valid_model = config.model in model_options
         default_model = questionary.select(
             "Select default model (recommended: gpt-4):", choices=model_options, default=config.model if valid_model else model_options[0]
         ).ask()
-    else:
-        default_model = "local"  # TODO: figure out if this is ok? this is for local endpoint
+    else:  # local models
+        assert default_model_endpoint is not None, f"OPENAI_API_BASE must be set to {default_model_endpoint_type}."
+        default_model_wrapper = questionary.text(
+            "Enter default model wrapper:", default=config.model_wrapper if config.model_wrapper else "airoboros-l2-70b-2.1"
+        ).ask()
+
+        # ollama also needs model type
+        if default_model_endpoint_type == "ollama":
+            default_model = questionary.text(
+                "Enter default model type (e.g. airboros):", default=config.model if config.model else ""
+            ).ask()
+            default_model = None if len(default_model) == 0 else default_model
+
+    # print endpoint
+    if default_model_endpoint:
+        typer.secho(f"Using {default_model_endpoint} as default endpoint.", fg=typer.colors.GREEN)
 
     # get the max tokens (context window) for the model
-    if default_model == "local" or str(default_model) not in LLM_MAX_TOKENS:
+    if str(default_model) not in LLM_MAX_TOKENS:
         # Ask the user to specify the context length
         context_length_options = [
             str(2**12),  # 4096
@@ -161,6 +143,35 @@ def configure():
         # Pull the context length from the models
         default_model_context_window = LLM_MAX_TOKENS[default_model]
 
+    # configure embedding provider
+    embedding_endpoint_options = []
+    if use_azure:
+        embedding_endpoint_options += ["azure"]
+    if use_openai:
+        embedding_endpoint_options += ["openai"]
+    embedding_endpoint_options += ["local"]
+    valid_default_embedding = config.embedding_endpoint_type in embedding_endpoint_options
+    # determine the default selection in a smart way
+    if "openai" in embedding_endpoint_options and default_model_endpoint_type == "openai":
+        # openai llm -> openai embeddings
+        default_embedding_endpoint_default = "openai"
+    elif default_model_endpoint_type not in ["openai", "azure"]:  # is local
+        # local llm -> local embeddings
+        default_embedding_endpoint_default = "local"
+    else:
+        default_embedding_endpoint_default = config.embedding_endpoint_type if valid_default_embedding else embedding_endpoint_options[-1]
+    default_embedding_endpoint = questionary.select(
+        "Select default embedding endpoint:", embedding_endpoint_options, default=default_embedding_endpoint_default
+    ).ask()
+
+    # configure embedding dimentions
+    default_embedding_dim = config.embedding_dim
+    if default_embedding_endpoint == "local":
+        # HF model uses lower dimentionality
+        default_embedding_dim = 384
+
+    # configure preset
+    default_preset = questionary.select("Select default preset:", preset_options, default=config.preset).ask()
     # defaults
     personas = [os.path.basename(f).replace(".txt", "") for f in utils.list_persona_files()]
     # print(personas)
@@ -192,24 +203,29 @@ def configure():
             default=config.archival_storage_uri if config.archival_storage_uri else "",
         ).ask()
 
-    # TODO: allow configuring embedding model
-
     config = MemGPTConfig(
+        # model configs
         model=default_model,
+        model_endpoint=default_model_endpoint,
+        model_endpoint_type=default_model_endpoint_type,
+        model_wrapper=default_model_wrapper,
         context_window=default_model_context_window,
-        preset=default_preset,
-        model_endpoint=default_endpoint,
-        embedding_model=default_embedding_endpoint,
+        # embedding configs
+        embedding_endpoint_type=default_embedding_endpoint,
         embedding_dim=default_embedding_dim,
+        # cli configs
+        preset=default_preset,
         default_persona=default_persona,
         default_human=default_human,
         default_agent=default_agent,
+        # credentials
         openai_key=openai_key if use_openai else None,
         azure_key=azure_key if use_azure else None,
         azure_endpoint=azure_endpoint if use_azure else None,
         azure_version=azure_version if use_azure else None,
         azure_deployment=azure_deployment if use_azure_deployment_ids else None,
         azure_embedding_deployment=azure_embedding_deployment if use_azure_deployment_ids else None,
+        # storage
         archival_storage_type=archival_storage_type,
         archival_storage_uri=archival_storage_uri,
     )
