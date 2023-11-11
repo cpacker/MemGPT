@@ -295,9 +295,9 @@ FUNCTIONS_CHAINING = {
                 },
                 "url": {
                     "type": "string",
-                    "description": "The URL for the request",
+                    "description": "The URL for the request.",
                 },
-                "payload": {
+                "payload_json": {
                     "type": "string",
                     "description": "A JSON string representing the request payload.",
                 },
