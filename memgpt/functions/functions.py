@@ -33,7 +33,7 @@ def load_function_set(set_name):
     return function_dict
 
 
-def load_all_function_sets():
+def load_all_function_sets(merge=True):
     schemas_and_functions = {}
     script_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of the current script
     function_sets_dir = os.path.join(script_dir, "function_sets")  # Path to the function_sets directory
@@ -52,7 +52,18 @@ def load_all_function_sets():
         except ValueError as e:
             print(f"Error loading function set '{module_name}': {e}")
 
-    return schemas_and_functions
+    if merge:
+        # Put all functions from all sets into the same level dict
+        merged_functions = {}
+        for set_name, function_set in schemas_and_functions.items():
+            for function_name, function_info in function_set.items():
+                if function_name in merged_functions:
+                    raise ValueError(f"Duplicate function name '{function_name}' found in function set '{set_name}'")
+                merged_functions[function_name] = function_info
+        return merged_functions
+    else:
+        # Nested dict where the top level is organized by the function set name
+        return schemas_and_functions
 
 
 # def load_all_function_sets():

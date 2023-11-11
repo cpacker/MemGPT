@@ -23,7 +23,7 @@ from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS
 import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
-from memgpt.presets import DEFAULT_PRESET, preset_options
+from memgpt.presets.presets import DEFAULT_PRESET, preset_options
 
 
 model_choices = [

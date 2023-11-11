@@ -14,7 +14,7 @@ import memgpt.interface  # for printing to terminal
 from memgpt.cli.cli_config import configure
 import memgpt.agent as agent
 import memgpt.system as system
-import memgpt.presets as presets
+import memgpt.presets.presets as presets
 import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
