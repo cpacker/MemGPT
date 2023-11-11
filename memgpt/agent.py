@@ -146,15 +146,18 @@ class Agent(object):
         self.model = model
         # Store the system instructions (used to rebuild memory)
         self.system = system
+
+        # Available functions is a mapping from:
+        # function_name -> {
+        #   json_schema: schema
+        #   python_function: function
+        # }
         # Store the functions schemas (this is passed as an argument to ChatCompletion)
-        functions_schema = [f["schema"] for f in functions]
+        functions_schema = [f_dict["json_schema"] for f_name, f_dict in functions.items()]
         self.functions = functions_schema
-        # self.functions_map = {}
-        # for d in functions:
-        #     function_name = d['schema'].
-        #     self.functions_map
-        # functions_python = [f["python_function"] for f in functions]
-        # self.functions_python = functions_python  # dict mapping from name->
+        # Store references to the python objects
+        self.functions_python = {f_name: f_dict["python_function"] for f_name, f_dict in functions.items()}
+
         # Initialize the memory object
         self.memory = initialize_memory(persona_notes, human_notes)
         # Once the memory object is initialize, use it to "bake" the system message
@@ -197,34 +200,6 @@ class Agent(object):
         # When an alert is sent in the message queue, set this to True (to avoid repeat alerts)
         # When the summarizer is run, set this back to False (to reset)
         self.agent_alerted_about_memory_pressure = False
-
-        self.init_avail_functions()
-
-    def init_avail_functions(self):
-        """
-        Allows subclasses to overwrite this dictionary with overriden methods.
-        """
-        self.available_functions = {
-            # These functions aren't all visible to the LLM
-            # To see what functions the LLM sees, check self.functions
-            "send_message": self.send_ai_message,
-            "edit_memory": self.edit_memory,
-            "edit_memory_append": self.edit_memory_append,
-            "edit_memory_replace": self.edit_memory_replace,
-            "pause_heartbeats": self.pause_heartbeats,
-            "core_memory_append": self.edit_memory_append,
-            "core_memory_replace": self.edit_memory_replace,
-            "recall_memory_search": self.recall_memory_search,
-            "recall_memory_search_date": self.recall_memory_search_date,
-            "conversation_search": self.recall_memory_search,
-            "conversation_search_date": self.recall_memory_search_date,
-            "archival_memory_insert": self.archival_memory_insert,
-            "archival_memory_search": self.archival_memory_search,
-            # extras
-            "read_from_text_file": self.read_from_text_file,
-            "append_to_text_file": self.append_to_text_file,
-            "http_request": self.http_request,
-        }
 
     @property
     def messages(self):
@@ -481,7 +456,7 @@ class Agent(object):
             # Failure case 1: function name is wrong
             function_name = response_message["function_call"]["name"]
             try:
-                function_to_call = self.available_functions[function_name]
+                function_to_call = self.functions_python[function_name]
             except KeyError as e:
                 error_msg = f"No function named {function_name}"
                 function_response = package_function_response(False, error_msg)
@@ -524,6 +499,7 @@ class Agent(object):
             # Failure case 3: function failed during execution
             self.interface.function_message(f"Running {function_name}({function_args})")
             try:
+                function_args["self"] = self  # need to attach self to arg since it's dynamically linked
                 function_response_string = function_to_call(**function_args)
                 function_response = package_function_response(True, function_response_string)
                 function_failed = False

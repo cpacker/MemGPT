@@ -1,0 +1,66 @@
+import importlib
+import inspect
+import os
+
+
+from memgpt.functions.schema_generator import generate_schema
+
+
+def load_function_set(set_name):
+    """Load the functions and generate schema for them"""
+    function_dict = {}
+
+    module_name = f"memgpt.functions.function_sets.{set_name}"
+    base_functions = importlib.import_module(module_name)
+
+    for attr_name in dir(base_functions):
+        # Get the attribute
+        attr = getattr(base_functions, attr_name)
+
+        # Check if it's a callable function and not a built-in or special method
+        if inspect.isfunction(attr) and attr.__module__ == base_functions.__name__:
+            if attr_name in function_dict:
+                raise ValueError(f"Found a duplicate of function name '{attr_name}'")
+
+            generated_schema = generate_schema(attr)
+            function_dict[attr_name] = {
+                "python_function": attr,
+                "json_schema": generated_schema,
+            }
+
+    if len(function_dict) == 0:
+        raise ValueError(f"No functions found in module {module_name}")
+    return function_dict
+
+
+def load_all_function_sets():
+    schemas_and_functions = {}
+    script_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of the current script
+    function_sets_dir = os.path.join(script_dir, "function_sets")  # Path to the function_sets directory
+
+    # List all .py files in the directory (excluding __init__.py)
+    module_files = [f for f in os.listdir(function_sets_dir) if f.endswith(".py") and f != "__init__.py"]
+
+    for file in module_files:
+        # Convert filename to module name
+        module_name = f"memgpt.functions.function_sets.{file[:-3]}"  # Remove '.py' from filename
+
+        try:
+            # Load the function set
+            function_set = load_function_set(file[:-3])  # Pass the module part of the name
+            schemas_and_functions[module_name] = function_set
+        except ValueError as e:
+            print(f"Error loading function set '{module_name}': {e}")
+
+    return schemas_and_functions
+
+
+# def load_all_function_sets():
+#     schemas_and_function = {}
+
+# print(load_function_set("base"))
+# print(load_all_function_sets())
+# for k, v in load_all_function_sets().items():
+#     print(k)
+#     print(v)
+#     print()
