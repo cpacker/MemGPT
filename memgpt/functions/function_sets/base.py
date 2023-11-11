@@ -4,7 +4,7 @@ import os
 import json
 import math
 
-from ..constants import MAX_PAUSE_HEARTBEATS, RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
+from ...constants import MAX_PAUSE_HEARTBEATS, RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
 
 ### Functions / tools the agent can use
 # All functions should return a response string (or None)

@@ -4,8 +4,8 @@ import json
 import requests
 
 
-from ..constants import MESSAGE_CHATGPT_FUNCTION_MODEL, MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE, MAX_PAUSE_HEARTBEATS
-from ..openai_tools import completions_with_backoff as create
+from ...constants import MESSAGE_CHATGPT_FUNCTION_MODEL, MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE, MAX_PAUSE_HEARTBEATS
+from ...openai_tools import completions_with_backoff as create
 
 
 def message_chatgpt(self, message: str):
@@ -98,12 +98,12 @@ def http_request(self, method: str, url: str, payload_json: Optional[str] = None
     Generates an HTTP request and returns the response.
 
     Args:
-    method (str): The HTTP method (e.g., 'GET', 'POST').
-    url (str): The URL for the request.
-    payload_json (Optional[str]): A JSON string representing the request payload.
+        method (str): The HTTP method (e.g., 'GET', 'POST').
+        url (str): The URL for the request.
+        payload_json (Optional[str]): A JSON string representing the request payload.
 
     Returns:
-    dict: The response from the HTTP request.
+        dict: The response from the HTTP request.
     """
     try:
         headers = {"Content-Type": "application/json"}
