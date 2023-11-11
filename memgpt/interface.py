@@ -37,6 +37,7 @@ class AgentInterface(ABC):
         """MemGPT calls a function"""
         raise NotImplementedError
 
+
 class CLIInterface(AgentInterface):
     """Basic interface for dumping agent events to the command-line"""
 
@@ -209,23 +210,23 @@ class CLIInterface(AgentInterface):
             content = msg["content"]
 
             if role == "system":
-                system_message(content)
+                CLIInterface.system_message(content)
             elif role == "assistant":
                 # Differentiate between internal monologue, function calls, and messages
                 if msg.get("function_call"):
                     if content is not None:
-                        internal_monologue(content)
+                        CLIInterface.internal_monologue(content)
                     # I think the next one is not up to date
                     # function_message(msg["function_call"])
                     args = json.loads(msg["function_call"].get("arguments"))
-                    assistant_message(args.get("message"))
+                    CLIInterface.assistant_message(args.get("message"))
                     # assistant_message(content)
                 else:
-                    internal_monologue(content)
+                    CLIInterface.internal_monologue(content)
             elif role == "user":
-                user_message(content, dump=dump)
+                CLIInterface.user_message(content, dump=dump)
             elif role == "function":
-                function_message(content, debug=dump)
+                CLIInterface.function_message(content, debug=dump)
             else:
                 print(f"Unknown role: {content}")
 
@@ -236,11 +237,11 @@ class CLIInterface(AgentInterface):
             content = msg["content"]
 
             if role == "system":
-                system_message(content)
+                CLIInterface.system_message(content)
             elif role == "assistant":
-                assistant_message(content)
+                CLIInterface.assistant_message(content)
             elif role == "user":
-                user_message(content, raw=True)
+                CLIInterface.user_message(content, raw=True)
             else:
                 print(f"Unknown role: {content}")
 
