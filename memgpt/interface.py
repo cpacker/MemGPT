@@ -10,6 +10,7 @@ init(autoreset=True)
 
 # DEBUG = True  # puts full message outputs in the terminal
 DEBUG = False  # only dumps important messages in the terminal
+
 STRIP_UI = False
 
 
@@ -17,25 +18,24 @@ class AgentInterface(ABC):
     """Interfaces handle MemGPT-related events (observer pattern)"""
 
     @abstractmethod
-    async def user_message(self, msg):
+    def user_message(self, msg):
         """MemGPT receives a user message"""
         raise NotImplementedError
 
     @abstractmethod
-    async def internal_monologue(self, msg):
+    def internal_monologue(self, msg):
         """MemGPT generates some internal monologue"""
         raise NotImplementedError
 
     @abstractmethod
-    async def assistant_message(self, msg):
+    def assistant_message(self, msg):
         """MemGPT uses send_message"""
         raise NotImplementedError
 
     @abstractmethod
-    async def function_message(self, msg):
+    def function_message(self, msg):
         """MemGPT calls a function"""
         raise NotImplementedError
-
 
 class CLIInterface(AgentInterface):
     """Basic interface for dumping agent events to the command-line"""
@@ -56,7 +56,7 @@ class CLIInterface(AgentInterface):
             print(fstr.format(msg=msg))
 
     @staticmethod
-    async def internal_monologue(msg):
+    def internal_monologue(msg):
         # ANSI escape code for italic is '\x1B[3m'
         fstr = f"\x1B[3m{Fore.LIGHTBLACK_EX}💭 {{msg}}{Style.RESET_ALL}"
         if STRIP_UI:
@@ -64,28 +64,28 @@ class CLIInterface(AgentInterface):
         print(fstr.format(msg=msg))
 
     @staticmethod
-    async def assistant_message(msg):
+    def assistant_message(msg):
         fstr = f"{Fore.YELLOW}{Style.BRIGHT}🤖 {Fore.YELLOW}{{msg}}{Style.RESET_ALL}"
         if STRIP_UI:
             fstr = "{msg}"
         print(fstr.format(msg=msg))
 
     @staticmethod
-    async def memory_message(msg):
+    def memory_message(msg):
         fstr = f"{Fore.LIGHTMAGENTA_EX}{Style.BRIGHT}🧠 {Fore.LIGHTMAGENTA_EX}{{msg}}{Style.RESET_ALL}"
         if STRIP_UI:
             fstr = "{msg}"
         print(fstr.format(msg=msg))
 
     @staticmethod
-    async def system_message(msg):
+    def system_message(msg):
         fstr = f"{Fore.MAGENTA}{Style.BRIGHT}🖥️ [system] {Fore.MAGENTA}{msg}{Style.RESET_ALL}"
         if STRIP_UI:
             fstr = "{msg}"
         print(fstr.format(msg=msg))
 
     @staticmethod
-    async def user_message(msg, raw=False, dump=False, debug=DEBUG):
+    def user_message(msg, raw=False, dump=False, debug=DEBUG):
         def print_user_message(icon, msg, printf=print):
             if STRIP_UI:
                 printf(f"{icon} {msg}")
@@ -131,7 +131,7 @@ class CLIInterface(AgentInterface):
             printd_user_message("🧑", msg_json)
 
     @staticmethod
-    async def function_message(msg, debug=DEBUG):
+    def function_message(msg, debug=DEBUG):
         def print_function_message(icon, msg, color=Fore.RED, printf=print):
             if STRIP_UI:
                 printf(f"⚡{icon} [function] {msg}")
@@ -199,7 +199,7 @@ class CLIInterface(AgentInterface):
                 printd_function_message("", msg)
 
     @staticmethod
-    async def print_messages(message_sequence, dump=False):
+    def print_messages(message_sequence, dump=False):
         idx = len(message_sequence)
         for msg in message_sequence:
             if dump:
@@ -209,42 +209,42 @@ class CLIInterface(AgentInterface):
             content = msg["content"]
 
             if role == "system":
-                await CLIInterface.system_message(content)
+                system_message(content)
             elif role == "assistant":
                 # Differentiate between internal monologue, function calls, and messages
                 if msg.get("function_call"):
                     if content is not None:
-                        await CLIInterface.internal_monologue(content)
+                        internal_monologue(content)
                     # I think the next one is not up to date
-                    # await function_message(msg["function_call"])
+                    # function_message(msg["function_call"])
                     args = json.loads(msg["function_call"].get("arguments"))
-                    await CLIInterface.assistant_message(args.get("message"))
+                    assistant_message(args.get("message"))
                     # assistant_message(content)
                 else:
-                    await CLIInterface.internal_monologue(content)
+                    internal_monologue(content)
             elif role == "user":
-                await CLIInterface.user_message(content, dump=dump)
+                user_message(content, dump=dump)
             elif role == "function":
-                await CLIInterface.function_message(content, debug=dump)
+                function_message(content, debug=dump)
             else:
                 print(f"Unknown role: {content}")
 
     @staticmethod
-    async def print_messages_simple(message_sequence):
+    def print_messages_simple(message_sequence):
         for msg in message_sequence:
             role = msg["role"]
             content = msg["content"]
 
             if role == "system":
-                await CLIInterface.system_message(content)
+                system_message(content)
             elif role == "assistant":
-                await CLIInterface.assistant_message(content)
+                assistant_message(content)
             elif role == "user":
-                await CLIInterface.user_message(content, raw=True)
+                user_message(content, raw=True)
             else:
                 print(f"Unknown role: {content}")
 
     @staticmethod
-    async def print_messages_raw(message_sequence):
+    def print_messages_raw(message_sequence):
         for msg in message_sequence:
             print(msg)

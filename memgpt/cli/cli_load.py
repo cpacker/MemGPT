@@ -45,7 +45,7 @@ def store_docs(name, docs, show_progress=True):
         text = node.text.replace("\x00", "\uFFFD")  # hacky fix for error on null characters
         assert (
             len(node.embedding) == config.embedding_dim
-        ), f"Expected embedding dimension {config.embedding_dim}, got {len(node.embedding)}"
+        ), f"Expected embedding dimension {config.embedding_dim}, got {len(node.embedding)}: {node.embedding}"
         passages.append(Passage(text=text, embedding=vector))
 
     # insert into storage

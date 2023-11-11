@@ -22,7 +22,7 @@ SIMPLE = {
             # '\n#',
             # '\n\n\n',
         ],
-        "num_ctx": LLM_MAX_TOKENS,
+        # "num_ctx": LLM_MAX_TOKENS,
     },
     "stream": False,
     # turn off Ollama's own prompt formatting
