@@ -7,7 +7,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock, MagicMock
 
 from memgpt.config import MemGPTConfig, AgentConfig
-from memgpt.server.websocket_interface import BlockingWebSocketInterface
+from memgpt.server.websocket_interface import SyncWebSocketInterface
 import memgpt.presets as presets
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
@@ -54,7 +54,7 @@ async def test_websockets():
     # mock_websocket = Mock()
 
     # Create the WebSocket interface with the mocked WebSocket
-    ws_interface = BlockingWebSocketInterface()
+    ws_interface = SyncWebSocketInterface()
 
     # Register the mock websocket as a client
     ws_interface.register_client(mock_websocket)

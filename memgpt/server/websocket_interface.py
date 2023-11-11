@@ -47,7 +47,7 @@ class AsyncWebSocketInterface(BaseWebSocketInterface):
             await asyncio.gather(*[client.send(f"Function call: {msg}") for client in self.clients])
 
 
-class BlockingWebSocketInterface(BaseWebSocketInterface):
+class SyncWebSocketInterface(BaseWebSocketInterface):
     def __init__(self):
         super().__init__()
         self.clients = set()
