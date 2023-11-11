@@ -4,10 +4,10 @@ import subprocess
 import sys
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import Mock, AsyncMock, MagicMock
 
 from memgpt.config import MemGPTConfig, AgentConfig
-from memgpt.server.websocket_interface import WebSocketInterface
+from memgpt.server.websocket_interface import BlockingWebSocketInterface
 import memgpt.presets as presets
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
@@ -51,20 +51,22 @@ async def test_dummy():
 async def test_websockets():
     # Mock a WebSocket connection
     mock_websocket = AsyncMock()
+    # mock_websocket = Mock()
 
     # Create the WebSocket interface with the mocked WebSocket
-    ws_interface = WebSocketInterface(mock_websocket)
+    ws_interface = BlockingWebSocketInterface()
 
     # Register the mock websocket as a client
-    await ws_interface.register_client(mock_websocket)
+    ws_interface.register_client(mock_websocket)
 
     # Mock the persistence manager
     persistence_manager = InMemoryStateManager()
 
     # Create an agent and hook it up to the WebSocket interface
+    config = MemGPTConfig()
     memgpt_agent = presets.use_preset(
         presets.DEFAULT_PRESET,
-        None,  # no agent config to provide
+        config,  # no agent config to provide
         "gpt-4-1106-preview",
         personas.get_persona_text("sam_pov"),
         humans.get_human_text("basic"),
@@ -80,7 +82,7 @@ async def test_websockets():
     # memgpt_agent.step = agent_step
 
     # Call the step method, which should trigger interface methods
-    ret = await memgpt_agent.step(user_message=user_message, first_message=True, skip_verify=True)
+    ret = memgpt_agent.step(user_message=user_message, first_message=True, skip_verify=True)
     print("ret\n")
     print(ret)
 
@@ -94,6 +96,8 @@ async def test_websockets():
         print(f"Sent data: {args[0] if args else None}")
         # If you're using keyword arguments, you can print them out as well:
         # print(f"Sent data with kwargs: {kwargs}")
+
+    ws_interface.close()
 
     # Assertions to ensure the step method was called
     # agent_step.assert_called_once()
