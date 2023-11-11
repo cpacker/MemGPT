@@ -67,6 +67,11 @@ def configure():
             # TODO: allow for manual setting
             use_azure = False
 
+    # print endpoint
+    default_model_endpoint = os.getenv("OPENAI_API_BASE")
+    if default_model_endpoint:
+        typer.secho(f"Using {default_model_endpoint} as default endpoint.", fg=typer.colors.GREEN)
+
     # configure provider
     model_endpoint_options = []
     if use_openai:
@@ -78,15 +83,15 @@ def configure():
         len(model_endpoint_options) > 0
     ), "No endpoints found. Please enable OpenAI, Azure, or set OPENAI_API_BASE to point at the IP address of your LLM server."
     valid_default_model = config.model_endpoint_type in model_endpoint_options
+    print(valid_default_model, config.model_endpoint_type, model_endpoint_options)
     default_model_endpoint_type = questionary.select(
-        "Select default inference provider:",
+        "Select default model backend (select 'openai' if you want to use OpenAI or an OpenAI-compatible API):",
         model_endpoint_options,
-        default=config.model_endpoint if valid_default_model else model_endpoint_options[0],
+        default=config.model_endpoint_type if valid_default_model else model_endpoint_options[0],
     ).ask()
 
     # configure model/model wrapper
     default_model, default_model_wrapper = None, None
-    default_model_endpoint = os.getenv("OPENAI_API_BASE")
     if default_model_endpoint_type == "openai" or default_model_endpoint_type == "azure":
         model_options = ["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo-16k"]
         # TODO: select
@@ -106,10 +111,6 @@ def configure():
                 "Enter default model type (e.g. airboros):", default=config.model if config.model else ""
             ).ask()
             default_model = None if len(default_model) == 0 else default_model
-
-    # print endpoint
-    if default_model_endpoint:
-        typer.secho(f"Using {default_model_endpoint} as default endpoint.", fg=typer.colors.GREEN)
 
     # get the max tokens (context window) for the model
     if str(default_model) not in LLM_MAX_TOKENS:

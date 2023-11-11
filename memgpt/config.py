@@ -107,6 +107,12 @@ class MemGPTConfig:
     persistence_manager_save_file: str = None  # local file
     persistence_manager_uri: str = None  # db URI
 
+    def __post_init__(self):
+        # ensure types
+        self.embedding_chunk_size = int(self.embedding_chunk_size)
+        self.embedding_dim = int(self.embedding_dim)
+        self.context_window = int(self.context_window)
+
     @staticmethod
     def generate_uuid() -> str:
         return uuid.UUID(int=uuid.getnode()).hex
@@ -124,32 +130,63 @@ class MemGPTConfig:
         if os.path.exists(config_path):
             # read existing config
             config.read(config_path)
-            return cls(
-                model=get_field(config, "model", "model"),
-                model_endpoint=get_field(config, "model", "model_endpoint"),
-                model_endpoint_type=get_field(config, "model", "model_endpoint_type"),
-                model_wrapper=get_field(config, "model", "model_wrapper"),
-                context_window=get_field(config, "defaults", "context_window"),
-                preset=get_field(config, "defaults", "preset"),
-                default_persona=get_field(config, "defaults", "persona"),
-                default_human=get_field(config, "defaults", "human"),
-                default_agent=get_field(config, "defaults", "agent"),
-                openai_key=get_field(config, "openai", "key"),
-                azure_key=get_field(config, "azure", "key"),
-                azure_endpoint=get_field(config, "azure", "endpoint"),
-                azure_version=get_field(config, "azure", "version"),
-                azure_deployment=get_field(config, "azure", "deployment"),
-                azure_embedding_deployment=get_field(config, "azure", "embedding_deployment"),
-                embedding_endpoint=get_field(config, "embedding", "embedding_endpoint"),
-                embedding_endpoint_type=get_field(config, "embedding", "embedding_endpoint_type"),
-                embedding_dim=get_field(config, "embedding", "dim"),
-                embedding_chunk_size=get_field(config, "embedding", "chunk_size"),
-                archival_storage_type=get_field(config, "archival_storage", "type"),
-                archival_storage_path=get_field(config, "archival_storage", "path"),
-                archival_storage_uri=get_field(config, "archival_storage", "uri"),
-                anon_clientid=get_field(config, "client", "anon_clientid"),
-                config_path=config_path,
-            )
+            # config = cls(
+            #    model=get_field(config, "model", "model"),
+            #    model_endpoint=get_field(config, "model", "model_endpoint"),
+            #    model_endpoint_type=get_field(config, "model", "model_endpoint_type"),
+            #    model_wrapper=get_field(config, "model", "model_wrapper"),
+            #    context_window=get_field(config, "defaults", "context_window"),
+            #    preset=get_field(config, "defaults", "preset"),
+            #    default_persona=get_field(config, "defaults", "persona"),
+            #    default_human=get_field(config, "defaults", "human"),
+            #    default_agent=get_field(config, "defaults", "agent"),
+            #    openai_key=get_field(config, "openai", "key"),
+            #    azure_key=get_field(config, "azure", "key"),
+            #    azure_endpoint=get_field(config, "azure", "endpoint"),
+            #    azure_version=get_field(config, "azure", "version"),
+            #    azure_deployment=get_field(config, "azure", "deployment"),
+            #    azure_embedding_deployment=get_field(config, "azure", "embedding_deployment"),
+            #    embedding_endpoint=get_field(config, "embedding", "embedding_endpoint"),
+            #    embedding_endpoint_type=get_field(config, "embedding", "embedding_endpoint_type"),
+            #    embedding_dim=int(get_field(config, "embedding", "dim")),
+            #    embedding_chunk_size=int(get_field(config, "embedding", "chunk_size")),
+            #    archival_storage_type=get_field(config, "archival_storage", "type"),
+            #    archival_storage_path=get_field(config, "archival_storage", "path"),
+            #    archival_storage_uri=get_field(config, "archival_storage", "uri"),
+            #    anon_clientid=get_field(config, "client", "anon_clientid"),
+            #    config_path=config_path,
+            # )
+            config_dict = {
+                "model": get_field(config, "model", "model"),
+                "model_endpoint": get_field(config, "model", "model_endpoint"),
+                "model_endpoint_type": get_field(config, "model", "model_endpoint_type"),
+                "model_wrapper": get_field(config, "model", "model_wrapper"),
+                "context_window": get_field(config, "defaults", "context_window"),
+                "preset": get_field(config, "defaults", "preset"),
+                "default_persona": get_field(config, "defaults", "persona"),
+                "default_human": get_field(config, "defaults", "human"),
+                "default_agent": get_field(config, "defaults", "agent"),
+                "openai_key": get_field(config, "openai", "key"),
+                "azure_key": get_field(config, "azure", "key"),
+                "azure_endpoint": get_field(config, "azure", "endpoint"),
+                "azure_version": get_field(config, "azure", "version"),
+                "azure_deployment": get_field(config, "azure", "deployment"),
+                "azure_embedding_deployment": get_field(config, "azure", "embedding_deployment"),
+                "embedding_endpoint": get_field(config, "embedding", "embedding_endpoint"),
+                "embedding_endpoint_type": get_field(config, "embedding", "embedding_endpoint_type"),
+                "embedding_dim": get_field(config, "embedding", "dim"),
+                "embedding_chunk_size": get_field(config, "embedding", "chunk_size"),
+                "archival_storage_type": get_field(config, "archival_storage", "type"),
+                "archival_storage_path": get_field(config, "archival_storage", "path"),
+                "archival_storage_uri": get_field(config, "archival_storage", "uri"),
+                "anon_clientid": get_field(config, "client", "anon_clientid"),
+                "config_path": config_path,
+            }
+            config_dict = {k: v for k, v in config_dict.items() if v is not None}
+            from pprint import pprint
+
+            pprint(config_dict)
+            return cls(**config_dict)
 
         # create new config
         anon_clientid = MemGPTConfig.generate_uuid()

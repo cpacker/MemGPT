@@ -3,6 +3,7 @@ import os
 import time
 
 from .local_llm.chat_completion_proxy import get_chat_completion
+from memgpt.config import AgentConfig
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
@@ -55,6 +56,7 @@ def retry_with_exponential_backoff(
     return wrapper
 
 
+# TODO: delete/ignore --legacy
 @retry_with_exponential_backoff
 def completions_with_backoff(**kwargs):
     # Local model
@@ -73,6 +75,27 @@ def completions_with_backoff(**kwargs):
         if "context_window" in kwargs:
             kwargs.pop("context_window")
         return openai.ChatCompletion.create(**kwargs)
+
+
+@retry_with_exponential_backoff
+def chat_completion_with_backoff(config: AgentConfig, **kwargs):
+    from memgpt.utils import printd
+
+    printd(f"Using model {config.model_endpoint_type}", **kwargs)
+    if config.model_endpoint_type == "openai":
+        # openai
+        return openai.ChatCompletion.create(**kwargs)
+    elif config.model_endpoint_type == "azure":
+        # azure
+        azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+        if azure_openai_deployment is not None:
+            kwargs["deployment_id"] = azure_openai_deployment
+        else:
+            kwargs["engine"] = MODEL_TO_AZURE_ENGINE[kwargs["model"]]
+            del kwargs["model"]
+        return openai.ChatCompletion.create(**kwargs)
+    else:  # local model
+        return get_chat_completion(**kwargs)
 
 
 @retry_with_exponential_backoff
