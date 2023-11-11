@@ -1,23 +1,18 @@
-import inspect
 import datetime
 import glob
-import math
 import os
-import requests
 import json
 import traceback
 
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import AgentConfig
-from .system import get_heartbeat, get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
+from .system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from .memory import CoreMemory as Memory, summarize_messages
 from .openai_tools import completions_with_backoff as create
 from .utils import get_local_time, parse_json, united_diff, printd, count_tokens
 from .constants import (
     FIRST_MESSAGE_ATTEMPTS,
     MAX_PAUSE_HEARTBEATS,
-    MESSAGE_CHATGPT_FUNCTION_MODEL,
-    MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
     MESSAGE_SUMMARY_WARNING_FRAC,
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
@@ -136,7 +131,7 @@ class Agent(object):
         config,
         model,
         system,
-        functions,
+        functions,  # list of [{'schema': 'x', 'python_function': function_pointer}, ...]
         interface,
         persistence_manager,
         persona_notes,
@@ -151,8 +146,15 @@ class Agent(object):
         self.model = model
         # Store the system instructions (used to rebuild memory)
         self.system = system
-        # Store the functions spec
-        self.functions = functions
+        # Store the functions schemas (this is passed as an argument to ChatCompletion)
+        functions_schema = [f["schema"] for f in functions]
+        self.functions = functions_schema
+        # self.functions_map = {}
+        # for d in functions:
+        #     function_name = d['schema'].
+        #     self.functions_map
+        # functions_python = [f["python_function"] for f in functions]
+        # self.functions_python = functions_python  # dict mapping from name->
         # Initialize the memory object
         self.memory = initialize_memory(persona_notes, human_notes)
         # Once the memory object is initialize, use it to "bake" the system message
@@ -730,159 +732,6 @@ class Agent(object):
         self.agent_alerted_about_memory_pressure = False
 
         printd(f"Ran summarizer, messages length {prior_len} -> {len(self.messages)}")
-
-    def send_ai_message(self, message):
-        """AI wanted to send a message"""
-        self.interface.assistant_message(message)
-        return None
-
-    def edit_memory(self, name, content):
-        """Edit memory.name <= content"""
-        new_len = self.memory.edit(name, content)
-        self.rebuild_memory()
-        return None
-
-    def edit_memory_append(self, name, content):
-        new_len = self.memory.edit_append(name, content)
-        self.rebuild_memory()
-        return None
-
-    def edit_memory_replace(self, name, old_content, new_content):
-        new_len = self.memory.edit_replace(name, old_content, new_content)
-        self.rebuild_memory()
-        return None
-
-    def recall_memory_search(self, query, count=5, page=0):
-        results, total = self.persistence_manager.recall_memory.text_search(query, count=count, start=page * count)
-        num_pages = math.ceil(total / count) - 1  # 0 index
-        if len(results) == 0:
-            results_str = f"No results found."
-        else:
-            results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
-            results_formatted = [f"timestamp: {d['timestamp']}, {d['message']['role']} - {d['message']['content']}" for d in results]
-            results_str = f"{results_pref} {json.dumps(results_formatted)}"
-        return results_str
-
-    def recall_memory_search_date(self, start_date, end_date, count=5, page=0):
-        results, total = self.persistence_manager.recall_memory.date_search(start_date, end_date, count=count, start=page * count)
-        num_pages = math.ceil(total / count) - 1  # 0 index
-        if len(results) == 0:
-            results_str = f"No results found."
-        else:
-            results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
-            results_formatted = [f"timestamp: {d['timestamp']}, {d['message']['role']} - {d['message']['content']}" for d in results]
-            results_str = f"{results_pref} {json.dumps(results_formatted)}"
-        return results_str
-
-    def archival_memory_insert(self, content):
-        self.persistence_manager.archival_memory.insert(content)
-        return None
-
-    def archival_memory_search(self, query, count=5, page=0):
-        results, total = self.persistence_manager.archival_memory.search(query, count=count, start=page * count)
-        num_pages = math.ceil(total / count) - 1  # 0 index
-        if len(results) == 0:
-            results_str = f"No results found."
-        else:
-            results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
-            results_formatted = [f"timestamp: {d['timestamp']}, memory: {d['content']}" for d in results]
-            results_str = f"{results_pref} {json.dumps(results_formatted)}"
-        return results_str
-
-    def message_chatgpt(self, message):
-        """Base call to GPT API w/ functions"""
-
-        message_sequence = [
-            {"role": "system", "content": MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE},
-            {"role": "user", "content": str(message)},
-        ]
-        response = create(
-            model=MESSAGE_CHATGPT_FUNCTION_MODEL,
-            messages=message_sequence,
-            # functions=functions,
-            # function_call=function_call,
-        )
-
-        reply = response.choices[0].message.content
-        return reply
-
-    def read_from_text_file(self, filename, line_start, num_lines=1, max_chars=500, trunc_message=True):
-        if not os.path.exists(filename):
-            raise FileNotFoundError(f"The file '{filename}' does not exist.")
-
-        if line_start < 1 or num_lines < 1:
-            raise ValueError("Both line_start and num_lines must be positive integers.")
-
-        lines = []
-        chars_read = 0
-        with open(filename, "r") as file:
-            for current_line_number, line in enumerate(file, start=1):
-                if line_start <= current_line_number < line_start + num_lines:
-                    chars_to_add = len(line)
-                    if max_chars is not None and chars_read + chars_to_add > max_chars:
-                        # If adding this line exceeds MAX_CHARS, truncate the line if needed and stop reading further.
-                        excess_chars = (chars_read + chars_to_add) - max_chars
-                        lines.append(line[:-excess_chars].rstrip("\n"))
-                        if trunc_message:
-                            lines.append(f"[SYSTEM ALERT - max chars ({max_chars}) reached during file read]")
-                        break
-                    else:
-                        lines.append(line.rstrip("\n"))
-                        chars_read += chars_to_add
-                if current_line_number >= line_start + num_lines - 1:
-                    break
-
-        return "\n".join(lines)
-
-    def append_to_text_file(self, filename, content):
-        if not os.path.exists(filename):
-            raise FileNotFoundError(f"The file '{filename}' does not exist.")
-
-        with open(filename, "a") as file:
-            file.write(content + "\n")
-
-    def http_request(self, method, url, payload_json=None):
-        """
-        Makes an HTTP request based on the specified method, URL, and JSON payload.
-
-        Args:
-        method (str): The HTTP method (e.g., 'GET', 'POST').
-        url (str): The URL for the request.
-        payload_json (str): A JSON string representing the request payload.
-
-        Returns:
-        dict: The response from the HTTP request.
-        """
-        try:
-            headers = {"Content-Type": "application/json"}
-
-            # For GET requests, ignore the payload
-            if method.upper() == "GET":
-                print(f"[HTTP] launching GET request to {url}")
-                response = requests.get(url, headers=headers)
-            else:
-                # Validate and convert the payload for other types of requests
-                if payload_json:
-                    payload = json.loads(payload_json)
-                else:
-                    payload = {}
-                print(f"[HTTP] launching {method} request to {url}, payload=\n{json.dumps(payload, indent=2)}")
-                response = requests.request(method, url, json=payload, headers=headers)
-
-            return {"status_code": response.status_code, "headers": dict(response.headers), "body": response.text}
-        except Exception as e:
-            return {"error": str(e)}
-
-    def pause_heartbeats(self, minutes, max_pause=MAX_PAUSE_HEARTBEATS):
-        """Pause timed heartbeats for N minutes"""
-        minutes = min(max_pause, minutes)
-
-        # Record the current time
-        self.pause_heartbeats_start = datetime.datetime.now()
-        # And record how long the pause should go for
-        self.pause_heartbeats_minutes = int(minutes)
-
-        return f"Pausing timed heartbeats for {minutes} min"
 
     def heartbeat_is_paused(self):
         """Check if there's a requested pause on timed heartbeats"""
