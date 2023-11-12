@@ -423,3 +423,17 @@ def get_human_text(name: str):
         file = os.path.basename(file_path)
         if f"{name}.txt" == file or name == file:
             return open(file_path, "r").read().strip()
+
+
+def get_schema_diff(schema_a, schema_b):
+    # Assuming f_schema and linked_function['json_schema'] are your JSON schemas
+    f_schema_json = json.dumps(schema_a, indent=2)
+    linked_function_json = json.dumps(schema_b, indent=2)
+
+    # Compute the difference using difflib
+    difference = list(difflib.ndiff(f_schema_json.splitlines(keepends=True), linked_function_json.splitlines(keepends=True)))
+
+    # Filter out lines that don't represent changes
+    difference = [line for line in difference if line.startswith("+ ") or line.startswith("- ")]
+
+    return "".join(difference)

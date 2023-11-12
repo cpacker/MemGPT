@@ -9,7 +9,7 @@ from memgpt.config import AgentConfig
 from .system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from .memory import CoreMemory as Memory, summarize_messages
 from .openai_tools import completions_with_backoff as create
-from .utils import get_local_time, parse_json, united_diff, printd, count_tokens
+from .utils import get_local_time, parse_json, united_diff, printd, count_tokens, get_schema_diff
 from .constants import (
     FIRST_MESSAGE_ATTEMPTS,
     MAX_PAUSE_HEARTBEATS,
@@ -346,11 +346,17 @@ class Agent(object):
                 )
             # Once we find a matching function, make sure the schema is identical
             if json.dumps(f_schema) != json.dumps(linked_function["json_schema"]):
+                # error_message = (
+                #     f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different."
+                #     + f"\n>>>agent.state.functions\n{json.dumps(f_schema, indent=2)}"
+                #     + f"\n>>>function library\n{json.dumps(linked_function['json_schema'], indent=2)}"
+                # )
+                schema_diff = get_schema_diff(f_schema, linked_function["json_schema"])
                 error_message = (
-                    f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different."
-                    + f"\n>>>agent.state.functions\n{json.dumps(f_schema, indent=2)}"
-                    + f"\n>>>function library\n{json.dumps(linked_function['json_schema'], indent=2)}"
+                    f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different.\n"
+                    + "".join(schema_diff)
                 )
+
                 # NOTE to handle old configs, instead of erroring here let's just warn
                 # raise ValueError(error_message)
                 print(error_message)
