@@ -75,14 +75,3 @@ def load_all_function_sets(merge=True):
     else:
         # Nested dict where the top level is organized by the function set name
         return schemas_and_functions
-
-
-# def load_all_function_sets():
-#     schemas_and_function = {}
-
-# print(load_function_set("base"))
-# print(load_all_function_sets())
-# for k, v in load_all_function_sets().items():
-#     print(k)
-#     print(v)
-#     print()
