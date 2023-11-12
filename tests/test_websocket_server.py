@@ -6,6 +6,7 @@ import pytest
 
 from memgpt.server.constants import DEFAULT_PORT
 from memgpt.server.websocket_server import WebSocketServer
+from memgpt.config import AgentConfig
 
 
 @pytest.mark.asyncio
@@ -19,6 +20,12 @@ async def test_websocket_server():
     server_task = asyncio.create_task(server.run())  # Create a task for the server
 
     # the agent config we want to ask the server to instantiate with
+    # test_config = AgentConfig(
+    #     persona="sam_pov",
+    #     human="cs_phd",
+    #     preset="memgpt_chat",
+    #     model_endpoint=
+    # )
     test_config = {}
 
     uri = f"ws://localhost:{DEFAULT_PORT}"
