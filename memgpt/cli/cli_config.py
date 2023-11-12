@@ -68,9 +68,18 @@ def configure():
             use_azure = False
 
     # print endpoint
-    default_model_endpoint = os.getenv("OPENAI_API_BASE")
-    if default_model_endpoint:
-        typer.secho(f"Using {default_model_endpoint} as default endpoint.", fg=typer.colors.GREEN)
+    endpoint_options = []
+    if use_openai:
+        endpoint_options.append("https://api.openai.com/v1")
+    if use_azure:
+        endpoint_options.append(azure_endpoint)
+    if os.getenv("OPENAI_API_BASE"):
+        endpoint_options.append(os.getenv("OPENAI_API_BASE"))
+    default_model_endpoint = questionary.select("Select a default endpoint:", endpoint_options).ask()
+
+    # default_model_endpoint = os.getenv("OPENAI_API_BASE")
+    # if default_model_endpoint:
+    #    typer.secho(f"Using {default_model_endpoint} as default endpoint.", fg=typer.colors.GREEN)
 
     # configure provider
     model_endpoint_options = []

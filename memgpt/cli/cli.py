@@ -1,4 +1,5 @@
 import typer
+import json
 import sys
 import io
 import logging
@@ -133,16 +134,15 @@ def run(
         # create new agent config: override defaults with args if provided
         typer.secho("Creating new agent...", fg=typer.colors.GREEN)
         agent_config = AgentConfig(
-            name=agent if agent else None,
-            persona=persona if persona else config.default_persona,
-            human=human if human else config.default_human,
-            model=model if model else config.model,
-            context_window=context_window if context_window else config.context_window,
-            preset=preset if preset else config.preset,
+            name=agent,
+            persona=persona,
+            human=human,
+            preset=preset,
+            model=model,
+            model_endpoint_type=None,  # TODO: add flag
+            model_endpoint=None,  # TODO: add flag
+            context_window=context_window,
         )
-
-        ## attach data source to agent
-        # agent_config.attach_data_source(data_source)
 
         # TODO: allow configrable state manager (only local is supported right now)
         persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
@@ -161,6 +161,9 @@ def run(
             memgpt.interface,
             persistence_manager,
         )
+
+    # pretty print agent config
+    printd(json.dumps(vars(agent_config), indent=4, sort_keys=True))
 
     # start event loop
     from memgpt.main import run_agent_loop

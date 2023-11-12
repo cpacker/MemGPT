@@ -15,6 +15,7 @@ from colorama import Fore, Style
 
 from typing import List, Type
 
+import memgpt
 import memgpt.utils as utils
 import memgpt.interface as interface
 from memgpt.personas.personas import get_persona_text
@@ -130,32 +131,6 @@ class MemGPTConfig:
         if os.path.exists(config_path):
             # read existing config
             config.read(config_path)
-            # config = cls(
-            #    model=get_field(config, "model", "model"),
-            #    model_endpoint=get_field(config, "model", "model_endpoint"),
-            #    model_endpoint_type=get_field(config, "model", "model_endpoint_type"),
-            #    model_wrapper=get_field(config, "model", "model_wrapper"),
-            #    context_window=get_field(config, "defaults", "context_window"),
-            #    preset=get_field(config, "defaults", "preset"),
-            #    default_persona=get_field(config, "defaults", "persona"),
-            #    default_human=get_field(config, "defaults", "human"),
-            #    default_agent=get_field(config, "defaults", "agent"),
-            #    openai_key=get_field(config, "openai", "key"),
-            #    azure_key=get_field(config, "azure", "key"),
-            #    azure_endpoint=get_field(config, "azure", "endpoint"),
-            #    azure_version=get_field(config, "azure", "version"),
-            #    azure_deployment=get_field(config, "azure", "deployment"),
-            #    azure_embedding_deployment=get_field(config, "azure", "embedding_deployment"),
-            #    embedding_endpoint=get_field(config, "embedding", "embedding_endpoint"),
-            #    embedding_endpoint_type=get_field(config, "embedding", "embedding_endpoint_type"),
-            #    embedding_dim=int(get_field(config, "embedding", "dim")),
-            #    embedding_chunk_size=int(get_field(config, "embedding", "chunk_size")),
-            #    archival_storage_type=get_field(config, "archival_storage", "type"),
-            #    archival_storage_path=get_field(config, "archival_storage", "path"),
-            #    archival_storage_uri=get_field(config, "archival_storage", "uri"),
-            #    anon_clientid=get_field(config, "client", "anon_clientid"),
-            #    config_path=config_path,
-            # )
             config_dict = {
                 "model": get_field(config, "model", "model"),
                 "model_endpoint": get_field(config, "model", "model_endpoint"),
@@ -183,9 +158,6 @@ class MemGPTConfig:
                 "config_path": config_path,
             }
             config_dict = {k: v for k, v in config_dict.items() if v is not None}
-            from pprint import pprint
-
-            pprint(config_dict)
             return cls(**config_dict)
 
         # create new config
@@ -272,32 +244,49 @@ class AgentConfig:
         self,
         persona,
         human,
+        # model info
         model,
+        model_endpoint_type=None,
+        model_endpoint=None,
+        model_wrapper=None,
         context_window=None,
-        preset=DEFAULT_PRESET,
-        name=None,
-        data_sources=[],
+        # embedding info
+        embedding_endpoint_type=None,
+        embedding_endpoint=None,
+        embedding_dim=None,
+        embedding_chunk_size=None,
+        # other
+        preset=None,
+        data_sources=None,
+        # agent info
         agent_config_path=None,
+        name=None,
         create_time=None,
-        data_source=None,
+        memgpt_version=None,
     ):
         if name is None:
             self.name = f"agent_{self.generate_agent_id()}"
         else:
             self.name = name
-        self.persona = persona
-        self.human = human
-        self.model = model
-        self.context_window = context_window
-        self.preset = preset
-        self.data_sources = data_sources
-        self.create_time = create_time if create_time is not None else utils.get_local_time()
-        self.data_source = None  # deprecated
 
-        if context_window is None:
-            self.context_window = LLM_MAX_TOKENS[self.model] if self.model in LLM_MAX_TOKENS else LLM_MAX_TOKENS["DEFAULT"]
-        else:
-            self.context_window = context_window
+        config = MemGPTConfig.load()  # get default values
+        self.persona = config.default_persona if persona is None else persona
+        self.human = config.default_human if human is None else human
+        self.preset = config.preset if preset is None else preset
+        self.context_window = config.context_window if context_window is None else context_window
+        self.model = config.model if model is None else model
+        self.model_endpoint_type = config.model_endpoint_type if model_endpoint_type is None else model_endpoint_type
+        self.model_endpoint = config.model_endpoint if model_endpoint is None else model_endpoint
+        self.model_wrapper = config.model_wrapper if model_wrapper is None else model_wrapper
+        self.embedding_endpoint_type = config.embedding_endpoint_type if embedding_endpoint_type is None else embedding_endpoint_type
+        self.embedding_endpoint = config.embedding_endpoint if embedding_endpoint is None else embedding_endpoint
+        self.embedding_dim = config.embedding_dim if embedding_dim is None else embedding_dim
+        self.embedding_chunk_size = config.embedding_chunk_size if embedding_chunk_size is None else embedding_chunk_size
+
+        # agent metadata
+        self.data_sources = data_sources if data_sources is not None else []
+        self.create_time = create_time if create_time is not None else utils.get_local_time()
+        self.memgpt_version = memgpt_version
 
         # save agent config
         self.agent_config_path = (
@@ -336,6 +325,8 @@ class AgentConfig:
     def save(self):
         # save state of persistence manager
         os.makedirs(os.path.join(MEMGPT_DIR, "agents", self.name), exist_ok=True)
+        # save version
+        self.memgpt_version = memgpt.__version__
         with open(self.agent_config_path, "w") as f:
             json.dump(vars(self), f, indent=4)
 
@@ -352,6 +343,8 @@ class AgentConfig:
         assert os.path.exists(agent_config_path), f"Agent config file does not exist at {agent_config_path}"
         with open(agent_config_path, "r") as f:
             agent_config = json.load(f)
+        if "data_source" in agent_config:
+            del agent_config["data_source"]  # deprecated
         return cls(**agent_config)
 
 

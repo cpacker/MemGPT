@@ -2,11 +2,15 @@ import random
 import os
 import time
 
-from .local_llm.chat_completion_proxy import get_chat_completion
+import time
+from typing import Callable, TypeVar
+
+from memgpt.local_llm.chat_completion_proxy import get_chat_completion
 from memgpt.config import AgentConfig
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
+R = TypeVar("R")
 
 import openai
 
@@ -81,9 +85,10 @@ def completions_with_backoff(**kwargs):
 def chat_completion_with_backoff(config: AgentConfig, **kwargs):
     from memgpt.utils import printd
 
-    printd(f"Using model {config.model_endpoint_type}", **kwargs)
+    printd(f"Using model {config.model_endpoint_type}")
     if config.model_endpoint_type == "openai":
         # openai
+        openai.api_base = config.model_endpoint
         return openai.ChatCompletion.create(**kwargs)
     elif config.model_endpoint_type == "azure":
         # azure
