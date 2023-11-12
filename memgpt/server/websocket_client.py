@@ -2,16 +2,14 @@ import asyncio
 import json
 
 import websockets
-import questionary
 
+import memgpt.server.websocket_protocol as protocol
 from memgpt.server.websocket_server import WebSocketServer
 from memgpt.server.constants import DEFAULT_PORT, SERVER_STEP_STOP_MESSAGE, CLIENT_TIMEOUT
 
 
 def condition_to_stop_receiving(response):
     """Determines when to stop listening to the server"""
-    # response_data = json.loads(response)
-    # return response_data.get("type") == SERVER_STEP_STOP_MESSAGE
     return response.get("type") == "server_message" and response.get("message") == SERVER_STEP_STOP_MESSAGE
 
 
@@ -21,7 +19,9 @@ async def basic_cli_client():
     async with websockets.connect(uri) as websocket:
         # Initialize agent
         print("Sending config to server...")
-        await websocket.send(json.dumps({"type": "initialize", "config": {}}))
+        # await websocket.send(json.dumps({"type": "initialize", "config": {}}))
+        example_config = {}
+        await websocket.send(protocol.client_command_init(example_config))
         # Wait for the response
         response = await websocket.recv()
         response = json.loads(response)
@@ -35,7 +35,8 @@ async def basic_cli_client():
 
             # Send a message to the agent
             print("### Sending message to server...")
-            await websocket.send(json.dumps({"type": "user_message", "content": str(user_input)}))
+            # await websocket.send(json.dumps({"type": "user_message", "content": str(user_input)}))
+            await websocket.send(protocol.client_user_message(str(user_input)))
 
             # Wait for messages in a loop, since the server may send a few
             while True:
@@ -57,24 +58,6 @@ async def basic_cli_client():
                 except Exception as e:
                     print(f"An error occurred: {e}")
                     break
-
-            # # Wait for the response
-            # response = await websocket.recv()
-            # print(f"Response from the agent: {response}")
-
-        # # Send a message to the server
-        # await websocket.send("Hello, Agent!")
-
-        # # Wait for the response
-        # response = await websocket.recv()
-        # print(f"Response from the agent: {response}")
-
-        # # Send another message
-        # await websocket.send("Another message")
-
-        # # Wait for the response
-        # response = await websocket.recv()
-        # print(f"Response from the agent: {response}")
 
 
 asyncio.run(basic_cli_client())

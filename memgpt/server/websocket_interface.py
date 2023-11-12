@@ -3,7 +3,8 @@ import json
 import threading
 
 
-from ..interface import AgentInterface
+from memgpt.interface import AgentInterface
+import memgpt.server.websocket_protocol as protocol
 
 
 class BaseWebSocketInterface(AgentInterface):
@@ -20,33 +21,6 @@ class BaseWebSocketInterface(AgentInterface):
         """Unregister a client connection"""
         self.clients.remove(websocket)
 
-    @staticmethod
-    def format_internal_monologue(msg):
-        return json.dumps(
-            {
-                "type": "internal_monologue",
-                "message": msg,
-            }
-        )
-
-    @staticmethod
-    def format_assistant_message(msg):
-        return json.dumps(
-            {
-                "type": "assistant_message",
-                "message": msg,
-            }
-        )
-
-    @staticmethod
-    def format_function_message(msg):
-        return json.dumps(
-            {
-                "type": "function_message",
-                "message": msg,
-            }
-        )
-
 
 class AsyncWebSocketInterface(BaseWebSocketInterface):
     """WebSocket calls are async"""
@@ -61,21 +35,21 @@ class AsyncWebSocketInterface(BaseWebSocketInterface):
         print(msg)
         # Send the internal monologue to all clients
         if self.clients:  # Check if there are any clients connected
-            await asyncio.gather(*[client.send(AsyncWebSocketInterface.format_internal_monologue(msg)) for client in self.clients])
+            await asyncio.gather(*[client.send(protocol.server_agent_internal_monologue(msg)) for client in self.clients])
 
     async def assistant_message(self, msg):
         """Handle the agent sending a message"""
         print(msg)
         # Send the assistant's message to all clients
         if self.clients:
-            await asyncio.gather(*[client.send(AsyncWebSocketInterface.format_assistant_message(msg)) for client in self.clients])
+            await asyncio.gather(*[client.send(protocol.server_agent_assistant_message(msg)) for client in self.clients])
 
     async def function_message(self, msg):
         """Handle the agent calling a function"""
         print(msg)
         # Send the function call message to all clients
         if self.clients:
-            await asyncio.gather(*[client.send(AsyncWebSocketInterface.format_function_message(msg)) for client in self.clients])
+            await asyncio.gather(*[client.send(protocol.server_agent_function_message(msg)) for client in self.clients])
 
 
 class SyncWebSocketInterface(BaseWebSocketInterface):
@@ -115,19 +89,19 @@ class SyncWebSocketInterface(BaseWebSocketInterface):
         """Handle the agent's internal monologue"""
         print(msg)
         if self.clients:
-            self._run_async(self._send_to_all_clients(self.clients, SyncWebSocketInterface.format_internal_monologue(msg)))
+            self._run_async(self._send_to_all_clients(self.clients, protocol.server_agent_internal_monologue(msg)))
 
     def assistant_message(self, msg):
         """Handle the agent sending a message"""
         print(msg)
         if self.clients:
-            self._run_async(self._send_to_all_clients(self.clients, SyncWebSocketInterface.format_assistant_message(msg)))
+            self._run_async(self._send_to_all_clients(self.clients, protocol.server_agent_assistant_message(msg)))
 
     def function_message(self, msg):
         """Handle the agent calling a function"""
         print(msg)
         if self.clients:
-            self._run_async(self._send_to_all_clients(self.clients, SyncWebSocketInterface.format_function_message(msg)))
+            self._run_async(self._send_to_all_clients(self.clients, protocol.server_agent_function_message(msg)))
 
     def close(self):
         """Shut down the WebSocket interface and its event loop."""

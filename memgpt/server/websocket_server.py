@@ -6,6 +6,7 @@ import websockets
 
 from memgpt.server.websocket_interface import SyncWebSocketInterface
 from memgpt.server.constants import DEFAULT_PORT, SERVER_STEP_START_MESSAGE, SERVER_STEP_STOP_MESSAGE
+import memgpt.server.websocket_protocol as protocol
 import memgpt.system as system
 import memgpt.constants as memgpt_constants
 
@@ -76,23 +77,26 @@ class WebSocketServer:
                 # Assuming the message is a JSON string
                 data = json.loads(message)
 
-                if data["type"] == "initialize":
+                if data["type"] == "command" and data["command"] == "create_agent":
                     # Handle agent initialization
                     self.agent = self.initialize_agent(data["config"])
-                    await websocket.send(json.dumps({"type": "server_message", "message": "Agent initialized"}))
+                    await websocket.send(protocol.server_command_response("Agent initialized"))
+
                 elif data["type"] == "user_message":
+                    user_message = data["message"]
+
                     if self.agent is None:
-                        await websocket.send(json.dumps({"type": "server_message", "message": "Error: no agent has been initialized"}))
-                    # response = self.agent.step(data["content"])
-                    # Handle regular agent messages
-                    user_message = data["content"]
-                    await websocket.send(json.dumps({"type": "server_message", "message": SERVER_STEP_START_MESSAGE}))
+                        await websocket.send(protocol.server_agent_response_error("No agent has been initialized"))
+
+                    await websocket.send(protocol.server_agent_response_start())
                     self.run_step(user_message)
                     await asyncio.sleep(1)  # pause before sending the terminating message, w/o this messages may be missed
-                    await websocket.send(json.dumps({"type": "server_message", "message": SERVER_STEP_STOP_MESSAGE}))
+                    await websocket.send(protocol.server_agent_response_end())
+
                 # ... handle other message types as needed ...
                 else:
                     print(f"[server] unrecognized client package data type: {data}")
+                    await websocket.send(protocol.server_error(f"unrecognized client package data type: {data}"))
 
         except websockets.exceptions.ConnectionClosed:
             print(f"[server] connection with client was closed")
@@ -114,9 +118,6 @@ class WebSocketServer:
         self.initialize_server()
         async with websockets.serve(self.handle_client, self.host, self.port):
             await asyncio.Future()  # Run forever
-
-    # def run(self):
-    #     asyncio.run(self.start_server())
 
     def run(self):
         return self.start_server()  # Return the coroutine
