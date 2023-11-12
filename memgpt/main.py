@@ -14,11 +14,9 @@ import typer
 
 from rich.console import Console
 from prettytable import PrettyTable
-from .interface import print_messages
 
 console = Console()
 
-import memgpt.interface
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
 import memgpt.agent as agent
 import memgpt.system as system
@@ -209,7 +207,7 @@ def main(
     use_azure_openai,
     strip_ui,
 ):
-    memgpt.interface.STRIP_UI = strip_ui
+    interface.STRIP_UI = strip_ui
     utils.DEBUG = debug
     logging.getLogger().setLevel(logging.CRITICAL)
     if debug:
@@ -344,7 +342,7 @@ def main(
         cfg.model,
         personas.get_persona_text(*chosen_persona),
         humans.get_human_text(*chosen_human),
-        memgpt.interface,
+        interface,
         persistence_manager,
     )
 
