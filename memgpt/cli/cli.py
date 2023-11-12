@@ -128,7 +128,7 @@ def run(
         agent_config.save()
 
         # load existing agent
-        memgpt_agent = Agent.load_agent(memgpt.interface, agent_config)
+        memgpt_agent = Agent.load_agent(interface, agent_config)
     else:  # create new agent
         # create new agent config: override defaults with args if provided
         typer.secho("Creating new agent...", fg=typer.colors.GREEN)
@@ -158,7 +158,7 @@ def run(
             agent_config.model,
             utils.get_persona_text(agent_config.persona),
             utils.get_human_text(agent_config.human),
-            memgpt.interface,
+            interface,
             persistence_manager,
         )
 
