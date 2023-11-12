@@ -32,7 +32,6 @@ async def basic_cli_client():
         else:
             # Initialize new agent
             print("Sending config to server...")
-            # await websocket.send(json.dumps({"type": "initialize", "config": {}}))
             example_config = {
                 "persona": "sam_pov",
                 "human": "cs_phd",

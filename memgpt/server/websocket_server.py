@@ -1,11 +1,10 @@
 import asyncio
 import json
-import threading
 
 import websockets
 
 from memgpt.server.websocket_interface import SyncWebSocketInterface
-from memgpt.server.constants import DEFAULT_PORT, SERVER_STEP_START_MESSAGE, SERVER_STEP_STOP_MESSAGE
+from memgpt.server.constants import DEFAULT_PORT
 import memgpt.server.websocket_protocol as protocol
 import memgpt.system as system
 import memgpt.constants as memgpt_constants
@@ -92,6 +91,8 @@ class WebSocketServer:
         except websockets.exceptions.ConnectionClosed:
             print(f"[server] connection with client was closed")
         finally:
+            # TODO autosave the agent
+
             self.interface.unregister_client(websocket)
 
     def create_new_agent(self, config):
@@ -158,5 +159,4 @@ class WebSocketServer:
 
 if __name__ == "__main__":
     server = WebSocketServer()
-    # server.run()
     asyncio.run(server.run())
