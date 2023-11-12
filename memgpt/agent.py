@@ -20,6 +20,7 @@ from .constants import (
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
 )
 from .errors import LLMError
+from .functions.functions import load_all_function_sets
 
 
 def initialize_memory(ai_notes, human_notes):
@@ -320,12 +321,48 @@ class Agent(object):
         printd(f"Loading persistence manager from {os.path.join(directory, filename)}")
         persistence_manager = LocalStateManager.load(os.path.join(directory, filename), agent_config)
 
+        # need to dynamically link the functions
+        # the saved agent.functions will just have the schemas, but we need to
+        # go through the functions library and pull the respective python functions
+
+        # Available functions is a mapping from:
+        # function_name -> {
+        #   json_schema: schema
+        #   python_function: function
+        # }
+        # agent.functions is a list of schemas (OpenAI kwarg functions style, see: https://platform.openai.com/docs/api-reference/chat/create)
+        # [{'name': ..., 'description': ...}, {...}]
+        available_functions = load_all_function_sets()
+        linked_function_set = {}
+        for f_schema in state["functions"]:
+            # Attempt to find the function in the existing function library
+            f_name = f_schema.get("name")
+            if f_name is None:
+                raise ValueError(f"While loading agent.state.functions encountered a bad function schema object with no name:\n{f_schema}")
+            linked_function = available_functions.get(f_name)
+            if linked_function is None:
+                raise ValueError(
+                    f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
+                )
+            # Once we find a matching function, make sure the schema is identical
+            if json.dumps(f_schema) != json.dumps(linked_function["json_schema"]):
+                error_message = (
+                    f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different."
+                    + f"\n>>>agent.state.functions\n{json.dumps(f_schema, indent=2)}"
+                    + f"\n>>>function library\n{json.dumps(linked_function['json_schema'], indent=2)}"
+                )
+                # NOTE to handle old configs, instead of erroring here let's just warn
+                # raise ValueError(error_message)
+                print(error_message)
+            linked_function_set[f_name] = linked_function
+
         messages = state["messages"]
         agent = cls(
             config=agent_config,
             model=state["model"],
             system=state["system"],
-            functions=state["functions"],
+            # functions=state["functions"],
+            functions=linked_function_set,
             interface=interface,
             persistence_manager=persistence_manager,
             persistence_manager_init=False,

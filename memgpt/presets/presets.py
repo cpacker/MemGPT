@@ -34,10 +34,18 @@ def use_preset(preset_name, agent_config, model, persona, human, interface, pers
     preset_function_set_names = preset["functions"]
 
     # Filter down the function set based on what the preset requested
-    preset_function_set = {f_name: f_dict for f_name, f_dict in available_functions.items() if f_name in preset_function_set_names}
-    printd(f"Available functions:\n", [f_name for f_name, f_dict in preset_function_set.items()])
-    # Make sure that every function the preset wanted is inside the available functions
+    preset_function_set = {}
+    for f_name in preset_function_set_names:
+        if f_name not in available_functions:
+            raise ValueError(f"Function '{f_name}' was specified in preset, but is not in function library:\n{available_functions.keys()}")
+        preset_function_set[f_name] = available_functions[f_name]
     assert len(preset_function_set_names) == len(preset_function_set)
+    printd(f"Available functions:\n", list(preset_function_set.keys()))
+
+    # preset_function_set = {f_name: f_dict for f_name, f_dict in available_functions.items() if f_name in preset_function_set_names}
+    # printd(f"Available functions:\n", [f_name for f_name, f_dict in preset_function_set.items()])
+    # Make sure that every function the preset wanted is inside the available functions
+    # assert len(preset_function_set_names) == len(preset_function_set)
 
     return Agent(
         config=agent_config,
