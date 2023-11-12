@@ -1,11 +1,11 @@
-from .utils import load_all_examples, is_valid_yaml_format
+from .utils import load_all_presets, is_valid_yaml_format
 from ..prompts import gpt_functions
 from ..prompts import gpt_system
 from ..functions.functions import load_all_function_sets
 
 DEFAULT_PRESET = "memgpt_chat"
 
-available_presets = load_all_examples()
+available_presets = load_all_presets()
 preset_options = list(available_presets.keys())
 
 
@@ -22,7 +22,7 @@ def use_preset(preset_name, agent_config, model, persona, human, interface, pers
     # }
     available_functions = load_all_function_sets()
 
-    available_presets = load_all_examples()
+    available_presets = load_all_presets()
     if preset_name not in available_presets:
         raise ValueError(f"Preset '{preset_name}.yaml' not found")
 

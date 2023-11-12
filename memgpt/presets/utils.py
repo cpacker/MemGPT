@@ -2,29 +2,7 @@ import os
 import glob
 import yaml
 
-
-# def is_valid_yaml_format(yaml_data, function_set):
-#     """
-#     Check if the given YAML data follows the specified format and if all functions in the yaml are part of the function_set.
-
-#     :param yaml_data: The data loaded from a YAML file.
-#     :param function_set: A set of valid function names.
-#     :return: True if valid, False otherwise.
-#     """
-#     print("function_set", function_set)
-#     # Check for required keys
-#     if not all(key in yaml_data for key in ["system_prompt", "functions"]):
-#         return False
-
-#     # Check if 'functions' is a list of strings
-#     if not all(isinstance(item, str) for item in yaml_data.get("functions", [])):
-#         return False
-
-#     # Check if all functions in YAML are part of function_set
-#     if not set(yaml_data["functions"]).issubset(function_set):
-#         return False
-
-#     return True
+from memgpt.constants import MEMGPT_DIR
 
 
 def is_valid_yaml_format(yaml_data, function_set):
@@ -62,20 +40,34 @@ def load_yaml_file(file_path):
         return yaml.safe_load(file)
 
 
-def load_all_examples():
+def load_all_presets():
     """Load all the preset configs in the examples directory"""
+
+    ## Load the examples
     # Get the directory in which the script is located
     script_directory = os.path.dirname(os.path.abspath(__file__))
-
     # Construct the path pattern
-    path_pattern = os.path.join(script_directory, "examples", "*.yaml")
-
+    example_path_pattern = os.path.join(script_directory, "examples", "*.yaml")
     # Listing all YAML files
-    yaml_files = glob.glob(path_pattern)
+    example_yaml_files = glob.glob(example_path_pattern)
+
+    ## Load the user-provided presets
+    # ~/.memgpt/presets/*.yaml
+    user_presets_dir = os.path.join(MEMGPT_DIR, "presets")
+    # Create directory if it doesn't exist
+    if not os.path.exists(user_presets_dir):
+        os.makedirs(user_presets_dir)
+    # Construct the path pattern
+    user_path_pattern = os.path.join(user_presets_dir, "*.yaml")
+    # Listing all YAML files
+    user_yaml_files = glob.glob(user_path_pattern)
+
+    # Pull from both examplesa and user-provided
+    all_yaml_files = example_yaml_files + user_yaml_files
 
     # Loading and creating a mapping from file name to YAML data
     all_yaml_data = {}
-    for file_path in yaml_files:
+    for file_path in all_yaml_files:
         # Extracting the base file name without the '.yaml' extension
         base_name = os.path.splitext(os.path.basename(file_path))[0]
         data = load_yaml_file(file_path)
