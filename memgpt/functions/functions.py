@@ -4,6 +4,7 @@ import os
 
 
 from memgpt.functions.schema_generator import generate_schema
+from memgpt.constants import MEMGPT_DIR
 
 
 def load_function_set(set_name):
@@ -34,14 +35,24 @@ def load_function_set(set_name):
 
 
 def load_all_function_sets(merge=True):
-    schemas_and_functions = {}
-    script_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of the current script
-    function_sets_dir = os.path.join(script_dir, "function_sets")  # Path to the function_sets directory
-
+    # functions/examples/*.py
+    scripts_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of the current script
+    function_sets_dir = os.path.join(scripts_dir, "function_sets")  # Path to the function_sets directory
     # List all .py files in the directory (excluding __init__.py)
-    module_files = [f for f in os.listdir(function_sets_dir) if f.endswith(".py") and f != "__init__.py"]
+    example_module_files = [f for f in os.listdir(function_sets_dir) if f.endswith(".py") and f != "__init__.py"]
 
-    for file in module_files:
+    # ~/.memgpt/functions/*.py
+    user_scripts_dir = os.path.join(MEMGPT_DIR, "functions")
+    # create if missing
+    if not os.path.exists(user_scripts_dir):
+        os.makedirs(user_scripts_dir)
+    user_module_files = [f for f in os.listdir(user_scripts_dir) if f.endswith(".py") and f != "__init__.py"]
+
+    # combine them both (pull from both examples and user-provided)
+    all_module_files = example_module_files + user_module_files
+
+    schemas_and_functions = {}
+    for file in all_module_files:
         # Convert filename to module name
         module_name = f"memgpt.functions.function_sets.{file[:-3]}"  # Remove '.py' from filename
 
