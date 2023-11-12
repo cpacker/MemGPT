@@ -11,39 +11,6 @@ import memgpt.system as system
 import memgpt.constants as memgpt_constants
 
 
-def create_dummy_agent(ws_interface):
-    from memgpt.config import MemGPTConfig, AgentConfig
-    import memgpt.presets as presets
-    import memgpt.personas.personas as personas
-    import memgpt.humans.humans as humans
-
-    # import memgpt.system as system
-    from memgpt.persistence_manager import InMemoryStateManager
-
-    # Create the WebSocket interface with the mocked WebSocket
-    # ws_interface = SyncWebSocketInterface()
-
-    # Register the mock websocket as a client
-    # ws_interface.register_client(mock_websocket)
-
-    # Mock the persistence manager
-    persistence_manager = InMemoryStateManager()
-
-    # Create an agent and hook it up to the WebSocket interface
-    config = MemGPTConfig()
-    memgpt_agent = presets.use_preset(
-        presets.DEFAULT_PRESET,
-        config,  # no agent config to provide
-        "gpt-4-1106-preview",
-        personas.get_persona_text("sam_pov"),
-        humans.get_human_text("basic"),
-        ws_interface,
-        persistence_manager,
-    )
-
-    return memgpt_agent
-
-
 class WebSocketServer:
     def __init__(self, host="localhost", port=DEFAULT_PORT):
         self.host = host
@@ -77,10 +44,34 @@ class WebSocketServer:
                 # Assuming the message is a JSON string
                 data = json.loads(message)
 
-                if data["type"] == "command" and data["command"] == "create_agent":
-                    # Handle agent initialization
-                    self.agent = self.initialize_agent(data["config"])
-                    await websocket.send(protocol.server_command_response("Agent initialized"))
+                if data["type"] == "command":
+                    # Create a new agent
+                    if data["command"] == "create_agent":
+                        try:
+                            self.agent = self.create_new_agent(data["config"])
+                            await websocket.send(protocol.server_command_response("OK: Agent initialized"))
+                        except Exception as e:
+                            self.agent = None
+                            await websocket.send(protocol.server_command_response(f"Error: Failed to init agent - {str(e)}"))
+
+                    # Load an existing agent
+                    elif data["command"] == "load_agent":
+                        agent_name = data.get("name")
+                        if agent_name is not None:
+                            try:
+                                self.agent = self.load_agent(agent_name)
+                                await websocket.send(protocol.server_command_response(f"OK: Agent '{agent_name}' loaded"))
+                            except Exception as e:
+                                self.agent = None
+                                await websocket.send(
+                                    protocol.server_command_response(f"Error: Failed to load agent '{agent_name}' - {str(e)}")
+                                )
+                        else:
+                            await websocket.send(protocol.server_command_response(f"Error: 'name' not provided"))
+
+                    else:
+                        print(f"[server] unrecognized client command type: {data}")
+                        await websocket.send(protocol.server_error(f"unrecognized client command type: {data}"))
 
                 elif data["type"] == "user_message":
                     user_message = data["message"]
@@ -103,11 +94,53 @@ class WebSocketServer:
         finally:
             self.interface.unregister_client(websocket)
 
-    def initialize_agent(self, config):
+    def create_new_agent(self, config):
+        """Config is json that arrived over websocket, so we need to turn it into a config object"""
+        from memgpt.config import AgentConfig
+        import memgpt.presets as presets
+        import memgpt.utils as utils
+        from memgpt.persistence_manager import InMemoryStateManager
+
+        print("Creating new agent...")
+
         # Initialize the agent based on the provided configuration
-        print("Creating dummy agent...")
-        agent = create_dummy_agent(self.interface)
-        print("Created dummy agent")
+        agent_config = AgentConfig(**config)
+
+        # Use an in-state persistence manager
+        persistence_manager = InMemoryStateManager()
+
+        # Create agent via preset from config
+        agent = presets.use_preset(
+            agent_config.preset,
+            agent_config,
+            agent_config.model,
+            utils.get_persona_text(agent_config.persona),
+            utils.get_human_text(agent_config.human),
+            self.interface,
+            persistence_manager,
+        )
+        print("Created new agent from config")
+
+        return agent
+
+    def load_agent(self, agent_name):
+        """Load an agent from a directory"""
+        import memgpt.utils as utils
+        from memgpt.config import AgentConfig
+        from memgpt.agent import Agent
+
+        print(f"Loading agent {agent_name}...")
+
+        agent_files = utils.list_agent_config_files()
+        agent_names = [AgentConfig.load(f).name for f in agent_files]
+
+        if agent_name not in agent_names:
+            raise ValueError(f"agent '{agent_name}' does not exist")
+
+        agent_config = AgentConfig.load(agent_name)
+        agent = Agent.load_agent(self.interface, agent_config)
+        print("Created agent by loading existing config")
+
         return agent
 
     def initialize_server(self):

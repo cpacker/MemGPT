@@ -5,36 +5,15 @@ import websockets
 
 import memgpt.server.websocket_protocol as protocol
 from memgpt.server.websocket_server import WebSocketServer
-from memgpt.server.constants import DEFAULT_PORT, SERVER_STEP_STOP_MESSAGE, CLIENT_TIMEOUT
+from memgpt.server.constants import DEFAULT_PORT, CLIENT_TIMEOUT
+from memgpt.server.utils import condition_to_stop_receiving, print_server_response
 
 
 # CLEAN_RESPONSES = False  # print the raw server responses (JSON)
 CLEAN_RESPONSES = True  # make the server responses cleaner
 
-
-def condition_to_stop_receiving(response):
-    """Determines when to stop listening to the server"""
-    return response.get("type") == "agent_response_end"
-
-
-def print_server_response(response):
-    """Turn response json into a nice print"""
-    if response["type"] == "agent_response_start":
-        print("[agent.step start]")
-    elif response["type"] == "agent_response_end":
-        print("[agent.step end]")
-    elif response["type"] == "agent_response":
-        msg = response["message"]
-        if response["message_type"] == "internal_monologue":
-            print(f"[inner thoughts] {msg}")
-        elif response["message_type"] == "assistant_message":
-            print(f"{msg}")
-        elif response["message_type"] == "function_message":
-            pass
-        else:
-            print(response)
-    else:
-        print(response)
+# LOAD_AGENT = None  # create a brand new agent
+LOAD_AGENT = "agent_26"  # load an existing agent
 
 
 async def basic_cli_client():
@@ -45,15 +24,25 @@ async def basic_cli_client():
     uri = f"ws://localhost:{DEFAULT_PORT}"
 
     async with websockets.connect(uri) as websocket:
-        # Initialize agent
-        print("Sending config to server...")
-        # await websocket.send(json.dumps({"type": "initialize", "config": {}}))
-        example_config = {}
-        await websocket.send(protocol.client_command_init(example_config))
-        # Wait for the response
-        response = await websocket.recv()
-        response = json.loads(response)
-        print(f"Server response:\n{json.dumps(response, indent=2)}")
+        if LOAD_AGENT is not None:
+            # Load existing agent
+            print("Sending load message to server...")
+            await websocket.send(protocol.client_command_load(LOAD_AGENT))
+
+        else:
+            # Initialize new agent
+            print("Sending config to server...")
+            # await websocket.send(json.dumps({"type": "initialize", "config": {}}))
+            example_config = {
+                "persona": "sam_pov",
+                "human": "cs_phd",
+                "model": "gpt-4-1106-preview",  # gpt-4-turbo
+            }
+            await websocket.send(protocol.client_command_create(example_config))
+            # Wait for the response
+            response = await websocket.recv()
+            response = json.loads(response)
+            print(f"Server response:\n{json.dumps(response, indent=2)}")
 
         await asyncio.sleep(1)
 

@@ -89,11 +89,21 @@ def client_user_message(msg):
     )
 
 
-def client_command_init(config):
+def client_command_create(config):
     return json.dumps(
         {
             "type": "command",
             "command": "create_agent",
             "config": config,
+        }
+    )
+
+
+def client_command_load(agent_name):
+    return json.dumps(
+        {
+            "type": "command",
+            "command": "load_agent",
+            "name": agent_name,
         }
     )
