@@ -13,7 +13,12 @@ def get_system_text(key):
             return file.read().strip()
     else:
         # try looking in ~/.memgpt/system_prompts/*.txt
-        file_path = os.path.join(MEMGPT_DIR, "system_prompts", filename)
+        user_system_prompts_dir = os.path.join(MEMGPT_DIR, "system_prompts")
+        # create directory if it doesn't exist
+        if not os.path.exists(user_system_prompts_dir):
+            os.makedirs(user_system_prompts_dir)
+        # look inside for a matching system prompt
+        file_path = os.path.join(user_system_prompts_dir, filename)
         if os.path.exists(file_path):
             with open(file_path, "r") as file:
                 return file.read().strip()
