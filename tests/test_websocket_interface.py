@@ -97,6 +97,7 @@ async def test_websockets():
         # If you're using keyword arguments, you can print them out as well:
         # print(f"Sent data with kwargs: {kwargs}")
 
+    # This is required for the Sync wrapper version
     ws_interface.close()
 
     # Assertions to ensure the step method was called
