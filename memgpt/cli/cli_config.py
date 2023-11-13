@@ -30,20 +30,28 @@ def configure():
     # Will pre-populate with defaults, or what the user previously set
     config = MemGPTConfig.load()
 
-    # openai credentials
-    use_openai = questionary.confirm("DOO you want to enable MemGPT with OpenAI?", default=True).ask()
-    if use_openai:
+    # select provider
+    openai_key, azure_key, azure_endpoint, azure_version, azure_deployment, azure_embedding_deployment = None, None, None, None, None, None
+    default_model_endpoint_type = config.model_endpoint_type
+    if config.model_endpoint_type is not None and config.model_endpoint_type not in ["openai", "azure"]:  # local model
+        default_model_endpoint_type = "local"
+    provider = questionary.select(
+        "Select LLM inference provider:", choices=["openai", "azure", "local"], default=default_model_endpoint_type
+    ).ask()
+
+    # set: model_endpoint_type, model_endpoint
+    if provider == "openai":
         # search for key in enviornment
         openai_key = os.getenv("OPENAI_API_KEY")
         if not openai_key:
             print("Missing enviornment variables for OpenAI. Please set them and run `memgpt configure` again.")
             # TODO: eventually stop relying on env variables and pass in keys explicitly
             # openai_key = questionary.text("Open AI API keys not found in enviornment - please enter:").ask()
-
-    # azure credentials
-    use_azure = questionary.confirm("Do you want to enable MemGPT with Azure?", default=(config.azure_key is not None)).ask()
-    use_azure_deployment_ids = False
-    if use_azure:
+        model_endpoint_type = "openai"
+        model_endpoint = "https://api.openai.com/v1"
+        model_endpoint = questionary.text("Override default endpoint:", default=model_endpoint).ask()
+        provider = "openai"
+    elif provider == "azure":
         # search for key in enviornment
         azure_key = os.getenv("AZURE_OPENAI_KEY")
         azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
@@ -51,78 +59,53 @@ def configure():
         azure_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
         azure_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT")
 
+        model_endpoint_type = "azure"
+        model_endpoint = azure_endpoint
+        provider = "azure"
+
+        # make sure all credentials set
         if all([azure_key, azure_endpoint, azure_version]):
             print(f"Using Microsoft endpoint {azure_endpoint}.")
             if all([azure_deployment, azure_embedding_deployment]):
                 print(f"Using deployment id {azure_deployment}")
-                use_azure_deployment_ids = True
-
-            # configure openai
-            openai.api_type = "azure"
-            openai.api_key = azure_key
-            openai.api_base = azure_endpoint
-            openai.api_version = azure_version
         else:
-            print("Missing enviornment variables for Azure. Please set then run `memgpt configure` again.")
-            # TODO: allow for manual setting
-            use_azure = False
+            raise ValueError("Missing enviornment variables for Azure. Please set then run `memgpt configure` again.")
+    else:  # local models
+        backend_options = ["webui", "llamacpp", "koboldcpp", "ollama", "lmstudio", "openai"]
+        valid_config = config.model_endpoint_type in backend_options
+        model_endpoint_type = questionary.select(
+            "Select LLM backend (select 'openai' if you have an OpenAI compatible proxy):",
+            backend_options,
+            default=config.model_endpoint_type if valid_config else backend_options[0],
+        ).ask()
 
-    # print endpoint
-    endpoint_options = []
-    if use_openai:
-        endpoint_options.append("https://api.openai.com/v1")
-    if use_azure:
-        endpoint_options.append(azure_endpoint)
-    if os.getenv("OPENAI_API_BASE"):
-        endpoint_options.append(os.getenv("OPENAI_API_BASE"))
-    default_model_endpoint = questionary.select("Select a default endpoint:", endpoint_options).ask()
+        # set default endpoint
+        default_model_endpoint = os.getenv("OPENAI_API_BASE")
+        model_endpoint = questionary.text("Enter default endpoint:", default=default_model_endpoint).ask()
+        assert model_endpoint, f"Enviornment variable OPENAI_API_BASE must be set."
+        provider = "local"
 
-    # default_model_endpoint = os.getenv("OPENAI_API_BASE")
-    # if default_model_endpoint:
-    #    typer.secho(f"Using {default_model_endpoint} as default endpoint.", fg=typer.colors.GREEN)
-
-    # configure provider
-    model_endpoint_options = []
-    if use_openai:
-        model_endpoint_options += ["openai"]
-    if use_azure:
-        model_endpoint_options += ["azure"]
-    model_endpoint_options += ["webui", "llamacpp", "koboldcpp", "ollama", "lmstudio"]
-    assert (
-        len(model_endpoint_options) > 0
-    ), "No endpoints found. Please enable OpenAI, Azure, or set OPENAI_API_BASE to point at the IP address of your LLM server."
-    valid_default_model = config.model_endpoint_type in model_endpoint_options
-    print(valid_default_model, config.model_endpoint_type, model_endpoint_options)
-    default_model_endpoint_type = questionary.select(
-        "Select default model backend (select 'openai' if you want to use OpenAI or an OpenAI-compatible API):",
-        model_endpoint_options,
-        default=config.model_endpoint_type if valid_default_model else model_endpoint_options[0],
-    ).ask()
-
-    # configure model/model wrapper
-    default_model, default_model_wrapper = None, None
-    if default_model_endpoint_type == "openai" or default_model_endpoint_type == "azure":
+    # set: model, model_wrapper
+    model, model_wrapper = None, None
+    if model_endpoint_type == "openai" or model_endpoint_type == "azure":
         model_options = ["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo-16k"]
         # TODO: select
         valid_model = config.model in model_options
-        default_model = questionary.select(
+        model = questionary.select(
             "Select default model (recommended: gpt-4):", choices=model_options, default=config.model if valid_model else model_options[0]
         ).ask()
     else:  # local models
-        assert default_model_endpoint is not None, f"OPENAI_API_BASE must be set to {default_model_endpoint_type}."
-        default_model_wrapper = questionary.text(
+        model_wrapper = questionary.text(
             "Enter default model wrapper:", default=config.model_wrapper if config.model_wrapper else "airoboros-l2-70b-2.1"
         ).ask()
 
         # ollama also needs model type
-        if default_model_endpoint_type == "ollama":
-            default_model = questionary.text(
-                "Enter default model type (e.g. airboros):", default=config.model if config.model else ""
-            ).ask()
-            default_model = None if len(default_model) == 0 else default_model
+        if model_endpoint_type == "ollama":
+            model = questionary.text("Enter default model type (e.g. airboros):", default=config.model if config.model else "").ask()
+            model = None if len(model) == 0 else model
 
-    # get the max tokens (context window) for the model
-    if str(default_model) not in LLM_MAX_TOKENS:
+    # set: context_window
+    if str(model) not in LLM_MAX_TOKENS:
         # Ask the user to specify the context length
         context_length_options = [
             str(2**12),  # 4096
@@ -132,53 +115,65 @@ def configure():
             str(2**18),  # 262144
             "custom",  # enter yourself
         ]
-        default_model_context_window = questionary.select(
+        context_window = questionary.select(
             "Select your model's context window (for Mistral 7B models, this is probably 8k / 8192):",
             choices=context_length_options,
             default=str(LLM_MAX_TOKENS["DEFAULT"]),
         ).ask()
 
         # If custom, ask for input
-        if default_model_context_window == "custom":
+        if context_window == "custom":
             while True:
-                default_model_context_window = questionary.text("Enter context window (e.g. 8192)").ask()
+                context_window = questionary.text("Enter context window (e.g. 8192)").ask()
                 try:
-                    default_model_context_window = int(default_model_context_window)
+                    context_window = int(context_window)
                     break
                 except ValueError:
                     print(f"Context window must be a valid integer")
         else:
-            default_model_context_window = int(default_model_context_window)
+            context_window = int(context_window)
     else:
         # Pull the context length from the models
-        default_model_context_window = LLM_MAX_TOKENS[default_model]
+        context_window = LLM_MAX_TOKENS[model]
 
-    # configure embedding provider
-    embedding_endpoint_options = []
-    if use_azure:
-        embedding_endpoint_options += ["azure"]
-    if use_openai:
-        embedding_endpoint_options += ["openai"]
-    embedding_endpoint_options += ["local"]
-    valid_default_embedding = config.embedding_endpoint_type in embedding_endpoint_options
-    # determine the default selection in a smart way
-    if "openai" in embedding_endpoint_options and default_model_endpoint_type == "openai":
-        # openai llm -> openai embeddings
-        default_embedding_endpoint_default = "openai"
-    elif default_model_endpoint_type not in ["openai", "azure"]:  # is local
-        # local llm -> local embeddings
-        default_embedding_endpoint_default = "local"
-    else:
-        default_embedding_endpoint_default = config.embedding_endpoint_type if valid_default_embedding else embedding_endpoint_options[-1]
-    default_embedding_endpoint = questionary.select(
-        "Select default embedding endpoint:", embedding_endpoint_options, default=default_embedding_endpoint_default
+    # set: embedding_endpoint
+    # TODO: reduce duplicated code
+    embedding_provider = questionary.select(
+        "Select embedding provider:", choices=["openai", "azure", "local"], default="openai"  # TODO: set to config default
     ).ask()
+    if embedding_provider == "openai":
+        # search for key in enviornment
+        openai_key = os.getenv("OPENAI_API_KEY")
+        if not openai_key:
+            print("Missing enviornment variables for OpenAI. Please set them and run `memgpt configure` again.")
+            # TODO: eventually stop relying on env variables and pass in keys explicitly
+            # openai_key = questionary.text("Open AI API keys not found in enviornment - please enter:").ask()
+        embedding_endpoint_type = "openai"
+        embedding_endpoint = "https://api.openai.com/v1"
+        embedding_dim = 1536
+    elif embedding_provider == "azure":
+        # search for key in enviornment
+        azure_key = os.getenv("AZURE_OPENAI_KEY")
+        azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        azure_version = os.getenv("AZURE_OPENAI_VERSION")
+        azure_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+        azure_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT")
 
-    # configure embedding dimentions
-    default_embedding_dim = config.embedding_dim
-    if default_embedding_endpoint == "local":
-        # HF model uses lower dimentionality
-        default_embedding_dim = 384
+        embedding_endpoint_type = "azure"
+        embedding_endpoint = azure_endpoint
+        embedding_dim = 1536
+
+        # make sure all credentials set
+        if all([azure_key, azure_endpoint, azure_version]):
+            print(f"Using Microsoft endpoint {azure_endpoint}.")
+            if all([azure_deployment, azure_embedding_deployment]):
+                print(f"Using deployment id {azure_deployment}")
+        else:
+            raise ValueError("Missing enviornment variables for Azure. Please set then run `memgpt configure` again.")
+    else:  # local models
+        embedding_endpoint_type = "local"
+        embedding_endpoint = None
+        embedding_dim = 384
 
     # configure preset
     default_preset = questionary.select("Select default preset:", preset_options, default=config.preset).ask()
@@ -215,26 +210,27 @@ def configure():
 
     config = MemGPTConfig(
         # model configs
-        model=default_model,
-        model_endpoint=default_model_endpoint,
-        model_endpoint_type=default_model_endpoint_type,
-        model_wrapper=default_model_wrapper,
-        context_window=default_model_context_window,
+        model=model,
+        model_endpoint=model_endpoint,
+        model_endpoint_type=model_endpoint_type,
+        model_wrapper=model_wrapper,
+        context_window=context_window,
         # embedding configs
-        embedding_endpoint_type=default_embedding_endpoint,
-        embedding_dim=default_embedding_dim,
+        embedding_endpoint_type=embedding_endpoint_type,
+        embedding_endpoint=embedding_endpoint,
+        embedding_dim=embedding_dim,
         # cli configs
         preset=default_preset,
         default_persona=default_persona,
         default_human=default_human,
         default_agent=default_agent,
         # credentials
-        openai_key=openai_key if use_openai else None,
-        azure_key=azure_key if use_azure else None,
-        azure_endpoint=azure_endpoint if use_azure else None,
-        azure_version=azure_version if use_azure else None,
-        azure_deployment=azure_deployment if use_azure_deployment_ids else None,
-        azure_embedding_deployment=azure_embedding_deployment if use_azure_deployment_ids else None,
+        openai_key=openai_key,
+        azure_key=azure_key,
+        azure_endpoint=azure_endpoint,
+        azure_version=azure_version,
+        azure_deployment=azure_deployment,
+        azure_embedding_deployment=azure_embedding_deployment,
         # storage
         archival_storage_type=archival_storage_type,
         archival_storage_uri=archival_storage_uri,

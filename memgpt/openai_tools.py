@@ -6,7 +6,7 @@ import time
 from typing import Callable, TypeVar
 
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
-from memgpt.config import AgentConfig
+from memgpt.config import AgentConfig, MemGPTConfig
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
@@ -82,27 +82,32 @@ def completions_with_backoff(**kwargs):
 
 
 @retry_with_exponential_backoff
-def chat_completion_with_backoff(config: AgentConfig, **kwargs):
+def chat_completion_with_backoff(agent_config: AgentConfig, **kwargs):
     from memgpt.utils import printd
 
-    printd(f"Using model {config.model_endpoint_type}")
-    if config.model_endpoint_type == "openai":
+    printd(f"Using model {agent_config.model_endpoint_type}")
+    if agent_config.model_endpoint_type == "openai":
         # openai
-        openai.api_base = config.model_endpoint
+        openai.api_base = agent_config.model_endpoint
         return openai.ChatCompletion.create(**kwargs)
-    elif config.model_endpoint_type == "azure":
-        # azure
-        azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-        if azure_openai_deployment is not None:
-            kwargs["deployment_id"] = azure_openai_deployment
+    elif agent_config.model_endpoint_type == "azure":
+        # configure openai
+        config = MemGPTConfig.load()  # load credentials (currently not stored in agent config)
+        openai.api_type = "azure"
+        openai.api_key = config.azure_key
+        openai.api_base = config.azure_endpoint
+        openai.api_version = config.azure_version
+        if config.azure_deployment is not None:
+            kwargs["deployment_id"] = config.azure_deployment
         else:
-            kwargs["engine"] = MODEL_TO_AZURE_ENGINE[kwargs["model"]]
+            kwargs["engine"] = MODEL_TO_AZURE_ENGINE[config.model]
             del kwargs["model"]
         return openai.ChatCompletion.create(**kwargs)
     else:  # local model
         return get_chat_completion(**kwargs)
 
 
+# TODO: deprecate
 @retry_with_exponential_backoff
 def create_embedding_with_backoff(**kwargs):
     if using_azure():
