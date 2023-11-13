@@ -19,16 +19,21 @@ from memgpt.constants import LLM_MAX_TOKENS
 app = typer.Typer()
 
 
-@app.command()
-def configure():
-    """Updates default MemGPT configurations"""
+def get_azure_credentials():
+    azure_key = os.getenv("AZURE_OPENAI_KEY")
+    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    azure_version = os.getenv("AZURE_OPENAI_VERSION")
+    azure_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+    azure_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT")
+    return azure_key, azure_endpoint, azure_version, azure_deployment, azure_embedding_deployment
 
-    from memgpt.presets import DEFAULT_PRESET, preset_options
 
-    MemGPTConfig.create_config_dir()
+def get_openai_credentials():
+    openai_key = os.getenv("OPENAI_API_KEY")
+    return openai_key
 
-    # Will pre-populate with defaults, or what the user previously set
-    config = MemGPTConfig.load()
+
+def configure_llm_endpoint(config: MemGPTConfig):
 
     # select provider
     openai_key, azure_key, azure_endpoint, azure_version, azure_deployment, azure_embedding_deployment = None, None, None, None, None, None
@@ -41,35 +46,13 @@ def configure():
 
     # set: model_endpoint_type, model_endpoint
     if provider == "openai":
-        # search for key in enviornment
-        openai_key = os.getenv("OPENAI_API_KEY")
-        if not openai_key:
-            print("Missing enviornment variables for OpenAI. Please set them and run `memgpt configure` again.")
-            # TODO: eventually stop relying on env variables and pass in keys explicitly
-            # openai_key = questionary.text("Open AI API keys not found in enviornment - please enter:").ask()
         model_endpoint_type = "openai"
         model_endpoint = "https://api.openai.com/v1"
         model_endpoint = questionary.text("Override default endpoint:", default=model_endpoint).ask()
         provider = "openai"
     elif provider == "azure":
-        # search for key in enviornment
-        azure_key = os.getenv("AZURE_OPENAI_KEY")
-        azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-        azure_version = os.getenv("AZURE_OPENAI_VERSION")
-        azure_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-        azure_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT")
-
         model_endpoint_type = "azure"
-        model_endpoint = azure_endpoint
-        provider = "azure"
-
-        # make sure all credentials set
-        if all([azure_key, azure_endpoint, azure_version]):
-            print(f"Using Microsoft endpoint {azure_endpoint}.")
-            if all([azure_deployment, azure_embedding_deployment]):
-                print(f"Using deployment id {azure_deployment}")
-        else:
-            raise ValueError("Missing enviornment variables for Azure. Please set then run `memgpt configure` again.")
+        _, model_endpoint, _, _, _ = get_azure_credentials()
     else:  # local models
         backend_options = ["webui", "llamacpp", "koboldcpp", "ollama", "lmstudio", "openai"]
         valid_config = config.model_endpoint_type in backend_options
@@ -83,8 +66,11 @@ def configure():
         default_model_endpoint = os.getenv("OPENAI_API_BASE")
         model_endpoint = questionary.text("Enter default endpoint:", default=default_model_endpoint).ask()
         assert model_endpoint, f"Enviornment variable OPENAI_API_BASE must be set."
-        provider = "local"
 
+    return model_endpoint_type, model_endpoint
+
+
+def configure_model(config: MemGPTConfig, model_endpoint_type: str):
     # set: model, model_wrapper
     model, model_wrapper = None, None
     if model_endpoint_type == "openai" or model_endpoint_type == "azure":
@@ -135,45 +121,35 @@ def configure():
     else:
         # Pull the context length from the models
         context_window = LLM_MAX_TOKENS[model]
+    return model, model_wrapper, context_window
 
+
+def configure_embedding_endpoint(config: MemGPTConfig):
+    # set: model, model_wrapper
     # set: embedding_endpoint
     # TODO: reduce duplicated code
+    embedding_endpoint_type, embedding_endpoint, embedding_dim = None, None, None
     embedding_provider = questionary.select(
         "Select embedding provider:", choices=["openai", "azure", "local"], default="openai"  # TODO: set to config default
     ).ask()
     if embedding_provider == "openai":
-        # search for key in enviornment
-        openai_key = os.getenv("OPENAI_API_KEY")
-        if not openai_key:
-            print("Missing enviornment variables for OpenAI. Please set them and run `memgpt configure` again.")
-            # TODO: eventually stop relying on env variables and pass in keys explicitly
-            # openai_key = questionary.text("Open AI API keys not found in enviornment - please enter:").ask()
         embedding_endpoint_type = "openai"
         embedding_endpoint = "https://api.openai.com/v1"
         embedding_dim = 1536
     elif embedding_provider == "azure":
-        # search for key in enviornment
-        azure_key = os.getenv("AZURE_OPENAI_KEY")
-        azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-        azure_version = os.getenv("AZURE_OPENAI_VERSION")
-        azure_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-        azure_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT")
-
         embedding_endpoint_type = "azure"
-        embedding_endpoint = azure_endpoint
+        _, _, _, _, embedding_endpoint = get_azure_credentials()
         embedding_dim = 1536
-
-        # make sure all credentials set
-        if all([azure_key, azure_endpoint, azure_version]):
-            print(f"Using Microsoft endpoint {azure_endpoint}.")
-            if all([azure_deployment, azure_embedding_deployment]):
-                print(f"Using deployment id {azure_deployment}")
-        else:
-            raise ValueError("Missing enviornment variables for Azure. Please set then run `memgpt configure` again.")
     else:  # local models
         embedding_endpoint_type = "local"
         embedding_endpoint = None
         embedding_dim = 384
+    return embedding_endpoint_type, embedding_endpoint, embedding_dim
+
+
+def configure_cli(config: MemGPTConfig):
+    # set: preset, default_persona, default_human, default_agent``
+    from memgpt.presets import DEFAULT_PRESET, preset_options
 
     # configure preset
     default_preset = questionary.select("Select default preset:", preset_options, default=config.preset).ask()
@@ -187,15 +163,11 @@ def configure():
 
     # TODO: figure out if we should set a default agent or not
     default_agent = None
-    # agents = [os.path.basename(f).replace(".json", "") for f in utils.list_agent_config_files()]
-    # if len(agents) > 0: # agents have been created
-    #    default_agent = questionary.select(
-    #        "Select default agent:",
-    #        agents
-    #    ).ask()
-    # else:
-    #    default_agent = None
 
+    return default_preset, default_persona, default_human, default_agent
+
+
+def configure_archival_storage(config: MemGPTConfig):
     # Configure archival storage backend
     archival_storage_options = ["local", "postgres"]
     archival_storage_type = questionary.select(
@@ -207,6 +179,36 @@ def configure():
             "Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}):",
             default=config.archival_storage_uri if config.archival_storage_uri else "",
         ).ask()
+    return archival_storage_type, archival_storage_uri
+
+
+@app.command()
+def configure():
+    """Updates default MemGPT configurations"""
+
+    MemGPTConfig.create_config_dir()
+
+    # Will pre-populate with defaults, or what the user previously set
+    config = MemGPTConfig.load()
+    model_endpoint_type, model_endpoint = configure_llm_endpoint(config)
+    model, model_wrapper, context_window = configure_model(config, model_endpoint_type)
+    embedding_endpoint_type, embedding_endpoint, embedding_dim = configure_embedding_endpoint(config)
+    default_preset, default_persona, default_human, default_agent = configure_cli(config)
+    archival_storage_type, archival_storage_uri = configure_archival_storage(config)
+
+    # check credentials
+    azure_key, azure_endpoint, azure_version, azure_deployment, azure_embedding_deployment = get_azure_credentials()
+    openai_key = get_openai_credentials()
+    if model_endpoint_type == "azure" or embedding_endpoint_type == "azure":
+        if all([azure_key, azure_endpoint, azure_version]):
+            print(f"Using Microsoft endpoint {azure_endpoint}.")
+            if all([azure_deployment, azure_embedding_deployment]):
+                print(f"Using deployment id {azure_deployment}")
+        else:
+            raise ValueError("Missing enviornment variables for Azure. Please set then run `memgpt configure` again.")
+    if model_endpoint_type == "openai" or embedding_endpoint_type == "openai":
+        if not openai_key:
+            raise ValueError("Missing enviornment variables for OpenAI. Please set them and run `memgpt configure` again.")
 
     config = MemGPTConfig(
         # model configs
