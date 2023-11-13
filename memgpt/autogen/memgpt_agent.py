@@ -7,7 +7,7 @@ from memgpt.autogen.interface import AutoGenInterface
 from memgpt.persistence_manager import LocalStateManager
 import memgpt.system as system
 import memgpt.constants as constants
-import memgpt.presets as presets
+import memgpt.presets.presets as presets
 from memgpt.personas import personas
 from memgpt.humans import humans
 from memgpt.config import AgentConfig
