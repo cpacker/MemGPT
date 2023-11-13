@@ -177,15 +177,15 @@ class MemGPTAgent(ConversableAgent):
         # call load function based on type
         match type:
             case "directory":
-                load_directory(name, **kwargs)
+                load_directory(name=name, **kwargs)
             case "webpage":
-                load_webpage(name, **kwargs)
+                load_webpage(name=name, **kwargs)
             case "index":
-                load_index(name, **kwargs)
+                load_index(name=name, **kwargs)
             case "database":
-                load_database(name, **kwargs)
+                load_database(name=name, **kwargs)
             case "vector_database":
-                load_vector_database(name, **kwargs)
+                load_vector_database(name=name, **kwargs)
             case _:
                 raise ValueError(f"Invalid data source type {type}")
 
@@ -199,12 +199,14 @@ class MemGPTAgent(ConversableAgent):
         # reload agent with new data source
         self.agent.persistence_manager.archival_memory.storage = StorageConnector.get_storage_connector(agent_config=self.agent.config)
 
-    def load_and_attach(self, name: str, type: str, **kwargs):
-        # load data
-        self.load(name, type, **kwargs)
-
-        # attach data
-        self.attach(name)
+    def load_and_attach(self, name: str, type: str, force=False, **kwargs):
+        # check if data source already exists
+        if name in StorageConnector.list_loaded_data() and not force:
+            print(f"Data source {name} already exists. Use force=True to overwrite.")
+            self.attach(name)
+        else:
+            self.load(name, type, **kwargs)
+            self.attach(name)
 
     def format_other_agent_message(self, msg):
         if "name" in msg:
