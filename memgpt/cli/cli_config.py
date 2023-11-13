@@ -89,7 +89,8 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str):
 
         # ollama also needs model type
         if model_endpoint_type == "ollama":
-            model = questionary.text("Enter default model type (e.g. airboros):", default=config.model if config.model else "").ask()
+            default_model = config.model if config.model and config.model_endpoint_type == "ollama" else ""
+            model = questionary.text("Enter default model type (e.g. airboros):", default=default_model).ask()
             model = None if len(model) == 0 else model
 
     # set: context_window
@@ -154,22 +155,26 @@ def configure_embedding_endpoint(config: MemGPTConfig):
 
 def configure_cli(config: MemGPTConfig):
     # set: preset, default_persona, default_human, default_agent``
-    from memgpt.presets import DEFAULT_PRESET, preset_options
+    from memgpt.presets.presets import preset_options
 
-    # configure preset
-    default_preset = questionary.select("Select default preset:", preset_options, default=config.preset).ask()
-    # defaults
+    # preset
+    default_preset = config.preset if config.preset and config.preset in preset_options else None
+    preset = questionary.select("Select default preset:", preset_options, default=default_preset).ask()
+
+    # persona
     personas = [os.path.basename(f).replace(".txt", "") for f in utils.list_persona_files()]
-    # print(personas)
-    default_persona = questionary.select("Select default persona:", personas, default=config.default_persona).ask()
+    default_persona = config.persona if config.persona and config.persona in personas else None
+    persona = questionary.select("Select default persona:", personas, default=default_persona).ask()
+
+    # human
     humans = [os.path.basename(f).replace(".txt", "") for f in utils.list_human_files()]
-    # print(humans)
-    default_human = questionary.select("Select default human:", humans, default=config.default_human).ask()
+    default_human = config.human if config.human and config.human in humans else None
+    human = questionary.select("Select default human:", humans, default=default_human).ask()
 
     # TODO: figure out if we should set a default agent or not
-    default_agent = None
+    agent = None
 
-    return default_preset, default_persona, default_human, default_agent
+    return preset, persona, human, agent
 
 
 def configure_archival_storage(config: MemGPTConfig):
@@ -228,9 +233,9 @@ def configure():
         embedding_dim=embedding_dim,
         # cli configs
         preset=default_preset,
-        default_persona=default_persona,
-        default_human=default_human,
-        default_agent=default_agent,
+        persona=default_persona,
+        human=default_human,
+        agent=default_agent,
         # credentials
         openai_key=openai_key,
         azure_key=azure_key,

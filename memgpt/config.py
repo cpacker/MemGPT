@@ -84,9 +84,9 @@ class MemGPTConfig:
     azure_embedding_deployment: str = None
 
     # persona parameters
-    default_persona: str = personas.DEFAULT
-    default_human: str = humans.DEFAULT
-    default_agent: str = None
+    persona: str = personas.DEFAULT
+    human: str = humans.DEFAULT
+    agent: str = None
 
     # embedding parameters
     embedding_endpoint_type: str = "openai"  # openai, azure, local
@@ -139,9 +139,9 @@ class MemGPTConfig:
                 "model_wrapper": get_field(config, "model", "model_wrapper"),
                 "context_window": get_field(config, "model", "context_window"),
                 "preset": get_field(config, "defaults", "preset"),
-                "default_persona": get_field(config, "defaults", "persona"),
-                "default_human": get_field(config, "defaults", "human"),
-                "default_agent": get_field(config, "defaults", "agent"),
+                "persona": get_field(config, "defaults", "persona"),
+                "human": get_field(config, "defaults", "human"),
+                "agent": get_field(config, "defaults", "agent"),
                 "openai_key": get_field(config, "openai", "key"),
                 "azure_key": get_field(config, "azure", "key"),
                 "azure_endpoint": get_field(config, "azure", "endpoint"),
@@ -172,16 +172,16 @@ class MemGPTConfig:
 
         # CLI defaults
         set_field(config, "defaults", "preset", self.preset)
-        set_field(config, "defaults", "persona", self.default_persona)
-        set_field(config, "defaults", "human", self.default_human)
-        set_field(config, "defaults", "agent", self.default_agent)
+        set_field(config, "defaults", "persona", self.persona)
+        set_field(config, "defaults", "human", self.human)
+        set_field(config, "defaults", "agent", self.agent)
 
         # model defaults
         set_field(config, "model", "model", self.model)
         set_field(config, "model", "model_endpoint", self.model_endpoint)
         set_field(config, "model", "model_endpoint_type", self.model_endpoint_type)
         set_field(config, "model", "model_wrapper", self.model_wrapper)
-        set_field(config, "context_window", str(self.context_window))
+        set_field(config, "model", "context_window", str(self.context_window))
 
         # security credentials: openai
         set_field(config, "openai", "key", self.openai_key)
@@ -272,8 +272,8 @@ class AgentConfig:
             self.name = name
 
         config = MemGPTConfig.load()  # get default values
-        self.persona = config.default_persona if persona is None else persona
-        self.human = config.default_human if human is None else human
+        self.persona = config.persona if persona is None else persona
+        self.human = config.human if human is None else human
         self.preset = config.preset if preset is None else preset
         self.context_window = config.context_window if context_window is None else context_window
         self.model = config.model if model is None else model
@@ -288,7 +288,10 @@ class AgentConfig:
         # agent metadata
         self.data_sources = data_sources if data_sources is not None else []
         self.create_time = create_time if create_time is not None else utils.get_local_time()
-        self.memgpt_version = memgpt_version
+        if memgpt_version is None:
+            self.memgpt_version = memgpt.__version__
+        else:
+            self.memgpt_version = memgpt_version
 
         # save agent config
         self.agent_config_path = (
