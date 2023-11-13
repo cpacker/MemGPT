@@ -179,6 +179,7 @@ class MemGPTConfig:
         # CLI defaults
         config.add_section("defaults")
         config.set("defaults", "model", self.model)
+        config.set("defaults", "context_window", str(self.context_window))
         config.set("defaults", "preset", self.preset)
         assert self.model_endpoint is not None, "Endpoint must be set"
         config.set("defaults", "model_endpoint", self.model_endpoint)

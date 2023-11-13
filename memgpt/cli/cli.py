@@ -170,16 +170,6 @@ def run(
     if config.model_endpoint == "azure":
         configure_azure_support()
 
-    # TODO: remove once model calling logic is cleaner
-    if memgpt_agent.model != "local":
-        assert (
-            os.getenv("OPENAI_API_BASE") is None and os.getenv("BACKEND_TYPE") is None
-        ), f"Please make sure your enviornment variables OPENAI_API_BASE and BACKEND_TYPE are unset"
-    else:
-        assert os.getenv("OPENAI_API_BASE") and os.getenv(
-            "BACKEND_TYPE"
-        ), f"Please make sure your enviornment variables OPENAI_API_BASE and BACKEND_TYPE are set to run a model with a local endpoint"
-
     run_agent_loop(memgpt_agent, first, no_verify, config)  # TODO: add back no_verify
 
 
@@ -203,7 +193,7 @@ def attach(
     generator = source_storage.get_all_paginated(page_size=page_size)  # yields List[Passage]
     for i in tqdm(range(0, size, page_size)):
         passages = next(generator)
-        dest_storage.insert_many(passages, show_progress=False)
+        dest_storage.insert_many(passages)
 
     # save destination storage
     dest_storage.save()
