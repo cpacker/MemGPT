@@ -85,7 +85,7 @@ def completions_with_backoff(**kwargs):
 def chat_completion_with_backoff(agent_config: AgentConfig, **kwargs):
     from memgpt.utils import printd
 
-    printd(f"Using model {agent_config.model_endpoint_type}")
+    printd(f"Using model {agent_config.model_endpoint_type}, endpoint: {agent_config.model_endpoint}")
     if agent_config.model_endpoint_type == "openai":
         # openai
         openai.api_base = agent_config.model_endpoint
@@ -104,6 +104,7 @@ def chat_completion_with_backoff(agent_config: AgentConfig, **kwargs):
             del kwargs["model"]
         return openai.ChatCompletion.create(**kwargs)
     else:  # local model
+        kwargs["context_window"] = agent_config.context_window  # specify for open LLMs
         return get_chat_completion(**kwargs)
 
 

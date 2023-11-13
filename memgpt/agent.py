@@ -892,9 +892,8 @@ class Agent(object):
 
         try:
             response = chat_completion_with_backoff(
-                config=self.config,
+                agent_config=self.config,
                 model=self.model,  # TODO: remove (is redundant)
-                context_window=self.config.context_window,  # TODO: remove (is redundant)
                 messages=message_sequence,
                 functions=self.functions,
                 function_call=function_call,
