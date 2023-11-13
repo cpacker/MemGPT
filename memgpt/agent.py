@@ -309,7 +309,7 @@ class Agent(object):
         json_files = glob.glob(os.path.join(directory, "*.json"))  # This will list all .json files in the current directory.
         if not json_files:
             print(f"/load error: no .json checkpoint files found")
-            raise ValueError(f"Cannot load {agent_name}")
+            raise ValueError(f"Cannot load {agent_name}: does not exist in {directory}")
 
         # Sort files based on modified timestamp, with the latest file being the first.
         filename = max(json_files, key=os.path.getmtime)

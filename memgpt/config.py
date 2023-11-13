@@ -1,4 +1,5 @@
 import glob
+import inspect
 import random
 import string
 import json
@@ -338,6 +339,15 @@ class AgentConfig:
         assert os.path.exists(agent_config_path), f"Agent config file does not exist at {agent_config_path}"
         with open(agent_config_path, "r") as f:
             agent_config = json.load(f)
+
+        # allow compatibility accross versions
+        class_args = inspect.getargspec(cls.__init__).args
+        agent_fields = list(agent_config.keys())
+        for key in agent_fields:
+            if key not in class_args:
+                utils.printd(f"Removing missing argument {key} from agent config")
+                del agent_config[key]
+
         return cls(**agent_config)
 
 
