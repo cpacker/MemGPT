@@ -40,6 +40,7 @@ model_choices = [
     ),
 ]
 
+
 # helper functions for writing to configs
 def get_field(config, section, field):
     if section not in config:
