@@ -1,4 +1,5 @@
 import glob
+import inspect
 import random
 import string
 import json
@@ -24,7 +25,7 @@ from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS
 import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
-from memgpt.presets import DEFAULT_PRESET, preset_options
+from memgpt.presets.presets import DEFAULT_PRESET, preset_options
 
 
 model_choices = [
@@ -136,7 +137,7 @@ class MemGPTConfig:
                 "model_endpoint": get_field(config, "model", "model_endpoint"),
                 "model_endpoint_type": get_field(config, "model", "model_endpoint_type"),
                 "model_wrapper": get_field(config, "model", "model_wrapper"),
-                "context_window": get_field(config, "defaults", "context_window"),
+                "context_window": get_field(config, "model", "context_window"),
                 "preset": get_field(config, "defaults", "preset"),
                 "default_persona": get_field(config, "defaults", "persona"),
                 "default_human": get_field(config, "defaults", "human"),
@@ -180,6 +181,7 @@ class MemGPTConfig:
         set_field(config, "model", "model_endpoint", self.model_endpoint)
         set_field(config, "model", "model_endpoint_type", self.model_endpoint_type)
         set_field(config, "model", "model_wrapper", self.model_wrapper)
+        set_field(config, "context_window", str(self.context_window))
 
         # security credentials: openai
         set_field(config, "openai", "key", self.openai_key)
@@ -228,7 +230,7 @@ class MemGPTConfig:
         if not os.path.exists(MEMGPT_DIR):
             os.makedirs(MEMGPT_DIR, exist_ok=True)
 
-        folders = ["personas", "humans", "archival", "agents"]
+        folders = ["personas", "humans", "archival", "agents", "functions", "system_prompts", "presets"]
         for folder in folders:
             if not os.path.exists(os.path.join(MEMGPT_DIR, folder)):
                 os.makedirs(os.path.join(MEMGPT_DIR, folder))
@@ -343,8 +345,13 @@ class AgentConfig:
         assert os.path.exists(agent_config_path), f"Agent config file does not exist at {agent_config_path}"
         with open(agent_config_path, "r") as f:
             agent_config = json.load(f)
-        if "data_source" in agent_config:
-            del agent_config["data_source"]  # deprecated
+        # allow compatibility accross versions
+        class_args = inspect.getargspec(cls.__init__).args
+        agent_fields = list(agent_config.keys())
+        for key in agent_fields:
+            if key not in class_args:
+                utils.printd(f"Removing missing argument {key} from agent config")
+                del agent_config[key]
         return cls(**agent_config)
 
 

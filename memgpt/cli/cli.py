@@ -15,7 +15,7 @@ import memgpt.interface  # for printing to terminal
 from memgpt.cli.cli_config import configure
 import memgpt.agent as agent
 import memgpt.system as system
-import memgpt.presets as presets
+import memgpt.presets.presets as presets
 import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
@@ -196,7 +196,7 @@ def attach(
     generator = source_storage.get_all_paginated(page_size=page_size)  # yields List[Passage]
     for i in tqdm(range(0, size, page_size)):
         passages = next(generator)
-        dest_storage.insert_many(passages, show_progress=False)
+        dest_storage.insert_many(passages)
 
     # save destination storage
     dest_storage.save()
