@@ -1,10 +1,10 @@
-from ..constants import FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT
+from ..constants import FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT, MAX_PAUSE_HEARTBEATS
 
 # FUNCTIONS_PROMPT_MULTISTEP_NO_HEARTBEATS = FUNCTIONS_PROMPT_MULTISTEP[:-1]
 FUNCTIONS_CHAINING = {
     "send_message": {
         "name": "send_message",
-        "description": "Sends a message to the human user",
+        "description": "Sends a message to the human user.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -26,7 +26,7 @@ FUNCTIONS_CHAINING = {
                 # https://json-schema.org/understanding-json-schema/reference/array.html
                 "minutes": {
                     "type": "integer",
-                    "description": "Number of minutes to ignore heartbeats for. Max value of 360 minutes (6 hours).",
+                    "description": f"Number of minutes to ignore heartbeats for. Max value of {MAX_PAUSE_HEARTBEATS} minutes ({MAX_PAUSE_HEARTBEATS//60} hours).",
                 },
             },
             "required": ["minutes"],
@@ -45,7 +45,7 @@ FUNCTIONS_CHAINING = {
                 },
                 "request_heartbeat": {
                     "type": "boolean",
-                    "description": "Request an immediate heartbeat after function execution, use to chain multiple functions.",
+                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
                 },
             },
             "required": ["message", "request_heartbeat"],
@@ -67,7 +67,7 @@ FUNCTIONS_CHAINING = {
                 },
                 "request_heartbeat": {
                     "type": "boolean",
-                    "description": "Request an immediate heartbeat after function execution, use to chain multiple functions.",
+                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
                 },
             },
             "required": ["name", "content", "request_heartbeat"],
@@ -93,7 +93,7 @@ FUNCTIONS_CHAINING = {
                 },
                 "request_heartbeat": {
                     "type": "boolean",
-                    "description": "Request an immediate heartbeat after function execution, use to chain multiple functions.",
+                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
                 },
             },
             "required": ["name", "old_content", "new_content", "request_heartbeat"],
@@ -140,7 +140,7 @@ FUNCTIONS_CHAINING = {
                     "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
                 },
             },
-            "required": ["query", "page", "request_heartbeat"],
+            "required": ["query", "request_heartbeat"],
         },
     },
     "recall_memory_search_date": {
@@ -192,7 +192,7 @@ FUNCTIONS_CHAINING = {
                     "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
                 },
             },
-            "required": ["start_date", "end_date", "page", "request_heartbeat"],
+            "required": ["start_date", "end_date", "request_heartbeat"],
         },
     },
     "archival_memory_insert": {
@@ -232,7 +232,7 @@ FUNCTIONS_CHAINING = {
                     "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
                 },
             },
-            "required": ["query", "page", "request_heartbeat"],
+            "required": ["query", "request_heartbeat"],
         },
     },
     "read_from_text_file": {
@@ -269,7 +269,7 @@ FUNCTIONS_CHAINING = {
             "properties": {
                 "filename": {
                     "type": "string",
-                    "description": "The name of the file to read.",
+                    "description": "The name of the file to append to.",
                 },
                 "content": {
                     "type": "string",
@@ -295,9 +295,9 @@ FUNCTIONS_CHAINING = {
                 },
                 "url": {
                     "type": "string",
-                    "description": "The URL for the request",
+                    "description": "The URL for the request.",
                 },
-                "payload": {
+                "payload_json": {
                     "type": "string",
                     "description": "A JSON string representing the request payload.",
                 },

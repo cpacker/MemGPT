@@ -1,4 +1,5 @@
 import glob
+import inspect
 import random
 import string
 import json
@@ -23,7 +24,7 @@ from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS
 import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
-from memgpt.presets import DEFAULT_PRESET, preset_options
+from memgpt.presets.presets import DEFAULT_PRESET, preset_options
 
 
 model_choices = [
@@ -178,6 +179,7 @@ class MemGPTConfig:
         # CLI defaults
         config.add_section("defaults")
         config.set("defaults", "model", self.model)
+        config.set("defaults", "context_window", str(self.context_window))
         config.set("defaults", "preset", self.preset)
         assert self.model_endpoint is not None, "Endpoint must be set"
         config.set("defaults", "model_endpoint", self.model_endpoint)
@@ -242,7 +244,7 @@ class MemGPTConfig:
         if not os.path.exists(MEMGPT_DIR):
             os.makedirs(MEMGPT_DIR, exist_ok=True)
 
-        folders = ["personas", "humans", "archival", "agents"]
+        folders = ["personas", "humans", "archival", "agents", "functions", "system_prompts", "presets"]
         for folder in folders:
             if not os.path.exists(os.path.join(MEMGPT_DIR, folder)):
                 os.makedirs(os.path.join(MEMGPT_DIR, folder))
@@ -338,6 +340,15 @@ class AgentConfig:
         assert os.path.exists(agent_config_path), f"Agent config file does not exist at {agent_config_path}"
         with open(agent_config_path, "r") as f:
             agent_config = json.load(f)
+
+        # allow compatibility accross versions
+        class_args = inspect.getargspec(cls.__init__).args
+        agent_fields = list(agent_config.keys())
+        for key in agent_fields:
+            if key not in class_args:
+                utils.printd(f"Removing missing argument {key} from agent config")
+                del agent_config[key]
+
         return cls(**agent_config)
 
 
