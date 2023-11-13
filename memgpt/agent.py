@@ -433,7 +433,8 @@ class Agent(object):
             printd(f"First message didn't include function call: {response_message}")
             return False
 
-        function_name = response_message["function_call"]["name"]
+        function_call = response_message.get("function_call")
+        function_name = function_call.get("name") if function_call is not None else ""
         if require_send_message and function_name != "send_message" and function_name != "archival_memory_search":
             printd(f"First message function call wasn't send_message or archival_memory_search: {response_message}")
             return False
