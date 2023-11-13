@@ -34,12 +34,14 @@ def get_openai_credentials():
 
 
 def configure_llm_endpoint(config: MemGPTConfig):
+    # configure model endpoint
+    model_endpoint_type, model_endpoint = None, None
 
-    # select provider
-    openai_key, azure_key, azure_endpoint, azure_version, azure_deployment, azure_embedding_deployment = None, None, None, None, None, None
+    # get default
     default_model_endpoint_type = config.model_endpoint_type
     if config.model_endpoint_type is not None and config.model_endpoint_type not in ["openai", "azure"]:  # local model
         default_model_endpoint_type = "local"
+
     provider = questionary.select(
         "Select LLM inference provider:", choices=["openai", "azure", "local"], default=default_model_endpoint_type
     ).ask()
@@ -125,12 +127,15 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str):
 
 
 def configure_embedding_endpoint(config: MemGPTConfig):
-    # set: model, model_wrapper
-    # set: embedding_endpoint
-    # TODO: reduce duplicated code
+    # configure embedding endpoint
+
+    default_embedding_endpoint_type = config.embedding_endpoint_type
+    if config.embedding_endpoint_type is not None and config.embedding_endpoint_type not in ["openai", "azure"]:  # local model
+        default_embedding_endpoint_type = "local"
+
     embedding_endpoint_type, embedding_endpoint, embedding_dim = None, None, None
     embedding_provider = questionary.select(
-        "Select embedding provider:", choices=["openai", "azure", "local"], default="openai"  # TODO: set to config default
+        "Select embedding provider:", choices=["openai", "azure", "local"], default=default_embedding_endpoint_type
     ).ask()
     if embedding_provider == "openai":
         embedding_endpoint_type = "openai"
