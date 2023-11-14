@@ -105,6 +105,9 @@ def chat_completion_with_backoff(agent_config: AgentConfig, **kwargs):
         return openai.ChatCompletion.create(**kwargs)
     else:  # local model
         kwargs["context_window"] = agent_config.context_window  # specify for open LLMs
+        kwargs["endpoint"] = agent_config.model_endpoint  # specify for open LLMs
+        kwargs["endpoint_type"] = agent_config.model_endpoint_type  # specify for open LLMs
+        kwargs["wrapper"] = agent_config.model_wrapper  # specify for open LLMs
         return get_chat_completion(**kwargs)
 
 
