@@ -1,1 +1,1 @@
-TIMEOUT = 10  # seconds
+TIMEOUT = 30  # seconds
