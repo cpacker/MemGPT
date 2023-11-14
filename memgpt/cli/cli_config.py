@@ -89,7 +89,7 @@ def configure_llm_endpoint(config: MemGPTConfig):
                     if "http://" not in model_endpoint and "https://" not in model_endpoint:
                         typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
                         model_endpoint = None
-        assert model_endpoint, f"Enviornment variable OPENAI_API_BASE must be set."
+        assert model_endpoint, f"Environment variable OPENAI_API_BASE must be set."
 
     return model_endpoint_type, model_endpoint
 
@@ -244,10 +244,14 @@ def configure():
             if all([azure_deployment, azure_embedding_deployment]):
                 print(f"Using deployment id {azure_deployment}")
         else:
-            raise ValueError("Missing enviornment variables for Azure. Please set then run `memgpt configure` again.")
+            raise ValueError(
+                "Missing environment variables for Azure (see https://memgpt.readthedocs.io/en/latest/endpoints/#azure). Please set then run `memgpt configure` again."
+            )
     if model_endpoint_type == "openai" or embedding_endpoint_type == "openai":
         if not openai_key:
-            raise ValueError("Missing enviornment variables for OpenAI (OPENAI_API_KEY). Please set them and run `memgpt configure` again.")
+            raise ValueError(
+                "Missing environment variables for OpenAI (see https://memgpt.readthedocs.io/en/latest/endpoints/#openai). Please set them and run `memgpt configure` again."
+            )
 
     config = MemGPTConfig(
         # model configs
