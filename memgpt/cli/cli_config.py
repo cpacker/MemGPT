@@ -1,3 +1,4 @@
+import builtins
 import questionary
 import openai
 from prettytable import PrettyTable
@@ -15,7 +16,8 @@ from memgpt.config import MemGPTConfig, AgentConfig, Config
 from memgpt.constants import MEMGPT_DIR
 from memgpt.connectors.storage import StorageConnector
 from memgpt.constants import LLM_MAX_TOKENS
-from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL
+from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
+from memgpt.local_llm.utils import get_available_wrappers
 
 app = typer.Typer()
 
@@ -75,10 +77,19 @@ def configure_llm_endpoint(config: MemGPTConfig):
         # if OPENAI_API_BASE is set, assume that this is the IP+port the user wanted to use
         default_model_endpoint = os.getenv("OPENAI_API_BASE")
         # if OPENAI_API_BASE is not set, try to pull a default IP+port format from a hardcoded set
-        if default_model_endpoint is None and model_endpoint_type in DEFAULT_ENDPOINTS:
-            default_model_endpoint = DEFAULT_ENDPOINTS[model_endpoint_type]
-        model_endpoint = questionary.text("Enter default endpoint:", default=default_model_endpoint).ask()
-        assert model_endpoint, f"Enviornment variable OPENAI_API_BASE must be set."
+        if default_model_endpoint is None:
+            if model_endpoint_type in DEFAULT_ENDPOINTS:
+                default_model_endpoint = DEFAULT_ENDPOINTS[model_endpoint_type]
+                model_endpoint = questionary.text("Enter default endpoint:", default=default_model_endpoint).ask()
+            else:
+                # default_model_endpoint = None
+                model_endpoint = None
+                while not model_endpoint:
+                    model_endpoint = questionary.text("Enter default endpoint:").ask()
+                    if "http://" not in model_endpoint and "https://" not in model_endpoint:
+                        typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
+                        model_endpoint = None
+        assert model_endpoint, f"Environment variable OPENAI_API_BASE must be set."
 
     return model_endpoint_type, model_endpoint
 
@@ -104,8 +115,11 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str):
             model = None if len(model) == 0 else model
 
         # model wrapper
-        model_wrapper = questionary.text(
-            "Enter default model wrapper:", default=config.model_wrapper if config.model_wrapper else "airoboros-l2-70b-2.1"
+        available_model_wrappers = builtins.list(get_available_wrappers().keys())
+        model_wrapper = questionary.select(
+            f"Select default model wrapper (recommended: {DEFAULT_WRAPPER_NAME}):",
+            choices=available_model_wrappers,
+            default=DEFAULT_WRAPPER_NAME,
         ).ask()
 
     # set: context_window
@@ -230,10 +244,14 @@ def configure():
             if all([azure_deployment, azure_embedding_deployment]):
                 print(f"Using deployment id {azure_deployment}")
         else:
-            raise ValueError("Missing enviornment variables for Azure. Please set then run `memgpt configure` again.")
+            raise ValueError(
+                "Missing environment variables for Azure (see https://memgpt.readthedocs.io/en/latest/endpoints/#azure). Please set then run `memgpt configure` again."
+            )
     if model_endpoint_type == "openai" or embedding_endpoint_type == "openai":
         if not openai_key:
-            raise ValueError("Missing enviornment variables for OpenAI. Please set them and run `memgpt configure` again.")
+            raise ValueError(
+                "Missing environment variables for OpenAI (see https://memgpt.readthedocs.io/en/latest/endpoints/#openai). Please set them and run `memgpt configure` again."
+            )
 
     config = MemGPTConfig(
         # model configs

@@ -20,7 +20,7 @@ You can override the parameters you set with `memgpt configure` with the followi
 * `--context-window`: (int) Size of model context window (specific to model type)
 
 #### Updating the config location
-You can override the location of the config path by setting the enviornment variable `MEMGPT_CONFIG_PATH`:
+You can override the location of the config path by setting the environment variable `MEMGPT_CONFIG_PATH`:
 ```
 export MEMGPT_CONFIG_PATH=/my/custom/path/config # make sure this is a file, not a directory
 ```

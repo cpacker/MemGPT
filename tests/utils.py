@@ -17,7 +17,7 @@ def configure_memgpt_localllm():
     child.expect("Enter default endpoint", timeout=TIMEOUT)
     child.sendline()
 
-    child.expect("Enter default model wrapper", timeout=TIMEOUT)
+    child.expect("Select default model wrapper", timeout=TIMEOUT)
     child.sendline()
 
     child.expect("Select your model's context window", timeout=TIMEOUT)

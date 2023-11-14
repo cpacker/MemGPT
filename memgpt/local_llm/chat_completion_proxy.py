@@ -10,7 +10,8 @@ from .llamacpp.api import get_llamacpp_completion
 from .koboldcpp.api import get_koboldcpp_completion
 from .ollama.api import get_ollama_completion
 from .llm_chat_completion_wrappers import airoboros, dolphin, zephyr, simple_summary_wrapper
-from .utils import DotDict
+from .constants import DEFAULT_WRAPPER
+from .utils import DotDict, get_available_wrappers
 from ..prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
 from ..errors import LocalLLMConnectionError, LocalLLMError
 
@@ -18,7 +19,7 @@ endpoint = os.getenv("OPENAI_API_BASE")
 endpoint_type = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
 DEBUG = False
 # DEBUG = True
-DEFAULT_WRAPPER = airoboros.Airoboros21InnerMonologueWrapper
+
 has_shown_warning = False
 
 
@@ -42,32 +43,15 @@ def get_chat_completion(
     if function_call != "auto":
         raise ValueError(f"function_call == {function_call} not supported (auto only)")
 
+    available_wrappers = get_available_wrappers()
     if messages[0]["role"] == "system" and messages[0]["content"].strip() == SUMMARIZE_SYSTEM_MESSAGE.strip():
         # Special case for if the call we're making is coming from the summarizer
         llm_wrapper = simple_summary_wrapper.SimpleSummaryWrapper()
-    elif wrapper == "airoboros-l2-70b-2.1":
-        llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper()
-    elif wrapper == "airoboros-l2-70b-2.1-grammar":
-        llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper(include_opening_brace_in_prefix=False)
-        # grammar_name = "json"
-        grammar_name = "json_func_calls_with_inner_thoughts"
-    elif wrapper == "dolphin-2.1-mistral-7b":
-        llm_wrapper = dolphin.Dolphin21MistralWrapper()
-    elif wrapper == "dolphin-2.1-mistral-7b-grammar":
-        llm_wrapper = dolphin.Dolphin21MistralWrapper(include_opening_brace_in_prefix=False)
-        # grammar_name = "json"
-        grammar_name = "json_func_calls_with_inner_thoughts"
-    elif wrapper == "zephyr-7B-alpha" or wrapper == "zephyr-7B-beta":
-        llm_wrapper = zephyr.ZephyrMistralInnerMonologueWrapper()
-    elif wrapper == "zephyr-7B-alpha-grammar" or wrapper == "zephyr-7B-beta-grammar":
-        llm_wrapper = zephyr.ZephyrMistralInnerMonologueWrapper(include_opening_brace_in_prefix=False)
-        # grammar_name = "json"
-        grammar_name = "json_func_calls_with_inner_thoughts"
-    else:
+    elif wrapper is None:
         # Warn the user that we're using the fallback
         if not has_shown_warning:
             print(
-                f"Warning: no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --model)"
+                f"Warning: no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --wrapper)"
             )
             has_shown_warning = True
         if endpoint_type in ["koboldcpp", "llamacpp", "webui"]:
@@ -77,6 +61,12 @@ def get_chat_completion(
             grammar_name = "json_func_calls_with_inner_thoughts"
         else:
             llm_wrapper = DEFAULT_WRAPPER()
+    elif wrapper not in available_wrappers:
+        raise ValueError(f"Could not find requested wrapper '{wrapper} in available wrappers list:\n{available_wrappers}")
+    else:
+        llm_wrapper = available_wrappers[wrapper]
+        if "grammar" in wrapper:
+            grammar_name = "json_func_calls_with_inner_thoughts"
 
     if grammar_name is not None and endpoint_type not in ["koboldcpp", "llamacpp", "webui"]:
         print(f"Warning: grammars are currently only supported when using llama.cpp as the MemGPT local LLM backend")
