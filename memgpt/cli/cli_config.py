@@ -77,9 +77,18 @@ def configure_llm_endpoint(config: MemGPTConfig):
         # if OPENAI_API_BASE is set, assume that this is the IP+port the user wanted to use
         default_model_endpoint = os.getenv("OPENAI_API_BASE")
         # if OPENAI_API_BASE is not set, try to pull a default IP+port format from a hardcoded set
-        if default_model_endpoint is None and model_endpoint_type in DEFAULT_ENDPOINTS:
-            default_model_endpoint = DEFAULT_ENDPOINTS[model_endpoint_type]
-        model_endpoint = questionary.text("Enter default endpoint:", default=default_model_endpoint).ask()
+        if default_model_endpoint is None:
+            if model_endpoint_type in DEFAULT_ENDPOINTS:
+                default_model_endpoint = DEFAULT_ENDPOINTS[model_endpoint_type]
+                model_endpoint = questionary.text("Enter default endpoint:", default=default_model_endpoint).ask()
+            else:
+                # default_model_endpoint = None
+                model_endpoint = None
+                while not model_endpoint:
+                    model_endpoint = questionary.text("Enter default endpoint:").ask()
+                    if "http://" not in model_endpoint and "https://" not in model_endpoint:
+                        typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
+                        model_endpoint = None
         assert model_endpoint, f"Enviornment variable OPENAI_API_BASE must be set."
 
     return model_endpoint_type, model_endpoint
@@ -238,7 +247,7 @@ def configure():
             raise ValueError("Missing enviornment variables for Azure. Please set then run `memgpt configure` again.")
     if model_endpoint_type == "openai" or embedding_endpoint_type == "openai":
         if not openai_key:
-            raise ValueError("Missing enviornment variables for OpenAI. Please set them and run `memgpt configure` again.")
+            raise ValueError("Missing enviornment variables for OpenAI (OPENAI_API_KEY). Please set them and run `memgpt configure` again.")
 
     config = MemGPTConfig(
         # model configs
