@@ -6,8 +6,8 @@ from .settings import SIMPLE
 from ..utils import load_grammar_file, count_tokens
 
 LLAMACPP_API_SUFFIX = "/completion"
-# DEBUG = False
-DEBUG = True
+DEBUG = False
+# DEBUG = True
 
 
 def get_llamacpp_completion(endpoint, prompt, context_window, grammar=None, settings=SIMPLE):

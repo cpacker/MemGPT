@@ -13,7 +13,7 @@ def test_configure_memgpt():
 
 
 def test_save_load():
-    configure_memgpt()
+    # configure_memgpt()  # rely on configure running first^
     child = pexpect.spawn("memgpt run --agent test_save_load --first --strip_ui")
 
     child.expect("Enter your message:", timeout=TIMEOUT)
