@@ -16,6 +16,7 @@ from colorama import Fore, Style
 
 from typing import List, Type
 
+import memgpt
 import memgpt.utils as utils
 from memgpt.interface import CLIInterface as interface
 from memgpt.personas.personas import get_persona_text

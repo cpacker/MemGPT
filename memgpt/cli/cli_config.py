@@ -11,7 +11,7 @@ from memgpt import utils
 
 import memgpt.humans.humans as humans
 import memgpt.personas.personas as personas
-from memgpt.config import MemGPTConfig, AgentConfig
+from memgpt.config import MemGPTConfig, AgentConfig, Config
 from memgpt.constants import MEMGPT_DIR
 from memgpt.connectors.storage import StorageConnector
 from memgpt.constants import LLM_MAX_TOKENS
@@ -66,7 +66,7 @@ def configure_llm_endpoint(config: MemGPTConfig):
         model_endpoint_type = questionary.select(
             "Select LLM backend (select 'openai' if you have an OpenAI compatible proxy):",
             backend_options,
-            default=config.model_endpoint_type if valid_config else backend_options[0],
+            default=config.model_endpoint_type if Config.is_valid_config_file(config) else backend_options[0],
         ).ask()
 
         # set default endpoint
