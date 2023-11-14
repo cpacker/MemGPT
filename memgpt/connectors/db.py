@@ -189,7 +189,7 @@ class LanceDBConnector(StorageConnector):
 
     # TODO: this should probably eventually be moved into a parent DB class
 
-    def __init__(self, name: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
+    def __init__(self, name: Optional[str] = None):
         config = MemGPTConfig.load()
 
         # determine table name
