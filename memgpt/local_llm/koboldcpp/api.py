@@ -6,8 +6,8 @@ from .settings import SIMPLE
 from ..utils import load_grammar_file, count_tokens
 
 KOBOLDCPP_API_SUFFIX = "/api/v1/generate"
-# DEBUG = False
-DEBUG = True
+DEBUG = False
+# DEBUG = True
 
 
 def get_koboldcpp_completion(endpoint, prompt, context_window, grammar=None, settings=SIMPLE):
