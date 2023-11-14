@@ -329,7 +329,7 @@ class Agent(object):
 
                 # NOTE to handle old configs, instead of erroring here let's just warn
                 # raise ValueError(error_message)
-                print(error_message)
+                printd(error_message)
             linked_function_set[f_name] = linked_function
 
         messages = state["messages"]
