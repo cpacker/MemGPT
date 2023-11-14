@@ -105,11 +105,6 @@ def run(
     set_global_service_context(service_context)
     sys.stdout = original_stdout
 
-    # overwrite the context_window if specified
-    if context_window is not None and int(context_window) != config.context_window:
-        typer.secho(f"Warning: Overriding existing context window {config.context_window} with {context_window}", fg=typer.colors.YELLOW)
-        config.context_window = context_window
-
     # create agent config
     if agent and AgentConfig.exists(agent):  # use existing agent
         typer.secho(f"Using existing agent {agent}", fg=typer.colors.GREEN)
@@ -127,10 +122,34 @@ def run(
             typer.secho(f"Warning: Overriding existing human {agent_config.human} with {human}", fg=typer.colors.YELLOW)
             agent_config.human = human
             # raise ValueError(f"Cannot override {agent_config.name} existing human {agent_config.human} with {human}")
+
+        # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
         if model and model != agent_config.model:
             typer.secho(f"Warning: Overriding existing model {agent_config.model} with {model}", fg=typer.colors.YELLOW)
             agent_config.model = model
-            # raise ValueError(f"Cannot override {agent_config.name} existing model {agent_config.model} with {model}")
+        if context_window is not None and int(context_window) != agent_config.context_window:
+            typer.secho(
+                f"Warning: Overriding existing context window {agent_config.context_window} with {context_window}", fg=typer.colors.YELLOW
+            )
+            agent_config.context_window = context_window
+        if model_wrapper and model_wrapper != agent_config.model_wrapper:
+            typer.secho(
+                f"Warning: Overriding existing model wrapper {agent_config.model_wrapper} with {model_wrapper}", fg=typer.colors.YELLOW
+            )
+            agent_config.model_wrapper = model_wrapper
+        if model_endpoint and model_endpoint != agent_config.model_endpoint:
+            typer.secho(
+                f"Warning: Overriding existing model endpoint {agent_config.model_endpoint} with {model_endpoint}", fg=typer.colors.YELLOW
+            )
+            agent_config.model_endpoint = model_endpoint
+        if model_endpoint_type and model_endpoint_type != agent_config.model_endpoint_type:
+            typer.secho(
+                f"Warning: Overriding existing model endpoint type {agent_config.model_endpoint_type} with {model_endpoint_type}",
+                fg=typer.colors.YELLOW,
+            )
+            agent_config.model_endpoint_type = model_endpoint_type
+
+        # Update the agent config with any overrides
         agent_config.save()
 
         # load existing agent
