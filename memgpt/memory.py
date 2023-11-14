@@ -142,6 +142,7 @@ def summarize_messages(
     response = create(
         model=model,
         messages=message_sequence,
+        context_window=context_window,
     )
 
     printd(f"summarize_messages gpt reply: {response.choices[0]}")

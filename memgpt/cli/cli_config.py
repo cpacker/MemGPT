@@ -23,7 +23,7 @@ app = typer.Typer()
 def configure():
     """Updates default MemGPT configurations"""
 
-    from memgpt.presets import DEFAULT_PRESET, preset_options
+    from memgpt.presets.presets import DEFAULT_PRESET, preset_options
 
     MemGPTConfig.create_config_dir()
 

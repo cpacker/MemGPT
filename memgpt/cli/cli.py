@@ -10,11 +10,11 @@ import openai
 from llama_index import set_global_service_context
 from llama_index import VectorStoreIndex, SimpleDirectoryReader, ServiceContext
 
-import memgpt.interface  # for printing to terminal
+from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.cli.cli_config import configure
 import memgpt.agent as agent
 import memgpt.system as system
-import memgpt.presets as presets
+import memgpt.presets.presets as presets
 import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
@@ -128,7 +128,7 @@ def run(
         agent_config.save()
 
         # load existing agent
-        memgpt_agent = Agent.load_agent(memgpt.interface, agent_config)
+        memgpt_agent = Agent.load_agent(interface, agent_config)
     else:  # create new agent
         # create new agent config: override defaults with args if provided
         typer.secho("Creating new agent...", fg=typer.colors.GREEN)
@@ -158,7 +158,7 @@ def run(
             agent_config.model,
             utils.get_persona_text(agent_config.persona),
             utils.get_human_text(agent_config.human),
-            memgpt.interface,
+            interface,
             persistence_manager,
         )
 
@@ -169,16 +169,6 @@ def run(
     # TODO: cleanup this code
     if config.model_endpoint == "azure":
         configure_azure_support()
-
-    # TODO: remove once model calling logic is cleaner
-    if memgpt_agent.model != "local":
-        assert (
-            os.getenv("OPENAI_API_BASE") is None and os.getenv("BACKEND_TYPE") is None
-        ), f"Please make sure your enviornment variables OPENAI_API_BASE and BACKEND_TYPE are unset"
-    else:
-        assert os.getenv("OPENAI_API_BASE") and os.getenv(
-            "BACKEND_TYPE"
-        ), f"Please make sure your enviornment variables OPENAI_API_BASE and BACKEND_TYPE are set to run a model with a local endpoint"
 
     run_agent_loop(memgpt_agent, first, no_verify, config)  # TODO: add back no_verify
 
@@ -203,7 +193,7 @@ def attach(
     generator = source_storage.get_all_paginated(page_size=page_size)  # yields List[Passage]
     for i in tqdm(range(0, size, page_size)):
         passages = next(generator)
-        dest_storage.insert_many(passages, show_progress=False)
+        dest_storage.insert_many(passages)
 
     # save destination storage
     dest_storage.save()
