@@ -9,6 +9,7 @@ from memgpt.config import AgentConfig
 from .system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from .memory import CoreMemory as Memory, summarize_messages
 from .openai_tools import completions_with_backoff as create
+from memgpt.openai_tools import chat_completion_with_backoff
 from .utils import get_local_time, parse_json, united_diff, printd, count_tokens, get_schema_diff
 from .constants import (
     FIRST_MESSAGE_ATTEMPTS,
@@ -73,7 +74,7 @@ def initialize_message_sequence(
     first_user_message = get_login_event()  # event letting MemGPT know the user just logged in
 
     if include_initial_boot_message:
-        if "gpt-3.5" in model:
+        if model is not None and "gpt-3.5" in model:
             initial_boot_messages = get_initial_boot_messages("startup_with_send_message_gpt35")
         else:
             initial_boot_messages = get_initial_boot_messages("startup_with_send_message")
@@ -94,37 +95,6 @@ def initialize_message_sequence(
         ]
 
     return messages
-
-
-def get_ai_reply(
-    model,
-    message_sequence,
-    functions,
-    function_call="auto",
-    context_window=None,
-):
-    try:
-        response = create(
-            model=model,
-            context_window=context_window,
-            messages=message_sequence,
-            functions=functions,
-            function_call=function_call,
-        )
-
-        # special case for 'length'
-        if response.choices[0].finish_reason == "length":
-            raise Exception("Finish reason was length (maximum context length)")
-
-        # catches for soft errors
-        if response.choices[0].finish_reason not in ["stop", "function_call"]:
-            raise Exception(f"API call finish with bad finish reason: {response}")
-
-        # unpack with response.choices[0].message.content
-        return response
-
-    except Exception as e:
-        raise e
 
 
 class Agent(object):
@@ -310,7 +280,7 @@ class Agent(object):
         json_files = glob.glob(os.path.join(directory, "*.json"))  # This will list all .json files in the current directory.
         if not json_files:
             print(f"/load error: no .json checkpoint files found")
-            raise ValueError(f"Cannot load {agent_name}: does not exist in {directory}")
+            raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {directory}")
 
         # Sort files based on modified timestamp, with the latest file being the first.
         filename = max(json_files, key=os.path.getmtime)
@@ -360,7 +330,7 @@ class Agent(object):
 
                 # NOTE to handle old configs, instead of erroring here let's just warn
                 # raise ValueError(error_message)
-                print(error_message)
+                printd(error_message)
             linked_function_set[f_name] = linked_function
 
         messages = state["messages"]
@@ -602,8 +572,7 @@ class Agent(object):
                 printd(f"This is the first message. Running extra verifier on AI response.")
                 counter = 0
                 while True:
-                    response = get_ai_reply(
-                        model=self.model,
+                    response = self.get_ai_reply(
                         message_sequence=input_message_sequence,
                         functions=self.functions,
                         context_window=None if self.config.context_window is None else int(self.config.context_window),
@@ -616,8 +585,7 @@ class Agent(object):
                         raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
 
             else:
-                response = get_ai_reply(
-                    model=self.model,
+                response = self.get_ai_reply(
                     message_sequence=input_message_sequence,
                     functions=self.functions,
                     context_window=None if self.config.context_window is None else int(self.config.context_window),
@@ -785,3 +753,55 @@ class Agent(object):
         # Check if it's been more than pause_heartbeats_minutes since pause_heartbeats_start
         elapsed_time = datetime.datetime.now() - self.pause_heartbeats_start
         return elapsed_time.total_seconds() < self.pause_heartbeats_minutes * 60
+
+    def get_ai_reply(
+        self,
+        message_sequence,
+        function_call="auto",
+    ):
+        """Get response from LLM API"""
+
+        # TODO: Legacy code - delete
+        if self.config is None:
+            try:
+                response = create(
+                    model=self.model,
+                    context_window=self.context_window,
+                    messages=message_sequence,
+                    functions=self.functions,
+                    function_call=function_call,
+                )
+
+                # special case for 'length'
+                if response.choices[0].finish_reason == "length":
+                    raise Exception("Finish reason was length (maximum context length)")
+
+                # catches for soft errors
+                if response.choices[0].finish_reason not in ["stop", "function_call"]:
+                    raise Exception(f"API call finish with bad finish reason: {response}")
+
+                # unpack with response.choices[0].message.content
+                return response
+            except Exception as e:
+                raise e
+
+        try:
+            response = chat_completion_with_backoff(
+                agent_config=self.config,
+                model=self.model,  # TODO: remove (is redundant)
+                messages=message_sequence,
+                functions=self.functions,
+                function_call=function_call,
+            )
+            # special case for 'length'
+            if response.choices[0].finish_reason == "length":
+                raise Exception("Finish reason was length (maximum context length)")
+
+            # catches for soft errors
+            if response.choices[0].finish_reason not in ["stop", "function_call"]:
+                raise Exception(f"API call finish with bad finish reason: {response}")
+
+            # unpack with response.choices[0].message.content
+            return response
+        except Exception as e:
+            raise e

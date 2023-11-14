@@ -1,4 +1,5 @@
 import typer
+import json
 import sys
 import io
 import logging
@@ -35,16 +36,21 @@ def run(
     persona: str = typer.Option(None, help="Specify persona"),
     agent: str = typer.Option(None, help="Specify agent save file"),
     human: str = typer.Option(None, help="Specify human"),
-    model: str = typer.Option(None, help="Specify the LLM model"),
     preset: str = typer.Option(None, help="Specify preset"),
+    # model flags
+    model: str = typer.Option(None, help="Specify the LLM model"),
+    model_wrapper: str = typer.Option(None, help="Specify the LLM model wrapper"),
+    model_endpoint: str = typer.Option(None, help="Specify the LLM model endpoint"),
+    model_endpoint_type: str = typer.Option(None, help="Specify the LLM model endpoint type"),
+    context_window: int = typer.Option(
+        None, "--context_window", help="The context window of the LLM you are using (e.g. 8k for most Mistral 7B variants)"
+    ),
+    # other
     first: bool = typer.Option(False, "--first", help="Use --first to send the first message in the sequence"),
     strip_ui: bool = typer.Option(False, "--strip_ui", help="Remove all the bells and whistles in CLI output (helpful for testing)"),
     debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
     no_verify: bool = typer.Option(False, "--no_verify", help="Bypass message verification"),
     yes: bool = typer.Option(False, "-y", help="Skip confirmation prompt and use defaults"),
-    context_window: int = typer.Option(
-        None, "--context_window", help="The context window of the LLM you are using (e.g. 8k for most Mistral 7B variants)"
-    ),
 ):
     """Start chatting with an MemGPT agent
 
@@ -99,11 +105,6 @@ def run(
     set_global_service_context(service_context)
     sys.stdout = original_stdout
 
-    # overwrite the context_window if specified
-    if context_window is not None and int(context_window) != int(config.context_window):
-        typer.secho(f"Warning: Overriding existing context window {config.context_window} with {context_window}", fg=typer.colors.YELLOW)
-        config.context_window = str(context_window)
-
     # create agent config
     if agent and AgentConfig.exists(agent):  # use existing agent
         typer.secho(f"Using existing agent {agent}", fg=typer.colors.GREEN)
@@ -121,10 +122,34 @@ def run(
             typer.secho(f"Warning: Overriding existing human {agent_config.human} with {human}", fg=typer.colors.YELLOW)
             agent_config.human = human
             # raise ValueError(f"Cannot override {agent_config.name} existing human {agent_config.human} with {human}")
+
+        # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
         if model and model != agent_config.model:
             typer.secho(f"Warning: Overriding existing model {agent_config.model} with {model}", fg=typer.colors.YELLOW)
             agent_config.model = model
-            # raise ValueError(f"Cannot override {agent_config.name} existing model {agent_config.model} with {model}")
+        if context_window is not None and int(context_window) != agent_config.context_window:
+            typer.secho(
+                f"Warning: Overriding existing context window {agent_config.context_window} with {context_window}", fg=typer.colors.YELLOW
+            )
+            agent_config.context_window = context_window
+        if model_wrapper and model_wrapper != agent_config.model_wrapper:
+            typer.secho(
+                f"Warning: Overriding existing model wrapper {agent_config.model_wrapper} with {model_wrapper}", fg=typer.colors.YELLOW
+            )
+            agent_config.model_wrapper = model_wrapper
+        if model_endpoint and model_endpoint != agent_config.model_endpoint:
+            typer.secho(
+                f"Warning: Overriding existing model endpoint {agent_config.model_endpoint} with {model_endpoint}", fg=typer.colors.YELLOW
+            )
+            agent_config.model_endpoint = model_endpoint
+        if model_endpoint_type and model_endpoint_type != agent_config.model_endpoint_type:
+            typer.secho(
+                f"Warning: Overriding existing model endpoint type {agent_config.model_endpoint_type} with {model_endpoint_type}",
+                fg=typer.colors.YELLOW,
+            )
+            agent_config.model_endpoint_type = model_endpoint_type
+
+        # Update the agent config with any overrides
         agent_config.save()
 
         # load existing agent
@@ -133,16 +158,16 @@ def run(
         # create new agent config: override defaults with args if provided
         typer.secho("Creating new agent...", fg=typer.colors.GREEN)
         agent_config = AgentConfig(
-            name=agent if agent else None,
-            persona=persona if persona else config.default_persona,
-            human=human if human else config.default_human,
-            model=model if model else config.model,
-            context_window=context_window if context_window else config.context_window,
-            preset=preset if preset else config.preset,
+            name=agent,
+            persona=persona,
+            human=human,
+            preset=preset,
+            model=model,
+            model_wrapper=model_wrapper,
+            model_endpoint_type=model_endpoint_type,
+            model_endpoint=model_endpoint,
+            context_window=context_window,
         )
-
-        ## attach data source to agent
-        # agent_config.attach_data_source(data_source)
 
         # TODO: allow configrable state manager (only local is supported right now)
         persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
@@ -161,6 +186,9 @@ def run(
             interface,
             persistence_manager,
         )
+
+    # pretty print agent config
+    printd(json.dumps(vars(agent_config), indent=4, sort_keys=True))
 
     # start event loop
     from memgpt.main import run_agent_loop

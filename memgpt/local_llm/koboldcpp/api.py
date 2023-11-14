@@ -5,14 +5,12 @@ import requests
 from .settings import SIMPLE
 from ..utils import load_grammar_file, count_tokens
 
-HOST = os.getenv("OPENAI_API_BASE")
-HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
 KOBOLDCPP_API_SUFFIX = "/api/v1/generate"
-# DEBUG = False
-DEBUG = True
+DEBUG = False
+# DEBUG = True
 
 
-def get_koboldcpp_completion(prompt, context_window, grammar=None, settings=SIMPLE):
+def get_koboldcpp_completion(endpoint, prompt, context_window, grammar=None, settings=SIMPLE):
     """See https://lite.koboldai.net/koboldcpp_api for API spec"""
     prompt_tokens = count_tokens(prompt)
     if prompt_tokens > context_window:
@@ -27,13 +25,13 @@ def get_koboldcpp_completion(prompt, context_window, grammar=None, settings=SIMP
     if grammar is not None:
         request["grammar"] = load_grammar_file(grammar)
 
-    if not HOST.startswith(("http://", "https://")):
-        raise ValueError(f"Provided OPENAI_API_BASE value ({HOST}) must begin with http:// or https://")
+    if not endpoint.startswith(("http://", "https://")):
+        raise ValueError(f"Provided OPENAI_API_BASE value ({endpoint}) must begin with http:// or https://")
 
     try:
         # NOTE: llama.cpp server returns the following when it's out of context
         # curl: (52) Empty reply from server
-        URI = urljoin(HOST.strip("/") + "/", KOBOLDCPP_API_SUFFIX.strip("/"))
+        URI = urljoin(endpoint.strip("/") + "/", KOBOLDCPP_API_SUFFIX.strip("/"))
         response = requests.post(URI, json=request)
         if response.status_code == 200:
             result = response.json()
