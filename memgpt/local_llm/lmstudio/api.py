@@ -5,14 +5,12 @@ import requests
 from .settings import SIMPLE
 from ..utils import count_tokens
 
-HOST = os.getenv("OPENAI_API_BASE")
-HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
 LMSTUDIO_API_CHAT_SUFFIX = "/v1/chat/completions"
 LMSTUDIO_API_COMPLETIONS_SUFFIX = "/v1/completions"
 DEBUG = False
 
 
-def get_lmstudio_completion(prompt, context_window, settings=SIMPLE, api="chat"):
+def get_lmstudio_completion(endpoint, prompt, context_window, settings=SIMPLE, api="chat"):
     """Based on the example for using LM Studio as a backend from https://github.com/lmstudio-ai/examples/tree/main/Hello%2C%20world%20-%20OpenAI%20python%20client"""
     prompt_tokens = count_tokens(prompt)
     if prompt_tokens > context_window:
@@ -25,19 +23,19 @@ def get_lmstudio_completion(prompt, context_window, settings=SIMPLE, api="chat")
     if api == "chat":
         # Uses the ChatCompletions API style
         # Seems to work better, probably because it's applying some extra settings under-the-hood?
-        URI = urljoin(HOST.strip("/") + "/", LMSTUDIO_API_CHAT_SUFFIX.strip("/"))
+        URI = urljoin(endpoint.strip("/") + "/", LMSTUDIO_API_CHAT_SUFFIX.strip("/"))
         message_structure = [{"role": "user", "content": prompt}]
         request["messages"] = message_structure
     elif api == "completions":
         # Uses basic string completions (string in, string out)
         # Does not work as well as ChatCompletions for some reason
-        URI = urljoin(HOST.strip("/") + "/", LMSTUDIO_API_COMPLETIONS_SUFFIX.strip("/"))
+        URI = urljoin(endpoint.strip("/") + "/", LMSTUDIO_API_COMPLETIONS_SUFFIX.strip("/"))
         request["prompt"] = prompt
     else:
         raise ValueError(api)
 
-    if not HOST.startswith(("http://", "https://")):
-        raise ValueError(f"Provided OPENAI_API_BASE value ({HOST}) must begin with http:// or https://")
+    if not endpoint.startswith(("http://", "https://")):
+        raise ValueError(f"Provided OPENAI_API_BASE value ({endpoint}) must begin with http:// or https://")
 
     try:
         response = requests.post(URI, json=request)
