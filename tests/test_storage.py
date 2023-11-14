@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+import pytest
 
 subprocess.check_call(
     [sys.executable, "-m", "pip", "install", "pgvector", "psycopg", "psycopg2-binary"]
@@ -15,6 +16,9 @@ from memgpt.config import MemGPTConfig, AgentConfig
 import argparse
 
 
+@pytest.mark.skipif(
+    os.getenv("PGVECTOR_TEST_DB_URL") is None or os.getenv("OPENAI_API_KEY") is None, reason="Missing PG URI and/or OpenAI API key"
+)
 def test_postgres_openai():
     assert os.getenv("PGVECTOR_TEST_DB_URL") is not None
     if os.getenv("OPENAI_API_KEY") is None:
@@ -54,6 +58,7 @@ def test_postgres_openai():
     # print("...finished")
 
 
+@pytest.mark.skipif(os.getenv("PGVECTOR_TEST_DB_URL") is None, reason="Missing PG URI")
 def test_postgres_local():
     assert os.getenv("PGVECTOR_TEST_DB_URL") is not None
     # os.environ["MEMGPT_CONFIG_PATH"] = "./config"
