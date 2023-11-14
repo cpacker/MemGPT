@@ -17,7 +17,7 @@ from colorama import Fore, Style
 from typing import List, Type
 
 import memgpt.utils as utils
-import memgpt.interface as interface
+from memgpt.interface import CLIInterface as interface
 from memgpt.personas.personas import get_persona_text
 from memgpt.humans.humans import get_human_text
 from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS
@@ -351,7 +351,11 @@ class AgentConfig:
         with open(agent_config_path, "r") as f:
             agent_config = json.load(f)
         # allow compatibility accross versions
-        class_args = inspect.getargspec(cls.__init__).args
+        try:
+            class_args = inspect.getargspec(cls.__init__).args
+        except AttributeError:
+            # https://github.com/pytorch/pytorch/issues/15344
+            class_args = inspect.getfullargspec(cls.__init__).args
         agent_fields = list(agent_config.keys())
         for key in agent_fields:
             if key not in class_args:
