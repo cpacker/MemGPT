@@ -14,8 +14,8 @@ from .utils import DotDict
 from ..prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
 from ..errors import LocalLLMConnectionError, LocalLLMError
 
-HOST = os.getenv("OPENAI_API_BASE")
-HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
+endpoint = os.getenv("OPENAI_API_BASE")
+endpoint_type = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
 DEBUG = False
 # DEBUG = True
 DEFAULT_WRAPPER = airoboros.Airoboros21InnerMonologueWrapper
@@ -23,20 +23,21 @@ has_shown_warning = False
 
 
 def get_chat_completion(
-    model,  # no model, since the model is fixed to whatever you set in your own backend
+    model,  # no model required (except for Ollama), since the model is fixed to whatever you set in your own backend
     messages,
     functions=None,
     function_call="auto",
     context_window=None,
+    # required
+    wrapper=None,
+    endpoint=None,
+    endpoint_type=None,
 ):
     assert context_window is not None, "Local LLM calls need the context length to be explicitly set"
+    assert endpoint is not None, "Local LLM calls need the endpoint (eg http://localendpoint:1234) to be explicitly set"
+    assert endpoint_type is not None, "Local LLM calls need the endpoint type (eg webui) to be explicitly set"
     global has_shown_warning
     grammar_name = None
-
-    if HOST is None:
-        raise ValueError(f"The OPENAI_API_BASE environment variable is not defined. Please set it in your environment.")
-    if HOST_TYPE is None:
-        raise ValueError(f"The BACKEND_TYPE environment variable is not defined. Please set it in your environment.")
 
     if function_call != "auto":
         raise ValueError(f"function_call == {function_call} not supported (auto only)")
@@ -44,21 +45,21 @@ def get_chat_completion(
     if messages[0]["role"] == "system" and messages[0]["content"].strip() == SUMMARIZE_SYSTEM_MESSAGE.strip():
         # Special case for if the call we're making is coming from the summarizer
         llm_wrapper = simple_summary_wrapper.SimpleSummaryWrapper()
-    elif model == "airoboros-l2-70b-2.1":
+    elif wrapper == "airoboros-l2-70b-2.1":
         llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper()
-    elif model == "airoboros-l2-70b-2.1-grammar":
+    elif wrapper == "airoboros-l2-70b-2.1-grammar":
         llm_wrapper = airoboros.Airoboros21InnerMonologueWrapper(include_opening_brace_in_prefix=False)
         # grammar_name = "json"
         grammar_name = "json_func_calls_with_inner_thoughts"
-    elif model == "dolphin-2.1-mistral-7b":
+    elif wrapper == "dolphin-2.1-mistral-7b":
         llm_wrapper = dolphin.Dolphin21MistralWrapper()
-    elif model == "dolphin-2.1-mistral-7b-grammar":
+    elif wrapper == "dolphin-2.1-mistral-7b-grammar":
         llm_wrapper = dolphin.Dolphin21MistralWrapper(include_opening_brace_in_prefix=False)
         # grammar_name = "json"
         grammar_name = "json_func_calls_with_inner_thoughts"
-    elif model == "zephyr-7B-alpha" or model == "zephyr-7B-beta":
+    elif wrapper == "zephyr-7B-alpha" or wrapper == "zephyr-7B-beta":
         llm_wrapper = zephyr.ZephyrMistralInnerMonologueWrapper()
-    elif model == "zephyr-7B-alpha-grammar" or model == "zephyr-7B-beta-grammar":
+    elif wrapper == "zephyr-7B-alpha-grammar" or wrapper == "zephyr-7B-beta-grammar":
         llm_wrapper = zephyr.ZephyrMistralInnerMonologueWrapper(include_opening_brace_in_prefix=False)
         # grammar_name = "json"
         grammar_name = "json_func_calls_with_inner_thoughts"
@@ -69,7 +70,7 @@ def get_chat_completion(
                 f"Warning: no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --model)"
             )
             has_shown_warning = True
-        if HOST_TYPE in ["koboldcpp", "llamacpp", "webui"]:
+        if endpoint_type in ["koboldcpp", "llamacpp", "webui"]:
             # make the default to use grammar
             llm_wrapper = DEFAULT_WRAPPER(include_opening_brace_in_prefix=False)
             # grammar_name = "json"
@@ -77,7 +78,7 @@ def get_chat_completion(
         else:
             llm_wrapper = DEFAULT_WRAPPER()
 
-    if grammar_name is not None and HOST_TYPE not in ["koboldcpp", "llamacpp", "webui"]:
+    if grammar_name is not None and endpoint_type not in ["koboldcpp", "llamacpp", "webui"]:
         print(f"Warning: grammars are currently only supported when using llama.cpp as the MemGPT local LLM backend")
 
     # First step: turn the message sequence into a prompt that the model expects
@@ -91,25 +92,25 @@ def get_chat_completion(
         )
 
     try:
-        if HOST_TYPE == "webui":
-            result = get_webui_completion(prompt, context_window, grammar=grammar_name)
-        elif HOST_TYPE == "lmstudio":
-            result = get_lmstudio_completion(prompt, context_window)
-        elif HOST_TYPE == "llamacpp":
-            result = get_llamacpp_completion(prompt, context_window, grammar=grammar_name)
-        elif HOST_TYPE == "koboldcpp":
-            result = get_koboldcpp_completion(prompt, context_window, grammar=grammar_name)
-        elif HOST_TYPE == "ollama":
-            result = get_ollama_completion(prompt, context_window)
+        if endpoint_type == "webui":
+            result = get_webui_completion(endpoint, prompt, context_window, grammar=grammar_name)
+        elif endpoint_type == "lmstudio":
+            result = get_lmstudio_completion(endpoint, prompt, context_window)
+        elif endpoint_type == "llamacpp":
+            result = get_llamacpp_completion(endpoint, prompt, context_window, grammar=grammar_name)
+        elif endpoint_type == "koboldcpp":
+            result = get_koboldcpp_completion(endpoint, prompt, context_window, grammar=grammar_name)
+        elif endpoint_type == "ollama":
+            result = get_ollama_completion(endpoint, model, prompt, context_window)
         else:
             raise LocalLLMError(
                 f"BACKEND_TYPE is not set, please set variable depending on your backend (webui, lmstudio, llamacpp, koboldcpp)"
             )
     except requests.exceptions.ConnectionError as e:
-        raise LocalLLMConnectionError(f"Unable to connect to host {HOST}")
+        raise LocalLLMConnectionError(f"Unable to connect to endpoint {endpoint}")
 
     if result is None or result == "":
-        raise LocalLLMError(f"Got back an empty response string from {HOST}")
+        raise LocalLLMError(f"Got back an empty response string from {endpoint}")
     if DEBUG:
         print(f"Raw LLM output:\n{result}")
 
@@ -123,7 +124,7 @@ def get_chat_completion(
     # unpack with response.choices[0].message.content
     response = DotDict(
         {
-            "model": None,
+            "model": model,
             "choices": [
                 DotDict(
                     {

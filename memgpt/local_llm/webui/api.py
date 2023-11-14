@@ -5,13 +5,11 @@ import requests
 from .settings import SIMPLE
 from ..utils import load_grammar_file, count_tokens
 
-HOST = os.getenv("OPENAI_API_BASE")
-HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
 WEBUI_API_SUFFIX = "/api/v1/generate"
 DEBUG = False
 
 
-def get_webui_completion(prompt, context_window, settings=SIMPLE, grammar=None):
+def get_webui_completion(endpoint, prompt, context_window, settings=SIMPLE, grammar=None):
     """See https://github.com/oobabooga/text-generation-webui for instructions on how to run the LLM web server"""
     prompt_tokens = count_tokens(prompt)
     if prompt_tokens > context_window:
@@ -26,11 +24,11 @@ def get_webui_completion(prompt, context_window, settings=SIMPLE, grammar=None):
     if grammar is not None:
         request["grammar_string"] = load_grammar_file(grammar)
 
-    if not HOST.startswith(("http://", "https://")):
-        raise ValueError(f"Provided OPENAI_API_BASE value ({HOST}) must begin with http:// or https://")
+    if not endpoint.startswith(("http://", "https://")):
+        raise ValueError(f"Provided OPENAI_API_BASE value ({endpoint}) must begin with http:// or https://")
 
     try:
-        URI = urljoin(HOST.strip("/") + "/", WEBUI_API_SUFFIX.strip("/"))
+        URI = urljoin(endpoint.strip("/") + "/", WEBUI_API_SUFFIX.strip("/"))
         response = requests.post(URI, json=request)
         if response.status_code == 200:
             result = response.json()
