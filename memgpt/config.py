@@ -17,7 +17,7 @@ from colorama import Fore, Style
 from typing import List, Type
 
 import memgpt.utils as utils
-import memgpt.interface as interface
+from memgpt.interface import CLIInterface as interface
 from memgpt.personas.personas import get_persona_text
 from memgpt.humans.humans import get_human_text
 from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS
@@ -109,7 +109,9 @@ class MemGPTConfig:
             # read config values
             model = config.get("defaults", "model")
             context_window = (
-                config.get("defaults", "context_window") if config.has_option("defaults", "context_window") else LLM_MAX_TOKENS["DEFAULT"]
+                int(config.get("defaults", "context_window"))
+                if config.has_option("defaults", "context_window")
+                else LLM_MAX_TOKENS["DEFAULT"]
             )
             preset = config.get("defaults", "preset")
             model_endpoint = config.get("defaults", "model_endpoint")
