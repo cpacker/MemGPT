@@ -241,7 +241,7 @@ def main(
         memgpt_persona = persona
         if memgpt_persona is None:
             memgpt_persona = (
-                personas.GPT35_DEFAULT if "gpt-3.5" in model else personas.DEFAULT,
+                personas.GPT35_DEFAULT if (model is not None and "gpt-3.5" in model) else personas.DEFAULT,
                 None,  # represents the personas dir in pymemgpt package
             )
         else:
