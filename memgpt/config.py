@@ -16,7 +16,6 @@ from colorama import Fore, Style
 
 from typing import List, Type
 
-import memgpt
 import memgpt.utils as utils
 import memgpt.interface as interface
 from memgpt.personas.personas import get_persona_text
@@ -151,7 +150,7 @@ class MemGPTConfig:
                 "azure_embedding_deployment": get_field(config, "azure", "embedding_deployment"),
                 "embedding_endpoint": get_field(config, "embedding", "embedding_endpoint"),
                 "embedding_endpoint_type": get_field(config, "embedding", "embedding_endpoint_type"),
-                "embedding_dim": get_field(config, "embedding", "dim"),
+                "embedding_dim": get_field(config, "embedding", "embedding_dim"),
                 "embedding_chunk_size": get_field(config, "embedding", "chunk_size"),
                 "archival_storage_type": get_field(config, "archival_storage", "type"),
                 "archival_storage_path": get_field(config, "archival_storage", "path"),
@@ -195,10 +194,10 @@ class MemGPTConfig:
         set_field(config, "azure", "embedding_deployment", self.azure_embedding_deployment)
 
         # embeddings
-        set_field(config, "embedding", "endpoint_type", self.embedding_endpoint_type)
-        set_field(config, "embedding", "endpoint", self.embedding_endpoint)
-        set_field(config, "embedding", "dim", str(self.embedding_dim))
-        set_field(config, "embedding", "chunk_size", str(self.embedding_chunk_size))
+        set_field(config, "embedding", "embedding_endpoint_type", self.embedding_endpoint_type)
+        set_field(config, "embedding", "embedding_endpoint", self.embedding_endpoint)
+        set_field(config, "embedding", "embedding_dim", str(self.embedding_dim))
+        set_field(config, "embedding", "embedding_chunk_size", str(self.embedding_chunk_size))
 
         # archival storage
         set_field(config, "archival_storage", "type", self.archival_storage_type)
@@ -290,6 +289,8 @@ class AgentConfig:
         self.data_sources = data_sources if data_sources is not None else []
         self.create_time = create_time if create_time is not None else utils.get_local_time()
         if memgpt_version is None:
+            import memgpt
+
             self.memgpt_version = memgpt.__version__
         else:
             self.memgpt_version = memgpt_version
