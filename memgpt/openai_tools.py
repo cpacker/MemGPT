@@ -6,7 +6,6 @@ import time
 from typing import Callable, TypeVar
 
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
-from memgpt.config import AgentConfig, MemGPTConfig
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
@@ -82,8 +81,9 @@ def completions_with_backoff(**kwargs):
 
 
 @retry_with_exponential_backoff
-def chat_completion_with_backoff(agent_config: AgentConfig, **kwargs):
+def chat_completion_with_backoff(agent_config, **kwargs):
     from memgpt.utils import printd
+    from memgpt.config import AgentConfig, MemGPTConfig
 
     printd(f"Using model {agent_config.model_endpoint_type}, endpoint: {agent_config.model_endpoint}")
     if agent_config.model_endpoint_type == "openai":
