@@ -66,7 +66,7 @@ def test_postgres_local():
     config = MemGPTConfig(
         archival_storage_type="postgres",
         archival_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
-        embedding_model="local",
+        embedding_endpoint_type="local",
         embedding_dim=384,  # use HF model
     )
     print(config.config_path)
