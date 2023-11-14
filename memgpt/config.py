@@ -344,7 +344,11 @@ class AgentConfig:
             agent_config = json.load(f)
 
         # allow compatibility accross versions
-        class_args = inspect.getargspec(cls.__init__).args
+        try:
+            class_args = inspect.getargspec(cls.__init__).args
+        except AttributeError:
+            # https://github.com/pytorch/pytorch/issues/15344
+            class_args = inspect.getfullargspec(cls.__init__).args
         agent_fields = list(agent_config.keys())
         for key in agent_fields:
             if key not in class_args:
