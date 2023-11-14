@@ -87,7 +87,7 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str):
     # set: model, model_wrapper
     model, model_wrapper = None, None
     if model_endpoint_type == "openai" or model_endpoint_type == "azure":
-        model_options = ["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo-16k"]
+        model_options = ["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
         # TODO: select
         valid_model = config.model in model_options
         model = questionary.select(
