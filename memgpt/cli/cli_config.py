@@ -58,6 +58,7 @@ def configure_llm_endpoint(config: MemGPTConfig):
         _, model_endpoint, _, _, _ = get_azure_credentials()
     else:  # local models
         backend_options = ["webui", "llamacpp", "koboldcpp", "ollama", "lmstudio", "openai"]
+        default_model_endpoint_type = None
         if config.model_endpoint_type in backend_options:
             # set from previous config
             default_model_endpoint_type = config.model_endpoint_type
@@ -67,7 +68,7 @@ def configure_llm_endpoint(config: MemGPTConfig):
         model_endpoint_type = questionary.select(
             "Select LLM backend (select 'openai' if you have an OpenAI compatible proxy):",
             backend_options,
-            default=config.model_endpoint_type if Config.is_valid_config_file(config) else backend_options[0],
+            default=default_model_endpoint_type,
         ).ask()
 
         # set default endpoint
