@@ -16,12 +16,11 @@ from memgpt.config import MemGPTConfig, AgentConfig
 import argparse
 
 
-@pytest.mark.skipif(
-    os.getenv("PGVECTOR_TEST_DB_URL") is None or os.getenv("OPENAI_API_KEY") is None, reason="Missing PG URI and/or OpenAI API key"
-)
+@pytest.mark.skipif(not os.getenv("PGVECTOR_TEST_DB_URL") or not os.getenv("OPENAI_API_KEY"), reason="Missing PG URI and/or OpenAI API key")
 def test_postgres_openai():
-    assert os.getenv("PGVECTOR_TEST_DB_URL") is not None
-    if os.getenv("OPENAI_API_KEY") is None:
+    if not os.getenv("PGVECTOR_TEST_DB_URL"):
+        return  # soft pass
+    if not os.getenv("OPENAI_API_KEY"):
         return  # soft pass
 
     # os.environ["MEMGPT_CONFIG_PATH"] = "./config"
@@ -58,9 +57,10 @@ def test_postgres_openai():
     # print("...finished")
 
 
-@pytest.mark.skipif(os.getenv("PGVECTOR_TEST_DB_URL") is None, reason="Missing PG URI")
+@pytest.mark.skipif(not os.getenv("PGVECTOR_TEST_DB_URL"), reason="Missing PG URI")
 def test_postgres_local():
-    assert os.getenv("PGVECTOR_TEST_DB_URL") is not None
+    if not os.getenv("PGVECTOR_TEST_DB_URL"):
+        return
     # os.environ["MEMGPT_CONFIG_PATH"] = "./config"
 
     config = MemGPTConfig(
