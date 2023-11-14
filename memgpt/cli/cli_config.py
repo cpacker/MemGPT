@@ -1,3 +1,4 @@
+import builtins
 import questionary
 import openai
 from prettytable import PrettyTable
@@ -15,7 +16,8 @@ from memgpt.config import MemGPTConfig, AgentConfig, Config
 from memgpt.constants import MEMGPT_DIR
 from memgpt.connectors.storage import StorageConnector
 from memgpt.constants import LLM_MAX_TOKENS
-from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL
+from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
+from memgpt.local_llm.utils import get_available_wrappers
 
 app = typer.Typer()
 
@@ -104,8 +106,11 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str):
             model = None if len(model) == 0 else model
 
         # model wrapper
-        model_wrapper = questionary.text(
-            "Enter default model wrapper:", default=config.model_wrapper if config.model_wrapper else "airoboros-l2-70b-2.1"
+        available_model_wrappers = builtins.list(get_available_wrappers().keys())
+        model_wrapper = questionary.select(
+            f"Select default model wrapper (recommended: {DEFAULT_WRAPPER_NAME}):",
+            choices=available_model_wrappers,
+            default=DEFAULT_WRAPPER_NAME,
         ).ask()
 
     # set: context_window
