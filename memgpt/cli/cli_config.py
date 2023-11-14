@@ -15,6 +15,7 @@ from memgpt.config import MemGPTConfig, AgentConfig, Config
 from memgpt.constants import MEMGPT_DIR
 from memgpt.connectors.storage import StorageConnector
 from memgpt.constants import LLM_MAX_TOKENS
+from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL
 
 app = typer.Typer()
 
@@ -70,7 +71,11 @@ def configure_llm_endpoint(config: MemGPTConfig):
         ).ask()
 
         # set default endpoint
+        # if OPENAI_API_BASE is set, assume that this is the IP+port the user wanted to use
         default_model_endpoint = os.getenv("OPENAI_API_BASE")
+        # if OPENAI_API_BASE is not set, try to pull a default IP+port format from a hardcoded set
+        if default_model_endpoint is None and model_endpoint_type in DEFAULT_ENDPOINTS:
+            default_model_endpoint = DEFAULT_ENDPOINTS[model_endpoint_type]
         model_endpoint = questionary.text("Enter default endpoint:", default=default_model_endpoint).ask()
         assert model_endpoint, f"Enviornment variable OPENAI_API_BASE must be set."
 
@@ -88,15 +93,19 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str):
             "Select default model (recommended: gpt-4):", choices=model_options, default=config.model if valid_model else model_options[0]
         ).ask()
     else:  # local models
+        # ollama also needs model type
+        if model_endpoint_type == "ollama":
+            default_model = config.model if config.model and config.model_endpoint_type == "ollama" else DEFAULT_OLLAMA_MODEL
+            model = questionary.text(
+                "Enter default model name (required for Ollama, see: https://memgpt.readthedocs.io/en/latest/ollama):",
+                default=default_model,
+            ).ask()
+            model = None if len(model) == 0 else model
+
+        # model wrapper
         model_wrapper = questionary.text(
             "Enter default model wrapper:", default=config.model_wrapper if config.model_wrapper else "airoboros-l2-70b-2.1"
         ).ask()
-
-        # ollama also needs model type
-        if model_endpoint_type == "ollama":
-            default_model = config.model if config.model and config.model_endpoint_type == "ollama" else ""
-            model = questionary.text("Enter default model type (e.g. airboros):", default=default_model).ask()
-            model = None if len(model) == 0 else model
 
     # set: context_window
     if str(model) not in LLM_MAX_TOKENS:

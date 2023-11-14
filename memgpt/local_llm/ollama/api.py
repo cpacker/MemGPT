@@ -6,6 +6,7 @@ from .settings import SIMPLE
 from ..utils import count_tokens
 from ...errors import LocalLLMError
 
+OLLAMA_API_SUFFIX = "/api/generate"
 DEBUG = False
 
 
