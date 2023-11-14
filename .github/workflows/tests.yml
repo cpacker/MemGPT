@@ -2,6 +2,7 @@ name: MemGPT tests
 
 env:
   PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+  LANCEDB_TEST_URL: ${{ secrets.LANCEDB_TEST_URL }}
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
 on:
@@ -17,6 +18,7 @@ jobs:
 
     env:
       PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+      LANCEDB_TEST_URL: ${{ secrets.LANCEDB_TEST_URL }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     timeout-minutes: 5
@@ -40,6 +42,7 @@ jobs:
     - name: Install dependencies using Poetry
       env:
         PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+        LANCEDB_TEST_URL: ${{ secrets.LANCEDB_TEST_URL }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         poetry install -E dev -E postgres -E local -E legacy
@@ -47,6 +50,7 @@ jobs:
     - name: Set Poetry config
       env:
         PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+        LANCEDB_TEST_URL: ${{ secrets.LANCEDB_TEST_URL }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         poetry config virtualenvs.in-project false
@@ -55,6 +59,8 @@ jobs:
     - name: Run tests with pytest
       env:
         PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+        LANCEDB_TEST_URL: ${{ secrets.LANCEDB_TEST_URL }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         PGVECTOR_TEST_DB_URL=${{ secrets.PGVECTOR_TEST_DB_URL }} OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} poetry run pytest -s -vv tests
+        LANCEDB_TEST_URL=${{ secrets.LANCEDB_TEST_URL }} OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} poetry run pytest -s -vv tests
