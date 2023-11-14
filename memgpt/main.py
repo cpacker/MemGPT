@@ -14,11 +14,10 @@ import typer
 
 from rich.console import Console
 from prettytable import PrettyTable
-from .interface import print_messages
 
 console = Console()
 
-import memgpt.interface  # for printing to terminal
+from memgpt.interface import CLIInterface as interface  # for printing to terminal
 import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.utils as utils
@@ -208,7 +207,7 @@ def main(
     use_azure_openai,
     strip_ui,
 ):
-    memgpt.interface.STRIP_UI = strip_ui
+    interface.STRIP_UI = strip_ui
     utils.DEBUG = debug
     logging.getLogger().setLevel(logging.CRITICAL)
     if debug:
@@ -235,7 +234,7 @@ def main(
             archival_storage_sqldb,
         )
     ):
-        memgpt.interface.important_message("⚙️ Using legacy command line arguments.")
+        interface.important_message("⚙️ Using legacy command line arguments.")
         model = model
         if model is None:
             model = constants.DEFAULT_MEMGPT_MODEL
@@ -314,9 +313,9 @@ def main(
     else:
         cfg = Config.config_init()
 
-    memgpt.interface.important_message("Running... [exit by typing '/exit', list available commands with '/help']")
+    interface.important_message("Running... [exit by typing '/exit', list available commands with '/help']")
     if cfg.model != constants.DEFAULT_MEMGPT_MODEL:
-        memgpt.interface.warning_message(
+        interface.warning_message(
             f"⛔️ Warning - you are running MemGPT with {cfg.model}, which is not officially supported (yet). Expect bugs!"
         )
 
@@ -329,7 +328,7 @@ def main(
         persistence_manager = InMemoryStateManager()
 
     if archival_storage_files_compute_embeddings:
-        memgpt.interface.important_message(
+        interface.important_message(
             f"(legacy) To avoid computing embeddings next time, replace --archival_storage_files_compute_embeddings={archival_storage_files_compute_embeddings} with\n\t --archival_storage_faiss_path={cfg.archival_storage_index} (if your files haven't changed)."
         )
 
@@ -343,10 +342,11 @@ def main(
         cfg.model,
         personas.get_persona_text(*chosen_persona),
         humans.get_human_text(*chosen_human),
-        memgpt.interface,
+        interface,
         persistence_manager,
     )
-    print_messages = memgpt.interface.print_messages
+
+    print_messages = interface.print_messages
     print_messages(memgpt_agent.messages)
 
     if cfg.load_type == "sql":  # TODO: move this into config.py in a clean manner
@@ -477,13 +477,13 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                     command = user_input.strip().split()
                     amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 0
                     if amount == 0:
-                        memgpt.interface.print_messages(memgpt_agent.messages, dump=True)
+                        interface.print_messages(memgpt_agent.messages, dump=True)
                     else:
-                        memgpt.interface.print_messages(memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
+                        interface.print_messages(memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
                     continue
 
                 elif user_input.lower() == "/dumpraw":
-                    memgpt.interface.print_messages_raw(memgpt_agent.messages)
+                    interface.print_messages_raw(memgpt_agent.messages)
                     continue
 
                 elif user_input.lower() == "/memory":
@@ -549,7 +549,7 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
 
                 # No skip options
                 elif user_input.lower() == "/wipe":
-                    memgpt_agent = agent.Agent(memgpt.interface)
+                    memgpt_agent = agent.Agent(interface)
                     user_message = None
 
                 elif user_input.lower() == "/heartbeat":
