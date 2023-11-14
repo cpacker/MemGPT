@@ -605,7 +605,7 @@ class Agent(object):
                         model=self.model,
                         message_sequence=input_message_sequence,
                         functions=self.functions,
-                        context_window=self.config.context_window,
+                        context_window=int(self.config.context_window),
                     )
                     if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
@@ -619,7 +619,7 @@ class Agent(object):
                     model=self.model,
                     message_sequence=input_message_sequence,
                     functions=self.functions,
-                    context_window=self.config.context_window,
+                    context_window=int(self.config.context_window),
                 )
 
             # Step 2: check if LLM wanted to call a function
@@ -649,16 +649,18 @@ class Agent(object):
             # Check the memory pressure and potentially issue a memory pressure warning
             current_total_tokens = response["usage"]["total_tokens"]
             active_memory_warning = False
-            if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * self.config.context_window:
+            if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window):
                 printd(
-                    f"WARNING: last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * self.config.context_window}"
+                    f"WARNING: last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window)}"
                 )
                 # Only deliver the alert if we haven't already (this period)
                 if not self.agent_alerted_about_memory_pressure:
                     active_memory_warning = True
                     self.agent_alerted_about_memory_pressure = True  # it's up to the outer loop to handle this
             else:
-                printd(f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * self.config.context_window}")
+                printd(
+                    f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window)}"
+                )
 
             self.append_to_messages(all_new_messages)
             return all_new_messages, heartbeat_request, function_failed, active_memory_warning
@@ -730,7 +732,7 @@ class Agent(object):
         printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
 
         summary = summarize_messages(
-            model=self.model, context_window=self.config.context_window, message_sequence_to_summarize=message_sequence_to_summarize
+            model=self.model, context_window=int(self.config.context_window), message_sequence_to_summarize=message_sequence_to_summarize
         )
         printd(f"Got summary: {summary}")
 
