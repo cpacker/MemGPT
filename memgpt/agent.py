@@ -73,7 +73,7 @@ def initialize_message_sequence(
     first_user_message = get_login_event()  # event letting MemGPT know the user just logged in
 
     if include_initial_boot_message:
-        if "gpt-3.5" in model:
+        if model is not None and "gpt-3.5" in model:
             initial_boot_messages = get_initial_boot_messages("startup_with_send_message_gpt35")
         else:
             initial_boot_messages = get_initial_boot_messages("startup_with_send_message")
