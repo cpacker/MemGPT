@@ -67,8 +67,8 @@ class MemGPTConfig:
     preset: str = DEFAULT_PRESET
 
     # model parameters
-    model: str = "gpt-4"  # gpt-4, gpt-3.5-turbo, dolphin
-    model_endpoint_type: str = "openai"  # openai, azure, webui, ollama, lmstudio
+    model: str = None
+    model_endpoint_type: str = None
     model_endpoint: str = None  # localhost:8000
     model_wrapper: str = None
     context_window: int = LLM_MAX_TOKENS[model] if model in LLM_MAX_TOKENS else LLM_MAX_TOKENS["DEFAULT"]
