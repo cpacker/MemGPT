@@ -18,6 +18,7 @@ from .constants import (
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
+    LLM_MAX_TOKENS,
 )
 from .errors import LLMError
 from .functions.functions import load_all_function_sets
@@ -605,7 +606,7 @@ class Agent(object):
                         model=self.model,
                         message_sequence=input_message_sequence,
                         functions=self.functions,
-                        context_window=int(self.config.context_window),
+                        context_window=None if self.config.context_window is None else int(self.config.context_window),
                     )
                     if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
@@ -619,7 +620,7 @@ class Agent(object):
                     model=self.model,
                     message_sequence=input_message_sequence,
                     functions=self.functions,
-                    context_window=int(self.config.context_window),
+                    context_window=None if self.config.context_window is None else int(self.config.context_window),
                 )
 
             # Step 2: check if LLM wanted to call a function
@@ -649,6 +650,16 @@ class Agent(object):
             # Check the memory pressure and potentially issue a memory pressure warning
             current_total_tokens = response["usage"]["total_tokens"]
             active_memory_warning = False
+            # We can't do summarize logic properly if context_window is undefined
+            if self.config.context_window is None:
+                # Fallback if for some reason context_window is missing, just set to the default
+                print(f"WARNING: could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
+                print(f"{self.config}")
+                self.config.context_window = (
+                    str(LLM_MAX_TOKENS[self.model])
+                    if (self.model is not None and self.model in LLM_MAX_TOKENS)
+                    else str(LLM_MAX_TOKENS["DEFAULT"])
+                )
             if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window):
                 printd(
                     f"WARNING: last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window)}"
@@ -731,6 +742,16 @@ class Agent(object):
         message_sequence_to_summarize = self.messages[1:cutoff]  # do NOT get rid of the system message
         printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
 
+        # We can't do summarize logic properly if context_window is undefined
+        if self.config.context_window is None:
+            # Fallback if for some reason context_window is missing, just set to the default
+            print(f"WARNING: could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
+            print(f"{self.config}")
+            self.config.context_window = (
+                str(LLM_MAX_TOKENS[self.model])
+                if (self.model is not None and self.model in LLM_MAX_TOKENS)
+                else str(LLM_MAX_TOKENS["DEFAULT"])
+            )
         summary = summarize_messages(
             model=self.model, context_window=int(self.config.context_window), message_sequence_to_summarize=message_sequence_to_summarize
         )
