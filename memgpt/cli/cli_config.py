@@ -181,7 +181,7 @@ def configure():
     #    default_agent = None
 
     # Configure archival storage backend
-    archival_storage_options = ["local", "postgres"]
+    archival_storage_options = ["local", "lancedb", "postgres"]
     archival_storage_type = questionary.select(
         "Select storage backend for archival data:", archival_storage_options, default=config.archival_storage_type
     ).ask()
@@ -190,6 +190,12 @@ def configure():
         archival_storage_uri = questionary.text(
             "Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}):",
             default=config.archival_storage_uri if config.archival_storage_uri else "",
+        ).ask()
+
+    if archival_storage_type == "lancedb":
+        archival_storage_uri = questionary.text(
+            "Enter lanncedb connection string (e.g. ./.lancedb",
+            default=config.archival_storage_uri if config.archival_storage_uri else "./.lancedb",
         ).ask()
 
     # TODO: allow configuring embedding model
