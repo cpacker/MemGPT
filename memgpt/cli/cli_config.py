@@ -89,6 +89,8 @@ def configure_llm_endpoint(config: MemGPTConfig):
                     if "http://" not in model_endpoint and "https://" not in model_endpoint:
                         typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
                         model_endpoint = None
+        else:
+            model_endpoint = default_model_endpoint
         assert model_endpoint, f"Environment variable OPENAI_API_BASE must be set."
 
     return model_endpoint_type, model_endpoint
