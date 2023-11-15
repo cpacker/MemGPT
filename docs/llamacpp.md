@@ -10,8 +10,16 @@ For example, if we downloaded the model `dolphin-2.2.1-mistral-7b.Q6_K.gguf` and
 ./server -m ~/models/TheBloke/dolphin-2.2.1-mistral-7B-GGUF/dolphin-2.2.1-mistral-7b.Q6_K.gguf -c 8000
 ```
 
-In your terminal where you're running MemGPT, run:
+In your terminal where you're running MemGPT, run `memgpt configure` to set the default backend for MemGPT to point at llama.cpp:
+```
+# if you are running llama.cpp locally, the default IP address + port will be http://localhost:8080
+? Select LLM inference provider: local
+? Select LLM backend (select 'openai' if you have an OpenAI compatible proxy): llamacpp
+? Enter default endpoint: http://localhost:8080
+...
+```
+
+If you have an existing agent that you want to move to the web UI backend, add extra flags to `memgpt run`:
 ```sh
-export OPENAI_API_BASE=http://localhost:8080
-export BACKEND_TYPE=llamacpp
+memgpt run --agent your_agent --model-endpoint-type llamacpp --model-endpoint http://localhost:8080
 ```

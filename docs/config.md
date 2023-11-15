@@ -14,6 +14,7 @@ The `memgpt run` command supports the following optional flags (if set, will ove
 * `--yes`/`-y`: (bool) Skip confirmation prompt and use defaults (default=False)
 
 You can override the parameters you set with `memgpt configure` with the following additional flags specific to local LLMs: 
+
 * `--model-wrapper`: (str) Model wrapper used by backend (e.g. `airoboros_xxx`)
 * `--model-endpoint-type`: (str) Model endpoint backend type (e.g. lmstudio, ollama)
 * `--model-endpoint`: (str) Model endpoint url (e.g. `localhost:5000`)
