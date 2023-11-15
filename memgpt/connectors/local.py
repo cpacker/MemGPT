@@ -8,11 +8,7 @@ import os
 
 from typing import List, Optional
 
-from llama_index import (
-    VectorStoreIndex,
-    EmptyIndex,
-    ServiceContext,
-)
+from llama_index import VectorStoreIndex, EmptyIndex, ServiceContext, set_global_service_context
 from llama_index.retrievers import VectorIndexRetriever
 from llama_index.schema import TextNode
 
@@ -42,6 +38,7 @@ class LocalStorageConnector(StorageConnector):
         # llama index contexts
         self.embed_model = embedding_model()
         self.service_context = ServiceContext.from_defaults(llm=None, embed_model=self.embed_model, chunk_size=config.embedding_chunk_size)
+        set_global_service_context(self.service_context)
 
         # load/create index
         self.save_path = f"{self.save_directory}/nodes.pkl"
