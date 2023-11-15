@@ -16,12 +16,18 @@ For the purposes of this example, we're going to serve (host) the LLMs using [oo
 4. If the model was loaded successfully, you should be able to access it via the API (if local, this is probably on port `5000`)
 5. Assuming steps 1-4 went correctly, the LLM is now properly hosted on a port you can point MemGPT to!
 
-In your terminal where you're running MemGPT, run:
+In your terminal where you're running MemGPT, run `memgpt configure` to set the default backend for MemGPT to point at web UI:
+```
+# if you are running web UI locally, the default IP address + port will be http://localhost:5000
+? Select LLM inference provider: local
+? Select LLM backend (select 'openai' if you have an OpenAI compatible proxy): webui
+? Enter default endpoint: http://localhost:5000
+...
+```
 
+If you have an existing agent that you want to move to the web UI backend, add extra flags to `memgpt run`:
 ```sh
-# if you are running web UI locally, the default port will be 5000
-export OPENAI_API_BASE=http://127.0.0.1:5000
-export BACKEND_TYPE=webui
+memgpt run --agent your_agent --model-endpoint-type webui --model-endpoint http://localhost:5000
 ```
 
 Text gen web UI exposes a lot of parameters that can dramatically change LLM outputs, to change these you can modify the [web UI settings file](https://github.com/cpacker/MemGPT/blob/main/memgpt/local_llm/webui/settings.py).

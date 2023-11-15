@@ -13,10 +13,16 @@
 3. Click "Start server"
 4. Copy the IP address + port that your server is running on (in the example screenshot, the address is `http://localhost:1234`)
 
-In your terminal where you're running MemGPT, run:
+In your terminal where you're running MemGPT, run `memgpt configure` to set the default backend for MemGPT to point at LM Studio:
+```
+# if you are running LM Studio locally, the default IP address + port will be http://localhost:1234
+? Select LLM inference provider: local
+? Select LLM backend (select 'openai' if you have an OpenAI compatible proxy): lmstudio
+? Enter default endpoint: http://localhost:1234
+...
+```
 
+If you have an existing agent that you want to move to the web UI backend, add extra flags to `memgpt run`:
 ```sh
-# if you used a different port in LM Studio, change 1234 to the actual port
-export OPENAI_API_BASE=http://localhost:1234
-export BACKEND_TYPE=lmstudio
+memgpt run --agent your_agent --model-endpoint-type lmstudio --model-endpoint http://localhost:1234
 ```

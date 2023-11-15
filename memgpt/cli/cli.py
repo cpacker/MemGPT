@@ -42,14 +42,12 @@ def run(
     model_wrapper: str = typer.Option(None, help="Specify the LLM model wrapper"),
     model_endpoint: str = typer.Option(None, help="Specify the LLM model endpoint"),
     model_endpoint_type: str = typer.Option(None, help="Specify the LLM model endpoint type"),
-    context_window: int = typer.Option(
-        None, "--context_window", help="The context window of the LLM you are using (e.g. 8k for most Mistral 7B variants)"
-    ),
+    context_window: int = typer.Option(None, help="The context window of the LLM you are using (e.g. 8k for most Mistral 7B variants)"),
     # other
     first: bool = typer.Option(False, "--first", help="Use --first to send the first message in the sequence"),
-    strip_ui: bool = typer.Option(False, "--strip_ui", help="Remove all the bells and whistles in CLI output (helpful for testing)"),
+    strip_ui: bool = typer.Option(False, help="Remove all the bells and whistles in CLI output (helpful for testing)"),
     debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
-    no_verify: bool = typer.Option(False, "--no_verify", help="Bypass message verification"),
+    no_verify: bool = typer.Option(False, help="Bypass message verification"),
     yes: bool = typer.Option(False, "-y", help="Skip confirmation prompt and use defaults"),
 ):
     """Start chatting with an MemGPT agent
