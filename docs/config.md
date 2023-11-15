@@ -6,15 +6,22 @@ The `memgpt run` command supports the following optional flags (if set, will ove
 * `--agent`: (str) Name of agent to create or to resume chatting with.
 * `--human`: (str) Name of the human to run the agent with.
 * `--persona`: (str) Name of agent persona to use.
-* `--model`: (str) LLM model to run [gpt-4, gpt-3.5].
+* `--model`: (str) LLM model to run (e.g. `gpt-4`, `dolphin_xxx`)
 * `--preset`: (str) MemGPT preset to run agent with.
 * `--first`: (str) Allow user to sent the first message.
 * `--debug`: (bool) Show debug logs (default=False)
 * `--no-verify`: (bool) Bypass message verification (default=False)
 * `--yes`/`-y`: (bool) Skip confirmation prompt and use defaults (default=False)
 
+You can override the parameters you set with `memgpt configure` with the following additional flags specific to local LLMs: 
+
+* `--model-wrapper`: (str) Model wrapper used by backend (e.g. `airoboros_xxx`)
+* `--model-endpoint-type`: (str) Model endpoint backend type (e.g. lmstudio, ollama)
+* `--model-endpoint`: (str) Model endpoint url (e.g. `localhost:5000`)
+* `--context-window`: (int) Size of model context window (specific to model type)
+
 #### Updating the config location
-You can override the location of the config path by setting the enviornment variable `MEMGPT_CONFIG_PATH`:
+You can override the location of the config path by setting the environment variable `MEMGPT_CONFIG_PATH`:
 ```
 export MEMGPT_CONFIG_PATH=/my/custom/path/config # make sure this is a file, not a directory
 ```

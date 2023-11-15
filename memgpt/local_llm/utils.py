@@ -1,6 +1,10 @@
 import os
 import tiktoken
 
+import memgpt.local_llm.llm_chat_completion_wrappers.airoboros as airoboros
+import memgpt.local_llm.llm_chat_completion_wrappers.dolphin as dolphin
+import memgpt.local_llm.llm_chat_completion_wrappers.zephyr as zephyr
+
 
 class DotDict(dict):
     """Allow dot access on properties similar to OpenAI response object"""
@@ -37,3 +41,14 @@ def load_grammar_file(grammar):
 def count_tokens(s: str, model: str = "gpt-4") -> int:
     encoding = tiktoken.encoding_for_model(model)
     return len(encoding.encode(s))
+
+
+def get_available_wrappers() -> dict:
+    return {
+        "airoboros-l2-70b-2.1": airoboros.Airoboros21InnerMonologueWrapper(),
+        "airoboros-l2-70b-2.1-grammar": airoboros.Airoboros21InnerMonologueWrapper(include_opening_brace_in_prefix=False),
+        "dolphin-2.1-mistral-7b": dolphin.Dolphin21MistralWrapper(),
+        "dolphin-2.1-mistral-7b-grammar": dolphin.Dolphin21MistralWrapper(include_opening_brace_in_prefix=False),
+        "zephyr-7B": zephyr.ZephyrMistralInnerMonologueWrapper(),
+        "zephyr-7B-grammar": zephyr.ZephyrMistralInnerMonologueWrapper(include_opening_brace_in_prefix=False),
+    }

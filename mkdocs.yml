@@ -23,6 +23,9 @@ nav:
     - 'koboldcpp': koboldcpp.md
     - 'ollama': ollama.md
     - 'Troubleshooting': local_llm_faq.md
+  - 'Customizing MemGPT':
+    - 'Creating new MemGPT presets': presets.md
+    - 'Giving MemGPT more tools': functions.md
   - 'Integrations':
     - 'Autogen': autogen.md
   - 'Advanced':

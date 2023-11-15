@@ -3,43 +3,55 @@ import pexpect
 from .constants import TIMEOUT
 
 
-def configure_memgpt(enable_openai=True, enable_azure=False):
+def configure_memgpt_localllm():
     child = pexpect.spawn("memgpt configure")
 
-    child.expect("Do you want to enable MemGPT with OpenAI?", timeout=TIMEOUT)
-    if enable_openai:
-        child.sendline("y")
-    else:
-        child.sendline("n")
-
-    child.expect("Do you want to enable MemGPT with Azure?", timeout=TIMEOUT)
-    if enable_azure:
-        child.sendline("y")
-    else:
-        child.sendline("n")
-
-    child.expect("Select default inference endpoint:", timeout=TIMEOUT)
+    child.expect("Select LLM inference provider", timeout=TIMEOUT)
+    child.send("\x1b[B")  # Send the down arrow key
+    child.send("\x1b[B")  # Send the down arrow key
     child.sendline()
 
-    child.expect("Select default embedding endpoint:", timeout=TIMEOUT)
+    child.expect("Select LLM backend", timeout=TIMEOUT)
     child.sendline()
 
-    child.expect("Select default preset:", timeout=TIMEOUT)
+    child.expect("Enter default endpoint", timeout=TIMEOUT)
     child.sendline()
 
-    child.expect("Select default model", timeout=TIMEOUT)
+    child.expect("Select default model wrapper", timeout=TIMEOUT)
     child.sendline()
 
-    child.expect("Select default persona:", timeout=TIMEOUT)
+    child.expect("Select your model's context window", timeout=TIMEOUT)
     child.sendline()
 
-    child.expect("Select default human:", timeout=TIMEOUT)
+    child.expect("Select embedding provider", timeout=TIMEOUT)
+    child.send("\x1b[B")  # Send the down arrow key
+    child.send("\x1b[B")  # Send the down arrow key
     child.sendline()
 
-    child.expect("Select storage backend for archival data:", timeout=TIMEOUT)
+    child.expect("Select default preset", timeout=TIMEOUT)
+    child.sendline()
+
+    child.expect("Select default persona", timeout=TIMEOUT)
+    child.sendline()
+
+    child.expect("Select default human", timeout=TIMEOUT)
+    child.sendline()
+
+    child.expect("Select storage backend for archival data", timeout=TIMEOUT)
+    child.sendline()
+
     child.sendline()
 
     child.expect(pexpect.EOF, timeout=TIMEOUT)  # Wait for child to exit
     child.close()
     assert child.isalive() is False, "CLI should have terminated."
     assert child.exitstatus == 0, "CLI did not exit cleanly."
+
+
+def configure_memgpt(enable_openai=False, enable_azure=False):
+    if enable_openai:
+        raise NotImplementedError
+    elif enable_azure:
+        raise NotImplementedError
+    else:
+        configure_memgpt_localllm()

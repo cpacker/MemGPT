@@ -28,12 +28,20 @@ removing any unused layers
 success
 ```
 
-In your terminal where you're running MemGPT, run:
-```sh
-# By default, Ollama runs an API server on port 11434
-export OPENAI_API_BASE=http://localhost:11434
-export BACKEND_TYPE=ollama
+In your terminal where you're running MemGPT, run `memgpt configure` to set the default backend for MemGPT to point at Ollama:
+```
+# if you are running Ollama locally, the default IP address + port will be http://localhost:11434
+# IMPORTANT: with Ollama, there is an extra required "model name" field
+? Select LLM inference provider: local
+? Select LLM backend (select 'openai' if you have an OpenAI compatible proxy): ollama
+? Enter default endpoint: http://localhost:11434
+? Enter default model name (required for Ollama, see: https://memgpt.readthedocs.io/en/latest/ollama): dolphin2.2-mistral:7b-q6_K
+...
+```
 
-# Make sure to add the tag!
-export OLLAMA_MODEL=dolphin2.2-mistral:7b-q6_K
+If you have an existing agent that you want to move to the web UI backend, add extra flags to `memgpt run`:
+```sh
+# use --model to switch Ollama models (always include the full Ollama model name with the tag)
+# use --model-wrapper to switch model wrappers
+memgpt run --agent your_agent --model dolphin2.2-mistral:7b-q6_K --model-endpoint-type ollama --model-endpoint http://localhost:11434
 ```

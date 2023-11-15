@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+import pytest
 
 subprocess.check_call(
     [sys.executable, "-m", "pip", "install", "pgvector", "psycopg", "psycopg2-binary"]
@@ -15,9 +16,11 @@ from memgpt.config import MemGPTConfig, AgentConfig
 import argparse
 
 
+@pytest.mark.skipif(not os.getenv("PGVECTOR_TEST_DB_URL") or not os.getenv("OPENAI_API_KEY"), reason="Missing PG URI and/or OpenAI API key")
 def test_postgres_openai():
-    assert os.getenv("PGVECTOR_TEST_DB_URL") is not None
-    if os.getenv("OPENAI_API_KEY") is None:
+    if not os.getenv("PGVECTOR_TEST_DB_URL"):
+        return  # soft pass
+    if not os.getenv("OPENAI_API_KEY"):
         return  # soft pass
 
     # os.environ["MEMGPT_CONFIG_PATH"] = "./config"
@@ -82,14 +85,16 @@ def test_lancedb_openai():
     assert "wept" in res[0].text, f"Expected 'wept' in results, but got {res[0].text}"
 
 
+@pytest.mark.skipif(not os.getenv("PGVECTOR_TEST_DB_URL"), reason="Missing PG URI")
 def test_postgres_local():
-    assert os.getenv("PGVECTOR_TEST_DB_URL") is not None
+    if not os.getenv("PGVECTOR_TEST_DB_URL"):
+        return
     # os.environ["MEMGPT_CONFIG_PATH"] = "./config"
 
     config = MemGPTConfig(
         archival_storage_type="postgres",
         archival_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
-        embedding_model="local",
+        embedding_endpoint_type="local",
         embedding_dim=384,  # use HF model
     )
     print(config.config_path)
