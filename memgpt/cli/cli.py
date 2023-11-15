@@ -80,6 +80,12 @@ def run(
     else:  # load config
         config = MemGPTConfig.load()
 
+        # force re-configuration is config is from old version
+        if config.memgpt_version is None:  # TODO: eventually add checks for older versions, if config changes again
+            typer.secho("MemGPT has been updated to a newer version, so re-running configuration.", fg=typer.colors.YELLOW)
+            configure()
+            config = MemGPTConfig.load()
+
     # override with command line arguments
     if debug:
         config.debug = debug

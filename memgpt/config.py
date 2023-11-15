@@ -110,6 +110,9 @@ class MemGPTConfig:
     persistence_manager_save_file: str = None  # local file
     persistence_manager_uri: str = None  # db URI
 
+    # version (for backcompat)
+    memgpt_version: str = None
+
     def __post_init__(self):
         # ensure types
         self.embedding_chunk_size = int(self.embedding_chunk_size)
@@ -158,6 +161,7 @@ class MemGPTConfig:
                 "archival_storage_uri": get_field(config, "archival_storage", "uri"),
                 "anon_clientid": get_field(config, "client", "anon_clientid"),
                 "config_path": config_path,
+                "memgpt_version": get_field(config, "version", "memgpt_version"),
             }
             config_dict = {k: v for k, v in config_dict.items() if v is not None}
             return cls(**config_dict)
@@ -169,6 +173,8 @@ class MemGPTConfig:
         return config
 
     def save(self):
+        import memgpt
+
         config = configparser.ConfigParser()
 
         # CLI defaults
@@ -204,6 +210,9 @@ class MemGPTConfig:
         set_field(config, "archival_storage", "type", self.archival_storage_type)
         set_field(config, "archival_storage", "path", self.archival_storage_path)
         set_field(config, "archival_storage", "uri", self.archival_storage_uri)
+
+        # set version
+        set_field(config, "version", "memgpt_version", memgpt.__version__)
 
         # client
         if not self.anon_clientid:
