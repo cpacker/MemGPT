@@ -574,8 +574,6 @@ class Agent(object):
                 while True:
                     response = self.get_ai_reply(
                         message_sequence=input_message_sequence,
-                        functions=self.functions,
-                        context_window=None if self.config.context_window is None else int(self.config.context_window),
                     )
                     if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
@@ -587,8 +585,6 @@ class Agent(object):
             else:
                 response = self.get_ai_reply(
                     message_sequence=input_message_sequence,
-                    functions=self.functions,
-                    context_window=None if self.config.context_window is None else int(self.config.context_window),
                 )
 
             # Step 2: check if LLM wanted to call a function
