@@ -21,7 +21,7 @@ def test_postgres_openai():
         return  # soft pass
 
     # os.environ["MEMGPT_CONFIG_PATH"] = "./config"
-    config = MemGPTConfig(archival_storage_type="lancedb", archival_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"))
+    config = MemGPTConfig(archival_storage_type="postgres", archival_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"))
     print(config.config_path)
     assert config.archival_storage_uri is not None
     config.archival_storage_uri = config.archival_storage_uri.replace(
