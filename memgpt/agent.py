@@ -9,6 +9,7 @@ from memgpt.config import AgentConfig
 from .system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from .memory import CoreMemory as Memory, summarize_messages
 from .openai_tools import completions_with_backoff as create
+from memgpt.openai_tools import chat_completion_with_backoff
 from .utils import get_local_time, parse_json, united_diff, printd, count_tokens, get_schema_diff
 from .constants import (
     FIRST_MESSAGE_ATTEMPTS,
@@ -18,6 +19,7 @@ from .constants import (
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
+    LLM_MAX_TOKENS,
 )
 from .errors import LLMError
 from .functions.functions import load_all_function_sets
@@ -72,7 +74,7 @@ def initialize_message_sequence(
     first_user_message = get_login_event()  # event letting MemGPT know the user just logged in
 
     if include_initial_boot_message:
-        if "gpt-3.5" in model:
+        if model is not None and "gpt-3.5" in model:
             initial_boot_messages = get_initial_boot_messages("startup_with_send_message_gpt35")
         else:
             initial_boot_messages = get_initial_boot_messages("startup_with_send_message")
@@ -93,37 +95,6 @@ def initialize_message_sequence(
         ]
 
     return messages
-
-
-def get_ai_reply(
-    model,
-    message_sequence,
-    functions,
-    function_call="auto",
-    context_window=None,
-):
-    try:
-        response = create(
-            model=model,
-            context_window=context_window,
-            messages=message_sequence,
-            functions=functions,
-            function_call=function_call,
-        )
-
-        # special case for 'length'
-        if response.choices[0].finish_reason == "length":
-            raise Exception("Finish reason was length (maximum context length)")
-
-        # catches for soft errors
-        if response.choices[0].finish_reason not in ["stop", "function_call"]:
-            raise Exception(f"API call finish with bad finish reason: {response}")
-
-        # unpack with response.choices[0].message.content
-        return response
-
-    except Exception as e:
-        raise e
 
 
 class Agent(object):
@@ -309,7 +280,7 @@ class Agent(object):
         json_files = glob.glob(os.path.join(directory, "*.json"))  # This will list all .json files in the current directory.
         if not json_files:
             print(f"/load error: no .json checkpoint files found")
-            raise ValueError(f"Cannot load {agent_name}: does not exist in {directory}")
+            raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {directory}")
 
         # Sort files based on modified timestamp, with the latest file being the first.
         filename = max(json_files, key=os.path.getmtime)
@@ -359,7 +330,7 @@ class Agent(object):
 
                 # NOTE to handle old configs, instead of erroring here let's just warn
                 # raise ValueError(error_message)
-                print(error_message)
+                printd(error_message)
             linked_function_set[f_name] = linked_function
 
         messages = state["messages"]
@@ -601,11 +572,8 @@ class Agent(object):
                 printd(f"This is the first message. Running extra verifier on AI response.")
                 counter = 0
                 while True:
-                    response = get_ai_reply(
-                        model=self.model,
+                    response = self.get_ai_reply(
                         message_sequence=input_message_sequence,
-                        functions=self.functions,
-                        context_window=self.config.context_window,
                     )
                     if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
@@ -615,11 +583,8 @@ class Agent(object):
                         raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
 
             else:
-                response = get_ai_reply(
-                    model=self.model,
+                response = self.get_ai_reply(
                     message_sequence=input_message_sequence,
-                    functions=self.functions,
-                    context_window=self.config.context_window,
                 )
 
             # Step 2: check if LLM wanted to call a function
@@ -649,16 +614,28 @@ class Agent(object):
             # Check the memory pressure and potentially issue a memory pressure warning
             current_total_tokens = response["usage"]["total_tokens"]
             active_memory_warning = False
-            if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * self.config.context_window:
+            # We can't do summarize logic properly if context_window is undefined
+            if self.config.context_window is None:
+                # Fallback if for some reason context_window is missing, just set to the default
+                print(f"WARNING: could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
+                print(f"{self.config}")
+                self.config.context_window = (
+                    str(LLM_MAX_TOKENS[self.model])
+                    if (self.model is not None and self.model in LLM_MAX_TOKENS)
+                    else str(LLM_MAX_TOKENS["DEFAULT"])
+                )
+            if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window):
                 printd(
-                    f"WARNING: last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * self.config.context_window}"
+                    f"WARNING: last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window)}"
                 )
                 # Only deliver the alert if we haven't already (this period)
                 if not self.agent_alerted_about_memory_pressure:
                     active_memory_warning = True
                     self.agent_alerted_about_memory_pressure = True  # it's up to the outer loop to handle this
             else:
-                printd(f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * self.config.context_window}")
+                printd(
+                    f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window)}"
+                )
 
             self.append_to_messages(all_new_messages)
             return all_new_messages, heartbeat_request, function_failed, active_memory_warning
@@ -729,8 +706,18 @@ class Agent(object):
         message_sequence_to_summarize = self.messages[1:cutoff]  # do NOT get rid of the system message
         printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
 
+        # We can't do summarize logic properly if context_window is undefined
+        if self.config.context_window is None:
+            # Fallback if for some reason context_window is missing, just set to the default
+            print(f"WARNING: could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
+            print(f"{self.config}")
+            self.config.context_window = (
+                str(LLM_MAX_TOKENS[self.model])
+                if (self.model is not None and self.model in LLM_MAX_TOKENS)
+                else str(LLM_MAX_TOKENS["DEFAULT"])
+            )
         summary = summarize_messages(
-            model=self.model, context_window=self.config.context_window, message_sequence_to_summarize=message_sequence_to_summarize
+            model=self.model, context_window=int(self.config.context_window), message_sequence_to_summarize=message_sequence_to_summarize
         )
         printd(f"Got summary: {summary}")
 
@@ -762,3 +749,55 @@ class Agent(object):
         # Check if it's been more than pause_heartbeats_minutes since pause_heartbeats_start
         elapsed_time = datetime.datetime.now() - self.pause_heartbeats_start
         return elapsed_time.total_seconds() < self.pause_heartbeats_minutes * 60
+
+    def get_ai_reply(
+        self,
+        message_sequence,
+        function_call="auto",
+    ):
+        """Get response from LLM API"""
+
+        # TODO: Legacy code - delete
+        if self.config is None:
+            try:
+                response = create(
+                    model=self.model,
+                    context_window=self.context_window,
+                    messages=message_sequence,
+                    functions=self.functions,
+                    function_call=function_call,
+                )
+
+                # special case for 'length'
+                if response.choices[0].finish_reason == "length":
+                    raise Exception("Finish reason was length (maximum context length)")
+
+                # catches for soft errors
+                if response.choices[0].finish_reason not in ["stop", "function_call"]:
+                    raise Exception(f"API call finish with bad finish reason: {response}")
+
+                # unpack with response.choices[0].message.content
+                return response
+            except Exception as e:
+                raise e
+
+        try:
+            response = chat_completion_with_backoff(
+                agent_config=self.config,
+                model=self.model,  # TODO: remove (is redundant)
+                messages=message_sequence,
+                functions=self.functions,
+                function_call=function_call,
+            )
+            # special case for 'length'
+            if response.choices[0].finish_reason == "length":
+                raise Exception("Finish reason was length (maximum context length)")
+
+            # catches for soft errors
+            if response.choices[0].finish_reason not in ["stop", "function_call"]:
+                raise Exception(f"API call finish with bad finish reason: {response}")
+
+            # unpack with response.choices[0].message.content
+            return response
+        except Exception as e:
+            raise e

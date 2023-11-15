@@ -11,9 +11,9 @@ def embedding_model():
     # load config
     config = MemGPTConfig.load()
 
-    endpoint = config.embedding_model
+    endpoint = config.embedding_endpoint_type
     if endpoint == "openai":
-        model = OpenAIEmbedding(api_base="https://api.openai.com/v1", api_key=config.openai_key)
+        model = OpenAIEmbedding(api_base=config.embedding_endpoint, api_key=config.openai_key)
         return model
     elif endpoint == "azure":
         return OpenAIEmbedding(

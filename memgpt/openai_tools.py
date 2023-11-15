@@ -2,10 +2,14 @@ import random
 import os
 import time
 
-from .local_llm.chat_completion_proxy import get_chat_completion
+import time
+from typing import Callable, TypeVar
+
+from memgpt.local_llm.chat_completion_proxy import get_chat_completion
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
+R = TypeVar("R")
 
 import openai
 
@@ -55,6 +59,7 @@ def retry_with_exponential_backoff(
     return wrapper
 
 
+# TODO: delete/ignore --legacy
 @retry_with_exponential_backoff
 def completions_with_backoff(**kwargs):
     # Local model
@@ -75,6 +80,38 @@ def completions_with_backoff(**kwargs):
         return openai.ChatCompletion.create(**kwargs)
 
 
+@retry_with_exponential_backoff
+def chat_completion_with_backoff(agent_config, **kwargs):
+    from memgpt.utils import printd
+    from memgpt.config import AgentConfig, MemGPTConfig
+
+    printd(f"Using model {agent_config.model_endpoint_type}, endpoint: {agent_config.model_endpoint}")
+    if agent_config.model_endpoint_type == "openai":
+        # openai
+        openai.api_base = agent_config.model_endpoint
+        return openai.ChatCompletion.create(**kwargs)
+    elif agent_config.model_endpoint_type == "azure":
+        # configure openai
+        config = MemGPTConfig.load()  # load credentials (currently not stored in agent config)
+        openai.api_type = "azure"
+        openai.api_key = config.azure_key
+        openai.api_base = config.azure_endpoint
+        openai.api_version = config.azure_version
+        if config.azure_deployment is not None:
+            kwargs["deployment_id"] = config.azure_deployment
+        else:
+            kwargs["engine"] = MODEL_TO_AZURE_ENGINE[config.model]
+            del kwargs["model"]
+        return openai.ChatCompletion.create(**kwargs)
+    else:  # local model
+        kwargs["context_window"] = agent_config.context_window  # specify for open LLMs
+        kwargs["endpoint"] = agent_config.model_endpoint  # specify for open LLMs
+        kwargs["endpoint_type"] = agent_config.model_endpoint_type  # specify for open LLMs
+        kwargs["wrapper"] = agent_config.model_wrapper  # specify for open LLMs
+        return get_chat_completion(**kwargs)
+
+
+# TODO: deprecate
 @retry_with_exponential_backoff
 def create_embedding_with_backoff(**kwargs):
     if using_azure():

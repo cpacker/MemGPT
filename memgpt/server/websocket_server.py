@@ -61,6 +61,7 @@ class WebSocketServer:
                                 self.agent = self.load_agent(agent_name)
                                 await websocket.send(protocol.server_command_response(f"OK: Agent '{agent_name}' loaded"))
                             except Exception as e:
+                                print(f"[server] self.load_agent failed with:\n{e}")
                                 self.agent = None
                                 await websocket.send(
                                     protocol.server_command_response(f"Error: Failed to load agent '{agent_name}' - {str(e)}")
@@ -77,11 +78,16 @@ class WebSocketServer:
 
                     if self.agent is None:
                         await websocket.send(protocol.server_agent_response_error("No agent has been initialized"))
+                    else:
+                        await websocket.send(protocol.server_agent_response_start())
+                        try:
+                            self.run_step(user_message)
+                        except Exception as e:
+                            print(f"[server] self.run_step failed with:\n{e}")
+                            await websocket.send(protocol.server_agent_response_error(f"self.run_step failed with: {e}"))
 
-                    await websocket.send(protocol.server_agent_response_start())
-                    self.run_step(user_message)
-                    await asyncio.sleep(1)  # pause before sending the terminating message, w/o this messages may be missed
-                    await websocket.send(protocol.server_agent_response_end())
+                        await asyncio.sleep(1)  # pause before sending the terminating message, w/o this messages may be missed
+                        await websocket.send(protocol.server_agent_response_end())
 
                 # ... handle other message types as needed ...
                 else:
@@ -98,7 +104,7 @@ class WebSocketServer:
     def create_new_agent(self, config):
         """Config is json that arrived over websocket, so we need to turn it into a config object"""
         from memgpt.config import AgentConfig
-        import memgpt.presets as presets
+        import memgpt.presets.presets as presets
         import memgpt.utils as utils
         from memgpt.persistence_manager import InMemoryStateManager
 
