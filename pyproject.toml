@@ -52,6 +52,7 @@ lancedb = "^0.3.3"
 [tool.poetry.extras]
 legacy = ["faiss-cpu", "numpy"]
 local = ["torch", "huggingface-hub", "transformers"]
+lancedb = ["lancedb"]
 postgres = ["pgvector", "psycopg", "psycopg-binary", "psycopg2-binary", "pg8000"]
 dev = ["pytest", "black", "pre-commit", "datasets"]
 
