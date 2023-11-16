@@ -27,6 +27,7 @@ app = typer.Typer()
 
 def store_docs(name, docs, show_progress=True):
     """Common function for embedding and storing documents"""
+
     storage = StorageConnector.get_storage_connector(name=name)
     config = MemGPTConfig.load()
     embed_model = embedding_model()

@@ -1,25 +1,25 @@
 import importlib
 import inspect
 import os
+import sys
 
 
 from memgpt.functions.schema_generator import generate_schema
 from memgpt.constants import MEMGPT_DIR
 
+sys.path.append(os.path.join(MEMGPT_DIR, "functions"))
 
-def load_function_set(set_name):
-    """Load the functions and generate schema for them"""
+
+def load_function_set(module):
+    """Load the functions and generate schema for them, given a module object"""
     function_dict = {}
 
-    module_name = f"memgpt.functions.function_sets.{set_name}"
-    base_functions = importlib.import_module(module_name)
-
-    for attr_name in dir(base_functions):
+    for attr_name in dir(module):
         # Get the attribute
-        attr = getattr(base_functions, attr_name)
+        attr = getattr(module, attr_name)
 
         # Check if it's a callable function and not a built-in or special method
-        if inspect.isfunction(attr) and attr.__module__ == base_functions.__name__:
+        if inspect.isfunction(attr) and attr.__module__ == module.__name__:
             if attr_name in function_dict:
                 raise ValueError(f"Found a duplicate of function name '{attr_name}'")
 
@@ -51,17 +51,31 @@ def load_all_function_sets(merge=True):
     # combine them both (pull from both examples and user-provided)
     all_module_files = example_module_files + user_module_files
 
-    schemas_and_functions = {}
-    for file in all_module_files:
-        # Convert filename to module name
-        module_name = f"memgpt.functions.function_sets.{file[:-3]}"  # Remove '.py' from filename
+    # Add user_scripts_dir to sys.path
+    if user_scripts_dir not in sys.path:
+        sys.path.append(user_scripts_dir)
 
-        try:
-            # Load the function set
-            function_set = load_function_set(file[:-3])  # Pass the module part of the name
-            schemas_and_functions[module_name] = function_set
-        except ValueError as e:
-            print(f"Error loading function set '{module_name}': {e}")
+    schemas_and_functions = {}
+    for dir_path, module_files in [(function_sets_dir, example_module_files), (user_scripts_dir, user_module_files)]:
+        for file in module_files:
+            module_name = file[:-3]  # Remove '.py' from filename
+            if dir_path == user_scripts_dir:
+                # For user scripts, adjust the module name appropriately
+                module_full_path = os.path.join(dir_path, file)
+                spec = importlib.util.spec_from_file_location(module_name, module_full_path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+            else:
+                # For built-in scripts, use the existing method
+                full_module_name = f"memgpt.functions.function_sets.{module_name}"
+                module = importlib.import_module(full_module_name)
+
+            try:
+                # Load the function set
+                function_set = load_function_set(module)
+                schemas_and_functions[module_name] = function_set
+            except ValueError as e:
+                print(f"Error loading function set '{module_name}': {e}")
 
     if merge:
         # Put all functions from all sets into the same level dict

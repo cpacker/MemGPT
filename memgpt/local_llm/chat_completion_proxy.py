@@ -5,6 +5,7 @@ import requests
 import json
 
 from .webui.api import get_webui_completion
+from .webui.legacy_api import get_webui_completion as get_webui_completion_legacy
 from .lmstudio.api import get_lmstudio_completion
 from .llamacpp.api import get_llamacpp_completion
 from .koboldcpp.api import get_koboldcpp_completion
@@ -84,6 +85,8 @@ def get_chat_completion(
     try:
         if endpoint_type == "webui":
             result = get_webui_completion(endpoint, prompt, context_window, grammar=grammar_name)
+        elif endpoint_type == "webui-legacy":
+            result = get_webui_completion_legacy(endpoint, prompt, context_window, grammar=grammar_name)
         elif endpoint_type == "lmstudio":
             result = get_lmstudio_completion(endpoint, prompt, context_window)
         elif endpoint_type == "llamacpp":
