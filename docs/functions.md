@@ -30,7 +30,7 @@ There are three steps to adding more MemGPT functions:
 2. (Optional) Create a new system prompt that instructs MemGPT how to use these functions
 3. Create a new preset that imports these functions (and optionally uses the new system prompt)
 
-### Simple example: giving MemGPT the ability to use the Jira API
+### Simple example: giving MemGPT the ability to roll a D20
 
 !!! warning "Function requirements"
 
