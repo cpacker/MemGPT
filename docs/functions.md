@@ -30,11 +30,65 @@ There are three steps to adding more MemGPT functions:
 2. (Optional) Create a new system prompt that instructs MemGPT how to use these functions
 3. Create a new preset that imports these functions (and optionally uses the new system prompt)
 
-### Example: giving MemGPT the ability to use the Jira API
+### Simple example: giving MemGPT the ability to roll a D20
 
 !!! warning "Function requirements"
 
     The functions you write MUST have proper docstrings and type hints - this is because MemGPT will use these docstrings and types to automatically create a JSON schema that is used in the LLM prompt. Use the docstrings and types annotations from the [example functions](https://github.com/cpacker/MemGPT/blob/main/memgpt/functions/function_sets/base.py) for guidance.
+
+In this simple example we'll give MemGPT the ability to roll a [D20 die](https://en.wikipedia.org/wiki/D20_System).
+
+First, let's create a python file  `~/.memgpt/functions/d20.py`, and write some code that uses the `random` library to "roll a die":
+```python
+import random
+
+
+def roll_d20(self) -> int:
+    """
+    Simulate the roll of a 20-sided die (d20).
+
+    This function generates a random integer between 1 and 20, inclusive,
+    which represents the outcome of a single roll of a d20.
+
+    Returns:
+        int: A random integer between 1 and 20, representing the die roll.
+
+    Example:
+        >>> roll_d20()
+        15  # This is an example output and may vary each time the function is called.
+    """
+    return random.randint(1, 20)
+```
+
+Notice how we used [type hints](https://docs.python.org/3/library/typing.html) and [docstrings](https://peps.python.org/pep-0257/#multi-line-docstrings) to describe how the function works. **These are required**, if you do not include them MemGPT will not be able to "link" to your function. This is because MemGPT needs a JSON schema description of how your function works, which we automatically generate for you using the type hints and docstring (which you write yourself).
+
+Next, we'll create a custom preset that includes this new `roll_d20` function. Let's create a YAML file `~/.memgpt/presets/memgpt_d20.yaml`:
+```yaml
+system_prompt: "memgpt_chat"
+functions:
+  - "send_message"
+  - "pause_heartbeats"
+  - "core_memory_append"
+  - "core_memory_replace"
+  - "conversation_search"
+  - "conversation_search_date"
+  - "archival_memory_insert"
+  - "archival_memory_search"
+  # roll a d20 
+  - "roll_d20"
+```
+
+Now, let's test that we can create a MemGPT agent that has access to this `roll_d20` function.
+
+1. Run `memgpt configure` and select `memgpt_d20` as the default preset
+2. Run `memgpt run` and create a new agent
+3. Ask the agent to roll a d20, and make sure it runs the function
+
+<img width="960" alt="image" src="https://github.com/cpacker/MemGPT/assets/8505980/03e78509-3489-4ff6-a5bd-6619aa38af85">
+
+As we can see, MemGPT now has access to the `roll_d20` function! `roll_d20` is a very simple example, but custom functions are a very powerful tool: you can basically give MemGPT access to any arbitrary python code you want! You just have to write the python code + docstrings, then link it to MemGPT via a preset.
+
+### Advanced example: giving MemGPT the ability to use the Jira API
 
 _Example taken from [this pull request](https://github.com/cpacker/MemGPT/pull/282) by @cevatkerim_
 
