@@ -9,8 +9,8 @@ In order to run MemGPT+Autogen on a local LLM, go to lines 32-55 in [examples/ag
 config_list = [
     {
         "model": "dolphin-2.1-mistral-7b",  # this indicates the MODEL, not the WRAPPER (no concept of wrappers for AutoGen)
-        "api_base": "http://127.0.0.1:5001/v1"
-        "api_key": "NULL", # this is a placeholder
+        "api_base": "http://127.0.0.1:5001/v1",
+        "api_key": "NULL", # this is a placeholder,
         "api_type": "open_ai",
     },
 ]
