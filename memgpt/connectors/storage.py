@@ -48,6 +48,11 @@ class StorageConnector:
 
             return PostgresStorageConnector(name=name, agent_config=agent_config)
 
+        elif storage_type == "lancedb":
+            from memgpt.connectors.db import LanceDBConnector
+
+            return LanceDBConnector(name=name)
+
         else:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")
 
@@ -62,6 +67,11 @@ class StorageConnector:
             from memgpt.connectors.db import PostgresStorageConnector
 
             return PostgresStorageConnector.list_loaded_data()
+
+        elif storage_type == "lancedb":
+            from memgpt.connectors.db import LanceDBConnector
+
+            return LanceDBConnector.list_loaded_data()
         else:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")
 
