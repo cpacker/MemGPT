@@ -3,7 +3,7 @@ Chat UI frontend for MemGPT, based on [LlamaIndex Chat](https://github.com/run-l
 
 ## ⚡️ Quick start
 
-### Local Development
+### Install and start the local frontend
 
 Requirement: [NodeJS](https://nodejs.org) 18
 
@@ -18,4 +18,10 @@ cd frontend
 ```bash
 pnpm install
 pnpm dev
+```
+
+### Start the websocket server
+
+```sh
+python memgpt/server/websocket_server.py
 ```
