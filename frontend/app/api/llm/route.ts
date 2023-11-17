@@ -141,12 +141,14 @@ function createReadableStreamFromWebSocket(
 
       if (condition_to_stop_receiving(data)) {
         // Write an error
-        writer.write(
-          `data: ${JSON.stringify({
-            // error: Locale.Chat.LLMError,
-            error: JSON.stringify(data),
-          })}\n\n`,
-        );
+        if (data.type === "agent_response_error" || data.type === "server_error") {
+            writer.write(
+              `data: ${JSON.stringify({
+                // error: Locale.Chat.LLMError,
+                error: JSON.stringify(data),
+              })}\n\n`,
+            );
+        }
         // The websocket said it will stop sending data so close
         writer.write(
           encoder.encode(

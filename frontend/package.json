@@ -9,7 +9,6 @@
     "lint": "next lint",
     "format:check": "prettier --check --ignore-path .gitignore app",
     "format": "prettier --write --ignore-path .gitignore app",
-    "prepare": "husky install",
     "generate": "node ./scripts/generate.mjs"
   },
   "dependencies": {
