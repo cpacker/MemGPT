@@ -47,7 +47,7 @@ class StorageConnector:
             from memgpt.connectors.db import PostgresStorageConnector
 
             return PostgresStorageConnector(name=name, agent_config=agent_config)
-        
+
         elif storage_type == "lancedb":
             from memgpt.connectors.db import LanceDBConnector
 
@@ -67,7 +67,7 @@ class StorageConnector:
             from memgpt.connectors.db import PostgresStorageConnector
 
             return PostgresStorageConnector.list_loaded_data()
-        
+
         elif storage_type == "lancedb":
             from memgpt.connectors.db import LanceDBConnector
 

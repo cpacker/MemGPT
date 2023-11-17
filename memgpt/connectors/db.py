@@ -197,7 +197,6 @@ class LanceDBConnector(StorageConnector):
             self.table_name = self.generate_table_name(name)
         else:
             self.table_name = "lancedb_tbl"
-            
 
         printd(f"Using table name {self.table_name}")
 
@@ -206,6 +205,7 @@ class LanceDBConnector(StorageConnector):
         if config.archival_storage_uri is None:
             raise ValueError(f"Must specifiy archival_storage_uri in config {config.config_path}")
         import lancedb
+
         self.db = lancedb.connect(self.uri)
         self.table = None
 
@@ -221,7 +221,9 @@ class LanceDBConnector(StorageConnector):
                 break
 
             # Yield a list of Passage objects converted from the chunk
-            yield [Passage(text=p["text"], embedding=p["vector"], doc_id=p["doc_id"], passage_id=p["passage_id"]) for p in db_passages_chunk]
+            yield [
+                Passage(text=p["text"], embedding=p["vector"], doc_id=p["doc_id"], passage_id=p["passage_id"]) for p in db_passages_chunk
+            ]
 
             # Increment the offset to get the next chunk in the next iteration
             offset += page_size
@@ -234,7 +236,9 @@ class LanceDBConnector(StorageConnector):
         db_passage = self.table.where(f"passage_id={id}").to_list()
         if len(db_passage) == 0:
             return None
-        return Passage(text=db_passage["text"], embedding=db_passage["embedding"], doc_id=db_passage["doc_id"], passage_id=db_passage["passage_id"])
+        return Passage(
+            text=db_passage["text"], embedding=db_passage["embedding"], doc_id=db_passage["doc_id"], passage_id=db_passage["passage_id"]
+        )
 
     def size(self) -> int:
         # return size of table
@@ -245,8 +249,8 @@ class LanceDBConnector(StorageConnector):
             return 0
 
     def insert(self, passage: Passage):
-        data = [{"doc_id": passage.doc_id, "text":passage.text, "passage_id": passage.passage_id, "vector":passage.embedding }]
-        
+        data = [{"doc_id": passage.doc_id, "text": passage.text, "passage_id": passage.passage_id, "vector": passage.embedding}]
+
         if self.table:
             self.table.add(data)
         else:
@@ -256,14 +260,13 @@ class LanceDBConnector(StorageConnector):
         data = []
         iterable = tqdm(passages) if show_progress else passages
         for passage in iterable:
-            temp_dict = {"doc_id": passage.doc_id, "text":passage.text, "passage_id": passage.passage_id, "vector":passage.embedding }
+            temp_dict = {"doc_id": passage.doc_id, "text": passage.text, "passage_id": passage.passage_id, "vector": passage.embedding}
             data.append(temp_dict)
 
         if self.table:
             self.table.add(data)
         else:
             self.table = self.db.create_table(self.table_name, data=data, mode="overwrite")
-            
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10) -> List[Passage]:
         # Assuming query_vec is of same length as embeddings inside table
@@ -288,8 +291,9 @@ class LanceDBConnector(StorageConnector):
     def list_loaded_data():
         config = MemGPTConfig.load()
         import lancedb
+
         db = lancedb.connect(config.archival_storage_uri)
-        
+
         tables = db.table_names()
         tables = [table for table in tables if table.startswith("memgpt_")]
         tables = [table.replace("memgpt_", "") for table in tables]
@@ -302,7 +306,7 @@ class LanceDBConnector(StorageConnector):
         # Replace spaces and invalid characters with underscores
         name = re.sub(r"\s+|\W+", "_", name)
 
-        # Truncate to the maximum identifier length 
+        # Truncate to the maximum identifier length
         max_length = 63
         if len(name) > max_length:
             name = name[:max_length].rstrip("_")

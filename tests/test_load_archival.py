@@ -45,6 +45,7 @@ def test_postgres():
         recursive=True,
     )
 
+
 def test_lancedb():
     return
 
@@ -59,7 +60,7 @@ def test_lancedb():
     print(config)
     config.save()
 
-    #loading dataset from hugging face
+    # loading dataset from hugging face
     name = "tmp_hf_dataset"
 
     dataset = load_dataset("MemGPT/example_short_stories")
@@ -76,7 +77,6 @@ def test_lancedb():
         input_dir=cache_dir,
         recursive=True,
     )
-
 
 
 def test_chroma():

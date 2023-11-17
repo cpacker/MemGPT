@@ -6,6 +6,10 @@ import pytest
 subprocess.check_call(
     [sys.executable, "-m", "pip", "install", "pgvector", "psycopg", "psycopg2-binary"]
 )  # , "psycopg_binary"])  # "psycopg", "libpq-dev"])
+
+subprocess.check_call(
+    [sys.executable, "-m", "pip", "install", "lancedb"]
+)  
 import pgvector  # Try to import again after installing
 
 from memgpt.connectors.storage import StorageConnector, Passage
@@ -56,6 +60,7 @@ def test_postgres_openai():
     # db.delete()
     # print("...finished")
 
+@pytest.mark.skipif(not os.getenv("LANCEDB_TEST_URL") or not os.getenv("OPENAI_API_KEY"), reason="Missing LANCEDB URI and/or OpenAI API key")
 def test_lancedb_openai():
     assert os.getenv("LANCEDB_TEST_URL") is not None
     if os.getenv("OPENAI_API_KEY") is None:
@@ -128,9 +133,10 @@ def test_postgres_local():
     # db.delete()
     # print("...finished")
 
+@pytest.mark.skipif(not os.getenv("LANCEDB_TEST_URL"), reason="Missing LanceDB URI")
 def test_lancedb_local():
     assert os.getenv("LANCEDB_TEST_URL") is not None
-    
+
     config = MemGPTConfig(
         archival_storage_type="lancedb",
         archival_storage_uri=os.getenv("LANCEDB_TEST_URL"),
@@ -139,7 +145,7 @@ def test_lancedb_local():
     )
     print(config.config_path)
     assert config.archival_storage_uri is not None
-    
+
     embed_model = embedding_model()
 
     passage = ["This is a test passage", "This is another test passage", "Cinderella wept"]

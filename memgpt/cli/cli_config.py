@@ -220,7 +220,7 @@ def configure_archival_storage(config: MemGPTConfig):
             "Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}):",
             default=config.archival_storage_uri if config.archival_storage_uri else "",
         ).ask()
-    
+
     if archival_storage_type == "lancedb":
         archival_storage_uri = questionary.text(
             "Enter lanncedb connection string (e.g. ./.lancedb",
@@ -230,6 +230,7 @@ def configure_archival_storage(config: MemGPTConfig):
     return archival_storage_type, archival_storage_uri
 
     # TODO: allow configuring embedding model
+
 
 @app.command()
 def configure():
