@@ -1,0 +1,9 @@
+{
+  "extends": "next/core-web-vitals",
+  "plugins": ["prettier"],
+  "rules": {
+    "no-unused-vars": ["warn", { "args": "none" }],
+    "@next/next/no-img-element": "off"
+  },
+  "ignorePatterns": ["**/*.css"]
+}

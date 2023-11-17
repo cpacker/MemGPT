@@ -82,3 +82,57 @@ dmypy.json
 
 # MemGPT config files
 configs/
+
+## frontend
+
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+frontend/.git
+frontend/.github
+frontend/.pytest_cache
+
+frontend/.env.*
+
+# dependencies
+frontend/node_modules
+frontend/.pnp
+frontend/.pnp.js
+
+# testing
+frontend/coverage
+
+# next.js
+frontend/.next/
+frontend/out/
+
+# production
+frontend/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.pnpm-debug.log*
+
+# local env files
+frontend/.env*.local
+
+# vercel
+frontend/.vercel
+
+# typescript
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+frontend/dev
+
+frontend/.vscode
+frontend/.idea
+
+# docker-compose env files
+frontned/.env
+
+frontend/*.key
+frontend/*.key.pub
