@@ -80,11 +80,12 @@ def server_agent_function_message(msg):
 # Client -> server
 
 
-def client_user_message(msg):
+def client_user_message(msg, agent_name=None):
     return json.dumps(
         {
             "type": "user_message",
             "message": msg,
+            "agent_name": agent_name,
         }
     )
 
