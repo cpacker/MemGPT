@@ -658,7 +658,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
     def __init__(self, agent_config, top_k: Optional[int] = 100):
         """Init function for archival memory
 
-        :param archiva_memory_database: name of dataset to pre-fill archival with
+        :param archival_memory_database: name of dataset to pre-fill archival with
         :type archival_memory_database: str
         """
         from memgpt.connectors.storage import StorageConnector
