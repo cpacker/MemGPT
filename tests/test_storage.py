@@ -7,9 +7,7 @@ subprocess.check_call(
     [sys.executable, "-m", "pip", "install", "pgvector", "psycopg", "psycopg2-binary"]
 )  # , "psycopg_binary"])  # "psycopg", "libpq-dev"])
 
-subprocess.check_call(
-    [sys.executable, "-m", "pip", "install", "lancedb"]
-)  
+subprocess.check_call([sys.executable, "-m", "pip", "install", "lancedb"])
 import pgvector  # Try to import again after installing
 
 from memgpt.connectors.storage import StorageConnector, Passage
@@ -60,7 +58,10 @@ def test_postgres_openai():
     # db.delete()
     # print("...finished")
 
-@pytest.mark.skipif(not os.getenv("LANCEDB_TEST_URL") or not os.getenv("OPENAI_API_KEY"), reason="Missing LANCEDB URI and/or OpenAI API key")
+
+@pytest.mark.skipif(
+    not os.getenv("LANCEDB_TEST_URL") or not os.getenv("OPENAI_API_KEY"), reason="Missing LANCEDB URI and/or OpenAI API key"
+)
 def test_lancedb_openai():
     assert os.getenv("LANCEDB_TEST_URL") is not None
     if os.getenv("OPENAI_API_KEY") is None:
@@ -132,6 +133,7 @@ def test_postgres_local():
     # print("deleting...")
     # db.delete()
     # print("...finished")
+
 
 @pytest.mark.skipif(not os.getenv("LANCEDB_TEST_URL"), reason="Missing LanceDB URI")
 def test_lancedb_local():
