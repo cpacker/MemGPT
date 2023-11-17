@@ -18,5 +18,22 @@ pip install 'pymemgpt[postgres]'
 You will need to have a URI to a Postgres database which support [pgvector](https://github.com/pgvector/pgvector). You can either use a [hosted provider](https://github.com/pgvector/pgvector/issues/54) or [install pgvector](https://github.com/pgvector/pgvector#installation).
 
 
+## LanceDB
+In order to use the LanceDB backend.
+
+ You have to enable the LanceDB backend by running 
+ 
+ ```
+ memgpt configure
+ ```
+  and selecting `lancedb` for archival storage, and database URI (e.g. `./.lancedb`"), Empty archival uri is also handled and default uri is set at `./.lancedb`. 
+
+To enable the LanceDB backend, make sure to install the required dependencies with:
+```
+pip install 'pymemgpt[lancedb]'
+```
+for more checkout [lancedb docs](https://lancedb.github.io/lancedb/)
+
+
 ## Chroma
 (Coming soon)
