@@ -26,7 +26,7 @@ cd MemGPT
 # Optional: set up a virtual environment.
 # python3 -m venv venv
 # . venv/bin/activate
-pip install -r requirements.txt
+pip install -r docs/requirements.txt
 ```
 
 ## 2. 🛠️ Making Changes
