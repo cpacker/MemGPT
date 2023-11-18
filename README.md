@@ -71,6 +71,18 @@ Configure default setting for MemGPT by running:
 ```
 memgpt configure
 ```
+Configurations to  be done:
+
+Do you want to enable MemGPT with OpenAI? (Y/n) <br>
+Do you want to enable MemGPT with Azure? (y/N) <br>
+Select default embedding endpoint: (openai/local) <br>
+Select default model (recommended: gpt-4) <br>
+Select default persona (memgpt_doc/ sam/ sam_pov) <br>
+Select default human (cs_phd/ basic) <br>
+Select storage backend for archival data(local/ lancedb/ postgres)
+
+This will automatically save `config` file in your directory
+
 Now, you can run MemGPT with:
 ```sh
 memgpt run
