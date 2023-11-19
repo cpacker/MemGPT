@@ -373,7 +373,7 @@ def estimate_openai_cost(docs):
 def list_agent_config_files():
     """List all agent config files, ignoring dotfiles."""
     files = os.listdir(os.path.join(MEMGPT_DIR, "agents"))
-    # remove dotfiles like .DS_Store
+    #  remove dotfiles like .DS_Store
     return [file for file in files if not file.startswith('.')]
 
 
