@@ -4,14 +4,11 @@ import datetime
 import re
 from typing import Optional, List, Tuple
 
-from .constants import MESSAGE_SUMMARY_WARNING_FRAC, MEMGPT_DIR
-from .utils import cosine_similarity, get_local_time, printd, count_tokens
-from .prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
+from memgpt.constants import MESSAGE_SUMMARY_WARNING_FRAC, MEMGPT_DIR
+from memgpt.utils import cosine_similarity, get_local_time, printd, count_tokens
+from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
 from memgpt import utils
-from .openai_tools import (
-    get_embedding_with_backoff,
-    completions_with_backoff as create,
-)
+from memgpt.openai_tools import get_embedding_with_backoff, chat_completion_with_backoff
 from llama_index import (
     VectorStoreIndex,
     EmptyIndex,
@@ -119,11 +116,12 @@ class CoreMemory(object):
 
 
 def summarize_messages(
-    model,
-    context_window,
+    agent_config,
     message_sequence_to_summarize,
 ):
     """Summarize a message sequence using GPT"""
+    # we need the context_window
+    context_window = agent_config.context_window
 
     summary_prompt = SUMMARY_PROMPT_SYSTEM
     summary_input = str(message_sequence_to_summarize)
@@ -132,17 +130,17 @@ def summarize_messages(
         trunc_ratio = (MESSAGE_SUMMARY_WARNING_FRAC * context_window / summary_input_tkns) * 0.8  # For good measure...
         cutoff = int(len(message_sequence_to_summarize) * trunc_ratio)
         summary_input = str(
-            [summarize_messages(model, context_window, message_sequence_to_summarize[:cutoff])] + message_sequence_to_summarize[cutoff:]
+            [summarize_messages(agent_config, context_window, message_sequence_to_summarize[:cutoff])]
+            + message_sequence_to_summarize[cutoff:]
         )
     message_sequence = [
         {"role": "system", "content": summary_prompt},
         {"role": "user", "content": summary_input},
     ]
 
-    response = create(
-        model=model,
+    response = chat_completion_with_backoff(
+        agent_config=agent_config,
         messages=message_sequence,
-        context_window=context_window,
     )
 
     printd(f"summarize_messages gpt reply: {response.choices[0]}")

@@ -85,6 +85,11 @@ def chat_completion_with_backoff(agent_config, **kwargs):
     from memgpt.utils import printd
     from memgpt.config import AgentConfig, MemGPTConfig
 
+    # both "model" and "messages" are required for base OpenAI calls
+    # also required for local LLM Ollama, but not others
+    if "model" not in kwargs:
+        kwargs["model"] = agent_config.model
+
     printd(f"Using model {agent_config.model_endpoint_type}, endpoint: {agent_config.model_endpoint}")
     if agent_config.model_endpoint_type == "openai":
         # openai
