@@ -18,8 +18,9 @@ def get_webui_completion(endpoint, prompt, context_window, settings=SIMPLE, gram
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
     request = settings
     request["prompt"] = prompt
-    request["max_tokens"] = context_window
-    # request["truncation_length"] = context_window
+    request["truncation_length"] = context_window
+    request["max_tokens"] = int(context_window - prompt_tokens)
+    request["max_new_tokens"] = int(context_window - prompt_tokens)  # safety backup to "max_tokens", shouldn't matter
 
     # Set grammar
     if grammar is not None:
