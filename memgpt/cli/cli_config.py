@@ -59,7 +59,7 @@ def configure_llm_endpoint(config: MemGPTConfig):
         model_endpoint_type = "azure"
         _, model_endpoint, _, _, _ = get_azure_credentials()
     else:  # local models
-        backend_options = ["webui", "webui-legacy", "llamacpp", "koboldcpp", "ollama", "lmstudio", "openai"]
+        backend_options = ["webui", "webui-legacy", "llamacpp", "koboldcpp", "ollama", "lmstudio", "vllm", "openai"]
         default_model_endpoint_type = None
         if config.model_endpoint_type in backend_options:
             # set from previous config
