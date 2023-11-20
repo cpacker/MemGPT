@@ -49,7 +49,7 @@ def load_all_function_sets(merge=True):
     user_module_files = [f for f in os.listdir(user_scripts_dir) if f.endswith(".py") and f != "__init__.py"]
 
     # combine them both (pull from both examples and user-provided)
-    all_module_files = example_module_files + user_module_files
+    # all_module_files = example_module_files + user_module_files
 
     # Add user_scripts_dir to sys.path
     if user_scripts_dir not in sys.path:
