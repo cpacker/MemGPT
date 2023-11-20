@@ -220,6 +220,45 @@ export function Chat() {
             const showThinking = message.streaming;
             const shouldShowClearContextDivider = i === clearContextIndex - 1;
 
+            // Logic to split the message content into main text and inner thoughts
+            // const innerThoughtsPattern = /.../; // Define your pattern here
+            // const splitContent = message.content.split(innerThoughtsPattern);
+            // const mainText = splitContent[0];
+            // const innerThoughts = splitContent[1]; // Assuming there's only one inner thought per message
+
+            // Logic to extract the inner monologue and assistant message
+            const innerMonologuePrefix = "internal_monologue:";
+            const assistantMessagePrefix = "assistant_message:";
+            let mainText = message.content;
+            let innerThoughts = null;
+
+            // Check for inner monologue and split the text accordingly
+            if (mainText.includes(innerMonologuePrefix)) {
+              const parts = mainText.split("\n").map(part => part.trim());
+              const innerMonologuePart = parts.find(part => part.startsWith(innerMonologuePrefix));
+              const assistantMessagePart = parts.find(part => part.startsWith(assistantMessagePrefix));
+
+              if (innerMonologuePart) {
+                innerThoughts = innerMonologuePart.replace(innerMonologuePrefix, '').trim();
+              }
+              if (assistantMessagePart) {
+                mainText = assistantMessagePart.replace(assistantMessagePrefix, '').trim();
+              }
+            }
+
+            // Inline styling for inner thoughts
+            const innerThoughtsStyle = {
+              fontStyle: 'italic',
+              // color: '#666',
+              // position: 'absolute',
+              // top: '-20px',
+              // right: '0',
+              // Other styles as needed
+            };
+
+            console.log(`mainText: ${mainText}`);
+            console.log(`innerThoughts: ${innerThoughts}`);
+
             return (
               <div className="space-y-5" key={i}>
                 <div
@@ -246,6 +285,16 @@ export function Chat() {
                             {Locale.Chat.Thinking}
                           </div>
                         )}
+                        {innerThoughts && (
+                          <div
+                            className={
+                              "text-xs text-[#aaa] leading-normal my-1"
+                            }
+                            style={innerThoughtsStyle}
+                          >
+                           💭 {innerThoughts}
+                          </div>
+                        )}
                         <div
                           className={cn(
                             "box-border max-w-full text-sm select-text relative break-words rounded-lg px-3 py-2",
@@ -264,7 +313,9 @@ export function Chat() {
                             />
                           )}
                           <Markdown
-                            content={message.content}
+                            // content="bro what's up"
+                            // content={message.content}
+                            content={mainText}
                             loading={
                               message.streaming &&
                               message.content.length === 0 &&

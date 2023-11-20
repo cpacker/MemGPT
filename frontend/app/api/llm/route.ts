@@ -90,9 +90,11 @@ function condition_to_stop_receiving(data: any) {
 function format_agent_response(response: any) {
   var message;
   if (response.message_type === "internal_monologue") {
-    message = `💭 _${response.message}_`;
+    // message = `💭 _${response.message}_`;
+    message = `internal_monologue: ${response.message}`;
   } else if (response.message_type === "assistant_message") {
-    message = `${response.message}`;
+    // message = `${response.message}`;
+    message = `assistant_message: ${response.message}`;
   } else if (response.message_type === "function_message") {
     message = null;
   }
@@ -286,8 +288,9 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-    console.log(`config: ${JSON.stringify(config)}`);
     console.log(`messages: ${JSON.stringify(messages)}`);
+    console.log(`message: ${JSON.stringify(message)}`);
+    console.log(`config: ${JSON.stringify(config)}`);
     console.log(`datasource: ${JSON.stringify(datasource)}`);
     console.log(`agent_name: ${JSON.stringify(agent_name)}`);
     // console.log(`messages: ${messages}`)
