@@ -30,7 +30,7 @@ def load_function_set(module):
             }
 
     if len(function_dict) == 0:
-        raise ValueError(f"No functions found in module {module_name}")
+        raise ValueError(f"No functions found in module {module}")
     return function_dict
 
 
@@ -69,17 +69,18 @@ def load_all_function_sets(merge=True):
                 except ModuleNotFoundError as e:
                     # Handle missing module imports
                     missing_package = str(e).split("'")[1]  # Extract the name of the missing package
+                    print(f"Warning: skipped loading python file '{module_full_path}'!")
                     print(
-                        f"Skipped loading python file '{file}' because of ModuleNotFoundError - install python package '{missing_package}' to link functions from '{file}' to MemGPT."
+                        f"'{file}' imports '{missing_package}', but '{missing_package}' is not installed locally - install python package '{missing_package}' to link functions from '{file}' to MemGPT."
                     )
                     continue
                 except SyntaxError as e:
                     # Handle syntax errors in the module
-                    print(f"Skipped loading python file '{file}' due to a syntax error: {e}")
+                    print(f"Warning: skipped loading python file '{file}' due to a syntax error: {e}")
                     continue
                 except Exception as e:
                     # Handle other general exceptions
-                    print(f"An error occurred while loading python file '{file}': {e}")
+                    print(f"Warning: skipped loading python file '{file}': {e}")
                     continue
             else:
                 # For built-in scripts, use the existing method
@@ -88,7 +89,7 @@ def load_all_function_sets(merge=True):
                     module = importlib.import_module(full_module_name)
                 except Exception as e:
                     # Handle other general exceptions
-                    print(f"An error occurred while loading python module '{full_module_name}': {e}")
+                    print(f"Warning: skipped loading python module '{full_module_name}': {e}")
                     continue
 
             try:
