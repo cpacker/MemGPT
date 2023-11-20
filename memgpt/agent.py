@@ -716,9 +716,7 @@ class Agent(object):
                 if (self.model is not None and self.model in LLM_MAX_TOKENS)
                 else str(LLM_MAX_TOKENS["DEFAULT"])
             )
-        summary = summarize_messages(
-            model=self.model, context_window=int(self.config.context_window), message_sequence_to_summarize=message_sequence_to_summarize
-        )
+        summary = summarize_messages(agent_config=self.config, message_sequence_to_summarize=message_sequence_to_summarize)
         printd(f"Got summary: {summary}")
 
         # Metadata that's useful for the agent to see
