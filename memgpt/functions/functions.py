@@ -62,13 +62,34 @@ def load_all_function_sets(merge=True):
             if dir_path == user_scripts_dir:
                 # For user scripts, adjust the module name appropriately
                 module_full_path = os.path.join(dir_path, file)
-                spec = importlib.util.spec_from_file_location(module_name, module_full_path)
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
+                try:
+                    spec = importlib.util.spec_from_file_location(module_name, module_full_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                except ModuleNotFoundError as e:
+                    # Handle missing module imports
+                    missing_package = str(e).split("'")[1]  # Extract the name of the missing package
+                    print(
+                        f"Skipped loading python file '{file}' because of ModuleNotFoundError - install python package '{missing_package}' to link functions from '{file}' to MemGPT."
+                    )
+                    continue
+                except SyntaxError as e:
+                    # Handle syntax errors in the module
+                    print(f"Skipped loading python file '{file}' due to a syntax error: {e}")
+                    continue
+                except Exception as e:
+                    # Handle other general exceptions
+                    print(f"An error occurred while loading python file '{file}': {e}")
+                    continue
             else:
                 # For built-in scripts, use the existing method
                 full_module_name = f"memgpt.functions.function_sets.{module_name}"
-                module = importlib.import_module(full_module_name)
+                try:
+                    module = importlib.import_module(full_module_name)
+                except Exception as e:
+                    # Handle other general exceptions
+                    print(f"An error occurred while loading python module '{full_module_name}': {e}")
+                    continue
 
             try:
                 # Load the function set
