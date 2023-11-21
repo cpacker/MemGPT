@@ -26,7 +26,6 @@ class ChromaStorageConnector(StorageConnector):
     # WARNING: This is not thread safe. Do NOT do concurrent access to the same collection.
 
     def __init__(self, name: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
-
         # determine table name
         if agent_config:
             assert name is None, f"Cannot specify both agent config and name {name}"

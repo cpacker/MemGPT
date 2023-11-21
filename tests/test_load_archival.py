@@ -126,7 +126,6 @@ def test_chroma():
 
 
 def test_postgres():
-
     # override config path with enviornment variable
     # TODO: make into temporary file
     os.environ["MEMGPT_CONFIG_PATH"] = "/Users/sarahwooders/repos/MemGPT/test_config.cfg"
@@ -153,7 +152,6 @@ def test_postgres():
 
 
 def test_chroma():
-
     import chromadb
 
     # override config path with enviornment variable
