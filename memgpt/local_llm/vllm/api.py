@@ -4,7 +4,7 @@ import requests
 
 from ..utils import load_grammar_file, count_tokens
 
-WEBUI_API_SUFFIX = "/generate"
+WEBUI_API_SUFFIX = "/completions"
 DEBUG = False
 
 
@@ -19,8 +19,9 @@ def get_vllm_completion(endpoint, model, prompt, context_window, settings={}, gr
     request["prompt"] = prompt
     request["max_tokens"] = int(context_window - prompt_tokens)
     request["stream"] = False
-    # TODO pass model?
-    request["model"] = model
+
+    # currently hardcoded, since we are only supporting one model with the hosted endpoint
+    request["model"] = "ehartford/dolphin-2.2.1-mistral-7b"
 
     # Set grammar
     if grammar is not None:
@@ -35,7 +36,7 @@ def get_vllm_completion(endpoint, model, prompt, context_window, settings={}, gr
         response = requests.post(URI, json=request)
         if response.status_code == 200:
             result = response.json()
-            result = result["text"]
+            result = result["choices"][0]["text"]
             if DEBUG:
                 print(f"json API response.text: {result}")
         else:
