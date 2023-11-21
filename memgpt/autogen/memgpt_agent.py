@@ -28,40 +28,50 @@ def create_memgpt_autogen_agent_from_config(
     default_auto_reply: Optional[Union[str, Dict, None]] = "",
     interface_kwargs: Dict = None,
 ):
-    """Construct AutoGen config workflow in a clean way."""
+    """Same function signature as used in base AutoGen, but creates a MemGPT agent
+    
+    Construct AutoGen config workflow in a clean way.
+    """
+    llm_config = llm_config["config_list"][0]
 
     if interface_kwargs is None:
         interface_kwargs = {}
 
-    model = constants.DEFAULT_MEMGPT_MODEL if llm_config is None else llm_config["config_list"][0]["model"]
+    # The "system message" in AutoGen becomes the persona in MemGPT
     persona_desc = personas.DEFAULT if system_message == "" else system_message
+    # The user profile is based on the input mode
     if human_input_mode == "ALWAYS":
-        user_desc = humans.DEFAULT
+        user_desc = "" 
     elif human_input_mode == "TERMINATE":
         user_desc = "Work by yourself, the user won't reply until you output `TERMINATE` to end the conversation."
     else:
         user_desc = "Work by yourself, the user won't reply. Elaborate as much as possible."
 
+    # Create an AgentConfig option from the inputs
+    agent_config = AgentConfig(
+        name=name,
+        persona=persona_desc,
+        human=user_desc,
+        preset=llm_config['preset'],
+        model=llm_config['model'],
+        model_wrapper=llm_config['model_wrapper'],
+        model_endpoint_type=llm_config['model_endpoint_type'],
+        model_endpoint=llm_config['model_endpoint'],
+        context_window=llm_config['context_window'],
+    )
+
     if function_map is not None or code_execution_config is not None:
         raise NotImplementedError
 
     autogen_memgpt_agent = create_autogen_memgpt_agent(
-        name,
-        preset=presets.DEFAULT_PRESET,
-        model=model,
-        persona_description=persona_desc,
-        user_description=user_desc,
+        agent_config,
         is_termination_msg=is_termination_msg,
         interface_kwargs=interface_kwargs,
     )
 
     if human_input_mode != "ALWAYS":
         coop_agent1 = create_autogen_memgpt_agent(
-            name,
-            preset=presets.DEFAULT_PRESET,
-            model=model,
-            persona_description=persona_desc,
-            user_description=user_desc,
+            agent_config,
             is_termination_msg=is_termination_msg,
             interface_kwargs=interface_kwargs,
         )
@@ -73,11 +83,7 @@ def create_memgpt_autogen_agent_from_config(
             )
         else:
             coop_agent2 = create_autogen_memgpt_agent(
-                name,
-                preset=presets.DEFAULT_PRESET,
-                model=model,
-                persona_description=persona_desc,
-                user_description=user_desc,
+                agent_config,
                 is_termination_msg=is_termination_msg,
                 interface_kwargs=interface_kwargs,
             )
@@ -95,11 +101,8 @@ def create_memgpt_autogen_agent_from_config(
 
 
 def create_autogen_memgpt_agent(
-    autogen_name,
-    preset=presets.DEFAULT_PRESET,
-    model=constants.DEFAULT_MEMGPT_MODEL,
-    persona_description=personas.DEFAULT,
-    user_description=humans.DEFAULT,
+    agent_config,
+    # interface and persistence manager
     interface=None,
     interface_kwargs={},
     persistence_manager=None,
@@ -119,16 +122,9 @@ def create_autogen_memgpt_agent(
     }
     ```
     """
-    agent_config = AgentConfig(
-        # name=autogen_name,
-        # TODO: more gracefully integrate reuse of MemGPT agents. Right now, we are creating a new MemGPT agent for
-        # every call to this function, because those scripts using create_autogen_memgpt_agent may contain calls
-        # to non-idempotent agent functions like `attach`.
-        persona=persona_description,
-        human=user_description,
-        model=model,
-        preset=presets.DEFAULT_PRESET,
-    )
+    # TODO: more gracefully integrate reuse of MemGPT agents. Right now, we are creating a new MemGPT agent for
+    # every call to this function, because those scripts using create_autogen_memgpt_agent may contain calls
+    # to non-idempotent agent functions like `attach`.
 
     interface = AutoGenInterface(**interface_kwargs) if interface is None else interface
     if persistence_manager_kwargs is None:
@@ -138,17 +134,17 @@ def create_autogen_memgpt_agent(
     persistence_manager = LocalStateManager(**persistence_manager_kwargs) if persistence_manager is None else persistence_manager
 
     memgpt_agent = presets.use_preset(
-        preset,
+        agent_config.preset,
         agent_config,
-        model,
-        persona_description,
-        user_description,
+        agent_config.model,
+        agent_config.persona,  # note: extracting the raw text, not pulling from a file
+        agent_config.human,  # note: extracting raw text, not pulling from a file
         interface,
         persistence_manager,
     )
 
     autogen_memgpt_agent = MemGPTAgent(
-        name=autogen_name,
+        name=agent_config.name,
         agent=memgpt_agent,
         is_termination_msg=is_termination_msg,
     )

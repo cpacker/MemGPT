@@ -13,6 +13,7 @@ Begin by doing:
 import os
 import autogen
 from memgpt.autogen.memgpt_agent import create_autogen_memgpt_agent, create_memgpt_autogen_agent_from_config
+from memgpt.presets.presets import DEFAULT_PRESET
 
 # This config is for autogen agents that are not powered by MemGPT
 config_list = [
@@ -40,27 +41,31 @@ config_list = [
         "api_type": "open_ai",
     },
 ]
-
-# # This config is for autogen agents that powered by MemGPT
-# # For this to work, you need to have your environment variables set correctly, e.g.
-# # For web UI:
-# #   OPENAI_API_BASE=http://127.0.0.1:5000
-# #   BACKEND_TYPE=webui
-# # For LM Studio:
-# #   OPENAI_API_BASE=http://127.0.0.1:1234
-# #   BACKEND_TYPE=lmstudio
-# # "model" here specifies the "wrapper" that will be used, setting it to "gpt-4" uses the default
-config_list_memgpt = [
-    {"model": "airoboros-l2-70b-2.1"},  # if you set this to gpt-4, it will fall back to the default wrapper
+config_list = [
+    {
+        "model": "NULL",  # ex. This is the model name, not the wrapper
+        "api_base": "http://localhost:1234/v1",  # ex. "http://127.0.0.1:5001/v1" if you are using webui, "http://localhost:1234/v1/" if you are using LM Studio
+        "api_key": "NULL",  # this is a placeholder
+        "api_type": "open_ai",
+    },
 ]
 
+# # This config is for autogen agents that powered by MemGPT
+config_list_memgpt = [
+    {
+        "preset": DEFAULT_PRESET,
+        "model": None,  # only required for Ollama, see: https://memgpt.readthedocs.io/en/latest/ollama/
+        "model_wrapper": "airoboros-l2-70b-2.1",  # airoboros is the default wrapper and should work for most models
+        "model_endpoint_type": "lmstudio",  # can use webui, ollama, llamacpp, etc.
+        "model_endpoint": "http://localhost:1234",  # the IP address of your LLM backend
+        "context_window": 8192,  # the context window of your model (for Mistral 7B-based models, it's likely 8192)
+    },
+]
 
 # If USE_MEMGPT is False, then this example will be the same as the official AutoGen repo
 # (https://github.com/microsoft/autogen/blob/main/notebook/agentchat_groupchat.ipynb)
 # If USE_MEMGPT is True, then we swap out the "coder" agent with a MemGPT agent
 USE_MEMGPT = True
-
-USE_AUTOGEN_WORKFLOW = True
 
 # Set to True if you want to print MemGPT's inner workings.
 DEBUG = False
@@ -101,26 +106,15 @@ if not USE_MEMGPT:
 else:
     # In our example, we swap this AutoGen agent with a MemGPT agent
     # This MemGPT agent will have all the benefits of MemGPT, ie persistent memory, etc.
-    if not USE_AUTOGEN_WORKFLOW:
-        coder = create_autogen_memgpt_agent(
-            "MemGPT_coder",
-            persona_description="I am a 10x engineer, trained in Python. I was the first engineer at Uber "
-            "(which I make sure to tell everyone I work with).",
-            user_description=f"You are participating in a group chat with a user ({user_proxy.name}) "
-            f"and a product manager ({pm.name}).",
-            model=config_list_memgpt[0]["model"],
-            interface_kwargs=interface_kwargs,
-        )
-    else:
-        coder = create_memgpt_autogen_agent_from_config(
-            "MemGPT_coder",
-            llm_config=llm_config_memgpt,
-            system_message=f"I am a 10x engineer, trained in Python. I was the first engineer at Uber "
-            f"(which I make sure to tell everyone I work with).\n"
-            f"You are participating in a group chat with a user ({user_proxy.name}) "
-            f"and a product manager ({pm.name}).",
-            interface_kwargs=interface_kwargs,
-        )
+    coder = create_memgpt_autogen_agent_from_config(
+        "MemGPT_coder",
+        llm_config=llm_config_memgpt,
+        system_message=f"I am a 10x engineer, trained in Python. I was the first engineer at Uber "
+        f"(which I make sure to tell everyone I work with).\n"
+        f"You are participating in a group chat with a user ({user_proxy.name}) "
+        f"and a product manager ({pm.name}).",
+        interface_kwargs=interface_kwargs,
+    )
 
 # Initialize the group chat between the user and two LLM agents (PM and coder)
 groupchat = autogen.GroupChat(agents=[user_proxy, pm, coder], messages=[], max_round=12)
@@ -129,5 +123,5 @@ manager = autogen.GroupChatManager(groupchat=groupchat, llm_config=llm_config)
 # Begin the group chat with a message from the user
 user_proxy.initiate_chat(
     manager,
-    message="I want to design an app to make me one million dollars in one month. " "Yes, your heard that right.",
+    message="I want to design an app to make me one million dollars in one month. Yes, your heard that right.",
 )
