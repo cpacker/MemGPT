@@ -3,7 +3,6 @@ from os import getcwd
 
 from starlette.middleware.cors import CORSMiddleware
 
-from memgpt.agent import AgentAsync
 from memgpt.config import MemGPTConfig
 from memgpt.web.server.routers import sources, agents
 from memgpt.web.server.routers.chat import setup_chat_ws_router
@@ -20,7 +19,7 @@ CORS_ORIGINS = [
 ]
 
 
-def start_uvicorn_fastapi_server(agent: AgentAsync, config: MemGPTConfig):
+def start_uvicorn_fastapi_server(config: MemGPTConfig):
     import uvicorn
     from fastapi import FastAPI
 
@@ -34,7 +33,7 @@ def start_uvicorn_fastapi_server(agent: AgentAsync, config: MemGPTConfig):
         allow_headers=["*"],
     )
 
-    app.include_router(setup_chat_ws_router(agent, config), prefix=API_PREFIX)
+    app.include_router(setup_chat_ws_router(), prefix=API_PREFIX)
     app.include_router(sources.router, prefix=API_PREFIX)
     app.include_router(agents.router, prefix=API_PREFIX)
 

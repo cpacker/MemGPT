@@ -1,9 +1,8 @@
 
 import { Separator } from "@memgpt/components/separator"
 import { SidebarNav } from "./sidebar-nav"
-import { Outlet } from '@tanstack/react-router';
 import React from 'react';
-import { SettingsLayout } from './layout';
+import { Outlet } from 'react-router-dom';
 
 const sidebarNavItems = [
   {
@@ -24,7 +23,7 @@ export function Settings() {
         <div className="space-y-0.5">
           <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
           <p className="text-muted-foreground">
-            Manage your account settings and set e-mail preferences.
+            Manage your MemGPT settings, like agents, prompts, and history.
           </p>
         </div>
         <Separator className="my-6" />
