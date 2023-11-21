@@ -30,7 +30,7 @@ def load_function_set(module):
             }
 
     if len(function_dict) == 0:
-        raise ValueError(f"No functions found in module {module_name}")
+        raise ValueError(f"No functions found in module {module}")
     return function_dict
 
 
@@ -49,7 +49,7 @@ def load_all_function_sets(merge=True):
     user_module_files = [f for f in os.listdir(user_scripts_dir) if f.endswith(".py") and f != "__init__.py"]
 
     # combine them both (pull from both examples and user-provided)
-    all_module_files = example_module_files + user_module_files
+    # all_module_files = example_module_files + user_module_files
 
     # Add user_scripts_dir to sys.path
     if user_scripts_dir not in sys.path:
@@ -62,13 +62,35 @@ def load_all_function_sets(merge=True):
             if dir_path == user_scripts_dir:
                 # For user scripts, adjust the module name appropriately
                 module_full_path = os.path.join(dir_path, file)
-                spec = importlib.util.spec_from_file_location(module_name, module_full_path)
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
+                try:
+                    spec = importlib.util.spec_from_file_location(module_name, module_full_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                except ModuleNotFoundError as e:
+                    # Handle missing module imports
+                    missing_package = str(e).split("'")[1]  # Extract the name of the missing package
+                    print(f"Warning: skipped loading python file '{module_full_path}'!")
+                    print(
+                        f"'{file}' imports '{missing_package}', but '{missing_package}' is not installed locally - install python package '{missing_package}' to link functions from '{file}' to MemGPT."
+                    )
+                    continue
+                except SyntaxError as e:
+                    # Handle syntax errors in the module
+                    print(f"Warning: skipped loading python file '{file}' due to a syntax error: {e}")
+                    continue
+                except Exception as e:
+                    # Handle other general exceptions
+                    print(f"Warning: skipped loading python file '{file}': {e}")
+                    continue
             else:
                 # For built-in scripts, use the existing method
                 full_module_name = f"memgpt.functions.function_sets.{module_name}"
-                module = importlib.import_module(full_module_name)
+                try:
+                    module = importlib.import_module(full_module_name)
+                except Exception as e:
+                    # Handle other general exceptions
+                    print(f"Warning: skipped loading python module '{full_module_name}': {e}")
+                    continue
 
             try:
                 # Load the function set
