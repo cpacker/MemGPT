@@ -133,7 +133,7 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
             elif message["role"] == "assistant":
                 prompt += f"\nASSISTANT: {message['content']}"
                 # need to add the function call if there was one
-                if message["function_call"]:
+                if "function_call" in message and message["function_call"]:
                     prompt += f"\n{create_function_call(message['function_call'])}"
             elif message["role"] == "function":
                 # TODO find a good way to add this
@@ -339,7 +339,7 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
                 prompt += f"\nASSISTANT:"
                 # need to add the function call if there was one
                 inner_thoughts = message["content"]
-                if message["function_call"]:
+                if "function_call" in message and message["function_call"]:
                     prompt += f"\n{create_function_call(message['function_call'], inner_thoughts=inner_thoughts)}"
             elif message["role"] == "function":
                 # TODO find a good way to add this

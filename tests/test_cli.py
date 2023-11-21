@@ -13,8 +13,8 @@ def test_configure_memgpt():
 
 
 def test_save_load():
-    configure_memgpt()
-    child = pexpect.spawn("memgpt run --agent test_save_load --first --strip_ui")
+    # configure_memgpt()  # rely on configure running first^
+    child = pexpect.spawn("memgpt run --agent test_save_load --first --strip-ui")
 
     child.expect("Enter your message:", timeout=TIMEOUT)
     child.sendline()
@@ -22,7 +22,6 @@ def test_save_load():
     child.expect("Empty input received. Try again!", timeout=TIMEOUT)
     child.sendline("/save")
 
-    child.expect("Saved local", timeout=TIMEOUT)
     child.expect("Enter your message:", timeout=TIMEOUT)
     child.sendline("/exit")
 
@@ -31,7 +30,7 @@ def test_save_load():
     assert child.isalive() is False, "CLI should have terminated."
     assert child.exitstatus == 0, "CLI did not exit cleanly."
 
-    child = pexpect.spawn("memgpt run --agent test_save_load --first --strip_ui")
+    child = pexpect.spawn("memgpt run --agent test_save_load --first --strip-ui")
     child.expect("Using existing agent test_save_load", timeout=TIMEOUT)
     child.expect("Enter your message:", timeout=TIMEOUT)
     child.sendline("/exit")

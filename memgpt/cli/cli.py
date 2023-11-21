@@ -1,8 +1,8 @@
 import typer
+import json
 import sys
 import io
 import logging
-import asyncio
 import os
 from prettytable import PrettyTable
 import questionary
@@ -11,11 +11,11 @@ import openai
 from llama_index import set_global_service_context
 from llama_index import VectorStoreIndex, SimpleDirectoryReader, ServiceContext
 
-import memgpt.interface  # for printing to terminal
+from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.cli.cli_config import configure
 import memgpt.agent as agent
 import memgpt.system as system
-import memgpt.presets as presets
+import memgpt.presets.presets as presets
 import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
@@ -24,7 +24,7 @@ from memgpt.utils import printd
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
-from memgpt.agent import AgentAsync
+from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 from memgpt.openai_tools import (
     configure_azure_support,
@@ -36,12 +36,18 @@ def run(
     persona: str = typer.Option(None, help="Specify persona"),
     agent: str = typer.Option(None, help="Specify agent save file"),
     human: str = typer.Option(None, help="Specify human"),
-    model: str = typer.Option(None, help="Specify the LLM model"),
     preset: str = typer.Option(None, help="Specify preset"),
+    # model flags
+    model: str = typer.Option(None, help="Specify the LLM model"),
+    model_wrapper: str = typer.Option(None, help="Specify the LLM model wrapper"),
+    model_endpoint: str = typer.Option(None, help="Specify the LLM model endpoint"),
+    model_endpoint_type: str = typer.Option(None, help="Specify the LLM model endpoint type"),
+    context_window: int = typer.Option(None, help="The context window of the LLM you are using (e.g. 8k for most Mistral 7B variants)"),
+    # other
     first: bool = typer.Option(False, "--first", help="Use --first to send the first message in the sequence"),
-    strip_ui: bool = typer.Option(False, "--strip_ui", help="Remove all the bells and whistles in CLI output (helpful for testing)"),
+    strip_ui: bool = typer.Option(False, help="Remove all the bells and whistles in CLI output (helpful for testing)"),
     debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
-    no_verify: bool = typer.Option(False, "--no_verify", help="Bypass message verification"),
+    no_verify: bool = typer.Option(False, help="Bypass message verification"),
     yes: bool = typer.Option(False, "-y", help="Skip confirmation prompt and use defaults"),
 ):
     """Start chatting with an MemGPT agent
@@ -71,6 +77,12 @@ def run(
             config = MemGPTConfig.load()
     else:  # load config
         config = MemGPTConfig.load()
+
+        # force re-configuration is config is from old version
+        if config.memgpt_version is None:  # TODO: eventually add checks for older versions, if config changes again
+            typer.secho("MemGPT has been updated to a newer version, so re-running configuration.", fg=typer.colors.YELLOW)
+            configure()
+            config = MemGPTConfig.load()
 
     # override with command line arguments
     if debug:
@@ -107,27 +119,59 @@ def run(
         # persistence_manager = LocalStateManager(agent_config).load() # TODO: implement load
         # TODO: load prior agent state
         if persona and persona != agent_config.persona:
-            raise ValueError(f"Cannot override {agent_config.name} existing persona {agent_config.persona} with {persona}")
+            typer.secho(f"Warning: Overriding existing persona {agent_config.persona} with {persona}", fg=typer.colors.YELLOW)
+            agent_config.persona = persona
+            # raise ValueError(f"Cannot override {agent_config.name} existing persona {agent_config.persona} with {persona}")
         if human and human != agent_config.human:
-            raise ValueError(f"Cannot override {agent_config.name} existing human {agent_config.human} with {human}")
+            typer.secho(f"Warning: Overriding existing human {agent_config.human} with {human}", fg=typer.colors.YELLOW)
+            agent_config.human = human
+            # raise ValueError(f"Cannot override {agent_config.name} existing human {agent_config.human} with {human}")
+
+        # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
         if model and model != agent_config.model:
-            raise ValueError(f"Cannot override {agent_config.name} existing model {agent_config.model} with {model}")
+            typer.secho(f"Warning: Overriding existing model {agent_config.model} with {model}", fg=typer.colors.YELLOW)
+            agent_config.model = model
+        if context_window is not None and int(context_window) != agent_config.context_window:
+            typer.secho(
+                f"Warning: Overriding existing context window {agent_config.context_window} with {context_window}", fg=typer.colors.YELLOW
+            )
+            agent_config.context_window = context_window
+        if model_wrapper and model_wrapper != agent_config.model_wrapper:
+            typer.secho(
+                f"Warning: Overriding existing model wrapper {agent_config.model_wrapper} with {model_wrapper}", fg=typer.colors.YELLOW
+            )
+            agent_config.model_wrapper = model_wrapper
+        if model_endpoint and model_endpoint != agent_config.model_endpoint:
+            typer.secho(
+                f"Warning: Overriding existing model endpoint {agent_config.model_endpoint} with {model_endpoint}", fg=typer.colors.YELLOW
+            )
+            agent_config.model_endpoint = model_endpoint
+        if model_endpoint_type and model_endpoint_type != agent_config.model_endpoint_type:
+            typer.secho(
+                f"Warning: Overriding existing model endpoint type {agent_config.model_endpoint_type} with {model_endpoint_type}",
+                fg=typer.colors.YELLOW,
+            )
+            agent_config.model_endpoint_type = model_endpoint_type
+
+        # Update the agent config with any overrides
+        agent_config.save()
 
         # load existing agent
-        memgpt_agent = AgentAsync.load_agent(memgpt.interface, agent_config)
+        memgpt_agent = Agent.load_agent(interface, agent_config)
     else:  # create new agent
         # create new agent config: override defaults with args if provided
         typer.secho("Creating new agent...", fg=typer.colors.GREEN)
         agent_config = AgentConfig(
-            name=agent if agent else None,
-            persona=persona if persona else config.default_persona,
-            human=human if human else config.default_human,
-            model=model if model else config.model,
-            preset=preset if preset else config.preset,
+            name=agent,
+            persona=persona,
+            human=human,
+            preset=preset,
+            model=model,
+            model_wrapper=model_wrapper,
+            model_endpoint_type=model_endpoint_type,
+            model_endpoint=model_endpoint,
+            context_window=context_window,
         )
-
-        ## attach data source to agent
-        # agent_config.attach_data_source(data_source)
 
         # TODO: allow configrable state manager (only local is supported right now)
         persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
@@ -143,9 +187,12 @@ def run(
             agent_config.model,
             utils.get_persona_text(agent_config.persona),
             utils.get_human_text(agent_config.human),
-            memgpt.interface,
+            interface,
             persistence_manager,
         )
+
+    # pretty print agent config
+    printd(json.dumps(vars(agent_config), indent=4, sort_keys=True))
 
     # start event loop
     from memgpt.main import run_agent_loop
@@ -155,8 +202,7 @@ def run(
     if config.model_endpoint == "azure":
         configure_azure_support()
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(run_agent_loop(memgpt_agent, first, no_verify, config))  # TODO: add back no_verify
+    run_agent_loop(memgpt_agent, first, no_verify, config)  # TODO: add back no_verify
 
 
 def attach(
@@ -165,23 +211,35 @@ def attach(
 ):
     # loads the data contained in data source into the agent's memory
     from memgpt.connectors.storage import StorageConnector
+    from tqdm import tqdm
 
     agent_config = AgentConfig.load(agent)
-    config = MemGPTConfig.load()
 
     # get storage connectors
     source_storage = StorageConnector.get_storage_connector(name=data_source)
     dest_storage = StorageConnector.get_storage_connector(agent_config=agent_config)
 
-    passages = source_storage.get_all()
-    for p in passages:
-        len(p.embedding) == config.embedding_dim, f"Mismatched embedding sizes {len(p.embedding)} != {config.embedding_dim}"
-    dest_storage.insert_many(passages)
+    size = source_storage.size()
+    typer.secho(f"Ingesting {size} passages into {agent_config.name}", fg=typer.colors.GREEN)
+    page_size = 100
+    generator = source_storage.get_all_paginated(page_size=page_size)  # yields List[Passage]
+    for i in tqdm(range(0, size, page_size)):
+        passages = next(generator)
+        dest_storage.insert_many(passages)
+
+    # save destination storage
     dest_storage.save()
 
-    total_agent_passages = len(dest_storage.get_all())
+    total_agent_passages = dest_storage.size()
 
     typer.secho(
         f"Attached data source {data_source} to agent {agent}, consisting of {len(passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
         fg=typer.colors.GREEN,
     )
+
+
+def version():
+    import memgpt
+
+    print(memgpt.__version__)
+    return memgpt.__version__

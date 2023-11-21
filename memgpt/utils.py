@@ -1,5 +1,4 @@
 from datetime import datetime
-import asyncio
 import csv
 import difflib
 import demjson3 as demjson
@@ -7,7 +6,6 @@ import numpy as np
 import json
 import pytz
 import os
-import faiss
 import tiktoken
 import glob
 import sqlite3
@@ -15,12 +13,12 @@ import fitz
 from tqdm import tqdm
 import typer
 import memgpt
-from memgpt.openai_tools import async_get_embedding_with_backoff
+from memgpt.openai_tools import get_embedding_with_backoff
 from memgpt.constants import MEMGPT_DIR
 from llama_index import set_global_service_context, ServiceContext, VectorStoreIndex, load_index_from_storage, StorageContext
 from llama_index.embeddings import OpenAIEmbedding
 
-from memgpt.embeddings import embedding_model
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 def count_tokens(s: str, model: str = "gpt-4") -> int:
@@ -62,18 +60,31 @@ def get_local_time_military():
     return formatted_time
 
 
-def get_local_time():
+def get_local_time_timezone(timezone="America/Los_Angeles"):
     # Get the current time in UTC
     current_time_utc = datetime.now(pytz.utc)
 
     # Convert to San Francisco's time zone (PST/PDT)
-    sf_time_zone = pytz.timezone("America/Los_Angeles")
+    sf_time_zone = pytz.timezone(timezone)
     local_time = current_time_utc.astimezone(sf_time_zone)
 
     # You may format it as you desire, including AM/PM
     formatted_time = local_time.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
 
     return formatted_time
+
+
+def get_local_time(timezone=None):
+    if timezone is not None:
+        return get_local_time_timezone(timezone)
+    else:
+        # Get the current time, which will be in the local timezone of the computer
+        local_time = datetime.now()
+
+        # You may format it as you desire, including AM/PM
+        formatted_time = local_time.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
+
+        return formatted_time
 
 
 def parse_json(string):
@@ -93,6 +104,8 @@ def parse_json(string):
 
 
 def prepare_archival_index(folder):
+    import faiss
+
     index_file = os.path.join(folder, "all_docs.index")
     index = faiss.read_index(index_file)
 
@@ -230,38 +243,28 @@ def chunk_files_for_jsonl(files, tkns_per_chunk=300, model="gpt-4"):
     return ret
 
 
-async def process_chunk(i, chunk, model):
+def process_chunk(i, chunk, model):
     try:
-        return i, await async_get_embedding_with_backoff(chunk["content"], model=model)
+        return i, get_embedding_with_backoff(chunk["content"], model=model)
     except Exception as e:
         print(chunk)
         raise e
 
 
-async def process_concurrently(archival_database, model, concurrency=10):
-    # Create a semaphore to limit the number of concurrent tasks
-    semaphore = asyncio.Semaphore(concurrency)
-
-    async def bounded_process_chunk(i, chunk):
-        async with semaphore:
-            return await process_chunk(i, chunk, model)
-
-    # Create a list of tasks for chunks
+def process_concurrently(archival_database, model, concurrency=10):
     embedding_data = [0 for _ in archival_database]
-    tasks = [bounded_process_chunk(i, chunk) for i, chunk in enumerate(archival_database)]
+    with ThreadPoolExecutor(max_workers=concurrency) as executor:
+        # Submit tasks to the executor
+        future_to_chunk = {executor.submit(process_chunk, i, chunk, model): i for i, chunk in enumerate(archival_database)}
 
-    for future in tqdm(
-        asyncio.as_completed(tasks),
-        total=len(archival_database),
-        desc="Processing file chunks",
-    ):
-        i, result = await future
-        embedding_data[i] = result
-
+        # As each task completes, process the results
+        for future in tqdm(as_completed(future_to_chunk), total=len(archival_database), desc="Processing file chunks"):
+            i, result = future.result()
+            embedding_data[i] = result
     return embedding_data
 
 
-async def prepare_archival_index_from_files_compute_embeddings(
+def prepare_archival_index_from_files_compute_embeddings(
     glob_pattern,
     tkns_per_chunk=300,
     model="gpt-4",
@@ -281,7 +284,7 @@ async def prepare_archival_index_from_files_compute_embeddings(
 
     # chunk the files, make embeddings
     archival_database = chunk_files(files, tkns_per_chunk, model)
-    embedding_data = await process_concurrently(archival_database, embeddings_model)
+    embedding_data = process_concurrently(archival_database, embeddings_model)
     embeddings_file = os.path.join(save_dir, "embeddings.json")
     with open(embeddings_file, "w") as f:
         print(f"Saving embeddings to {embeddings_file}")
@@ -297,6 +300,8 @@ async def prepare_archival_index_from_files_compute_embeddings(
             f.write("\n")
 
     # make the faiss index
+    import faiss
+
     index = faiss.IndexFlatL2(1536)
     data = np.array(embedding_data).astype("float32")
     try:
@@ -366,8 +371,10 @@ def estimate_openai_cost(docs):
 
 
 def list_agent_config_files():
-    """List all agents config files"""
-    return os.listdir(os.path.join(MEMGPT_DIR, "agents"))
+    """List all agent config files, ignoring dotfiles."""
+    files = os.listdir(os.path.join(MEMGPT_DIR, "agents"))
+    #  remove dotfiles like .DS_Store
+    return [file for file in files if not file.startswith(".")]
 
 
 def list_human_files():
@@ -418,3 +425,17 @@ def get_human_text(name: str):
         file = os.path.basename(file_path)
         if f"{name}.txt" == file or name == file:
             return open(file_path, "r").read().strip()
+
+
+def get_schema_diff(schema_a, schema_b):
+    # Assuming f_schema and linked_function['json_schema'] are your JSON schemas
+    f_schema_json = json.dumps(schema_a, indent=2)
+    linked_function_json = json.dumps(schema_b, indent=2)
+
+    # Compute the difference using difflib
+    difference = list(difflib.ndiff(f_schema_json.splitlines(keepends=True), linked_function_json.splitlines(keepends=True)))
+
+    # Filter out lines that don't represent changes
+    difference = [line for line in difference if line.startswith("+ ") or line.startswith("- ")]
+
+    return "".join(difference)

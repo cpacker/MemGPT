@@ -1,12 +1,15 @@
-import asyncio
 import random
 import os
 import time
 
-from .local_llm.chat_completion_proxy import get_chat_completion
+import time
+from typing import Callable, TypeVar
+
+from memgpt.local_llm.chat_completion_proxy import get_chat_completion
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
+R = TypeVar("R")
 
 import openai
 
@@ -56,6 +59,7 @@ def retry_with_exponential_backoff(
     return wrapper
 
 
+# TODO: delete/ignore --legacy
 @retry_with_exponential_backoff
 def completions_with_backoff(**kwargs):
     # Local model
@@ -71,92 +75,48 @@ def completions_with_backoff(**kwargs):
             else:
                 kwargs["engine"] = MODEL_TO_AZURE_ENGINE[kwargs["model"]]
                 kwargs.pop("model")
+        if "context_window" in kwargs:
+            kwargs.pop("context_window")
         return openai.ChatCompletion.create(**kwargs)
 
 
-def aretry_with_exponential_backoff(
-    func,
-    initial_delay: float = 1,
-    exponential_base: float = 2,
-    jitter: bool = True,
-    max_retries: int = 20,
-    errors: tuple = (openai.error.RateLimitError,),
-):
-    """Retry a function with exponential backoff."""
+@retry_with_exponential_backoff
+def chat_completion_with_backoff(agent_config, **kwargs):
+    from memgpt.utils import printd
+    from memgpt.config import AgentConfig, MemGPTConfig
 
-    async def wrapper(*args, **kwargs):
-        # Initialize variables
-        num_retries = 0
-        delay = initial_delay
+    # both "model" and "messages" are required for base OpenAI calls
+    # also required for local LLM Ollama, but not others
+    if "model" not in kwargs:
+        kwargs["model"] = agent_config.model
 
-        # Loop until a successful response or max_retries is hit or an exception is raised
-        while True:
-            try:
-                return await func(*args, **kwargs)
-
-            # Retry on specified errors
-            except errors as e:
-                print(f"acreate (backoff): caught error: {e}")
-                # Increment retries
-                num_retries += 1
-
-                # Check if max retries has been reached
-                if num_retries > max_retries:
-                    raise Exception(f"Maximum number of retries ({max_retries}) exceeded.")
-
-                # Increment the delay
-                delay *= exponential_base * (1 + jitter * random.random())
-
-                # Sleep for the delay
-                await asyncio.sleep(delay)
-
-            # Raise exceptions for any errors not specified
-            except Exception as e:
-                raise e
-
-    return wrapper
-
-
-@aretry_with_exponential_backoff
-async def acompletions_with_backoff(**kwargs):
-    # Local model
-    if HOST_TYPE is not None:
+    printd(f"Using model {agent_config.model_endpoint_type}, endpoint: {agent_config.model_endpoint}")
+    if agent_config.model_endpoint_type == "openai":
+        # openai
+        openai.api_base = agent_config.model_endpoint
+        return openai.ChatCompletion.create(**kwargs)
+    elif agent_config.model_endpoint_type == "azure":
+        # configure openai
+        config = MemGPTConfig.load()  # load credentials (currently not stored in agent config)
+        openai.api_type = "azure"
+        openai.api_key = config.azure_key
+        openai.api_base = config.azure_endpoint
+        openai.api_version = config.azure_version
+        if config.azure_deployment is not None:
+            kwargs["deployment_id"] = config.azure_deployment
+        else:
+            kwargs["engine"] = MODEL_TO_AZURE_ENGINE[config.model]
+            del kwargs["model"]
+        return openai.ChatCompletion.create(**kwargs)
+    else:  # local model
+        kwargs["context_window"] = agent_config.context_window  # specify for open LLMs
+        kwargs["endpoint"] = agent_config.model_endpoint  # specify for open LLMs
+        kwargs["endpoint_type"] = agent_config.model_endpoint_type  # specify for open LLMs
+        kwargs["wrapper"] = agent_config.model_wrapper  # specify for open LLMs
         return get_chat_completion(**kwargs)
 
-    # OpenAI / Azure model
-    else:
-        if using_azure():
-            azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-            if azure_openai_deployment is not None:
-                kwargs["deployment_id"] = azure_openai_deployment
-            else:
-                kwargs["engine"] = MODEL_TO_AZURE_ENGINE[kwargs["model"]]
-                kwargs.pop("model")
-        return await openai.ChatCompletion.acreate(**kwargs)
 
-
-@aretry_with_exponential_backoff
-async def acreate_embedding_with_backoff(**kwargs):
-    """Wrapper around Embedding.acreate w/ backoff"""
-    if using_azure():
-        azure_openai_deployment = os.getenv("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT")
-        if azure_openai_deployment is not None:
-            kwargs["deployment_id"] = azure_openai_deployment
-        else:
-            kwargs["engine"] = kwargs["model"]
-            kwargs.pop("model")
-    return await openai.Embedding.acreate(**kwargs)
-
-
-async def async_get_embedding_with_backoff(text, model="text-embedding-ada-002"):
-    """To get text embeddings, import/call this function
-    It specifies defaults + handles rate-limiting + is async"""
-    text = text.replace("\n", " ")
-    response = await acreate_embedding_with_backoff(input=[text], model=model)
-    embedding = response["data"][0]["embedding"]
-    return embedding
-
-
+# TODO: deprecate
 @retry_with_exponential_backoff
 def create_embedding_with_backoff(**kwargs):
     if using_azure():

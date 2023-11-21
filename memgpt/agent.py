@@ -1,34 +1,28 @@
-import asyncio
-import inspect
 import datetime
 import glob
-import pickle
-import math
 import os
-import requests
 import json
-import threading
+import traceback
 
-import openai
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import AgentConfig
-from .system import get_heartbeat, get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
-from .memory import CoreMemory as Memory, summarize_messages, a_summarize_messages
-from .openai_tools import acompletions_with_backoff as acreate, completions_with_backoff as create
-from .utils import get_local_time, parse_json, united_diff, printd, count_tokens
+from .system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
+from .memory import CoreMemory as Memory, summarize_messages
+from .openai_tools import completions_with_backoff as create
+from memgpt.openai_tools import chat_completion_with_backoff
+from .utils import get_local_time, parse_json, united_diff, printd, count_tokens, get_schema_diff
 from .constants import (
-    MEMGPT_DIR,
     FIRST_MESSAGE_ATTEMPTS,
     MAX_PAUSE_HEARTBEATS,
-    MESSAGE_CHATGPT_FUNCTION_MODEL,
-    MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
-    MESSAGE_SUMMARY_WARNING_TOKENS,
+    MESSAGE_SUMMARY_WARNING_FRAC,
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
+    LLM_MAX_TOKENS,
 )
 from .errors import LLMError
+from .functions.functions import load_all_function_sets
 
 
 def initialize_memory(ai_notes, human_notes):
@@ -80,7 +74,7 @@ def initialize_message_sequence(
     first_user_message = get_login_event()  # event letting MemGPT know the user just logged in
 
     if include_initial_boot_message:
-        if "gpt-3.5" in model:
+        if model is not None and "gpt-3.5" in model:
             initial_boot_messages = get_initial_boot_messages("startup_with_send_message_gpt35")
         else:
             initial_boot_messages = get_initial_boot_messages("startup_with_send_message")
@@ -103,81 +97,13 @@ def initialize_message_sequence(
     return messages
 
 
-def get_ai_reply(
-    model,
-    message_sequence,
-    functions,
-    function_call="auto",
-):
-    try:
-        response = create(
-            model=model,
-            messages=message_sequence,
-            functions=functions,
-            function_call=function_call,
-        )
-
-        # special case for 'length'
-        if response.choices[0].finish_reason == "length":
-            raise Exception("Finish reason was length (maximum context length)")
-
-        # catches for soft errors
-        if response.choices[0].finish_reason not in ["stop", "function_call"]:
-            raise Exception(f"API call finish with bad finish reason: {response}")
-
-        # unpack with response.choices[0].message.content
-        return response
-
-    except Exception as e:
-        raise e
-
-
-async def get_ai_reply_async(
-    model,
-    message_sequence,
-    functions,
-    function_call="auto",
-):
-    """Base call to GPT API w/ functions"""
-
-    try:
-        response = await acreate(
-            model=model,
-            messages=message_sequence,
-            functions=functions,
-            function_call=function_call,
-        )
-
-        # special case for 'length'
-        if response.choices[0].finish_reason == "length":
-            raise Exception("Finish reason was length (maximum context length)")
-
-        # catches for soft errors
-        if response.choices[0].finish_reason not in ["stop", "function_call"]:
-            raise Exception(f"API call finish with bad finish reason: {response}")
-
-        # unpack with response.choices[0].message.content
-        return response
-
-    except Exception as e:
-        raise e
-
-
-# Assuming function_to_call is either sync or async
-async def call_function(function_to_call, **function_args):
-    if inspect.iscoroutinefunction(function_to_call):
-        return await function_to_call(**function_args)
-    else:
-        return function_to_call(**function_args)
-
-
 class Agent(object):
     def __init__(
         self,
         config,
         model,
         system,
-        functions,
+        functions,  # list of [{'schema': 'x', 'python_function': function_pointer}, ...]
         interface,
         persistence_manager,
         persona_notes,
@@ -192,8 +118,18 @@ class Agent(object):
         self.model = model
         # Store the system instructions (used to rebuild memory)
         self.system = system
-        # Store the functions spec
-        self.functions = functions
+
+        # Available functions is a mapping from:
+        # function_name -> {
+        #   json_schema: schema
+        #   python_function: function
+        # }
+        # Store the functions schemas (this is passed as an argument to ChatCompletion)
+        functions_schema = [f_dict["json_schema"] for f_name, f_dict in functions.items()]
+        self.functions = functions_schema
+        # Store references to the python objects
+        self.functions_python = {f_name: f_dict["python_function"] for f_name, f_dict in functions.items()}
+
         # Initialize the memory object
         self.memory = initialize_memory(persona_notes, human_notes)
         # Once the memory object is initialize, use it to "bake" the system message
@@ -206,7 +142,7 @@ class Agent(object):
         self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
         # self.messages_total_init = self.messages_total
         self.messages_total_init = len(self._messages) - 1
-        printd(f"AgentAsync initialized, self.messages_total={self.messages_total}")
+        printd(f"Agent initialized, self.messages_total={self.messages_total}")
 
         # Interface must implement:
         # - internal_monologue
@@ -236,34 +172,6 @@ class Agent(object):
         # When an alert is sent in the message queue, set this to True (to avoid repeat alerts)
         # When the summarizer is run, set this back to False (to reset)
         self.agent_alerted_about_memory_pressure = False
-
-        self.init_avail_functions()
-
-    def init_avail_functions(self):
-        """
-        Allows subclasses to overwrite this dictionary with overriden methods.
-        """
-        self.available_functions = {
-            # These functions aren't all visible to the LLM
-            # To see what functions the LLM sees, check self.functions
-            "send_message": self.send_ai_message,
-            "edit_memory": self.edit_memory,
-            "edit_memory_append": self.edit_memory_append,
-            "edit_memory_replace": self.edit_memory_replace,
-            "pause_heartbeats": self.pause_heartbeats,
-            "core_memory_append": self.edit_memory_append,
-            "core_memory_replace": self.edit_memory_replace,
-            "recall_memory_search": self.recall_memory_search,
-            "recall_memory_search_date": self.recall_memory_search_date,
-            "conversation_search": self.recall_memory_search,
-            "conversation_search_date": self.recall_memory_search_date,
-            "archival_memory_insert": self.archival_memory_insert,
-            "archival_memory_search": self.archival_memory_search,
-            # extras
-            "read_from_text_file": self.read_from_text_file,
-            "append_to_text_file": self.append_to_text_file,
-            "http_request": self.http_request,
-        }
 
     @property
     def messages(self):
@@ -372,7 +280,7 @@ class Agent(object):
         json_files = glob.glob(os.path.join(directory, "*.json"))  # This will list all .json files in the current directory.
         if not json_files:
             print(f"/load error: no .json checkpoint files found")
-            raise ValueError(f"Cannot load {agent_name}")
+            raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {directory}")
 
         # Sort files based on modified timestamp, with the latest file being the first.
         filename = max(json_files, key=os.path.getmtime)
@@ -384,12 +292,54 @@ class Agent(object):
         printd(f"Loading persistence manager from {os.path.join(directory, filename)}")
         persistence_manager = LocalStateManager.load(os.path.join(directory, filename), agent_config)
 
+        # need to dynamically link the functions
+        # the saved agent.functions will just have the schemas, but we need to
+        # go through the functions library and pull the respective python functions
+
+        # Available functions is a mapping from:
+        # function_name -> {
+        #   json_schema: schema
+        #   python_function: function
+        # }
+        # agent.functions is a list of schemas (OpenAI kwarg functions style, see: https://platform.openai.com/docs/api-reference/chat/create)
+        # [{'name': ..., 'description': ...}, {...}]
+        available_functions = load_all_function_sets()
+        linked_function_set = {}
+        for f_schema in state["functions"]:
+            # Attempt to find the function in the existing function library
+            f_name = f_schema.get("name")
+            if f_name is None:
+                raise ValueError(f"While loading agent.state.functions encountered a bad function schema object with no name:\n{f_schema}")
+            linked_function = available_functions.get(f_name)
+            if linked_function is None:
+                raise ValueError(
+                    f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
+                )
+            # Once we find a matching function, make sure the schema is identical
+            if json.dumps(f_schema) != json.dumps(linked_function["json_schema"]):
+                # error_message = (
+                #     f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different."
+                #     + f"\n>>>agent.state.functions\n{json.dumps(f_schema, indent=2)}"
+                #     + f"\n>>>function library\n{json.dumps(linked_function['json_schema'], indent=2)}"
+                # )
+                schema_diff = get_schema_diff(f_schema, linked_function["json_schema"])
+                error_message = (
+                    f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different.\n"
+                    + "".join(schema_diff)
+                )
+
+                # NOTE to handle old configs, instead of erroring here let's just warn
+                # raise ValueError(error_message)
+                printd(error_message)
+            linked_function_set[f_name] = linked_function
+
         messages = state["messages"]
         agent = cls(
             config=agent_config,
             model=state["model"],
             system=state["system"],
-            functions=state["functions"],
+            # functions=state["functions"],
+            functions=linked_function_set,
             interface=interface,
             persistence_manager=persistence_manager,
             persistence_manager_init=False,
@@ -475,8 +425,8 @@ class Agent(object):
             return False
 
         function_name = response_message["function_call"]["name"]
-        if require_send_message and function_name != "send_message":
-            printd(f"First message function call wasn't send_message: {response_message}")
+        if require_send_message and function_name != "send_message" and function_name != "archival_memory_search":
+            printd(f"First message function call wasn't send_message or archival_memory_search: {response_message}")
             return False
 
         if require_monologue and (
@@ -520,7 +470,7 @@ class Agent(object):
             # Failure case 1: function name is wrong
             function_name = response_message["function_call"]["name"]
             try:
-                function_to_call = self.available_functions[function_name]
+                function_to_call = self.functions_python[function_name]
             except KeyError as e:
                 error_msg = f"No function named {function_name}"
                 function_response = package_function_response(False, error_msg)
@@ -563,12 +513,14 @@ class Agent(object):
             # Failure case 3: function failed during execution
             self.interface.function_message(f"Running {function_name}({function_args})")
             try:
+                function_args["self"] = self  # need to attach self to arg since it's dynamically linked
                 function_response_string = function_to_call(**function_args)
                 function_response = package_function_response(True, function_response_string)
                 function_failed = False
             except Exception as e:
                 error_msg = f"Error calling function {function_name} with args {function_args}: {str(e)}"
-                printd(error_msg)
+                error_msg_user = f"{error_msg}\n{traceback.format_exc()}"
+                printd(error_msg_user)
                 function_response = package_function_response(False, error_msg)
                 messages.append(
                     {
@@ -620,7 +572,9 @@ class Agent(object):
                 printd(f"This is the first message. Running extra verifier on AI response.")
                 counter = 0
                 while True:
-                    response = get_ai_reply(model=self.model, message_sequence=input_message_sequence, functions=self.functions)
+                    response = self.get_ai_reply(
+                        message_sequence=input_message_sequence,
+                    )
                     if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
 
@@ -629,7 +583,9 @@ class Agent(object):
                         raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
 
             else:
-                response = get_ai_reply(model=self.model, message_sequence=input_message_sequence, functions=self.functions)
+                response = self.get_ai_reply(
+                    message_sequence=input_message_sequence,
+                )
 
             # Step 2: check if LLM wanted to call a function
             # (if yes) Step 3: call the function
@@ -658,14 +614,28 @@ class Agent(object):
             # Check the memory pressure and potentially issue a memory pressure warning
             current_total_tokens = response["usage"]["total_tokens"]
             active_memory_warning = False
-            if current_total_tokens > MESSAGE_SUMMARY_WARNING_TOKENS:
-                printd(f"WARNING: last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_TOKENS}")
+            # We can't do summarize logic properly if context_window is undefined
+            if self.config.context_window is None:
+                # Fallback if for some reason context_window is missing, just set to the default
+                print(f"WARNING: could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
+                print(f"{self.config}")
+                self.config.context_window = (
+                    str(LLM_MAX_TOKENS[self.model])
+                    if (self.model is not None and self.model in LLM_MAX_TOKENS)
+                    else str(LLM_MAX_TOKENS["DEFAULT"])
+                )
+            if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window):
+                printd(
+                    f"WARNING: last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window)}"
+                )
                 # Only deliver the alert if we haven't already (this period)
                 if not self.agent_alerted_about_memory_pressure:
                     active_memory_warning = True
                     self.agent_alerted_about_memory_pressure = True  # it's up to the outer loop to handle this
             else:
-                printd(f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_TOKENS}")
+                printd(
+                    f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window)}"
+                )
 
             self.append_to_messages(all_new_messages)
             return all_new_messages, heartbeat_request, function_failed, active_memory_warning
@@ -736,7 +706,17 @@ class Agent(object):
         message_sequence_to_summarize = self.messages[1:cutoff]  # do NOT get rid of the system message
         printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
 
-        summary = summarize_messages(self.model, message_sequence_to_summarize)
+        # We can't do summarize logic properly if context_window is undefined
+        if self.config.context_window is None:
+            # Fallback if for some reason context_window is missing, just set to the default
+            print(f"WARNING: could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
+            print(f"{self.config}")
+            self.config.context_window = (
+                str(LLM_MAX_TOKENS[self.model])
+                if (self.model is not None and self.model in LLM_MAX_TOKENS)
+                else str(LLM_MAX_TOKENS["DEFAULT"])
+            )
+        summary = summarize_messages(agent_config=self.config, message_sequence_to_summarize=message_sequence_to_summarize)
         printd(f"Got summary: {summary}")
 
         # Metadata that's useful for the agent to see
@@ -756,159 +736,6 @@ class Agent(object):
         self.agent_alerted_about_memory_pressure = False
 
         printd(f"Ran summarizer, messages length {prior_len} -> {len(self.messages)}")
-
-    def send_ai_message(self, message):
-        """AI wanted to send a message"""
-        self.interface.assistant_message(message)
-        return None
-
-    def edit_memory(self, name, content):
-        """Edit memory.name <= content"""
-        new_len = self.memory.edit(name, content)
-        self.rebuild_memory()
-        return None
-
-    def edit_memory_append(self, name, content):
-        new_len = self.memory.edit_append(name, content)
-        self.rebuild_memory()
-        return None
-
-    def edit_memory_replace(self, name, old_content, new_content):
-        new_len = self.memory.edit_replace(name, old_content, new_content)
-        self.rebuild_memory()
-        return None
-
-    def recall_memory_search(self, query, count=5, page=0):
-        results, total = self.persistence_manager.recall_memory.text_search(query, count=count, start=page * count)
-        num_pages = math.ceil(total / count) - 1  # 0 index
-        if len(results) == 0:
-            results_str = f"No results found."
-        else:
-            results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
-            results_formatted = [f"timestamp: {d['timestamp']}, {d['message']['role']} - {d['message']['content']}" for d in results]
-            results_str = f"{results_pref} {json.dumps(results_formatted)}"
-        return results_str
-
-    def recall_memory_search_date(self, start_date, end_date, count=5, page=0):
-        results, total = self.persistence_manager.recall_memory.date_search(start_date, end_date, count=count, start=page * count)
-        num_pages = math.ceil(total / count) - 1  # 0 index
-        if len(results) == 0:
-            results_str = f"No results found."
-        else:
-            results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
-            results_formatted = [f"timestamp: {d['timestamp']}, {d['message']['role']} - {d['message']['content']}" for d in results]
-            results_str = f"{results_pref} {json.dumps(results_formatted)}"
-        return results_str
-
-    def archival_memory_insert(self, content, embedding=None):
-        self.persistence_manager.archival_memory.insert(content, embedding=None)
-        return None
-
-    def archival_memory_search(self, query, count=5, page=0):
-        results, total = self.persistence_manager.archival_memory.search(query, count=count, start=page * count)
-        num_pages = math.ceil(total / count) - 1  # 0 index
-        if len(results) == 0:
-            results_str = f"No results found."
-        else:
-            results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
-            results_formatted = [f"timestamp: {d['timestamp']}, memory: {d['content']}" for d in results]
-            results_str = f"{results_pref} {json.dumps(results_formatted)}"
-        return results_str
-
-    def message_chatgpt(self, message):
-        """Base call to GPT API w/ functions"""
-
-        message_sequence = [
-            {"role": "system", "content": MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE},
-            {"role": "user", "content": str(message)},
-        ]
-        response = create(
-            model=MESSAGE_CHATGPT_FUNCTION_MODEL,
-            messages=message_sequence,
-            # functions=functions,
-            # function_call=function_call,
-        )
-
-        reply = response.choices[0].message.content
-        return reply
-
-    def read_from_text_file(self, filename, line_start, num_lines=1, max_chars=500, trunc_message=True):
-        if not os.path.exists(filename):
-            raise FileNotFoundError(f"The file '{filename}' does not exist.")
-
-        if line_start < 1 or num_lines < 1:
-            raise ValueError("Both line_start and num_lines must be positive integers.")
-
-        lines = []
-        chars_read = 0
-        with open(filename, "r") as file:
-            for current_line_number, line in enumerate(file, start=1):
-                if line_start <= current_line_number < line_start + num_lines:
-                    chars_to_add = len(line)
-                    if max_chars is not None and chars_read + chars_to_add > max_chars:
-                        # If adding this line exceeds MAX_CHARS, truncate the line if needed and stop reading further.
-                        excess_chars = (chars_read + chars_to_add) - max_chars
-                        lines.append(line[:-excess_chars].rstrip("\n"))
-                        if trunc_message:
-                            lines.append(f"[SYSTEM ALERT - max chars ({max_chars}) reached during file read]")
-                        break
-                    else:
-                        lines.append(line.rstrip("\n"))
-                        chars_read += chars_to_add
-                if current_line_number >= line_start + num_lines - 1:
-                    break
-
-        return "\n".join(lines)
-
-    def append_to_text_file(self, filename, content):
-        if not os.path.exists(filename):
-            raise FileNotFoundError(f"The file '{filename}' does not exist.")
-
-        with open(filename, "a") as file:
-            file.write(content + "\n")
-
-    def http_request(self, method, url, payload_json=None):
-        """
-        Makes an HTTP request based on the specified method, URL, and JSON payload.
-
-        Args:
-        method (str): The HTTP method (e.g., 'GET', 'POST').
-        url (str): The URL for the request.
-        payload_json (str): A JSON string representing the request payload.
-
-        Returns:
-        dict: The response from the HTTP request.
-        """
-        try:
-            headers = {"Content-Type": "application/json"}
-
-            # For GET requests, ignore the payload
-            if method.upper() == "GET":
-                print(f"[HTTP] launching GET request to {url}")
-                response = requests.get(url, headers=headers)
-            else:
-                # Validate and convert the payload for other types of requests
-                if payload_json:
-                    payload = json.loads(payload_json)
-                else:
-                    payload = {}
-                print(f"[HTTP] launching {method} request to {url}, payload=\n{json.dumps(payload, indent=2)}")
-                response = requests.request(method, url, json=payload, headers=headers)
-
-            return {"status_code": response.status_code, "headers": dict(response.headers), "body": response.text}
-        except Exception as e:
-            return {"error": str(e)}
-
-    def pause_heartbeats(self, minutes, max_pause=MAX_PAUSE_HEARTBEATS):
-        """Pause timed heartbeats for N minutes"""
-        minutes = min(max_pause, minutes)
-
-        # Record the current time
-        self.pause_heartbeats_start = datetime.datetime.now()
-        # And record how long the pause should go for
-        self.pause_heartbeats_minutes = int(minutes)
-
-        return f"Pausing timed heartbeats for {minutes} min"
 
     def heartbeat_is_paused(self):
         """Check if there's a requested pause on timed heartbeats"""
@@ -921,358 +748,54 @@ class Agent(object):
         elapsed_time = datetime.datetime.now() - self.pause_heartbeats_start
         return elapsed_time.total_seconds() < self.pause_heartbeats_minutes * 60
 
+    def get_ai_reply(
+        self,
+        message_sequence,
+        function_call="auto",
+    ):
+        """Get response from LLM API"""
 
-class AgentAsync(Agent):
-    """Core logic for an async MemGPT agent"""
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.init_avail_functions()
-
-    async def handle_ai_response(self, response_message):
-        """Handles parsing and function execution"""
-        messages = []  # append these to the history when done
-
-        # Step 2: check if LLM wanted to call a function
-        if response_message.get("function_call"):
-            # The content if then internal monologue, not chat
-            await self.interface.internal_monologue(response_message.content)
-            messages.append(response_message)  # extend conversation with assistant's reply
-
-            # Step 3: call the function
-            # Note: the JSON response may not always be valid; be sure to handle errors
-
-            # Failure case 1: function name is wrong
-            function_name = response_message["function_call"]["name"]
+        # TODO: Legacy code - delete
+        if self.config is None:
             try:
-                function_to_call = self.available_functions[function_name]
-            except KeyError as e:
-                error_msg = f"No function named {function_name}"
-                function_response = package_function_response(False, error_msg)
-                messages.append(
-                    {
-                        "role": "function",
-                        "name": function_name,
-                        "content": function_response,
-                    }
-                )  # extend conversation with function response
-                await self.interface.function_message(f"Error: {error_msg}")
-                return messages, None, True  # force a heartbeat to allow agent to handle error
-
-            # Failure case 2: function name is OK, but function args are bad JSON
-            try:
-                raw_function_args = response_message["function_call"]["arguments"]
-                function_args = parse_json(raw_function_args)
-            except Exception as e:
-                error_msg = f"Error parsing JSON for function '{function_name}' arguments: {raw_function_args}"
-                function_response = package_function_response(False, error_msg)
-                messages.append(
-                    {
-                        "role": "function",
-                        "name": function_name,
-                        "content": function_response,
-                    }
-                )  # extend conversation with function response
-                await self.interface.function_message(f"Error: {error_msg}")
-                return messages, None, True  # force a heartbeat to allow agent to handle error
-
-            # (Still parsing function args)
-            # Handle requests for immediate heartbeat
-            heartbeat_request = function_args.pop("request_heartbeat", None)
-            if not (isinstance(heartbeat_request, bool) or heartbeat_request is None):
-                printd(
-                    f"Warning: 'request_heartbeat' arg parsed was not a bool or None, type={type(heartbeat_request)}, value={heartbeat_request}"
+                response = create(
+                    model=self.model,
+                    context_window=self.context_window,
+                    messages=message_sequence,
+                    functions=self.functions,
+                    function_call=function_call,
                 )
-                heartbeat_request = None
 
-            # Failure case 3: function failed during execution
-            await self.interface.function_message(f"Running {function_name}({function_args})")
-            try:
-                function_response_string = await call_function(function_to_call, **function_args)
-                function_response = package_function_response(True, function_response_string)
-                function_failed = False
+                # special case for 'length'
+                if response.choices[0].finish_reason == "length":
+                    raise Exception("Finish reason was length (maximum context length)")
+
+                # catches for soft errors
+                if response.choices[0].finish_reason not in ["stop", "function_call"]:
+                    raise Exception(f"API call finish with bad finish reason: {response}")
+
+                # unpack with response.choices[0].message.content
+                return response
             except Exception as e:
-                error_msg = f"Error calling function {function_name} with args {function_args}: {str(e)}"
-                printd(error_msg)
-                function_response = package_function_response(False, error_msg)
-                messages.append(
-                    {
-                        "role": "function",
-                        "name": function_name,
-                        "content": function_response,
-                    }
-                )  # extend conversation with function response
-                await self.interface.function_message(f"Error: {error_msg}")
-                return messages, None, True  # force a heartbeat to allow agent to handle error
-
-            # If no failures happened along the way: ...
-            # Step 4: send the info on the function call and function response to GPT
-            await self.interface.function_message(f"Success: {function_response_string}")
-            messages.append(
-                {
-                    "role": "function",
-                    "name": function_name,
-                    "content": function_response,
-                }
-            )  # extend conversation with function response
-
-        else:
-            # Standard non-function reply
-            await self.interface.internal_monologue(response_message.content)
-            messages.append(response_message)  # extend conversation with assistant's reply
-            heartbeat_request = None
-            function_failed = None
-
-        return messages, heartbeat_request, function_failed
-
-    async def step(self, user_message, first_message=False, first_message_retry_limit=FIRST_MESSAGE_ATTEMPTS, skip_verify=False):
-        """Top-level event message handler for the MemGPT agent"""
-
-        try:
-            # Step 0: add user message
-            if user_message is not None:
-                await self.interface.user_message(user_message)
-                packed_user_message = {"role": "user", "content": user_message}
-                input_message_sequence = self.messages + [packed_user_message]
-            else:
-                input_message_sequence = self.messages
-
-            if len(input_message_sequence) > 1 and input_message_sequence[-1]["role"] != "user":
-                printd(f"WARNING: attempting to run ChatCompletion without user as the last message in the queue")
-                from pprint import pprint
-
-                pprint(input_message_sequence[-1])
-
-            # Step 1: send the conversation and available functions to GPT
-            if not skip_verify and (first_message or self.messages_total == self.messages_total_init):
-                printd(f"This is the first message. Running extra verifier on AI response.")
-                counter = 0
-                while True:
-                    response = await get_ai_reply_async(model=self.model, message_sequence=input_message_sequence, functions=self.functions)
-                    if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
-                        break
-
-                    counter += 1
-                    if counter > first_message_retry_limit:
-                        raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
-
-            else:
-                response = await get_ai_reply_async(model=self.model, message_sequence=input_message_sequence, functions=self.functions)
-
-            # Step 2: check if LLM wanted to call a function
-            # (if yes) Step 3: call the function
-            # (if yes) Step 4: send the info on the function call and function response to LLM
-            response_message = response.choices[0].message
-            response_message_copy = response_message.copy()
-            all_response_messages, heartbeat_request, function_failed = await self.handle_ai_response(response_message)
-
-            # Add the extra metadata to the assistant response
-            # (e.g. enough metadata to enable recreating the API call)
-            assert "api_response" not in all_response_messages[0], f"api_response already in {all_response_messages[0]}"
-            all_response_messages[0]["api_response"] = response_message_copy
-            assert "api_args" not in all_response_messages[0], f"api_args already in {all_response_messages[0]}"
-            all_response_messages[0]["api_args"] = {
-                "model": self.model,
-                "messages": input_message_sequence,
-                "functions": self.functions,
-            }
-
-            # Step 4: extend the message history
-            if user_message is not None:
-                all_new_messages = [packed_user_message] + all_response_messages
-            else:
-                all_new_messages = all_response_messages
-
-            # Check the memory pressure and potentially issue a memory pressure warning
-            current_total_tokens = response["usage"]["total_tokens"]
-            active_memory_warning = False
-            if current_total_tokens > MESSAGE_SUMMARY_WARNING_TOKENS:
-                printd(f"WARNING: last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_TOKENS}")
-                # Only deliver the alert if we haven't already (this period)
-                if not self.agent_alerted_about_memory_pressure:
-                    active_memory_warning = True
-                    self.agent_alerted_about_memory_pressure = True  # it's up to the outer loop to handle this
-            else:
-                printd(f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_TOKENS}")
-
-            self.append_to_messages(all_new_messages)
-            return all_new_messages, heartbeat_request, function_failed, active_memory_warning
-
-        except Exception as e:
-            printd(f"step() failed\nuser_message = {user_message}\nerror = {e}")
-            print(f"step() failed\nuser_message = {user_message}\nerror = {e}")
-
-            # If we got a context alert, try trimming the messages length, then try again
-            if "maximum context length" in str(e):
-                # A separate API call to run a summarizer
-                await self.summarize_messages_inplace()
-
-                # Try step again
-                return await self.step(user_message, first_message=first_message)
-            else:
-                printd(f"step() failed with openai.InvalidRequestError, but didn't recognize the error message: '{str(e)}'")
-                print(e)
                 raise e
 
-    async def summarize_messages_inplace(self, cutoff=None, preserve_last_N_messages=True):
-        assert self.messages[0]["role"] == "system", f"self.messages[0] should be system (instead got {self.messages[0]})"
-
-        # Start at index 1 (past the system message),
-        # and collect messages for summarization until we reach the desired truncation token fraction (eg 50%)
-        # Do not allow truncation of the last N messages, since these are needed for in-context examples of function calling
-        token_counts = [count_tokens(str(msg)) for msg in self.messages]
-        message_buffer_token_count = sum(token_counts[1:])  # no system message
-        token_counts = token_counts[1:]
-        desired_token_count_to_summarize = int(message_buffer_token_count * MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC)
-        candidate_messages_to_summarize = self.messages[1:]
-        if preserve_last_N_messages:
-            candidate_messages_to_summarize = candidate_messages_to_summarize[:-MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST]
-            token_counts = token_counts[:-MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST]
-        printd(f"MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC={MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC}")
-        printd(f"MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST={MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST}")
-        printd(f"token_counts={token_counts}")
-        printd(f"message_buffer_token_count={message_buffer_token_count}")
-        printd(f"desired_token_count_to_summarize={desired_token_count_to_summarize}")
-        printd(f"len(candidate_messages_to_summarize)={len(candidate_messages_to_summarize)}")
-
-        # If at this point there's nothing to summarize, throw an error
-        if len(candidate_messages_to_summarize) == 0:
-            raise LLMError(
-                f"Summarize error: tried to run summarize, but couldn't find enough messages to compress [len={len(self.messages)}, preserve_N={MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST}]"
-            )
-
-        # Walk down the message buffer (front-to-back) until we hit the target token count
-        tokens_so_far = 0
-        cutoff = 0
-        for i, msg in enumerate(candidate_messages_to_summarize):
-            cutoff = i
-            tokens_so_far += token_counts[i]
-            if tokens_so_far > desired_token_count_to_summarize:
-                break
-        # Account for system message
-        cutoff += 1
-
-        # Try to make an assistant message come after the cutoff
         try:
-            printd(f"Selected cutoff {cutoff} was a 'user', shifting one...")
-            if self.messages[cutoff]["role"] == "user":
-                new_cutoff = cutoff + 1
-                if self.messages[new_cutoff]["role"] == "user":
-                    printd(f"Shifted cutoff {new_cutoff} is still a 'user', ignoring...")
-                cutoff = new_cutoff
-        except IndexError:
-            pass
-
-        message_sequence_to_summarize = self.messages[1:cutoff]  # do NOT get rid of the system message
-        if len(message_sequence_to_summarize) == 0:
-            printd(f"message_sequence_to_summarize is len 0, skipping summarize")
-            raise LLMError(
-                f"Summarize error: tried to run summarize, but couldn't find enough messages to compress [len={len(self.messages)}, cutoff={cutoff}]"
+            response = chat_completion_with_backoff(
+                agent_config=self.config,
+                model=self.model,  # TODO: remove (is redundant)
+                messages=message_sequence,
+                functions=self.functions,
+                function_call=function_call,
             )
+            # special case for 'length'
+            if response.choices[0].finish_reason == "length":
+                raise Exception("Finish reason was length (maximum context length)")
 
-        printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
-        summary = await a_summarize_messages(self.model, message_sequence_to_summarize)
-        printd(f"Got summary: {summary}")
+            # catches for soft errors
+            if response.choices[0].finish_reason not in ["stop", "function_call"]:
+                raise Exception(f"API call finish with bad finish reason: {response}")
 
-        # Metadata that's useful for the agent to see
-        all_time_message_count = self.messages_total
-        remaining_message_count = len(self.messages[cutoff:])
-        hidden_message_count = all_time_message_count - remaining_message_count
-        summary_message_count = len(message_sequence_to_summarize)
-        summary_message = package_summarize_message(summary, summary_message_count, hidden_message_count, all_time_message_count)
-        printd(f"Packaged into message: {summary_message}")
-
-        prior_len = len(self.messages)
-        self.trim_messages(cutoff)
-        packed_summary_message = {"role": "user", "content": summary_message}
-        self.prepend_to_messages([packed_summary_message])
-
-        # reset alert
-        self.agent_alerted_about_memory_pressure = False
-
-        printd(f"Ran summarizer, messages length {prior_len} -> {len(self.messages)}")
-
-    async def free_step(self, user_message, limit=None):
-        """Allow agent to manage its own control flow (past a single LLM call).
-        Not currently used, instead this is handled in the CLI main.py logic
-        """
-
-        new_messages, heartbeat_request, function_failed = self.step(user_message)
-        step_count = 1
-
-        while limit is None or step_count < limit:
-            if function_failed:
-                user_message = get_heartbeat("Function call failed")
-                new_messages, heartbeat_request, function_failed = await self.step(user_message)
-                step_count += 1
-            elif heartbeat_request:
-                user_message = get_heartbeat("AI requested")
-                new_messages, heartbeat_request, function_failed = await self.step(user_message)
-                step_count += 1
-            else:
-                break
-
-        return new_messages, heartbeat_request, function_failed
-
-    ### Functions / tools the agent can use
-    # All functions should return a response string (or None)
-    # If the function fails, throw an exception
-
-    async def send_ai_message(self, message):
-        """AI wanted to send a message"""
-        await self.interface.assistant_message(message)
-        return None
-
-    async def recall_memory_search(self, query, count=5, page=0):
-        results, total = await self.persistence_manager.recall_memory.a_text_search(query, count=count, start=page * count)
-        num_pages = math.ceil(total / count) - 1  # 0 index
-        if len(results) == 0:
-            results_str = f"No results found."
-        else:
-            results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
-            results_formatted = [f"timestamp: {d['timestamp']}, {d['message']['role']} - {d['message']['content']}" for d in results]
-            results_str = f"{results_pref} {json.dumps(results_formatted)}"
-        return results_str
-
-    async def recall_memory_search_date(self, start_date, end_date, count=5, page=0):
-        results, total = await self.persistence_manager.recall_memory.a_date_search(start_date, end_date, count=count, start=page * count)
-        num_pages = math.ceil(total / count) - 1  # 0 index
-        if len(results) == 0:
-            results_str = f"No results found."
-        else:
-            results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
-            results_formatted = [f"timestamp: {d['timestamp']}, {d['message']['role']} - {d['message']['content']}" for d in results]
-            results_str = f"{results_pref} {json.dumps(results_formatted)}"
-        return results_str
-
-    async def archival_memory_insert(self, content, embedding=None):
-        await self.persistence_manager.archival_memory.a_insert(content, embedding=None)
-        return None
-
-    async def archival_memory_search(self, query, count=5, page=0):
-        results, total = await self.persistence_manager.archival_memory.a_search(query, count=count, start=page * count)
-        num_pages = math.ceil(total / count) - 1  # 0 index
-        if len(results) == 0:
-            results_str = f"No results found."
-        else:
-            results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
-            results_formatted = [f"timestamp: {d['timestamp']}, memory: {d['content']}" for d in results]
-            results_str = f"{results_pref} {json.dumps(results_formatted)}"
-        return results_str
-
-    async def message_chatgpt(self, message):
-        """Base call to GPT API w/ functions"""
-
-        message_sequence = [
-            {"role": "system", "content": MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE},
-            {"role": "user", "content": str(message)},
-        ]
-        response = await acreate(
-            model=MESSAGE_CHATGPT_FUNCTION_MODEL,
-            messages=message_sequence,
-            # functions=functions,
-            # function_call=function_call,
-        )
-
-        reply = response.choices[0].message.content
-        return reply
+            # unpack with response.choices[0].message.content
+            return response
+        except Exception as e:
+            raise e

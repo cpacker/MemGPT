@@ -1,4 +1,5 @@
 import glob
+import inspect
 import random
 import string
 import json
@@ -15,24 +16,47 @@ from colorama import Fore, Style
 
 from typing import List, Type
 
+import memgpt
 import memgpt.utils as utils
-import memgpt.interface as interface
+from memgpt.interface import CLIInterface as interface
 from memgpt.personas.personas import get_persona_text
 from memgpt.humans.humans import get_human_text
-from memgpt.constants import MEMGPT_DIR
+from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS
 import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
-from memgpt.presets import DEFAULT_PRESET, preset_options
+from memgpt.presets.presets import DEFAULT_PRESET, preset_options
 
 
 model_choices = [
     questionary.Choice("gpt-4"),
     questionary.Choice(
+        "gpt-4-turbo (developer preview)",
+        value="gpt-4-1106-preview",
+    ),
+    questionary.Choice(
         "gpt-3.5-turbo (experimental! function-calling performance is not quite at the level of gpt-4 yet)",
-        value="gpt-3.5-turbo",
+        value="gpt-3.5-turbo-16k",
     ),
 ]
+
+
+# helper functions for writing to configs
+def get_field(config, section, field):
+    if section not in config:
+        return None
+    if config.has_option(section, field):
+        return config.get(section, field)
+    else:
+        return None
+
+
+def set_field(config, section, field, value):
+    if value is None:  # cannot write None
+        return
+    if section not in config:  # create section
+        config.add_section(section)
+    config.set(section, field, value)
 
 
 @dataclass
@@ -44,9 +68,11 @@ class MemGPTConfig:
     preset: str = DEFAULT_PRESET
 
     # model parameters
-    # provider: str = "openai"  # openai, azure, local (TODO)
-    model_endpoint: str = "openai"
-    model: str = "gpt-4"  # gpt-4, gpt-3.5-turbo, local
+    model: str = None
+    model_endpoint_type: str = None
+    model_endpoint: str = None  # localhost:8000
+    model_wrapper: str = None
+    context_window: int = LLM_MAX_TOKENS[model] if model in LLM_MAX_TOKENS else LLM_MAX_TOKENS["DEFAULT"]
 
     # model parameters: openai
     openai_key: str = None
@@ -59,12 +85,13 @@ class MemGPTConfig:
     azure_embedding_deployment: str = None
 
     # persona parameters
-    default_persona: str = personas.DEFAULT
-    default_human: str = humans.DEFAULT
-    default_agent: str = None
+    persona: str = personas.DEFAULT
+    human: str = humans.DEFAULT
+    agent: str = None
 
     # embedding parameters
-    embedding_model: str = "openai"
+    embedding_endpoint_type: str = "openai"  # openai, azure, local
+    embedding_endpoint: str = None
     embedding_dim: int = 1536
     embedding_chunk_size: int = 300  # number of tokens
 
@@ -83,6 +110,15 @@ class MemGPTConfig:
     persistence_manager_save_file: str = None  # local file
     persistence_manager_uri: str = None  # db URI
 
+    # version (for backcompat)
+    memgpt_version: str = None
+
+    def __post_init__(self):
+        # ensure types
+        self.embedding_chunk_size = int(self.embedding_chunk_size)
+        self.embedding_dim = int(self.embedding_dim)
+        self.context_window = int(self.context_window)
+
     @staticmethod
     def generate_uuid() -> str:
         return uuid.UUID(int=uuid.getnode()).hex
@@ -98,117 +134,90 @@ class MemGPTConfig:
             config_path = MemGPTConfig.config_path
 
         if os.path.exists(config_path):
+            # read existing config
             config.read(config_path)
+            config_dict = {
+                "model": get_field(config, "model", "model"),
+                "model_endpoint": get_field(config, "model", "model_endpoint"),
+                "model_endpoint_type": get_field(config, "model", "model_endpoint_type"),
+                "model_wrapper": get_field(config, "model", "model_wrapper"),
+                "context_window": get_field(config, "model", "context_window"),
+                "preset": get_field(config, "defaults", "preset"),
+                "persona": get_field(config, "defaults", "persona"),
+                "human": get_field(config, "defaults", "human"),
+                "agent": get_field(config, "defaults", "agent"),
+                "openai_key": get_field(config, "openai", "key"),
+                "azure_key": get_field(config, "azure", "key"),
+                "azure_endpoint": get_field(config, "azure", "endpoint"),
+                "azure_version": get_field(config, "azure", "version"),
+                "azure_deployment": get_field(config, "azure", "deployment"),
+                "azure_embedding_deployment": get_field(config, "azure", "embedding_deployment"),
+                "embedding_endpoint": get_field(config, "embedding", "embedding_endpoint"),
+                "embedding_endpoint_type": get_field(config, "embedding", "embedding_endpoint_type"),
+                "embedding_dim": get_field(config, "embedding", "embedding_dim"),
+                "embedding_chunk_size": get_field(config, "embedding", "chunk_size"),
+                "archival_storage_type": get_field(config, "archival_storage", "type"),
+                "archival_storage_path": get_field(config, "archival_storage", "path"),
+                "archival_storage_uri": get_field(config, "archival_storage", "uri"),
+                "anon_clientid": get_field(config, "client", "anon_clientid"),
+                "config_path": config_path,
+                "memgpt_version": get_field(config, "version", "memgpt_version"),
+            }
+            config_dict = {k: v for k, v in config_dict.items() if v is not None}
+            return cls(**config_dict)
 
-            # read config values
-            model = config.get("defaults", "model")
-            preset = config.get("defaults", "preset")
-            model_endpoint = config.get("defaults", "model_endpoint")
-            default_persona = config.get("defaults", "persona")
-            default_human = config.get("defaults", "human")
-            default_agent = config.get("defaults", "agent") if config.has_option("defaults", "agent") else None
-
-            openai_key, openai_model = None, None
-            if "openai" in config:
-                openai_key = config.get("openai", "key")
-
-            azure_key, azure_endpoint, azure_version, azure_deployment, azure_embedding_deployment = None, None, None, None, None
-            if "azure" in config:
-                azure_key = config.get("azure", "key")
-                azure_endpoint = config.get("azure", "endpoint")
-                azure_version = config.get("azure", "version")
-                azure_deployment = config.get("azure", "deployment") if config.has_option("azure", "deployment") else None
-                azure_embedding_deployment = (
-                    config.get("azure", "embedding_deployment") if config.has_option("azure", "embedding_deployment") else None
-                )
-
-            embedding_model = config.get("embedding", "model")
-            embedding_dim = config.getint("embedding", "dim")
-            embedding_chunk_size = config.getint("embedding", "chunk_size")
-
-            # archival storage
-            archival_storage_type = config.get("archival_storage", "type")
-            archival_storage_path = config.get("archival_storage", "path") if config.has_option("archival_storage", "path") else None
-            archival_storage_uri = config.get("archival_storage", "uri") if config.has_option("archival_storage", "uri") else None
-
-            anon_clientid = config.get("client", "anon_clientid")
-
-            return cls(
-                model=model,
-                preset=preset,
-                model_endpoint=model_endpoint,
-                default_persona=default_persona,
-                default_human=default_human,
-                default_agent=default_agent,
-                openai_key=openai_key,
-                azure_key=azure_key,
-                azure_endpoint=azure_endpoint,
-                azure_version=azure_version,
-                azure_deployment=azure_deployment,
-                azure_embedding_deployment=azure_embedding_deployment,
-                embedding_model=embedding_model,
-                embedding_dim=embedding_dim,
-                embedding_chunk_size=embedding_chunk_size,
-                archival_storage_type=archival_storage_type,
-                archival_storage_path=archival_storage_path,
-                archival_storage_uri=archival_storage_uri,
-                anon_clientid=anon_clientid,
-                config_path=config_path,
-            )
-
+        # create new config
         anon_clientid = MemGPTConfig.generate_uuid()
         config = cls(anon_clientid=anon_clientid, config_path=config_path)
         config.save()  # save updated config
         return config
 
     def save(self):
+        import memgpt
+
         config = configparser.ConfigParser()
 
         # CLI defaults
-        config.add_section("defaults")
-        config.set("defaults", "model", self.model)
-        config.set("defaults", "preset", self.preset)
-        assert self.model_endpoint is not None, "Endpoint must be set"
-        config.set("defaults", "model_endpoint", self.model_endpoint)
-        config.set("defaults", "persona", self.default_persona)
-        config.set("defaults", "human", self.default_human)
-        if self.default_agent:
-            config.set("defaults", "agent", self.default_agent)
+        set_field(config, "defaults", "preset", self.preset)
+        set_field(config, "defaults", "persona", self.persona)
+        set_field(config, "defaults", "human", self.human)
+        set_field(config, "defaults", "agent", self.agent)
 
-        # security credentials
-        if self.openai_key:
-            config.add_section("openai")
-            config.set("openai", "key", self.openai_key)
+        # model defaults
+        set_field(config, "model", "model", self.model)
+        set_field(config, "model", "model_endpoint", self.model_endpoint)
+        set_field(config, "model", "model_endpoint_type", self.model_endpoint_type)
+        set_field(config, "model", "model_wrapper", self.model_wrapper)
+        set_field(config, "model", "context_window", str(self.context_window))
 
-        if self.azure_key:
-            config.add_section("azure")
-            config.set("azure", "key", self.azure_key)
-            config.set("azure", "endpoint", self.azure_endpoint)
-            config.set("azure", "version", self.azure_version)
-            if self.azure_deployment:
-                config.set("azure", "deployment", self.azure_deployment)
-                config.set("azure", "embedding_deployment", self.azure_embedding_deployment)
+        # security credentials: openai
+        set_field(config, "openai", "key", self.openai_key)
+
+        # security credentials: azure
+        set_field(config, "azure", "key", self.azure_key)
+        set_field(config, "azure", "endpoint", self.azure_endpoint)
+        set_field(config, "azure", "version", self.azure_version)
+        set_field(config, "azure", "deployment", self.azure_deployment)
+        set_field(config, "azure", "embedding_deployment", self.azure_embedding_deployment)
 
         # embeddings
-        config.add_section("embedding")
-        config.set("embedding", "model", self.embedding_model)
-        config.set("embedding", "dim", str(self.embedding_dim))
-        config.set("embedding", "chunk_size", str(self.embedding_chunk_size))
+        set_field(config, "embedding", "embedding_endpoint_type", self.embedding_endpoint_type)
+        set_field(config, "embedding", "embedding_endpoint", self.embedding_endpoint)
+        set_field(config, "embedding", "embedding_dim", str(self.embedding_dim))
+        set_field(config, "embedding", "embedding_chunk_size", str(self.embedding_chunk_size))
 
         # archival storage
-        config.add_section("archival_storage")
-        print("archival storage", self.archival_storage_type)
-        config.set("archival_storage", "type", self.archival_storage_type)
-        if self.archival_storage_path:
-            config.set("archival_storage", "path", self.archival_storage_path)
-        if self.archival_storage_uri:
-            config.set("archival_storage", "uri", self.archival_storage_uri)
+        set_field(config, "archival_storage", "type", self.archival_storage_type)
+        set_field(config, "archival_storage", "path", self.archival_storage_path)
+        set_field(config, "archival_storage", "uri", self.archival_storage_uri)
+
+        # set version
+        set_field(config, "version", "memgpt_version", memgpt.__version__)
 
         # client
-        config.add_section("client")
         if not self.anon_clientid:
             self.anon_clientid = self.generate_uuid()
-        config.set("client", "anon_clientid", self.anon_clientid)
+        set_field(config, "client", "anon_clientid", self.anon_clientid)
 
         if not os.path.exists(MEMGPT_DIR):
             os.makedirs(MEMGPT_DIR, exist_ok=True)
@@ -222,6 +231,8 @@ class MemGPTConfig:
             config_path = os.getenv("MEMGPT_CONFIG_PATH")
         else:
             config_path = MemGPTConfig.config_path
+
+        assert not os.path.isdir(config_path), f"Config path {config_path} cannot be set to a directory."
         return os.path.exists(config_path)
 
     @staticmethod
@@ -229,7 +240,7 @@ class MemGPTConfig:
         if not os.path.exists(MEMGPT_DIR):
             os.makedirs(MEMGPT_DIR, exist_ok=True)
 
-        folders = ["personas", "humans", "archival", "agents"]
+        folders = ["personas", "humans", "archival", "agents", "functions", "system_prompts", "presets"]
         for folder in folders:
             if not os.path.exists(os.path.join(MEMGPT_DIR, folder)):
                 os.makedirs(os.path.join(MEMGPT_DIR, folder))
@@ -245,25 +256,54 @@ class AgentConfig:
         self,
         persona,
         human,
+        # model info
         model,
-        preset=DEFAULT_PRESET,
-        name=None,
-        data_sources=[],
+        model_endpoint_type=None,
+        model_endpoint=None,
+        model_wrapper=None,
+        context_window=None,
+        # embedding info
+        embedding_endpoint_type=None,
+        embedding_endpoint=None,
+        embedding_dim=None,
+        embedding_chunk_size=None,
+        # other
+        preset=None,
+        data_sources=None,
+        # agent info
         agent_config_path=None,
+        name=None,
         create_time=None,
-        data_source=None,
+        memgpt_version=None,
     ):
         if name is None:
             self.name = f"agent_{self.generate_agent_id()}"
         else:
             self.name = name
-        self.persona = persona
-        self.human = human
-        self.model = model
-        self.preset = preset
-        self.data_sources = data_sources
+
+        config = MemGPTConfig.load()  # get default values
+        self.persona = config.persona if persona is None else persona
+        self.human = config.human if human is None else human
+        self.preset = config.preset if preset is None else preset
+        self.context_window = config.context_window if context_window is None else context_window
+        self.model = config.model if model is None else model
+        self.model_endpoint_type = config.model_endpoint_type if model_endpoint_type is None else model_endpoint_type
+        self.model_endpoint = config.model_endpoint if model_endpoint is None else model_endpoint
+        self.model_wrapper = config.model_wrapper if model_wrapper is None else model_wrapper
+        self.embedding_endpoint_type = config.embedding_endpoint_type if embedding_endpoint_type is None else embedding_endpoint_type
+        self.embedding_endpoint = config.embedding_endpoint if embedding_endpoint is None else embedding_endpoint
+        self.embedding_dim = config.embedding_dim if embedding_dim is None else embedding_dim
+        self.embedding_chunk_size = config.embedding_chunk_size if embedding_chunk_size is None else embedding_chunk_size
+
+        # agent metadata
+        self.data_sources = data_sources if data_sources is not None else []
         self.create_time = create_time if create_time is not None else utils.get_local_time()
-        self.data_source = None  # deprecated
+        if memgpt_version is None:
+            import memgpt
+
+            self.memgpt_version = memgpt.__version__
+        else:
+            self.memgpt_version = memgpt_version
 
         # save agent config
         self.agent_config_path = (
@@ -302,6 +342,8 @@ class AgentConfig:
     def save(self):
         # save state of persistence manager
         os.makedirs(os.path.join(MEMGPT_DIR, "agents", self.name), exist_ok=True)
+        # save version
+        self.memgpt_version = memgpt.__version__
         with open(self.agent_config_path, "w") as f:
             json.dump(vars(self), f, indent=4)
 
@@ -318,6 +360,17 @@ class AgentConfig:
         assert os.path.exists(agent_config_path), f"Agent config file does not exist at {agent_config_path}"
         with open(agent_config_path, "r") as f:
             agent_config = json.load(f)
+        # allow compatibility accross versions
+        try:
+            class_args = inspect.getargspec(cls.__init__).args
+        except AttributeError:
+            # https://github.com/pytorch/pytorch/issues/15344
+            class_args = inspect.getfullargspec(cls.__init__).args
+        agent_fields = list(agent_config.keys())
+        for key in agent_fields:
+            if key not in class_args:
+                utils.printd(f"Removing missing argument {key} from agent config")
+                del agent_config[key]
         return cls(**agent_config)
 
 
@@ -342,7 +395,7 @@ class Config:
         self.preload_archival = False
 
     @classmethod
-    async def legacy_flags_init(
+    def legacy_flags_init(
         cls: Type["Config"],
         model: str,
         memgpt_persona: str,
@@ -364,11 +417,11 @@ class Config:
         if self.archival_storage_index:
             recompute_embeddings = False  # TODO Legacy support -- can't recompute embeddings on a path that's not specified.
         if self.archival_storage_files:
-            await self.configure_archival_storage(recompute_embeddings)
+            self.configure_archival_storage(recompute_embeddings)
         return self
 
     @classmethod
-    async def config_init(cls: Type["Config"], config_file: str = None):
+    def config_init(cls: Type["Config"], config_file: str = None):
         self = cls()
         self.config_file = config_file
         if self.config_file is None:
@@ -376,7 +429,7 @@ class Config:
             use_cfg = False
             if cfg:
                 print(f"{Style.BRIGHT}{Fore.MAGENTA}⚙️ Found saved config file.{Style.RESET_ALL}")
-                use_cfg = await questionary.confirm(f"Use most recent config file '{cfg}'?").ask_async()
+                use_cfg = questionary.confirm(f"Use most recent config file '{cfg}'?").ask()
             if use_cfg:
                 self.config_file = cfg
 
@@ -385,74 +438,74 @@ class Config:
             recompute_embeddings = False
             if self.compute_embeddings:
                 if self.archival_storage_index:
-                    recompute_embeddings = await questionary.confirm(
+                    recompute_embeddings = questionary.confirm(
                         f"Would you like to recompute embeddings? Do this if your files have changed.\n    Files: {self.archival_storage_files}",
                         default=False,
-                    ).ask_async()
+                    ).ask()
                 else:
                     recompute_embeddings = True
             if self.load_type:
-                await self.configure_archival_storage(recompute_embeddings)
+                self.configure_archival_storage(recompute_embeddings)
                 self.write_config()
             return self
 
         # print("No settings file found, configuring MemGPT...")
         print(f"{Style.BRIGHT}{Fore.MAGENTA}⚙️ No settings file found, configuring MemGPT...{Style.RESET_ALL}")
 
-        self.model = await questionary.select(
+        self.model = questionary.select(
             "Which model would you like to use?",
             model_choices,
             default=model_choices[0],
-        ).ask_async()
+        ).ask()
 
-        self.memgpt_persona = await questionary.select(
+        self.memgpt_persona = questionary.select(
             "Which persona would you like MemGPT to use?",
             Config.get_memgpt_personas(),
-        ).ask_async()
+        ).ask()
         print(self.memgpt_persona)
 
-        self.human_persona = await questionary.select(
+        self.human_persona = questionary.select(
             "Which user would you like to use?",
             Config.get_user_personas(),
-        ).ask_async()
+        ).ask()
 
         self.archival_storage_index = None
-        self.preload_archival = await questionary.confirm(
+        self.preload_archival = questionary.confirm(
             "Would you like to preload anything into MemGPT's archival memory?", default=False
-        ).ask_async()
+        ).ask()
         if self.preload_archival:
-            self.load_type = await questionary.select(
+            self.load_type = questionary.select(
                 "What would you like to load?",
                 choices=[
                     questionary.Choice("A folder or file", value="folder"),
                     questionary.Choice("A SQL database", value="sql"),
                     questionary.Choice("A glob pattern", value="glob"),
                 ],
-            ).ask_async()
+            ).ask()
             if self.load_type == "folder" or self.load_type == "sql":
-                archival_storage_path = await questionary.path("Please enter the folder or file (tab for autocomplete):").ask_async()
+                archival_storage_path = questionary.path("Please enter the folder or file (tab for autocomplete):").ask()
                 if os.path.isdir(archival_storage_path):
                     self.archival_storage_files = os.path.join(archival_storage_path, "*")
                 else:
                     self.archival_storage_files = archival_storage_path
             else:
-                self.archival_storage_files = await questionary.path("Please enter the glob pattern (tab for autocomplete):").ask_async()
-            self.compute_embeddings = await questionary.confirm(
+                self.archival_storage_files = questionary.path("Please enter the glob pattern (tab for autocomplete):").ask()
+            self.compute_embeddings = questionary.confirm(
                 "Would you like to compute embeddings over these files to enable embeddings search?"
-            ).ask_async()
-            await self.configure_archival_storage(self.compute_embeddings)
+            ).ask()
+            self.configure_archival_storage(self.compute_embeddings)
 
         self.write_config()
         return self
 
-    async def configure_archival_storage(self, recompute_embeddings):
+    def configure_archival_storage(self, recompute_embeddings):
         if recompute_embeddings:
             if self.host:
                 interface.warning_message(
                     "⛔️ Embeddings on a non-OpenAI endpoint are not yet supported, falling back to substring matching search."
                 )
             else:
-                self.archival_storage_index = await utils.prepare_archival_index_from_files_compute_embeddings(self.archival_storage_files)
+                self.archival_storage_index = utils.prepare_archival_index_from_files_compute_embeddings(self.archival_storage_files)
         if self.compute_embeddings and self.archival_storage_index:
             self.index, self.archival_database = utils.prepare_archival_index(self.archival_storage_index)
         else:

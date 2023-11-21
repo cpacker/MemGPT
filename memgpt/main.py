@@ -1,4 +1,3 @@
-import asyncio
 import shutil
 import configparser
 import uuid
@@ -8,6 +7,7 @@ import os
 import sys
 import pickle
 import traceback
+import json
 
 import questionary
 import typer
@@ -17,11 +17,11 @@ from prettytable import PrettyTable
 
 console = Console()
 
-import memgpt.interface  # for printing to terminal
+from memgpt.interface import CLIInterface as interface  # for printing to terminal
 import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.utils as utils
-import memgpt.presets as presets
+import memgpt.presets.presets as presets
 import memgpt.constants as constants
 import memgpt.personas.personas as personas
 import memgpt.humans.humans as humans
@@ -31,22 +31,22 @@ from memgpt.persistence_manager import (
     InMemoryStateManagerWithPreloadedArchivalMemory,
     InMemoryStateManagerWithFaiss,
 )
-from memgpt.cli.cli import run, attach
+from memgpt.cli.cli import run, attach, version
 from memgpt.cli.cli_config import configure, list, add
 from memgpt.cli.cli_load import app as load_app
 from memgpt.config import Config, MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
-from memgpt.agent import AgentAsync
+from memgpt.agent import Agent
 from memgpt.openai_tools import (
     configure_azure_support,
     check_azure_embeddings,
     get_set_azure_env_vars,
 )
 from memgpt.connectors.storage import StorageConnector
-import asyncio
 
-app = typer.Typer()
+app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
+app.command(name="version")(version)
 app.command(name="attach")(attach)
 app.command(name="configure")(configure)
 app.command(name="list")(list)
@@ -169,30 +169,31 @@ def legacy_run(
     if ctx.invoked_subcommand is not None:
         return
 
-    typer.secho("Warning: Running legacy run command. Run `memgpt run` instead.", fg=typer.colors.RED, bold=True)
+    typer.secho(
+        "Warning: Running legacy run command. You may need to `pip install pymemgpt[legacy] -U`. Run `memgpt run` instead.",
+        fg=typer.colors.RED,
+        bold=True,
+    )
     if not questionary.confirm("Continue with legacy CLI?", default=False).ask():
         return
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(
-        main(
-            persona,
-            human,
-            model,
-            first,
-            debug,
-            no_verify,
-            archival_storage_faiss_path,
-            archival_storage_files,
-            archival_storage_files_compute_embeddings,
-            archival_storage_sqldb,
-            use_azure_openai,
-            strip_ui,
-        )
+    main(
+        persona,
+        human,
+        model,
+        first,
+        debug,
+        no_verify,
+        archival_storage_faiss_path,
+        archival_storage_files,
+        archival_storage_files_compute_embeddings,
+        archival_storage_sqldb,
+        use_azure_openai,
+        strip_ui,
     )
 
 
-async def main(
+def main(
     persona,
     human,
     model,
@@ -206,7 +207,7 @@ async def main(
     use_azure_openai,
     strip_ui,
 ):
-    memgpt.interface.STRIP_UI = strip_ui
+    interface.STRIP_UI = strip_ui
     utils.DEBUG = debug
     logging.getLogger().setLevel(logging.CRITICAL)
     if debug:
@@ -233,14 +234,14 @@ async def main(
             archival_storage_sqldb,
         )
     ):
-        memgpt.interface.important_message("⚙️ Using legacy command line arguments.")
+        interface.important_message("⚙️ Using legacy command line arguments.")
         model = model
         if model is None:
             model = constants.DEFAULT_MEMGPT_MODEL
         memgpt_persona = persona
         if memgpt_persona is None:
             memgpt_persona = (
-                personas.GPT35_DEFAULT if "gpt-3.5" in model else personas.DEFAULT,
+                personas.GPT35_DEFAULT if (model is not None and "gpt-3.5" in model) else personas.DEFAULT,
                 None,  # represents the personas dir in pymemgpt package
             )
         else:
@@ -264,7 +265,7 @@ async def main(
 
         print(persona, model, memgpt_persona)
         if archival_storage_files:
-            cfg = await Config.legacy_flags_init(
+            cfg = Config.legacy_flags_init(
                 model,
                 memgpt_persona,
                 human_persona,
@@ -273,7 +274,7 @@ async def main(
                 compute_embeddings=False,
             )
         elif archival_storage_faiss_path:
-            cfg = await Config.legacy_flags_init(
+            cfg = Config.legacy_flags_init(
                 model,
                 memgpt_persona,
                 human_persona,
@@ -286,7 +287,7 @@ async def main(
             print(model)
             print(memgpt_persona)
             print(human_persona)
-            cfg = await Config.legacy_flags_init(
+            cfg = Config.legacy_flags_init(
                 model,
                 memgpt_persona,
                 human_persona,
@@ -295,7 +296,7 @@ async def main(
                 compute_embeddings=True,
             )
         elif archival_storage_sqldb:
-            cfg = await Config.legacy_flags_init(
+            cfg = Config.legacy_flags_init(
                 model,
                 memgpt_persona,
                 human_persona,
@@ -304,17 +305,17 @@ async def main(
                 compute_embeddings=False,
             )
         else:
-            cfg = await Config.legacy_flags_init(
+            cfg = Config.legacy_flags_init(
                 model,
                 memgpt_persona,
                 human_persona,
             )
     else:
-        cfg = await Config.config_init()
+        cfg = Config.config_init()
 
-    memgpt.interface.important_message("Running... [exit by typing '/exit', list available commands with '/help']")
+    interface.important_message("Running... [exit by typing '/exit', list available commands with '/help']")
     if cfg.model != constants.DEFAULT_MEMGPT_MODEL:
-        memgpt.interface.warning_message(
+        interface.warning_message(
             f"⛔️ Warning - you are running MemGPT with {cfg.model}, which is not officially supported (yet). Expect bugs!"
         )
 
@@ -327,7 +328,7 @@ async def main(
         persistence_manager = InMemoryStateManager()
 
     if archival_storage_files_compute_embeddings:
-        memgpt.interface.important_message(
+        interface.important_message(
             f"(legacy) To avoid computing embeddings next time, replace --archival_storage_files_compute_embeddings={archival_storage_files_compute_embeddings} with\n\t --archival_storage_faiss_path={cfg.archival_storage_index} (if your files haven't changed)."
         )
 
@@ -341,11 +342,12 @@ async def main(
         cfg.model,
         personas.get_persona_text(*chosen_persona),
         humans.get_human_text(*chosen_human),
-        memgpt.interface,
+        interface,
         persistence_manager,
     )
-    print_messages = memgpt.interface.print_messages
-    await print_messages(memgpt_agent.messages)
+
+    print_messages = interface.print_messages
+    print_messages(memgpt_agent.messages)
 
     if cfg.load_type == "sql":  # TODO: move this into config.py in a clean manner
         if not os.path.exists(cfg.archival_storage_files):
@@ -357,19 +359,19 @@ async def main(
             data_list = utils.read_database_as_list(cfg.archival_storage_files)
             user_message = f"Your archival memory has been loaded with a SQL database called {data_list[0]}, which contains schema {data_list[1]}. Remember to refer to this first while answering any user questions!"
             for row in data_list:
-                await memgpt_agent.persistence_manager.archival_memory.insert(row)
+                memgpt_agent.persistence_manager.archival_memory.insert(row)
             print(f"Database loaded into archival memory.")
 
     if cfg.agent_save_file:
-        load_save_file = await questionary.confirm(f"Load in saved agent '{cfg.agent_save_file}'?").ask_async()
+        load_save_file = questionary.confirm(f"Load in saved agent '{cfg.agent_save_file}'?").ask()
         if load_save_file:
             load(memgpt_agent, cfg.agent_save_file)
 
     # run agent loop
-    await run_agent_loop(memgpt_agent, first, no_verify, cfg, strip_ui, legacy=True)
+    run_agent_loop(memgpt_agent, first, no_verify, cfg, strip_ui, legacy=True)
 
 
-async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=False, legacy=False):
+def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=False, legacy=False):
     counter = 0
     user_input = None
     skip_next_user_input = False
@@ -385,11 +387,11 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
     while True:
         if not skip_next_user_input and (counter > 0 or USER_GOES_FIRST):
             # Ask for user input
-            user_input = await questionary.text(
+            user_input = questionary.text(
                 "Enter your message:",
                 multiline=multiline_input,
                 qmark=">",
-            ).ask_async()
+            ).ask()
             clear_line(strip_ui)
 
             # Gracefully exit on Ctrl-C/D
@@ -455,7 +457,7 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
 
                     # TODO: check if agent already has it
                     data_source_options = StorageConnector.list_loaded_data()
-                    data_source = await questionary.select("Select data source", choices=data_source_options).ask_async()
+                    data_source = questionary.select("Select data source", choices=data_source_options).ask()
 
                     # attach new data
                     attach(memgpt_agent.config.name, data_source)
@@ -470,38 +472,18 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
                     )
                     continue
 
-                elif user_input.lower() == "/attach":
-                    if legacy:
-                        typer.secho("Error: /attach is not supported in legacy mode.", fg=typer.colors.RED, bold=True)
-                        continue
-
-                    # TODO: check if agent already has it
-                    data_source_options = StorageConnector.list_loaded_data()
-                    data_source = await questionary.select("Select data source", choices=data_source_options).ask_async()
-
-                    # attach new data
-                    attach(memgpt_agent.config.name, data_source)
-
-                    # update agent config
-                    memgpt_agent.config.attach_data_source(data_source)
-
-                    # reload agent with new data source
-                    # TODO: maybe make this less ugly...
-                    memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_storage_connector(
-                        agent_config=memgpt_agent.config
-                    )
-                    continue
-
-                elif user_input.lower() == "/dump":
-                    await memgpt.interface.print_messages(memgpt_agent.messages)
+                elif user_input.lower() == "/dump" or user_input.lower().startswith("/dump "):
+                    # Check if there's an additional argument that's an integer
+                    command = user_input.strip().split()
+                    amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 0
+                    if amount == 0:
+                        interface.print_messages(memgpt_agent.messages, dump=True)
+                    else:
+                        interface.print_messages(memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
                     continue
 
                 elif user_input.lower() == "/dumpraw":
-                    await memgpt.interface.print_messages_raw(memgpt_agent.messages)
-                    continue
-
-                elif user_input.lower() == "/dump1":
-                    await memgpt.interface.print_messages(memgpt_agent.messages[-1])
+                    interface.print_messages_raw(memgpt_agent.messages)
                     continue
 
                 elif user_input.lower() == "/memory":
@@ -513,8 +495,8 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
 
                 elif user_input.lower() == "/model":
                     if memgpt_agent.model == "gpt-4":
-                        memgpt_agent.model = "gpt-3.5-turbo"
-                    elif memgpt_agent.model == "gpt-3.5-turbo":
+                        memgpt_agent.model = "gpt-3.5-turbo-16k"
+                    elif memgpt_agent.model == "gpt-3.5-turbo-16k":
                         memgpt_agent.model = "gpt-4"
                     print(f"Updated model to:\n{str(memgpt_agent.model)}")
                     continue
@@ -522,15 +504,52 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
                 elif user_input.lower() == "/pop" or user_input.lower().startswith("/pop "):
                     # Check if there's an additional argument that's an integer
                     command = user_input.strip().split()
-                    amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 2
+                    amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 3
                     print(f"Popping last {amount} messages from stack")
                     for _ in range(min(amount, len(memgpt_agent.messages))):
                         memgpt_agent.messages.pop()
                     continue
 
+                elif user_input.lower() == "/retry":
+                    # TODO this needs to also modify the persistence manager
+                    print(f"Retrying for another answer")
+                    while len(memgpt_agent.messages) > 0:
+                        if memgpt_agent.messages[-1].get("role") == "user":
+                            # we want to pop up to the last user message and send it again
+                            user_message = memgpt_agent.messages[-1].get("content")
+                            memgpt_agent.messages.pop()
+                            break
+                        memgpt_agent.messages.pop()
+
+                elif user_input.lower() == "/rethink" or user_input.lower().startswith("/rethink "):
+                    # TODO this needs to also modify the persistence manager
+                    if len(user_input) < len("/rethink "):
+                        print("Missing text after the command")
+                        continue
+                    for x in range(len(memgpt_agent.messages) - 1, 0, -1):
+                        if memgpt_agent.messages[x].get("role") == "assistant":
+                            text = user_input[len("/rethink ") :].strip()
+                            memgpt_agent.messages[x].update({"content": text})
+                            break
+                    continue
+
+                elif user_input.lower() == "/rewrite" or user_input.lower().startswith("/rewrite "):
+                    # TODO this needs to also modify the persistence manager
+                    if len(user_input) < len("/rewrite "):
+                        print("Missing text after the command")
+                        continue
+                    for x in range(len(memgpt_agent.messages) - 1, 0, -1):
+                        if memgpt_agent.messages[x].get("role") == "assistant":
+                            text = user_input[len("/rewrite ") :].strip()
+                            args = json.loads(memgpt_agent.messages[x].get("function_call").get("arguments"))
+                            args["message"] = text
+                            memgpt_agent.messages[x].get("function_call").update({"arguments": json.dumps(args)})
+                            break
+                    continue
+
                 # No skip options
                 elif user_input.lower() == "/wipe":
-                    memgpt_agent = agent.AgentAsync(memgpt.interface)
+                    memgpt_agent = agent.Agent(interface)
                     user_message = None
 
                 elif user_input.lower() == "/heartbeat":
@@ -561,8 +580,8 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
 
         skip_next_user_input = False
 
-        async def process_agent_step(user_message, no_verify):
-            new_messages, heartbeat_request, function_failed, token_warning = await memgpt_agent.step(
+        def process_agent_step(user_message, no_verify):
+            new_messages, heartbeat_request, function_failed, token_warning = memgpt_agent.step(
                 user_message, first_message=False, skip_verify=no_verify
             )
 
@@ -582,16 +601,16 @@ async def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_u
         while True:
             try:
                 if strip_ui:
-                    new_messages, user_message, skip_next_user_input = await process_agent_step(user_message, no_verify)
+                    new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                     break
                 else:
                     with console.status("[bold cyan]Thinking...") as status:
-                        new_messages, user_message, skip_next_user_input = await process_agent_step(user_message, no_verify)
+                        new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                         break
             except Exception as e:
                 print("An exception ocurred when running agent.step(): ")
                 traceback.print_exc()
-                retry = await questionary.confirm("Retry agent.step()?").ask_async()
+                retry = questionary.confirm("Retry agent.step()?").ask()
                 if not retry:
                     break
 
@@ -605,20 +624,13 @@ USER_COMMANDS = [
     ("/exit", "exit the CLI"),
     ("/save", "save a checkpoint of the current agent/conversation state"),
     ("/load", "load a saved checkpoint"),
-    ("/dump", "view the current message log (see the contents of main context)"),
+    ("/dump <count>", "view the last <count> messages (all if <count> is omitted)"),
     ("/memory", "print the current contents of agent memory"),
-    ("/pop", "undo the last message in the conversation"),
+    ("/pop <count>", "undo <count> messages in the conversation (default is 3)"),
+    ("/retry", "pops the last answer and tries to get another one"),
+    ("/rethink <text>", "changes the inner thoughts of the last agent message"),
+    ("/rewrite <text>", "changes the reply of the last agent message"),
     ("/heartbeat", "send a heartbeat system message to the agent"),
     ("/memorywarning", "send a memory warning system message to the agent"),
     ("/attach", "attach data source to agent"),
 ]
-# if __name__ == "__main__":
-#
-#    app()
-#    #typer.run(run)
-#
-#    #def run(argv):
-#    #    loop = asyncio.get_event_loop()
-#    #    loop.run_until_complete(main())
-#
-#    #app.run(run)

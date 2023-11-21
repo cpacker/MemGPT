@@ -27,6 +27,7 @@ app = typer.Typer()
 
 def store_docs(name, docs, show_progress=True):
     """Common function for embedding and storing documents"""
+
     storage = StorageConnector.get_storage_connector(name=name)
     config = MemGPTConfig.load()
     embed_model = embedding_model()
@@ -45,7 +46,7 @@ def store_docs(name, docs, show_progress=True):
         text = node.text.replace("\x00", "\uFFFD")  # hacky fix for error on null characters
         assert (
             len(node.embedding) == config.embedding_dim
-        ), f"Expected embedding dimension {config.embedding_dim}, got {len(node.embedding)}"
+        ), f"Expected embedding dimension {config.embedding_dim}, got {len(node.embedding)}: {node.embedding}"
         passages.append(Passage(text=text, embedding=vector))
 
     # insert into storage
@@ -93,7 +94,6 @@ def load_directory(
         assert input_dir is not None, "Must provide input directory if recursive is True."
 
     if input_dir is not None:
-        assert len(input_files) == 0, "Either load in a list of files OR a directory."
         reader = SimpleDirectoryReader(
             input_dir=input_dir,
             recursive=recursive,

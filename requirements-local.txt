@@ -1,3 +1,0 @@
-transformers==4.34.1
-huggingface-hub==0.17.3
-torch==2.1.0

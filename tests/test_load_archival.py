@@ -1,12 +1,12 @@
 # import tempfile
 # import asyncio
-import os
+# import os
 
 # import asyncio
-from datasets import load_dataset
+# from datasets import load_dataset
 
-import memgpt
-from memgpt.cli.cli_load import load_directory, load_database, load_webpage
+# import memgpt
+# from memgpt.cli.cli_load import load_directory, load_database, load_webpage
 
 # import memgpt.presets as presets
 # import memgpt.personas.personas as personas
@@ -38,6 +38,39 @@ def test_postgres():
     if cache_dir is None:
         # Construct the default path if the environment variable is not set.
         cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "datasets")
+
+    load_directory(
+        name=name,
+        input_dir=cache_dir,
+        recursive=True,
+    )
+
+
+def test_lancedb():
+    return
+
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "lancedb"])
+    import lancedb  # Try to import again after installing
+
+    # override config path with enviornment variable
+    # TODO: make into temporary file
+    os.environ["MEMGPT_CONFIG_PATH"] = "test_config.cfg"
+    print("env", os.getenv("MEMGPT_CONFIG_PATH"))
+    config = memgpt.config.MemGPTConfig(archival_storage_type="lancedb", config_path=os.getenv("MEMGPT_CONFIG_PATH"))
+    print(config)
+    config.save()
+
+    # loading dataset from hugging face
+    name = "tmp_hf_dataset"
+
+    dataset = load_dataset("MemGPT/example_short_stories")
+
+    cache_dir = os.getenv("HF_DATASETS_CACHE")
+    if cache_dir is None:
+        # Construct the default path if the environment variable is not set.
+        cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "datasets")
+
+    config = memgpt.config.MemGPTConfig(archival_storage_type="lancedb")
 
     load_directory(
         name=name,

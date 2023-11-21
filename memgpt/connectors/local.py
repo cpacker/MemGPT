@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Iterator
 from memgpt.config import AgentConfig, MemGPTConfig
 from tqdm import tqdm
 import re
@@ -8,11 +8,7 @@ import os
 
 from typing import List, Optional
 
-from llama_index import (
-    VectorStoreIndex,
-    EmptyIndex,
-    ServiceContext,
-)
+from llama_index import VectorStoreIndex, EmptyIndex, ServiceContext, set_global_service_context
 from llama_index.retrievers import VectorIndexRetriever
 from llama_index.schema import TextNode
 
@@ -42,6 +38,7 @@ class LocalStorageConnector(StorageConnector):
         # llama index contexts
         self.embed_model = embedding_model()
         self.service_context = ServiceContext.from_defaults(llm=None, embed_model=self.embed_model, chunk_size=config.embedding_chunk_size)
+        set_global_service_context(self.service_context)
 
         # load/create index
         self.save_path = f"{self.save_directory}/nodes.pkl"
@@ -72,11 +69,19 @@ class LocalStorageConnector(StorageConnector):
         self.nodes += nodes
         self.index = VectorStoreIndex(self.nodes)
 
-    def get_all(self) -> List[Passage]:
+    def get_all_paginated(self, page_size: int = 100) -> Iterator[List[Passage]]:
+        """Get all passages in the index"""
+        nodes = self.get_nodes()
+        for i in tqdm(range(0, len(nodes), page_size)):
+            yield [Passage(text=node.text, embedding=node.embedding) for node in nodes[i : i + page_size]]
+
+    def get_all(self, limit: int) -> List[Passage]:
         passages = []
         for node in self.get_nodes():
             assert node.embedding is not None, f"Node embedding is None"
             passages.append(Passage(text=node.text, embedding=node.embedding))
+            if len(passages) >= limit:
+                break
         return passages
 
     def get(self, id: str) -> Passage:
@@ -95,7 +100,6 @@ class LocalStorageConnector(StorageConnector):
         self.nodes += nodes
         if isinstance(self.index, EmptyIndex):
             self.index = VectorStoreIndex(self.nodes, service_context=self.service_context, show_progress=True)
-            print("new size", len(self.get_nodes()))
         else:
             orig_size = len(self.get_nodes())
             self.index.insert_nodes(nodes)
@@ -104,6 +108,8 @@ class LocalStorageConnector(StorageConnector):
             ), f"expected {orig_size + len(passages)} nodes, got {len(self.get_nodes())} nodes"
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10) -> List[Passage]:
+        if isinstance(self.index, EmptyIndex):  # empty index
+            return []
         # TODO: this may be super slow?
         # the nice thing about creating this here is that now we can save the persistent storage manager
         retriever = VectorIndexRetriever(
@@ -112,7 +118,6 @@ class LocalStorageConnector(StorageConnector):
         )
         nodes = retriever.retrieve(query)
         results = [Passage(embedding=node.embedding, text=node.text) for node in nodes]
-        print(results)
         return results
 
     def save(self):
@@ -120,7 +125,6 @@ class LocalStorageConnector(StorageConnector):
         self.nodes = self.get_nodes()
         os.makedirs(self.save_directory, exist_ok=True)
         pickle.dump(self.nodes, open(self.save_path, "wb"))
-        print("Saved local", self.save_path)
 
     @staticmethod
     def list_loaded_data():
@@ -129,3 +133,6 @@ class LocalStorageConnector(StorageConnector):
             name = os.path.basename(data_source_file)
             sources.append(name)
         return sources
+
+    def size(self):
+        return len(self.get_nodes())

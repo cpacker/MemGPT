@@ -1,0 +1,60 @@
+name: poetry-publish-nightly
+on:
+  schedule:
+    - cron: '35 10 * * *' # 10:35am UTC, 2:35am PST, 5:35am EST
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  # nightly release check from https://stackoverflow.com/a/67527144
+  check-date:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.should_run.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: print latest_commit
+        run: echo ${{ github.sha }}
+      - id: should_run
+        continue-on-error: true
+        name: check latest commit is less than a day
+        if: ${{ github.event_name == 'schedule' }}
+        run: test -z $(git rev-list  --after="24 hours"  ${{ github.sha }}) && echo "::set-output name=should_run::false"
+
+  build-and-publish-nightly:
+    name: Build and Publish to PyPI (nightly)
+    runs-on: ubuntu-latest
+    needs: check-date
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.11
+      - name: Install poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Set release version
+        run: |
+          # Extract the version number from pyproject.toml using awk
+          CURRENT_VERSION=$(awk -F '"' '/version =/ { print $2 }' pyproject.toml | head -n 1)
+          # Export the CURRENT_VERSION with the .dev and current date suffix
+          NIGHTLY_VERSION="${CURRENT_VERSION}.dev$(date +%Y%m%d%H%M%S)"
+          # Overwrite pyproject.toml with nightly config
+          sed -i "0,/version = \"${CURRENT_VERSION}\"/s//version = \"${NIGHTLY_VERSION}\"/" pyproject.toml
+          sed -i 's/name = "pymemgpt"/name = "pymemgpt-nightly"/g' pyproject.toml
+          sed -i "s/__version__ = '.*'/__version__ = '${NIGHTLY_VERSION}'/g" memgpt/__init__.py
+          cat pyproject.toml
+          cat memgpt/__init__.py
+      - name: Configure poetry
+        run: |
+          poetry config pypi-token.pypi ${{ secrets.PYPI_NIGHTLY_TOKEN }}
+      - name: Build the Python package
+        run: poetry build
+      - name: Publish the package to PyPI
+        run: poetry publish
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_NIGHTLY_TOKEN }}
