@@ -21,7 +21,7 @@ def get_vllm_completion(endpoint, model, prompt, context_window, settings={}, gr
     request["stream"] = False
 
     # currently hardcoded, since we are only supporting one model with the hosted endpoint
-    request["model"] = "ehartford/dolphin-2.2.1-mistral-7b"
+    request["model"] = model
 
     # Set grammar
     if grammar is not None:

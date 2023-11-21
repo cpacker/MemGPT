@@ -116,13 +116,24 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str):
             ).ask()
             model = None if len(model) == 0 else model
 
+        # vllm needs huggingface model tag
+        if model_endpoint_type == "vllm":
+            default_model = config.model if config.model and config.model_endpoint_type == "vllm" else ""
+            model = questionary.text(
+                "Enter HuggingFace model tag (e.g. ehartford/dolphin-2.2.1-mistral-7b):",
+                default=default_model,
+            ).ask()
+            model = None if len(model) == 0 else model
+            model_wrapper = None  # no model wrapper for vLLM
+
         # model wrapper
-        available_model_wrappers = builtins.list(get_available_wrappers().keys())
-        model_wrapper = questionary.select(
-            f"Select default model wrapper (recommended: {DEFAULT_WRAPPER_NAME}):",
-            choices=available_model_wrappers,
-            default=DEFAULT_WRAPPER_NAME,
-        ).ask()
+        if model_endpoint_type != "vllm":
+            available_model_wrappers = builtins.list(get_available_wrappers().keys())
+            model_wrapper = questionary.select(
+                f"Select default model wrapper (recommended: {DEFAULT_WRAPPER_NAME}):",
+                choices=available_model_wrappers,
+                default=DEFAULT_WRAPPER_NAME,
+            ).ask()
 
     # set: context_window
     if str(model) not in LLM_MAX_TOKENS:
