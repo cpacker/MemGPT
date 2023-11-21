@@ -23,11 +23,12 @@ class Passage:
     It is a string of text with an associated embedding.
     """
 
-    def __init__(self, text: str, embedding: np.ndarray, doc_id: Optional[str] = None, passage_id: Optional[str] = None):
+    def __init__(self, text: str, embedding: np.ndarray, doc_id: Optional[str] = None, passage_id: Optional[str] = None, metadata: Optional[dict] = None):
         self.text = text
         self.embedding = embedding
         self.doc_id = doc_id
         self.passage_id = passage_id
+        self.metadata = metadata
 
     def __repr__(self):
         return f"Passage(text={self.text}, embedding={self.embedding})"
