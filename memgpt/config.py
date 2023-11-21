@@ -208,6 +208,7 @@ class MemGPTConfig:
 
         # archival storage
         set_field(config, "archival_storage", "type", self.archival_storage_type)
+        print(self.archival_storage_path)
         set_field(config, "archival_storage", "path", self.archival_storage_path)
         set_field(config, "archival_storage", "uri", self.archival_storage_uri)
 

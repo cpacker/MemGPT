@@ -1,10 +1,23 @@
 import chromadb
 import json
 import re
-from typing import Optional, List
+from typing import Optional, List, Iterator
 from memgpt.connectors.storage import StorageConnector, Passage
 from memgpt.utils import printd
 from memgpt.config import AgentConfig, MemGPTConfig
+
+
+def create_chroma_client():
+    config = MemGPTConfig.load()
+    # create chroma client
+    if config.archival_storage_path:
+        client = chromadb.PersistentClient(config.archival_storage_path)
+    else:
+        # assume uri={ip}:{port}
+        ip = config.archival_storage_uri.split(":")[0]
+        port = config.archival_storage_uri.split(":")[1]
+        client = chromadb.HttpClient(host=ip, port=port)
+    return client
 
 
 class ChromaStorageConnector(StorageConnector):
@@ -13,7 +26,6 @@ class ChromaStorageConnector(StorageConnector):
     # WARNING: This is not thread safe. Do NOT do concurrent access to the same collection.
 
     def __init__(self, name: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
-        config = MemGPTConfig.load()
 
         # determine table name
         if agent_config:
@@ -27,17 +39,27 @@ class ChromaStorageConnector(StorageConnector):
 
         printd(f"Using table name {self.table_name}")
 
-        # create chroma client
-        if config.archival_storage_path:
-            self.client = chromadb.PersistentClient(config.archival_storage_path)
-        else:
-            # assume uri={ip}:{port}
-            ip = config.archival_storage_uri.split(":")[0]
-            port = config.archival_storage_uri.split(":")[1]
-            self.client = chromadb.HttpClient(host="localhost", port=8000)
+        # create client
+        self.client = create_chroma_client()
 
         # get a collection or create if it doesn't exist already
         self.collection = self.client.get_or_create_collection(self.table_name)
+
+    def get_all_paginated(self, page_size: int) -> Iterator[List[Passage]]:
+        offset = 0
+        while True:
+            # Retrieve a chunk of records with the given page_size
+            db_passages_chunk = self.collection.get(offset=offset, limit=page_size, include=["embeddings", "documents"])
+
+            # If the chunk is empty, we've retrieved all records
+            if not db_passages_chunk:
+                break
+
+            # Yield a list of Passage objects converted from the chunk
+            yield [Passage(text=p.text, embedding=p.embedding, doc_id=p.doc_id, passage_id=p.id) for p in db_passages_chunk]
+
+            # Increment the offset to get the next chunk in the next iteration
+            offset += page_size
 
     def get_all(self) -> List[Passage]:
         results = self.collection.get(include=["embeddings", "documents"])
@@ -66,13 +88,14 @@ class ChromaStorageConnector(StorageConnector):
         self.client.delete_collection(name=self.table_name)
 
     def save(self):
-        # save to persistence file
+        # save to persistence file (nothing needs to be done)
         printd("Saving chroma")
+        pass
 
     @staticmethod
     def list_loaded_data():
-        config = MemGPTConfig.load()
-        collections = self.client.list_collections()
+        client = create_chroma_client()
+        collections = client.list_collections()
         collections = [c for c in collections if c.name.startswith("memgpt_") and not c.name.startswith("memgpt_agent_")]
         return collections
 
@@ -98,3 +121,6 @@ class ChromaStorageConnector(StorageConnector):
 
     def generate_table_name(self, name: str):
         return f"memgpt_{self.sanitize_table_name(name)}"
+
+    def size(self) -> int:
+        return self.collection.count()
