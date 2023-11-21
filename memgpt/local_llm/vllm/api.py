@@ -2,15 +2,14 @@ import os
 from urllib.parse import urljoin
 import requests
 
-from .settings import SIMPLE
 from ..utils import load_grammar_file, count_tokens
 
-WEBUI_API_SUFFIX = "/v1/completions"
+WEBUI_API_SUFFIX = "/completions"
 DEBUG = False
 
 
-def get_webui_completion(endpoint, prompt, context_window, settings=SIMPLE, grammar=None):
-    """Compatibility for the new OpenAI API: https://github.com/oobabooga/text-generation-webui/wiki/12-%E2%80%90-OpenAI-API#examples"""
+def get_vllm_completion(endpoint, model, prompt, context_window, settings={}, grammar=None):
+    """https://github.com/vllm-project/vllm/blob/main/examples/api_client.py"""
     prompt_tokens = count_tokens(prompt)
     if prompt_tokens > context_window:
         raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_window} tokens)")
@@ -18,16 +17,19 @@ def get_webui_completion(endpoint, prompt, context_window, settings=SIMPLE, gram
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
     request = settings
     request["prompt"] = prompt
-    request["truncation_length"] = context_window
     request["max_tokens"] = int(context_window - prompt_tokens)
-    request["max_new_tokens"] = int(context_window - prompt_tokens)  # safety backup to "max_tokens", shouldn't matter
+    request["stream"] = False
+
+    # currently hardcoded, since we are only supporting one model with the hosted endpoint
+    request["model"] = model
 
     # Set grammar
     if grammar is not None:
+        raise NotImplementedError
         request["grammar_string"] = load_grammar_file(grammar)
 
     if not endpoint.startswith(("http://", "https://")):
-        raise ValueError(f"Endpoint value ({endpoint}) must begin with http:// or https://")
+        raise ValueError(f"Endpoint ({endpoint}) must begin with http:// or https://")
 
     try:
         URI = urljoin(endpoint.strip("/") + "/", WEBUI_API_SUFFIX.strip("/"))
@@ -40,7 +42,7 @@ def get_webui_completion(endpoint, prompt, context_window, settings=SIMPLE, gram
         else:
             raise Exception(
                 f"API call got non-200 response code (code={response.status_code}, msg={response.text}) for address: {URI}."
-                + f" Make sure that the web UI server is running and reachable at {URI}."
+                + f" Make sure that the vLLM server is running and reachable at {URI}."
             )
 
     except:
