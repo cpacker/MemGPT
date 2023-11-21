@@ -64,7 +64,7 @@ def configure_llm_endpoint(config: MemGPTConfig):
         if config.model_endpoint_type in backend_options:
             # set from previous config
             default_model_endpoint_type = config.model_endpoint_type
-        else:
+        if os.getenv("BACKEND_TYPE") and os.getenv("BACKEND_TYPE") in backend_options:
             # set form env variable (ok if none)
             default_model_endpoint_type = os.getenv("BACKEND_TYPE")
         model_endpoint_type = questionary.select(
