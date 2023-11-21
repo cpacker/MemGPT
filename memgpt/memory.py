@@ -443,7 +443,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             end = min(count + start, len(self.cache[query_string]))
 
             results = self.cache[query_string][start:end]
-            results = [{"timestamp": get_local_time(), "content": node.text} for node in results]
+            results = [{"timestamp": get_local_time(), "content": node.text, "metadata": node.metadata} for node in results]
             return results, len(results)
         except Exception as e:
             print("Archival search error", e)

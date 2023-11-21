@@ -181,6 +181,6 @@ def archival_memory_search(self, query: str, page: Optional[int] = 0) -> Optiona
         results_str = f"No results found."
     else:
         results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
-        results_formatted = [f"timestamp: {d['timestamp']}, memory: {d['content']}" for d in results]
+        results_formatted = [f"timestamp: {d['timestamp']}, memory: {d['content']}, metadata: {d['metadata']}" for d in results]
         results_str = f"{results_pref} {json.dumps(results_formatted, ensure_ascii=JSON_ENSURE_ASCII)}"
     return results_str
