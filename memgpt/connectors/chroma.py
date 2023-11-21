@@ -96,7 +96,7 @@ class ChromaStorageConnector(StorageConnector):
     def list_loaded_data():
         client = create_chroma_client()
         collections = client.list_collections()
-        collections = [c for c in collections if c.name.startswith("memgpt_") and not c.name.startswith("memgpt_agent_")]
+        collections = [c.name for c in collections if c.name.startswith("memgpt_") and not c.name.startswith("memgpt_agent_")]
         return collections
 
     def sanitize_table_name(self, name: str) -> str:
