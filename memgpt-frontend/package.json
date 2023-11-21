@@ -40,8 +40,6 @@
     "@swc/helpers": "~0.5.2",
     "@tanstack/react-query": "^5.8.1",
     "@tanstack/react-query-devtools": "^5.8.1",
-    "@tanstack/react-router": "^0.0.1-beta.209",
-    "@tanstack/router-devtools": "^0.0.1-beta.209",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "cmdk": "^0.2.0",
@@ -51,11 +49,13 @@
     "react-day-picker": "^8.9.1",
     "react-dom": "18.2.0",
     "react-hook-form": "^7.47.0",
+    "react-router-dom": "^6.19.0",
     "react-use-websocket": "^4.5.0",
     "tailwind-merge": "^2.0.0",
     "tailwindcss-animate": "^1.0.7",
     "tslib": "^2.3.0",
-    "zod": "^3.22.4"
+    "zod": "^3.22.4",
+    "zustand": "^4.4.6"
   },
   "devDependencies": {
     "@babel/core": "^7.14.5",

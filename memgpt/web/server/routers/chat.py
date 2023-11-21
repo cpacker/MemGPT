@@ -1,61 +1,70 @@
-import datetime
-from copy import deepcopy
+from typing import Annotated
+
+from fastapi import Query
 
 from memgpt import constants, system
-from memgpt.agent import AgentAsync
-from memgpt.config import MemGPTConfig
-from memgpt.utils import parse_json
+from memgpt.server.websocket_interface import SyncWebSocketInterface
+import memgpt.server.websocket_protocol as protocol
 
 
-def setup_chat_ws_router(memgpt_agent: AgentAsync, config: MemGPTConfig):
+def setup_chat_ws_router():
     from fastapi import APIRouter
     from starlette.websockets import WebSocket
 
     router = APIRouter()
 
+    interface = SyncWebSocketInterface()
+
     @router.websocket("/chat")
-    async def websocket_endpoint(websocket: WebSocket):
-        await websocket.accept()
+    async def websocket_endpoint(
+        websocket: WebSocket,
+        agent: Annotated[str, Query()],
+    ):
+        try:
+            interface.register_client(websocket)
+            memgpt_agent = load_agent(interface, agent)
 
-        first_message = True
-        skip_next_user_input = True
-        internal_message = "User is back. Let's start the conversation..."
-        while True:
-            user_message = system.package_user_message(internal_message if skip_next_user_input else await websocket.receive_text())
+            await websocket.accept()
 
-            (
-                new_messages,
-                user_message,
-                skip_next_user_input,
-            ) = await process_agent_step(memgpt_agent, user_message, True, first_message)
+            first_message = True
+            skip_next_user_input = True
+            internal_message = "User is back. Let's start the conversation..."
+            while True:
+                user_message = system.package_user_message(internal_message if skip_next_user_input else await websocket.receive_text())
 
-            if skip_next_user_input:
-                internal_message = user_message
-                continue
+                if not skip_next_user_input or first_message:
+                    await websocket.send_text(protocol.server_agent_response_start())
 
-            non_user_messages = [new_message for new_message in new_messages if new_message["role"] != "user"]
+                try:
+                    (
+                        new_messages,
+                        user_message,
+                        skip_next_user_input,
+                    ) = process_agent_step(memgpt_agent, user_message, True, first_message)
 
-            mapped_messages = map_messages_to_parsed_function_call_arguments(non_user_messages)
-            print(user_message, internal_message, mapped_messages)
+                    if skip_next_user_input:
+                        internal_message = user_message
+                        continue
 
-            await websocket.send_json(
-                {
-                    "new_messages": mapped_messages,
-                    "time": datetime.datetime.now().isoformat(),
-                }
-            )
+                    await websocket.send_text(protocol.server_agent_response_end())
 
-            if first_message:
-                first_message = False
-                internal_message = ""
+                    if first_message:
+                        first_message = False
+                        internal_message = ""
 
-            memgpt_agent.save()
+                    memgpt_agent.save()
+                except Exception as e:
+                    print(f"[server] self.run_step failed with:\n{e}")
+                    skip_next_user_input = False
+                    await websocket.send_text(protocol.server_agent_response_error(f"self.run_step failed with: {e}"))
+        except Exception as e:
+            interface.unregister_client(websocket)
 
     return router
 
 
-async def process_agent_step(memgpt_agent, user_message, no_verify, first_message):
-    new_messages, heartbeat_request, function_failed, token_warning = await memgpt_agent.step(
+def process_agent_step(memgpt_agent, user_message, no_verify, first_message):
+    new_messages, heartbeat_request, function_failed, token_warning = memgpt_agent.step(
         user_message, first_message=first_message, skip_verify=no_verify
     )
 
@@ -81,12 +90,22 @@ async def process_agent_step(memgpt_agent, user_message, no_verify, first_messag
     return new_messages, user_message, skip_next_user_input
 
 
-def parse_function_call(message):
-    new_message = deepcopy(message)
-    if new_message["role"] == "assistant" and new_message["function_call"]["name"] == "send_message":
-        new_message["function_call"]["arguments"] = parse_json(new_message["function_call"]["arguments"])
-    return new_message
+def load_agent(interface, agent_name):
+    """Load an agent from a directory"""
+    import memgpt.utils as utils
+    from memgpt.config import AgentConfig
+    from memgpt.agent import Agent
 
+    print(f"Loading agent {agent_name}...")
 
-def map_messages_to_parsed_function_call_arguments(all_messages: list):
-    return list(map(parse_function_call, all_messages))
+    agent_files = utils.list_agent_config_files()
+    agent_names = [AgentConfig.load(f).name for f in agent_files]
+
+    if agent_name not in agent_names:
+        raise ValueError(f"agent '{agent_name}' does not exist")
+
+    agent_config = AgentConfig.load(agent_name)
+    agent = Agent.load_agent(interface, agent_config)
+    print("Created agent by loading existing config")
+
+    return agent

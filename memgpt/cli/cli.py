@@ -159,6 +159,10 @@ def run(
     if no_verify:
         config.no_verify = no_verify
 
+    if server is True:
+        start_uvicorn_fastapi_server(config)
+        return
+
     # determine agent to use, if not provided
     if not yes and not agent:
         agent_files = utils.list_agent_config_files()

@@ -1,11 +1,9 @@
-"use client"
+'use client';
 
-import { Link } from "@tanstack/react-router"
-
-import { cn } from "@memgpt/utils"
-import { buttonVariants } from "@memgpt/components/button"
+import { cn } from '@memgpt/utils';
+import { buttonVariants } from '@memgpt/components/button';
 import { SidebarNavItem } from './settings';
-import { settingsRoute } from './settings.routes';
+import { NavLink } from 'react-router-dom';
 
 interface SidebarNavProps extends React.HTMLAttributes<HTMLElement> {
   items: SidebarNavItem[]
@@ -22,19 +20,19 @@ export function SidebarNav({ className, items, ...props }: SidebarNavProps) {
     >
       {items.map((item,i) => (
         // @ts-ignore
-        <Link
+        <NavLink
+          relative="path"
           key={i}
-          from={settingsRoute.id}
           to={item.to}
           className={cn(
             buttonVariants({ variant: "ghost" }),
             "hover:bg-transparent hover:underline",
-            "data-[status=active]:bg-muted data-[status=active]:hover:bg-muted data-[status=active]:hover:no-underline",
+            "[&.active]:bg-muted [&.active]:hover:bg-muted [&.active]:hover:no-underline",
             "justify-start"
           )}
         >
           {item.title}
-        </Link>
+        </NavLink>
       ))}
     </nav>
   )

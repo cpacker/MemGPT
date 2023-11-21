@@ -1,6 +1,6 @@
 import React from 'react';
-import { ReadyState } from 'react-use-websocket';
 import { Badge } from '@memgpt/components/badge';
+import { ReadyState } from '../../../libs/messages/message-socket.store';
 
 const twPos = (extraClasses?: string) => 'absolute h-4 w-4 p-0 top-4 right-4 ' + (extraClasses ?? '');
 const StatusIndicator = ({ readyState }: {readyState: ReadyState}) => {

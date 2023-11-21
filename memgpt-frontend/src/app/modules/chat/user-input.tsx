@@ -17,7 +17,7 @@ import {
 } from '@memgpt/components/form';
 
 const formSchema = z.object({
-  message: z.string().min(1),
+  message: z.string().min(1, 'Message cannot be empty...'),
 });
 const UserInput = (props: { enabled: boolean; onSend: (message: string) => void }) => {
   const form = useForm<z.infer<typeof formSchema>>({
@@ -26,11 +26,7 @@ const UserInput = (props: { enabled: boolean; onSend: (message: string) => void 
       message: '',
     },
   });
-
-  // 2. Define a submit handler.
   function onSubmit(values: z.infer<typeof formSchema>) {
-    // Do something with the form values.
-    // ✅ This will be type-safe and validated.
     props.onSend(values.message);
     form.reset();
   }

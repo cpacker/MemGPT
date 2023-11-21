@@ -1,11 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { Agent } from './agent';
 
 const API_URL = 'http://localhost:8000/api';
-
-
-export type Agent = {
-  name: string
-}
 
 export const useAgentsQuery = () => useQuery(
   {

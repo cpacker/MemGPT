@@ -1,6 +1,5 @@
 "use client"
 
-import { Link } from '@tanstack/react-router';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useFieldArray, useForm } from "react-hook-form"
 import * as z from "zod"
@@ -28,6 +27,7 @@ import { Textarea } from "@memgpt/components/textarea"
 import { toast } from "@memgpt/components/toast"
 import React from 'react';
 import { SettingsLayout } from '../layout';
+import { Link } from 'react-router-dom';
 
 const profileFormSchema = z.object({
   username: z
@@ -128,7 +128,7 @@ export function ProfileForm() {
               </Select>
               <FormDescription>
                 You can manage verified email addresses in your{" "}
-                <Link href="/examples/forms">email settings</Link>.
+                <Link to="/examples/forms">email settings</Link>.
               </FormDescription>
               <FormMessage />
             </FormItem>

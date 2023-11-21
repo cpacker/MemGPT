@@ -70,6 +70,9 @@
   * {
     @apply border-border;
   }
+  html {
+    @apply h-full
+  }
   body {
     @apply h-full w-full bg-background text-foreground;
   }

@@ -1,41 +1,41 @@
 import React, { useEffect, useRef } from 'react';
-import MemgptMessage from './message/memgpt-message';
-import UserMessage from './message/user-message';
-import { cnMuted } from '@memgpt/components/typography';
-import { Message } from '../../../hooks/messages/use-messages';
 import MessageContainerLayout from './message-container-layout';
-import { LucideLoader } from 'lucide-react';
-import StatusIndicator from '../../../shared/layout/status-indicator';
-import { ReadyState } from 'react-use-websocket';
+import StatusIndicator from './status-indicator';
+import ThinkingIndicator from './thinking-indicator';
+import { Message } from '../../../libs/messages/message';
+import { ReadyState } from '../../../libs/messages/message-socket.store';
+import MessageContainerConnecting from './message-container-connecting';
+import { pickMessageElement } from './message/pick-message-element';
+import SelectAgentForm from './select-agent-form';
 
-const getMessage = ({ role, content, function_call }: Message, key: number) => {
-  if (role === 'user') {
-    return <UserMessage key={key} date={new Date()} message={content} />;
-  }
-  if (role === 'assistant') {
-    return <div key={key}>
-      <p className={cnMuted('mb-2 w-fit text-xs p-2 rounded border')}>{content}</p>
-      <MemgptMessage date={new Date()} message={function_call?.arguments['message']} />
-    </div>;
-  }
-  return undefined;
-};
-
-const MessageContainer = ({ messages, readyState }: { messages: Message[]; readyState: ReadyState }) => {
+const MessageContainer = ({ agentSet, isThinking, messages, readyState }: {
+  agentSet: boolean;
+  isThinking: boolean;
+  messages: Message[];
+  readyState: ReadyState
+}) => {
   const messageBox = useRef<HTMLDivElement>(null);
   useEffect(() => messageBox.current?.scrollIntoView(false), [messages]);
-  return <MessageContainerLayout>
-    {<StatusIndicator readyState={readyState} />}
-    {
-    messages.length === 0 ? (
-      <p className={cnMuted('flex flex-col items-center justify-center p-20')}>
-        <LucideLoader className="animate-spin h-8 w-8 mb-8"/>
-        <span>Connecting you to your agent...</span></p>
-    ) : (
-      <div className='flex flex-col flex-1 px-4 py-6 space-y-4' ref={messageBox}>
-        {messages.map((message, i) => getMessage(message, i)).filter(e => !!e)}
-      </div>
-    )}</MessageContainerLayout>;
+
+  if (!agentSet) {
+    return <MessageContainerLayout>
+      <SelectAgentForm/>
+    </MessageContainerLayout>;
+  }
+
+  if (readyState === ReadyState.CONNECTING) {
+    return <MessageContainerLayout>
+      <StatusIndicator readyState={readyState} />
+      <MessageContainerConnecting />
+    </MessageContainerLayout>;
+  }
+
+  return <MessageContainerLayout><StatusIndicator readyState={readyState} />
+    <div className='flex flex-col flex-1 px-4 py-6 space-y-4' ref={messageBox}>
+      {messages.map((message, i) => pickMessageElement(message, i))}
+      {isThinking ? <ThinkingIndicator className='py-3 px-3 flex items-center' /> : undefined}
+    </div>
+  </MessageContainerLayout>;
 };
 
 export default MessageContainer;

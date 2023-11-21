@@ -1,16 +1,41 @@
 import React from 'react';
-import { ReadyState } from 'react-use-websocket';
-import { useMessages } from '../../hooks/messages/use-messages';
-import StatusIndicator from '../../shared/layout/status-indicator';
 import MessageContainer from './messages/message-container';
 import UserInput from './user-input';
-import { cnH1, cnH2, cnH3 } from '@memgpt/components/typography';
+import {
+  ReadyState,
+  useMessageSocketActions,
+  useMessageSocketReadyState,
+} from '../../libs/messages/message-socket.store';
+import {
+  useMessageHistory,
+  useMessageHistoryActions,
+  useMessagesForKey,
+} from '../../libs/messages/message-history.store';
+import { useNextMessageLoading } from '../../libs/messages/next-message-loading.store';
+import { useCurrentAgent } from '../../libs/agents/agent.store';
 
 const Chat = () => {
-  const { readyState, messageHistory, sendMessage } = useMessages();
-  return (<div className="max-w-screen-xl mx-auto p-4">
-      <MessageContainer readyState={readyState} messages={messageHistory}/>
-      <UserInput enabled={readyState === ReadyState.OPEN} onSend={sendMessage} />
+  const isThinking = useNextMessageLoading();
+  const currentAgent = useCurrentAgent();
+  const messages = useMessagesForKey(currentAgent?.name ?? '');
+
+  const readyState = useMessageSocketReadyState();
+  const { sendMessage } = useMessageSocketActions();
+  const { addMessage } = useMessageHistoryActions();
+
+  const sendUserMessageAndAddToHistory = (message: string) => {
+    if (!currentAgent) return;
+    sendMessage(message);
+    addMessage(currentAgent.name, {
+      type: 'user_message',
+      message_type: 'user_message',
+      message,
+    });
+  };
+
+  return (<div className='max-w-screen-xl mx-auto p-4'>
+      <MessageContainer agentSet={!!currentAgent} isThinking={isThinking} readyState={readyState} messages={messages} />
+      <UserInput enabled={readyState === ReadyState.OPEN} onSend={sendUserMessageAndAddToHistory} />
     </div>
   );
 };
