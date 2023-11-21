@@ -197,6 +197,73 @@ export function Chat() {
   const stop = () => ChatControllerPool.stop(bot.id);
   const isRunning = ChatControllerPool.isRunning(bot.id);
 
+  // processing websocket streamed messages
+  // Function to process the content and extract messages
+  const processContent = (messageString: string) => {
+    // Initialize variables for the current message and the list of all messages
+    let currentMessage = { innerThoughts: "", assistantMessage: "", functionCall: "" };
+    const messageList = [];
+
+    // Helper function to reset the current message
+    const resetCurrentMessage = () => ({ innerThoughts: "", assistantMessage: "", functionCall: "" });
+
+    // Helper function to add the current message to the list and reset it
+    const finalizeMessage = () => {
+        messageList.push({ ...currentMessage });
+        currentMessage = resetCurrentMessage();
+    };
+
+    // Split the main text into lines
+    const lines = messageString.split("\n");
+
+    // Process each line and extract the relevant parts
+    lines.forEach(line => {
+        if (line.startsWith("internal_monologue:")) {
+            // If 'innerThoughts' is already set, finalize current message
+            if (currentMessage.innerThoughts !== "") {
+                finalizeMessage();
+            }
+            currentMessage.innerThoughts += line.replace("internal_monologue:", "").trim() + " ";
+        } else if (line.startsWith("assistant_message:")) {
+            // If 'assistantMessage' is already set, finalize current message
+            if (currentMessage.assistantMessage !== "") {
+                finalizeMessage();
+            }
+            currentMessage.assistantMessage += line.replace("assistant_message:", "").trim() + " ";
+        } else if (line.startsWith("function_call:")) {
+            // If 'functionCall' is already set, finalize current message
+            if (currentMessage.functionCall !== "") {
+                finalizeMessage();
+            }
+            currentMessage.functionCall += line.replace("function_call:", "").trim() + " ";
+        }
+    });
+
+    // Add the last message to the list if it's not empty
+    if (currentMessage.innerThoughts !== "" || currentMessage.assistantMessage !== "" || currentMessage.functionCall !== "") {
+        messageList.push(currentMessage);
+    }
+
+    return messageList;
+  }
+
+  const messageToMainContentString = (messageObj: any) => {
+    const assistantMessage = messageObj.assistantMessage.trim();
+    const functionCall = messageObj.functionCall.trim();
+
+    // Prepare the main message based on the availability of the function call:
+    const mainMessage = (assistantMessage && functionCall && !functionCall.startsWith('send_message(')) ?
+      `${assistantMessage}\n` + // Newline outside of code block
+      "```python\n" + `${functionCall}\n` + "```"       // Newline inside code block
+    : (functionCall && !functionCall.startsWith('send_message(')) ?
+      "```python\n" + `${functionCall}\n` + "```"       // Newline inside code block
+    : (assistantMessage) ?
+      assistantMessage
+    // : mainText;
+    : "";
+    return mainMessage;
+  }
+
   return (
     <div className="flex flex-col relative h-full" key={bot.id}>
       <ChatHeader />
@@ -227,24 +294,69 @@ export function Chat() {
             // const innerThoughts = splitContent[1]; // Assuming there's only one inner thought per message
 
             // Logic to extract the inner monologue and assistant message
-            const innerMonologuePrefix = "internal_monologue:";
-            const assistantMessagePrefix = "assistant_message:";
+            // const innerMonologuePrefix = "internal_monologue:";
+            // const assistantMessagePrefix = "assistant_message:";
+            // let mainText = message.content;
+            // let innerThoughts = null;
+
+            // // Check for inner monologue and split the text accordingly
+            // if (mainText.includes(innerMonologuePrefix)) {
+            //   const parts = mainText.split("\n").map(part => part.trim());
+            //   const innerMonologuePart = parts.find(part => part.startsWith(innerMonologuePrefix));
+            //   const assistantMessagePart = parts.find(part => part.startsWith(assistantMessagePrefix));
+
+            //   if (innerMonologuePart) {
+            //     innerThoughts = innerMonologuePart.replace(innerMonologuePrefix, '').trim();
+            //   }
+            //   if (assistantMessagePart) {
+            //     mainText = assistantMessagePart.replace(assistantMessagePrefix, '').trim();
+            //   }
+            // }
             let mainText = message.content;
-            let innerThoughts = null;
+            const isAssistantMessage = /internal_monologue:|assistant_message:|function_call:/.test(message.content);
+            // const isAssistantMessage = !isUser;
+            const messageList = isAssistantMessage ? 
+              processContent(mainText).map((v) => ({innerThoughts: v.innerThoughts, mainMessage: messageToMainContentString(v)})) 
+              : [{innerThoughts: null, mainMessage: mainText}];
+            // const innerThoughts = isAssistantMessage ? messageList[0].innerThoughts : null;
+            // const mainMessage = isAssistantMessage ? messageToMainContentString(messageList[0]) : messageList[0];
 
-            // Check for inner monologue and split the text accordingly
-            if (mainText.includes(innerMonologuePrefix)) {
-              const parts = mainText.split("\n").map(part => part.trim());
-              const innerMonologuePart = parts.find(part => part.startsWith(innerMonologuePrefix));
-              const assistantMessagePart = parts.find(part => part.startsWith(assistantMessagePrefix));
+            // // Initialize placeholders for the different parts of the message
+            // let innerThoughts = "";
+            // let assistantMessage = "";
+            // let functionCall = "";
 
-              if (innerMonologuePart) {
-                innerThoughts = innerMonologuePart.replace(innerMonologuePrefix, '').trim();
-              }
-              if (assistantMessagePart) {
-                mainText = assistantMessagePart.replace(assistantMessagePrefix, '').trim();
-              }
-            }
+            // // Split the main text into lines
+            // const lines = message.content.split("\n");
+            // const messageList = [];
+
+            // // Process each line and extract the relevant parts
+            // lines.forEach(line => {
+            //   // If we ever hit a duplicate field, start the next message
+            //   if (line.startsWith("internal_monologue:")) {
+            //     innerThoughts += line.replace("internal_monologue:", "").trim() + " ";
+            //   } else if (line.startsWith("assistant_message:")) {
+            //     assistantMessage += line.replace("assistant_message:", "").trim() + " ";
+            //   } else if (line.startsWith("function_call:")) {
+            //     functionCall += line.replace("function_call:", "").trim() + " ";
+            //     // functionCall = JSON.parse(functionCall);
+            //   }
+            // });
+
+            // Trim the strings to remove any excess whitespace from the ends
+            // innerThoughts = innerThoughts.trim();
+            // assistantMessage = assistantMessage.trim();
+            // functionCall = functionCall.trim();
+
+            // Prepare the main message based on the availability of the function call:
+            // const mainMessage = (assistantMessage && functionCall && !functionCall.startsWith('send_message(')) ?
+            //   `${assistantMessage}\n` + // Newline outside of code block
+            //   "```python\n" + `${functionCall}\n` + "```"       // Newline inside code block
+            // : (functionCall && !functionCall.startsWith('send_message(')) ?
+            //   "```python\n" + `${functionCall}\n` + "```"       // Newline inside code block
+            // : (assistantMessage) ?
+            //   assistantMessage
+            // : mainText;
 
             // Inline styling for inner thoughts
             const innerThoughtsStyle = {
@@ -256,8 +368,8 @@ export function Chat() {
               // Other styles as needed
             };
 
-            console.log(`mainText: ${mainText}`);
-            console.log(`innerThoughts: ${innerThoughts}`);
+            // console.log(`mainText: ${mainText}`);
+            // console.log(`innerThoughts: ${innerThoughts}`);
 
             return (
               <div className="space-y-5" key={i}>
@@ -285,14 +397,18 @@ export function Chat() {
                             {Locale.Chat.Thinking}
                           </div>
                         )}
-                        {innerThoughts && (
+
+                      {messageList.map((messageObj, index) => (
+                        <div>
+
+                        {messageObj.innerThoughts && (
                           <div
                             className={
                               "text-xs text-[#aaa] leading-normal my-1"
                             }
                             style={innerThoughtsStyle}
                           >
-                           💭 {innerThoughts}
+                           💭 {messageObj.innerThoughts}
                           </div>
                         )}
                         <div
@@ -313,9 +429,7 @@ export function Chat() {
                             />
                           )}
                           <Markdown
-                            // content="bro what's up"
-                            // content={message.content}
-                            content={mainText}
+                            content={messageObj.mainMessage}
                             loading={
                               message.streaming &&
                               message.content.length === 0 &&
@@ -330,6 +444,8 @@ export function Chat() {
                           />
                         </div>
 
+                        </div>))}
+
                         <div className="text-xs text-muted-foreground opacity-80 whitespace-nowrap text-right w-full box-border pointer-events-none z-[1]">
                           {isContext
                             ? Locale.Chat.IsContext
@@ -337,6 +453,7 @@ export function Chat() {
                         </div>
                       </div>
                     </HoverCardTrigger>
+
                     {showActions && (
                       <HoverCardContent
                         side="top"

@@ -154,7 +154,8 @@ const en = {
   Welcome: {
     // Title: "LlamaIndex Chat",
     Title: "MemGPT",
-    SubTitle: "Chat with MemGPT",
+    // SubTitle: "Chat with MemGPT",
+    SubTitle: "Personalized AI with memory",
     Quote:
       "“This tool has saved me countless hours of work and helped me apply AI features to my work faster than ever before.”",
     LoginLinkedinTitle: "Login with LinkedIn",

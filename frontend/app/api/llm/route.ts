@@ -97,7 +97,14 @@ function format_agent_response(response: any) {
     message = `assistant_message: ${response.message}`;
   } else if (response.message_type === "function_message") {
     message = null;
+    const prefix = "Running ";
+    if (response.message.startsWith(prefix)) {
+      const functionCall = response.message.substring(prefix.length);
+      message = `function_call: ${JSON.stringify(functionCall).slice(1,-1)}`;
+      // message = `function_call: BUSSIN`;
+    }
   }
+  console.log(`formatting ${response.message_type} - ${response.message} -> ${message}`)
   return message;
 }
 
@@ -105,10 +112,79 @@ function createReadableStreamFromWebSocket(
   agent_name: string | undefined,
   message: MessageContent,
 ): ReadableStream<string> {
+
   // Initialize the TransformStream
   let responseStream = new TransformStream();
   const writer = responseStream.writable.getWriter();
   const encoder = new TextEncoder();
+
+  // Extras for handling concurrency (multiple messages coming in at the same time)
+  let isStreamClosed = false;  // ensures stream is not closed more than once
+  let isWriting = false;  // ensures only one write operation occurs at a time
+  let messageQueue: any[] = [];  // hold messages in a queue to handle message bursts
+
+  // const closeWriterSafely = async () => {
+  //   if (!isStreamClosed) {
+  //     // await processQueue(); // Ensure the queue is processed before closing
+  //     writer.close();
+  //     isStreamClosed = true;
+  //   }
+  // };
+
+  const closeWriterSafely = async () => {
+    if (!isStreamClosed) {
+      await processQueue(); // Ensure the queue is processed before closing
+  
+      // Close the WebSocket connection if it's open
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.close();
+      }
+  
+      writer.close();
+      isStreamClosed = true;
+    }
+  };
+
+  // const processQueue = async () => {
+  //   if (isStreamClosed) return; // Exit if stream is already closed
+  //   // Serially processes all the messages in the message queue object
+  //   if (isWriting || messageQueue.length === 0) {
+  //     return;
+  //   }
+
+  //   isWriting = true;
+
+  //   while (messageQueue.length > 0) {
+  //     const message = messageQueue.shift();
+  //     await writer.write(encoder.encode(message));
+  //   }
+
+  //   isWriting = false;
+
+  //   if (messageQueue.length > 0) {
+  //     // More messages might have been added while processing
+  //     processQueue();
+  //   }
+  // };
+
+  const processQueue = async () => {
+    if (isStreamClosed) return; // Exit if stream is already closed
+
+    isWriting = true;
+
+    while (messageQueue.length > 0 && !isStreamClosed) {
+      const message = messageQueue.shift();
+      try {
+        console.log(`WRITING ==> ${message}`);
+        await writer.write(message);
+      } catch (error) {
+        console.error('Error writing to stream:', error);
+        break; // Exit the loop if an error occurs
+      }
+    }
+
+    isWriting = false;
+  };
 
   // Create a WebSocket connection
   const websocketUrl = "ws://localhost:8282";
@@ -116,12 +192,6 @@ function createReadableStreamFromWebSocket(
 
   socket.onopen = () => {
     // Send the message as a JSON string when the WebSocket connection is opened
-    // socket.send(JSON.stringify({ 'message': message }));
-    // socket.send(JSON.stringify({
-    //   type: 'command',
-    //   command: 'load_agent',
-    //   name: 'agent_26'
-    // }));
     console.log(`[socket.onopen]`);
     socket.send(
       JSON.stringify({
@@ -134,6 +204,8 @@ function createReadableStreamFromWebSocket(
   };
 
   socket.onmessage = (event) => {
+    if (isStreamClosed) return; // Exit if stream is already closed
+
     // Handle incoming messages
     console.log(`[socket.onmessage]`);
     try {
@@ -144,7 +216,8 @@ function createReadableStreamFromWebSocket(
       if (condition_to_stop_receiving(data)) {
         // Write an error
         if (data.type === "agent_response_error" || data.type === "server_error") {
-            writer.write(
+            // writer.write(
+            messageQueue.push(
               `data: ${JSON.stringify({
                 // error: Locale.Chat.LLMError,
                 error: JSON.stringify(data),
@@ -152,33 +225,42 @@ function createReadableStreamFromWebSocket(
             );
         }
         // The websocket said it will stop sending data so close
-        writer.write(
+        // writer.write(
+        messageQueue.push(
           encoder.encode(
             `data: ${JSON.stringify({
               done: true,
             })}\n\n`,
           ),
         );
-        writer.close();
+        // writer.close();
+        // closeWriterSafely(); // Use the safe close function
+        processQueue().then(closeWriterSafely);
       } else {
         // Write the data to the stream
         if (data.type === "agent_response") {
           const message = format_agent_response(data);
           if (message !== null) {
-            writer.write(encoder.encode(`data: "${message}\\n"\n\n`));
+            // writer.write(encoder.encode(`data: "${message}\\n"\n\n`));
+            messageQueue.push(encoder.encode(`data: "${message}\\n"\n\n`));
+            processQueue();
           }
         }
       }
+
     } catch (error) {
       console.error("[WebSocket Error]", error);
-      writer.write(
+      // writer.write(
+      messageQueue.push(
         encoder.encode(
           `data: ${JSON.stringify({
             error: "Error processing WebSocket message",
           })}\n\n`,
         ),
       );
-      writer.close();
+      // writer.close();
+      // closeWriterSafely(); // Use the safe close function
+      processQueue().then(closeWriterSafely);
     }
   };
 
@@ -186,18 +268,22 @@ function createReadableStreamFromWebSocket(
     // Handle WebSocket errors
     console.log(`[socket.onerror]`);
     console.error("[WebSocket Error]", error);
-    writer.write(
+    // writer.write(
+    messageQueue.push(
       encoder.encode(
         `data: ${JSON.stringify({ error: "WebSocket connection error" })}\n\n`,
       ),
     );
-    writer.close();
+    // writer.close();
+    processQueue().then(closeWriterSafely);
+    // closeWriterSafely(); // Use the safe close function
   };
 
   socket.onclose = () => {
     // Close the stream when the WebSocket is closed
     console.log(`[socket.onclose]`);
-    writer.close();
+    // writer.close();
+    closeWriterSafely(); // Use the safe close function
   };
 
   return responseStream.readable;
