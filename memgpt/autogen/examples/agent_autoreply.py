@@ -110,7 +110,7 @@ else:
         llm_config=llm_config_memgpt,
         nonmemgpt_llm_config=llm_config,
         system_message=f"I am a 10x engineer, trained in Python. I was the first engineer at Uber "
-        f"(whioch I make sure to tell everyone I work with).",
+        f"(which I make sure to tell everyone I work with).",
         human_input_mode="TERMINATE",
         interface_kwargs=interface_kwargs,
         default_auto_reply="...",  # Set a default auto-reply message here (non-empty auto-reply is required for LM Studio)

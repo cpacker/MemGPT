@@ -101,10 +101,9 @@ memgpt_agent = create_memgpt_autogen_agent_from_config(
 # NOTE: you need to follow steps to load document first: see https://memgpt.readthedocs.io/en/latest/autogen/#loading-documents
 memgpt_agent.load_and_attach("memgpt_research_paper", "directory")
 
-# Initialize the group chat between the user and two LLM agents (PM and coder)
+# Initialize the group chat between the agents
 groupchat = autogen.GroupChat(agents=[user_proxy, memgpt_agent], messages=[], max_round=12)
 manager = autogen.GroupChatManager(groupchat=groupchat, llm_config=llm_config)
-
 
 # Begin the group chat with a message from the user
 user_proxy.initiate_chat(
