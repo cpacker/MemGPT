@@ -79,7 +79,7 @@ def create_memgpt_autogen_agent_from_config(
         )
         if default_auto_reply != "":
             coop_agent2 = UserProxyAgent(
-                'User_proxy',
+                "User_proxy",
                 human_input_mode="NEVER",
                 default_auto_reply=default_auto_reply,
             )
