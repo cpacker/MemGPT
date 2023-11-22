@@ -14,53 +14,56 @@ import os
 import autogen
 from memgpt.autogen.memgpt_agent import create_autogen_memgpt_agent, create_memgpt_autogen_agent_from_config
 from memgpt.presets.presets import DEFAULT_PRESET
+from memgpt.constants import LLM_MAX_TOKENS
 
-# This config is for autogen agents that are not powered by MemGPT
-config_list = [
-    {
-        "model": "gpt-4",
-        "api_key": os.getenv("OPENAI_API_KEY"),
-    }
-]
+USE_OPENAI = True
+if USE_OPENAI:
+    # This config is for autogen agents that are not powered by MemGPT
+    config_list = [
+        {
+            "model": "gpt-4-1106-preview",  # gpt-4-turbo (https://platform.openai.com/docs/models/gpt-4-and-gpt-4-turbo)
+            "api_key": os.getenv("OPENAI_API_KEY"),
+        }
+    ]
 
-# This config is for autogen agents that powered by MemGPT
-config_list_memgpt = [
-    {
-        "model": "gpt-4",
-    },
-]
+    # This config is for autogen agents that powered by MemGPT
+    config_list_memgpt = [
+        {
+            "model": "gpt-4-1106-preview",  # gpt-4-turbo (https://platform.openai.com/docs/models/gpt-4-and-gpt-4-turbo)
+            "preset": DEFAULT_PRESET,
+            "model": None,
+            "model_wrapper": None,
+            "model_endpoint_type": None,
+            "model_endpoint": None,
+            "context_window": 128000,  # gpt-4-turbo
+        },
+    ]
 
-# Uncomment and fill in the following for local LLM deployment:
-# # This config is for autogen agents that are not powered by MemGPT
-# # See https://github.com/oobabooga/text-generation-webui/tree/main/extensions/openai
-config_list = [
-    {
-        "model": "YOUR_MODEL",  # ex. This is the model name, not the wrapper
-        "api_base": "YOUR_URL",  # ex. "http://127.0.0.1:5001/v1" if you are using webui, "http://localhost:1234/v1/" if you are using LM Studio
-        "api_key": "NULL",  # this is a placeholder
-        "api_type": "open_ai",
-    },
-]
-config_list = [
-    {
-        "model": "NULL",  # ex. This is the model name, not the wrapper
-        "api_base": "http://localhost:1234/v1",  # ex. "http://127.0.0.1:5001/v1" if you are using webui, "http://localhost:1234/v1/" if you are using LM Studio
-        "api_key": "NULL",  # this is a placeholder
-        "api_type": "open_ai",
-    },
-]
+else:
+    # Example using LM Studio on a local machine
+    # You will have to change the parameters based on your setup
 
-# # This config is for autogen agents that powered by MemGPT
-config_list_memgpt = [
-    {
-        "preset": DEFAULT_PRESET,
-        "model": None,  # only required for Ollama, see: https://memgpt.readthedocs.io/en/latest/ollama/
-        "model_wrapper": "airoboros-l2-70b-2.1",  # airoboros is the default wrapper and should work for most models
-        "model_endpoint_type": "lmstudio",  # can use webui, ollama, llamacpp, etc.
-        "model_endpoint": "http://localhost:1234",  # the IP address of your LLM backend
-        "context_window": 8192,  # the context window of your model (for Mistral 7B-based models, it's likely 8192)
-    },
-]
+    # Non-MemGPT agents will still use local LLMs, but they will use the ChatCompletions endpoint
+    config_list = [
+        {
+            "model": "NULL",  # not needed
+            "api_base": "http://localhost:1234/v1",  # ex. "http://127.0.0.1:5001/v1" if you are using webui, "http://localhost:1234/v1/" if you are using LM Studio
+            "api_key": "NULL",  #  not needed
+            "api_type": "open_ai",
+        },
+    ]
+
+    # MemGPT-powered agents will also use local LLMs, but they need additional setup (also they use the Completions endpoint)
+    config_list_memgpt = [
+        {
+            "preset": DEFAULT_PRESET,
+            "model": None,  # only required for Ollama, see: https://memgpt.readthedocs.io/en/latest/ollama/
+            "model_wrapper": "airoboros-l2-70b-2.1",  # airoboros is the default wrapper and should work for most models
+            "model_endpoint_type": "lmstudio",  # can use webui, ollama, llamacpp, etc.
+            "model_endpoint": "http://localhost:1234",  # the IP address of your LLM backend
+            "context_window": 8192,  # the context window of your model (for Mistral 7B-based models, it's likely 8192)
+        },
+    ]
 
 # If USE_MEMGPT is False, then this example will be the same as the official AutoGen repo
 # (https://github.com/microsoft/autogen/blob/main/notebook/agentchat_groupchat.ipynb)
@@ -114,6 +117,7 @@ else:
         f"You are participating in a group chat with a user ({user_proxy.name}) "
         f"and a product manager ({pm.name}).",
         interface_kwargs=interface_kwargs,
+        default_auto_reply="...",  # Set a default auto-reply message here (non-empty auto-reply is required for LM Studio)
     )
 
 # Initialize the group chat between the user and two LLM agents (PM and coder)

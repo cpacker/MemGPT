@@ -25,6 +25,8 @@ def create_memgpt_autogen_agent_from_config(
     function_map: Optional[Dict[str, Callable]] = None,
     code_execution_config: Optional[Union[Dict, bool]] = None,
     llm_config: Optional[Union[Dict, bool]] = None,
+    # config setup for non-memgpt agents:
+    nonmemgpt_llm_config: Optional[Union[Dict, bool]] = None,
     default_auto_reply: Optional[Union[str, Dict, None]] = "",
     interface_kwargs: Dict = None,
 ):
@@ -93,7 +95,8 @@ def create_memgpt_autogen_agent_from_config(
             messages=[],
             max_round=12 if max_consecutive_auto_reply is None else max_consecutive_auto_reply,
         )
-        manager = GroupChatManager(name=name, groupchat=groupchat, llm_config=llm_config)
+        assert nonmemgpt_llm_config is not None
+        manager = GroupChatManager(name=name, groupchat=groupchat, llm_config=nonmemgpt_llm_config)
         return manager
 
     else:
@@ -285,4 +288,9 @@ class MemGPTAgent(ConversableAgent):
         for m in messages:
             lines.append(f"{m}")
         ret["content"] = "\n".join(lines)
+
+        # prevent error in LM Studio caused by scenarios where MemGPT didn't say anything
+        if ret["content"].strip() in ["", "\n"]:
+            ret["content"] = "..."
+
         return ret
