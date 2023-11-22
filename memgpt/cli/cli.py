@@ -223,6 +223,7 @@ def attach(
     typer.secho(f"Ingesting {size} passages into {agent_config.name}", fg=typer.colors.GREEN)
     page_size = 100
     generator = source_storage.get_all_paginated(page_size=page_size)  # yields List[Passage]
+    passages = []
     for i in tqdm(range(0, size, page_size)):
         passages = next(generator)
         dest_storage.insert_many(passages)
