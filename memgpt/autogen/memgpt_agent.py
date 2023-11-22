@@ -31,7 +31,7 @@ def create_memgpt_autogen_agent_from_config(
     interface_kwargs: Dict = None,
 ):
     """Same function signature as used in base AutoGen, but creates a MemGPT agent
-    
+
     Construct AutoGen config workflow in a clean way.
     """
     llm_config = llm_config["config_list"][0]
@@ -43,7 +43,7 @@ def create_memgpt_autogen_agent_from_config(
     persona_desc = personas.DEFAULT if system_message == "" else system_message
     # The user profile is based on the input mode
     if human_input_mode == "ALWAYS":
-        user_desc = "" 
+        user_desc = ""
     elif human_input_mode == "TERMINATE":
         user_desc = "Work by yourself, the user won't reply until you output `TERMINATE` to end the conversation."
     else:
@@ -54,12 +54,12 @@ def create_memgpt_autogen_agent_from_config(
         name=name,
         persona=persona_desc,
         human=user_desc,
-        preset=llm_config['preset'],
-        model=llm_config['model'],
-        model_wrapper=llm_config['model_wrapper'],
-        model_endpoint_type=llm_config['model_endpoint_type'],
-        model_endpoint=llm_config['model_endpoint'],
-        context_window=llm_config['context_window'],
+        preset=llm_config["preset"],
+        model=llm_config["model"],
+        model_wrapper=llm_config["model_wrapper"],
+        model_endpoint_type=llm_config["model_endpoint_type"],
+        model_endpoint=llm_config["model_endpoint"],
+        context_window=llm_config["context_window"],
     )
 
     if function_map is not None or code_execution_config is not None:
