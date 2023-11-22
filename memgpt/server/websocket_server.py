@@ -60,6 +60,7 @@ class WebSocketServer:
                     if data["command"] == "create_agent":
                         try:
                             self.agent = self.create_new_agent(data["config"])
+                            self.agent_name = self.agent.config.name
                             await websocket.send(protocol.server_command_response("OK: Agent initialized"))
                         except Exception as e:
                             self.agent = None
