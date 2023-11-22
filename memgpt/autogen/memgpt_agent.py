@@ -67,6 +67,7 @@ def create_memgpt_autogen_agent_from_config(
 
     autogen_memgpt_agent = create_autogen_memgpt_agent(
         agent_config,
+        default_auto_reply=default_auto_reply,
         is_termination_msg=is_termination_msg,
         interface_kwargs=interface_kwargs,
     )
@@ -74,6 +75,7 @@ def create_memgpt_autogen_agent_from_config(
     if human_input_mode != "ALWAYS":
         coop_agent1 = create_autogen_memgpt_agent(
             agent_config,
+            default_auto_reply=default_auto_reply,
             is_termination_msg=is_termination_msg,
             interface_kwargs=interface_kwargs,
         )
@@ -86,6 +88,7 @@ def create_memgpt_autogen_agent_from_config(
         else:
             coop_agent2 = create_autogen_memgpt_agent(
                 agent_config,
+                default_auto_reply=default_auto_reply,
                 is_termination_msg=is_termination_msg,
                 interface_kwargs=interface_kwargs,
             )
@@ -110,6 +113,7 @@ def create_autogen_memgpt_agent(
     interface_kwargs={},
     persistence_manager=None,
     persistence_manager_kwargs=None,
+    default_auto_reply: Optional[Union[str, Dict, None]] = "",
     is_termination_msg: Optional[Callable[[Dict], bool]] = None,
 ):
     """
@@ -149,6 +153,7 @@ def create_autogen_memgpt_agent(
     autogen_memgpt_agent = MemGPTAgent(
         name=agent_config.name,
         agent=memgpt_agent,
+        default_auto_reply=default_auto_reply,
         is_termination_msg=is_termination_msg,
     )
     return autogen_memgpt_agent
@@ -162,6 +167,7 @@ class MemGPTAgent(ConversableAgent):
         skip_verify=False,
         concat_other_agent_messages=False,
         is_termination_msg: Optional[Callable[[Dict], bool]] = None,
+        default_auto_reply: Optional[Union[str, Dict, None]] = "",
     ):
         super().__init__(name)
         self.agent = agent
@@ -169,6 +175,7 @@ class MemGPTAgent(ConversableAgent):
         self.concat_other_agent_messages = concat_other_agent_messages
         self.register_reply([Agent, None], MemGPTAgent._generate_reply_for_user_message)
         self.messages_processed_up_to_idx = 0
+        self._default_auto_reply = default_auto_reply
 
         self._is_termination_msg = is_termination_msg if is_termination_msg is not None else (lambda x: x == "TERMINATE")
 
@@ -290,7 +297,7 @@ class MemGPTAgent(ConversableAgent):
         ret["content"] = "\n".join(lines)
 
         # prevent error in LM Studio caused by scenarios where MemGPT didn't say anything
-        if ret["content"].strip() in ["", "\n"]:
+        if ret["content"] in ["", "\n"]:
             ret["content"] = "..."
 
         return ret
