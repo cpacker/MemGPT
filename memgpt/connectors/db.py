@@ -251,7 +251,7 @@ class LanceDBConnector(StorageConnector):
     def insert(self, passage: Passage):
         data = [{"doc_id": passage.doc_id, "text": passage.text, "passage_id": passage.passage_id, "vector": passage.embedding}]
 
-        if self.table:
+        if self.table is not None:
             self.table.add(data)
         else:
             self.table = self.db.create_table(self.table_name, data=data, mode="overwrite")
@@ -263,7 +263,7 @@ class LanceDBConnector(StorageConnector):
             temp_dict = {"doc_id": passage.doc_id, "text": passage.text, "passage_id": passage.passage_id, "vector": passage.embedding}
             data.append(temp_dict)
 
-        if self.table:
+        if self.table is not None:
             self.table.add(data)
         else:
             self.table = self.db.create_table(self.table_name, data=data, mode="overwrite")
