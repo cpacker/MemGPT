@@ -10,6 +10,7 @@ from .lmstudio.api import get_lmstudio_completion
 from .llamacpp.api import get_llamacpp_completion
 from .koboldcpp.api import get_koboldcpp_completion
 from .ollama.api import get_ollama_completion
+from .vllm.api import get_vllm_completion
 from .llm_chat_completion_wrappers import airoboros, dolphin, zephyr, simple_summary_wrapper
 from .constants import DEFAULT_WRAPPER
 from .utils import DotDict, get_available_wrappers
@@ -95,6 +96,8 @@ def get_chat_completion(
             result = get_koboldcpp_completion(endpoint, prompt, context_window, grammar=grammar_name)
         elif endpoint_type == "ollama":
             result = get_ollama_completion(endpoint, model, prompt, context_window)
+        elif endpoint_type == "vllm":
+            result = get_vllm_completion(endpoint, model, prompt, context_window)
         else:
             raise LocalLLMError(
                 f"BACKEND_TYPE is not set, please set variable depending on your backend (webui, lmstudio, llamacpp, koboldcpp)"

@@ -1,7 +1,8 @@
 from ...constants import LLM_MAX_TOKENS
 
 SIMPLE = {
-    "stopping_strings": [
+    # "stopping_strings": [
+    "stop": [
         "\nUSER:",
         "\nASSISTANT:",
         "\nFUNCTION RETURN:",
