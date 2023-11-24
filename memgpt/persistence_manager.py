@@ -146,7 +146,7 @@ class LocalStateManager(PersistenceManager):
             printd(f"Saved state to {fh}")
 
     def init(self, agent):
-        printd(f"Initializing InMemoryStateManager with agent object")
+        printd(f"Initializing LocalStateManager with agent object")
         self.all_messages = [{"timestamp": get_local_time(), "message": msg} for msg in agent.messages.copy()]
         self.messages = [{"timestamp": get_local_time(), "message": msg} for msg in agent.messages.copy()]
         self.memory = agent.memory
@@ -199,7 +199,7 @@ class InMemoryStateManagerWithPreloadedArchivalMemory(InMemoryStateManager):
         self.archival_memory_db = archival_memory_db
 
     def init(self, agent):
-        print(f"Initializing InMemoryStateManager with agent object")
+        print(f"Initializing InMemoryStateManagerWithPreloadedArchivalMemory with agent object")
         self.all_messages = [{"timestamp": get_local_time(), "message": msg} for msg in agent.messages.copy()]
         self.messages = [{"timestamp": get_local_time(), "message": msg} for msg in agent.messages.copy()]
         self.memory = agent.memory
@@ -228,7 +228,7 @@ class InMemoryStateManagerWithFaiss(InMemoryStateManager):
         raise NotImplementedError
 
     def init(self, agent):
-        print(f"Initializing InMemoryStateManager with agent object")
+        print(f"Initializing InMemoryStateManagerWithFaiss with agent object")
         self.all_messages = [{"timestamp": get_local_time(), "message": msg} for msg in agent.messages.copy()]
         self.messages = [{"timestamp": get_local_time(), "message": msg} for msg in agent.messages.copy()]
         self.memory = agent.memory
