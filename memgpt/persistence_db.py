@@ -9,13 +9,20 @@ from sqlalchemy_json import mutable_json_type
 
 import memgpt.config as cfg
 
-SqlalchBase = declarative_base()
+Base = declarative_base()
 
-class PersistenceModel(SqlalchBase):
-    __tablename__ = 'memgpt_persistence'
-    id = Column(Integer, primary_key=True)
-    data = Column(mutable_json_type(dbtype=JSONB, nested=True))
+def get_persistence_model(table_name: str):
+    config = cfg.MemGPTConfig.load()
 
+    class PersistenceModel(Base):
+        __tablename__ = 'memgpt_persistence'
+        id = Column(Integer, primary_key=True)
+        messages = Column(mutable_json_type(dbtype=JSONB, nested=True))
+
+    """Create database model for table_name"""
+    class_name = f"{table_name.capitalize()}Model"
+    Model = type(class_name, (PersistenceModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
+    return Model
 
 class Sqlalch:
     """
@@ -28,7 +35,7 @@ class Sqlalch:
         if cls.persistence_session is None:
             config = cfg.MemGPTConfig.load()
             persistence_engine = create_engine(config.persistence_storage_uri)
-            SqlalchBase.metadata.create_all(persistence_engine)  # Create the table if it doesn't exist
+            Base.metadata.create_all(persistence_engine)  # Create the table if it doesn't exist
             cls.persistence_session = sessionmaker(bind=persistence_engine)()
             cls.class_name = f"{name.capitalize()}Model"
 
