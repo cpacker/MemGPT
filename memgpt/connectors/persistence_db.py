@@ -62,4 +62,6 @@ if __name__ == "__main__":
     con = PostgresPersistenceConnector('ag0')
     mod = get_persistence_model(con.name)
     doc = mod()
-    doc.message='{"msg": "MEssage to yuo TRUDY"}'
+    doc.message={"msg": "MEssage to yuo TRUDY"}
+    con.session.add(doc)
+    con.session.commit()
