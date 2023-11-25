@@ -67,7 +67,7 @@ def clean_and_interpret_send_message_json(json_string):
             },
         }
     else:
-        raise json.JSONDecodeError(f"Couldn't manually extract send_message pattern from:\n{json_string}")
+        raise LLMJSONParsingError(f"Couldn't manually extract send_message pattern from:\n{json_string}")
 
 
 def repair_json_string(json_string):
