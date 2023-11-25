@@ -45,11 +45,29 @@ EXAMPLE_HARD_LINE_FEEDS = """{
 }
 """
 
+# Situation where beginning of send_message call is fine (and thus can be extracted)
+# but has a long training garbage string that comes after
+EXAMPLE_SEND_MESSAGE_PREFIX_OK_REST_BAD = """{
+  "function": "send_message",
+  "params": {
+    "inner_thoughts": "User request for debug assistance",
+    "message": "Of course, Chad. Please check the system log file for 'assistant.json' and send me the JSON output you're getting. Armed with that data, I'll assist you in debugging the issue.",
+GARBAGEGARBAGEGARBAGEGARBAGE
+GARBAGEGARBAGEGARBAGEGARBAGE
+GARBAGEGARBAGEGARBAGEGARBAGE
+"""
+
 
 def test_json_parsers():
     """Try various broken JSON and check that the parsers can fix it"""
 
-    test_strings = [EXAMPLE_MISSING_CLOSING_BRACE, EXAMPLE_BAD_TOKEN_END, EXAMPLE_DOUBLE_JSON, EXAMPLE_HARD_LINE_FEEDS]
+    test_strings = [
+        EXAMPLE_MISSING_CLOSING_BRACE,
+        EXAMPLE_BAD_TOKEN_END,
+        EXAMPLE_DOUBLE_JSON,
+        EXAMPLE_HARD_LINE_FEEDS,
+        EXAMPLE_SEND_MESSAGE_PREFIX_OK_REST_BAD,
+    ]
 
     for string in test_strings:
         try:
