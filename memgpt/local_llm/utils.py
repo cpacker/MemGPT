@@ -46,7 +46,7 @@ def count_tokens(s: str, model: str = "gpt-4") -> int:
 def get_available_wrappers() -> dict:
     return {
         "airoboros-l2-70b-2.1": airoboros.Airoboros21InnerMonologueWrapper(),
-        "airoboros-l2-70b-2.1-grammar": airoboros.Airoboros21InnerMonologueWrapper(include_opening_brace_in_prefix=False),
+        "airoboros-l2-70b-2.1-grammar": airoboros.Airoboros21InnerMonologueWrapper(assistant_prefix_extra=None),
         "dolphin-2.1-mistral-7b": dolphin.Dolphin21MistralWrapper(),
         "dolphin-2.1-mistral-7b-grammar": dolphin.Dolphin21MistralWrapper(include_opening_brace_in_prefix=False),
         "zephyr-7B": zephyr.ZephyrMistralInnerMonologueWrapper(),
