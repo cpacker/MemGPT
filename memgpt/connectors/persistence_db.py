@@ -13,7 +13,6 @@ from memgpt.connectors.storage import StorageConnector
 from memgpt.config import MemGPTConfig
 
 Base = declarative_base()
-print("got Base:", Base)
 
 
 class PersistenceModel(Base):
