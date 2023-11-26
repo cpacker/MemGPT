@@ -1,7 +1,8 @@
+import os
+import sys
+import pickle
 from sqlalchemy import create_engine, Column, Integer, text
 from sqlalchemy.orm import declarative_base
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy_json import mutable_json_type
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy_json import mutable_json_type
@@ -24,6 +25,7 @@ def get_persistence_model(table_name: str):
     Model = type(class_name, (PersistenceModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
     return Model
 
+
 class PostgresPersistenceConnector(StorageConnector):
     def __init__(self, name):
         self.name = name
@@ -44,34 +46,32 @@ class PostgresPersistenceConnector(StorageConnector):
         self.Session().execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
 
 
-    # def save_message(self, message):
-    #     q = self.persistence_session.query(PersistenceModel).filter(PersistenceModel.data['name'].astext == data['name'])
-    #     doc = q.first()
-    #     if doc is None:
-    #         doc = PersistenceModel(data=data)
-    #         self.persistence_session.add(doc)
-    #     doc.data = data
-    #     self.persistence_session.commit()
+def main(name):
+    persistence_dir = f"{os.path.expanduser('~/')}.memgpt/agents/{name}/persistence_manager/"
+    print (persistence_dir)
+    con = PostgresPersistenceConnector(name)
+    mod = get_persistence_model(con.name)
+    try:
+        persistence_files = os.listdir(persistence_dir)
+        for pfile in persistence_files:
+            print ("persistence_manager pickle file:", pfile)
+            with open(persistence_dir + pfile, 'rb') as fh:
+                pers = pickle.load(fh)
+                # print (pers.keys())
+                for msg in pers['all_messages']:
+                    # print ("Processing message:", msg['timestamp'])
+                    q = con.session.query(mod).filter(mod.message == msg)
+                    if q.first() is not None:
+                        print(f"Message with timestamp {msg['timestamp']} already exists, not saving")
+                    else:
+                        doc = mod()
+                        doc.message = msg
+                        con.session.add(doc)
+                        print(f"Message with timestamp {msg['timestamp']} saved")
+                con.session.commit()
+    except FileNotFoundError:
+        print ("No persistence_manager found for", name)
 
-    # def test(self):
-    #     sq.save_persistence_data({'foo': "bar", 'name': "baz"})
-    #     result = sq.load_persistence_data("baz")
-    #     print("RESULT (should be same as data):", result)
-    #     agents = sq.get_agent_list()
-    #     print ("AGENTS:", agents)
 
 if __name__ == "__main__":
-    con = PostgresPersistenceConnector('ag0')
-    mod = get_persistence_model(con.name)
-    doc = mod()
-    doc.message={'timestamp': '2023-11-24 08:20:40 PM ',
-                 'message': {'role': 'assistant',
-                     'content': None,
-                     'function_call': {'name': 'send_message',
-                           'arguments': '{"message": "Hello, Chad! I\'m Sam. Nice to meet you."}'}}}
-    q = con.session.query(mod).filter(mod.message['timestamp'].astext=='2023-11-24 08:20:40 PM ')
-    if q.first() is not None:
-        print (f"Message with timestamp {doc.message['timestamp']} already exists, not saving")
-    else:
-        con.session.add(doc)
-        con.session.commit()
+    main(sys.argv[1])
