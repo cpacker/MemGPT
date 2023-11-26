@@ -11,12 +11,14 @@ from memgpt.config import MemGPTConfig
 
 Base = declarative_base()
 
-def get_persistence_model(table_name: str):
-    class PersistenceModel(Base):
-        __abstract__ = True  # this line is necessary
-        id = Column(Integer, primary_key=True)
-        message = Column(mutable_json_type(dbtype=JSONB, nested=True))
 
+class PersistenceModel(Base):
+    __abstract__ = True  # this line is necessary
+    id = Column(Integer, primary_key=True)
+    message = Column(mutable_json_type(dbtype=JSONB, nested=True))
+
+
+def get_persistence_model(table_name: str):
     """Create database model for table_name"""
     class_name = f"{table_name.capitalize()}Model"
     Model = type(class_name, (PersistenceModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
@@ -62,6 +64,14 @@ if __name__ == "__main__":
     con = PostgresPersistenceConnector('ag0')
     mod = get_persistence_model(con.name)
     doc = mod()
-    doc.message={"msg": "MEssage to yuo TRUDY"}
-    con.session.add(doc)
-    con.session.commit()
+    doc.message={'timestamp': '2023-11-24 08:20:40 PM ',
+                 'message': {'role': 'assistant',
+                     'content': None,
+                     'function_call': {'name': 'send_message',
+                           'arguments': '{"message": "Hello, Chad! I\'m Sam. Nice to meet you."}'}}}
+    q = con.session.query(mod).filter(mod.message['timestamp'].astext=='2023-11-24 08:20:40 PM ')
+    if q.first() is not None:
+        print (f"Message with timestamp {doc.message['timestamp']} already exists, not saving")
+    else:
+        con.session.add(doc)
+        con.session.commit()
