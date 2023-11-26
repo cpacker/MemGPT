@@ -1,6 +1,7 @@
 import os
 import sys
 import pickle
+import argparse
 from sqlalchemy import create_engine, Column, Integer, text
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -62,16 +63,20 @@ def main(name):
                     # print ("Processing message:", msg['timestamp'])
                     q = con.session.query(mod).filter(mod.message == msg)
                     if q.first() is not None:
-                        print(f"Message with timestamp {msg['timestamp']} already exists, not saving")
+                        print(f"Identical message with timestamp {msg['timestamp']} already exists, not saving")
                     else:
                         doc = mod()
                         doc.message = msg
                         con.session.add(doc)
-                        print(f"Message with timestamp {msg['timestamp']} saved")
+                        print(f"New message with timestamp {msg['timestamp']} saved")
                 con.session.commit()
     except FileNotFoundError:
         print ("No persistence_manager found for", name)
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    # main(sys.argv[1])
+    parser = argparse.ArgumentParser(description="export persistence data to postgres")
+    parser.add_argument("--agent", help="Name of agent whose data is exported")
+    args = parser.parse_args()
+    main(args.agent)
