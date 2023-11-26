@@ -397,9 +397,9 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
         # if self.include_opening_brance_in_prefix and raw_llm_output[0] != "{":
         # raw_llm_output = "{" + raw_llm_output
         if self.assistant_prefix_extra and raw_llm_output[: len(self.assistant_prefix_extra)] != self.assistant_prefix_extra:
-            print(f"adding prefix back to llm, raw_llm_output=\n{raw_llm_output}")
+            # print(f"adding prefix back to llm, raw_llm_output=\n{raw_llm_output}")
             raw_llm_output = self.assistant_prefix_extra + raw_llm_output
-            print(f"->\n{raw_llm_output}")
+            # print(f"->\n{raw_llm_output}")
 
         try:
             function_json_output = clean_json(raw_llm_output)
