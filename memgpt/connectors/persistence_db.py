@@ -13,7 +13,7 @@ from memgpt.connectors.storage import StorageConnector
 from memgpt.config import MemGPTConfig
 
 Base = declarative_base()
-print ("got Base:", Base)
+print("got Base:", Base)
 
 
 class PersistenceModel(Base):
@@ -26,7 +26,9 @@ def get_persistence_model(table_name: str):
     """Create database model for table_name. Put model in global space to avoid SqlAlchemy warnings"""
     class_name = f"{table_name.capitalize()}Model"
     if table_name not in list(Base.metadata.tables.keys()):
-        Model = type(class_name, (PersistenceModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
+        Model = type(
+            class_name, (PersistenceModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}}
+        )
         globals()[class_name] = Model
     return globals()[class_name]
 
@@ -35,7 +37,7 @@ class PostgresPersistenceConnector(StorageConnector):
     def __init__(self, name):
         self.name = name
         config = MemGPTConfig.load()
-        engine = create_engine(config.archival_storage_uri)     #FIXME: create & use persistence_storage_uri
+        engine = create_engine(config.archival_storage_uri)  # FIXME: create & use persistence_storage_uri
         Base.metadata.create_all(engine)  # Create the table if it doesn't exist
         self.session = sessionmaker(bind=engine)()
         self.class_name = f"{name.capitalize()}Model"
@@ -53,17 +55,17 @@ class PostgresPersistenceConnector(StorageConnector):
 
 def main(name):
     persistence_dir = f"{os.path.expanduser('~/')}.memgpt/agents/{name}/persistence_manager/"
-    print (persistence_dir)
+    print(persistence_dir)
     con = PostgresPersistenceConnector(name)
     mod = con.db_model
     try:
         persistence_files = os.listdir(persistence_dir)
         for pfile in persistence_files:
-            print ("persistence_manager pickle file:", pfile)
-            with open(persistence_dir + pfile, 'rb') as fh:
+            print("persistence_manager pickle file:", pfile)
+            with open(persistence_dir + pfile, "rb") as fh:
                 pers = pickle.load(fh)
                 # print (pers.keys())
-                for msg in pers['all_messages']:
+                for msg in pers["all_messages"]:
                     # print ("Processing message:", msg['timestamp'])
                     q = con.session.query(mod).filter(mod.message == msg)
                     if q.first() is not None:
@@ -75,13 +77,13 @@ def main(name):
                         print(f"New message with timestamp {msg['timestamp']} saved")
                 con.session.commit()
     except FileNotFoundError:
-        print ("No persistence_manager found for", name)
+        print("No persistence_manager found for", name)
 
 
 def search_role(name, role):
     con = PostgresPersistenceConnector(name)
     mod = con.db_model
-    q = con.session.query(mod).filter(mod.message['message']['role'].astext == role)
+    q = con.session.query(mod).filter(mod.message["message"]["role"].astext == role)
     ret = [doc.message for doc in q]
     # pp(ret)
     return ret
