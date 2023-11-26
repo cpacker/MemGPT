@@ -13,6 +13,7 @@ from memgpt.connectors.storage import StorageConnector
 from memgpt.config import MemGPTConfig
 
 Base = declarative_base()
+print ("got Base:", Base)
 
 
 class PersistenceModel(Base):
@@ -22,10 +23,12 @@ class PersistenceModel(Base):
 
 
 def get_persistence_model(table_name: str):
-    """Create database model for table_name"""
+    """Create database model for table_name. Put model in global space to avoid SqlAlchemy warnings"""
     class_name = f"{table_name.capitalize()}Model"
-    Model = type(class_name, (PersistenceModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
-    return Model
+    if table_name not in list(Base.metadata.tables.keys()):
+        Model = type(class_name, (PersistenceModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
+        globals()[class_name] = Model
+    return globals()[class_name]
 
 
 class PostgresPersistenceConnector(StorageConnector):
@@ -52,7 +55,7 @@ def main(name):
     persistence_dir = f"{os.path.expanduser('~/')}.memgpt/agents/{name}/persistence_manager/"
     print (persistence_dir)
     con = PostgresPersistenceConnector(name)
-    mod = get_persistence_model(con.name)
+    mod = con.db_model
     try:
         persistence_files = os.listdir(persistence_dir)
         for pfile in persistence_files:
@@ -77,7 +80,7 @@ def main(name):
 
 def search_role(name, role):
     con = PostgresPersistenceConnector(name)
-    mod = get_persistence_model(con.name)
+    mod = con.db_model
     q = con.session.query(mod).filter(mod.message['message']['role'].astext == role)
     ret = [doc.message for doc in q]
     # pp(ret)
@@ -91,6 +94,6 @@ if __name__ == "__main__":
     parser.add_argument("--role", help="Return all messages with specified role")
     args = parser.parse_args()
     if args.role:
-        print(search_role(args.agent, args.role))
+        pp(search_role(args.agent, args.role))
     else:
         main(args.agent)
