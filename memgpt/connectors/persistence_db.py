@@ -2,6 +2,7 @@ import os
 import sys
 import pickle
 import argparse
+from pprint import pp
 from sqlalchemy import create_engine, Column, Integer, text
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -74,9 +75,22 @@ def main(name):
         print ("No persistence_manager found for", name)
 
 
+def search_role(name, role):
+    con = PostgresPersistenceConnector(name)
+    mod = get_persistence_model(con.name)
+    q = con.session.query(mod).filter(mod.message['message']['role'].astext == role)
+    ret = [doc.message for doc in q]
+    # pp(ret)
+    return ret
+
+
 if __name__ == "__main__":
     # main(sys.argv[1])
     parser = argparse.ArgumentParser(description="export persistence data to postgres")
-    parser.add_argument("--agent", help="Name of agent whose data is exported")
+    parser.add_argument("--agent", required=True, help="Name of agent whose data is exported")
+    parser.add_argument("--role", help="Return all messages with specified role")
     args = parser.parse_args()
-    main(args.agent)
+    if args.role:
+        print(search_role(args.agent, args.role))
+    else:
+        main(args.agent)
