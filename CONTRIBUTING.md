@@ -75,7 +75,7 @@ pytest -s tests
 ```
 
 ### Creating new tests
-If you added a major feature change, please add a tests in the `tests/` directory.
+If you added a major feature change, please add new tests in the `tests/` directory.
 
 ## 4. 🚀 Submitting Changes
 
