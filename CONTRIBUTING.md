@@ -81,7 +81,7 @@ If you need to add a new dependency to MemGPT, please add the package via `poetr
 ### Creating new tests
 If you added a major feature change, please add new tests in the `tests/` directory.
 
-## 4. 🚀 Submitting Changes
+## 5. 🚀 Submitting Changes
 
 ### Check Formatting
 Please ensure your code is formatted correctly by running:
@@ -98,15 +98,15 @@ You're almost there! It's time to share your brilliance with the world. 🌍
 3. Choose the base branch (`main`) and the compare branch (your feature branch).
 4. Whip up a catchy title and describe your changes in the description. 🪄
 
-## 5. 🔍 Review and Approval
+## 6. 🔍 Review and Approval
 
 The maintainers, will take a look and might suggest some cool upgrades or ask for more details. Once they give the thumbs up, your creation becomes part of MemGPT!
 
-## 6. 📜 Code of Conduct
+## 7. 📜 Code of Conduct
 
 Please be sure to follow the project's Code of Conduct.
 
-## 7. 📫 Contact
+## 8. 📫 Contact
 
 Need help or just want to say hi? We're here for you. Reach out through filing an issue on this GitHub repository or message us on our [Discord server](https://discord.gg/9GEQrxmVyE).
 
