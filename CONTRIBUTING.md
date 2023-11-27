@@ -21,12 +21,27 @@ git clone https://github.com/your-username/MemGPT.git
 
 ### 🧩 Install Dependencies
 
+Installing dependencies with poetry (recommended):
+```shell
+cd MemGPT
+pip install poetry
+poetry install -E dev -E postgres -E local -E legacy
+```
+
+Installing dependencies with pip:
 ```shell
 cd MemGPT
 # Optional: set up a virtual environment.
 # python3 -m venv venv
 # . venv/bin/activate
-pip install -r requirements.txt
+pip install -e '.[dev,postgres,local,legacy]'
+```
+
+#### (Optional) Installing pre-commit
+We recommend installing pre-commit to ensure proper formatting during development:
+```
+poetry run pre-commit install
+poetry run pre-commit run --all-files
 ```
 
 ## 2. 🛠️ Making Changes
@@ -47,13 +62,28 @@ Now, the world is your oyster! Go ahead and craft your fabulous changes. 🎨
 
 Before we hit the 'Wow, I'm Done' button, let's make sure everything works as expected. Run tests and make sure the existing ones don't throw a fit. And if needed, create new tests. 🕵️
 
-Make sure that you can run
-```shell
-python3 main.py
+### Run existing tests
+
+Running tests if you installed via poetry:
 ```
-successfully before submitting a pull request.
+poetry run pytest -s tests
+```
+
+Running tests if you installed via pip:
+```
+pytest -s tests
+```
+
+### Creating new tests
+If you added a major feature change, please add a tests in the `tests/` directory.
 
 ## 4. 🚀 Submitting Changes
+
+### Check Formatting
+Please ensure your code is formatted correctly by running:
+```
+poetry run black . -l 140
+```
 
 ### 🚀 Create a Pull Request
 
