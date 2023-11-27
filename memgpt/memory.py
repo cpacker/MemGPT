@@ -130,7 +130,7 @@ def summarize_messages(
         trunc_ratio = (MESSAGE_SUMMARY_WARNING_FRAC * context_window / summary_input_tkns) * 0.8  # For good measure...
         cutoff = int(len(message_sequence_to_summarize) * trunc_ratio)
         summary_input = str(
-            [summarize_messages(agent_config, context_window, message_sequence_to_summarize[:cutoff])]
+            [summarize_messages(agent_config=agent_config, message_sequence_to_summarize=message_sequence_to_summarize[:cutoff])]
             + message_sequence_to_summarize[cutoff:]
         )
     message_sequence = [
