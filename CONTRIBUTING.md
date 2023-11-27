@@ -21,14 +21,15 @@ git clone https://github.com/your-username/MemGPT.git
 
 ### 🧩 Install Dependencies
 
-Installing dependencies with poetry (recommended):
+**Installing dependencies with poetry** (recommended):
 ```shell
 cd MemGPT
 pip install poetry
 poetry install -E dev -E postgres -E local -E legacy
 ```
+If you are managing dependencies with poetry, you will need to run MemGPT commands with `poetry run memgpt run`. 
 
-Installing dependencies with pip:
+**Installing dependencies with pip**:
 ```shell
 cd MemGPT
 # Optional: set up a virtual environment.
@@ -73,6 +74,9 @@ Running tests if you installed via pip:
 ```
 pytest -s tests
 ```
+
+## 4. Adding new dependencies 
+If you need to add a new dependency to MemGPT, please add the package via `poetry add <PACKAGE_NAME>`. This will update the `pyproject.toml` file and `poetry.lock` files. If the dependency does not need to be installed by all users, make sure to mark the dependency as optional in the `pyproject.toml` file and if needed, create a new extra under `[tool.poetry.extras]`. 
 
 ### Creating new tests
 If you added a major feature change, please add new tests in the `tests/` directory.
