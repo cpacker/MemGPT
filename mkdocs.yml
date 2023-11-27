@@ -2,6 +2,7 @@ site_name: MemGPT
 site_url: https://memgpt.ai/
 repo_name: cpacker/MemGPT
 repo_url: https://github.com/cpacker/MemGPT
+# https://github.com/mkdocs/mkdocs/issues/2416
 edit_uri: ./edit/main/docs
 site_description: MemGPT documentation
 nav:
