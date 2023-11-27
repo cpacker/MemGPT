@@ -457,6 +457,13 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
 
                     # TODO: check if agent already has it
                     data_source_options = StorageConnector.list_loaded_data()
+                    if len(data_source_options) == 0:
+                        typer.secho(
+                            'No sources available. You must load a souce with "memgpt load ..." before running /attach.',
+                            fg=typer.colors.RED,
+                            bold=True,
+                        )
+                        continue
                     data_source = questionary.select("Select data source", choices=data_source_options).ask()
 
                     # attach new data
