@@ -1,6 +1,7 @@
 import typer
 import os
 from llama_index.embeddings import OpenAIEmbedding
+from llama_index.embeddings import TextEmbeddingsInference
 
 
 def embedding_model():
@@ -24,8 +25,15 @@ def embedding_model():
             api_type="azure",
             api_version=config.azure_version,
         )
+    elif endpoint == "hugging-face":
+        embed_model = TextEmbeddingsInference(
+            model_name=config.embedding_model,
+            timeout=60,  # timeout in seconds
+            embed_batch_size=10,  # batch size for embedding
+        )
+        return embed_model
     else:
-        # default to hugging face model
+        # default to hugging face model running local
         from llama_index.embeddings import HuggingFaceEmbedding
 
         os.environ["TOKENIZERS_PARALLELISM"] = "False"

@@ -173,12 +173,10 @@ def configure_embedding_endpoint(config: MemGPTConfig):
     # configure embedding endpoint
 
     default_embedding_endpoint_type = config.embedding_endpoint_type
-    if config.embedding_endpoint_type is not None and config.embedding_endpoint_type not in ["openai", "azure"]:  # local model
-        default_embedding_endpoint_type = "local"
 
-    embedding_endpoint_type, embedding_endpoint, embedding_dim = None, None, None
+    embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = None, None, None, embedding_model
     embedding_provider = questionary.select(
-        "Select embedding provider:", choices=["openai", "azure", "local"], default=default_embedding_endpoint_type
+        "Select embedding provider:", choices=["openai", "azure", "hugging-face", "local"], default=default_embedding_endpoint_type
     ).ask()
     if embedding_provider == "openai":
         embedding_endpoint_type = "openai"
@@ -188,10 +186,35 @@ def configure_embedding_endpoint(config: MemGPTConfig):
         embedding_endpoint_type = "azure"
         _, _, _, _, embedding_endpoint = get_azure_credentials()
         embedding_dim = 1536
+    elif embedding_provider == "hugging-face":
+        # configure hugging face embedding endpoint (https://github.com/huggingface/text-embeddings-inference)
+        # supports custom model/endpoints
+        embedding_endpoint_type = "hugging-face"
+        embedding_endpoint = None
+
+        # get endpoint
+        embedding_endpoint = questionary.text("Enter default endpoint:").ask()
+        if "http://" not in embedding_endpoint and "https://" not in embedding_endpoint:
+            typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
+            embedding_endpoint = None
+
+        # get model type
+        embedding_model = questionary.text(
+            "Enter HuggingFace model tag (e.g. BAAI/bge-large-en-v1.5):",
+            default=default_model,
+        ).ask()
+
+        # get model dimentions
+        embedding_dim = questionary.text("Enter embedding model dimentions (e.g. 1024):", default=default_embedding_dim).ask()
+        try:
+            embedding_dim = int(embedding_dim)
+        except Exception as e:
+            raise ValueError(f"Failed to cast {embedding_dim} to integer.")
     else:  # local models
         embedding_endpoint_type = "local"
         embedding_endpoint = None
         embedding_dim = 384
+
     return embedding_endpoint_type, embedding_endpoint, embedding_dim
 
 
