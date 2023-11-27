@@ -32,7 +32,7 @@ nav:
     - 'Configuring storage backends': storage.md
     - 'Adding support for new LLMs': adding_wrappers.md
     - 'Contributing to the codebase': contributing.md
-theme: readthedocs
+theme: piccolo_theme
 markdown_extensions:
   - admonition
 plugins:
