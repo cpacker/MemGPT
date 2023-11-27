@@ -216,13 +216,17 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
         simplify_json_content=True,
         clean_function_args=True,
         include_assistant_prefix=True,
-        include_opening_brace_in_prefix=True,
+        # include_opening_brace_in_prefix=True,
+        # assistant_prefix_extra="\n{"
+        # assistant_prefix_extra='\n{\n  "function": ',
+        assistant_prefix_extra='\n{\n  "function":',
         include_section_separators=True,
     ):
         self.simplify_json_content = simplify_json_content
         self.clean_func_args = clean_function_args
         self.include_assistant_prefix = include_assistant_prefix
-        self.include_opening_brance_in_prefix = include_opening_brace_in_prefix
+        # self.include_opening_brance_in_prefix = include_opening_brace_in_prefix
+        self.assistant_prefix_extra = assistant_prefix_extra
         self.include_section_separators = include_section_separators
 
     def chat_completion_to_prompt(self, messages, functions):
@@ -355,8 +359,8 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
 
         if self.include_assistant_prefix:
             prompt += f"\nASSISTANT:"
-            if self.include_opening_brance_in_prefix:
-                prompt += "\n{"
+            if self.assistant_prefix_extra:
+                prompt += self.assistant_prefix_extra
 
         return prompt
 
@@ -390,8 +394,12 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
             }
         }
         """
-        if self.include_opening_brance_in_prefix and raw_llm_output[0] != "{":
-            raw_llm_output = "{" + raw_llm_output
+        # if self.include_opening_brance_in_prefix and raw_llm_output[0] != "{":
+        # raw_llm_output = "{" + raw_llm_output
+        if self.assistant_prefix_extra and raw_llm_output[: len(self.assistant_prefix_extra)] != self.assistant_prefix_extra:
+            # print(f"adding prefix back to llm, raw_llm_output=\n{raw_llm_output}")
+            raw_llm_output = self.assistant_prefix_extra + raw_llm_output
+            # print(f"->\n{raw_llm_output}")
 
         try:
             function_json_output = clean_json(raw_llm_output)
