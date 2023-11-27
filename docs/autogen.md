@@ -68,9 +68,9 @@ WebUI exposes a lot of parameters that can dramatically change LLM outputs, to c
 ⁉️ If you have problems getting WebUI setup, please use the [official web UI repo for support](https://github.com/oobabooga/text-generation-webui)! There will be more answered questions about web UI there vs here on the MemGPT repo.
 
 ### Example groupchat
-Going back to the example we first mentioned, [examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogem/examples/agent_groupchat.py) contains an example of a groupchat where one of the agents is powered by MemGPT.
+Going back to the example we first mentioned, [examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) contains an example of a groupchat where one of the agents is powered by MemGPT.
 
-In order to run this example on a local LLM, go to lines 32-55 in [examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogem/examples/agent_groupchat.py) and fill in the config files with your local LLM's deployment details. For example, if you are using webui, it will look something like this:
+In order to run this example on a local LLM, go to lines 32-55 in [examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) and fill in the config files with your local LLM's deployment details. For example, if you are using webui, it will look something like this:
 
 ```
 config_list = [
