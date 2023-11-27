@@ -59,7 +59,7 @@ theme:
     # - navigation.expansion
     # - navigation.tabs
     # - navigation.tabs.sticky
-    - navigation.top
+    # - navigation.top
     - navigation.tracking
     - search.highlight
     # - search.share
