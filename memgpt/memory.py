@@ -708,8 +708,8 @@ class EmbeddingArchivalMemory(ArchivalMemory):
                 query_vec = self.embed_model.get_text_embedding(query_string)
                 self.cache[query_string] = self.storage.query(query_string, query_vec, top_k=self.top_k)
 
-            start = start if start else 0
-            count = count if count else self.top_k
+            start = int(start if start else 0)
+            count = int(count if count else self.top_k)
             end = min(count + start, len(self.cache[query_string]))
 
             results = self.cache[query_string][start:end]

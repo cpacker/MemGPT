@@ -27,9 +27,9 @@ def embedding_model():
         )
     elif endpoint == "hugging-face":
         embed_model = TextEmbeddingsInference(
+            base_url=config.embedding_endpoint,
             model_name=config.embedding_model,
             timeout=60,  # timeout in seconds
-            embed_batch_size=10,  # batch size for embedding
         )
         return embed_model
     else:
