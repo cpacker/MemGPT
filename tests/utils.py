@@ -26,6 +26,7 @@ def configure_memgpt_localllm():
     child.expect("Select embedding provider", timeout=TIMEOUT)
     child.send("\x1b[B")  # Send the down arrow key
     child.send("\x1b[B")  # Send the down arrow key
+    child.send("\x1b[B")  # Send the down arrow key
     child.sendline()
 
     child.expect("Select default preset", timeout=TIMEOUT)
