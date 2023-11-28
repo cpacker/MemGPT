@@ -515,10 +515,14 @@ class Agent(object):
             try:
                 function_args["self"] = self  # need to attach self to arg since it's dynamically linked
                 function_response_string = function_to_call(**function_args)
+                function_args.pop("self", None)
                 function_response = package_function_response(True, function_response_string)
                 function_failed = False
             except Exception as e:
-                error_msg = f"Error calling function {function_name} with args {function_args}: {str(e)}"
+                function_args.pop("self", None)
+                # error_msg = f"Error calling function {function_name} with args {function_args}: {str(e)}"
+                # Less detailed - don't provide full args, idea is that it should be in recent context so no need (just adds noise)
+                error_msg = f"Error calling function {function_name}: {str(e)}"
                 error_msg_user = f"{error_msg}\n{traceback.format_exc()}"
                 printd(error_msg_user)
                 function_response = package_function_response(False, error_msg)
