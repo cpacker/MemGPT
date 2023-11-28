@@ -86,7 +86,7 @@ class CoreMemory(object):
         elif field == "human":
             return self.edit_human(content)
         else:
-            raise KeyError
+            raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
 
     def edit_append(self, field, content, sep="\n"):
         if field == "persona":
@@ -96,7 +96,7 @@ class CoreMemory(object):
             new_content = self.human + sep + content
             return self.edit_human(new_content)
         else:
-            raise KeyError
+            raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
 
     def edit_replace(self, field, old_content, new_content):
         if field == "persona":
@@ -112,7 +112,7 @@ class CoreMemory(object):
             else:
                 raise ValueError("Content not found in human (make sure to use exact string)")
         else:
-            raise KeyError
+            raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
 
 
 def summarize_messages(
