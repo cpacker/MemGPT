@@ -7,6 +7,7 @@ DEFAULT_ENDPOINTS = {
     "ollama": "http://localhost:11434",
     "webui-legacy": "http://localhost:5000",
     "webui": "http://localhost:5000",
+    "vllm": "http://localhost:8000",
 }
 
 DEFAULT_OLLAMA_MODEL = "dolphin2.2-mistral:7b-q6_K"
