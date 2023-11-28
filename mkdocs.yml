@@ -1,6 +1,9 @@
 site_name: MemGPT
 site_url: https://memgpt.ai/
+repo_name: cpacker/MemGPT
 repo_url: https://github.com/cpacker/MemGPT
+# https://github.com/mkdocs/mkdocs/issues/2416
+edit_uri: ./edit/main/docs
 site_description: MemGPT documentation
 nav:
   - Home: index.md
@@ -32,8 +35,64 @@ nav:
     - 'Configuring storage backends': storage.md
     - 'Adding support for new LLMs': adding_wrappers.md
     - 'Contributing to the codebase': contributing.md
-theme: readthedocs
+theme:
+  name: material 
+  features:
+    - announce.dismiss
+    - content.action.edit
+    - content.action.view
+    - content.code.annotate
+    - content.code.copy
+    # - content.code.select
+    # - content.tabs.link
+    - content.tooltips
+    # - header.autohide
+    # - navigation.expand
+    - navigation.footer
+    - navigation.indexes
+    # - navigation.instant
+    # - navigation.instant.prefetch
+    # - navigation.instant.progress
+    # - navigation.prune
+    - navigation.sections
+    # - navigation.path
+    # - navigation.expansion
+    # - navigation.tabs
+    # - navigation.tabs.sticky
+    # - navigation.top
+    - navigation.tracking
+    - search.highlight
+    # - search.share
+    # - search.suggest
+    # - toc.follow
+    - toc.integrate
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  favicon: assets/favicon.ico
+  logo: assets/memgpt_logo_circle.png
+  # icon:
 markdown_extensions:
   - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
 plugins:
   - search
