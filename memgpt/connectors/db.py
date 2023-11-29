@@ -322,6 +322,6 @@ class LanceDBConnector(StorageConnector):
 
     def generate_table_name_agent(self, agent_config: AgentConfig):
         return f"memgpt_agent_{self.sanitize_table_name(agent_config.name)}"
-    
+
     def generate_table_name(self, name: str):
         return f"memgpt_{self.sanitize_table_name(name)}"
