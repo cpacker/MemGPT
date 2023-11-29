@@ -62,8 +62,8 @@ def clean_and_interpret_send_message_json(json_string):
         return {
             "function": "send_message",
             "params": {
-                "inner_thoughts": inner_thoughts_match,
-                "message": message_match,
+                "inner_thoughts": inner_thoughts_match.group(1),
+                "message": message_match.group(1),
             },
         }
     else:
