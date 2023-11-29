@@ -12,11 +12,11 @@ A clear and concise description of what the bug is.
 
 **Please describe your setup**
 
--[ ] MemGPT version
+- [ ] MemGPT version
   - What is the output of `memgpt version`? (eg "0.2.4")
--[ ] How did you install memgpt?
+- [ ] How did you install memgpt?
   - `pip install pymemgpt`? `pip install pymemgpt-nightly`? `git clone`?
--[ ] Describe your setup
+- [ ] Describe your setup
   - What's your OS (Windows/MacOS/Linux)?
   - How are you running `memgpt`? (`cmd.exe`/Powershell/Anaconda Shell/Terminal)
 
@@ -34,6 +34,6 @@ If you're not using OpenAI, please provide additional information on your local 
 
 If you are trying to run MemGPT with local LLMs, please provide the following information:
 
--[ ] The exact model you're trying to use (e.g. `dolphin-2.1-mistral-7b.Q6_K.gguf`)
--[ ] The local LLM backend you are using (web UI? LM Studio?)
--[ ] Your hardware for the local LLM backend (local computer? operating system? remote RunPod?)
+- [ ] The exact model you're trying to use (e.g. `dolphin-2.1-mistral-7b.Q6_K.gguf`)
+- [ ] The local LLM backend you are using (web UI? LM Studio?)
+- [ ] Your hardware for the local LLM backend (local computer? operating system? remote RunPod?)
