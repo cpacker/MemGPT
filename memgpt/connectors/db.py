@@ -189,14 +189,17 @@ class LanceDBConnector(StorageConnector):
 
     # TODO: this should probably eventually be moved into a parent DB class
 
-    def __init__(self, name: Optional[str] = None):
+    def __init__(self, name: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
         config = MemGPTConfig.load()
-
         # determine table name
-        if name:
+        if agent_config:
+            assert name is None, f"Cannot specify both agent config and name {name}"
+            self.table_name = self.generate_table_name_agent(agent_config)
+        elif name:
+            assert agent_config is None, f"Cannot specify both agent config and name {name}"
             self.table_name = self.generate_table_name(name)
         else:
-            self.table_name = "lancedb_tbl"
+            raise ValueError("Must specify either agent config or name")
 
         printd(f"Using table name {self.table_name}")
 
@@ -317,5 +320,8 @@ class LanceDBConnector(StorageConnector):
 
         return name
 
+    def generate_table_name_agent(self, agent_config: AgentConfig):
+        return f"memgpt_agent_{self.sanitize_table_name(agent_config.name)}"
+    
     def generate_table_name(self, name: str):
         return f"memgpt_{self.sanitize_table_name(name)}"
