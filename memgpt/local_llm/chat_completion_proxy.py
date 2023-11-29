@@ -31,6 +31,7 @@ def get_chat_completion(
     functions=None,
     function_call="auto",
     context_window=None,
+    user=None,
     # required
     wrapper=None,
     endpoint=None,
@@ -97,7 +98,7 @@ def get_chat_completion(
         elif endpoint_type == "ollama":
             result = get_ollama_completion(endpoint, model, prompt, context_window)
         elif endpoint_type == "vllm":
-            result = get_vllm_completion(endpoint, model, prompt, context_window)
+            result = get_vllm_completion(endpoint, model, prompt, context_window, user)
         else:
             raise LocalLLMError(
                 f"BACKEND_TYPE is not set, please set variable depending on your backend (webui, lmstudio, llamacpp, koboldcpp)"
