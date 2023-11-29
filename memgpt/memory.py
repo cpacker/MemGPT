@@ -496,6 +496,8 @@ class DummyRecallMemory(RecallMemory):
         ]
 
         # start/count support paging through results
+        start = int(start) if start is None else start
+        count = int(count) if count is None else count
         if start is not None and count is not None:
             return matches[start : start + count], len(matches)
         elif start is None and count is not None:

@@ -114,7 +114,6 @@ class Agent(object):
     ):
         # agent config
         self.config = config
-        self.client_id = MemGPTConfig.load().anon_clientid
 
         # gpt-4, gpt-3.5-turbo
         self.model = model
@@ -791,7 +790,6 @@ class Agent(object):
                 messages=message_sequence,
                 functions=self.functions,
                 function_call=function_call,
-                client_id=self.client_id,
             )
             # special case for 'length'
             if response.choices[0].finish_reason == "length":
