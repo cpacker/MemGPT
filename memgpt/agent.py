@@ -5,7 +5,7 @@ import json
 import traceback
 
 from memgpt.persistence_manager import LocalStateManager
-from memgpt.config import AgentConfig
+from memgpt.config import AgentConfig, MemGPTConfig
 from .system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from .memory import CoreMemory as Memory, summarize_messages
 from .openai_tools import completions_with_backoff as create
@@ -114,6 +114,8 @@ class Agent(object):
     ):
         # agent config
         self.config = config
+        self.client_id = MemGPTConfig.load().anon_clientid
+
         # gpt-4, gpt-3.5-turbo
         self.model = model
         # Store the system instructions (used to rebuild memory)
@@ -786,10 +788,10 @@ class Agent(object):
         try:
             response = chat_completion_with_backoff(
                 agent_config=self.config,
-                model=self.model,  # TODO: remove (is redundant)
                 messages=message_sequence,
                 functions=self.functions,
                 function_call=function_call,
+                client_id=self.client_id,
             )
             # special case for 'length'
             if response.choices[0].finish_reason == "length":

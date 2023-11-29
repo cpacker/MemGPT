@@ -31,6 +31,7 @@ def get_chat_completion(
     functions=None,
     function_call="auto",
     context_window=None,
+    user=None,
     # required
     wrapper=None,
     endpoint=None,
