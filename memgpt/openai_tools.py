@@ -81,39 +81,59 @@ def completions_with_backoff(**kwargs):
 
 
 @retry_with_exponential_backoff
-def chat_completion_with_backoff(agent_config, **kwargs):
+def chat_completion_with_backoff(
+    agent_config,
+    messages,
+    functions,
+    function_call,
+):
     from memgpt.utils import printd
-    from memgpt.config import AgentConfig, MemGPTConfig
+    from memgpt.config import MemGPTConfig
 
-    # both "model" and "messages" are required for base OpenAI calls
-    # also required for local LLM Ollama, but not others
-    if "model" not in kwargs:
-        kwargs["model"] = agent_config.model
+    config = MemGPTConfig.load()  # load credentials (currently not stored in agent config)
 
     printd(f"Using model {agent_config.model_endpoint_type}, endpoint: {agent_config.model_endpoint}")
     if agent_config.model_endpoint_type == "openai":
         # openai
         openai.api_base = agent_config.model_endpoint
-        return openai.ChatCompletion.create(**kwargs)
+        return openai.ChatCompletion.create(
+            model=agent_config.model, messages=messages, functions=functions, function_call=function_call, user=config.anon_clientid
+        )
     elif agent_config.model_endpoint_type == "azure":
-        # configure openai
-        config = MemGPTConfig.load()  # load credentials (currently not stored in agent config)
+        # azure
         openai.api_type = "azure"
         openai.api_key = config.azure_key
         openai.api_base = config.azure_endpoint
         openai.api_version = config.azure_version
         if config.azure_deployment is not None:
-            kwargs["deployment_id"] = config.azure_deployment
+            deployment_id = config.azure_deployment
+            engine = None
+            model = config.model
         else:
-            kwargs["engine"] = MODEL_TO_AZURE_ENGINE[config.model]
-            del kwargs["model"]
-        return openai.ChatCompletion.create(**kwargs)
+            engine = MODEL_TO_AZURE_ENGINE[config.model]
+            model = None
+            deployment_id = None
+        return openai.ChatCompletion.create(
+            model=model,
+            messages=messages,
+            engine=engine,
+            deployment_id=deployment_id,
+            functions=functions,
+            function_call=function_call,
+            user=client_id,
+        )
     else:  # local model
-        kwargs["context_window"] = agent_config.context_window  # specify for open LLMs
-        kwargs["endpoint"] = agent_config.model_endpoint  # specify for open LLMs
-        kwargs["endpoint_type"] = agent_config.model_endpoint_type  # specify for open LLMs
-        kwargs["wrapper"] = agent_config.model_wrapper  # specify for open LLMs
-        return get_chat_completion(**kwargs)
+        return get_chat_completion(
+            model=agent_config.model,
+            messages=messages,
+            functions=functions,
+            function_call=function_call,
+            context_window=agent_config.context_window,
+            endpoint=agent_config.model_endpoint,
+            endpoint_type=agent_config.model_endpoint_type,
+            wrapper=agent_config.model_wrapper,
+            user=config.anon_clientid,
+        )
 
 
 # TODO: deprecate
