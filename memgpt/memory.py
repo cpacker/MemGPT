@@ -86,7 +86,7 @@ class CoreMemory(object):
         elif field == "human":
             return self.edit_human(content)
         else:
-            raise KeyError
+            raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
 
     def edit_append(self, field, content, sep="\n"):
         if field == "persona":
@@ -96,7 +96,7 @@ class CoreMemory(object):
             new_content = self.human + sep + content
             return self.edit_human(new_content)
         else:
-            raise KeyError
+            raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
 
     def edit_replace(self, field, old_content, new_content):
         if field == "persona":
@@ -112,7 +112,7 @@ class CoreMemory(object):
             else:
                 raise ValueError("Content not found in human (make sure to use exact string)")
         else:
-            raise KeyError
+            raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
 
 
 def summarize_messages(
@@ -708,8 +708,8 @@ class EmbeddingArchivalMemory(ArchivalMemory):
                 query_vec = self.embed_model.get_text_embedding(query_string)
                 self.cache[query_string] = self.storage.query(query_string, query_vec, top_k=self.top_k)
 
-            start = start if start else 0
-            count = count if count else self.top_k
+            start = int(start if start else 0)
+            count = int(count if count else self.top_k)
             end = min(count + start, len(self.cache[query_string]))
 
             results = self.cache[query_string][start:end]

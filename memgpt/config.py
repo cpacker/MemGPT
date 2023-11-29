@@ -92,6 +92,7 @@ class MemGPTConfig:
     # embedding parameters
     embedding_endpoint_type: str = "openai"  # openai, azure, local
     embedding_endpoint: str = None
+    embedding_model: str = None
     embedding_dim: int = 1536
     embedding_chunk_size: int = 300  # number of tokens
 
@@ -153,6 +154,7 @@ class MemGPTConfig:
                 "azure_deployment": get_field(config, "azure", "deployment"),
                 "azure_embedding_deployment": get_field(config, "azure", "embedding_deployment"),
                 "embedding_endpoint": get_field(config, "embedding", "embedding_endpoint"),
+                "embedding_model": get_field(config, "embedding", "embedding_model"),
                 "embedding_endpoint_type": get_field(config, "embedding", "embedding_endpoint_type"),
                 "embedding_dim": get_field(config, "embedding", "embedding_dim"),
                 "embedding_chunk_size": get_field(config, "embedding", "chunk_size"),
@@ -203,6 +205,7 @@ class MemGPTConfig:
         # embeddings
         set_field(config, "embedding", "embedding_endpoint_type", self.embedding_endpoint_type)
         set_field(config, "embedding", "embedding_endpoint", self.embedding_endpoint)
+        set_field(config, "embedding", "embedding_model", self.embedding_model)
         set_field(config, "embedding", "embedding_dim", str(self.embedding_dim))
         set_field(config, "embedding", "embedding_chunk_size", str(self.embedding_chunk_size))
 
@@ -265,6 +268,7 @@ class AgentConfig:
         # embedding info
         embedding_endpoint_type=None,
         embedding_endpoint=None,
+        embedding_model=None,
         embedding_dim=None,
         embedding_chunk_size=None,
         # other
@@ -292,6 +296,7 @@ class AgentConfig:
         self.model_wrapper = config.model_wrapper if model_wrapper is None else model_wrapper
         self.embedding_endpoint_type = config.embedding_endpoint_type if embedding_endpoint_type is None else embedding_endpoint_type
         self.embedding_endpoint = config.embedding_endpoint if embedding_endpoint is None else embedding_endpoint
+        self.embedding_model = config.embedding_model if embedding_model is None else embedding_model
         self.embedding_dim = config.embedding_dim if embedding_dim is None else embedding_dim
         self.embedding_chunk_size = config.embedding_chunk_size if embedding_chunk_size is None else embedding_chunk_size
 
