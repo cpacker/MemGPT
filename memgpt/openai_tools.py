@@ -1,9 +1,12 @@
 import random
 import os
 import time
-
+import requests
 import time
 from typing import Callable, TypeVar
+import urllib
+
+from box import Box
 
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
 
@@ -11,10 +14,97 @@ HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
 R = TypeVar("R")
 
-import openai
 
-if HOST is not None:
-    openai.api_base = HOST
+def openai_chat_completions_request(url, api_key, data):
+    """https://platform.openai.com/docs/guides/text-generation?lang=curl"""
+
+    url = urllib.parse.urljoin(url, "chat/completions")
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
+        response = response.json()  # convert to dict from string
+        response = Box(response)  # convert to 'dot-dict' style which is the openai python client default
+        return response
+    except requests.exceptions.HTTPError as http_err:
+        # Handle HTTP errors (e.g., response 4XX, 5XX)
+        raise http_err
+    except requests.exceptions.RequestException as req_err:
+        # Handle other requests-related errors (e.g., connection error)
+        raise req_err
+    except Exception as e:
+        # Handle other potential errors
+        raise e
+
+
+def openai_embeddings_request(url, api_key, data):
+    """https://platform.openai.com/docs/api-reference/embeddings/create"""
+
+    url = urllib.parse.urljoin(url, "embeddings")
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
+        response = response.json()  # convert to dict from string
+        response = Box(response)  # convert to 'dot-dict' style which is the openai python client default
+        return response
+    except requests.exceptions.HTTPError as http_err:
+        # Handle HTTP errors (e.g., response 4XX, 5XX)
+        raise http_err
+    except requests.exceptions.RequestException as req_err:
+        # Handle other requests-related errors (e.g., connection error)
+        raise req_err
+    except Exception as e:
+        # Handle other potential errors
+        raise e
+
+
+def azure_openai_chat_completions_request(resource_name, deployment_id, api_version, api_key, data):
+    """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#chat-completions"""
+
+    url = f"https://{resource_name}.openai.azure.com/openai/deployments/{deployment_id}/chat/completions?api-version={api_version}"
+    headers = {"Content-Type": "application/json", "api-key": f"{api_key}"}
+
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
+        response = response.json()  # convert to dict from string
+        response = Box(response)  # convert to 'dot-dict' style which is the openai python client default
+        return response
+    except requests.exceptions.HTTPError as http_err:
+        # Handle HTTP errors (e.g., response 4XX, 5XX)
+        raise http_err
+    except requests.exceptions.RequestException as req_err:
+        # Handle other requests-related errors (e.g., connection error)
+        raise req_err
+    except Exception as e:
+        # Handle other potential errors
+        raise e
+
+
+def azure_openai_embeddings_request(resource_name, deployment_id, api_version, api_key, data):
+    """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings"""
+
+    url = f"https://{resource_name}.openai.azure.com/openai/deployments/{deployment_id}/embeddings?api-version={api_version}"
+    headers = {"Content-Type": "application/json", "api-key": f"{api_key}"}
+
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
+        response = response.json()  # convert to dict from string
+        response = Box(response)  # convert to 'dot-dict' style which is the openai python client default
+        return response
+    except requests.exceptions.HTTPError as http_err:
+        # Handle HTTP errors (e.g., response 4XX, 5XX)
+        raise http_err
+    except requests.exceptions.RequestException as req_err:
+        # Handle other requests-related errors (e.g., connection error)
+        raise req_err
+    except Exception as e:
+        # Handle other potential errors
+        raise e
 
 
 def retry_with_exponential_backoff(
@@ -23,7 +113,9 @@ def retry_with_exponential_backoff(
     exponential_base: float = 2,
     jitter: bool = True,
     max_retries: int = 20,
-    errors: tuple = (openai.error.RateLimitError,),
+    # List of OpenAI error codes: https://github.com/openai/openai-python/blob/17ac6779958b2b74999c634c4ea4c7b74906027a/src/openai/_client.py#L227-L250
+    # 429 = rate limit
+    error_codes: tuple = (429,),
 ):
     """Retry a function with exponential backoff."""
 
@@ -37,20 +129,24 @@ def retry_with_exponential_backoff(
             try:
                 return func(*args, **kwargs)
 
-            # Retry on specified errors
-            except errors as e:
-                # Increment retries
-                num_retries += 1
+            except requests.exceptions.HTTPError as http_err:
+                # Retry on specified errors
+                if http_err.response.status_code in error_codes:
+                    # Increment retries
+                    num_retries += 1
 
-                # Check if max retries has been reached
-                if num_retries > max_retries:
-                    raise Exception(f"Maximum number of retries ({max_retries}) exceeded.")
+                    # Check if max retries has been reached
+                    if num_retries > max_retries:
+                        raise Exception(f"Maximum number of retries ({max_retries}) exceeded.")
 
-                # Increment the delay
-                delay *= exponential_base * (1 + jitter * random.random())
+                    # Increment the delay
+                    delay *= exponential_base * (1 + jitter * random.random())
 
-                # Sleep for the delay
-                time.sleep(delay)
+                    # Sleep for the delay
+                    time.sleep(delay)
+                else:
+                    # For other HTTP errors, re-raise the exception
+                    raise
 
             # Raise exceptions for any errors not specified
             except Exception as e:
@@ -77,7 +173,12 @@ def completions_with_backoff(**kwargs):
                 kwargs.pop("model")
         if "context_window" in kwargs:
             kwargs.pop("context_window")
-        return openai.ChatCompletion.create(**kwargs)
+
+        api_url = "https://api.openai.com/v1"
+        api_key = os.get_env("OPENAI_API_KEY")
+        if api_key is None:
+            raise Exception("OPENAI_API_KEY is not defined - please set it")
+        return openai_chat_completions_request(api_url, api_key, data=kwargs)
 
 
 @retry_with_exponential_backoff
@@ -95,32 +196,55 @@ def chat_completion_with_backoff(
     printd(f"Using model {agent_config.model_endpoint_type}, endpoint: {agent_config.model_endpoint}")
     if agent_config.model_endpoint_type == "openai":
         # openai
-        openai.api_base = agent_config.model_endpoint
-        return openai.ChatCompletion.create(
-            model=agent_config.model, messages=messages, functions=functions, function_call=function_call, user=config.anon_clientid
+        # openai.api_base = agent_config.model_endpoint
+        # return openai.ChatCompletion.create(
+        # model=agent_config.model, messages=messages, functions=functions, function_call=function_call, user=config.anon_clientid
+        # )
+        return openai_chat_completions_request(
+            url=agent_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
+            api_key=config.openai_key,  # 'sk....'
+            data=dict(
+                model=agent_config.model,
+                messages=messages,
+                functions=functions,
+                function_call=function_call,
+                user=config.anon_clientid,
+            ),
         )
     elif agent_config.model_endpoint_type == "azure":
-        # azure
-        openai.api_type = "azure"
-        openai.api_key = config.azure_key
-        openai.api_base = config.azure_endpoint
-        openai.api_version = config.azure_version
-        if config.azure_deployment is not None:
-            deployment_id = config.azure_deployment
-            engine = None
-            model = config.model
-        else:
-            engine = MODEL_TO_AZURE_ENGINE[config.model]
-            model = None
-            deployment_id = None
-        return openai.ChatCompletion.create(
-            model=model,
-            messages=messages,
-            engine=engine,
-            deployment_id=deployment_id,
-            functions=functions,
-            function_call=function_call,
-            user=client_id,
+        # # azure
+        # openai.api_type = "azure"
+        # openai.api_key = config.azure_key
+        # openai.api_base = config.azure_endpoint
+        # openai.api_version = config.azure_version
+        # if config.azure_deployment is not None:
+        #     deployment_id = config.azure_deployment
+        #     engine = None
+        #     model = config.model
+        # else:
+        #     engine = MODEL_TO_AZURE_ENGINE[config.model]
+        #     model = None
+        #     deployment_id = None
+        # return openai.ChatCompletion.create(
+        #     model=model,
+        #     messages=messages,
+        #     engine=engine,
+        #     deployment_id=deployment_id,
+        #     functions=functions,
+        #     function_call=function_call,
+        #     user=client_id,
+        # )
+        return azure_openai_chat_completions_request(
+            resource_name=config.azure_endpoint,  # TODO check
+            deployment_id=config.azure_deployment,  # TODO check
+            api_key=config.azure_key,
+            data=dict(
+                model=agent_config.model,  # TODO fix should probably depend on MODEL_TO_AZURE_ENGINE?
+                messages=messages,
+                functions=functions,
+                function_call=function_call,
+                user=config.anon_clientid,
+            ),
         )
     else:  # local model
         return get_chat_completion(
@@ -146,7 +270,25 @@ def create_embedding_with_backoff(**kwargs):
         else:
             kwargs["engine"] = kwargs["model"]
             kwargs.pop("model")
-    return openai.Embedding.create(**kwargs)
+
+        api_key = os.get_env("AZURE_OPENAI_KEY")
+        if api_key is None:
+            raise Exception("AZURE_OPENAI_API_KEY is not defined - please set it")
+        # TODO check
+        # api_version???
+        # resource_name???
+        # "engine" instead of "model"???
+        return azure_openai_embeddings_request(
+            resource_name=None, deployment_id=azure_openai_deployment, api_version=None, api_key=api_key, data=kwargs
+        )
+
+    else:
+        # return openai.Embedding.create(**kwargs)
+        api_url = "https://api.openai.com/v1"
+        api_key = os.get_env("OPENAI_API_KEY")
+        if api_key is None:
+            raise Exception("OPENAI_API_KEY is not defined - please set it")
+        return openai_embeddings_request(url=api_url, api_key=api_key, data=kwargs)
 
 
 def get_embedding_with_backoff(text, model="text-embedding-ada-002"):
@@ -195,10 +337,10 @@ def configure_azure_support():
         print(f"Error: missing Azure OpenAI environment variables. Please see README section on Azure.")
         return
 
-    openai.api_type = "azure"
-    openai.api_key = azure_openai_key
-    openai.api_base = azure_openai_endpoint
-    openai.api_version = azure_openai_version
+    # openai.api_type = "azure"
+    # openai.api_key = azure_openai_key
+    # openai.api_base = azure_openai_endpoint
+    # openai.api_version = azure_openai_version
     # deployment gets passed into chatcompletion
 
 
