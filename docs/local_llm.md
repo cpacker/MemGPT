@@ -12,6 +12,10 @@
 
     Make sure to check the [local LLM troubleshooting page](../local_llm_faq) to see common issues before raising a new issue or posting on Discord.
 
+!!! warning "Recommended LLMs / models"
+
+    To see a list of recommended LLMs to use with MemGPT, visit our [Discord server](https://discord.gg/9GEQrxmVyE) and check the #model-chat channel.
+
 ### Installing dependencies
 To install dependencies required for running local models, run:
 ```
