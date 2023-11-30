@@ -8,7 +8,7 @@ from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from memgpt.memory import CoreMemory as Memory, summarize_messages
-from memgpt.openai_tools import create
+from memgpt.openai_tools import create, is_context_overflow_error
 from memgpt.utils import get_local_time, parse_json, united_diff, printd, count_tokens, get_schema_diff
 from memgpt.constants import (
     FIRST_MESSAGE_ATTEMPTS,
@@ -647,14 +647,14 @@ class Agent(object):
             printd(f"step() failed\nuser_message = {user_message}\nerror = {e}")
 
             # If we got a context alert, try trimming the messages length, then try again
-            if "maximum context length" in str(e):
+            if is_context_overflow_error(e):
                 # A separate API call to run a summarizer
                 self.summarize_messages_inplace()
 
                 # Try step again
                 return self.step(user_message, first_message=first_message)
             else:
-                printd(f"step() failed with openai.InvalidRequestError, but didn't recognize the error message: '{str(e)}'")
+                printd(f"step() failed with an unrecognized exception: '{str(e)}'")
                 raise e
 
     def summarize_messages_inplace(self, cutoff=None, preserve_last_N_messages=True):

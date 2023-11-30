@@ -255,6 +255,11 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                     with console.status("[bold cyan]Thinking...") as status:
                         new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                         break
+            except KeyboardInterrupt:
+                print("User interrupt occured.")
+                retry = questionary.confirm("Retry agent.step()?").ask()
+                if not retry:
+                    break
             except Exception as e:
                 print("An exception ocurred when running agent.step(): ")
                 traceback.print_exc()

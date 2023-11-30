@@ -105,9 +105,12 @@ def embedding_model():
         )
         return model
     elif endpoint == "azure":
+        # https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings
+        model = "text-embedding-ada-002"
+        deployment = config.azure_embedding_deployment if config.azure_embedding_deployment is not None else model
         return OpenAIEmbedding(
-            model="text-embedding-ada-002",
-            deployment_name=config.azure_embedding_deployment,
+            model=model,
+            deployment_name=deployment,
             api_key=config.azure_key,
             api_base=config.azure_endpoint,
             api_type="azure",

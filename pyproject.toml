@@ -24,7 +24,6 @@ typer = {extras = ["all"], version = "^0.9.0"}
 questionary = "^2.0.1"
 pytz = "^2023.3.post1"
 tqdm = "^4.66.1"
-openai = "^0.28.1"
 black = { version = "^23.10.1", optional = true }
 pytest = { version = "^7.4.3", optional = true }
 llama-index = "^0.8.53.post3"
@@ -48,6 +47,7 @@ pyautogen = {version = "0.1.14", optional = true}
 numpy = "^1.26.2"
 demjson3 = "^3.0.6"
 tiktoken = "^0.5.1"
+python-box = "^7.1.1"
 
 [tool.poetry.extras]
 local = ["torch", "huggingface-hub", "transformers"]
