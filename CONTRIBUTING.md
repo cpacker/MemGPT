@@ -29,7 +29,7 @@ Once Poetry is installed, navigate to the MemGPT directory and install the MemGP
 ```shell
 cd MemGPT
 poetry shell
-poetry install -E dev -E postgres -E local -E legacy
+poetry install -E dev -E postgres -E local
 ```
 
 Now when you want to use `memgpt`, make sure you first activate the `poetry` environment using poetry shell:
@@ -54,7 +54,7 @@ python3 -m venv venv
 
 Once you've activated your virtual environment and are in the MemGPT project directory, you can install the dependencies with `pip`:
 ```shell
-pip install -e '.[dev,postgres,local,legacy]'
+pip install -e '.[dev,postgres,local]'
 ```
 
 Now, you should be able to run `memgpt` from the command-line using the downloaded source code (if you used a virtual environment, you have to activate the virtual environment to access `memgpt`):
@@ -105,8 +105,8 @@ pytest -s tests
 ### Creating new tests
 If you added a major feature change, please add new tests in the `tests/` directory.
 
-## 4. 🧩 Adding new dependencies 
-If you need to add a new dependency to MemGPT, please add the package via `poetry add <PACKAGE_NAME>`. This will update the `pyproject.toml` and `poetry.lock` files. If the dependency does not need to be installed by all users, make sure to mark the dependency as optional in the `pyproject.toml` file and if needed, create a new extra under `[tool.poetry.extras]`. 
+## 4. 🧩 Adding new dependencies
+If you need to add a new dependency to MemGPT, please add the package via `poetry add <PACKAGE_NAME>`. This will update the `pyproject.toml` and `poetry.lock` files. If the dependency does not need to be installed by all users, make sure to mark the dependency as optional in the `pyproject.toml` file and if needed, create a new extra under `[tool.poetry.extras]`.
 
 ## 5. 🚀 Submitting Changes
 

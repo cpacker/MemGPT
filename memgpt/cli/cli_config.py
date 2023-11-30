@@ -4,14 +4,11 @@ from prettytable import PrettyTable
 import typer
 import os
 import shutil
-from collections import defaultdict
 
 # from memgpt.cli import app
 from memgpt import utils
 
-import memgpt.humans.humans as humans
-import memgpt.personas.personas as personas
-from memgpt.config import MemGPTConfig, AgentConfig, Config
+from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
 from memgpt.connectors.storage import StorageConnector
 from memgpt.constants import LLM_MAX_TOKENS

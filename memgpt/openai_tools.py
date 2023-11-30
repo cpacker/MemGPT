@@ -311,39 +311,14 @@ def retry_with_exponential_backoff(
     return wrapper
 
 
-# TODO: delete/ignore --legacy
 @retry_with_exponential_backoff
-def completions_with_backoff(**kwargs):
-    # Local model
-    if HOST_TYPE is not None:
-        return get_chat_completion(**kwargs)
-
-    # OpenAI / Azure model
-    else:
-        if using_azure():
-            azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-            if azure_openai_deployment is not None:
-                kwargs["deployment_id"] = azure_openai_deployment
-            else:
-                kwargs["engine"] = MODEL_TO_AZURE_ENGINE[kwargs["model"]]
-                kwargs.pop("model")
-        if "context_window" in kwargs:
-            kwargs.pop("context_window")
-
-        api_url = "https://api.openai.com/v1"
-        api_key = os.get_env("OPENAI_API_KEY")
-        if api_key is None:
-            raise Exception("OPENAI_API_KEY is not defined - please set it")
-        return openai_chat_completions_request(api_url, api_key, data=kwargs)
-
-
-@retry_with_exponential_backoff
-def chat_completion_with_backoff(
+def create(
     agent_config,
     messages,
     functions=None,
     function_call="auto",
 ):
+    """Return response to chat completion with backoff"""
     from memgpt.utils import printd
     from memgpt.config import MemGPTConfig
 
@@ -391,92 +366,4 @@ def chat_completion_with_backoff(
             endpoint_type=agent_config.model_endpoint_type,
             wrapper=agent_config.model_wrapper,
             user=config.anon_clientid,
-        )
-
-
-# TODO: deprecate
-@retry_with_exponential_backoff
-def create_embedding_with_backoff(**kwargs):
-    if using_azure():
-        azure_openai_deployment = os.getenv("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT")
-        if azure_openai_deployment is not None:
-            kwargs["deployment_id"] = azure_openai_deployment
-        else:
-            kwargs["engine"] = kwargs["model"]
-            kwargs.pop("model")
-
-        api_key = os.get_env("AZURE_OPENAI_KEY")
-        if api_key is None:
-            raise Exception("AZURE_OPENAI_API_KEY is not defined - please set it")
-        # TODO check
-        # api_version???
-        # resource_name???
-        # "engine" instead of "model"???
-        return azure_openai_embeddings_request(
-            resource_name=None, deployment_id=azure_openai_deployment, api_version=None, api_key=api_key, data=kwargs
-        )
-
-    else:
-        # return openai.Embedding.create(**kwargs)
-        api_url = "https://api.openai.com/v1"
-        api_key = os.get_env("OPENAI_API_KEY")
-        if api_key is None:
-            raise Exception("OPENAI_API_KEY is not defined - please set it")
-        return openai_embeddings_request(url=api_url, api_key=api_key, data=kwargs)
-
-
-def get_embedding_with_backoff(text, model="text-embedding-ada-002"):
-    text = text.replace("\n", " ")
-    response = create_embedding_with_backoff(input=[text], model=model)
-    embedding = response["data"][0]["embedding"]
-    return embedding
-
-
-MODEL_TO_AZURE_ENGINE = {
-    "gpt-4-1106-preview": "gpt-4-1106-preview",  # TODO check
-    "gpt-4": "gpt-4",
-    "gpt-4-32k": "gpt-4-32k",
-    "gpt-3.5": "gpt-35-turbo",  # diff
-    "gpt-3.5-turbo": "gpt-35-turbo",  # diff
-    "gpt-3.5-turbo-16k": "gpt-35-turbo-16k",  # diff
-}
-
-
-def get_set_azure_env_vars():
-    azure_env_variables = [
-        ("AZURE_OPENAI_KEY", os.getenv("AZURE_OPENAI_KEY")),
-        ("AZURE_OPENAI_ENDPOINT", os.getenv("AZURE_OPENAI_ENDPOINT")),
-        ("AZURE_OPENAI_VERSION", os.getenv("AZURE_OPENAI_VERSION")),
-        ("AZURE_OPENAI_DEPLOYMENT", os.getenv("AZURE_OPENAI_DEPLOYMENT")),
-        (
-            "AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT",
-            os.getenv("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT"),
-        ),
-    ]
-    return [x for x in azure_env_variables if x[1] is not None]
-
-
-def using_azure():
-    return len(get_set_azure_env_vars()) > 0
-
-
-def configure_azure_support():
-    azure_openai_key = os.getenv("AZURE_OPENAI_KEY")
-    azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    azure_openai_version = os.getenv("AZURE_OPENAI_VERSION")
-    if None in [
-        azure_openai_key,
-        azure_openai_endpoint,
-        azure_openai_version,
-    ]:
-        print(f"Error: missing Azure OpenAI environment variables. Please see README section on Azure.")
-        return
-
-
-def check_azure_embeddings():
-    azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-    azure_openai_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT")
-    if azure_openai_deployment is not None and azure_openai_embedding_deployment is None:
-        raise ValueError(
-            f"Error: It looks like you are using Azure deployment ids and computing embeddings, make sure you are setting one for embeddings as well. Please see README section on Azure"
         )
