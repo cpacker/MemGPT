@@ -1,6 +1,5 @@
 import builtins
 import questionary
-import openai
 from prettytable import PrettyTable
 import typer
 import os

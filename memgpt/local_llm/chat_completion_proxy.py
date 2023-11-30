@@ -4,18 +4,20 @@ import os
 import requests
 import json
 
-from .webui.api import get_webui_completion
-from .webui.legacy_api import get_webui_completion as get_webui_completion_legacy
-from .lmstudio.api import get_lmstudio_completion
-from .llamacpp.api import get_llamacpp_completion
-from .koboldcpp.api import get_koboldcpp_completion
-from .ollama.api import get_ollama_completion
-from .vllm.api import get_vllm_completion
-from .llm_chat_completion_wrappers import airoboros, dolphin, zephyr, simple_summary_wrapper
-from .constants import DEFAULT_WRAPPER
-from .utils import DotDict, get_available_wrappers
-from ..prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
-from ..errors import LocalLLMConnectionError, LocalLLMError
+from box import Box
+
+from memgpt.local_llm.webui.api import get_webui_completion
+from memgpt.local_llm.webui.legacy_api import get_webui_completion as get_webui_completion_legacy
+from memgpt.local_llm.lmstudio.api import get_lmstudio_completion
+from memgpt.local_llm.llamacpp.api import get_llamacpp_completion
+from memgpt.local_llm.koboldcpp.api import get_koboldcpp_completion
+from memgpt.local_llm.ollama.api import get_ollama_completion
+from memgpt.local_llm.vllm.api import get_vllm_completion
+from memgpt.local_llm.llm_chat_completion_wrappers import simple_summary_wrapper
+from memgpt.local_llm.constants import DEFAULT_WRAPPER
+from memgpt.local_llm.utils import get_available_wrappers
+from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
+from memgpt.errors import LocalLLMConnectionError, LocalLLMError
 
 endpoint = os.getenv("OPENAI_API_BASE")
 endpoint_type = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
@@ -119,25 +121,21 @@ def get_chat_completion(
         raise LocalLLMError(f"Failed to parse JSON from local LLM response - error: {str(e)}")
 
     # unpack with response.choices[0].message.content
-    response = DotDict(
+    response = Box(
         {
             "model": model,
             "choices": [
-                DotDict(
-                    {
-                        "message": DotDict(chat_completion_result),
-                        "finish_reason": "stop",  # TODO vary based on backend response
-                    }
-                )
-            ],
-            "usage": DotDict(
                 {
-                    # TODO fix, actually use real info
-                    "prompt_tokens": 0,
-                    "completion_tokens": 0,
-                    "total_tokens": 0,
+                    "message": chat_completion_result,
+                    "finish_reason": "stop",  # TODO vary based on backend response
                 }
-            ),
+            ],
+            "usage": {
+                # TODO fix, actually use real info
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+            },
         }
     )
     return response
