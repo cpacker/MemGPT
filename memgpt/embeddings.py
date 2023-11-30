@@ -121,14 +121,9 @@ def embedding_model():
         return embed_model
     else:
         # default to hugging face model running local
+        # warning: this is a terrible model
         from llama_index.embeddings import HuggingFaceEmbedding
 
         os.environ["TOKENIZERS_PARALLELISM"] = "False"
         model = "BAAI/bge-small-en-v1.5"
         return HuggingFaceEmbedding(model_name=model)
-
-    # TODO: add back if we decide to support custom embedding endpoints
-    # else:
-    #    # use env variable OPENAI_API_BASE
-    #    model = OpenAIEmbedding()
-    #    return model
