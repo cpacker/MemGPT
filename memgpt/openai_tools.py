@@ -15,12 +15,20 @@ HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
 R = TypeVar("R")
 
 
+def smart_urljoin(base_url, relative_url):
+    """urljoin is stupid and wants a trailing / at the end of the endpoint address, or it will chop the suffix off"""
+    if not base_url.endswith("/"):
+        base_url += "/"
+    return urllib.parse.urljoin(base_url, relative_url)
+
+
 def openai_chat_completions_request(url, api_key, data):
     """https://platform.openai.com/docs/guides/text-generation?lang=curl"""
 
-    url = urllib.parse.urljoin(url, "chat/completions")
+    url = smart_urljoin(url, "chat/completions")
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
 
+    print(f"Sending request to {url}")  # TODO remove
     try:
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
@@ -41,9 +49,10 @@ def openai_chat_completions_request(url, api_key, data):
 def openai_embeddings_request(url, api_key, data):
     """https://platform.openai.com/docs/api-reference/embeddings/create"""
 
-    url = urllib.parse.urljoin(url, "embeddings")
+    url = smart_urljoin(url, "embeddings")
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
 
+    print(f"Sending request to {url}")  # TODO remove
     try:
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
@@ -67,6 +76,7 @@ def azure_openai_chat_completions_request(resource_name, deployment_id, api_vers
     url = f"https://{resource_name}.openai.azure.com/openai/deployments/{deployment_id}/chat/completions?api-version={api_version}"
     headers = {"Content-Type": "application/json", "api-key": f"{api_key}"}
 
+    print(f"Sending request to {url}")  # TODO remove
     try:
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
@@ -90,6 +100,7 @@ def azure_openai_embeddings_request(resource_name, deployment_id, api_version, a
     url = f"https://{resource_name}.openai.azure.com/openai/deployments/{deployment_id}/embeddings?api-version={api_version}"
     headers = {"Content-Type": "application/json", "api-key": f"{api_key}"}
 
+    print(f"Sending request to {url}")  # TODO remove
     try:
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
