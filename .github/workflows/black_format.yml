@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - '**.py'
+  workflow_dispatch:
 
 jobs:
   black-check:
