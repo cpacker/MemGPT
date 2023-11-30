@@ -60,7 +60,7 @@ def retry_with_exponential_backoff(
 
 
 @retry_with_exponential_backoff
-def chat_completion_with_backoff(
+def create(
     agent_config,
     messages,
     functions,
@@ -86,14 +86,9 @@ def chat_completion_with_backoff(
         openai.api_key = config.azure_key
         openai.api_base = config.azure_endpoint
         openai.api_version = config.azure_version
-        if config.azure_deployment is not None:
-            deployment_id = config.azure_deployment
-            engine = None
-            model = config.model
-        else:
-            engine = MODEL_TO_AZURE_ENGINE[config.model]
-            model = None
-            deployment_id = None
+        deployment_id = config.azure_deployment
+        engine = None
+        model = config.model
         return openai.ChatCompletion.create(
             model=model,
             messages=messages,
@@ -101,7 +96,7 @@ def chat_completion_with_backoff(
             deployment_id=deployment_id,
             functions=functions,
             function_call=function_call,
-            user=client_id,
+            user=config.anon_clientid,
         )
     else:  # local model
         return get_chat_completion(

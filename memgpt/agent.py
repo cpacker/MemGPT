@@ -8,7 +8,7 @@ from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from memgpt.memory import CoreMemory as Memory, summarize_messages
-from memgpt.openai_tools import chat_completion_with_backoff
+from memgpt.openai_tools import create
 from memgpt.utils import get_local_time, parse_json, united_diff, printd, count_tokens, get_schema_diff
 from memgpt.constants import (
     FIRST_MESSAGE_ATTEMPTS,
@@ -758,7 +758,7 @@ class Agent(object):
     ):
         """Get response from LLM API"""
         try:
-            response = chat_completion_with_backoff(
+            response = create(
                 agent_config=self.config,
                 messages=message_sequence,
                 functions=self.functions,

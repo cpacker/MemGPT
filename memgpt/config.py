@@ -7,7 +7,7 @@ import configparser
 
 import memgpt
 import memgpt.utils as utils
-from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS
+from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS, DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.presets.presets import DEFAULT_PRESET
 
 
@@ -55,8 +55,8 @@ class MemGPTConfig:
     azure_embedding_deployment: str = None
 
     # persona parameters
-    persona: str = None
-    human: str = None
+    persona: str = DEFAULT_PERSONA
+    human: str = DEFAULT_HUMAN
     agent: str = None
 
     # embedding parameters
