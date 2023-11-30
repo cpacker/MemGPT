@@ -29,7 +29,6 @@ faiss-cpu = { version = "^1.7.4", optional = true }
 tiktoken = "^0.5.1"
 pymupdf = "^1.23.5"
 tqdm = "^4.66.1"
-openai = "^0.28.1"
 black = { version = "^23.10.1", optional = true }
 pytest = { version = "^7.4.3", optional = true }
 llama-index = "^0.8.53.post3"
@@ -50,6 +49,7 @@ docstring-parser = "^0.15"
 lancedb = {version = "^0.3.3", optional = true}
 httpx = "^0.25.2"
 pyautogen = {version = "0.1.14", optional = true}
+python-box = "^7.1.1"
 
 [tool.poetry.extras]
 legacy = ["faiss-cpu", "numpy"]

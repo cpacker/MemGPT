@@ -6,7 +6,6 @@ import logging
 import os
 from prettytable import PrettyTable
 import questionary
-import openai
 
 from llama_index import set_global_service_context
 from llama_index import VectorStoreIndex, SimpleDirectoryReader, ServiceContext
