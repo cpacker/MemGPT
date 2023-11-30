@@ -30,7 +30,7 @@ nav:
     - 'Creating new MemGPT presets': presets.md
     - 'Giving MemGPT more tools': functions.md
   - 'Integrations':
-    - 'Autogen': autogen.md
+    - 'AutoGen': autogen.md
   - 'Advanced':
     - 'Configuring storage backends': storage.md
     - 'Adding support for new LLMs': adding_wrappers.md
