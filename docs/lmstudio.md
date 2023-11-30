@@ -8,7 +8,7 @@
 
     **Context Overflow Policy = Stop at limit**: If you see "Context Overflow Policy" inside LM Studio's "Tools" panel on the right side (below "Server Model Settings"), set it to **Stop at limit**. The default setting "Keep the system prompt ... truncate middle" will break MemGPT.
 
-![image](https://github.com/cpacker/MemGPT/assets/5475622/74fd5e4d-a549-482d-b9f5-44b1829f41a8)
+<img width="911" alt="image" src="https://github.com/cpacker/MemGPT/assets/5475622/d499e82e-348c-4468-9ea6-fd15a13eb7fa">
 
 1. Download [LM Studio](https://lmstudio.ai/) and the model you want to test with
 2. Go to the "local inference server" tab, load the model and configure your settings (make sure to set the context length to something reasonable like 8k!)
