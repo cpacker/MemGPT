@@ -6,7 +6,7 @@
 
 To get MemGPT to work with a local LLM, you need to have the LLM running on a server that takes API requests.
 
-For the purposes of this example, we're going to serve (host) the LLMs using [oobabooga web UI](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui), but if you want to use something else you can! This also assumes your running web UI locally - if you're running on e.g. Runpod, you'll want to follow Runpod specific instructions (for example use [TheBloke's one-click UI and API](https://github.com/TheBlokeAI/dockerLLM/blob/main/README_Runpod_LocalLLMsUIandAPI.md))
+In this example we'll set up [oobabooga web UI](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui) locally - if you're running on a remote service like Runpod, you'll want to follow Runpod specific instructions for installing web UI and determining your endpoint IP address (for example use [TheBloke's one-click UI and API](https://github.com/TheBlokeAI/dockerLLM/blob/main/README_Runpod_LocalLLMsUIandAPI.md)).
 
 1. Install oobabooga web UI using the instructions [here](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui)
 2. Once installed, launch the web server with `python server.py`
