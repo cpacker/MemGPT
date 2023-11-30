@@ -15,6 +15,47 @@ HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
 R = TypeVar("R")
 
 
+def is_context_overflow_error(exception):
+    from memgpt.utils import printd
+
+    match_string = "maximum context length"
+
+    # Backwards compatability with openai python package/client v0.28 (pre-v1 client migration)
+    if match_string in str(exception):
+        printd(f"Found '{match_string}' in str(exception)={(str(exception))}")
+        return True
+
+    # Based on python requests + OpenAI REST API (/v1)
+    elif isinstance(exception, requests.exceptions.HTTPError):
+        if exception.response is not None and "application/json" in exception.response.headers.get("Content-Type", ""):
+            try:
+                error_details = exception.response.json()
+                if "error" not in error_details:
+                    printd(f"HTTPError occured, but couldn't find error field: {error_details}")
+                    return False
+                else:
+                    error_details = error_details["error"]
+
+                # Check for the specific error code
+                if error_details.get("code") == "context_length_exceeded":
+                    printd(f"HTTPError occured, caught error code {error_details.get('code')}")
+                    return True
+                # Soft-check for "maximum context length" inside of the message
+                elif error_details.get("message") and "maximum context length" in error_details.get("message"):
+                    printd(f"HTTPError occured, found '{match_string}' in error message contents ({error_details})")
+                    return True
+                else:
+                    printd(f"HTTPError occured, but unknown error message: {error_details}")
+                    return False
+            except ValueError:
+                # JSON decoding failed
+                printd(f"HTTPError occurred ({exception}), but no JSON error message.")
+
+    # Generic fail
+    else:
+        return False
+
+
 def smart_urljoin(base_url, relative_url):
     """urljoin is stupid and wants a trailing / at the end of the endpoint address, or it will chop the suffix off"""
     if not base_url.endswith("/"):
@@ -37,28 +78,52 @@ def openai_chat_completions_request(url, api_key, data):
     url = smart_urljoin(url, "chat/completions")
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
 
+    # If functions == None, strip from the payload
+    if "functions" in data and data["functions"] is None:
+        data.pop("functions")
+        data.pop("function_call", None)  # extra safe,  should exist always (default="auto")
+
     printd(f"Sending request to {url}")
     try:
-        # from unittest.mock import MagicMock
+        # Example code to trigger a rate limit response:
         # mock_response = requests.Response()
         # mock_response.status_code = 429
         # http_error = requests.exceptions.HTTPError("429 Client Error: Too Many Requests")
         # http_error.response = mock_response
         # raise http_error
 
+        # Example code to trigger a context overflow response (for an 8k model)
+        # data["messages"][-1]["content"] = " ".join(["repeat after me this is not a fluke"] * 1000)
+
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
         response = response.json()  # convert to dict from string
+        printd(f"response = {response}")
         response = Box(response)  # convert to 'dot-dict' style which is the openai python client default
         return response
     except requests.exceptions.HTTPError as http_err:
         # Handle HTTP errors (e.g., response 4XX, 5XX)
+        try:
+            response = response.json()
+        except:
+            pass
+        printd(f"Got HTTPError, exception={http_err}, payload={data}, response={response}")
         raise http_err
     except requests.exceptions.RequestException as req_err:
         # Handle other requests-related errors (e.g., connection error)
+        try:
+            response = response.json()
+        except:
+            pass
+        printd(f"Got RequestException, exception={req_err}, response={response}")
         raise req_err
     except Exception as e:
         # Handle other potential errors
+        try:
+            response = response.json()
+        except:
+            pass
+        printd(f"Got unknown Exception, exception={e}, response={response}")
         raise e
 
 
@@ -74,16 +139,32 @@ def openai_embeddings_request(url, api_key, data):
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
         response = response.json()  # convert to dict from string
+        printd(f"response = {response}")
         response = Box(response)  # convert to 'dot-dict' style which is the openai python client default
         return response
     except requests.exceptions.HTTPError as http_err:
         # Handle HTTP errors (e.g., response 4XX, 5XX)
+        try:
+            response = response.json()
+        except:
+            pass
+        printd(f"Got HTTPError, exception={http_err}, response={response}")
         raise http_err
     except requests.exceptions.RequestException as req_err:
         # Handle other requests-related errors (e.g., connection error)
+        try:
+            response = response.json()
+        except:
+            pass
+        printd(f"Got RequestException, exception={req_err}, response={response}")
         raise req_err
     except Exception as e:
         # Handle other potential errors
+        try:
+            response = response.json()
+        except:
+            pass
+        printd(f"Got unknown Exception, exception={e}, response={response}")
         raise e
 
 
@@ -95,11 +176,17 @@ def azure_openai_chat_completions_request(resource_name, deployment_id, api_vers
     url = f"https://{resource_name}.openai.azure.com/openai/deployments/{deployment_id}/chat/completions?api-version={api_version}"
     headers = {"Content-Type": "application/json", "api-key": f"{api_key}"}
 
+    # If functions == None, strip from the payload
+    if "functions" in data and data["functions"] is None:
+        data.pop("functions")
+        data.pop("function_call", None)  # extra safe,  should exist always (default="auto")
+
     printd(f"Sending request to {url}")
     try:
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
         response = response.json()  # convert to dict from string
+        printd(f"response = {response}")
         # NOTE: azure openai does not include "content" in the response when it is None, so we need to add it
         if "content" not in response["choices"][0].get("message"):
             response["choices"][0]["message"]["content"] = None
@@ -107,12 +194,27 @@ def azure_openai_chat_completions_request(resource_name, deployment_id, api_vers
         return response
     except requests.exceptions.HTTPError as http_err:
         # Handle HTTP errors (e.g., response 4XX, 5XX)
+        try:
+            response = response.json()
+        except:
+            pass
+        printd(f"Got HTTPError, exception={http_err}, response={response}")
         raise http_err
     except requests.exceptions.RequestException as req_err:
         # Handle other requests-related errors (e.g., connection error)
+        try:
+            response = response.json()
+        except:
+            pass
+        printd(f"Got RequestException, exception={req_err}, response={response}")
         raise req_err
     except Exception as e:
         # Handle other potential errors
+        try:
+            response = response.json()
+        except:
+            pass
+        printd(f"Got unknown Exception, exception={e}, response={response}")
         raise e
 
 
@@ -129,16 +231,32 @@ def azure_openai_embeddings_request(resource_name, deployment_id, api_version, a
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
         response = response.json()  # convert to dict from string
+        printd(f"response = {response}")
         response = Box(response)  # convert to 'dot-dict' style which is the openai python client default
         return response
     except requests.exceptions.HTTPError as http_err:
         # Handle HTTP errors (e.g., response 4XX, 5XX)
+        try:
+            response = response.json()
+        except:
+            pass
+        printd(f"Got HTTPError, exception={http_err}, response={response}")
         raise http_err
     except requests.exceptions.RequestException as req_err:
         # Handle other requests-related errors (e.g., connection error)
+        try:
+            response = response.json()
+        except:
+            pass
+        printd(f"Got RequestException, exception={req_err}, response={response}")
         raise req_err
     except Exception as e:
         # Handle other potential errors
+        try:
+            response = response.json()
+        except:
+            pass
+        printd(f"Got unknown Exception, exception={e}, response={response}")
         raise e
 
 
@@ -223,8 +341,8 @@ def completions_with_backoff(**kwargs):
 def chat_completion_with_backoff(
     agent_config,
     messages,
-    functions,
-    function_call,
+    functions=None,
+    function_call="auto",
 ):
     from memgpt.utils import printd
     from memgpt.config import MemGPTConfig
