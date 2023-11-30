@@ -9,7 +9,6 @@ import urllib
 from box import Box
 
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
-from memgpt.utils import printd
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
@@ -33,12 +32,20 @@ def clean_azure_endpoint(raw_endpoint_name):
 
 def openai_chat_completions_request(url, api_key, data):
     """https://platform.openai.com/docs/guides/text-generation?lang=curl"""
+    from memgpt.utils import printd
 
     url = smart_urljoin(url, "chat/completions")
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
 
     printd(f"Sending request to {url}")
     try:
+        # from unittest.mock import MagicMock
+        # mock_response = requests.Response()
+        # mock_response.status_code = 429
+        # http_error = requests.exceptions.HTTPError("429 Client Error: Too Many Requests")
+        # http_error.response = mock_response
+        # raise http_error
+
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
         response = response.json()  # convert to dict from string
@@ -57,6 +64,7 @@ def openai_chat_completions_request(url, api_key, data):
 
 def openai_embeddings_request(url, api_key, data):
     """https://platform.openai.com/docs/api-reference/embeddings/create"""
+    from memgpt.utils import printd
 
     url = smart_urljoin(url, "embeddings")
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
@@ -81,6 +89,7 @@ def openai_embeddings_request(url, api_key, data):
 
 def azure_openai_chat_completions_request(resource_name, deployment_id, api_version, api_key, data):
     """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#chat-completions"""
+    from memgpt.utils import printd
 
     resource_name = clean_azure_endpoint(resource_name)
     url = f"https://{resource_name}.openai.azure.com/openai/deployments/{deployment_id}/chat/completions?api-version={api_version}"
@@ -109,6 +118,7 @@ def azure_openai_chat_completions_request(resource_name, deployment_id, api_vers
 
 def azure_openai_embeddings_request(resource_name, deployment_id, api_version, api_key, data):
     """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings"""
+    from memgpt.utils import printd
 
     resource_name = clean_azure_endpoint(resource_name)
     url = f"https://{resource_name}.openai.azure.com/openai/deployments/{deployment_id}/embeddings?api-version={api_version}"
@@ -145,6 +155,8 @@ def retry_with_exponential_backoff(
     """Retry a function with exponential backoff."""
 
     def wrapper(*args, **kwargs):
+        from memgpt.utils import printd
+
         # Initialize variables
         num_retries = 0
         delay = initial_delay
@@ -168,6 +180,7 @@ def retry_with_exponential_backoff(
                     delay *= exponential_base * (1 + jitter * random.random())
 
                     # Sleep for the delay
+                    printd(f"Got a rate limit error ('{http_err}') on LLM backend request, waiting {int(delay)}s then retrying...")
                     time.sleep(delay)
                 else:
                     # For other HTTP errors, re-raise the exception
