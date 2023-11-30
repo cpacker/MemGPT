@@ -1,10 +1,8 @@
 ### MemGPT + web UI
 
-!!! warning "Important web UI settings"
+!!! warning "web UI troubleshooting"
 
     If you have problems getting web UI set up, please use the [official web UI repo for support](https://github.com/oobabooga/text-generation-webui)! There will be more answered questions about web UI there vs here on the MemGPT repo.
-
-    Do **NOT** enable any extensions in web UI, including the [openai extension](https://github.com/oobabooga/text-generation-webui/tree/main/extensions/openai)! Just run web UI as-is, unless you are running [MemGPT+Autogen](https://github.com/cpacker/MemGPT/tree/main/memgpt/autogen) with non-MemGPT agents.
 
 To get MemGPT to work with a local LLM, you need to have the LLM running on a server that takes API requests.
 
