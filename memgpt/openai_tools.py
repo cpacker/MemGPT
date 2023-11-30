@@ -9,6 +9,7 @@ import urllib
 from box import Box
 
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
+from memgpt.utils import printd
 
 HOST = os.getenv("OPENAI_API_BASE")
 HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
@@ -36,7 +37,7 @@ def openai_chat_completions_request(url, api_key, data):
     url = smart_urljoin(url, "chat/completions")
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
 
-    print(f"Sending request to {url}")  # TODO remove
+    printd(f"Sending request to {url}")
     try:
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
@@ -60,7 +61,7 @@ def openai_embeddings_request(url, api_key, data):
     url = smart_urljoin(url, "embeddings")
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
 
-    print(f"Sending request to {url}")  # TODO remove
+    printd(f"Sending request to {url}")
     try:
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
@@ -85,7 +86,7 @@ def azure_openai_chat_completions_request(resource_name, deployment_id, api_vers
     url = f"https://{resource_name}.openai.azure.com/openai/deployments/{deployment_id}/chat/completions?api-version={api_version}"
     headers = {"Content-Type": "application/json", "api-key": f"{api_key}"}
 
-    print(f"Sending request to {url}")  # TODO remove
+    printd(f"Sending request to {url}")
     try:
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
@@ -113,7 +114,7 @@ def azure_openai_embeddings_request(resource_name, deployment_id, api_version, a
     url = f"https://{resource_name}.openai.azure.com/openai/deployments/{deployment_id}/embeddings?api-version={api_version}"
     headers = {"Content-Type": "application/json", "api-key": f"{api_key}"}
 
-    print(f"Sending request to {url}")  # TODO remove
+    printd(f"Sending request to {url}")
     try:
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
