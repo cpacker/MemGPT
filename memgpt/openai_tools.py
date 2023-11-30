@@ -318,7 +318,6 @@ def create(
     functions=None,
     function_call="auto",
 ):
-
     """Return response to chat completion with backoff"""
     from memgpt.utils import printd
     from memgpt.config import MemGPTConfig
