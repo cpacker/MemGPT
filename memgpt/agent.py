@@ -6,14 +6,12 @@ import traceback
 
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import AgentConfig, MemGPTConfig
-from .system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
-from .memory import CoreMemory as Memory, summarize_messages
-from .openai_tools import completions_with_backoff as create, is_context_overflow_error
-from memgpt.openai_tools import chat_completion_with_backoff
-from .utils import get_local_time, parse_json, united_diff, printd, count_tokens, get_schema_diff
-from .constants import (
+from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
+from memgpt.memory import CoreMemory as Memory, summarize_messages
+from memgpt.openai_tools import create, is_context_overflow_error
+from memgpt.utils import get_local_time, parse_json, united_diff, printd, count_tokens, get_schema_diff
+from memgpt.constants import (
     FIRST_MESSAGE_ATTEMPTS,
-    MAX_PAUSE_HEARTBEATS,
     MESSAGE_SUMMARY_WARNING_FRAC,
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
@@ -759,33 +757,8 @@ class Agent(object):
         function_call="auto",
     ):
         """Get response from LLM API"""
-
-        # TODO: Legacy code - delete
-        if self.config is None:
-            try:
-                response = create(
-                    model=self.model,
-                    context_window=self.context_window,
-                    messages=message_sequence,
-                    functions=self.functions,
-                    function_call=function_call,
-                )
-
-                # special case for 'length'
-                if response.choices[0].finish_reason == "length":
-                    raise Exception("Finish reason was length (maximum context length)")
-
-                # catches for soft errors
-                if response.choices[0].finish_reason not in ["stop", "function_call"]:
-                    raise Exception(f"API call finish with bad finish reason: {response}")
-
-                # unpack with response.choices[0].message.content
-                return response
-            except Exception as e:
-                raise e
-
         try:
-            response = chat_completion_with_backoff(
+            response = create(
                 agent_config=self.config,
                 messages=message_sequence,
                 functions=self.functions,

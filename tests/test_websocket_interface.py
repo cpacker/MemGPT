@@ -1,18 +1,12 @@
-import argparse
-import os
-import subprocess
-import sys
-
 import pytest
 from unittest.mock import Mock, AsyncMock, MagicMock
 
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.server.websocket_interface import SyncWebSocketInterface
 import memgpt.presets as presets
-import memgpt.personas.personas as personas
-import memgpt.humans.humans as humans
+import memgpt.utils as utils
 import memgpt.system as system
-from memgpt.persistence_manager import InMemoryStateManager
+from memgpt.persistence_manager import LocalStateManager
 
 
 # def test_websockets():
@@ -59,17 +53,20 @@ async def test_websockets():
     # Register the mock websocket as a client
     ws_interface.register_client(mock_websocket)
 
-    # Mock the persistence manager
-    persistence_manager = InMemoryStateManager()
-
     # Create an agent and hook it up to the WebSocket interface
     config = MemGPTConfig()
+
+    # Mock the persistence manager
+    # create agents with defaults
+    agent_config = AgentConfig(persona="sam_pov", human="basic", model="gpt-4-1106-preview")
+    persistence_manager = LocalStateManager(agent_config=agent_config)
+
     memgpt_agent = presets.use_preset(
         presets.DEFAULT_PRESET,
         config,  # no agent config to provide
         "gpt-4-1106-preview",
-        personas.get_persona_text("sam_pov"),
-        humans.get_human_text("basic"),
+        utils.get_persona_text("sam_pov"),
+        utils.get_human_text("basic"),
         ws_interface,
         persistence_manager,
     )
