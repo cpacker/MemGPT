@@ -223,7 +223,8 @@ User_proxy (to chat_manager):
 ...
 ```
 
-## Loading documents
+### Part 4: Attaching documents to MemGPT AutoGen agents
+
 
 [examples/agent_docs.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_docs.py) contains an example of a groupchat where the MemGPT autogen agent has access to documents.
 
