@@ -49,6 +49,7 @@ websockets = "^12.0"
 docstring-parser = "^0.15"
 lancedb = {version = "^0.3.3", optional = true}
 httpx = "^0.25.2"
+pyautogen = {version = "0.1.14", optional = true}
 
 [tool.poetry.extras]
 legacy = ["faiss-cpu", "numpy"]
@@ -56,6 +57,7 @@ local = ["torch", "huggingface-hub", "transformers"]
 lancedb = ["lancedb"]
 postgres = ["pgvector", "psycopg", "psycopg-binary", "psycopg2-binary", "pg8000"]
 dev = ["pytest", "black", "pre-commit", "datasets"]
+autogen = ["pyautogen"]
 
 [build-system]
 requires = ["poetry-core"]
