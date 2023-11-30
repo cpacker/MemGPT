@@ -22,6 +22,14 @@ def smart_urljoin(base_url, relative_url):
     return urllib.parse.urljoin(base_url, relative_url)
 
 
+def clean_azure_endpoint(raw_endpoint_name):
+    """Make sure the endpoint is of format 'https://YOUR_RESOURCE_NAME.openai.azure.com'"""
+    endpoint_address = raw_endpoint_name.strip("/").replace(".openai.azure.com", "")
+    endpoint_address = endpoint_address.replace("http://", "")
+    endpoint_address = endpoint_address.replace("https://", "")
+    return endpoint_address
+
+
 def openai_chat_completions_request(url, api_key, data):
     """https://platform.openai.com/docs/guides/text-generation?lang=curl"""
 
@@ -73,6 +81,7 @@ def openai_embeddings_request(url, api_key, data):
 def azure_openai_chat_completions_request(resource_name, deployment_id, api_version, api_key, data):
     """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#chat-completions"""
 
+    resource_name = clean_azure_endpoint(resource_name)
     url = f"https://{resource_name}.openai.azure.com/openai/deployments/{deployment_id}/chat/completions?api-version={api_version}"
     headers = {"Content-Type": "application/json", "api-key": f"{api_key}"}
 
@@ -81,6 +90,9 @@ def azure_openai_chat_completions_request(resource_name, deployment_id, api_vers
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
         response = response.json()  # convert to dict from string
+        # NOTE: azure openai does not include "content" in the response when it is None, so we need to add it
+        if "content" not in response["choices"][0].get("message"):
+            response["choices"][0]["message"]["content"] = None
         response = Box(response)  # convert to 'dot-dict' style which is the openai python client default
         return response
     except requests.exceptions.HTTPError as http_err:
@@ -97,6 +109,7 @@ def azure_openai_chat_completions_request(resource_name, deployment_id, api_vers
 def azure_openai_embeddings_request(resource_name, deployment_id, api_version, api_key, data):
     """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings"""
 
+    resource_name = clean_azure_endpoint(resource_name)
     url = f"https://{resource_name}.openai.azure.com/openai/deployments/{deployment_id}/embeddings?api-version={api_version}"
     headers = {"Content-Type": "application/json", "api-key": f"{api_key}"}
 
@@ -207,10 +220,6 @@ def chat_completion_with_backoff(
     printd(f"Using model {agent_config.model_endpoint_type}, endpoint: {agent_config.model_endpoint}")
     if agent_config.model_endpoint_type == "openai":
         # openai
-        # openai.api_base = agent_config.model_endpoint
-        # return openai.ChatCompletion.create(
-        # model=agent_config.model, messages=messages, functions=functions, function_call=function_call, user=config.anon_clientid
-        # )
         return openai_chat_completions_request(
             url=agent_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
             api_key=config.openai_key,  # 'sk....'
@@ -223,34 +232,16 @@ def chat_completion_with_backoff(
             ),
         )
     elif agent_config.model_endpoint_type == "azure":
-        # # azure
-        # openai.api_type = "azure"
-        # openai.api_key = config.azure_key
-        # openai.api_base = config.azure_endpoint
-        # openai.api_version = config.azure_version
-        # if config.azure_deployment is not None:
-        #     deployment_id = config.azure_deployment
-        #     engine = None
-        #     model = config.model
-        # else:
-        #     engine = MODEL_TO_AZURE_ENGINE[config.model]
-        #     model = None
-        #     deployment_id = None
-        # return openai.ChatCompletion.create(
-        #     model=model,
-        #     messages=messages,
-        #     engine=engine,
-        #     deployment_id=deployment_id,
-        #     functions=functions,
-        #     function_call=function_call,
-        #     user=client_id,
-        # )
+        # azure
+        azure_deployment = config.azure_deployment if config.azure_deployment is not None else MODEL_TO_AZURE_ENGINE[agent_config.model]
         return azure_openai_chat_completions_request(
-            resource_name=config.azure_endpoint,  # TODO check
-            deployment_id=config.azure_deployment,  # TODO check
+            resource_name=config.azure_endpoint,
+            deployment_id=azure_deployment,
+            api_version=config.azure_version,
             api_key=config.azure_key,
             data=dict(
-                model=agent_config.model,  # TODO fix should probably depend on MODEL_TO_AZURE_ENGINE?
+                # NOTE: don't pass model to Azure calls, that is the deployment_id
+                # model=agent_config.model,
                 messages=messages,
                 functions=functions,
                 function_call=function_call,
@@ -310,11 +301,12 @@ def get_embedding_with_backoff(text, model="text-embedding-ada-002"):
 
 
 MODEL_TO_AZURE_ENGINE = {
+    "gpt-4-1106-preview": "gpt-4-1106-preview",  # TODO check
     "gpt-4": "gpt-4",
     "gpt-4-32k": "gpt-4-32k",
-    "gpt-3.5": "gpt-35-turbo",
-    "gpt-3.5-turbo": "gpt-35-turbo",
-    "gpt-3.5-turbo-16k": "gpt-35-turbo-16k",
+    "gpt-3.5": "gpt-35-turbo",  # diff
+    "gpt-3.5-turbo": "gpt-35-turbo",  # diff
+    "gpt-3.5-turbo-16k": "gpt-35-turbo-16k",  # diff
 }
 
 
@@ -347,12 +339,6 @@ def configure_azure_support():
     ]:
         print(f"Error: missing Azure OpenAI environment variables. Please see README section on Azure.")
         return
-
-    # openai.api_type = "azure"
-    # openai.api_key = azure_openai_key
-    # openai.api_base = azure_openai_endpoint
-    # openai.api_version = azure_openai_version
-    # deployment gets passed into chatcompletion
 
 
 def check_azure_embeddings():
