@@ -252,7 +252,7 @@ Note: you can ignore the "_LLM is explicitly disabled_" message.
 
 Now, you can run `agent_docs.py`, which asks `MemGPT_coder` what a virtual context is:
 ```sh
-python memgpt/autogen/examples/agent_groupchat.py
+python memgpt/autogen/examples/agent_docs.py
 ```
 ```text
 Ingesting 65 passages into MemGPT_agent
