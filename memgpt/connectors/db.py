@@ -189,14 +189,17 @@ class LanceDBConnector(StorageConnector):
 
     # TODO: this should probably eventually be moved into a parent DB class
 
-    def __init__(self, name: Optional[str] = None):
+    def __init__(self, name: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
         config = MemGPTConfig.load()
-
         # determine table name
-        if name:
+        if agent_config:
+            assert name is None, f"Cannot specify both agent config and name {name}"
+            self.table_name = self.generate_table_name_agent(agent_config)
+        elif name:
+            assert agent_config is None, f"Cannot specify both agent config and name {name}"
             self.table_name = self.generate_table_name(name)
         else:
-            self.table_name = "lancedb_tbl"
+            raise ValueError("Must specify either agent config or name")
 
         printd(f"Using table name {self.table_name}")
 
@@ -207,15 +210,17 @@ class LanceDBConnector(StorageConnector):
         import lancedb
 
         self.db = lancedb.connect(self.uri)
-        self.table = None
+        if self.table_name in self.db.table_names():
+            self.table = self.db[self.table_name]
+        else:
+            self.table = None
 
     def get_all_paginated(self, page_size: int) -> Iterator[List[Passage]]:
-        session = self.Session()
+        ds = self.table.to_lance()
         offset = 0
         while True:
             # Retrieve a chunk of records with the given page_size
-            db_passages_chunk = self.table.search().limit(page_size).to_list()
-
+            db_passages_chunk = ds.to_table(offset=offset, limit=page_size).to_pylist()
             # If the chunk is empty, we've retrieved all records
             if not db_passages_chunk:
                 break
@@ -229,7 +234,7 @@ class LanceDBConnector(StorageConnector):
             offset += page_size
 
     def get_all(self, limit=10) -> List[Passage]:
-        db_passages = self.table.search().limit(limit).to_list()
+        db_passages = self.table.to_lance().to_table(limit=limit).to_pylist()
         return [Passage(text=p["text"], embedding=p["vector"], doc_id=p["doc_id"], passage_id=p["passage_id"]) for p in db_passages]
 
     def get(self, id: str) -> Optional[Passage]:
@@ -243,7 +248,7 @@ class LanceDBConnector(StorageConnector):
     def size(self) -> int:
         # return size of table
         if self.table:
-            return len(self.table.search().to_list())
+            return len(self.table)
         else:
             print(f"Table with name {self.table_name} not present")
             return 0
@@ -251,7 +256,7 @@ class LanceDBConnector(StorageConnector):
     def insert(self, passage: Passage):
         data = [{"doc_id": passage.doc_id, "text": passage.text, "passage_id": passage.passage_id, "vector": passage.embedding}]
 
-        if self.table:
+        if self.table is not None:
             self.table.add(data)
         else:
             self.table = self.db.create_table(self.table_name, data=data, mode="overwrite")
@@ -263,18 +268,17 @@ class LanceDBConnector(StorageConnector):
             temp_dict = {"doc_id": passage.doc_id, "text": passage.text, "passage_id": passage.passage_id, "vector": passage.embedding}
             data.append(temp_dict)
 
-        if self.table:
+        if self.table is not None:
             self.table.add(data)
         else:
             self.table = self.db.create_table(self.table_name, data=data, mode="overwrite")
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10) -> List[Passage]:
         # Assuming query_vec is of same length as embeddings inside table
-        results = self.table.search(query_vec).limit(top_k)
-
+        results = self.table.search(query_vec).limit(top_k).to_list()
         # Convert the results into Passage objects
         passages = [
-            Passage(text=result["text"], embedding=result["embedding"], doc_id=result["doc_id"], passage_id=result["passage_id"])
+            Passage(text=result["text"], embedding=result["vector"], doc_id=result["doc_id"], passage_id=result["passage_id"])
             for result in results
         ]
         return passages
@@ -315,6 +319,9 @@ class LanceDBConnector(StorageConnector):
         name = name.lower()
 
         return name
+
+    def generate_table_name_agent(self, agent_config: AgentConfig):
+        return f"memgpt_agent_{self.sanitize_table_name(agent_config.name)}"
 
     def generate_table_name(self, name: str):
         return f"memgpt_{self.sanitize_table_name(name)}"
