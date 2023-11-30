@@ -5,7 +5,7 @@ import requests
 
 
 from memgpt.constants import MESSAGE_CHATGPT_FUNCTION_MODEL, MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE, MAX_PAUSE_HEARTBEATS
-from memgpt.openai_tools import completions_with_backoff as create
+from memgpt.openai_tools import create
 
 
 def message_chatgpt(self, message: str):
