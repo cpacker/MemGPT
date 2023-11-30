@@ -45,6 +45,9 @@ docstring-parser = "^0.15"
 lancedb = {version = "^0.3.3", optional = true}
 httpx = "^0.25.2"
 pyautogen = {version = "0.1.14", optional = true}
+numpy = "^1.26.2"
+demjson3 = "^3.0.6"
+tiktoken = "^0.5.1"
 
 [tool.poetry.extras]
 local = ["torch", "huggingface-hub", "transformers"]

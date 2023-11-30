@@ -43,4 +43,3 @@ def test_save_load():
 if __name__ == "__main__":
     test_configure_memgpt()
     test_save_load()
-    # test_legacy_cli_sequence()

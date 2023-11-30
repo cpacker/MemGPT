@@ -1,31 +1,14 @@
-import glob
 import inspect
-import random
-import string
 import json
 import os
 import uuid
-import textwrap
 from dataclasses import dataclass
 import configparser
 
-
-import questionary
-
-from colorama import Fore, Style
-
-from typing import List, Type
-
 import memgpt
 import memgpt.utils as utils
-from memgpt.interface import CLIInterface as interface
-from memgpt.personas.personas import get_persona_text
-from memgpt.humans.humans import get_human_text
 from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS
-import memgpt.constants as constants
-import memgpt.personas.personas as personas
-import memgpt.humans.humans as humans
-from memgpt.presets.presets import DEFAULT_PRESET, preset_options
+from memgpt.presets.presets import DEFAULT_PRESET
 
 
 # helper functions for writing to configs
@@ -72,8 +55,8 @@ class MemGPTConfig:
     azure_embedding_deployment: str = None
 
     # persona parameters
-    persona: str = personas.DEFAULT
-    human: str = humans.DEFAULT
+    persona: str = None
+    human: str = None
     agent: str = None
 
     # embedding parameters

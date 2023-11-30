@@ -96,10 +96,6 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                     memgpt_agent.save()
                     continue
                 elif user_input.lower() == "/attach":
-                    if legacy:
-                        typer.secho("Error: /attach is not supported in legacy mode.", fg=typer.colors.RED, bold=True)
-                        continue
-
                     # TODO: check if agent already has it
                     data_source_options = StorageConnector.list_loaded_data()
                     if len(data_source_options) == 0:
