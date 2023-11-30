@@ -5,7 +5,7 @@ To install MemGPT from source, start by cloning the repo:
 git clone git@github.com:cpacker/MemGPT.git
 ```
 
-### Installing dependencies with poetry** (recommended)
+### Installing dependencies with poetry (recommended)
 
 First, install Poetry using [the official instructions here](https://python-poetry.org/docs/#installation).
 
