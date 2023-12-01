@@ -34,7 +34,7 @@ Install web UI and get a model set up on a local web server. You can use [our in
     
     MemGPT requires an LLM that is good at function calling to work well - if the LLM is bad at function calling, **MemGPT will not work properly**.
 
-    Visit [our Discord server](https://discord.gg/9GEQrxmVyE) for an up-to-date list of recommended LLMs / models to use with MemGPT.
+    Visit [our Discord server](https://discord.gg/9GEQrxmVyE) and check the #model-chat channel for an up-to-date list of recommended LLMs / models to use with MemGPT.
 
 ### Part 2: Get MemGPT working
 
@@ -54,16 +54,9 @@ Once you've confirmed that you're able to chat with a MemGPT agent using `memgpt
 
 Now we're going to integrate MemGPT and AutoGen by creating a special "MemGPT AutoGen agent" that wraps MemGPT in an AutoGen-style agent interface.
 
-First, make sure you have AutoGen installed (choose only ONE of the following methods depending on how you installed MemGPT):
+First, make sure you have AutoGen installed:
 ```sh
-# if you installed MemGPT with `pip install pymemgpt`
-pip install pymemgpt[autogen]
-
-# if you installed MemGPT with `git clone`, `cd MemGPT`, `pip install -e .`
-pip install -e .[autogen]
-
-# if you installed MemGPT with `poetry install`
-poetry install -E autogen
+pip install pyautogen
 ```
 
 Going back to the example we first mentioned, [examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) contains an example of a groupchat where one of the agents is powered by MemGPT.
@@ -146,12 +139,92 @@ If you are using the OpenAI API (e.g. using `gpt-4-turbo` via your own OpenAI AP
     ]
 ```
 
+!!! warning "Making internal monologue visible to AutoGen"
+
+    By default, MemGPT's inner monologue and function traces are hidden from other AutoGen agents.
+    
+    You can modify `interface_kwargs` to change the visibility of inner monologue and function calling:
+    ```python
+    interface_kwargs = {
+        "debug": False,  # this is the equivalent of the --debug flag in the MemGPT CLI
+        "show_inner_thoughts": True,  # this controls if internal monlogue will show up in AutoGen MemGPT agent's outputs
+        "show_function_outputs": True,  # this controls if function traces will show up in AutoGen MemGPT agent's outputs
+    }
+    ```
+
 The only parts of the `agent_groupchat.py` file you need to modify should be the `config_list` and `config_list_memgpt` (make sure to change `USE_OPENAI` to `True` or `False` depending on if you're trying to use a local LLM server like web UI, or OpenAI's API). Assuming you edited things correctly, you should now be able to run `agent_groupchat.py`:
 ```sh
 python memgpt/autogen/examples/agent_groupchat.py
 ```
 
-## Loading documents
+Your output should look something like this:
+```text
+User_proxy (to chat_manager):
+
+I want to design an app to make me one million dollars in one month. Yes, your heard that right.
+
+--------------------------------------------------------------------------------
+Product_manager (to chat_manager):
+
+Creating an app or software product that can generate one million dollars in one month is a highly ambitious goal. To achieve such a significant financial outcome quickly, your app idea needs to appeal to a broad audience, solve a significant problem, create immense value, and have a solid revenue model. Here are a few steps and considerations that might help guide you towards that goal:
+
+1. **Identify a Niche Market or Trend:** Look for emerging trends or underserved niches that are gaining traction. This could involve addressing new consumer behaviors, leveraging new technologies, or entering a rapidly growing industry.
+
+2. **Solve a Real Problem:** Focus on a problem that affects a large number of people or businesses and offer a unique, effective solution. The more painful the problem, the more willing customers will be to pay for a solution.
+
+3. **Monetization Strategy:** Decide how you will make money from your app. Common strategies include paid downloads, in-app purchases, subscription models, advertising, or a freemium model with premium features.
+
+4. **Viral Mechanism:** Design your app so that it encourages users to share it with others, either through inherent network effects (e.g., social media platforms) or through incentives (e.g., referral programs).
+
+5. **Marketing Campaign:** Even the best app can't make money if people don't know about it. Plan a robust marketing campaign to launch your app, using social media, influencer partnerships, press releases, and advertising.
+
+6. **Rapid Iteration and Scaling:** Be prepared to iterate rapidly based on user feedback and scale quickly to accommodate user growth. The faster you can improve and grow, the more likely it is you'll reach your revenue target.
+
+7. **Partnerships and Alliances:** Partner with other companies or influencers who can market your product to their user base. This could provide a significant boost to your initial user acquisition.
+
+8. **Compliance and Security:** Ensure that your app complies with all legal requirements and has high standards of privacy and security, especially if you are handling sensitive user data.
+
+Here are a few app ideas that have the potential to be lucrative if well executed:
+
+- **Health and Wellness Platform:** An app that uses AI to personalize workout and nutrition plans, with a community feature for motivation and support. Monetize through subscription and premium features.
+
+- **FinTech Solution:** An investment or savings app that simplifies the process of cryptocurrency trading or micro-investment. Make money through transaction fees or subscription services.
+
+- **Educational Platform:** Offer a unique learning experience with expert-created content for specific skills in high demand, such as coding, design, or digital marketing. Use a subscription model with tiered pricing.
+
+- **AR/VR Experiences:** Develop an app that provides immersive experiences for entertainment, education, or practical purposes like interior design. Charge for the app itself or offer in-app purchases.
+
+- **Marketplace or Gig Economy App:** Create a platform that matches freelancers or service providers with people who need their services. Revenue could come from taking a cut of the transactions.
+
+Remember, achieving one million dollars in revenue in such a short time frame would require not only a highly appealing and innovative product but also flawless execution, significant marketing efforts, and perhaps a bit of luck. Be realistic about your goals and focus on building a sustainable business that provides real value over the long term.
+
+--------------------------------------------------------------------------------
+MemGPT_coder (to chat_manager):
+
+Great goal! Generating a million dollars in one month with an app is ambitious, but definitely doable if you approach it the right way. Here are some tips and potential ideas that could help: 
+
+1. Identify a niche market or trend (for example, AI-powered fitness apps or FinTech solutions). 
+2. Solve a significant problem for many people (such as time management or financial literacy). 
+3. Choose an effective monetization strategy like subscriptions, in-app purchases, or advertising. 
+4. Make sure your app is visually appealing and easy to use to keep users engaged.
+
+Some ideas that might work: 
+- AI-powered personal finance management app
+- A virtual assistant app that helps people manage their daily tasks
+- A social networking platform for job seekers or freelancers
+
+Remember, success often comes from focusing on a specific problem and delivering a unique solution. Good luck!
+
+--------------------------------------------------------------------------------
+
+>>>>>>>> USING AUTO REPLY...
+User_proxy (to chat_manager):
+
+...
+```
+
+### Part 4: Attaching documents to MemGPT AutoGen agents
+
 
 [examples/agent_docs.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_docs.py) contains an example of a groupchat where the MemGPT autogen agent has access to documents.
 
@@ -171,36 +244,33 @@ memgpt load directory --name memgpt_research_paper --input-files=memgpt_research
 loading data
 done loading data
 LLM is explicitly disabled. Using MockLLM.
-LLM is explicitly disabled. Using MockLLM.
-Parsing documents into nodes: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 15/15 [00:00<00:00, 392.09it/s]
-Generating embeddings: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 65/65 [00:01<00:00, 37.34it/s]
-100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 65/65 [00:00<00:00, 388361.48it/s]
-Saved local /home/user/.memgpt/archival/memgpt_research_paper/nodes.pkl
+Parsing documents into nodes: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 15/15 [00:00<00:00, 321.56it/s]
+Generating embeddings: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 65/65 [00:01<00:00, 43.22it/s]
+100%|██████████████████████████████████████████████
 ```
 
 Note: you can ignore the "_LLM is explicitly disabled_" message.
 
 Now, you can run `agent_docs.py`, which asks `MemGPT_coder` what a virtual context is:
+```sh
+python memgpt/autogen/examples/agent_docs.py
 ```
-❯ python3 agent_docs.py
-LLM is explicitly disabled. Using MockLLM.
-LLM is explicitly disabled. Using MockLLM.
-LLM is explicitly disabled. Using MockLLM.
-Generating embeddings: 0it [00:00, ?it/s]
-new size 60
-Saved local /Users/vivian/.memgpt/agents/agent_25/persistence_manager/index/nodes.pkl
-Attached data source memgpt_research_paper to agent agent_25, consisting of 60. Agent now has 60 embeddings in archival memory.
-LLM is explicitly disabled. Using MockLLM.
+```text
+Ingesting 65 passages into MemGPT_agent
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:01<00:00,  1.47s/it]
+Attached data source memgpt_research_paper to agent MemGPT_agent, consisting of 65. Agent now has 2015 embeddings in archival memory.
+
 User_proxy (to chat_manager):
 
-Tell me what a virtual context in MemGPT is. Search your archival memory.
+Tell me what virtual context in MemGPT is. Search your archival memory.
 
 --------------------------------------------------------------------------------
 GroupChat is underpopulated with 2 agents. Direct communication would be more efficient.
 
-MemGPT_coder (to chat_manager):
+MemGPT_agent (to chat_manager):
 
-Virtual context management is a technique used in large language models like MemGPT. It's used to handle context beyond limited context windows, which is crucial for tasks such as extended conversations and document analysis. The technique was inspired by hierarchical memory systems in traditional operating systems that provide the appearance of large memory resources through data movement between fast and slow memory. This system intelligently manages different memory tiers to effectively provide extended context within the model's limited context window.
+[inner thoughts] The user asked about virtual context in MemGPT. Let's search the archival memory with this query.
+[inner thoughts] Virtual context management is a technique used in large language models like MemGPT. It's used to handle context beyond limited context windows, which is crucial for tasks such as extended conversations and document analysis. The technique was inspired by hierarchical memory systems in traditional operating systems that provide the appearance of large memory resources through data movement between fast and slow memory. This system intelligently manages different memory tiers to effectively provide extended context within the model's limited context window.
 
 --------------------------------------------------------------------------------
 ...
