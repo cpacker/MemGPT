@@ -10,10 +10,6 @@ from box import Box
 
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
 
-HOST = os.getenv("OPENAI_API_BASE")
-HOST_TYPE = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
-R = TypeVar("R")
-
 
 def is_context_overflow_error(exception):
     from memgpt.utils import printd

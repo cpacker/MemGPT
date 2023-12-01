@@ -1,101 +1,226 @@
-## MemGPT + Autogen
+!!! question "Need help?"
+
+    If you need help visit our [Discord server](https://discord.gg/9GEQrxmVyE) and post in the #support channel.
+    
+    You can also check the [GitHub discussion page](https://github.com/cpacker/MemGPT/discussions/65), but the Discord server is the official support channel and is monitored more actively.
+
 [examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) contains an example of a groupchat where one of the agents is powered by MemGPT.
 
 If you are using OpenAI, you can also run it using the [example notebook](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/memgpt_coder_autogen.ipynb).
 
-In the next section, we detail how to set up MemGPT+Autogen to run with local LLMs.
+In the next section, we detail how to set up MemGPT and AutoGen to run with local LLMs.
 
+## Example: connecting AutoGen + MemGPT to non-OpenAI LLMs
 
-## Connect Autogen + MemGPT to non-OpenAI LLMs (AutoGen+MemGPT+OpenLLMs)
+To get MemGPT to work with a local LLM, you need to have an LLM running on a server that takes API requests.
 
-In WebUI enable the [openai extension](https://github.com/oobabooga/text-generation-webui/tree/main/extensions/openai)! This is for non-MemGPT Autogen agents.
+For the purposes of this example, we're going to serve (host) the LLMs using [oobabooga web UI](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui), but if you want to use something else you can! This also assumes your running web UI locally - if you're running on e.g. Runpod, you'll want to follow Runpod specific instructions (for example use [TheBloke's one-click UI and API](https://github.com/TheBlokeAI/dockerLLM/blob/main/README_Runpod_LocalLLMsUIandAPI.md)).
 
-To get MemGPT to work with a local LLM, you need to have the LLM running on a server that takes API requests.
+### Part 1: Get web UI working
 
-For the purposes of this example, we're going to serve (host) the LLMs using [oobabooga web UI](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui), but if you want to use something else you can! This also assumes your running web UI locally - if you're running on e.g. Runpod, you'll want to follow Runpod specific instructions (for example use [TheBloke's one-click UI and API](https://github.com/TheBlokeAI/dockerLLM/blob/main/README_Runpod_LocalLLMsUIandAPI.md))
+Install web UI and get a model set up on a local web server. You can use [our instructions on setting up web UI](https://memgpt.readthedocs.io/en/latest/webui/).
 
-### Part 1: Get AutoGen working
-1. Install oobabooga web UI using the instructions [here](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui)
-2. Once installed, launch the web server with `python server.py`
-3. Navigate to the web app (if local, this is probably [`http://127.0.0.1:7860`](http://localhost:7860)), select the model you want to use, adjust your GPU and CPU memory settings, and click "load"
-4. After the model is successfully loaded, navigate to the "Session" tab, and select and enable the "openai" extension. Then click "Apply flags/extensions and restart". The WebUI will then restart.
-5. Once the WebUI has reloaded, double-check that your selected model and parameters are still selected -- If not, then select your model and re-apply your settings and click "load" once more.
-5. Assuming steps 1-4 went correctly, the LLM is now properly hosted on a port you can point MemGPT to!
+!!! info "Choosing an LLM / model to use"
+
+    You'll need to decide on an LLM / model to use with web UI.
+    
+    MemGPT requires an LLM that is good at function calling to work well - if the LLM is bad at function calling, **MemGPT will not work properly**.
+
+    Visit [our Discord server](https://discord.gg/9GEQrxmVyE) and check the #model-chat channel for an up-to-date list of recommended LLMs / models to use with MemGPT.
 
 ### Part 2: Get MemGPT working
 
-1. In your terminal where you're running MemGPT (depending if you are on macOS or Windows), run either of the following:
+Before trying to integrate MemGPT with AutoGen, make sure that you can run MemGPT by itself with the web UI backend.
 
-***(Running WebUI locally)***
+Try setting up MemGPT with your local web UI backend [using the instructions here](https://memgpt.readthedocs.io/en/latest/local_llm/#using-memgpt-with-local-llms).
 
-For macOS :
+Once you've confirmed that you're able to chat with a MemGPT agent using `memgpt configure` and `memgpt run`, you're ready to move on to the next step.
+
+!!! info "Using RunPod as an LLM backend"
+
+    If you're using RunPod to run web UI, make sure that you set your endpoint to the RunPod IP address, **not the default localhost address**.
+
+    For example, during `memgpt configure`:
+    ```text
+    ? Enter default endpoint: https://yourpodaddresshere-5000.proxy.runpod.net
+    ```
+
+### Part 3: Creating a MemGPT AutoGen agent (groupchat example)
+
+Now we're going to integrate MemGPT and AutoGen by creating a special "MemGPT AutoGen agent" that wraps MemGPT in an AutoGen-style agent interface.
+
+First, make sure you have AutoGen installed:
 ```sh
-# the default port will be 5000
-export OPENAI_API_BASE=http://127.0.0.1:5000
-export BACKEND_TYPE=webui
+pip install pyautogen
 ```
 
-For Windows (while using PowerShell & running WebUI locally):
-```sh
-$env:OPENAI_API_BASE = "http://127.0.0.1:5000"
-$env:BACKEND_TYPE = "webui"
-```
-
-***(Running WebUI on Runpod)***
-
-For macOS :
-```sh
-export OPENAI_API_BASE=https://yourpodaddresshere-5000.proxy.runpod.net
-export BACKEND_TYPE=webui
-```
-
-For Windows (while using PowerShell):
-```sh
-$env:OPENAI_API_BASE = "https://yourpodaddresshere-5000.proxy.runpod.net"
-$env:BACKEND_TYPE = "webui"
-```
-
-### Important Notes
-- When exporting/setting the environment variables: Ensure that you do NOT include `/v1` as part of the address. MemGPT will automatically append the /v1 to the address.
-    - For non-MemGPT Autogen agents: the [config](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py#L38) should specify `/v1` in the address.
-
-- Make sure you are using port 5000 (unless configured otherwise) when exporting the environment variables. MemGPT uses the non-OpenAI API, which is by default on port 5000 for WebUI.
-
-- In the following steps, you will finish configuring Autogen to work with MemGPT+OpenLLMs. There is a `config_list` that will state to include `/v1` as part of the LocalHost address, as well as using port 5001 (instead of port 5000) which you must keep included (this is separate from the MemGPT `OPENAI_API_BASE` address you exported earlier, so AutoGen can connect to port 5001, which the "/v1" must remain).
-
-WebUI exposes a lot of parameters that can dramatically change LLM outputs, to change these you can modify the [WebUI settings file](https://github.com/cpacker/MemGPT/blob/main/memgpt/local_llm/webui/settings.py).
-
-⁉️ If you have problems getting WebUI setup, please use the [official web UI repo for support](https://github.com/oobabooga/text-generation-webui)! There will be more answered questions about web UI there vs here on the MemGPT repo.
-
-### Example groupchat
 Going back to the example we first mentioned, [examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) contains an example of a groupchat where one of the agents is powered by MemGPT.
 
-In order to run this example on a local LLM, go to lines 32-55 in [examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) and fill in the config files with your local LLM's deployment details. For example, if you are using webui, it will look something like this:
+In order to run this example on a local LLM, go to lines 46-66 in [examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) and fill in the config files with your local LLM's deployment details.
 
-```
+`config_list` is used by non-MemGPT AutoGen agents, which expect an OpenAI-compatible API. `config_list_memgpt` is used by MemGPT AutoGen agents, and requires additional settings specific to MemGPT (such as the `model_wrapper` and `context_window`.
+
+For example, if you are using web UI, it will look something like this:
+```python
+# Non-MemGPT agents will still use local LLMs, but they will use the ChatCompletions endpoint
 config_list = [
     {
-        "model": "dolphin-2.1-mistral-7b",  # this indicates the MODEL, not the WRAPPER (no concept of wrappers for AutoGen)
-        "api_base": "http://127.0.0.1:5001/v1"
-        "api_key": "NULL", # this is a placeholder
+        "model": "NULL",  # not needed
+        "api_base": "http://127.0.0.1:5001/v1",  # notice port 5001 for web UI
+        "api_key": "NULL",  #  not needed
         "api_type": "open_ai",
     },
 ]
+
+# MemGPT-powered agents will also use local LLMs, but they need additional setup (also they use the Completions endpoint)
 config_list_memgpt = [
     {
-        "model": "airoboros-l2-70b-2.1",  # this specifies the WRAPPER MemGPT will use, not the MODEL
+        "preset": DEFAULT_PRESET,
+        "model": None,  # not required for web UI, only required for Ollama, see: https://memgpt.readthedocs.io/en/latest/ollama/
+        "model_wrapper": "airoboros-l2-70b-2.1",  # airoboros is the default wrapper and should work for most models
+        "model_endpoint_type": "webui",
+        "model_endpoint": "http://localhost:5000",  # notice port 5000 for web UI
+        "context_window": 8192,  # the context window of your model (for Mistral 7B-based models, it's likely 8192)
     },
 ]
 ```
-`config_list` is used by non-MemGPT agents, which expect an OpenAI-compatible API.
 
-`config_list_memgpt` is used by MemGPT agents. Currently, MemGPT interfaces with the LLM backend by exporting `OPENAI_API_BASE` and `BACKEND_TYPE` as described above. Note that MemGPT does not use the OpenAI-compatible API (it uses the direct API).
+If you are using LM Studio, then you'll need to change the `api_base` in `config_list`, and `model_endpoint_type` + `model_endpoint` in `config_list_memgpt`:
+```python
+# Non-MemGPT agents will still use local LLMs, but they will use the ChatCompletions endpoint
+config_list = [
+    {
+        "model": "NULL",
+        "api_base": "http://127.0.0.1:1234/v1",  # port 1234 for LM Studio
+        "api_key": "NULL",
+        "api_type": "open_ai",
+    },
+]
 
-If you're using WebUI and want to run the non-MemGPT agents with a local LLM instead of OpenAI, enable the [openai extension](https://github.com/oobabooga/text-generation-webui/tree/main/extensions/openai) and point `config_list`'s `api_base` to the appropriate URL (usually port 5001).
-Then, for MemGPT agents, export `OPENAI_API_BASE` and `BACKEND_TYPE` as described in [Local LLM support](../local_llm) (usually port 5000).
+# MemGPT-powered agents will also use local LLMs, but they need additional setup (also they use the Completions endpoint)
+config_list_memgpt = [
+    {
+        "preset": DEFAULT_PRESET,
+        "model": None,
+        "model_wrapper": "airoboros-l2-70b-2.1",
+        "model_endpoint_type": "lmstudio",
+        "model_endpoint": "http://localhost:1234",  # port 1234 for LM Studio
+        "context_window": 8192,
+    },
+]
+```
+
+If you are using the OpenAI API (e.g. using `gpt-4-turbo` via your own OpenAI API account), then the `config_list` for the AutoGen agent and `config_list_memgpt` for the MemGPT AutoGen agent will look different (a lot simpler):
+```python
+# This config is for autogen agents that are not powered by MemGPT
+config_list = [
+    {
+        "model": "gpt-4-1106-preview",  # gpt-4-turbo (https://platform.openai.com/docs/models/gpt-4-and-gpt-4-turbo)
+        "api_key": os.getenv("OPENAI_API_KEY"),
+    }
+]
+
+# This config is for autogen agents that powered by MemGPT
+config_list_memgpt = [
+    {
+        "model": "gpt-4-1106-preview",  # gpt-4-turbo (https://platform.openai.com/docs/models/gpt-4-and-gpt-4-turbo)
+        "preset": DEFAULT_PRESET,
+        "model": None,
+        "model_wrapper": None,
+        "model_endpoint_type": None,
+        "model_endpoint": None,
+        "context_window": 128000,  # gpt-4-turbo
+    },
+]
+```
+
+!!! info "Making internal monologue visible to AutoGen"
+
+    By default, MemGPT's inner monologue and function traces are hidden from other AutoGen agents.
+    
+    You can modify `interface_kwargs` to change the visibility of inner monologue and function calling:
+    ```python
+    interface_kwargs = {
+        "debug": False,  # this is the equivalent of the --debug flag in the MemGPT CLI
+        "show_inner_thoughts": True,  # this controls if internal monlogue will show up in AutoGen MemGPT agent's outputs
+        "show_function_outputs": True,  # this controls if function traces will show up in AutoGen MemGPT agent's outputs
+    }
+    ```
+
+The only parts of the `agent_groupchat.py` file you need to modify should be the `config_list` and `config_list_memgpt` (make sure to change `USE_OPENAI` to `True` or `False` depending on if you're trying to use a local LLM server like web UI, or OpenAI's API). Assuming you edited things correctly, you should now be able to run `agent_groupchat.py`:
+```sh
+python memgpt/autogen/examples/agent_groupchat.py
+```
+
+Your output should look something like this:
+```text
+User_proxy (to chat_manager):
+
+I want to design an app to make me one million dollars in one month. Yes, your heard that right.
+
+--------------------------------------------------------------------------------
+Product_manager (to chat_manager):
+
+Creating an app or software product that can generate one million dollars in one month is a highly ambitious goal. To achieve such a significant financial outcome quickly, your app idea needs to appeal to a broad audience, solve a significant problem, create immense value, and have a solid revenue model. Here are a few steps and considerations that might help guide you towards that goal:
+
+1. **Identify a Niche Market or Trend:** Look for emerging trends or underserved niches that are gaining traction. This could involve addressing new consumer behaviors, leveraging new technologies, or entering a rapidly growing industry.
+
+2. **Solve a Real Problem:** Focus on a problem that affects a large number of people or businesses and offer a unique, effective solution. The more painful the problem, the more willing customers will be to pay for a solution.
+
+3. **Monetization Strategy:** Decide how you will make money from your app. Common strategies include paid downloads, in-app purchases, subscription models, advertising, or a freemium model with premium features.
+
+4. **Viral Mechanism:** Design your app so that it encourages users to share it with others, either through inherent network effects (e.g., social media platforms) or through incentives (e.g., referral programs).
+
+5. **Marketing Campaign:** Even the best app can't make money if people don't know about it. Plan a robust marketing campaign to launch your app, using social media, influencer partnerships, press releases, and advertising.
+
+6. **Rapid Iteration and Scaling:** Be prepared to iterate rapidly based on user feedback and scale quickly to accommodate user growth. The faster you can improve and grow, the more likely it is you'll reach your revenue target.
+
+7. **Partnerships and Alliances:** Partner with other companies or influencers who can market your product to their user base. This could provide a significant boost to your initial user acquisition.
+
+8. **Compliance and Security:** Ensure that your app complies with all legal requirements and has high standards of privacy and security, especially if you are handling sensitive user data.
+
+Here are a few app ideas that have the potential to be lucrative if well executed:
+
+- **Health and Wellness Platform:** An app that uses AI to personalize workout and nutrition plans, with a community feature for motivation and support. Monetize through subscription and premium features.
+
+- **FinTech Solution:** An investment or savings app that simplifies the process of cryptocurrency trading or micro-investment. Make money through transaction fees or subscription services.
+
+- **Educational Platform:** Offer a unique learning experience with expert-created content for specific skills in high demand, such as coding, design, or digital marketing. Use a subscription model with tiered pricing.
+
+- **AR/VR Experiences:** Develop an app that provides immersive experiences for entertainment, education, or practical purposes like interior design. Charge for the app itself or offer in-app purchases.
+
+- **Marketplace or Gig Economy App:** Create a platform that matches freelancers or service providers with people who need their services. Revenue could come from taking a cut of the transactions.
+
+Remember, achieving one million dollars in revenue in such a short time frame would require not only a highly appealing and innovative product but also flawless execution, significant marketing efforts, and perhaps a bit of luck. Be realistic about your goals and focus on building a sustainable business that provides real value over the long term.
+
+--------------------------------------------------------------------------------
+MemGPT_coder (to chat_manager):
+
+Great goal! Generating a million dollars in one month with an app is ambitious, but definitely doable if you approach it the right way. Here are some tips and potential ideas that could help: 
+
+1. Identify a niche market or trend (for example, AI-powered fitness apps or FinTech solutions). 
+2. Solve a significant problem for many people (such as time management or financial literacy). 
+3. Choose an effective monetization strategy like subscriptions, in-app purchases, or advertising. 
+4. Make sure your app is visually appealing and easy to use to keep users engaged.
+
+Some ideas that might work: 
+- AI-powered personal finance management app
+- A virtual assistant app that helps people manage their daily tasks
+- A social networking platform for job seekers or freelancers
+
+Remember, success often comes from focusing on a specific problem and delivering a unique solution. Good luck!
+
+--------------------------------------------------------------------------------
+
+>>>>>>>> USING AUTO REPLY...
+User_proxy (to chat_manager):
+
+...
+```
+
+### Part 4: Attaching documents to MemGPT AutoGen agents
 
 
-## Loading documents
 [examples/agent_docs.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_docs.py) contains an example of a groupchat where the MemGPT autogen agent has access to documents.
 
 First, follow the instructions in [Example - chat with your data - Creating an external data source](../example_data/#creating-an-external-data-source):
@@ -114,36 +239,33 @@ memgpt load directory --name memgpt_research_paper --input-files=memgpt_research
 loading data
 done loading data
 LLM is explicitly disabled. Using MockLLM.
-LLM is explicitly disabled. Using MockLLM.
-Parsing documents into nodes: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 15/15 [00:00<00:00, 392.09it/s]
-Generating embeddings: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 65/65 [00:01<00:00, 37.34it/s]
-100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 65/65 [00:00<00:00, 388361.48it/s]
-Saved local /home/user/.memgpt/archival/memgpt_research_paper/nodes.pkl
+Parsing documents into nodes: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 15/15 [00:00<00:00, 321.56it/s]
+Generating embeddings: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 65/65 [00:01<00:00, 43.22it/s]
+100%|██████████████████████████████████████████████
 ```
 
 Note: you can ignore the "_LLM is explicitly disabled_" message.
 
 Now, you can run `agent_docs.py`, which asks `MemGPT_coder` what a virtual context is:
+```sh
+python memgpt/autogen/examples/agent_docs.py
 ```
-❯ python3 agent_docs.py
-LLM is explicitly disabled. Using MockLLM.
-LLM is explicitly disabled. Using MockLLM.
-LLM is explicitly disabled. Using MockLLM.
-Generating embeddings: 0it [00:00, ?it/s]
-new size 60
-Saved local /Users/vivian/.memgpt/agents/agent_25/persistence_manager/index/nodes.pkl
-Attached data source memgpt_research_paper to agent agent_25, consisting of 60. Agent now has 60 embeddings in archival memory.
-LLM is explicitly disabled. Using MockLLM.
+```text
+Ingesting 65 passages into MemGPT_agent
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:01<00:00,  1.47s/it]
+Attached data source memgpt_research_paper to agent MemGPT_agent, consisting of 65. Agent now has 2015 embeddings in archival memory.
+
 User_proxy (to chat_manager):
 
-Tell me what a virtual context in MemGPT is. Search your archival memory.
+Tell me what virtual context in MemGPT is. Search your archival memory.
 
 --------------------------------------------------------------------------------
 GroupChat is underpopulated with 2 agents. Direct communication would be more efficient.
 
-MemGPT_coder (to chat_manager):
+MemGPT_agent (to chat_manager):
 
-Virtual context management is a technique used in large language models like MemGPT. It's used to handle context beyond limited context windows, which is crucial for tasks such as extended conversations and document analysis. The technique was inspired by hierarchical memory systems in traditional operating systems that provide the appearance of large memory resources through data movement between fast and slow memory. This system intelligently manages different memory tiers to effectively provide extended context within the model's limited context window.
+[inner thoughts] The user asked about virtual context in MemGPT. Let's search the archival memory with this query.
+[inner thoughts] Virtual context management is a technique used in large language models like MemGPT. It's used to handle context beyond limited context windows, which is crucial for tasks such as extended conversations and document analysis. The technique was inspired by hierarchical memory systems in traditional operating systems that provide the appearance of large memory resources through data movement between fast and slow memory. This system intelligently manages different memory tiers to effectively provide extended context within the model's limited context window.
 
 --------------------------------------------------------------------------------
 ...

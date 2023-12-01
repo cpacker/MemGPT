@@ -19,8 +19,6 @@ from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
 from memgpt.errors import LocalLLMConnectionError, LocalLLMError
 
-endpoint = os.getenv("OPENAI_API_BASE")
-endpoint_type = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
 DEBUG = False
 # DEBUG = True
 
@@ -103,7 +101,7 @@ def get_chat_completion(
             result = get_vllm_completion(endpoint, model, prompt, context_window, user)
         else:
             raise LocalLLMError(
-                f"BACKEND_TYPE is not set, please set variable depending on your backend (webui, lmstudio, llamacpp, koboldcpp)"
+                f"Invalid endpoint type {endpoint_type}, please set variable depending on your backend (webui, lmstudio, llamacpp, koboldcpp)"
             )
     except requests.exceptions.ConnectionError as e:
         raise LocalLLMConnectionError(f"Unable to connect to endpoint {endpoint}")

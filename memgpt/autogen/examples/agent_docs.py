@@ -14,29 +14,32 @@ Begin by doing:
 
 import os
 import autogen
-from memgpt.autogen.memgpt_agent import create_autogen_memgpt_agent, create_memgpt_autogen_agent_from_config
+from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config
+from memgpt.constants import LLM_MAX_TOKENS
 
-# USE_OPENAI = True
-USE_OPENAI = False
+USE_OPENAI = True
+# USE_OPENAI = False
 if USE_OPENAI:
-    # This config is for autogen agents that are not powered by MemGPT
+    # For demo purposes let's use gpt-4
+    model = "gpt-4"
+
+    # This config is for AutoGen agents that are not powered by MemGPT
     config_list = [
         {
-            "model": "gpt-4-1106-preview",  # gpt-4-turbo (https://platform.openai.com/docs/models/gpt-4-and-gpt-4-turbo)
+            "model": model,
             "api_key": os.getenv("OPENAI_API_KEY"),
         }
     ]
 
-    # This config is for autogen agents that powered by MemGPT
+    # This config is for AutoGen agents that powered by MemGPT
     config_list_memgpt = [
         {
-            "model": "gpt-4-1106-preview",  # gpt-4-turbo (https://platform.openai.com/docs/models/gpt-4-and-gpt-4-turbo)
+            "model": model,
             "preset": "memgpt_docs",
-            "model": None,
             "model_wrapper": None,
-            "model_endpoint_type": None,
-            "model_endpoint": None,
-            "context_window": 128000,  # gpt-4-turbo
+            "model_endpoint_type": "openai",
+            "model_endpoint": "https://api.openai.com/v1",
+            "context_window": LLM_MAX_TOKENS[model],
         },
     ]
 
@@ -71,8 +74,8 @@ DEBUG = False
 
 interface_kwargs = {
     "debug": DEBUG,
-    "show_inner_thoughts": DEBUG,
-    "show_function_outputs": DEBUG,
+    "show_inner_thoughts": True,
+    "show_function_outputs": False,
 }
 
 llm_config = {"config_list": config_list, "seed": 42}
@@ -92,9 +95,7 @@ user_proxy = autogen.UserProxyAgent(
 memgpt_agent = create_memgpt_autogen_agent_from_config(
     "MemGPT_agent",
     llm_config=llm_config_memgpt,
-    system_message=f"I am a 10x engineer, trained in Python. I was the first engineer at Uber "
-    f"(which I make sure to tell everyone I work with).\n"
-    f"You are participating in a group chat with a user ({user_proxy.name}).",
+    system_message=f"You are an AI research assistant.\n" f"You are participating in a group chat with a user ({user_proxy.name}).",
     interface_kwargs=interface_kwargs,
     default_auto_reply="...",  # Set a default auto-reply message here (non-empty auto-reply is required for LM Studio)
 )
@@ -108,5 +109,5 @@ manager = autogen.GroupChatManager(groupchat=groupchat, llm_config=llm_config)
 # Begin the group chat with a message from the user
 user_proxy.initiate_chat(
     manager,
-    message="Tell me what a virtual context in MemGPT is. Search your archival memory.",
+    message="Tell me what virtual context in MemGPT is. Search your archival memory.",
 )

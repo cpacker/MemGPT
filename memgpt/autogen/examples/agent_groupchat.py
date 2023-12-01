@@ -12,30 +12,33 @@ Begin by doing:
 
 import os
 import autogen
-from memgpt.autogen.memgpt_agent import create_autogen_memgpt_agent, create_memgpt_autogen_agent_from_config
+from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config
 from memgpt.presets.presets import DEFAULT_PRESET
 from memgpt.constants import LLM_MAX_TOKENS
 
 USE_OPENAI = True
+# USE_OPENAI = False
 if USE_OPENAI:
-    # This config is for autogen agents that are not powered by MemGPT
+    # For demo purposes let's use gpt-4
+    model = "gpt-4"
+
+    # This config is for AutoGen agents that are not powered by MemGPT
     config_list = [
         {
-            "model": "gpt-4-1106-preview",  # gpt-4-turbo (https://platform.openai.com/docs/models/gpt-4-and-gpt-4-turbo)
+            "model": model,
             "api_key": os.getenv("OPENAI_API_KEY"),
         }
     ]
 
-    # This config is for autogen agents that powered by MemGPT
+    # This config is for AutoGen agents that powered by MemGPT
     config_list_memgpt = [
         {
-            "model": "gpt-4-1106-preview",  # gpt-4-turbo (https://platform.openai.com/docs/models/gpt-4-and-gpt-4-turbo)
+            "model": model,
             "preset": DEFAULT_PRESET,
-            "model": None,
             "model_wrapper": None,
-            "model_endpoint_type": None,
-            "model_endpoint": None,
-            "context_window": 128000,  # gpt-4-turbo
+            "model_endpoint_type": "openai",
+            "model_endpoint": "https://api.openai.com/v1",
+            "context_window": LLM_MAX_TOKENS[model],
         },
     ]
 

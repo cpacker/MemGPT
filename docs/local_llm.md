@@ -1,4 +1,8 @@
-## Using MemGPT with local LLMs
+!!! question "Need help?"
+
+    If you need help visit our [Discord server](https://discord.gg/9GEQrxmVyE) and post in the #support channel.
+    
+    You can also check the [GitHub discussion page](https://github.com/cpacker/MemGPT/discussions/67), but the Discord server is the official support channel and is monitored more actively.
 
 !!! warning "MemGPT + local LLM failure cases"
 
@@ -8,8 +12,18 @@
 
 ### Installing dependencies
 To install dependencies required for running local models, run:
-```
+```sh
 pip install 'pymemgpt[local]'
+```
+
+If you installed from source (`git clone` then `pip install -e .`), do:
+```sh
+pip install -e '.[local]'
+```
+
+If you installed from source using Poetry, do:
+```sh
+poetry install -E local
 ```
 
 ### Quick overview
@@ -90,8 +104,10 @@ If you would like us to support a new backend, feel free to open an issue or pul
 
 ### Which model should I use?
 
+!!! info "Recommended LLMs / models"
+
+    To see a list of recommended LLMs to use with MemGPT, visit our [Discord server](https://discord.gg/9GEQrxmVyE) and check the #model-chat channel.
+
 If you are experimenting with MemGPT and local LLMs for the first time, we recommend you try the Dolphin Mistral finetune (e.g. [ehartford/dolphin-2.2.1-mistral-7b](https://huggingface.co/ehartford/dolphin-2.2.1-mistral-7b) or a quantized variant such as [dolphin-2.2.1-mistral-7b.Q6_K.gguf](https://huggingface.co/TheBloke/dolphin-2.2.1-mistral-7B-GGUF)), and use the default `airoboros` wrapper.
 
 Generating MemGPT-compatible outputs is a harder task for an LLM than regular text output. For this reason **we strongly advise users to NOT use models below Q5 quantization** - as the model gets worse, the number of errors you will encounter while using MemGPT will dramatically increase (MemGPT will not send messages properly, edit memory properly, etc.).
-
-Check out [our local LLM GitHub discussion](https://github.com/cpacker/MemGPT/discussions/67) and [the MemGPT Discord server](https://discord.gg/9GEQrxmVyE) for more advice on model selection and help with local LLM troubleshooting.

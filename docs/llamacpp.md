@@ -1,5 +1,3 @@
-### MemGPT + llama.cpp
-
 1. Download + install [llama.cpp](https://github.com/ggerganov/llama.cpp) and the model you want to test with
 2. In your terminal, run `./server -m <MODEL> -c <CONTEXT_LENGTH>`
 
@@ -19,7 +17,7 @@ In your terminal where you're running MemGPT, run `memgpt configure` to set the 
 ...
 ```
 
-If you have an existing agent that you want to move to the web UI backend, add extra flags to `memgpt run`:
+If you have an existing agent that you want to move to the llama.cpp backend, add extra flags to `memgpt run`:
 ```sh
 memgpt run --agent your_agent --model-endpoint-type llamacpp --model-endpoint http://localhost:8080
 ```
