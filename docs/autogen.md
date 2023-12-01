@@ -1,4 +1,4 @@
-!!! warning "Need help?"
+!!! question "Need help?"
 
     If you need help visit our [Discord server](https://discord.gg/9GEQrxmVyE) and post in the #support channel.
     
@@ -20,7 +20,7 @@ For the purposes of this example, we're going to serve (host) the LLMs using [oo
 
 Install web UI and get a model set up on a local web server. You can use [our instructions on setting up web UI](https://memgpt.readthedocs.io/en/latest/webui/).
 
-!!! warning "Choosing an LLM / model to use"
+!!! info "Choosing an LLM / model to use"
 
     You'll need to decide on an LLM / model to use with web UI.
     
@@ -36,7 +36,7 @@ Try setting up MemGPT with your local web UI backend [using the instructions her
 
 Once you've confirmed that you're able to chat with a MemGPT agent using `memgpt configure` and `memgpt run`, you're ready to move on to the next step.
 
-!!! warning "Using RunPod as an LLM backend"
+!!! info "Using RunPod as an LLM backend"
 
     If you're using RunPod to run web UI, make sure that you set your endpoint to the RunPod IP address, **not the default localhost address**.
 
@@ -134,7 +134,7 @@ config_list_memgpt = [
 ]
 ```
 
-!!! warning "Making internal monologue visible to AutoGen"
+!!! info "Making internal monologue visible to AutoGen"
 
     By default, MemGPT's inner monologue and function traces are hidden from other AutoGen agents.
     

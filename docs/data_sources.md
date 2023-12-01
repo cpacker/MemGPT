@@ -35,7 +35,7 @@ memgpt attach --agent <AGENT-NAME> --data-source <DATA-SOURCE-NAME>
 ```
 
 
-!!! note "Hint"
+!!! tip "Hint"
     To encourage your agent to reference its archival memory, we recommend adding phrases like "_search your archival memory..._" for the best results.
 
 
