@@ -1,5 +1,3 @@
-### MemGPT + LM Studio
-
 !!! warning "Important LM Studio settings"
 
     **Context length**: Make sure that "context length" (`n_ctx`) is set (in "Model initialization" on the right hand side "Server Model Settings" panel) to the max context length of the model you're using (e.g. 8000 for Mistral 7B variants).

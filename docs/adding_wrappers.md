@@ -1,5 +1,3 @@
-## Adding support for new LLMs + improving performance
-
 !!! warning "MemGPT + local LLM failure cases"
 
     When using open LLMs with MemGPT, **the main failure case will be your LLM outputting a string that cannot be understood by MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)` and interact with the user (`send_message(...)`), so your LLM needs generate outputs that can be parsed into MemGPT function calls.
@@ -69,7 +67,7 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
         """
 ```
 
-See full file [here](llm_chat_completion_wrappers/airoboros.py).
+See full file [here](https://github.com/cpacker/MemGPT/tree/main/memgpt/local_llm/llm_chat_completion_wrappers/airoboros.py).
 
 ---
 
@@ -88,5 +86,3 @@ In the future, more open LLMs and LLM servers (that can host OpenAI-compatable C
 ### What is this all this extra code for?
 
 Because of the poor state of function calling support in existing ChatCompletion API serving code, we instead provide a light wrapper on top of ChatCompletion that adds parsers to handle function calling support. These parsers need to be specific to the model you're using (or at least specific to the way it was trained on function calling). We hope that our example code will help the community add additional compatability of MemGPT with more function-calling LLMs - we will also add more model support as we test more models and find those that work well enough to run MemGPT's function set.
-
-To run the example of MemGPT with Airoboros, you'll need to host the model behind some LLM web server (for example [webui](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui)). Then, all you need to do is point MemGPT to this API endpoint by setting the environment variables `OPENAI_API_BASE` and `BACKEND_TYPE`. Now, instead of calling ChatCompletion on OpenAI's API, MemGPT will use it's own ChatCompletion wrapper that parses the system, messages, and function arguments into a format that Airoboros has been finetuned on, and once Airoboros generates a string output, MemGPT will parse the response to extract a potential function call (knowing what we know about Airoboros expected function call output).

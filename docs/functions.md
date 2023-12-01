@@ -1,5 +1,3 @@
-## Giving MemGPT access to additional tools / functions
-
 If you would like to give MemGPT the ability to call new tools or functions, you can write a Python `.py` file with the functions you want to add, and place it inside of `~/.memgpt/functions`. You can see the example function sets provided [here](https://github.com/cpacker/MemGPT/tree/main/memgpt/functions/function_sets).
 
 As an example, we provide a preset called [`memgpt_extras`](https://github.com/cpacker/MemGPT/blob/main/memgpt/presets/examples/memgpt_extras.yaml) that includes additional functions to read and write from text files, as well as make HTTP requests:

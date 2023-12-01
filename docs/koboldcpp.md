@@ -1,5 +1,3 @@
-### MemGPT + koboldcpp
-
 1. Download + install [koboldcpp](https://github.com/LostRuins/koboldcpp/) and the model you want to test with
 2. In your terminal, run `./koboldcpp.py <MODEL> -contextsize <CONTEXT_LENGTH>`
 
