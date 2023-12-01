@@ -2238,6 +2238,27 @@ tests = ["duckdb", "ml_dtypes", "pandas (>=1.4,<2.1)", "polars[pandas,pyarrow]",
 torch = ["torch"]
 
 [[package]]
+name = "pypdf"
+version = "3.17.1"
+description = "A pure-python PDF library capable of splitting, merging, cropping, and transforming PDF files"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "pypdf-3.17.1-py3-none-any.whl", hash = "sha256:df3a7e90f1d3e4c9fe88a6b45c2ae58e61fe48a0fe0bc6de1544596e479a3f97"},
+    {file = "pypdf-3.17.1.tar.gz", hash = "sha256:c79ad4db16c9a86071a3556fb5d619022b36b8880ba3ef416558ea95fbec4cb9"},
+]
+
+[package.dependencies]
+typing_extensions = {version = ">=3.7.4.3", markers = "python_version < \"3.10\""}
+
+[package.extras]
+crypto = ["PyCryptodome", "cryptography"]
+dev = ["black", "flit", "pip-tools", "pre-commit (<2.18.0)", "pytest-cov", "pytest-socket", "pytest-timeout", "pytest-xdist", "wheel"]
+docs = ["myst_parser", "sphinx", "sphinx_rtd_theme"]
+full = ["Pillow (>=8.0.0)", "PyCryptodome", "cryptography"]
+image = ["Pillow (>=8.0.0)"]
+
+[[package]]
 name = "pytest"
 version = "7.4.3"
 description = "pytest: simple powerful testing with Python"
@@ -3689,7 +3710,6 @@ idna = ">=2.0"
 multidict = ">=4.0"
 
 [extras]
-autogen = ["pyautogen"]
 dev = ["black", "datasets", "pre-commit", "pytest"]
 lancedb = ["lancedb"]
 local = ["huggingface-hub", "torch", "transformers"]
@@ -3698,4 +3718,4 @@ postgres = ["pg8000", "pgvector", "psycopg", "psycopg-binary", "psycopg2-binary"
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.12,>=3.9"
-content-hash = "5ba46f95e5b3ca22d70b6468db8e468db8b78763e5b19e4bd2388875c8dad36e"
+content-hash = "d4a3af7c9778a2ce0e66bd2f73b8d5c69fc1de473551b0ed52594678baa44d12"

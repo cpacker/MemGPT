@@ -47,6 +47,7 @@ numpy = "^1.26.2"
 demjson3 = "^3.0.6"
 tiktoken = "^0.5.1"
 python-box = "^7.1.1"
+pypdf = "^3.17.1"
 
 [tool.poetry.extras]
 local = ["torch", "huggingface-hub", "transformers"]
