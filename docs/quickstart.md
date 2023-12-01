@@ -1,4 +1,4 @@
-## Installation
+### Installation
 
 To install MemGPT, make sure you have Python installed on your computer, then run:
 

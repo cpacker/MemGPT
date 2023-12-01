@@ -1,5 +1,3 @@
-### MemGPT + web UI
-
 !!! warning "web UI troubleshooting"
 
     If you have problems getting web UI set up, please use the [official web UI repo for support](https://github.com/oobabooga/text-generation-webui)! There will be more answered questions about web UI there vs here on the MemGPT repo.
