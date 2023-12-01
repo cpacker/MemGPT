@@ -42,7 +42,10 @@ Once you've confirmed that you're able to chat with a MemGPT agent using `memgpt
 
     If you're using RunPod to run web UI, make sure that you set your endpoint to the RunPod IP address, **not the default localhost address**.
 
-    For example, during `memgpt configure`: `? Enter default endpoint: https://yourpodaddresshere-5000.proxy.runpod.net`
+    For example, during `memgpt configure`:
+    ```text
+    ? Enter default endpoint: https://yourpodaddresshere-5000.proxy.runpod.net
+    ```
 
 ### Part 3: Creating a MemGPT AutoGen agent (groupchat example)
 
