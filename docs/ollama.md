@@ -1,6 +1,4 @@
-!!! warning "Be careful when downloading Ollama models!"
-
-    Make sure to use tags when downloading Ollama models!
+!!! warning "Make sure to use tags when downloading Ollama models!"
     
     Don't do **`ollama run dolphin2.2-mistral`**, instead do **`ollama run dolphin2.2-mistral:7b-q6_K`**.
 
