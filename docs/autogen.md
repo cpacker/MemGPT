@@ -8,9 +8,9 @@
 
 If you are using OpenAI, you can also run it using the [example notebook](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/memgpt_coder_autogen.ipynb).
 
-In the next section, we detail how to set up MemGPT and Autogen to run with local LLMs.
+In the next section, we detail how to set up MemGPT and AutoGen to run with local LLMs.
 
-## Example: connecting Autogen + MemGPT to non-OpenAI LLMs
+## Example: connecting AutoGen + MemGPT to non-OpenAI LLMs
 
 To get MemGPT to work with a local LLM, you need to have an LLM running on a server that takes API requests.
 
