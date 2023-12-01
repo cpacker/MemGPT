@@ -1,4 +1,5 @@
 !!! note "Note"
+
     Before starting this example, make sure that you've [properly installed MemGPT](../quickstart)
 
 ## Using MemGPT to create a perpetual chatbot
