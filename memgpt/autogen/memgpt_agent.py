@@ -7,9 +7,8 @@ from memgpt.autogen.interface import AutoGenInterface
 from memgpt.persistence_manager import LocalStateManager
 import memgpt.system as system
 import memgpt.constants as constants
+import memgpt.utils as utils
 import memgpt.presets.presets as presets
-from memgpt.personas import personas
-from memgpt.humans import humans
 from memgpt.config import AgentConfig
 from memgpt.cli.cli import attach
 from memgpt.cli.cli_load import load_directory, load_webpage, load_index, load_database, load_vector_database
@@ -40,7 +39,7 @@ def create_memgpt_autogen_agent_from_config(
         interface_kwargs = {}
 
     # The "system message" in AutoGen becomes the persona in MemGPT
-    persona_desc = personas.DEFAULT if system_message == "" else system_message
+    persona_desc = utils.get_persona_text(constants.DEFAULT_PERSONA) if system_message == "" else system_message
     # The user profile is based on the input mode
     if human_input_mode == "ALWAYS":
         user_desc = ""
