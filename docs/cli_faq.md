@@ -29,7 +29,3 @@ No, ChatGPT Plus is a separate product from the OpenAI API. Paying for ChatGPT P
 ### I don't want to use OpenAI, can I still use MemGPT?
 
 Yes, you can run MemGPT with your own LLMs. See our section on local LLMs for information on how to set them up with MemGPT.
-
-## Local LLMs
-
-### TODO

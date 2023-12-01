@@ -1,55 +1,23 @@
 ### Problems getting MemGPT + local LLMs set up
 
-#### The OPENAI_API_BASE environment variable is not defined. Please set it in your environment.
-
-`OPENAI_API_BASE` is not set correctly. Set the variable using `export`, `set`, or `$Env:`, depending on your operating system.
-
-#### The BACKEND_TYPE environment variable is not defined. Please set it in your environment.
-
-`BACKEND_TYPE` is not set correctly. Set the variable using `export`, `set`, or `$Env:`, depending on your operating system.
-
-#### "Provided OPENAI_API_BASE value (...) must begin with http:// or https://"
-
-This happens when you have a typo in `OPENAI_API_BASE`.
-
-For example, don't do:
-```sh
-# This will trigger the error
-export OPENAI_API_BASE=localhost:5000
-```
-
-Instead do:
-```sh
-export OPENAI_API_BASE=http://localhost:5000
-```
-
 #### "Unable to connect to host ...", "API call got non-200 response code"
 
 This error happens when MemGPT tries to run the LLM on the remote server you specified, but the server isn't working as expected.
 
-For example, this error can happen when you have a typo in your `OPENAI_API_BASE`:
-```sh
-# OPENAI_API_BASE here should NOT have the extra '/v1' at the end
-export OPENAI_API_BASE=http://localhost:5001/v1
-export BACKEND_TYPE=webui
-```
+For example, this error can happen when you have a typo in your endpoint (notice the duplicate `/v1` in the URL):
 ```text
-Exception: API call got non-200 response code (code=400, msg={"error": {"message": "Missing required input", "code": 400, "type": "InvalidRequestError", "param": "context"}}) for address: http://localhost:5001/v1/api/v1/generate.Make sure that the web UI server is running and reachable at http://localhost:5001/v1/api/v1/generate.
+Exception: API call got non-200 response code (code=400, msg={"error": {"message": "Missing required input", "code": 400, "type": "InvalidRequestError", "param": "context"}}) for address: http://localhost:5001/v1/api/v1/generate. Make sure that the web UI server is running and reachable at http://localhost:5001/v1/api/v1/generate.
 ```
 
-Correcting the typo fixes this example error:
-```sh
-# OPENAI_API_BASE here should NOT have the extra '/v1' at the end
-export OPENAI_API_BASE=http://localhost:5001
-```
+Correcting the endpoint from `http://localhost:5001/v1` to `http://localhost:5001` (no `/v1` suffix) fixes the example error.
 
 ### Common errors while running MemGPT with local LLMs
 
-#### "Warning: no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --model)"
+#### "Warning: no wrapper specified for local LLM, using the default wrapper"
 
 **You can ignore this warning.**
 
-This warning means that you did not specify a specific wrapper using the `--model` flag, so MemGPT is using the default wrapper. If you would like to silence this warning, specify a wrapper with `--model`.
+This warning means that you did not specify a specific wrapper using the `--model-wrapper` flag, so MemGPT is using the default wrapper. If you would like to silence this warning, specify a wrapper with `--model-wrapper` or during `memgpt configure`.
 
 #### "Failed to parse JSON from local LLM response"
 
