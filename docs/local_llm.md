@@ -1,10 +1,20 @@
 ## Using MemGPT with local LLMs
 
+!!! warning "Need help?"
+
+    If you need help visit our [Discord server](https://discord.gg/9GEQrxmVyE) and post in the #support channel.
+    
+    You can also check the [GitHub discussion page](https://github.com/cpacker/MemGPT/discussions/67), but the Discord server is the official support channel and is monitored more actively.
+
 !!! warning "MemGPT + local LLM failure cases"
 
     When using open LLMs with MemGPT, **the main failure case will be your LLM outputting a string that cannot be understood by MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)` and interact with the user (`send_message(...)`), so your LLM needs generate outputs that can be parsed into MemGPT function calls.
 
     Make sure to check the [local LLM troubleshooting page](../local_llm_faq) to see common issues before raising a new issue or posting on Discord.
+
+!!! warning "Recommended LLMs / models"
+
+    To see a list of recommended LLMs to use with MemGPT, visit our [Discord server](https://discord.gg/9GEQrxmVyE) and check the #model-chat channel.
 
 ### Installing dependencies
 To install dependencies required for running local models, run:

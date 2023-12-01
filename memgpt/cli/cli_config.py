@@ -405,7 +405,7 @@ def add(
     elif option == "human":
         directory = os.path.join(MEMGPT_DIR, "humans")
     else:
-        raise ValueError(f"Unknown kind {kind}")
+        raise ValueError(f"Unknown kind {option}")
 
     if filename:
         assert text is None, f"Cannot provide both filename and text"

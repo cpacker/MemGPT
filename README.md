@@ -6,7 +6,7 @@
 
  <strong>Try out our MemGPT chatbot on <a href="https://discord.gg/9GEQrxmVyE">Discord</a>!</strong>
 
- <strong>⭐ NEW: You can now run MemGPT with <a href="https://memgpt.readthedocs.io/en/latest/local_llm/">local LLMs</a> and <a href="https://github.com/cpacker/MemGPT/discussions/65">AutoGen</a>! ⭐ </strong>
+ <strong>⭐ NEW: You can now run MemGPT with <a href="https://memgpt.readthedocs.io/en/latest/local_llm/">local LLMs</a> and <a href="https://memgpt.readthedocs.io/en/latest/autogen/">AutoGen</a>! ⭐ </strong>
 
 
 [![Discord](https://img.shields.io/discord/1161736243340640419?label=Discord&logo=discord&logoColor=5865F2&style=flat-square&color=5865F2)](https://discord.gg/9GEQrxmVyE)
