@@ -21,5 +21,5 @@ In your terminal where you're running MemGPT, run `memgpt configure` to set the 
 
 If you have an existing agent that you want to move to the vLLM backend, add extra flags to `memgpt run`:
 ```sh
-memgpt run --agent your_agent --model-endpoint-type vLLM --model-endpoint http://localhost:8000
+memgpt run --agent your_agent --model-endpoint-type vllm --model-endpoint http://localhost:8000 --model ehartford/dolphin-2.2.1-mistral-7b
 ```
