@@ -8,7 +8,6 @@
 
 1. Download + install [Ollama](https://github.com/jmorganca/ollama) and the model you want to test with
 2. Download a model to test with by running `ollama run <MODEL_NAME>` in the terminal (check the [Ollama model library](https://ollama.ai/library) for available models)
-3. In addition to setting `OPENAI_API_BASE` and `BACKEND_TYPE`, we additionally need to set `OLLAMA_MODEL` (to the Ollama model name)
 
 For example, if we want to use Dolphin 2.2.1 Mistral, we can download it by running:
 ```sh
