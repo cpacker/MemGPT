@@ -23,8 +23,8 @@ nav:
     # - 'oobabooga web UI (on RunPod)': webui_runpod.md
     - 'LM Studio': lmstudio.md
     - 'llama.cpp': llamacpp.md
-    - 'koboldcpp': koboldcpp.md
-    - 'ollama': ollama.md
+    - 'KoboldCpp': koboldcpp.md
+    - 'Ollama': ollama.md
     - 'vLLM': vllm.md
     - 'Troubleshooting': local_llm_faq.md
   - 'Customizing MemGPT':
