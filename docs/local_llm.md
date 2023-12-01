@@ -99,6 +99,7 @@ Currently, MemGPT supports the following backends:
 * [LM Studio](../lmstudio) (Mac, Windows) (❌ does not support grammars)
 * [koboldcpp](../koboldcpp) (Mac, Windows, Linux) (✔️ supports grammars)
 * [llama.cpp](../llamacpp) (Mac, Windows, Linux) (✔️ supports grammars)
+* [vllm](../vllm) (Mac, Windows, Linux) (❌ does not support grammars)
 
 If you would like us to support a new backend, feel free to open an issue or pull request on [the MemGPT GitHub page](https://github.com/cpacker/MemGPT)!
 
