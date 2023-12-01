@@ -1,10 +1,10 @@
-## MemGPT + Autogen
-
 !!! warning "Need help?"
 
     If you need help visit our [Discord server](https://discord.gg/9GEQrxmVyE) and post in the #support channel.
     
     You can also check the [GitHub discussion page](https://github.com/cpacker/MemGPT/discussions/65), but the Discord server is the official support channel and is monitored more actively.
+
+## MemGPT + Autogen
 
 [examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) contains an example of a groupchat where one of the agents is powered by MemGPT.
 
@@ -12,13 +12,7 @@ If you are using OpenAI, you can also run it using the [example notebook](https:
 
 In the next section, we detail how to set up MemGPT and Autogen to run with local LLMs.
 
-## Example: connecting Autogen + MemGPT to non-OpenAI LLMs (using oobabooga web UI)
-
-!!! warning "Enable the OpenAI extension"
-
-    In web UI make sure to enable the [openai extension](https://github.com/oobabooga/text-generation-webui/tree/main/extensions/openai)!
-    
-    This is enabled by default in newer versions of web UI, but must be enabled manually in older versions of web UI.
+## Example: connecting Autogen + MemGPT to non-OpenAI LLMs
 
 To get MemGPT to work with a local LLM, you need to have an LLM running on a server that takes API requests.
 
