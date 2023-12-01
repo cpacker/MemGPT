@@ -37,7 +37,7 @@ In your terminal where you're running MemGPT, run `memgpt configure` to set the 
 ...
 ```
 
-If you have an existing agent that you want to move to the web UI backend, add extra flags to `memgpt run`:
+If you have an existing agent that you want to move to the Ollama backend, add extra flags to `memgpt run`:
 ```sh
 # use --model to switch Ollama models (always include the full Ollama model name with the tag)
 # use --model-wrapper to switch model wrappers
