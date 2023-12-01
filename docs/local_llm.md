@@ -1,4 +1,4 @@
-!!! warning "Need help?"
+!!! question "Need help?"
 
     If you need help visit our [Discord server](https://discord.gg/9GEQrxmVyE) and post in the #support channel.
     
@@ -104,7 +104,7 @@ If you would like us to support a new backend, feel free to open an issue or pul
 
 ### Which model should I use?
 
-!!! warning "Recommended LLMs / models"
+!!! info "Recommended LLMs / models"
 
     To see a list of recommended LLMs to use with MemGPT, visit our [Discord server](https://discord.gg/9GEQrxmVyE) and check the #model-chat channel.
 

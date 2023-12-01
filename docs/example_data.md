@@ -1,7 +1,8 @@
+!!! note "Note"
+
+    Before starting this example, make sure that you've [properly installed MemGPT](../quickstart)
+
 ## Using MemGPT to chat with your own data
-
-_Before starting this example, make sure that you've [properly installed MemGPT](../quickstart)._
-
 In this example, we're going to use MemGPT to chat with a custom data source. Specifically, we'll try loading in the MemGPT research paper and ask MemGPT questions about it.
 
 ### Creating an external data source
