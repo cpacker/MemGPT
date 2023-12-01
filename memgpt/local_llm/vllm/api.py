@@ -4,7 +4,7 @@ import requests
 
 from ..utils import load_grammar_file, count_tokens
 
-WEBUI_API_SUFFIX = "/completions"
+WEBUI_API_SUFFIX = "/v1/completions"
 DEBUG = False
 
 
