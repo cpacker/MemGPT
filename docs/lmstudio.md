@@ -22,7 +22,7 @@ In your terminal where you're running MemGPT, run `memgpt configure` to set the 
 ...
 ```
 
-If you have an existing agent that you want to move to the web UI backend, add extra flags to `memgpt run`:
+If you have an existing agent that you want to move to the LM Studio backend, add extra flags to `memgpt run`:
 ```sh
 memgpt run --agent your_agent --model-endpoint-type lmstudio --model-endpoint http://localhost:1234
 ```
