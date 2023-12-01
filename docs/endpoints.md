@@ -10,6 +10,10 @@ set OPENAI_API_KEY=YOUR_API_KEY # on Windows
 $Env:OPENAI_API_KEY = "YOUR_API_KEY" # on Windows (PowerShell)
 ```
 
+#### OpenAI Proxies
+To use custom OpenAI endpoints, specify a proxy URL when running `memgpt configure` to set the custom endpoint as the default endpoint.
+
+
 #### Azure
 To use MemGPT with Azure, expore the following variables and then re-run `memgpt configure`:
 ```sh
@@ -28,7 +32,4 @@ Replace `export` with `set` or `$Env:` if you are on Windows (see the OpenAI exa
 Note: **your Azure endpoint must support functions** or you will get an error. See [this GitHub issue](https://github.com/cpacker/MemGPT/issues/91) for more information.
 
 #### Custom endpoints
-To use custom OpenAI endpoints, run `export OPENAI_API_BASE=<MY_CUSTOM_URL>` and then re-run `memgpt configure` to set the custom endpoint as the default endpoint.
-
-#### Local LLMs
-Setting up MemGPT to run with local LLMs requires a bit more setup, follow [the instructions here](../local_llm).
+MemGPT supports running open source models, both being run locally or as a hosted service. Setting up MemGPT to run with open models requires a bit more setup, follow [the instructions here](../local_llm).
