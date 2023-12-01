@@ -1,6 +1,5 @@
-1. Download + install [vLLM](https://docs.vllm.ai/en/latest/getting_started/installation.html) and the model you want to test with
+1. Download + install [vLLM](https://docs.vllm.ai/en/latest/getting_started/installation.html)
 2. Launch a vLLM **OpenAI-compatible** API server using [the official vLLM documentation](https://docs.vllm.ai/en/latest/getting_started/quickstart.html)
-
 
 For example, if we want to use the model `dolphin-2.2.1-mistral-7b` from [HuggingFace](https://huggingface.co/ehartford/dolphin-2.2.1-mistral-7b), we would run:
 ```sh
