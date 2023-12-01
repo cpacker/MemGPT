@@ -3,3 +3,4 @@ furo
 myst-parser
 mkdocs
 mkdocs-material
+pymdown-extensions
