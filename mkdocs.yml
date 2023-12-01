@@ -13,13 +13,13 @@ nav:
     - 'Example - chat with your data': example_data.md
     - 'Configuration': config.md
     - 'External data sources': data_sources.md
-    - 'Changing the LLM backend': endpoints.md
-    - 'Changing the embedding backend': embedding_endpoints.md
+    - 'Configuring LLMs': endpoints.md
+    - 'Configuring embeddings': embedding_endpoints.md
     - 'FAQ': cli_faq.md
   - 'Discord Bot':
     - 'Chatting with MemGPT Bot': discord_bot.md
   - 'LLM Backends':
-    - 'MemGPT + local LLMs': local_llm.md
+    - 'MemGPT + open models': local_llm.md
     - 'oobabooga web UI': webui.md
     # - 'oobabooga web UI (on RunPod)': webui_runpod.md
     - 'LM Studio': lmstudio.md
