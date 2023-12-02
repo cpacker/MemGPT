@@ -8,7 +8,8 @@ import os
 
 from typing import List, Optional
 
-from llama_index import VectorStoreIndex, EmptyIndex, ServiceContext, set_global_service_context
+from llama_index import VectorStoreIndex, ServiceContext, set_global_service_context
+from llama_index.indices.empty.base import EmptyIndex
 from llama_index.retrievers import VectorIndexRetriever
 from llama_index.schema import TextNode
 
