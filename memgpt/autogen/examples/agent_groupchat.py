@@ -16,11 +16,16 @@ from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config
 from memgpt.presets.presets import DEFAULT_PRESET
 from memgpt.constants import LLM_MAX_TOKENS
 
-USE_OPENAI = True
-# USE_OPENAI = False
-if USE_OPENAI:
+# LLM_BACKEND = "openai"
+LLM_BACKEND = "azure"
+# LLM_BACKEND = "local"
+
+if LLM_BACKEND == "openai":
     # For demo purposes let's use gpt-4
     model = "gpt-4"
+
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    assert openai_api_key, "You must set OPENAI_API_KEY to run this example"
 
     # This config is for AutoGen agents that are not powered by MemGPT
     config_list = [
@@ -42,7 +47,42 @@ if USE_OPENAI:
         },
     ]
 
-else:
+elif LLM_BACKEND == "azure":
+    # Make sure that you have access to this deployment/model on your Azure account!
+    # If you don't have access to the model, the code will fail
+    model = "gpt-4"
+
+    azure_openai_api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    azure_openai_version = os.getenv("AZURE_OPENAI_VERSION")
+    azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    assert (
+        azure_openai_api_key and azure_openai_version and azure_openai_endpoint
+    ), "Set all the required OpenAI Azure variables (see: https://memgpt.readthedocs.io/en/latest/endpoints/#azure)"
+
+    # This config is for AutoGen agents that are not powered by MemGPT
+    config_list = [
+        {
+            "model": model,
+            "api_type": "azure",
+            "api_key": azure_openai_api_key,
+            "api_version": azure_openai_version,
+            "api_base": azure_openai_endpoint,
+        }
+    ]
+
+    # This config is for AutoGen agents that powered by MemGPT
+    config_list_memgpt = [
+        {
+            "model": model,
+            "preset": DEFAULT_PRESET,
+            "model_wrapper": None,
+            "model_endpoint_type": "openai",
+            "model_endpoint": "https://api.openai.com/v1",
+            "context_window": LLM_MAX_TOKENS[model],
+        },
+    ]
+
+elif LLM_BACKEND == "local":
     # Example using LM Studio on a local machine
     # You will have to change the parameters based on your setup
 
@@ -67,6 +107,9 @@ else:
             "context_window": 8192,  # the context window of your model (for Mistral 7B-based models, it's likely 8192)
         },
     ]
+
+else:
+    raise ValueError(LLM_BACKEND)
 
 # If USE_MEMGPT is False, then this example will be the same as the official AutoGen repo
 # (https://github.com/microsoft/autogen/blob/main/notebook/agentchat_groupchat.ipynb)
