@@ -10,6 +10,15 @@ from box import Box
 
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
 
+MODEL_TO_AZURE_ENGINE = {
+    "gpt-4-1106-preview": "gpt-4",
+    "gpt-4": "gpt-4",
+    "gpt-4-32k": "gpt-4-32k",
+    "gpt-3.5": "gpt-35-turbo",
+    "gpt-3.5-turbo": "gpt-35-turbo",
+    "gpt-3.5-turbo-16k": "gpt-35-turbo-16k",
+}
+
 
 def is_context_overflow_error(exception):
     from memgpt.utils import printd
