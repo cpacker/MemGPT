@@ -14,6 +14,7 @@ from llama_index.retrievers import VectorIndexRetriever
 from llama_index.schema import TextNode
 
 from memgpt.constants import MEMGPT_DIR
+from memgpt.data_types import Record
 from memgpt.config import MemGPTConfig
 from memgpt.connectors.storage import StorageConnector, Passage
 from memgpt.config import AgentConfig, MemGPTConfig
@@ -137,3 +138,50 @@ class VectorIndexStorageConnector(StorageConnector):
 
     def size(self):
         return len(self.get_nodes())
+
+
+class InMemoryStorageConnector(StorageConnector):
+    """Really dumb class so we can have a unified storae connector interface - keeps everything in memory"""
+
+    # TODO: maybae replace this with sqllite?
+
+    def __init__(self, name: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
+        from memgpt.embeddings import embedding_model
+
+        config = MemGPTConfig.load()
+        # TODO: figure out save location
+
+        self.rows = []
+
+    @abstractmethod
+    def get_all_paginated(self, page_size: int, filters: Optional[Dict] = {}) -> Iterator[List[Record]]:
+        pass
+
+    @abstractmethod
+    def get_all(self, limit: int, filters: Optional[Dict]) -> List[Record]:
+        pass
+
+    @abstractmethod
+    def get(self, id: str) -> Record:
+        pass
+
+    @abstractmethod
+    def insert(self, record: Record):
+        self.rows.append(record)
+
+    @abstractmethod
+    def insert_many(self, records: List[Record]):
+        self.rows += records
+
+    @abstractmethod
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
+        pass
+
+    @abstractmethod
+    def save(self):
+        """Save state of storage connector"""
+        pass
+
+    @abstractmethod
+    def size(self, filters: Optional[Dict] = {}) -> int:
+        pass
