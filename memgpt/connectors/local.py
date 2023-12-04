@@ -19,7 +19,7 @@ from memgpt.connectors.storage import StorageConnector, Passage
 from memgpt.config import AgentConfig, MemGPTConfig
 
 
-class LocalStorageConnector(StorageConnector):
+class VectorIndexStorageConnector(StorageConnector):
 
     """Local storage connector based on LlamaIndex"""
 

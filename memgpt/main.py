@@ -119,7 +119,7 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
 
                     # reload agent with new data source
                     # TODO: maybe make this less ugly...
-                    memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_storage_connector(
+                    memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_archival_storage_connector(
                         agent_config=memgpt_agent.config
                     )
                     continue

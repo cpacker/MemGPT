@@ -234,7 +234,9 @@ class MemGPTAgent(ConversableAgent):
         self.agent.config.attach_data_source(data_source)
 
         # reload agent with new data source
-        self.agent.persistence_manager.archival_memory.storage = StorageConnector.get_storage_connector(agent_config=self.agent.config)
+        self.agent.persistence_manager.archival_memory.storage = StorageConnector.get_archival_storage_connector(
+            agent_config=self.agent.config
+        )
 
     def load_and_attach(self, name: str, type: str, force=False, **kwargs):
         # check if data source already exists
