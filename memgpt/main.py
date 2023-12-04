@@ -157,7 +157,7 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                     MIN_MESSAGES = 2
                     if n_messages <= MIN_MESSAGES:
                         print(f"Agent only has {n_messages} messages in stack, none left to pop")
-                    elif n_messages - pop_amount <= MIN_MESSAGES:
+                    elif n_messages - pop_amount < MIN_MESSAGES:
                         print(f"Agent only has {n_messages} messages in stack, cannot pop more than {n_messages - MIN_MESSAGES}")
                     else:
                         print(f"Popping last {pop_amount} messages from stack")
