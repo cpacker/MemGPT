@@ -152,10 +152,17 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                 elif user_input.lower() == "/pop" or user_input.lower().startswith("/pop "):
                     # Check if there's an additional argument that's an integer
                     command = user_input.strip().split()
-                    amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 3
-                    print(f"Popping last {amount} messages from stack")
-                    for _ in range(min(amount, len(memgpt_agent.messages))):
-                        memgpt_agent.messages.pop()
+                    pop_amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 3
+                    n_messages = len(memgpt_agent.messages)
+                    MIN_MESSAGES = 2
+                    if n_messages <= MIN_MESSAGES:
+                        print(f"Agent only has {n_messages} messages in stack, none left to pop")
+                    elif n_messages - pop_amount < MIN_MESSAGES:
+                        print(f"Agent only has {n_messages} messages in stack, cannot pop more than {n_messages - MIN_MESSAGES}")
+                    else:
+                        print(f"Popping last {pop_amount} messages from stack")
+                        for _ in range(min(pop_amount, len(memgpt_agent.messages))):
+                            memgpt_agent.messages.pop()
                     continue
 
                 elif user_input.lower() == "/retry":
