@@ -117,9 +117,8 @@ For example, if you are using web UI, it will look something like this:
 config_list = [
     {
         "model": "NULL",  # not needed
-        "api_base": "http://127.0.0.1:5001/v1",  # notice port 5001 for web UI
+        "base_url": "http://127.0.0.1:5001/v1",  # notice port 5001 for web UI
         "api_key": "NULL",  #  not needed
-        "api_type": "open_ai",
     },
 ]
 
@@ -143,9 +142,8 @@ If you are using LM Studio, then you'll need to change the `api_base` in `config
 config_list = [
     {
         "model": "NULL",
-        "api_base": "http://127.0.0.1:1234/v1",  # port 1234 for LM Studio
+        "base_url": "http://127.0.0.1:1234/v1",  # port 1234 for LM Studio
         "api_key": "NULL",
-        "api_type": "open_ai",
     },
 ]
 
@@ -178,10 +176,11 @@ config_list_memgpt = [
     {
         "preset": DEFAULT_PRESET,
         "model": "gpt-4",
-        "model_wrapper": None,
-        "model_endpoint_type": None,
-        "model_endpoint": None,
         "context_window": 8192,  # gpt-4 context window
+        "model_wrapper": None,
+        "model_endpoint_type": "openai",
+        "model_endpoint": "https://api.openai.com/v1",
+        "openai_key": os.getenv("OPENAI_API_KEY"),
     },
 ]
 ```
@@ -197,7 +196,7 @@ config_list = [
         "api_type": "azure",
         "api_key": os.getenv("AZURE_OPENAI_API_KEY"),
         "api_version": os.getenv("AZURE_OPENAI_VERSION"),
-        "api_base": os.getenv("AZURE_OPENAI_ENDPOINT"),
+        "base_url": os.getenv("AZURE_OPENAI_ENDPOINT"),
     }
 ]
 
@@ -207,12 +206,9 @@ config_list_memgpt = [
         "preset": DEFAULT_PRESET,
         "model": "gpt-4",  # make sure you choose a model that you have access to deploy on your Azure account
         "model_wrapper": None,
-        "model_endpoint_type": None,
-        "model_endpoint": None,
         "context_window": 8192,  # gpt-4 context window
         # required setup for Azure
         "model_endpoint_type": "azure",
-        "model_endpoint": os.getenv("AZURE_OPENAI_ENDPOINT"),
         "azure_key": os.getenv("AZURE_OPENAI_API_KEY"),
         "azure_endpoint": os.getenv("AZURE_OPENAI_ENDPOINT"),
         "azure_version": os.getenv("AZURE_OPENAI_VERSION"),
