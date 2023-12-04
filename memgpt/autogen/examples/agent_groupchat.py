@@ -16,8 +16,8 @@ from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config
 from memgpt.presets.presets import DEFAULT_PRESET
 from memgpt.constants import LLM_MAX_TOKENS
 
-# LLM_BACKEND = "openai"
-LLM_BACKEND = "azure"
+LLM_BACKEND = "openai"
+# LLM_BACKEND = "azure"
 # LLM_BACKEND = "local"
 
 if LLM_BACKEND == "openai":
