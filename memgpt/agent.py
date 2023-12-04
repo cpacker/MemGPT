@@ -712,7 +712,13 @@ class Agent(object):
             pass
 
         message_sequence_to_summarize = self.messages[1:cutoff]  # do NOT get rid of the system message
-        printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
+        if len(message_sequence_to_summarize) == 1:
+            # This prevents a potential infinite loop of summarizing the same message over and over
+            raise LLMError(
+                f"Summarize error: tried to run summarize, but couldn't find enough messages to compress [len={len(message_sequence_to_summarize)} <= 1]"
+            )
+        else:
+            printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
 
         # We can't do summarize logic properly if context_window is undefined
         if self.config.context_window is None:
