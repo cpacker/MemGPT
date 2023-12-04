@@ -192,7 +192,6 @@ class DummyRecallMemory(RecallMemory):
     # TODO: replace this with StorageConnector based implementation
 
     def __init__(self, agent_config, restrict_search_to_summaries=False):
-        self._message_logs = [] if message_database is None else message_database  # consists of full message dicts
 
         # If true, the pool of messages that can be queried are the automated summaries only
         # (generated when the conversation window needs to be shortened)
