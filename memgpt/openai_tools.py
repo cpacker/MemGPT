@@ -9,6 +9,7 @@ import urllib
 from box import Box
 
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
+from memgpt.constants import CLI_WARNING_PREFIX
 
 
 def is_context_overflow_error(exception):
@@ -294,7 +295,10 @@ def retry_with_exponential_backoff(
                     delay *= exponential_base * (1 + jitter * random.random())
 
                     # Sleep for the delay
-                    printd(f"Got a rate limit error ('{http_err}') on LLM backend request, waiting {int(delay)}s then retrying...")
+                    # printd(f"Got a rate limit error ('{http_err}') on LLM backend request, waiting {int(delay)}s then retrying...")
+                    print(
+                        f"{CLI_WARNING_PREFIX}Got a rate limit error ('{http_err}') on LLM backend request, waiting {int(delay)}s then retrying..."
+                    )
                     time.sleep(delay)
                 else:
                     # For other HTTP errors, re-raise the exception
