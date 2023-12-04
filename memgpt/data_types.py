@@ -35,7 +35,7 @@ class Message(Record):
         user_id: str,
         agent_id: str,
         role: str,
-        text: str,
+        content: str,
         model: str,  # model used to make function call
         function_name: Optional[str] = None,  # name of function called
         function_args: Optional[str] = None,  # args of function called
@@ -43,7 +43,7 @@ class Message(Record):
         embedding: Optional[np.ndarray] = None,
         id: Optional[str] = None,
     ):
-        super().__init__(user_id, agent_id, text, id)
+        super().__init__(user_id, agent_id, content, id)
         self.role = role  # role (agent/user/function)
         self.model = model  # model name (e.g. gpt-4)
 
@@ -62,10 +62,11 @@ class Message(Record):
 class Document(Record):
     """A document represent a document loaded into MemGPT, which is broken down into passages."""
 
-    def __init__(self, user_id: str, text: str, document_id: Optional[str] = None):
+    def __init__(self, user_id: str, text: str, data_source: str, document_id: Optional[str] = None):
         super().__init__(user_id)
         self.text = text
         self.document_id = document_id
+        self.data_source = data_source
         # TODO: add optional embedding?
 
     def __repr__(self) -> str:
@@ -78,9 +79,18 @@ class Passage(Record):
     It is a string of text with an associated embedding.
     """
 
-    def __init__(self, user_id: str, text: str, embedding: np.ndarray, doc_id: Optional[str] = None, passage_id: Optional[str] = None):
+    def __init__(
+        self,
+        user_id: str,
+        text: str,
+        data_source: str,
+        embedding: np.ndarray,
+        doc_id: Optional[str] = None,
+        passage_id: Optional[str] = None,
+    ):
         super().__init__(user_id)
         self.text = text
+        self.data_source = data_source
         self.embedding = embedding
         self.doc_id = doc_id
         self.passage_id = passage_id
