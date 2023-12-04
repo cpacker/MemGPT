@@ -259,6 +259,9 @@ class Agent(object):
         timestamp = get_local_time().replace(" ", "_").replace(":", "_")
         agent_name = self.config.name  # TODO: fix
 
+        # save config
+        self.config.save()
+
         # save agent state
         filename = f"{timestamp}.json"
         os.makedirs(self.config.save_state_dir(), exist_ok=True)
