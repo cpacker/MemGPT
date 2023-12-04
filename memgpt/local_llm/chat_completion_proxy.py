@@ -18,6 +18,7 @@ from memgpt.local_llm.constants import DEFAULT_WRAPPER
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
 from memgpt.errors import LocalLLMConnectionError, LocalLLMError
+from memgpt.constants import CLI_WARNING_PREFIX
 
 DEBUG = False
 # DEBUG = True
@@ -54,7 +55,7 @@ def get_chat_completion(
         # Warn the user that we're using the fallback
         if not has_shown_warning:
             print(
-                f"Warning: no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --wrapper)"
+                f"{CLI_WARNING_PREFIX}no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --wrapper)"
             )
             has_shown_warning = True
         if endpoint_type in ["koboldcpp", "llamacpp", "webui"]:
@@ -72,7 +73,7 @@ def get_chat_completion(
             grammar_name = "json_func_calls_with_inner_thoughts"
 
     if grammar_name is not None and endpoint_type not in ["koboldcpp", "llamacpp", "webui"]:
-        print(f"Warning: grammars are currently only supported when using llama.cpp as the MemGPT local LLM backend")
+        print(f"{CLI_WARNING_PREFIX}grammars are currently only supported when using llama.cpp as the MemGPT local LLM backend")
 
     # First step: turn the message sequence into a prompt that the model expects
     try:

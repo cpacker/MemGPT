@@ -3,6 +3,8 @@ import re
 
 from colorama import Fore, Style, init
 
+from memgpt.constants import CLI_WARNING_PREFIX
+
 init(autoreset=True)
 
 
@@ -104,7 +106,7 @@ class AutoGenInterface(object):
                 try:
                     msg_json = json.loads(msg)
                 except:
-                    print(f"Warning: failed to parse user message into json")
+                    print(f"{CLI_WARNING_PREFIX}failed to parse user message into json")
                     message = f"{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg}{Style.RESET_ALL}" if self.fancy else f"[user] {msg}"
                     self.message_list.append(message)
                     return
@@ -175,7 +177,7 @@ class AutoGenInterface(object):
                             print(e)
                             message = msg_dict
                     else:
-                        print(f"Warning: did not recognize function message")
+                        print(f"{CLI_WARNING_PREFIX}did not recognize function message")
                         message = (
                             f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}" if self.fancy else f"[function] {msg}"
                         )
@@ -194,7 +196,7 @@ class AutoGenInterface(object):
                         f"{Fore.GREEN}{Style.BRIGHT}⚡ [function] {Fore.GREEN}{msg}{Style.RESET_ALL}" if self.fancy else f"[function] {msg}"
                     )
             except Exception:
-                print(f"Warning: did not recognize function message {type(msg)} {msg}")
+                print(f"{CLI_WARNING_PREFIX}did not recognize function message {type(msg)} {msg}")
                 message = f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}" if self.fancy else f"[function] {msg}"
 
         if message:

@@ -17,6 +17,8 @@ STARTUP_QUOTES = [
 ]
 INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG = STARTUP_QUOTES[2]
 
+CLI_WARNING_PREFIX = "Warning: "
+
 # Constants to do with summarization / conversation length window
 # The max amount of tokens supported by the underlying model (eg 8k for gpt-4 and Mistral 7B)
 LLM_MAX_TOKENS = {
