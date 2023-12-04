@@ -9,7 +9,7 @@ import memgpt.system as system
 import memgpt.constants as constants
 import memgpt.utils as utils
 import memgpt.presets.presets as presets
-from memgpt.config import AgentConfig
+from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.cli.cli import attach
 from memgpt.cli.cli_load import load_directory, load_webpage, load_index, load_database, load_vector_database
 from memgpt.connectors.storage import StorageConnector
@@ -48,17 +48,33 @@ def create_memgpt_autogen_agent_from_config(
     else:
         user_desc = "Work by yourself, the user won't reply. Elaborate as much as possible."
 
+    # If using azure or openai, save the credentials to the config
+    if llm_config["model_endpoint_type"] == "azure":
+        config = MemGPTConfig(
+            azure_key=llm_config["azure_key"],
+            azure_endpoint=llm_config["azure_endpoint"],
+            azure_version=llm_config["azure_version"],
+        )
+        llm_config.pop("azure_key")
+        llm_config.pop("azure_endpoint")
+        llm_config.pop("azure_version")
+        config.save()
+    elif llm_config["model_endpoint_type"] == "openai":
+        config = MemGPTConfig(
+            openai_key=llm_config["openai_key"],
+        )
+        llm_config.pop("openai_key")
+        config.save()
+
     # Create an AgentConfig option from the inputs
+    llm_config.pop("name", None)
+    llm_config.pop("persona", None)
+    llm_config.pop("human", None)
     agent_config = AgentConfig(
         name=name,
         persona=persona_desc,
         human=user_desc,
-        preset=llm_config["preset"],
-        model=llm_config["model"],
-        model_wrapper=llm_config["model_wrapper"],
-        model_endpoint_type=llm_config["model_endpoint_type"],
-        model_endpoint=llm_config["model_endpoint"],
-        context_window=llm_config["context_window"],
+        **llm_config,
     )
 
     if function_map is not None or code_execution_config is not None:

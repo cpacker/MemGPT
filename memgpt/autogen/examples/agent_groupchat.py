@@ -39,11 +39,13 @@ if LLM_BACKEND == "openai":
     config_list_memgpt = [
         {
             "model": model,
+            "context_window": LLM_MAX_TOKENS[model],
             "preset": DEFAULT_PRESET,
             "model_wrapper": None,
+            # OpenAI specific
             "model_endpoint_type": "openai",
             "model_endpoint": "https://api.openai.com/v1",
-            "context_window": LLM_MAX_TOKENS[model],
+            "openai_key": openai_api_key,
         },
     ]
 
@@ -52,11 +54,11 @@ elif LLM_BACKEND == "azure":
     # If you don't have access to the model, the code will fail
     model = "gpt-4"
 
-    azure_openai_api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    azure_openai_api_key = os.getenv("AZURE_OPENAI_KEY")
     azure_openai_version = os.getenv("AZURE_OPENAI_VERSION")
     azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
     assert (
-        azure_openai_api_key and azure_openai_version and azure_openai_endpoint
+        azure_openai_api_key is not None and azure_openai_version is not None and azure_openai_endpoint is not None
     ), "Set all the required OpenAI Azure variables (see: https://memgpt.readthedocs.io/en/latest/endpoints/#azure)"
 
     # This config is for AutoGen agents that are not powered by MemGPT
@@ -66,7 +68,9 @@ elif LLM_BACKEND == "azure":
             "api_type": "azure",
             "api_key": azure_openai_api_key,
             "api_version": azure_openai_version,
-            "api_base": azure_openai_endpoint,
+            # NOTE: on versions of pyautogen < 0.2.0, use "api_base"
+            # "api_base": azure_openai_endpoint,
+            "base_url": azure_openai_endpoint,
         }
     ]
 
@@ -74,11 +78,14 @@ elif LLM_BACKEND == "azure":
     config_list_memgpt = [
         {
             "model": model,
+            "context_window": LLM_MAX_TOKENS[model],
             "preset": DEFAULT_PRESET,
             "model_wrapper": None,
-            "model_endpoint_type": "openai",
-            "model_endpoint": "https://api.openai.com/v1",
-            "context_window": LLM_MAX_TOKENS[model],
+            # Azure specific
+            "model_endpoint_type": "azure",
+            "azure_key": azure_openai_api_key,
+            "azure_endpoint": azure_openai_endpoint,
+            "azure_version": azure_openai_version,
         },
     ]
 
@@ -90,7 +97,9 @@ elif LLM_BACKEND == "local":
     config_list = [
         {
             "model": "NULL",  # not needed
-            "api_base": "http://localhost:1234/v1",  # ex. "http://127.0.0.1:5001/v1" if you are using webui, "http://localhost:1234/v1/" if you are using LM Studio
+            # NOTE: on versions of pyautogen < 0.2.0, use "api_base"
+            # "api_base": "http://localhost:1234/v1",
+            "base_url": "http://localhost:1234/v1",  # ex. "http://127.0.0.1:5001/v1" if you are using webui, "http://localhost:1234/v1/" if you are using LM Studio
             "api_key": "NULL",  #  not needed
             "api_type": "open_ai",
         },
@@ -101,10 +110,10 @@ elif LLM_BACKEND == "local":
         {
             "preset": DEFAULT_PRESET,
             "model": None,  # only required for Ollama, see: https://memgpt.readthedocs.io/en/latest/ollama/
+            "context_window": 8192,  # the context window of your model (for Mistral 7B-based models, it's likely 8192)
             "model_wrapper": "airoboros-l2-70b-2.1",  # airoboros is the default wrapper and should work for most models
             "model_endpoint_type": "lmstudio",  # can use webui, ollama, llamacpp, etc.
             "model_endpoint": "http://localhost:1234",  # the IP address of your LLM backend
-            "context_window": 8192,  # the context window of your model (for Mistral 7B-based models, it's likely 8192)
         },
     ]
 
@@ -121,7 +130,7 @@ DEBUG = False
 
 interface_kwargs = {
     "debug": DEBUG,
-    "show_inner_thoughts": DEBUG,
+    "show_inner_thoughts": True,
     "show_function_outputs": DEBUG,
 }
 
