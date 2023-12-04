@@ -5,6 +5,7 @@ import re
 from colorama import Fore, Style, init
 
 from memgpt.utils import printd
+from memgpt.constants import CLI_WARNING_PREFIX
 
 init(autoreset=True)
 
@@ -108,7 +109,7 @@ class CLIInterface(AgentInterface):
                 try:
                     msg_json = json.loads(msg)
                 except:
-                    printd(f"Warning: failed to parse user message into json")
+                    printd(f"{CLI_WARNING_PREFIX}failed to parse user message into json")
                     printd_user_message("🧑", msg)
                     return
         if msg_json["type"] == "user_message":
@@ -186,7 +187,7 @@ class CLIInterface(AgentInterface):
                             printd(msg_dict)
                             pass
                 else:
-                    printd(f"Warning: did not recognize function message")
+                    printd(f"{CLI_WARNING_PREFIX}did not recognize function message")
                     printd_function_message("", msg)
         else:
             try:
@@ -196,7 +197,7 @@ class CLIInterface(AgentInterface):
                 else:
                     printd_function_message("", str(msg), color=Fore.RED)
             except Exception:
-                print(f"Warning: did not recognize function message {type(msg)} {msg}")
+                print(f"{CLI_WARNING_PREFIX}did not recognize function message {type(msg)} {msg}")
                 printd_function_message("", msg)
 
     @staticmethod
