@@ -4,6 +4,12 @@
     
     You can also check the [GitHub discussion page](https://github.com/cpacker/MemGPT/discussions/65), but the Discord server is the official support channel and is monitored more actively.
 
+!!! warning "Tested with `pyautogen` v0.2.0
+
+    The MemGPT+AutoGen integration was last tested using AutoGen version v0.2.0.
+    
+    If you are having issues, please first try installing the specific version of AutoGen using `pip install pyautogen==0.2.0`
+
 [examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) contains an example of a groupchat where one of the agents is powered by MemGPT.
 
 If you are using OpenAI, you can also run it using the [example notebook](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/memgpt_coder_autogen.ipynb).
