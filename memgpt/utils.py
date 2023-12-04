@@ -89,11 +89,25 @@ def parse_json(string):
         raise e
 
 
-def list_agent_config_files():
+def list_agent_config_files(sort="last_modified"):
     """List all agent config files, ignoring dotfiles."""
-    files = os.listdir(os.path.join(MEMGPT_DIR, "agents"))
-    #  remove dotfiles like .DS_Store
-    return [file for file in files if not file.startswith(".")]
+    agent_dir = os.path.join(MEMGPT_DIR, "agents")
+    files = os.listdir(agent_dir)
+
+    # Remove dotfiles like .DS_Store
+    files = [file for file in files if not file.startswith(".")]
+
+    # Remove anything that's not a directory
+    files = [file for file in files if os.path.isdir(os.path.join(agent_dir, file))]
+
+    if sort is not None:
+        if sort == "last_modified":
+            # Sort the directories by last modified (most recent first)
+            files.sort(key=lambda x: os.path.getmtime(os.path.join(agent_dir, x)), reverse=True)
+        else:
+            raise ValueError(f"Unrecognized sorting option {sort}")
+
+    return files
 
 
 def list_human_files():
