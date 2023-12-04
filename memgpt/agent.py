@@ -18,6 +18,7 @@ from memgpt.constants import (
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
     LLM_MAX_TOKENS,
+    CLI_WARNING_PREFIX,
 )
 from .errors import LLMError
 from .functions.functions import load_all_function_sets
@@ -505,7 +506,7 @@ class Agent(object):
             heartbeat_request = function_args.pop("request_heartbeat", None)
             if not (isinstance(heartbeat_request, bool) or heartbeat_request is None):
                 printd(
-                    f"Warning: 'request_heartbeat' arg parsed was not a bool or None, type={type(heartbeat_request)}, value={heartbeat_request}"
+                    f"{CLI_WARNING_PREFIX}'request_heartbeat' arg parsed was not a bool or None, type={type(heartbeat_request)}, value={heartbeat_request}"
                 )
                 heartbeat_request = None
 
@@ -568,7 +569,7 @@ class Agent(object):
                 input_message_sequence = self.messages
 
             if len(input_message_sequence) > 1 and input_message_sequence[-1]["role"] != "user":
-                printd(f"WARNING: attempting to run ChatCompletion without user as the last message in the queue")
+                printd(f"{CLI_WARNING_PREFIX}Attempting to run ChatCompletion without user as the last message in the queue")
 
             # Step 1: send the conversation and available functions to GPT
             if not skip_verify and (first_message or self.messages_total == self.messages_total_init):
@@ -620,7 +621,7 @@ class Agent(object):
             # We can't do summarize logic properly if context_window is undefined
             if self.config.context_window is None:
                 # Fallback if for some reason context_window is missing, just set to the default
-                print(f"WARNING: could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
+                print(f"{CLI_WARNING_PREFIX}could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
                 print(f"{self.config}")
                 self.config.context_window = (
                     str(LLM_MAX_TOKENS[self.model])
@@ -629,7 +630,7 @@ class Agent(object):
                 )
             if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window):
                 printd(
-                    f"WARNING: last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window)}"
+                    f"{CLI_WARNING_PREFIX}last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window)}"
                 )
                 # Only deliver the alert if we haven't already (this period)
                 if not self.agent_alerted_about_memory_pressure:
@@ -712,7 +713,7 @@ class Agent(object):
         # We can't do summarize logic properly if context_window is undefined
         if self.config.context_window is None:
             # Fallback if for some reason context_window is missing, just set to the default
-            print(f"WARNING: could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
+            print(f"{CLI_WARNING_PREFIX}could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
             print(f"{self.config}")
             self.config.context_window = (
                 str(LLM_MAX_TOKENS[self.model])
