@@ -284,8 +284,6 @@ class AgentConfig:
         self.agent_config_path = (
             os.path.join(MEMGPT_DIR, "agents", self.name, "config.json") if agent_config_path is None else agent_config_path
         )
-        # assert not os.path.exists(self.agent_config_path), f"Agent config file already exists at {self.agent_config_path}"
-        self.save()
 
     def generate_agent_id(self, length=6):
         ## random character based
