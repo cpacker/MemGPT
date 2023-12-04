@@ -15,6 +15,7 @@ from tqdm import tqdm
 
 
 from memgpt.config import AgentConfig, MemGPTConfig
+from memgpt.data_types import Record
 
 
 # ENUM representing table types in MemGPT
@@ -28,78 +29,6 @@ class TableType:
 
 # Defining schema objects:
 # Note: user/agent can borrow from MemGPTConfig/AgentConfig classes
-
-
-class Record:
-    """Base class for all table records"""
-
-    def __init__(self, user_id: str):
-        self.user_id = user_id
-
-
-class Message(Record):
-    """A message is a single unit of communication, and a standard format accross all storage backends.
-
-    It is a string of text with an associated embedding.
-    """
-
-    def __init__(
-        self, user_id: str, agent_id: str, role: str, text: str, embedding: Optional[np.ndarray] = None, message_id: Optional[str] = None
-    ):
-        super().__init__(user_id)
-        self.agent_id = agent_id
-        self.role = role
-        self.text = text
-        self.embedding = embedding  # optional
-        self.message_id = message_id
-        self.message_type = "conversation"
-        # todo: self.role = role (?)
-
-    def __repr__(self):
-        return f"Message(text={self.text}, embedding={self.embedding})"
-
-
-class FunctionCallMessage(Message):
-    def __init__(
-        self, user_id: str, agent_id: str, role: str, text: str, embedding: Optional[np.ndarray] = None, message_id: Optional[str] = None
-    ):
-        super().__init__(user_id, agent_id, role, text, None, message_id)
-        self.message_type = "function"
-
-        # todo: self.role = role (?)
-
-    def __repr__(self):
-        return f"Message(text={self.text}, embedding={self.embedding})"
-
-
-class Document(Record):
-    """A document represent a document loaded into MemGPT, which is broken down into passages."""
-
-    def __init__(self, user_id: str, text: str, document_id: Optional[str] = None):
-        super().__init__(user_id)
-        self.text = text
-        self.document_id = document_id
-        # TODO: add optional embedding?
-
-    def __repr__(self) -> str:
-        pass
-
-
-class Passage(Record):
-    """A passage is a single unit of memory, and a standard format accross all storage backends.
-
-    It is a string of text with an associated embedding.
-    """
-
-    def __init__(self, user_id: str, text: str, embedding: np.ndarray, doc_id: Optional[str] = None, passage_id: Optional[str] = None):
-        super().__init__(user_id)
-        self.text = text
-        self.embedding = embedding
-        self.doc_id = doc_id
-        self.passage_id = passage_id
-
-    def __repr__(self):
-        return f"Passage(text={self.text}, embedding={self.embedding})"
 
 
 class StorageConnector:
@@ -168,27 +97,27 @@ class StorageConnector:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")
 
     @abstractmethod
-    def get_all_paginated(self, page_size: int) -> Iterator[List[Passage]]:
+    def get_all_paginated(self, page_size: int) -> Iterator[List[Record]]:
         pass
 
     @abstractmethod
-    def get_all(self, limit: int) -> List[Passage]:
+    def get_all(self, limit: int) -> List[Record]:
         pass
 
     @abstractmethod
-    def get(self, id: str) -> Passage:
+    def get(self, id: str) -> Record:
         pass
 
     @abstractmethod
-    def insert(self, passage: Passage):
+    def insert(self, passage: Record):
         pass
 
     @abstractmethod
-    def insert_many(self, passages: List[Passage]):
+    def insert_many(self, passages: List[Record]):
         pass
 
     @abstractmethod
-    def query(self, query: str, query_vec: List[float], top_k: int = 10) -> List[Passage]:
+    def query(self, query: str, query_vec: List[float], top_k: int = 10) -> List[Record]:
         pass
 
     @abstractmethod
