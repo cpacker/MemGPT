@@ -4,7 +4,7 @@
     
     You can also check the [GitHub discussion page](https://github.com/cpacker/MemGPT/discussions/65), but the Discord server is the official support channel and is monitored more actively.
 
-!!! warning "Tested with `pyautogen` v0.2.0
+!!! warning "Tested with `pyautogen` v0.2.0"
 
     The MemGPT+AutoGen integration was last tested using AutoGen version v0.2.0.
     
