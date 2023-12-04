@@ -16,7 +16,7 @@ from tqdm import tqdm
 import pandas as pd
 
 from memgpt.config import MemGPTConfig
-from memgpt.connectors.storage import StorageConnector, Passage
+from memgpt.connectors.storage import StorageConnector, TableType
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.constants import MEMGPT_DIR
 from memgpt.utils import printd
@@ -24,28 +24,33 @@ from memgpt.utils import printd
 Base = declarative_base()
 
 
-def get_db_model(table_name: str):
+def get_db_model(table_name: str, table_type: TableType):
     config = MemGPTConfig.load()
 
-    class PassageModel(Base):
-        """Defines data model for storing Passages (consisting of text, embedding)"""
+    if table_name == TableType.ARCHIVAL_MEMORY:
+        # create schema for archival memory
+        class PassageModel(Base):
+            """Defines data model for storing Passages (consisting of text, embedding)"""
 
-        __abstract__ = True  # this line is necessary
+            __abstract__ = True  # this line is necessary
 
-        # Assuming passage_id is the primary key
-        id = Column(BIGINT, primary_key=True, nullable=False, autoincrement=True)
-        doc_id = Column(String)
-        text = Column(String, nullable=False)
-        embedding = mapped_column(Vector(config.embedding_dim))
-        metadata_ = Column(JSON(astext_type=Text()))
+            # Assuming passage_id is the primary key
+            id = Column(BIGINT, primary_key=True, nullable=False, autoincrement=True)
+            doc_id = Column(String)
+            text = Column(String, nullable=False)
+            embedding = mapped_column(Vector(config.embedding_dim))
+            metadata_ = Column(JSON(astext_type=Text()))
 
-        def __repr__(self):
-            return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
+            def __repr__(self):
+                return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
 
-    """Create database model for table_name"""
-    class_name = f"{table_name.capitalize()}Model"
-    Model = type(class_name, (PassageModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
-    return Model
+        """Create database model for table_name"""
+        class_name = f"{table_name.capitalize()}Model"
+        Model = type(class_name, (PassageModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
+        return Model
+    else:
+        # TODO: implement recall memory, document store
+        raise NotImplementedError(f"Table type {table_type} not implemented")
 
 
 class PostgresStorageConnector(StorageConnector):
