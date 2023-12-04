@@ -49,21 +49,23 @@ def create_memgpt_autogen_agent_from_config(
         user_desc = "Work by yourself, the user won't reply. Elaborate as much as possible."
 
     # If using azure or openai, save the credentials to the config
-    if llm_config["model_endpoint_type"] == "azure":
-        config = MemGPTConfig(
-            azure_key=llm_config["azure_key"],
-            azure_endpoint=llm_config["azure_endpoint"],
-            azure_version=llm_config["azure_version"],
-        )
-        llm_config.pop("azure_key")
-        llm_config.pop("azure_endpoint")
-        llm_config.pop("azure_version")
-        config.save()
-    elif llm_config["model_endpoint_type"] == "openai":
-        config = MemGPTConfig(
-            openai_key=llm_config["openai_key"],
-        )
-        llm_config.pop("openai_key")
+    if llm_config["model_endpoint_type"] in ["azure", "openai"]:
+        # we load here to make sure we don't override existing values
+        # all we want to do is add extra credentials
+        config = MemGPTConfig.load()
+
+        if llm_config["model_endpoint_type"] == "azure":
+            config.azure_key = llm_config["azure_key"]
+            config.azure_endpoint = llm_config["azure_endpoint"]
+            config.azure_version = llm_config["azure_version"]
+            llm_config.pop("azure_key")
+            llm_config.pop("azure_endpoint")
+            llm_config.pop("azure_version")
+
+        elif llm_config["model_endpoint_type"] == "openai":
+            config.openai_key = llm_config["openai_key"]
+            llm_config.pop("openai_key")
+
         config.save()
 
     # Create an AgentConfig option from the inputs
