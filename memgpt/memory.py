@@ -4,9 +4,10 @@ import re
 from typing import Optional, List, Tuple
 
 from memgpt.constants import MESSAGE_SUMMARY_WARNING_FRAC
-from memgpt.utils import get_local_time, printd, count_tokens
+from memgpt.utils import get_local_time, printd, count_tokens, validate_date_format, extract_date_from_timestamp
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
 from memgpt.openai_tools import create
+from memgpt.data_types import Message, Passage
 from llama_index import Document
 from llama_index.node_parser import SimpleNodeParser
 from llama_index.node_parser import SimpleNodeParser
@@ -135,7 +136,7 @@ def summarize_messages(
 
 class ArchivalMemory(ABC):
     @abstractmethod
-    def insert(self, memory_string):
+    def insert(self, memory_string: str):
         """Insert new archival memory
 
         :param memory_string: Memory string to insert
@@ -176,6 +177,10 @@ class RecallMemory(ABC):
     def __repr__(self) -> str:
         pass
 
+    @abstractmethod
+    def insert(self, message: Message):
+        pass
+
 
 class DummyRecallMemory(RecallMemory):
     """Dummy in-memory version of a recall memory database (eg run on MongoDB)
@@ -187,29 +192,12 @@ class DummyRecallMemory(RecallMemory):
     effectively allowing it to 'remember' prior engagements with a user.
     """
 
-    # TODO: replace this with StorageConnector based implementation
-
-    def __init__(self, agent_config, restrict_search_to_summaries=False):
+    def __init__(self, message_database=None, restrict_search_to_summaries=False):
+        self._message_logs = [] if message_database is None else message_database  # consists of full message dicts
 
         # If true, the pool of messages that can be queried are the automated summaries only
         # (generated when the conversation window needs to be shortened)
         self.restrict_search_to_summaries = restrict_search_to_summaries
-        from memgpt.connectors.storage import StorageConnector
-
-        self.top_k = top_k
-        self.agent_config = agent_config
-        config = MemGPTConfig.load()
-
-        # create embedding model
-        self.embed_model = embedding_model()
-        self.embedding_chunk_size = config.embedding_chunk_size
-
-        # create storage backend
-        self.storage = StorageConnector.get_archival_storage_connector(
-            agent_config=agent_config, table_type="recall_memory"  # TODO: change to enum
-        )
-        # TODO: have some mechanism for cleanup otherwise will lead to OOM
-        self.cache = {}
 
     def __len__(self):
         return len(self._message_logs)
@@ -265,25 +253,11 @@ class DummyRecallMemory(RecallMemory):
         else:
             return matches, len(matches)
 
-    def _validate_date_format(self, date_str):
-        """Validate the given date string in the format 'YYYY-MM-DD'."""
-        try:
-            datetime.datetime.strptime(date_str, "%Y-%m-%d")
-            return True
-        except (ValueError, TypeError):
-            return False
-
-    def _extract_date_from_timestamp(self, timestamp):
-        """Extracts and returns the date from the given timestamp."""
-        # Extracts the date (ignoring the time and timezone)
-        match = re.match(r"(\d{4}-\d{2}-\d{2})", timestamp)
-        return match.group(1) if match else None
-
     def date_search(self, start_date, end_date, count=None, start=None):
         message_pool = [d for d in self._message_logs if d["message"]["role"] not in ["system", "function"]]
 
         # First, validate the start_date and end_date format
-        if not self._validate_date_format(start_date) or not self._validate_date_format(end_date):
+        if not validate_date_format(start_date) or not validate_date_format(end_date):
             raise ValueError("Invalid date format. Expected format: YYYY-MM-DD")
 
         # Convert dates to datetime objects for comparison
@@ -294,7 +268,7 @@ class DummyRecallMemory(RecallMemory):
         matches = [
             d
             for d in message_pool
-            if start_date_dt <= datetime.datetime.strptime(self._extract_date_from_timestamp(d["timestamp"]), "%Y-%m-%d") <= end_date_dt
+            if start_date_dt <= datetime.datetime.strptime(extract_date_from_timestamp(d["timestamp"]), "%Y-%m-%d") <= end_date_dt
         ]
 
         # start/count support paging through results
@@ -308,6 +282,42 @@ class DummyRecallMemory(RecallMemory):
             return matches[start:], len(matches)
         else:
             return matches, len(matches)
+
+
+class RecallMemorySQL(RecallMemory):
+    def __init__(self, agent_config, restrict_search_to_summaries=False):
+
+        # If true, the pool of messages that can be queried are the automated summaries only
+        # (generated when the conversation window needs to be shortened)
+        self.restrict_search_to_summaries = restrict_search_to_summaries
+        from memgpt.connectors.storage import StorageConnector
+
+        self.agent_config = agent_config
+        config = MemGPTConfig.load()
+
+        # create embedding model
+        self.embed_model = embedding_model()
+        self.embedding_chunk_size = config.embedding_chunk_size
+
+        # create storage backend
+        self.storage = StorageConnector.get_recall_storage_connector(agent_config=agent_config)
+        # TODO: have some mechanism for cleanup otherwise will lead to OOM
+        self.cache = {}
+
+    @abstractmethod
+    def text_search(self, query_string, count=None, start=None):
+        pass
+
+    @abstractmethod
+    def date_search(self, query_string, count=None, start=None):
+        pass
+
+    @abstractmethod
+    def __repr__(self) -> str:
+        pass
+
+    def insert(self, message: Message):
+        pass
 
 
 class EmbeddingArchivalMemory(ArchivalMemory):

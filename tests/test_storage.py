@@ -13,9 +13,52 @@ import pgvector  # Try to import again after installing
 from memgpt.connectors.storage import StorageConnector, Passage
 from memgpt.connectors.db import PostgresStorageConnector, LanceDBConnector
 from memgpt.embeddings import embedding_model
+from memgpt.data_types import Message, Passage
 from memgpt.config import MemGPTConfig, AgentConfig
 
 import argparse
+
+
+def test_recall_db() -> None:
+    # os.environ["MEMGPT_CONFIG_PATH"] = "./config"
+
+    storage_type = "postgres"
+    storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")
+    config = MemGPTConfig(recall_storage_type=storage_type, recall_storage_uri=storage_uri)
+    print(config.config_path)
+    assert config.recall_storage_uri is not None
+    config.save()
+    print(config)
+
+    conn = StorageConnector.get_recall_storage_connector()
+
+    # construct recall memory messages
+    message1 = Message(
+        agent_id="test_agent1",
+        role="agent",
+        content="This is a test message",
+        id="test_id1",
+    )
+    message2 = Message(
+        agent_id="test_agent2",
+        role="user",
+        content="This is a test message",
+        id="test_id2",
+    )
+
+    # test insert
+    conn.insert(message1)
+    conn.insert_many([message2])
+
+    # test size
+    assert conn.size() == 2, f"Expected 2 messages, got {conn.size()}"
+    assert conn.size(filters={"agent_id": "test_agent2"}) == 1, f"Expected 2 messages, got {conn.size()}"
+
+    # test get
+    assert conn.get("test_id1") == message1, f"Expected {message1}, got {conn.get('test_id1')}"
+    assert (
+        len(conn.get_all(limit=10, filters={"agent_id": "test_agent2"})) == 1
+    ), f"Expected 1 message, got {len(conn.get_all(limit=10, filters={'agent_id': 'test_agent2'}))}"
 
 
 @pytest.mark.skipif(not os.getenv("PGVECTOR_TEST_DB_URL") or not os.getenv("OPENAI_API_KEY"), reason="Missing PG URI and/or OpenAI API key")

@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 import difflib
 import demjson3 as demjson
 import json
@@ -157,3 +158,20 @@ def get_schema_diff(schema_a, schema_b):
     difference = [line for line in difference if line.startswith("+ ") or line.startswith("- ")]
 
     return "".join(difference)
+
+
+# datetime related
+def validate_date_format(date_str):
+    """Validate the given date string in the format 'YYYY-MM-DD'."""
+    try:
+        datetime.datetime.strptime(date_str, "%Y-%m-%d")
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
+def extract_date_from_timestamp(timestamp):
+    """Extracts and returns the date from the given timestamp."""
+    # Extracts the date (ignoring the time and timezone)
+    match = re.match(r"(\d{4}-\d{2}-\d{2})", timestamp)
+    return match.group(1) if match else None
