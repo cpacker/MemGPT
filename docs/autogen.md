@@ -10,11 +10,55 @@
     
     If you are having issues, please first try installing the specific version of AutoGen using `pip install pyautogen==0.2.0`
 
-[examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) contains an example of a groupchat where one of the agents is powered by MemGPT.
+## Overview
 
-If you are using OpenAI, you can also run it using the [example notebook](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/memgpt_coder_autogen.ipynb).
+MemGPT includes an AutoGen agent class ([MemGPTAgent](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/memgpt_agent.py)) that mimics the interface of AutoGen's [ConversableAgent](https://microsoft.github.io/autogen/docs/reference/agentchat/conversable_agent#conversableagent-objects), allowing you to plug MemGPT into the AutoGen framework.
 
-In the next section, we detail how to set up MemGPT and AutoGen to run with local LLMs.
+To create a MemGPT AutoGen agent for use in an AutoGen script, you can use the `create_memgpt_autogen_agent_from_config` constructor:
+```python
+from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config
+
+# create a config for the MemGPT AutoGen agent
+config_list_memgpt = [
+    {
+        "model": "gpt-4",
+        "context_window": 8192,
+        "preset": "memgpt_chat",
+        # OpenAI specific
+        "model_endpoint_type": "openai",
+        "openai_key": YOUR_OPENAI_KEY,
+    },
+]
+llm_config_memgpt = {"config_list": config_list_memgpt, "seed": 42}
+
+# there are some additional options to do with how you want the interface to look (more info below)
+interface_kwargs = {
+    "debug": False,
+    "show_inner_thoughts": True,
+    "show_function_outputs": False,
+}
+
+# then pass the config to the constructor
+memgpt_autogen_agent = create_memgpt_autogen_agent_from_config(
+    "MemGPT_agent",
+    llm_config=llm_config_memgpt,
+    system_message=f"Your desired MemGPT persona",
+    interface_kwargs=interface_kwargs,
+    default_auto_reply="...",
+)
+```
+
+Now this `memgpt_autogen_agent` can be used in standard AutoGen scripts:
+```python
+import autogen
+
+# ... assuming we have some other AutoGen agents other_agent_1 and 2
+groupchat = autogen.GroupChat(agents=[memgpt_autogen_agent, other_agent_1, other_agent_2], messages=[], max_round=12)
+```
+
+[examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) contains an example of a groupchat where one of the agents is powered by MemGPT. If you are using OpenAI, you can also run the example using the [notebook](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/memgpt_coder_autogen.ipynb).
+
+In the next section, we'll go through the example in depth to demonstrate how to set up MemGPT and AutoGen to run with a local LLM backend.
 
 ## Example: connecting AutoGen + MemGPT to non-OpenAI LLMs
 
