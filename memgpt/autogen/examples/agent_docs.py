@@ -99,11 +99,11 @@ elif LLM_BACKEND == "local":
     config_list = [
         {
             "model": "NULL",  # not needed
-            # NOTE: on versions of pyautogen < 0.2.0, use "api_base"
+            # NOTE: on versions of pyautogen < 0.2.0 use "api_base", and also uncomment "api_type"
             # "api_base": "http://localhost:1234/v1",
+            # "api_type": "open_ai",
             "base_url": "http://localhost:1234/v1",  # ex. "http://127.0.0.1:5001/v1" if you are using webui, "http://localhost:1234/v1/" if you are using LM Studio
             "api_key": "NULL",  #  not needed
-            "api_type": "open_ai",
         },
     ]
 
