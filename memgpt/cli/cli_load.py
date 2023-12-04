@@ -28,7 +28,7 @@ app = typer.Typer()
 def store_docs(name, docs, show_progress=True):
     """Common function for embedding and storing documents"""
 
-    storage = StorageConnector.get_storage_connector(name=name)
+    storage = StorageConnector.get_archival_storage_connector(name=name)
     config = MemGPTConfig.load()
     embed_model = embedding_model()
 
@@ -74,7 +74,7 @@ def load_index(
         passages.append(Passage(text=node.text, embedding=vector))
 
     # create storage connector
-    storage = StorageConnector.get_storage_connector(name=name)
+    storage = StorageConnector.get_archival_storage_connector(name=name)
 
     # add and save all passages
     storage.insert_many(passages)
@@ -204,5 +204,5 @@ def load_vector_database(
         assert config.embedding_dim == len(embedding), f"Expected embedding dimension {config.embedding_dim}, got {len(embedding)}"
 
     # insert into storage
-    storage = StorageConnector.get_storage_connector(name=name)
+    storage = StorageConnector.get_archival_storage_connector(name=name)
     storage.insert_many(passages)

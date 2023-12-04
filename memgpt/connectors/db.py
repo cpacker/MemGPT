@@ -1,5 +1,5 @@
 from pgvector.psycopg import register_vector
-from pgvector.sqlalchemy import Vector
+from pgvector.sqlalchemy import Vector, JSON, Text
 import psycopg
 
 
@@ -37,7 +37,7 @@ def get_db_model(table_name: str):
         doc_id = Column(String)
         text = Column(String, nullable=False)
         embedding = mapped_column(Vector(config.embedding_dim))
-        # metadata_ = Column(JSON(astext_type=Text()))
+        metadata_ = Column(JSON(astext_type=Text()))
 
         def __repr__(self):
             return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"

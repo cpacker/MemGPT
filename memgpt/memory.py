@@ -189,12 +189,28 @@ class DummyRecallMemory(RecallMemory):
 
     # TODO: replace this with StorageConnector based implementation
 
-    def __init__(self, message_database=None, restrict_search_to_summaries=False):
+    def __init__(self, agent_config, restrict_search_to_summaries=False):
         self._message_logs = [] if message_database is None else message_database  # consists of full message dicts
 
         # If true, the pool of messages that can be queried are the automated summaries only
         # (generated when the conversation window needs to be shortened)
         self.restrict_search_to_summaries = restrict_search_to_summaries
+        from memgpt.connectors.storage import StorageConnector
+
+        self.top_k = top_k
+        self.agent_config = agent_config
+        config = MemGPTConfig.load()
+
+        # create embedding model
+        self.embed_model = embedding_model()
+        self.embedding_chunk_size = config.embedding_chunk_size
+
+        # create storage backend
+        self.storage = StorageConnector.get_archival_storage_connector(
+            agent_config=agent_config, table_type="recall_memory"  # TODO: change to enum
+        )
+        # TODO: have some mechanism for cleanup otherwise will lead to OOM
+        self.cache = {}
 
     def __len__(self):
         return len(self._message_logs)
@@ -315,7 +331,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         self.embedding_chunk_size = config.embedding_chunk_size
 
         # create storage backend
-        self.storage = StorageConnector.get_storage_connector(agent_config=agent_config)
+        self.storage = StorageConnector.get_archival_storage_connector(agent_config=agent_config)
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
 
