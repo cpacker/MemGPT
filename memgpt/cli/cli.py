@@ -490,9 +490,9 @@ def attach(
 
         agent_config = AgentConfig.load(agent)
 
-        # get storage connectors
-        source_storage = StorageConnector.get_storage_connector(name=data_source)
-        dest_storage = StorageConnector.get_storage_connector(agent_config=agent_config)
+    # get storage connectors
+    source_storage = StorageConnector.get_archival_storage_connector(name=data_source)
+    dest_storage = StorageConnector.get_archival_storage_connector(agent_config=agent_config)
 
         size = source_storage.size()
         typer.secho(f"Ingesting {size} passages into {agent_config.name}", fg=typer.colors.GREEN)
