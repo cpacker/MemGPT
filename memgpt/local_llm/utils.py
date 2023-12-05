@@ -6,6 +6,24 @@ import memgpt.local_llm.llm_chat_completion_wrappers.dolphin as dolphin
 import memgpt.local_llm.llm_chat_completion_wrappers.zephyr as zephyr
 
 
+# deprecated for Box
+class DotDict(dict):
+    """Allow dot access on properties similar to OpenAI response object"""
+
+    def __getattr__(self, attr):
+        return self.get(attr)
+
+    def __setattr__(self, key, value):
+        self[key] = value
+
+    # following methods necessary for pickling
+    def __getstate__(self):
+        return vars(self)
+
+    def __setstate__(self, state):
+        vars(self).update(state)
+
+
 def load_grammar_file(grammar):
     # Set grammar
     grammar_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "grammars", f"{grammar}.gbnf")
