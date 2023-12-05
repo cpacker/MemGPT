@@ -151,6 +151,7 @@ memgpt_agent = create_memgpt_autogen_agent_from_config(
     system_message=f"You are an AI research assistant.\n" f"You are participating in a group chat with a user ({user_proxy.name}).",
     interface_kwargs=interface_kwargs,
     default_auto_reply="...",  # Set a default auto-reply message here (non-empty auto-reply is required for LM Studio)
+    skip_verify=False,  # NOTE: you should set this to True if you expect your MemGPT AutoGen agent to call a function other than send_message on the first turn
 )
 # NOTE: you need to follow steps to load document first: see https://memgpt.readthedocs.io/en/latest/autogen/#loading-documents
 memgpt_agent.load_and_attach("memgpt_research_paper", "directory")

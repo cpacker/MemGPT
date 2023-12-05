@@ -23,7 +23,7 @@ config_list_memgpt = [
     {
         "model": "gpt-4",
         "context_window": 8192,
-        "preset": "memgpt_chat",
+        "preset": "memgpt_chat",  # NOTE: you can change the preset here
         # OpenAI specific
         "model_endpoint_type": "openai",
         "openai_key": YOUR_OPENAI_KEY,
@@ -45,6 +45,7 @@ memgpt_autogen_agent = create_memgpt_autogen_agent_from_config(
     system_message=f"Your desired MemGPT persona",
     interface_kwargs=interface_kwargs,
     default_auto_reply="...",
+    skip_verify=False,  # NOTE: you should set this to True if you expect your MemGPT AutoGen agent to call a function other than send_message on the first turn
 )
 ```
 
