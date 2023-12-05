@@ -10,6 +10,14 @@ Check out our [chat with your docs example](../example_data) to get started.
 
 When you want to end a chat, run `/exit`, and MemGPT will save your current chat with your agent (make a note of the agent name, e.g. `agent_N`). Later, when you want to start a chat with that same agent, you can run `memgpt run --agent <NAME>`.
 
+### My MemGPT agent is stuck "Thinking..." on the first message
+
+MemGPT has an extra verification procedure on the very first message to check that in the first message (1) the agent is sending a message to the user, and (2) that the agent is using internal monologue. This verification is meant to avoid the scenario where a bad initial agent message "poisons" the rest of a conversation. For example, a message missing internal monologue might cause all future messages to also omit internal monologue.
+
+If the LLM/model you're using for MemGPT is consistently failing the first message verification, it will appear as a long "Thinking..." loop on the first message. Certain models such as `gpt-3.5-turbo` can frequently fail first message verification because they do not properly use the `send_message` function and instead put the message inside the internal monologue. Models such as `gpt-4` and `gpt-4-turbo`, as well as open models like `dolphin-2.2.1` and `openhermes-2.5` should not have this problem.
+
+You can disable first message verification by passing the `--no-verify` flag to `memgpt run` (do `memgpt run --no-verify` instead of `memgpt run`). Passing the additional `--debug` flag (`memgpt run --no-verify --debug`) can help you further identify any other issues on first messages that can cause long "Thinking..." loops, such as rate limiting.
+
 ## OpenAI-related
 
 ### How do I get an OpenAI key?
