@@ -1,5 +1,9 @@
 # Frequently asked questions
 
+!!! note "Open / local LLM FAQ"
+
+    Questions specific to running your own open / local LLMs with MemGPT can be found [here](../local_llm_faq).
+
 ## MemGPT CLI
 
 ### How can I use MemGPT to chat with my docs?
