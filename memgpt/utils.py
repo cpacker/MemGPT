@@ -6,7 +6,7 @@ import pytz
 import os
 import tiktoken
 import memgpt
-from memgpt.constants import MEMGPT_DIR
+from memgpt.constants import MEMGPT_DIR, FUNCTION_RETURN_CHAR_LIMIT, CLI_WARNING_PREFIX
 
 # TODO: what is this?
 # DEBUG = True
@@ -86,6 +86,52 @@ def parse_json(string):
     except demjson.JSONDecodeError as e:
         print(f"Error parsing json with demjson package: {e}")
         raise e
+
+
+def validate_function_response(function_response_string: any, strict: bool = False) -> str:
+    """Check to make sure that a function used by MemGPT returned a valid response
+
+    Responses need to be strings (or None) that fall under a certain text count limit.
+    """
+    if not isinstance(function_response_string, str):
+        # Soft correction for a few basic types
+
+        if function_response_string is None:
+            # function_response_string = "Empty (no function output)"
+            function_response_string = "None"  # backcompat
+
+        elif isinstance(function_response_string, dict):
+            if strict:
+                # TODO add better error message
+                raise ValueError(function_response_string)
+
+            # Allow dict through since it will be cast to json.dumps()
+            try:
+                # TODO find a better way to do this that won't result in double escapes
+                function_response_string = json.dumps(function_response_string)
+            except:
+                raise ValueError(function_response_string)
+
+        else:
+            if strict:
+                # TODO add better error message
+                raise ValueError(function_response_string)
+
+            # Try to convert to a string, but throw a warning to alert the user
+            try:
+                function_response_string = str(function_response_string)
+            except:
+                raise ValueError(function_response_string)
+
+    # Now check the length and make sure it doesn't go over the limit
+    # TODO we should change this to a max token limit that's variable based on tokens remaining (or context-window)
+    if len(function_response_string) > FUNCTION_RETURN_CHAR_LIMIT:
+        print(
+            f"{CLI_WARNING_PREFIX}function return was over limit ({len(function_response_string)} > {FUNCTION_RETURN_CHAR_LIMIT}) and was truncated"
+        )
+        function_response_string = function_response_string[:FUNCTION_RETURN_CHAR_LIMIT] + "..."
+
+    return function_response_string
 
 
 def list_agent_config_files(sort="last_modified"):
