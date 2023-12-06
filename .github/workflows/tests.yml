@@ -42,7 +42,7 @@ jobs:
         PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry install -E dev -E postgres -E local
+        poetry install -E dev -E postgres -E local -E chroma -E lancedb
 
     - name: Set Poetry config
       env:
