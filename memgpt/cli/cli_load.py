@@ -102,9 +102,7 @@ def load_directory(
         reader = SimpleDirectoryReader(input_files=input_files)
 
     # load docs
-    print("loading data")
     docs = reader.load_data()
-    print("done loading data")
     store_docs(name, docs)
 
 

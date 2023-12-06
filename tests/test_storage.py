@@ -11,6 +11,7 @@ subprocess.check_call([sys.executable, "-m", "pip", "install", "lancedb"])
 import pgvector  # Try to import again after installing
 
 from memgpt.connectors.storage import StorageConnector, Passage
+from memgpt.connectors.chroma import ChromaStorageConnector
 from memgpt.connectors.db import PostgresStorageConnector, LanceDBConnector
 from memgpt.embeddings import embedding_model
 from memgpt.data_types import Message, Passage
@@ -100,6 +101,43 @@ def test_postgres_openai():
     # print("deleting...")
     # db.delete()
     # print("...finished")
+
+
+@pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="Missing OpenAI API key")
+def test_chroma_openai():
+    if not os.getenv("OPENAI_API_KEY"):
+        return  # soft pass
+
+    config = MemGPTConfig(
+        archival_storage_type="chroma",
+        archival_storage_path="./test_chroma",
+        embedding_endpoint_type="openai",
+        embedding_dim=1536,
+        model="gpt4",
+        model_endpoint_type="openai",
+        model_endpoint="https://api.openai.com/v1",
+    )
+    config.save()
+    embed_model = embedding_model()
+
+    passage = ["This is a test passage", "This is another test passage", "Cinderella wept"]
+
+    db = ChromaStorageConnector(name="test-openai")
+
+    for passage in passage:
+        db.insert(Passage(text=passage, embedding=embed_model.get_text_embedding(passage)))
+
+    query = "why was she crying"
+    query_vec = embed_model.get_text_embedding(query)
+    res = db.query(query, query_vec, top_k=2)
+
+    assert len(res) == 2, f"Expected 2 results, got {len(res)}"
+    assert "wept" in res[0].text, f"Expected 'wept' in results, but got {res[0].text}"
+
+    print(res[0].text)
+
+    print("deleting")
+    db.delete()
 
 
 @pytest.mark.skipif(

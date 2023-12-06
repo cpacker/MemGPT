@@ -1,6 +1,6 @@
 # import tempfile
 # import asyncio
-# import os
+import os
 
 # import asyncio
 # from datasets import load_dataset
@@ -88,6 +88,62 @@ def test_chroma():
     # override config path with enviornment variable
     # TODO: make into temporary file
     os.environ["MEMGPT_CONFIG_PATH"] = "test_config.cfg"
+    print("env", os.getenv("MEMGPT_CONFIG_PATH"))
+    config = memgpt.config.MemGPTConfig(archival_storage_type="chroma", config_path=os.getenv("MEMGPT_CONFIG_PATH"))
+    print(config)
+    config.save()
+    # exit()
+
+    name = "tmp_hf_dataset"
+
+    dataset = load_dataset("MemGPT/example_short_stories")
+
+    cache_dir = os.getenv("HF_DATASETS_CACHE")
+    if cache_dir is None:
+        # Construct the default path if the environment variable is not set.
+        cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "datasets")
+
+    config = memgpt.config.MemGPTConfig(archival_storage_type="chroma")
+
+    load_directory(
+        name=name,
+        input_dir=cache_dir,
+        recursive=True,
+    )
+
+
+def test_postgres():
+    # override config path with enviornment variable
+    # TODO: make into temporary file
+    os.environ["MEMGPT_CONFIG_PATH"] = "/Users/sarahwooders/repos/MemGPT/test_config.cfg"
+    print("env", os.getenv("MEMGPT_CONFIG_PATH"))
+    config = memgpt.config.MemGPTConfig(archival_storage_type="postgres", config_path=os.getenv("MEMGPT_CONFIG_PATH"))
+    print(config)
+    config.save()
+    # exit()
+
+    name = "tmp_hf_dataset2"
+
+    dataset = load_dataset("MemGPT/example_short_stories")
+
+    cache_dir = os.getenv("HF_DATASETS_CACHE")
+    if cache_dir is None:
+        # Construct the default path if the environment variable is not set.
+        cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "datasets")
+
+    load_directory(
+        name=name,
+        input_dir=cache_dir,
+        recursive=True,
+    )
+
+
+def test_chroma():
+    import chromadb
+
+    # override config path with enviornment variable
+    # TODO: make into temporary file
+    os.environ["MEMGPT_CONFIG_PATH"] = "/Users/sarahwooders/repos/MemGPT/test_config.cfg"
     print("env", os.getenv("MEMGPT_CONFIG_PATH"))
     config = memgpt.config.MemGPTConfig(archival_storage_type="chroma", config_path=os.getenv("MEMGPT_CONFIG_PATH"))
     print(config)

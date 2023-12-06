@@ -26,7 +26,6 @@ class TableType:
     USERS = "users"  # TODO
     AGENTS = "agents"  # TODO
 
-
 # table names used by MemGPT
 RECALL_TABLE_NAME = "memgpt_recall_memory"
 ARCHIVAL_TABLE_NAME = "memgpt_archival_memory"
@@ -108,7 +107,10 @@ class StorageConnector:
             from memgpt.connectors.db import PostgresStorageConnector
 
             return PostgresStorageConnector(agent_config=agent_config)
+        elif storage_type == "chroma":
+            from memgpt.connectors.chroma import ChromaStorageConnector
 
+            return ChromaStorageConnector(agent_config=agent_config)
         elif storage_type == "lancedb":
             from memgpt.connectors.db import LanceDBConnector
 
@@ -147,7 +149,10 @@ class StorageConnector:
             from memgpt.connectors.db import PostgresStorageConnector
 
             return PostgresStorageConnector.list_loaded_data()
+        elif storage_type == "chroma":
+            from memgpt.connectors.chroma import ChromaStorageConnector
 
+            return ChromaStorageConnector.list_loaded_data()
         elif storage_type == "lancedb":
             from memgpt.connectors.db import LanceDBConnector
 

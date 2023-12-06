@@ -241,24 +241,40 @@ def configure_cli(config: MemGPTConfig):
 
 def configure_archival_storage(config: MemGPTConfig):
     # Configure archival storage backend
-    archival_storage_options = ["local", "lancedb", "postgres"]
+    archival_storage_options = ["local", "lancedb", "postgres", "chroma"]
     archival_storage_type = questionary.select(
         "Select storage backend for archival data:", archival_storage_options, default=config.archival_storage_type
     ).ask()
-    archival_storage_uri = None
+    archival_storage_uri, archival_storage_path = None, None
+
+    # configure postgres
     if archival_storage_type == "postgres":
         archival_storage_uri = questionary.text(
             "Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}):",
             default=config.archival_storage_uri if config.archival_storage_uri else "",
         ).ask()
 
+    # configure lancedb
     if archival_storage_type == "lancedb":
         archival_storage_uri = questionary.text(
             "Enter lanncedb connection string (e.g. ./.lancedb",
             default=config.archival_storage_uri if config.archival_storage_uri else "./.lancedb",
         ).ask()
 
-    return archival_storage_type, archival_storage_uri
+    # configure chroma
+    if archival_storage_type == "chroma":
+        chroma_type = questionary.select("Select chroma backend:", ["http", "persistent"], default="http").ask()
+        if chroma_type == "http":
+            archival_storage_uri = questionary.text("Enter chroma ip (e.g. localhost:8000):", default="localhost:8000").ask()
+        if chroma_type == "persistent":
+            print(config.config_path, config.archival_storage_path)
+            default_archival_storage_path = (
+                config.archival_storage_path if config.archival_storage_path else os.path.join(config.config_path, "chroma")
+            )
+            print(default_archival_storage_path)
+            archival_storage_path = questionary.text("Enter persistent storage location:", default=default_archival_storage_path).ask()
+
+    return archival_storage_type, archival_storage_uri, archival_storage_path
 
     # TODO: allow configuring embedding model
 
@@ -275,7 +291,7 @@ def configure():
     model, model_wrapper, context_window = configure_model(config, model_endpoint_type)
     embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = configure_embedding_endpoint(config)
     default_preset, default_persona, default_human, default_agent = configure_cli(config)
-    archival_storage_type, archival_storage_uri = configure_archival_storage(config)
+    archival_storage_type, archival_storage_uri, archival_storage_path = configure_archival_storage(config)
 
     # check credentials
     azure_key, azure_endpoint, azure_version, azure_deployment, azure_embedding_deployment = get_azure_credentials()
@@ -322,6 +338,7 @@ def configure():
         # storage
         archival_storage_type=archival_storage_type,
         archival_storage_uri=archival_storage_uri,
+        archival_storage_path=archival_storage_path,
     )
     print(f"Saving config to {config.config_path}")
     config.save()

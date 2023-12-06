@@ -191,7 +191,8 @@ class PostgresStorageConnector(StorageConnector):
         inspector = inspect(engine)
         tables = inspector.get_table_names()
         tables = [table for table in tables if table.startswith("memgpt_") and not table.startswith("memgpt_agent_")]
-        tables = [table.replace("memgpt_", "") for table in tables]
+        start_chars = len("memgpt_")
+        tables = [table[start_chars:] for table in tables]
         return tables
 
 
@@ -311,5 +312,6 @@ class LanceDBConnector(StorageConnector):
 
         tables = db.table_names()
         tables = [table for table in tables if table.startswith("memgpt_")]
-        tables = [table.replace("memgpt_", "") for table in tables]
+        start_chars = len("memgpt_")
+        tables = [table[start_chars:] for table in tables]
         return tables
