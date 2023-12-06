@@ -1,6 +1,6 @@
 # import tempfile
 # import asyncio
-# import os
+import os
 
 # import asyncio
 # from datasets import load_dataset
@@ -110,19 +110,6 @@ def test_chroma():
         input_dir=cache_dir,
         recursive=True,
     )
-
-    # index = memgpt.embeddings.Index(name)
-
-    ## query chroma
-    ##chroma_client = chromadb.Client()
-    # chroma_client = chromadb.PersistentClient(path="/Users/sarahwooders/repos/MemGPT/chromadb")
-    # collection = chroma_client.get_collection(name=name)
-    # results = collection.query(
-    #    query_texts=["cinderella be getting sick"],
-    #    n_results=2
-    # )
-    # print(results)
-    # assert len(results) == 2, f"Expected 2 results, but got {len(results)}"
 
 
 def test_load_directory():
