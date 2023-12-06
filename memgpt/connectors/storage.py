@@ -17,6 +17,9 @@ from tqdm import tqdm
 from memgpt.config import AgentConfig, MemGPTConfig
 
 
+from memgpt.config import AgentConfig, MemGPTConfig
+
+
 class Passage:
     """A passage is a single unit of memory, and a standard format accross all storage backends.
 
@@ -47,12 +50,14 @@ class StorageConnector:
             from memgpt.connectors.db import PostgresStorageConnector
 
             return PostgresStorageConnector(name=name, agent_config=agent_config)
+        elif storage_type == "chroma":
+            from memgpt.connectors.chroma import ChromaStorageConnector
 
+            return ChromaStorageConnector(name=name, agent_config=agent_config)
         elif storage_type == "lancedb":
             from memgpt.connectors.db import LanceDBConnector
 
             return LanceDBConnector(name=name, agent_config=agent_config)
-
         else:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")
 
@@ -67,7 +72,10 @@ class StorageConnector:
             from memgpt.connectors.db import PostgresStorageConnector
 
             return PostgresStorageConnector.list_loaded_data()
+        elif storage_type == "chroma":
+            from memgpt.connectors.chroma import ChromaStorageConnector
 
+            return ChromaStorageConnector.list_loaded_data()
         elif storage_type == "lancedb":
             from memgpt.connectors.db import LanceDBConnector
 
