@@ -115,7 +115,7 @@ def test_chroma():
 def test_postgres():
     # override config path with enviornment variable
     # TODO: make into temporary file
-    os.environ["MEMGPT_CONFIG_PATH"] = "/Users/sarahwooders/repos/MemGPT/test_config.cfg"
+    os.environ["MEMGPT_CONFIG_PATH"] = "test_config.cfg"
     print("env", os.getenv("MEMGPT_CONFIG_PATH"))
     config = memgpt.config.MemGPTConfig(archival_storage_type="postgres", config_path=os.getenv("MEMGPT_CONFIG_PATH"))
     print(config)
@@ -143,7 +143,7 @@ def test_chroma():
 
     # override config path with enviornment variable
     # TODO: make into temporary file
-    os.environ["MEMGPT_CONFIG_PATH"] = "/Users/sarahwooders/repos/MemGPT/test_config.cfg"
+    os.environ["MEMGPT_CONFIG_PATH"] = "test_config.cfg"
     print("env", os.getenv("MEMGPT_CONFIG_PATH"))
     config = memgpt.config.MemGPTConfig(archival_storage_type="chroma", config_path=os.getenv("MEMGPT_CONFIG_PATH"))
     print(config)
