@@ -13,32 +13,82 @@ import os
 import autogen
 from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config
 from memgpt.presets.presets import DEFAULT_PRESET
+from memgpt.constants import LLM_MAX_TOKENS
 
-# USE_OPENAI = True
-USE_OPENAI = False
-if USE_OPENAI:
-    # This config is for autogen agents that are not powered by MemGPT
+LLM_BACKEND = "openai"
+# LLM_BACKEND = "azure"
+# LLM_BACKEND = "local"
+
+if LLM_BACKEND == "openai":
+    # For demo purposes let's use gpt-4
+    model = "gpt-4"
+
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    assert openai_api_key, "You must set OPENAI_API_KEY to run this example"
+
+    # This config is for AutoGen agents that are not powered by MemGPT
     config_list = [
         {
-            "model": "gpt-4-1106-preview",  # gpt-4-turbo (https://platform.openai.com/docs/models/gpt-4-and-gpt-4-turbo)
+            "model": model,
             "api_key": os.getenv("OPENAI_API_KEY"),
         }
     ]
 
-    # This config is for autogen agents that powered by MemGPT
+    # This config is for AutoGen agents that powered by MemGPT
     config_list_memgpt = [
         {
-            "model": "gpt-4-1106-preview",  # gpt-4-turbo (https://platform.openai.com/docs/models/gpt-4-and-gpt-4-turbo)
-            "preset": "memgpt_docs",
-            "model": None,
+            "model": model,
+            "context_window": LLM_MAX_TOKENS[model],
+            "preset": DEFAULT_PRESET,
             "model_wrapper": None,
-            "model_endpoint_type": None,
-            "model_endpoint": None,
-            "context_window": 128000,  # gpt-4-turbo
+            # OpenAI specific
+            "model_endpoint_type": "openai",
+            "model_endpoint": "https://api.openai.com/v1",
+            "openai_key": openai_api_key,
         },
     ]
 
-else:
+elif LLM_BACKEND == "azure":
+    # Make sure that you have access to this deployment/model on your Azure account!
+    # If you don't have access to the model, the code will fail
+    model = "gpt-4"
+
+    azure_openai_api_key = os.getenv("AZURE_OPENAI_KEY")
+    azure_openai_version = os.getenv("AZURE_OPENAI_VERSION")
+    azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    assert (
+        azure_openai_api_key is not None and azure_openai_version is not None and azure_openai_endpoint is not None
+    ), "Set all the required OpenAI Azure variables (see: https://memgpt.readthedocs.io/en/latest/endpoints/#azure)"
+
+    # This config is for AutoGen agents that are not powered by MemGPT
+    config_list = [
+        {
+            "model": model,
+            "api_type": "azure",
+            "api_key": azure_openai_api_key,
+            "api_version": azure_openai_version,
+            # NOTE: on versions of pyautogen < 0.2.0, use "api_base"
+            # "api_base": azure_openai_endpoint,
+            "base_url": azure_openai_endpoint,
+        }
+    ]
+
+    # This config is for AutoGen agents that powered by MemGPT
+    config_list_memgpt = [
+        {
+            "model": model,
+            "context_window": LLM_MAX_TOKENS[model],
+            "preset": DEFAULT_PRESET,
+            "model_wrapper": None,
+            # Azure specific
+            "model_endpoint_type": "azure",
+            "azure_key": azure_openai_api_key,
+            "azure_endpoint": azure_openai_endpoint,
+            "azure_version": azure_openai_version,
+        },
+    ]
+
+elif LLM_BACKEND == "local":
     # Example using LM Studio on a local machine
     # You will have to change the parameters based on your setup
 
@@ -46,9 +96,11 @@ else:
     config_list = [
         {
             "model": "NULL",  # not needed
-            "api_base": "http://localhost:1234/v1",  # ex. "http://127.0.0.1:5001/v1" if you are using webui, "http://localhost:1234/v1/" if you are using LM Studio
+            # NOTE: on versions of pyautogen < 0.2.0 use "api_base", and also uncomment "api_type"
+            # "api_base": "http://localhost:1234/v1",
+            # "api_type": "open_ai",
+            "base_url": "http://localhost:1234/v1",  # ex. "http://127.0.0.1:5001/v1" if you are using webui, "http://localhost:1234/v1/" if you are using LM Studio
             "api_key": "NULL",  #  not needed
-            "api_type": "open_ai",
         },
     ]
 
@@ -57,12 +109,15 @@ else:
         {
             "preset": DEFAULT_PRESET,
             "model": None,  # only required for Ollama, see: https://memgpt.readthedocs.io/en/latest/ollama/
+            "context_window": 8192,  # the context window of your model (for Mistral 7B-based models, it's likely 8192)
             "model_wrapper": "airoboros-l2-70b-2.1",  # airoboros is the default wrapper and should work for most models
             "model_endpoint_type": "lmstudio",  # can use webui, ollama, llamacpp, etc.
             "model_endpoint": "http://localhost:1234",  # the IP address of your LLM backend
-            "context_window": 8192,  # the context window of your model (for Mistral 7B-based models, it's likely 8192)
         },
     ]
+
+else:
+    raise ValueError(LLM_BACKEND)
 
 
 # If USE_MEMGPT is False, then this example will be the same as the official AutoGen repo
@@ -114,6 +169,7 @@ else:
         human_input_mode="TERMINATE",
         interface_kwargs=interface_kwargs,
         default_auto_reply="...",  # Set a default auto-reply message here (non-empty auto-reply is required for LM Studio)
+        skip_verify=False,  # NOTE: you should set this to True if you expect your MemGPT AutoGen agent to call a function other than send_message on the first turn
     )
 
 # Begin the group chat with a message from the user

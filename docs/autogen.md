@@ -4,11 +4,62 @@
     
     You can also check the [GitHub discussion page](https://github.com/cpacker/MemGPT/discussions/65), but the Discord server is the official support channel and is monitored more actively.
 
-[examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) contains an example of a groupchat where one of the agents is powered by MemGPT.
+!!! warning "Tested with `pyautogen` v0.2.0"
 
-If you are using OpenAI, you can also run it using the [example notebook](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/memgpt_coder_autogen.ipynb).
+    The MemGPT+AutoGen integration was last tested using AutoGen version v0.2.0.
+    
+    If you are having issues, please first try installing the specific version of AutoGen using `pip install pyautogen==0.2.0`
 
-In the next section, we detail how to set up MemGPT and AutoGen to run with local LLMs.
+## Overview
+
+MemGPT includes an AutoGen agent class ([MemGPTAgent](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/memgpt_agent.py)) that mimics the interface of AutoGen's [ConversableAgent](https://microsoft.github.io/autogen/docs/reference/agentchat/conversable_agent#conversableagent-objects), allowing you to plug MemGPT into the AutoGen framework.
+
+To create a MemGPT AutoGen agent for use in an AutoGen script, you can use the `create_memgpt_autogen_agent_from_config` constructor:
+```python
+from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config
+
+# create a config for the MemGPT AutoGen agent
+config_list_memgpt = [
+    {
+        "model": "gpt-4",
+        "context_window": 8192,
+        "preset": "memgpt_chat",  # NOTE: you can change the preset here
+        # OpenAI specific
+        "model_endpoint_type": "openai",
+        "openai_key": YOUR_OPENAI_KEY,
+    },
+]
+llm_config_memgpt = {"config_list": config_list_memgpt, "seed": 42}
+
+# there are some additional options to do with how you want the interface to look (more info below)
+interface_kwargs = {
+    "debug": False,
+    "show_inner_thoughts": True,
+    "show_function_outputs": False,
+}
+
+# then pass the config to the constructor
+memgpt_autogen_agent = create_memgpt_autogen_agent_from_config(
+    "MemGPT_agent",
+    llm_config=llm_config_memgpt,
+    system_message=f"Your desired MemGPT persona",
+    interface_kwargs=interface_kwargs,
+    default_auto_reply="...",
+    skip_verify=False,  # NOTE: you should set this to True if you expect your MemGPT AutoGen agent to call a function other than send_message on the first turn
+)
+```
+
+Now this `memgpt_autogen_agent` can be used in standard AutoGen scripts:
+```python
+import autogen
+
+# ... assuming we have some other AutoGen agents other_agent_1 and 2
+groupchat = autogen.GroupChat(agents=[memgpt_autogen_agent, other_agent_1, other_agent_2], messages=[], max_round=12)
+```
+
+[examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) contains an example of a groupchat where one of the agents is powered by MemGPT. If you are using OpenAI, you can also run the example using the [notebook](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/memgpt_coder_autogen.ipynb).
+
+In the next section, we'll go through the example in depth to demonstrate how to set up MemGPT and AutoGen to run with a local LLM backend.
 
 ## Example: connecting AutoGen + MemGPT to non-OpenAI LLMs
 
@@ -58,17 +109,17 @@ Going back to the example we first mentioned, [examples/agent_groupchat.py](http
 
 In order to run this example on a local LLM, go to lines 46-66 in [examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) and fill in the config files with your local LLM's deployment details.
 
-`config_list` is used by non-MemGPT AutoGen agents, which expect an OpenAI-compatible API. `config_list_memgpt` is used by MemGPT AutoGen agents, and requires additional settings specific to MemGPT (such as the `model_wrapper` and `context_window`.
+`config_list` is used by non-MemGPT AutoGen agents, which expect an OpenAI-compatible API. `config_list_memgpt` is used by MemGPT AutoGen agents, and requires additional settings specific to MemGPT (such as the `model_wrapper` and `context_window`. Depending on what LLM backend you want to use, you'll have to set up your `config_list` and `config_list_memgpt` differently:
 
+#### web UI example
 For example, if you are using web UI, it will look something like this:
 ```python
 # Non-MemGPT agents will still use local LLMs, but they will use the ChatCompletions endpoint
 config_list = [
     {
         "model": "NULL",  # not needed
-        "api_base": "http://127.0.0.1:5001/v1",  # notice port 5001 for web UI
+        "base_url": "http://127.0.0.1:5001/v1",  # notice port 5001 for web UI
         "api_key": "NULL",  #  not needed
-        "api_type": "open_ai",
     },
 ]
 
@@ -85,15 +136,15 @@ config_list_memgpt = [
 ]
 ```
 
+#### LM Studio example
 If you are using LM Studio, then you'll need to change the `api_base` in `config_list`, and `model_endpoint_type` + `model_endpoint` in `config_list_memgpt`:
 ```python
 # Non-MemGPT agents will still use local LLMs, but they will use the ChatCompletions endpoint
 config_list = [
     {
         "model": "NULL",
-        "api_base": "http://127.0.0.1:1234/v1",  # port 1234 for LM Studio
+        "base_url": "http://127.0.0.1:1234/v1",  # port 1234 for LM Studio
         "api_key": "NULL",
-        "api_type": "open_ai",
     },
 ]
 
@@ -110,12 +161,13 @@ config_list_memgpt = [
 ]
 ```
 
+#### OpenAI example
 If you are using the OpenAI API (e.g. using `gpt-4-turbo` via your own OpenAI API account), then the `config_list` for the AutoGen agent and `config_list_memgpt` for the MemGPT AutoGen agent will look different (a lot simpler):
 ```python
 # This config is for autogen agents that are not powered by MemGPT
 config_list = [
     {
-        "model": "gpt-4-1106-preview",  # gpt-4-turbo (https://platform.openai.com/docs/models/gpt-4-and-gpt-4-turbo)
+        "model": "gpt-4",
         "api_key": os.getenv("OPENAI_API_KEY"),
     }
 ]
@@ -123,13 +175,46 @@ config_list = [
 # This config is for autogen agents that powered by MemGPT
 config_list_memgpt = [
     {
-        "model": "gpt-4-1106-preview",  # gpt-4-turbo (https://platform.openai.com/docs/models/gpt-4-and-gpt-4-turbo)
         "preset": DEFAULT_PRESET,
-        "model": None,
+        "model": "gpt-4",
+        "context_window": 8192,  # gpt-4 context window
         "model_wrapper": None,
-        "model_endpoint_type": None,
-        "model_endpoint": None,
-        "context_window": 128000,  # gpt-4-turbo
+        "model_endpoint_type": "openai",
+        "model_endpoint": "https://api.openai.com/v1",
+        "openai_key": os.getenv("OPENAI_API_KEY"),
+    },
+]
+```
+
+#### Azure OpenAI example
+Azure OpenAI API setup will be similar to OpenAI API, but requires additional config variables. First, make sure that you've set all the related Azure variables referenced in [our MemGPTAzure setup page](https://memgpt.readthedocs.io/en/latest/endpoints) (`AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_VERSION`, `AZURE_OPENAI_ENDPOINT`, etc). If you have all the variables set correctly, you should be able to create configs by pulling from the env variables:
+```python
+# This config is for autogen agents that are not powered by MemGPT
+# See Auto
+config_list = [
+    {
+        "model": "gpt-4",  # make sure you choose a model that you have access to deploy on your Azure account
+        "api_type": "azure",
+        "api_key": os.getenv("AZURE_OPENAI_API_KEY"),
+        "api_version": os.getenv("AZURE_OPENAI_VERSION"),
+        "base_url": os.getenv("AZURE_OPENAI_ENDPOINT"),
+    }
+]
+
+# This config is for autogen agents that powered by MemGPT
+config_list_memgpt = [
+    {
+        "preset": DEFAULT_PRESET,
+        "model": "gpt-4",  # make sure you choose a model that you have access to deploy on your Azure account
+        "model_wrapper": None,
+        "context_window": 8192,  # gpt-4 context window
+        # required setup for Azure
+        "model_endpoint_type": "azure",
+        "azure_key": os.getenv("AZURE_OPENAI_API_KEY"),
+        "azure_endpoint": os.getenv("AZURE_OPENAI_ENDPOINT"),
+        "azure_version": os.getenv("AZURE_OPENAI_VERSION"),
+        # if you are using Azure for embeddings too, include the following line:
+        "embedding_embedding_endpoint_type": "azure",        
     },
 ]
 ```
@@ -219,7 +304,6 @@ User_proxy (to chat_manager):
 ```
 
 ### Part 4: Attaching documents to MemGPT AutoGen agents
-
 
 [examples/agent_docs.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_docs.py) contains an example of a groupchat where the MemGPT autogen agent has access to documents.
 

@@ -15,7 +15,7 @@ import memgpt.utils as utils
 from memgpt.utils import printd
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import MemGPTConfig, AgentConfig
-from memgpt.constants import MEMGPT_DIR
+from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
 from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 
@@ -107,36 +107,39 @@ def run(
         # persistence_manager = LocalStateManager(agent_config).load() # TODO: implement load
         # TODO: load prior agent state
         if persona and persona != agent_config.persona:
-            typer.secho(f"Warning: Overriding existing persona {agent_config.persona} with {persona}", fg=typer.colors.YELLOW)
+            typer.secho(f"{CLI_WARNING_PREFIX}Overriding existing persona {agent_config.persona} with {persona}", fg=typer.colors.YELLOW)
             agent_config.persona = persona
             # raise ValueError(f"Cannot override {agent_config.name} existing persona {agent_config.persona} with {persona}")
         if human and human != agent_config.human:
-            typer.secho(f"Warning: Overriding existing human {agent_config.human} with {human}", fg=typer.colors.YELLOW)
+            typer.secho(f"{CLI_WARNING_PREFIX}Overriding existing human {agent_config.human} with {human}", fg=typer.colors.YELLOW)
             agent_config.human = human
             # raise ValueError(f"Cannot override {agent_config.name} existing human {agent_config.human} with {human}")
 
         # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
         if model and model != agent_config.model:
-            typer.secho(f"Warning: Overriding existing model {agent_config.model} with {model}", fg=typer.colors.YELLOW)
+            typer.secho(f"{CLI_WARNING_PREFIX}Overriding existing model {agent_config.model} with {model}", fg=typer.colors.YELLOW)
             agent_config.model = model
         if context_window is not None and int(context_window) != agent_config.context_window:
             typer.secho(
-                f"Warning: Overriding existing context window {agent_config.context_window} with {context_window}", fg=typer.colors.YELLOW
+                f"{CLI_WARNING_PREFIX}Overriding existing context window {agent_config.context_window} with {context_window}",
+                fg=typer.colors.YELLOW,
             )
             agent_config.context_window = context_window
         if model_wrapper and model_wrapper != agent_config.model_wrapper:
             typer.secho(
-                f"Warning: Overriding existing model wrapper {agent_config.model_wrapper} with {model_wrapper}", fg=typer.colors.YELLOW
+                f"{CLI_WARNING_PREFIX}Overriding existing model wrapper {agent_config.model_wrapper} with {model_wrapper}",
+                fg=typer.colors.YELLOW,
             )
             agent_config.model_wrapper = model_wrapper
         if model_endpoint and model_endpoint != agent_config.model_endpoint:
             typer.secho(
-                f"Warning: Overriding existing model endpoint {agent_config.model_endpoint} with {model_endpoint}", fg=typer.colors.YELLOW
+                f"{CLI_WARNING_PREFIX}Overriding existing model endpoint {agent_config.model_endpoint} with {model_endpoint}",
+                fg=typer.colors.YELLOW,
             )
             agent_config.model_endpoint = model_endpoint
         if model_endpoint_type and model_endpoint_type != agent_config.model_endpoint_type:
             typer.secho(
-                f"Warning: Overriding existing model endpoint type {agent_config.model_endpoint_type} with {model_endpoint_type}",
+                f"{CLI_WARNING_PREFIX}Overriding existing model endpoint type {agent_config.model_endpoint_type} with {model_endpoint_type}",
                 fg=typer.colors.YELLOW,
             )
             agent_config.model_endpoint_type = model_endpoint_type

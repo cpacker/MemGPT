@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pymemgpt"
-version = "0.2.5"
+version = "0.2.6"
 packages = [
     {include = "memgpt"}
 ]
@@ -48,6 +48,7 @@ demjson3 = "^3.0.6"
 tiktoken = "^0.5.1"
 python-box = "^7.1.1"
 pypdf = "^3.17.1"
+pyyaml = "^6.0.1"
 
 [tool.poetry.extras]
 local = ["torch", "huggingface-hub", "transformers"]
