@@ -1,6 +1,6 @@
 # import tempfile
 # import asyncio
-# import os
+import os
 
 # import asyncio
 # from datasets import load_dataset
@@ -289,7 +289,3 @@ def test_load_database():
     )
     print("Successfully loaded into index")
     assert True
-
-
-test_postgres()
-# test_chroma()
