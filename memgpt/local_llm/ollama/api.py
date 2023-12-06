@@ -39,8 +39,9 @@ def get_ollama_completion(endpoint, model, prompt, context_window, settings=SIMP
         URI = urljoin(endpoint.strip("/") + "/", OLLAMA_API_SUFFIX.strip("/"))
         response = requests.post(URI, json=request)
         if response.status_code == 200:
-            result = response.json()
-            result = result["response"]
+            # https://github.com/jmorganca/ollama/blob/main/docs/api.md
+            result_full = response.json()
+            result = result_full["response"]
             if DEBUG:
                 print(f"json API response.text: {result}")
         else:
@@ -53,4 +54,14 @@ def get_ollama_completion(endpoint, model, prompt, context_window, settings=SIMP
         # TODO handle gracefully
         raise
 
-    return result
+    # Pass usage statistics back to main thread
+    # These are used to compute memory warning messages
+    completion_tokens = result_full.get("sample_count", None) if usage is not None else None
+    total_tokens = prompt_tokens + completion_tokens if completion_tokens is not None else None
+    usage = {
+        "prompt_tokens": prompt_tokens,  # can also grab from "prompt_eval_count"
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+    }
+
+    return result, usage

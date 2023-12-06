@@ -36,8 +36,9 @@ def get_vllm_completion(endpoint, model, prompt, context_window, user, settings=
         URI = urljoin(endpoint.strip("/") + "/", WEBUI_API_SUFFIX.strip("/"))
         response = requests.post(URI, json=request)
         if response.status_code == 200:
-            result = response.json()
-            result = result["choices"][0]["text"]
+            result_full = response.json()
+            result = result_full["choices"][0]["text"]
+            usage = result_full.get("usage", None)
             if DEBUG:
                 print(f"json API response.text: {result}")
         else:
@@ -50,4 +51,14 @@ def get_vllm_completion(endpoint, model, prompt, context_window, user, settings=
         # TODO handle gracefully
         raise
 
-    return result
+    # Pass usage statistics back to main thread
+    # These are used to compute memory warning messages
+    completion_tokens = usage.get("completion_tokens", None) if usage is not None else None
+    total_tokens = prompt_tokens + completion_tokens if completion_tokens is not None else None
+    usage = {
+        "prompt_tokens": prompt_tokens,  # can grab from usage dict, but it's usually wrong (set to 0)
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+    }
+
+    return result, usage

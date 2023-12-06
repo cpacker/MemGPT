@@ -31,8 +31,8 @@ def get_webui_completion(endpoint, prompt, context_window, settings=SIMPLE, gram
         URI = urljoin(endpoint.strip("/") + "/", WEBUI_API_SUFFIX.strip("/"))
         response = requests.post(URI, json=request)
         if response.status_code == 200:
-            result = response.json()
-            result = result["results"][0]["text"]
+            result_full = response.json()
+            result = result_full["results"][0]["text"]
             if DEBUG:
                 print(f"json API response.text: {result}")
         else:
@@ -45,4 +45,13 @@ def get_webui_completion(endpoint, prompt, context_window, settings=SIMPLE, gram
         # TODO handle gracefully
         raise
 
-    return result
+    # TODO correct for legacy
+    completion_tokens = None
+    total_tokens = prompt_tokens + completion_tokens if completion_tokens is not None else None
+    usage = {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+    }
+
+    return result, usage
