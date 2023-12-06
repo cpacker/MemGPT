@@ -28,6 +28,7 @@ def create_memgpt_autogen_agent_from_config(
     nonmemgpt_llm_config: Optional[Union[Dict, bool]] = None,
     default_auto_reply: Optional[Union[str, Dict, None]] = "",
     interface_kwargs: Dict = None,
+    skip_verify: bool = False,
 ):
     """Same function signature as used in base AutoGen, but creates a MemGPT agent
 
@@ -87,6 +88,7 @@ def create_memgpt_autogen_agent_from_config(
         default_auto_reply=default_auto_reply,
         is_termination_msg=is_termination_msg,
         interface_kwargs=interface_kwargs,
+        skip_verify=skip_verify,
     )
 
     if human_input_mode != "ALWAYS":
@@ -95,6 +97,7 @@ def create_memgpt_autogen_agent_from_config(
             default_auto_reply=default_auto_reply,
             is_termination_msg=is_termination_msg,
             interface_kwargs=interface_kwargs,
+            skip_verify=skip_verify,
         )
         if default_auto_reply != "":
             coop_agent2 = UserProxyAgent(
@@ -108,6 +111,7 @@ def create_memgpt_autogen_agent_from_config(
                 default_auto_reply=default_auto_reply,
                 is_termination_msg=is_termination_msg,
                 interface_kwargs=interface_kwargs,
+                skip_verify=skip_verify,
             )
 
         groupchat = GroupChat(
@@ -126,6 +130,7 @@ def create_memgpt_autogen_agent_from_config(
 def create_autogen_memgpt_agent(
     agent_config,
     # interface and persistence manager
+    skip_verify=False,
     interface=None,
     interface_kwargs={},
     persistence_manager=None,
@@ -172,6 +177,7 @@ def create_autogen_memgpt_agent(
         agent=memgpt_agent,
         default_auto_reply=default_auto_reply,
         is_termination_msg=is_termination_msg,
+        skip_verify=skip_verify,
     )
     return autogen_memgpt_agent
 

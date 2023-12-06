@@ -169,6 +169,7 @@ else:
         human_input_mode="TERMINATE",
         interface_kwargs=interface_kwargs,
         default_auto_reply="...",  # Set a default auto-reply message here (non-empty auto-reply is required for LM Studio)
+        skip_verify=False,  # NOTE: you should set this to True if you expect your MemGPT AutoGen agent to call a function other than send_message on the first turn
     )
 
 # Begin the group chat with a message from the user
