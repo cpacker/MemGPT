@@ -160,7 +160,7 @@ trio = ["trio (<0.22)"]
 name = "asgiref"
 version = "3.7.2"
 description = "ASGI specs, helper code, and adapters"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "asgiref-3.7.2-py3-none-any.whl", hash = "sha256:89b2ef2247e3b562a16eef663bc0e2e703ec6468e2fa8a5cd61cd449786d4f6e"},
@@ -217,7 +217,7 @@ tests-no-zope = ["cloudpickle", "hypothesis", "mypy (>=1.1.1)", "pympler", "pyte
 name = "backoff"
 version = "2.2.1"
 description = "Function decoration for backoff and retry"
-optional = false
+optional = true
 python-versions = ">=3.7,<4.0"
 files = [
     {file = "backoff-2.2.1-py3-none-any.whl", hash = "sha256:63579f9a0628e06278f7e47b7d7d5b6ce20dc65c5e96a6f3ca99a6adca0396e8"},
@@ -228,7 +228,7 @@ files = [
 name = "bcrypt"
 version = "4.1.1"
 description = "Modern password hashing for your software and your servers"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "bcrypt-4.1.1-cp37-abi3-macosx_10_12_universal2.whl", hash = "sha256:196008d91201bbb1aa4e666fee5e610face25d532e433a560cabb33bfdff958b"},
@@ -318,7 +318,7 @@ uvloop = ["uvloop (>=0.15.2)"]
 name = "cachetools"
 version = "5.3.2"
 description = "Extensible memoizing collections and decorators"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "cachetools-5.3.2-py3-none-any.whl", hash = "sha256:861f35a13a451f94e301ce2bec7cac63e881232ccce7ed67fab9b5df4d3beaa1"},
@@ -447,20 +447,10 @@ files = [
 ]
 
 [[package]]
-name = "chroma"
-version = "0.2.0"
-description = "Color handling made simple."
-optional = true
-python-versions = "*"
-files = [
-    {file = "Chroma-0.2.0.tar.gz", hash = "sha256:e265bcd503e2b35c4448b83257467166c252ecf3ab610492432780691cdfb286"},
-]
-
-[[package]]
 name = "chroma-hnswlib"
 version = "0.7.3"
 description = "Chromas fork of hnswlib"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "chroma-hnswlib-0.7.3.tar.gz", hash = "sha256:b6137bedde49fffda6af93b0297fe00429fc61e5a072b1ed9377f909ed95a932"},
@@ -497,7 +487,7 @@ numpy = "*"
 name = "chromadb"
 version = "0.4.18"
 description = "Chroma."
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "chromadb-0.4.18-py3-none-any.whl", hash = "sha256:6de20f8c1dc880bef1d49c10d9f998ddb9d7e39b6c1e757d8b58e37b535ad625"},
@@ -561,7 +551,7 @@ files = [
 name = "coloredlogs"
 version = "15.0.1"
 description = "Colored terminal output for Python's logging module"
-optional = false
+optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 files = [
     {file = "coloredlogs-15.0.1-py2.py3-none-any.whl", hash = "sha256:612ee75c546f53e92e70049c9dbfcc18c935a2b9a53b66085ce9ef6a6e5c0934"},
@@ -749,7 +739,7 @@ test = ["pytest (>=6)"]
 name = "fastapi"
 version = "0.104.1"
 description = "FastAPI framework, high performance, easy to learn, fast to code, ready for production"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "fastapi-0.104.1-py3-none-any.whl", hash = "sha256:752dc31160cdbd0436bb93bad51560b57e525cbb1d4bbf6f4904ceee75548241"},
@@ -769,7 +759,7 @@ all = ["email-validator (>=2.0.0)", "httpx (>=0.23.0)", "itsdangerous (>=1.1.0)"
 name = "filelock"
 version = "3.13.1"
 description = "A platform independent file lock."
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "filelock-3.13.1-py3-none-any.whl", hash = "sha256:57dbda9b35157b05fb3e58ee91448612eb674172fab98ee235ccb0b5bee19a1c"},
@@ -785,7 +775,7 @@ typing = ["typing-extensions (>=4.8)"]
 name = "flatbuffers"
 version = "23.5.26"
 description = "The FlatBuffers serialization format for Python"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "flatbuffers-23.5.26-py2.py3-none-any.whl", hash = "sha256:c0ff356da363087b915fde4b8b45bdda73432fc17cddb3c8157472eab1422ad1"},
@@ -905,7 +895,7 @@ tqdm = ["tqdm"]
 name = "google-auth"
 version = "2.25.1"
 description = "Google Authentication Library"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "google-auth-2.25.1.tar.gz", hash = "sha256:d5d66b8f4f6e3273740d7bb73ddefa6c2d1ff691704bd407d51c6b5800e7c97b"},
@@ -928,7 +918,7 @@ requests = ["requests (>=2.20.0,<3.0.0.dev0)"]
 name = "googleapis-common-protos"
 version = "1.61.0"
 description = "Common protobufs used in Google APIs"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "googleapis-common-protos-1.61.0.tar.gz", hash = "sha256:8a64866a97f6304a7179873a465d6eee97b7a24ec6cfd78e0f575e96b821240b"},
@@ -1015,7 +1005,7 @@ test = ["objgraph", "psutil"]
 name = "grpcio"
 version = "1.59.3"
 description = "HTTP/2-based RPC framework"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "grpcio-1.59.3-cp310-cp310-linux_armv7l.whl", hash = "sha256:aca028a6c7806e5b61e5f9f4232432c52856f7fcb98e330b20b6bc95d657bdcc"},
@@ -1113,7 +1103,7 @@ trio = ["trio (>=0.22.0,<0.23.0)"]
 name = "httptools"
 version = "0.6.1"
 description = "A collection of framework independent HTTP protocol utils."
-optional = false
+optional = true
 python-versions = ">=3.8.0"
 files = [
     {file = "httptools-0.6.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:d2f6c3c4cb1948d912538217838f6e9960bc4a521d7f9b323b3da579cd14532f"},
@@ -1185,7 +1175,7 @@ socks = ["socksio (==1.*)"]
 name = "huggingface-hub"
 version = "0.17.3"
 description = "Client library to download and publish models, datasets and other repos on the huggingface.co hub"
-optional = false
+optional = true
 python-versions = ">=3.8.0"
 files = [
     {file = "huggingface_hub-0.17.3-py3-none-any.whl", hash = "sha256:545eb3665f6ac587add946e73984148f2ea5c7877eac2e845549730570c1933a"},
@@ -1218,7 +1208,7 @@ typing = ["pydantic (<2.0)", "types-PyYAML", "types-requests", "types-simplejson
 name = "humanfriendly"
 version = "10.0"
 description = "Human friendly output for text interfaces using Python"
-optional = false
+optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 files = [
     {file = "humanfriendly-10.0-py2.py3-none-any.whl", hash = "sha256:1697e1a8a8f550fd43c2865cd84542fc175a61dcb779b6fee18cf6b6ccba1477"},
@@ -1257,7 +1247,7 @@ files = [
 name = "importlib-metadata"
 version = "6.11.0"
 description = "Read metadata from Python packages"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "importlib_metadata-6.11.0-py3-none-any.whl", hash = "sha256:f0afba6205ad8f8947c7d338b5342d5db2afbfd82f9cbef7879a9539cc12eb9b"},
@@ -1276,7 +1266,7 @@ testing = ["flufl.flake8", "importlib-resources (>=1.3)", "packaging", "pyfakefs
 name = "importlib-resources"
 version = "6.1.1"
 description = "Read resources from Python packages"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "importlib_resources-6.1.1-py3-none-any.whl", hash = "sha256:e8bf90d8213b486f428c9c39714b920041cb02c184686a3dee24905aaa8105d6"},
@@ -1333,7 +1323,7 @@ files = [
 name = "kubernetes"
 version = "28.1.0"
 description = "Kubernetes python client"
-optional = false
+optional = true
 python-versions = ">=3.6"
 files = [
     {file = "kubernetes-28.1.0-py2.py3-none-any.whl", hash = "sha256:10f56f8160dcb73647f15fafda268e7f60cf7dbc9f8e46d52fcd46d3beb0c18d"},
@@ -1554,7 +1544,7 @@ files = [
 name = "mmh3"
 version = "4.0.1"
 description = "Python extension for MurmurHash (MurmurHash3), a set of fast and robust hash functions."
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "mmh3-4.0.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:b719ba87232749095011d567a36a25e40ed029fc61c47e74a12416d8bb60b311"},
@@ -1630,7 +1620,7 @@ test = ["mypy (>=1.0)", "pytest (>=7.0.0)"]
 name = "monotonic"
 version = "1.6"
 description = "An implementation of time.monotonic() for Python 2 & < 3.3"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "monotonic-1.6-py2.py3-none-any.whl", hash = "sha256:68687e19a14f11f26d140dd5c86f3dba4bf5df58003000ed467e0e2a69bca96c"},
@@ -1641,7 +1631,7 @@ files = [
 name = "mpmath"
 version = "1.3.0"
 description = "Python library for arbitrary-precision floating-point arithmetic"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "mpmath-1.3.0-py3-none-any.whl", hash = "sha256:a0b2b9fe80bbcd81a6647ff13108738cfb482d481d826cc0e02f5b35e5c88d2c"},
@@ -2034,7 +2024,7 @@ files = [
 name = "oauthlib"
 version = "3.2.2"
 description = "A generic, spec-compliant, thorough implementation of the OAuth request-signing logic"
-optional = false
+optional = true
 python-versions = ">=3.6"
 files = [
     {file = "oauthlib-3.2.2-py3-none-any.whl", hash = "sha256:8139f29aac13e25d502680e9e19963e83f16838d48a0d71c287fe40e7067fbca"},
@@ -2050,7 +2040,7 @@ signedtoken = ["cryptography (>=3.0.0)", "pyjwt (>=2.0.0,<3)"]
 name = "onnxruntime"
 version = "1.16.3"
 description = "ONNX Runtime is a runtime accelerator for Machine Learning models"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "onnxruntime-1.16.3-cp310-cp310-macosx_10_15_x86_64.whl", hash = "sha256:3bc41f323ac77acfed190be8ffdc47a6a75e4beeb3473fbf55eeb075ccca8df2"},
@@ -2114,7 +2104,7 @@ datalib = ["numpy (>=1)", "pandas (>=1.2.3)", "pandas-stubs (>=1.1.0.11)"]
 name = "opentelemetry-api"
 version = "1.21.0"
 description = "OpenTelemetry Python API"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "opentelemetry_api-1.21.0-py3-none-any.whl", hash = "sha256:4bb86b28627b7e41098f0e93280fe4892a1abed1b79a19aec6f928f39b17dffb"},
@@ -2129,7 +2119,7 @@ importlib-metadata = ">=6.0,<7.0"
 name = "opentelemetry-exporter-otlp-proto-common"
 version = "1.21.0"
 description = "OpenTelemetry Protobuf encoding"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "opentelemetry_exporter_otlp_proto_common-1.21.0-py3-none-any.whl", hash = "sha256:97b1022b38270ec65d11fbfa348e0cd49d12006485c2321ea3b1b7037d42b6ec"},
@@ -2144,7 +2134,7 @@ opentelemetry-proto = "1.21.0"
 name = "opentelemetry-exporter-otlp-proto-grpc"
 version = "1.21.0"
 description = "OpenTelemetry Collector Protobuf over gRPC Exporter"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "opentelemetry_exporter_otlp_proto_grpc-1.21.0-py3-none-any.whl", hash = "sha256:ab37c63d6cb58d6506f76d71d07018eb1f561d83e642a8f5aa53dddf306087a4"},
@@ -2168,7 +2158,7 @@ test = ["pytest-grpc"]
 name = "opentelemetry-instrumentation"
 version = "0.42b0"
 description = "Instrumentation Tools & Auto Instrumentation for OpenTelemetry Python"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "opentelemetry_instrumentation-0.42b0-py3-none-any.whl", hash = "sha256:65ae54ddb90ca2d05d2d16bf6863173e7141eba1bbbf41fc9bbb02446adbe369"},
@@ -2184,7 +2174,7 @@ wrapt = ">=1.0.0,<2.0.0"
 name = "opentelemetry-instrumentation-asgi"
 version = "0.42b0"
 description = "ASGI instrumentation for OpenTelemetry"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "opentelemetry_instrumentation_asgi-0.42b0-py3-none-any.whl", hash = "sha256:79b7278fb614aba1bf2211060960d3e8501c1d7d9314b857b30ad80ba34a2805"},
@@ -2206,7 +2196,7 @@ test = ["opentelemetry-instrumentation-asgi[instruments]", "opentelemetry-test-u
 name = "opentelemetry-instrumentation-fastapi"
 version = "0.42b0"
 description = "OpenTelemetry FastAPI Instrumentation"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "opentelemetry_instrumentation_fastapi-0.42b0-py3-none-any.whl", hash = "sha256:d53a26c4859767d5ba67109038cabc7165d97a8a8b7654ccde4ce290036d1725"},
@@ -2228,7 +2218,7 @@ test = ["httpx (>=0.22,<1.0)", "opentelemetry-instrumentation-fastapi[instrument
 name = "opentelemetry-proto"
 version = "1.21.0"
 description = "OpenTelemetry Python Proto"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "opentelemetry_proto-1.21.0-py3-none-any.whl", hash = "sha256:32fc4248e83eebd80994e13963e683f25f3b443226336bb12b5b6d53638f50ba"},
@@ -2242,7 +2232,7 @@ protobuf = ">=3.19,<5.0"
 name = "opentelemetry-sdk"
 version = "1.21.0"
 description = "OpenTelemetry Python SDK"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "opentelemetry_sdk-1.21.0-py3-none-any.whl", hash = "sha256:9fe633243a8c655fedace3a0b89ccdfc654c0290ea2d8e839bd5db3131186f73"},
@@ -2258,7 +2248,7 @@ typing-extensions = ">=3.7.4"
 name = "opentelemetry-semantic-conventions"
 version = "0.42b0"
 description = "OpenTelemetry Semantic Conventions"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "opentelemetry_semantic_conventions-0.42b0-py3-none-any.whl", hash = "sha256:5cd719cbfec448af658860796c5d0fcea2fdf0945a2bed2363f42cb1ee39f526"},
@@ -2269,7 +2259,7 @@ files = [
 name = "opentelemetry-util-http"
 version = "0.42b0"
 description = "Web util for OpenTelemetry"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "opentelemetry_util_http-0.42b0-py3-none-any.whl", hash = "sha256:764069ed2f7e9a98ed1a7a87111f838000484e388e81f467405933be4b0306c6"},
@@ -2280,7 +2270,7 @@ files = [
 name = "overrides"
 version = "7.4.0"
 description = "A decorator to automatically detect mismatch when overriding a method."
-optional = false
+optional = true
 python-versions = ">=3.6"
 files = [
     {file = "overrides-7.4.0-py3-none-any.whl", hash = "sha256:3ad24583f86d6d7a49049695efe9933e67ba62f0c7625d53c59fa832ce4b8b7d"},
@@ -2438,7 +2428,7 @@ testing = ["pytest", "pytest-benchmark"]
 name = "posthog"
 version = "3.1.0"
 description = "Integrate PostHog into any python application."
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "posthog-3.1.0-py2.py3-none-any.whl", hash = "sha256:acd033530bdfc275dce5587f205f62378991ecb9b7cd5479e79c7f4ac575d319"},
@@ -2510,7 +2500,7 @@ wcwidth = "*"
 name = "protobuf"
 version = "4.25.1"
 description = ""
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "protobuf-4.25.1-cp310-abi3-win32.whl", hash = "sha256:193f50a6ab78a970c9b4f148e7c750cfde64f59815e86f686c22e26b4fe01ce7"},
@@ -2708,7 +2698,7 @@ files = [
 name = "pulsar-client"
 version = "3.3.0"
 description = "Apache Pulsar Python client library"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "pulsar_client-3.3.0-cp310-cp310-macosx_10_15_universal2.whl", hash = "sha256:c31afd3e67a044ff93177df89e08febf214cc965e95ede097d9fe8755af00e01"},
@@ -2825,7 +2815,7 @@ files = [
 name = "pyasn1"
 version = "0.5.1"
 description = "Pure-Python implementation of ASN.1 types and DER/BER/CER codecs (X.208)"
-optional = false
+optional = true
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,>=2.7"
 files = [
     {file = "pyasn1-0.5.1-py2.py3-none-any.whl", hash = "sha256:4439847c58d40b1d0a573d07e3856e95333f1976294494c325775aeca506eb58"},
@@ -2836,7 +2826,7 @@ files = [
 name = "pyasn1-modules"
 version = "0.3.0"
 description = "A collection of ASN.1-based protocols modules"
-optional = false
+optional = true
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,>=2.7"
 files = [
     {file = "pyasn1_modules-0.3.0-py2.py3-none-any.whl", hash = "sha256:d3ccd6ed470d9ffbc716be08bd90efbd44d0734bc9303818f7336070984a162d"},
@@ -3045,7 +3035,7 @@ image = ["Pillow (>=8.0.0)"]
 name = "pypika"
 version = "0.48.9"
 description = "A SQL query builder API for Python"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "PyPika-0.48.9.tar.gz", hash = "sha256:838836a61747e7c8380cd1b7ff638694b7a7335345d0f559b04b2cd832ad5378"},
@@ -3055,7 +3045,7 @@ files = [
 name = "pyreadline3"
 version = "3.4.1"
 description = "A python implementation of GNU readline."
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "pyreadline3-3.4.1-py3-none-any.whl", hash = "sha256:b0efb6516fd4fb07b45949053826a62fa4cb353db5be2bbb4a7aa1fdd1e345fb"},
@@ -3134,7 +3124,7 @@ six = ">=1.5"
 name = "python-dotenv"
 version = "1.0.0"
 description = "Read key-value pairs from a .env file and set them as environment variables"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "python-dotenv-1.0.0.tar.gz", hash = "sha256:a8df96034aae6d2d50a4ebe8216326c61c3eb64836776504fcca410e5937a3ba"},
@@ -3364,7 +3354,7 @@ use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 name = "requests-oauthlib"
 version = "1.3.1"
 description = "OAuthlib authentication support for Requests."
-optional = false
+optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 files = [
     {file = "requests-oauthlib-1.3.1.tar.gz", hash = "sha256:75beac4a47881eeb94d5ea5d6ad31ef88856affe2332b9aafb52c6452ccf0d7a"},
@@ -3415,7 +3405,7 @@ jupyter = ["ipywidgets (>=7.5.1,<9)"]
 name = "rsa"
 version = "4.9"
 description = "Pure-Python RSA implementation"
-optional = false
+optional = true
 python-versions = ">=3.6,<4"
 files = [
     {file = "rsa-4.9-py3-none-any.whl", hash = "sha256:90260d9058e514786967344d0ef75fa8727eed8a7d2e43ce9f4bcf1b536174f7"},
@@ -3720,7 +3710,7 @@ sqlcipher = ["sqlcipher3-binary"]
 name = "starlette"
 version = "0.27.0"
 description = "The little ASGI library that shines."
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "starlette-0.27.0-py3-none-any.whl", hash = "sha256:918416370e846586541235ccd38a474c08b80443ed31c578a418e2209b3eef91"},
@@ -3738,7 +3728,7 @@ full = ["httpx (>=0.22.0)", "itsdangerous", "jinja2", "python-multipart", "pyyam
 name = "sympy"
 version = "1.12"
 description = "Computer algebra system (CAS) in Python"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "sympy-1.12-py3-none-any.whl", hash = "sha256:c3588cd4295d0c0f603d0f2ae780587e64e2efeedb3521e46b9bb1d08d184fa5"},
@@ -3818,7 +3808,7 @@ blobfile = ["blobfile (>=2)"]
 name = "tokenizers"
 version = "0.14.1"
 description = ""
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "tokenizers-0.14.1-cp310-cp310-macosx_10_7_x86_64.whl", hash = "sha256:04ec1134a18ede355a05641cdc7700f17280e01f69f2f315769f02f7e295cf1e"},
@@ -4188,7 +4178,7 @@ socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 name = "uvicorn"
 version = "0.24.0.post1"
 description = "The lightning-fast ASGI server."
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "uvicorn-0.24.0.post1-py3-none-any.whl", hash = "sha256:7c84fea70c619d4a710153482c0d230929af7bcf76c7bfa6de151f0a3a80121e"},
@@ -4214,7 +4204,7 @@ standard = ["colorama (>=0.4)", "httptools (>=0.5.0)", "python-dotenv (>=0.13)",
 name = "uvloop"
 version = "0.19.0"
 description = "Fast implementation of asyncio event loop on top of libuv"
-optional = false
+optional = true
 python-versions = ">=3.8.0"
 files = [
     {file = "uvloop-0.19.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:de4313d7f575474c8f5a12e163f6d89c0a878bc49219641d49e6f1444369a90e"},
@@ -4278,7 +4268,7 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 name = "watchfiles"
 version = "0.21.0"
 description = "Simple, modern and high performance file watching and code reload in python."
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "watchfiles-0.21.0-cp310-cp310-macosx_10_7_x86_64.whl", hash = "sha256:27b4035013f1ea49c6c0b42d983133b136637a527e48c132d368eb19bf1ac6aa"},
@@ -4376,7 +4366,7 @@ files = [
 name = "websocket-client"
 version = "1.7.0"
 description = "WebSocket client for Python with low level API options"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "websocket-client-1.7.0.tar.gz", hash = "sha256:10e511ea3a8c744631d3bd77e61eb17ed09304c413ad42cf6ddfa4c7787e8fe6"},
@@ -4772,7 +4762,7 @@ multidict = ">=4.0"
 name = "zipp"
 version = "3.17.0"
 description = "Backport of pathlib-compatible object wrapper for zip files"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "zipp-3.17.0-py3-none-any.whl", hash = "sha256:0e923e726174922dce09c53c59ad483ff7bbb8e572e00c7f7c46b88556409f31"},
@@ -4784,7 +4774,7 @@ docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.link
 testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-ignore-flaky", "pytest-mypy (>=0.9.1)", "pytest-ruff"]
 
 [extras]
-chroma = ["chroma"]
+chroma = ["chromadb"]
 dev = ["black", "datasets", "pre-commit", "pytest"]
 lancedb = ["lancedb"]
 local = ["huggingface-hub", "torch", "transformers"]
@@ -4793,4 +4783,4 @@ postgres = ["pg8000", "pgvector", "psycopg", "psycopg-binary", "psycopg2-binary"
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.12,>=3.9"
-content-hash = "ac19e8d59fb8f3c2d50995147956e676768952551451364712bac874f794641d"
+content-hash = "116de4dd474a05ec89ca9d4f03c1a1d7e3e01e6e870e44c05b1a9dafe9575456"
