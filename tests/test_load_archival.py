@@ -5,7 +5,7 @@ import os
 # import asyncio
 # from datasets import load_dataset
 
-# import memgpt
+import memgpt
 # from memgpt.cli.cli_load import load_directory, load_database, load_webpage
 
 # import memgpt.presets as presets
