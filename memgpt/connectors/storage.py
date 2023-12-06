@@ -57,7 +57,7 @@ class StorageConnector:
         elif storage_type == "lancedb":
             from memgpt.connectors.db import LanceDBConnector
 
-            return LanceDBConnector(name=name)
+            return LanceDBConnector(name=name, agent_config=agent_config)
         else:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")
 

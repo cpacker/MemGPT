@@ -1,5 +1,3 @@
-### MemGPT + koboldcpp
-
 1. Download + install [koboldcpp](https://github.com/LostRuins/koboldcpp/) and the model you want to test with
 2. In your terminal, run `./koboldcpp.py <MODEL> -contextsize <CONTEXT_LENGTH>`
 
@@ -19,7 +17,7 @@ In your terminal where you're running MemGPT, run `memgpt configure` to set the 
 ...
 ```
 
-If you have an existing agent that you want to move to the web UI backend, add extra flags to `memgpt run`:
+If you have an existing agent that you want to move to the koboldcpp backend, add extra flags to `memgpt run`:
 ```sh
 memgpt run --agent your_agent --model-endpoint-type koboldcpp --model-endpoint http://localhost:5001
 ```

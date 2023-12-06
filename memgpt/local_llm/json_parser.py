@@ -1,8 +1,13 @@
 import json
+import re
+
+from memgpt.errors import LLMJSONParsingError
 
 
 def extract_first_json(string):
     """Handles the case of two JSON objects back-to-back"""
+    from memgpt.utils import printd
+
     depth = 0
     start_index = None
 
@@ -17,9 +22,9 @@ def extract_first_json(string):
                 try:
                     return json.loads(string[start_index : i + 1])
                 except json.JSONDecodeError as e:
-                    raise json.JSONDecodeError(f"Matched closing bracket, but decode failed with error: {str(e)}")
-    print("No valid JSON object found.")
-    raise json.JSONDecodeError("Couldn't find starting bracket")
+                    raise LLMJSONParsingError(f"Matched closing bracket, but decode failed with error: {str(e)}")
+    printd("No valid JSON object found.")
+    raise LLMJSONParsingError("Couldn't find starting bracket")
 
 
 def add_missing_heartbeat(llm_json):
@@ -44,6 +49,25 @@ def add_missing_heartbeat(llm_json):
         }
     """
     raise NotImplementedError
+
+
+def clean_and_interpret_send_message_json(json_string):
+    # If normal parsing fails, attempt to clean and extract manually
+    cleaned_json_string = re.sub(r"[^\x00-\x7F]+", "", json_string)  # Remove non-ASCII characters
+    function_match = re.search(r'"function":\s*"send_message"', cleaned_json_string)
+    inner_thoughts_match = re.search(r'"inner_thoughts":\s*"([^"]+)"', cleaned_json_string)
+    message_match = re.search(r'"message":\s*"([^"]+)"', cleaned_json_string)
+
+    if function_match and inner_thoughts_match and message_match:
+        return {
+            "function": "send_message",
+            "params": {
+                "inner_thoughts": inner_thoughts_match.group(1),
+                "message": message_match.group(1),
+            },
+        }
+    else:
+        raise LLMJSONParsingError(f"Couldn't manually extract send_message pattern from:\n{json_string}")
 
 
 def repair_json_string(json_string):
@@ -128,32 +152,38 @@ def clean_json(raw_llm_output, messages=None, functions=None):
     try:
         # printd("clean json runs:", raw_llm_output)
         data = json.loads(raw_llm_output)
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, LLMJSONParsingError):
         try:
             printd("trying adding }")
             data = json.loads(raw_llm_output + "}")
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, LLMJSONParsingError):
             try:
                 printd("trying adding }}")
                 data = json.loads(raw_llm_output + "}}")
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, LLMJSONParsingError):
                 try:
                     printd('trying adding "}}')
                     data = json.loads(raw_llm_output + '"}}')
-                except json.JSONDecodeError:
+                except (json.JSONDecodeError, LLMJSONParsingError):
                     try:
                         repaired = repair_json_string(raw_llm_output)
                         printd("trying repair_json_string:", repaired)
                         data = json.loads(repaired)
-                    except json.JSONDecodeError:
+                    except (json.JSONDecodeError, LLMJSONParsingError):
                         try:
                             repaired = repair_even_worse_json(raw_llm_output)
                             printd("trying repair_even_worse_json:", repaired)
                             data = json.loads(repaired)
-                        except json.JSONDecodeError:
+                        except (json.JSONDecodeError, LLMJSONParsingError):
                             try:
                                 printd("trying first_json")
                                 data = extract_first_json(raw_llm_output + "}}")
-                            except:
-                                raise
+                            except (json.JSONDecodeError, LLMJSONParsingError):
+                                try:
+                                    printd("trying to pull send_message manually")
+                                    data = clean_and_interpret_send_message_json(raw_llm_output)
+                                except (json.JSONDecodeError, LLMJSONParsingError):
+                                    raise LLMJSONParsingError(
+                                        f"Failed to decode valid MemGPT JSON from LLM output:\n=====\n{raw_llm_output}\n====="
+                                    )
     return data

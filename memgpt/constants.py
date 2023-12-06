@@ -3,6 +3,8 @@ import os
 MEMGPT_DIR = os.path.join(os.path.expanduser("~"), ".memgpt")
 
 DEFAULT_MEMGPT_MODEL = "gpt-4"
+DEFAULT_PERSONA = "sam_pov"
+DEFAULT_HUMAN = "basic"
 
 FIRST_MESSAGE_ATTEMPTS = 10
 
@@ -14,6 +16,8 @@ STARTUP_QUOTES = [
     "More human than human is our motto.",
 ]
 INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG = STARTUP_QUOTES[2]
+
+CLI_WARNING_PREFIX = "Warning: "
 
 # Constants to do with summarization / conversation length window
 # The max amount of tokens supported by the underlying model (eg 8k for gpt-4 and Mistral 7B)

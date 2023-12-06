@@ -2,3 +2,5 @@ docutils>=0.18
 furo
 myst-parser
 mkdocs
+mkdocs-material
+pymdown-extensions

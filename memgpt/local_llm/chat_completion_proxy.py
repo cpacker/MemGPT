@@ -4,20 +4,22 @@ import os
 import requests
 import json
 
-from .webui.api import get_webui_completion
-from .webui.legacy_api import get_webui_completion as get_webui_completion_legacy
-from .lmstudio.api import get_lmstudio_completion
-from .llamacpp.api import get_llamacpp_completion
-from .koboldcpp.api import get_koboldcpp_completion
-from .ollama.api import get_ollama_completion
-from .llm_chat_completion_wrappers import airoboros, dolphin, zephyr, simple_summary_wrapper
-from .constants import DEFAULT_WRAPPER
-from .utils import DotDict, get_available_wrappers
-from ..prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
-from ..errors import LocalLLMConnectionError, LocalLLMError
+from box import Box
 
-endpoint = os.getenv("OPENAI_API_BASE")
-endpoint_type = os.getenv("BACKEND_TYPE")  # default None == ChatCompletion
+from memgpt.local_llm.webui.api import get_webui_completion
+from memgpt.local_llm.webui.legacy_api import get_webui_completion as get_webui_completion_legacy
+from memgpt.local_llm.lmstudio.api import get_lmstudio_completion
+from memgpt.local_llm.llamacpp.api import get_llamacpp_completion
+from memgpt.local_llm.koboldcpp.api import get_koboldcpp_completion
+from memgpt.local_llm.ollama.api import get_ollama_completion
+from memgpt.local_llm.vllm.api import get_vllm_completion
+from memgpt.local_llm.llm_chat_completion_wrappers import simple_summary_wrapper
+from memgpt.local_llm.constants import DEFAULT_WRAPPER
+from memgpt.local_llm.utils import get_available_wrappers
+from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
+from memgpt.errors import LocalLLMConnectionError, LocalLLMError
+from memgpt.constants import CLI_WARNING_PREFIX
+
 DEBUG = False
 # DEBUG = True
 
@@ -30,6 +32,7 @@ def get_chat_completion(
     functions=None,
     function_call="auto",
     context_window=None,
+    user=None,
     # required
     wrapper=None,
     endpoint=None,
@@ -52,7 +55,7 @@ def get_chat_completion(
         # Warn the user that we're using the fallback
         if not has_shown_warning:
             print(
-                f"Warning: no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --wrapper)"
+                f"{CLI_WARNING_PREFIX}no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --wrapper)"
             )
             has_shown_warning = True
         if endpoint_type in ["koboldcpp", "llamacpp", "webui"]:
@@ -70,7 +73,7 @@ def get_chat_completion(
             grammar_name = "json_func_calls_with_inner_thoughts"
 
     if grammar_name is not None and endpoint_type not in ["koboldcpp", "llamacpp", "webui"]:
-        print(f"Warning: grammars are currently only supported when using llama.cpp as the MemGPT local LLM backend")
+        print(f"{CLI_WARNING_PREFIX}grammars are currently only supported when using llama.cpp as the MemGPT local LLM backend")
 
     # First step: turn the message sequence into a prompt that the model expects
     try:
@@ -95,9 +98,11 @@ def get_chat_completion(
             result = get_koboldcpp_completion(endpoint, prompt, context_window, grammar=grammar_name)
         elif endpoint_type == "ollama":
             result = get_ollama_completion(endpoint, model, prompt, context_window)
+        elif endpoint_type == "vllm":
+            result = get_vllm_completion(endpoint, model, prompt, context_window, user)
         else:
             raise LocalLLMError(
-                f"BACKEND_TYPE is not set, please set variable depending on your backend (webui, lmstudio, llamacpp, koboldcpp)"
+                f"Invalid endpoint type {endpoint_type}, please set variable depending on your backend (webui, lmstudio, llamacpp, koboldcpp)"
             )
     except requests.exceptions.ConnectionError as e:
         raise LocalLLMConnectionError(f"Unable to connect to endpoint {endpoint}")
@@ -115,25 +120,21 @@ def get_chat_completion(
         raise LocalLLMError(f"Failed to parse JSON from local LLM response - error: {str(e)}")
 
     # unpack with response.choices[0].message.content
-    response = DotDict(
+    response = Box(
         {
             "model": model,
             "choices": [
-                DotDict(
-                    {
-                        "message": DotDict(chat_completion_result),
-                        "finish_reason": "stop",  # TODO vary based on backend response
-                    }
-                )
-            ],
-            "usage": DotDict(
                 {
-                    # TODO fix, actually use real info
-                    "prompt_tokens": 0,
-                    "completion_tokens": 0,
-                    "total_tokens": 0,
+                    "message": chat_completion_result,
+                    "finish_reason": "stop",  # TODO vary based on backend response
                 }
-            ),
+            ],
+            "usage": {
+                # TODO fix, actually use real info
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+            },
         }
     )
     return response
