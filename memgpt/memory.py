@@ -11,9 +11,6 @@ from llama_index import Document
 from llama_index.node_parser import SimpleNodeParser
 from llama_index.node_parser import SimpleNodeParser
 
-from memgpt.embeddings import embedding_model
-from memgpt.config import MemGPTConfig
-
 
 class CoreMemory(object):
     """Held in-context inside the system message
