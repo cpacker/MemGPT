@@ -8,6 +8,19 @@ set OPENAI_API_KEY=YOUR_API_KEY # on Windows
 $Env:OPENAI_API_KEY = "YOUR_API_KEY" # on Windows (PowerShell)
 ```
 
+When you run `memgpt configure`, make sure to select `openai` for both the model endpoint provider and embeddings endpoint provider, for example:
+```
+$ memgpt configure
+? Select LLM inference provider: openai
+? Override default endpoint: https://api.openai.com/v1
+? Select default model (recommended: gpt-4): gpt-4
+? Select embedding provider: openai
+? Select default preset: memgpt_chat
+? Select default persona: sam_pov
+? Select default human: cs_phd
+? Select storage backend for archival data: local
+```
+
 #### OpenAI Proxies
 To use custom OpenAI endpoints, specify a proxy URL when running `memgpt configure` to set the custom endpoint as the default endpoint.
 
@@ -44,7 +57,7 @@ export AZURE_OPENAI_EMBEDDING_DEPLOYMENT="personal-embeddings"
 
 Replace `export` with `set` or `$Env:` if you are on Windows (see the OpenAI example).
 
-When you run `memgpt configure`, make sure to select `azure` for both the model endpoint type and embeddings endpoint type, for example:
+When you run `memgpt configure`, make sure to select `azure` for both the model endpoint provider and embeddings endpoint provider, for example:
 ```
 $ memgpt configure
 ? Select LLM inference provider: azure
