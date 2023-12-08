@@ -8,7 +8,7 @@ set OPENAI_API_KEY=YOUR_API_KEY # on Windows
 $Env:OPENAI_API_KEY = "YOUR_API_KEY" # on Windows (PowerShell)
 ```
 
-When you run `memgpt configure`, make sure to select `openai` for both the model endpoint provider and embeddings endpoint provider, for example:
+When you run `memgpt configure`, make sure to select `openai` for both the LLM inference provider and embedding provider, for example:
 ```
 $ memgpt configure
 ? Select LLM inference provider: openai
@@ -57,7 +57,7 @@ export AZURE_OPENAI_EMBEDDING_DEPLOYMENT="personal-embeddings"
 
 Replace `export` with `set` or `$Env:` if you are on Windows (see the OpenAI example).
 
-When you run `memgpt configure`, make sure to select `azure` for both the model endpoint provider and embeddings endpoint provider, for example:
+When you run `memgpt configure`, make sure to select `azure` for both the LLM inference provider and embedding provider, for example:
 ```
 $ memgpt configure
 ? Select LLM inference provider: azure
