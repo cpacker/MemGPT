@@ -21,6 +21,13 @@ def test_server():
 
     print(server.run_command(user_id=user_id, agent_id=agent_id, command="/memory"))
 
+    try:
+        server.user_message(user_id=user_id, agent_id="agent no-exist", message="Hello?")
+    except ValueError as e:
+        print(e)
+    except:
+        raise
+
 
 if __name__ == "__main__":
     test_server()
