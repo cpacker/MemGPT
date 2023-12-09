@@ -2,22 +2,10 @@ import chromadb
 import json
 import re
 from typing import Optional, List, Iterator
-from memgpt.connectors.storage import StorageConnector, Passage
+from memgpt.connectors.storage import StorageConnector, TableType
 from memgpt.utils import printd
 from memgpt.config import AgentConfig, MemGPTConfig
-
-
-def create_chroma_client():
-    config = MemGPTConfig.load()
-    # create chroma client
-    if config.archival_storage_path:
-        client = chromadb.PersistentClient(config.archival_storage_path)
-    else:
-        # assume uri={ip}:{port}
-        ip = config.archival_storage_uri.split(":")[0]
-        port = config.archival_storage_uri.split(":")[1]
-        client = chromadb.HttpClient(host=ip, port=port)
-    return client
+from memgpt.data_types import Record, Message, Passage
 
 
 class ChromaStorageConnector(StorageConnector):
@@ -25,21 +13,24 @@ class ChromaStorageConnector(StorageConnector):
 
     # WARNING: This is not thread safe. Do NOT do concurrent access to the same collection.
 
-    def __init__(self, name: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
-        # determine table name
-        if agent_config:
-            assert name is None, f"Cannot specify both agent config and name {name}"
-            self.table_name = self.generate_table_name_agent(agent_config)
-        elif name:
-            assert agent_config is None, f"Cannot specify both agent config and name {name}"
-            self.table_name = self.generate_table_name(name)
+    def __init__(self, table_type: str, agent_config: Optional[AgentConfig] = None):
+        super().__init__(table_type=table_type, agent_config=agent_config)
+        config = MemGPTConfig.load()
+
+        # supported table types
+        self.supported_types = [TableType.ARCHIVAL_MEMORY]
+
+        if table_type not in self.supported_types:
+            raise ValueError(f"Table type {table_type} not supported by Chroma")
+
+        # create chroma client
+        if config.archival_storage_path:
+            self.client = chromadb.PersistentClient(config.archival_storage_path)
         else:
-            raise ValueError("Must specify either agent config or name")
-
-        printd(f"Using table name {self.table_name}")
-
-        # create client
-        self.client = create_chroma_client()
+            # assume uri={ip}:{port}
+            ip = config.archival_storage_uri.split(":")[0]
+            port = config.archival_storage_uri.split(":")[1]
+            self.client = chromadb.HttpClient(host=ip, port=port)
 
         # get a collection or create if it doesn't exist already
         self.collection = self.client.get_or_create_collection(self.table_name)
@@ -97,29 +88,6 @@ class ChromaStorageConnector(StorageConnector):
         collections = client.list_collections()
         collections = [c.name for c in collections if c.name.startswith("memgpt_") and not c.name.startswith("memgpt_agent_")]
         return collections
-
-    def sanitize_table_name(self, name: str) -> str:
-        # Remove leading and trailing whitespace
-        name = name.strip()
-
-        # Replace spaces and invalid characters with underscores
-        name = re.sub(r"\s+|\W+", "_", name)
-
-        # Truncate to the maximum identifier length (e.g., 63 for PostgreSQL)
-        max_length = 63
-        if len(name) > max_length:
-            name = name[:max_length].rstrip("_")
-
-        # Convert to lowercase
-        name = name.lower()
-
-        return name
-
-    def generate_table_name_agent(self, agent_config: AgentConfig):
-        return f"memgpt_agent_{self.sanitize_table_name(agent_config.name)}"
-
-    def generate_table_name(self, name: str):
-        return f"memgpt_{self.sanitize_table_name(name)}"
 
     def size(self) -> int:
         return self.collection.count()

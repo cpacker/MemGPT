@@ -64,10 +64,11 @@ def get_local_time(timezone=None):
         return get_local_time_timezone(timezone)
     else:
         # Get the current time, which will be in the local timezone of the computer
-        local_time = datetime.now()
+        local_time = datetime.now().astimezone()
 
         # You may format it as you desire, including AM/PM
         formatted_time = local_time.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
+        print("formatted_time", formatted_time)
 
         return formatted_time
 

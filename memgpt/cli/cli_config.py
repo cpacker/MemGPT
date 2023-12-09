@@ -279,6 +279,22 @@ def configure_archival_storage(config: MemGPTConfig):
     # TODO: allow configuring embedding model
 
 
+def configure_recall_storage(config: MemGPTConfig):
+    # Configure recall storage backend
+    recall_storage_options = ["local", "postgres"]
+    recall_storage_type = questionary.select(
+        "Select storage backend for recall data:", recall_storage_options, default=config.recall_storage_type
+    ).ask()
+    recall_storage_uri, recall_storage_path = None, None
+    # configure postgres
+    if recall_storage_type == "postgres":
+        recall_storage_uri = questionary.text(
+            "Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}):",
+            default=config.recall_storage_uri if config.recall_storage_uri else "",
+        ).ask()
+    return recall_storage_type, recall_storage_uri, recall_storage_path
+
+
 @app.command()
 def configure():
     """Updates default MemGPT configurations"""
@@ -292,6 +308,7 @@ def configure():
     embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = configure_embedding_endpoint(config)
     default_preset, default_persona, default_human, default_agent = configure_cli(config)
     archival_storage_type, archival_storage_uri, archival_storage_path = configure_archival_storage(config)
+    recall_storage_type, recall_storage_uri, recall_storage_path = configure_recall_storage(config)
 
     # check credentials
     azure_key, azure_endpoint, azure_version, azure_deployment, azure_embedding_deployment = get_azure_credentials()
@@ -339,6 +356,10 @@ def configure():
         archival_storage_type=archival_storage_type,
         archival_storage_uri=archival_storage_uri,
         archival_storage_path=archival_storage_path,
+        # recall storage
+        recall_storage_type=recall_storage_type,
+        recall_storage_uri=recall_storage_uri,
+        recall_storage_path=recall_storage_path,
     )
     print(f"Saving config to {config.config_path}")
     config.save()

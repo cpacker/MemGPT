@@ -131,6 +131,9 @@ class MemGPTConfig:
                 "archival_storage_type": get_field(config, "archival_storage", "type"),
                 "archival_storage_path": get_field(config, "archival_storage", "path"),
                 "archival_storage_uri": get_field(config, "archival_storage", "uri"),
+                "recall_storage_type": get_field(config, "recall_storage", "type"),
+                "recall_storage_path": get_field(config, "recall_storage", "path"),
+                "recall_storage_uri": get_field(config, "recall_storage", "uri"),
                 "anon_clientid": get_field(config, "client", "anon_clientid"),
                 "config_path": config_path,
                 "memgpt_version": get_field(config, "version", "memgpt_version"),
@@ -183,6 +186,11 @@ class MemGPTConfig:
         set_field(config, "archival_storage", "type", self.archival_storage_type)
         set_field(config, "archival_storage", "path", self.archival_storage_path)
         set_field(config, "archival_storage", "uri", self.archival_storage_uri)
+
+        # recall storage
+        set_field(config, "recall_storage", "type", self.recall_storage_type)
+        set_field(config, "recall_storage", "path", self.recall_storage_path)
+        set_field(config, "recall_storage", "uri", self.recall_storage_uri)
 
         # set version
         set_field(config, "version", "memgpt_version", memgpt.__version__)

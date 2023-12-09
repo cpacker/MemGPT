@@ -283,7 +283,10 @@ class DummyRecallMemory(RecallMemory):
             return matches, len(matches)
 
 
-class RecallMemorySQL(RecallMemory):
+class BaseRecallMemory(RecallMemory):
+
+    """Recall memory based on base functions implemented by storage connectors"""
+
     def __init__(self, agent_config, restrict_search_to_summaries=False):
 
         # If true, the pool of messages that can be queried are the automated summaries only
@@ -303,20 +306,39 @@ class RecallMemorySQL(RecallMemory):
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
 
-    @abstractmethod
     def text_search(self, query_string, count=None, start=None):
-        pass
+        self.storage.query_text(query_string, count, start)
 
-    @abstractmethod
-    def date_search(self, query_string, count=None, start=None):
-        pass
+    def date_search(self, start_date, end_date, count=None, start=None):
+        self.storage.query_date(start_date, end_date, count, start)
 
-    @abstractmethod
     def __repr__(self) -> str:
-        pass
+        total = self.storage.size()
+        system_count = self.storage.size(filters={"role": "system"})
+        user_count = self.storage.size(filters={"role": "user"})
+        assistant_count = self.storage.size(filters={"role": "assistant"})
+        function_count = self.storage.size(filters={"role": "function"})
+        other_count = total - (system_count + user_count + assistant_count + function_count)
+
+        memory_str = (
+            f"Statistics:"
+            + f"\n{total} total messages"
+            + f"\n{system_count} system"
+            + f"\n{user_count} user"
+            + f"\n{assistant_count} assistant"
+            + f"\n{function_count} function"
+            + f"\n{other_count} other"
+        )
+        return f"\n### RECALL MEMORY ###" + f"\n{memory_str}"
 
     def insert(self, message: Message):
-        pass
+        self.storage.insert(message)
+
+    def insert_many(self, messages: List[Message]):
+        self.storage.insert_many(messages)
+
+    def save(self):
+        self.storage.save()
 
 
 class EmbeddingArchivalMemory(ArchivalMemory):
@@ -332,16 +354,24 @@ class EmbeddingArchivalMemory(ArchivalMemory):
 
         self.top_k = top_k
         self.agent_config = agent_config
-        config = MemGPTConfig.load()
+        self.config = MemGPTConfig.load()
 
         # create embedding model
         self.embed_model = embedding_model()
-        self.embedding_chunk_size = config.embedding_chunk_size
+        self.embedding_chunk_size = self.config.embedding_chunk_size
 
         # create storage backend
         self.storage = StorageConnector.get_archival_storage_connector(agent_config=agent_config)
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
+
+    def create_passage(self, text, embedding):
+        return Passage(
+            user_id=self.config.anon_clientid,
+            agent_id=self.agent_config.name,
+            text=text,
+            embedding=embedding,
+        )
 
     def save(self):
         """Save the index to disk"""
@@ -349,7 +379,6 @@ class EmbeddingArchivalMemory(ArchivalMemory):
 
     def insert(self, memory_string):
         """Embed and save memory string"""
-        from memgpt.connectors.storage import Passage
 
         try:
             passages = []
@@ -360,7 +389,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             # breakup string into passages
             for node in parser.get_nodes_from_documents([Document(text=memory_string)]):
                 embedding = self.embed_model.get_text_embedding(node.text)
-                passages.append(Passage(text=node.text, embedding=embedding, doc_id=f"agent_{self.agent_config.name}_memory"))
+                passages.append(self.create_passage(node.text, embedding))
 
             # insert passages
             self.storage.insert_many(passages)

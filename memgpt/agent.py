@@ -7,7 +7,7 @@ import traceback
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
-from memgpt.memory import CoreMemory as Memory, summarize_messages
+from memgpt.memory import CoreMemory as InContextMemory, summarize_messages
 from memgpt.openai_tools import create, is_context_overflow_error
 from memgpt.utils import get_local_time, parse_json, united_diff, printd, count_tokens, get_schema_diff
 from memgpt.constants import (
@@ -29,7 +29,7 @@ def initialize_memory(ai_notes, human_notes):
         raise ValueError(ai_notes)
     if human_notes is None:
         raise ValueError(human_notes)
-    memory = Memory(human_char_limit=CORE_MEMORY_HUMAN_CHAR_LIMIT, persona_char_limit=CORE_MEMORY_PERSONA_CHAR_LIMIT)
+    memory = InContextMemory(human_char_limit=CORE_MEMORY_HUMAN_CHAR_LIMIT, persona_char_limit=CORE_MEMORY_PERSONA_CHAR_LIMIT)
     memory.edit_persona(ai_notes)
     memory.edit_human(human_notes)
     return memory
@@ -240,6 +240,7 @@ class Agent(object):
 
     ### Local state management
     def to_dict(self):
+        # TODO: select specific variables for the saves state (to eventually move to a DB) rather than checkpointing everything in the class
         return {
             "model": self.model,
             "system": self.system,
@@ -249,32 +250,29 @@ class Agent(object):
             "memory": self.memory.to_dict(),
         }
 
-    def save_to_json_file(self, filename):
+    def save_agent_state_json(self, filename):
+        """Save agent state to JSON"""
         with open(filename, "w") as file:
             json.dump(self.to_dict(), file)
 
     def save(self):
         """Save agent state locally"""
 
-        timestamp = get_local_time().replace(" ", "_").replace(":", "_")
-        agent_name = self.config.name  # TODO: fix
-
         # save config
         self.config.save()
 
-        # save agent state
+        # save agent state to timestamped file
+        timestamp = get_local_time().replace(" ", "_").replace(":", "_")
         filename = f"{timestamp}.json"
         os.makedirs(self.config.save_state_dir(), exist_ok=True)
-        self.save_to_json_file(os.path.join(self.config.save_state_dir(), filename))
+        self.save_agent_state_json(os.path.join(self.config.save_state_dir(), filename))
 
-        # save the persistence manager too
-        filename = f"{timestamp}.persistence.pickle"
-        os.makedirs(self.config.save_persistence_manager_dir(), exist_ok=True)
-        self.persistence_manager.save(os.path.join(self.config.save_persistence_manager_dir(), filename))
+        # save the persistence manager too (recall/archival memory)
+        self.persistence_manager.save()
 
     @classmethod
     def load_agent(cls, interface, agent_config: AgentConfig):
-        """Load saved agent state"""
+        """Load saved agent state based on agent_config"""
         # TODO: support loading from specific file
         agent_name = agent_config.name
 
@@ -290,10 +288,7 @@ class Agent(object):
         state = json.load(open(filename, "r"))
 
         # load persistence manager
-        filename = os.path.basename(filename).replace(".json", ".persistence.pickle")
-        directory = agent_config.save_persistence_manager_dir()
-        printd(f"Loading persistence manager from {os.path.join(directory, filename)}")
-        persistence_manager = LocalStateManager.load(os.path.join(directory, filename), agent_config)
+        persistence_manager = LocalStateManager.load(agent_config)
 
         # need to dynamically link the functions
         # the saved agent.functions will just have the schemas, but we need to
@@ -353,70 +348,6 @@ class Agent(object):
         agent._messages = messages
         agent.memory = initialize_memory(state["memory"]["persona"], state["memory"]["human"])
         return agent
-
-    @classmethod
-    def load(cls, state, interface, persistence_manager):
-        model = state["model"]
-        system = state["system"]
-        functions = state["functions"]
-        messages = state["messages"]
-        try:
-            messages_total = state["messages_total"]
-        except KeyError:
-            messages_total = len(messages) - 1
-        # memory requires a nested load
-        memory_dict = state["memory"]
-        persona_notes = memory_dict["persona"]
-        human_notes = memory_dict["human"]
-
-        # Two-part load
-        new_agent = cls(
-            model=model,
-            system=system,
-            functions=functions,
-            interface=interface,
-            persistence_manager=persistence_manager,
-            persistence_manager_init=False,
-            persona_notes=persona_notes,
-            human_notes=human_notes,
-            messages_total=messages_total,
-        )
-        new_agent._messages = messages
-        return new_agent
-
-    def load_inplace(self, state):
-        self.model = state["model"]
-        self.system = state["system"]
-        self.functions = state["functions"]
-        # memory requires a nested load
-        memory_dict = state["memory"]
-        persona_notes = memory_dict["persona"]
-        human_notes = memory_dict["human"]
-        self.memory = initialize_memory(persona_notes, human_notes)
-        # messages also
-        self._messages = state["messages"]
-        try:
-            self.messages_total = state["messages_total"]
-        except KeyError:
-            self.messages_total = len(self.messages) - 1  # -system
-
-    @classmethod
-    def load_from_json(cls, json_state, interface, persistence_manager):
-        state = json.loads(json_state)
-        return cls.load(state, interface, persistence_manager)
-
-    @classmethod
-    def load_from_json_file(cls, json_file, interface, persistence_manager):
-        with open(json_file, "r") as file:
-            state = json.load(file)
-        return cls.load(state, interface, persistence_manager)
-
-    def load_from_json_file_inplace(self, json_file):
-        # Load in-place
-        # No interface arg needed, we can use the current one
-        with open(json_file, "r") as file:
-            state = json.load(file)
-        self.load_inplace(state)
 
     def verify_first_message_correctness(self, response, require_send_message=True, require_monologue=False):
         """Can be used to enforce that the first message always uses send_message"""
