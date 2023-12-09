@@ -3823,6 +3823,23 @@ pymysql = ["pymysql"]
 sqlcipher = ["sqlcipher3-binary"]
 
 [[package]]
+name = "sqlalchemy-json"
+version = "0.7.0"
+description = "JSON type with nested change tracking for SQLAlchemy"
+optional = false
+python-versions = ">= 3.6"
+files = [
+    {file = "sqlalchemy-json-0.7.0.tar.gz", hash = "sha256:620d0b26f648f21a8fa9127df66f55f83a5ab4ae010e5397a5c6989a08238561"},
+    {file = "sqlalchemy_json-0.7.0-py3-none-any.whl", hash = "sha256:27881d662ca18363a4ac28175cc47ea2a6f2bef997ae1159c151026b741818e6"},
+]
+
+[package.dependencies]
+sqlalchemy = ">=0.7"
+
+[package.extras]
+dev = ["pytest"]
+
+[[package]]
 name = "starlette"
 version = "0.27.0"
 description = "The little ASGI library that shines."
@@ -4913,4 +4930,4 @@ server = ["fastapi", "uvicorn", "websockets"]
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.12,>=3.9"
-content-hash = "12010863b2b9c1e26dceace00ea4e1ea7cc95932ab77b1ef37a5473c2e375575"
+content-hash = "a6b8cdeda433007b6d33441b82417e435df336cea458af5dedce9a94f07f1225"

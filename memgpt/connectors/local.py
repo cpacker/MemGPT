@@ -6,7 +6,8 @@ import pickle
 import os
 
 
-from typing import List, Optional
+from typing import List, Optional, Dict
+from abc import abstractmethod
 
 from llama_index import VectorStoreIndex, ServiceContext, set_global_service_context
 from llama_index.indices.empty.base import EmptyIndex
@@ -145,11 +146,9 @@ class InMemoryStorageConnector(StorageConnector):
 
     # TODO: maybae replace this with sqllite?
 
-    def __init__(self, name: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
-        from memgpt.embeddings import embedding_model
-
+    def __init__(self, table_type: str, agent_config: Optional[AgentConfig] = None):
+        super().__init__(table_type=table_type, agent_config=agent_config)
         config = MemGPTConfig.load()
-        # TODO: figure out save location
 
         self.rows = []
 
