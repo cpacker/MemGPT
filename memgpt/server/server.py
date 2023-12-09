@@ -51,6 +51,7 @@ class Server(object):
         raise NotImplementedError
 
 
+# TODO actually use "user_id" for something
 class SyncServer(Server):
     """Simple single-threaded / blocking server process"""
 

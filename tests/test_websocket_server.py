@@ -5,7 +5,7 @@ import websockets
 import pytest
 
 from memgpt.server.constants import DEFAULT_PORT
-from memgpt.server.websocket_server import WebSocketServer
+from memgpt.server.ws_api.server import WebSocketServer
 from memgpt.config import AgentConfig
 
 

@@ -3,7 +3,7 @@ import threading
 
 
 from memgpt.interface import AgentInterface
-import memgpt.server.websocket_protocol as protocol
+import memgpt.server.websocket.protocol as protocol
 
 
 class BaseWebSocketInterface(AgentInterface):

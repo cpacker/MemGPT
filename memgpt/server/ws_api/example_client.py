@@ -3,8 +3,8 @@ import json
 
 import websockets
 
-import memgpt.server.websocket_protocol as protocol
-from memgpt.server.websocket_server import WebSocketServer
+import memgpt.server.websocket.protocol as protocol
+from memgpt.server.websocket.server import WebSocketServer
 from memgpt.server.constants import DEFAULT_PORT, CLIENT_TIMEOUT
 from memgpt.server.utils import condition_to_stop_receiving, print_server_response
 

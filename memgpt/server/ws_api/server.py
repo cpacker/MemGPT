@@ -5,9 +5,9 @@ import traceback
 import websockets
 
 from memgpt.server.server import SyncServer
-from memgpt.server.websocket_interface import SyncWebSocketInterface
+from memgpt.server.websocket.interface import SyncWebSocketInterface
 from memgpt.server.constants import DEFAULT_PORT
-import memgpt.server.websocket_protocol as protocol
+import memgpt.server.websocket.protocol as protocol
 import memgpt.system as system
 import memgpt.constants as memgpt_constants
 

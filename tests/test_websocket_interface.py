@@ -2,8 +2,8 @@ import pytest
 from unittest.mock import Mock, AsyncMock, MagicMock
 
 from memgpt.config import MemGPTConfig, AgentConfig
-from memgpt.server.websocket_interface import SyncWebSocketInterface
-import memgpt.presets as presets
+from memgpt.server.ws_api.interface import SyncWebSocketInterface
+import memgpt.presets.presets as presets
 import memgpt.utils as utils
 import memgpt.system as system
 from memgpt.persistence_manager import LocalStateManager
