@@ -1,7 +1,7 @@
 import typer
 from typing import Optional, List
 import os
-from llama_index.embeddings import OpenAIEmbedding
+from llama_index.embeddings import OpenAIEmbedding, AzureOpenAIEmbedding
 from llama_index.embeddings import TextEmbeddingsInference
 from llama_index.bridge.pydantic import PrivateAttr
 
@@ -108,12 +108,11 @@ def embedding_model():
         # https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings
         model = "text-embedding-ada-002"
         deployment = config.azure_embedding_deployment if config.azure_embedding_deployment is not None else model
-        return OpenAIEmbedding(
+        return AzureOpenAIEmbedding(
             model=model,
             deployment_name=deployment,
             api_key=config.azure_key,
-            api_base=config.azure_endpoint,
-            api_type="azure",
+            azure_endpoint=config.azure_endpoint,
             api_version=config.azure_version,
         )
     elif endpoint_type == "hugging-face":
