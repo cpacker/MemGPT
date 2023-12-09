@@ -24,6 +24,53 @@ from .errors import LLMError
 from .functions.functions import load_all_function_sets
 
 
+def link_functions(function_schemas):
+
+    """Link function definitions to list of function schemas"""
+
+    # need to dynamically link the functions
+    # the saved agent.functions will just have the schemas, but we need to
+    # go through the functions library and pull the respective python functions
+
+    # Available functions is a mapping from:
+    # function_name -> {
+    #   json_schema: schema
+    #   python_function: function
+    # }
+    # agent.functions is a list of schemas (OpenAI kwarg functions style, see: https://platform.openai.com/docs/api-reference/chat/create)
+    # [{'name': ..., 'description': ...}, {...}]
+    available_functions = load_all_function_sets()
+    linked_function_set = {}
+    for f_schema in function_schemas:
+        # Attempt to find the function in the existing function library
+        f_name = f_schema.get("name")
+        if f_name is None:
+            raise ValueError(f"While loading agent.state.functions encountered a bad function schema object with no name:\n{f_schema}")
+        linked_function = available_functions.get(f_name)
+        if linked_function is None:
+            raise ValueError(
+                f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
+            )
+        # Once we find a matching function, make sure the schema is identical
+        if json.dumps(f_schema) != json.dumps(linked_function["json_schema"]):
+            # error_message = (
+            #     f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different."
+            #     + f"\n>>>agent.state.functions\n{json.dumps(f_schema, indent=2)}"
+            #     + f"\n>>>function library\n{json.dumps(linked_function['json_schema'], indent=2)}"
+            # )
+            schema_diff = get_schema_diff(f_schema, linked_function["json_schema"])
+            error_message = (
+                f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different.\n"
+                + "".join(schema_diff)
+            )
+
+            # NOTE to handle old configs, instead of erroring here let's just warn
+            # raise ValueError(error_message)
+            printd(error_message)
+        linked_function_set[f_name] = linked_function
+    return linked_function_set
+
+
 def initialize_memory(ai_notes, human_notes):
     if ai_notes is None:
         raise ValueError(ai_notes)
@@ -277,76 +324,42 @@ class Agent(object):
         agent_name = agent_config.name
 
         # load state
-        directory = agent_config.save_state_dir()
-        json_files = glob.glob(os.path.join(directory, "*.json"))  # This will list all .json files in the current directory.
-        if not json_files:
-            print(f"/load error: no .json checkpoint files found")
-            raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {directory}")
+        if agent_config.memgpt_version <= "0.2.6":
+            directory = agent_config.save_state_dir()
+            json_files = glob.glob(os.path.join(directory, "*.json"))  # This will list all .json files in the current directory.
+            if not json_files:
+                print(f"/load error: no .json checkpoint files found")
+                raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {directory}")
 
-        # Sort files based on modified timestamp, with the latest file being the first.
-        filename = max(json_files, key=os.path.getmtime)
-        state = json.load(open(filename, "r"))
+            # Sort files based on modified timestamp, with the latest file being the first.
+            filename = max(json_files, key=os.path.getmtime)
+            state = json.load(open(filename, "r"))
 
-        # load persistence manager
-        persistence_manager = LocalStateManager.load(agent_config)
+            # load persistence manager
+            persistence_manager = LocalStateManager.load(agent_config)
 
-        # need to dynamically link the functions
-        # the saved agent.functions will just have the schemas, but we need to
-        # go through the functions library and pull the respective python functions
-
-        # Available functions is a mapping from:
-        # function_name -> {
-        #   json_schema: schema
-        #   python_function: function
-        # }
-        # agent.functions is a list of schemas (OpenAI kwarg functions style, see: https://platform.openai.com/docs/api-reference/chat/create)
-        # [{'name': ..., 'description': ...}, {...}]
-        available_functions = load_all_function_sets()
-        linked_function_set = {}
-        for f_schema in state["functions"]:
-            # Attempt to find the function in the existing function library
-            f_name = f_schema.get("name")
-            if f_name is None:
-                raise ValueError(f"While loading agent.state.functions encountered a bad function schema object with no name:\n{f_schema}")
-            linked_function = available_functions.get(f_name)
-            if linked_function is None:
-                raise ValueError(
-                    f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
-                )
-            # Once we find a matching function, make sure the schema is identical
-            if json.dumps(f_schema) != json.dumps(linked_function["json_schema"]):
-                # error_message = (
-                #     f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different."
-                #     + f"\n>>>agent.state.functions\n{json.dumps(f_schema, indent=2)}"
-                #     + f"\n>>>function library\n{json.dumps(linked_function['json_schema'], indent=2)}"
-                # )
-                schema_diff = get_schema_diff(f_schema, linked_function["json_schema"])
-                error_message = (
-                    f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different.\n"
-                    + "".join(schema_diff)
-                )
-
-                # NOTE to handle old configs, instead of erroring here let's just warn
-                # raise ValueError(error_message)
-                printd(error_message)
-            linked_function_set[f_name] = linked_function
-
-        messages = state["messages"]
-        agent = cls(
-            config=agent_config,
-            model=state["model"],
-            system=state["system"],
-            # functions=state["functions"],
-            functions=linked_function_set,
-            interface=interface,
-            persistence_manager=persistence_manager,
-            persistence_manager_init=False,
-            persona_notes=state["memory"]["persona"],
-            human_notes=state["memory"]["human"],
-            messages_total=state["messages_total"] if "messages_total" in state else len(messages) - 1,
-        )
-        agent._messages = messages
-        agent.memory = initialize_memory(state["memory"]["persona"], state["memory"]["human"])
+            messages = state["messages"]
+            agent = cls(
+                config=agent_config,
+                model=state["model"],
+                system=state["system"],
+                functions=link_functions(state["functions"]),
+                interface=interface,
+                persistence_manager=persistence_manager,
+                persistence_manager_init=False,
+                persona_notes=state["memory"]["persona"],
+                human_notes=state["memory"]["human"],
+                messages_total=state["messages_total"] if "messages_total" in state else len(messages) - 1,
+            )
+            agent._messages = messages
+            agent.memory = initialize_memory(state["memory"]["persona"], state["memory"]["human"])
+        else:
+            # TODO
+            agent = cls(
+                config=agent_config,
+                persistence_manager=LocalStateManager.load(agent_config),
+                persistence_manager_init=False,
+            )
         return agent
 
     def verify_first_message_correctness(self, response, require_send_message=True, require_monologue=False):
