@@ -54,19 +54,26 @@ async def test_websockets():
     ws_interface.register_client(mock_websocket)
 
     # Create an agent and hook it up to the WebSocket interface
-    config = MemGPTConfig()
+    # config = MemGPTConfig()
+    # config = MemGPTConfig.load()
 
     # Mock the persistence manager
     # create agents with defaults
-    agent_config = AgentConfig(persona="sam_pov", human="basic", model="gpt-4-1106-preview")
+    agent_config = AgentConfig(
+        persona="sam_pov",
+        human="basic",
+        model="gpt-4-1106-preview",
+        model_endpoint_type="openai",
+        model_endpoint="https://api.openai.com/v1",
+    )
     persistence_manager = LocalStateManager(agent_config=agent_config)
 
     memgpt_agent = presets.use_preset(
-        presets.DEFAULT_PRESET,
-        config,  # no agent config to provide
-        "gpt-4-1106-preview",
-        utils.get_persona_text("sam_pov"),
-        utils.get_human_text("basic"),
+        agent_config.preset,
+        agent_config,
+        agent_config.model,
+        agent_config.persona,  # note: extracting the raw text, not pulling from a file
+        agent_config.human,  # note: extracting raw text, not pulling from a file
         ws_interface,
         persistence_manager,
     )
