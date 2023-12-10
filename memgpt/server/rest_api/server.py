@@ -66,7 +66,7 @@ def user_message(body: UserMessage):
         server.user_message(user_id=body.user_id, agent_id=body.agent_id, message=body.message)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{e}")
-    return {"message": interface.buffer}
+    return {"messages": interface.buffer}
 
 
 # server.run_command
