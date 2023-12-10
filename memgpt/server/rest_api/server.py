@@ -1,6 +1,6 @@
 from typing import Union
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from memgpt.server.server import SyncServer
@@ -42,30 +42,40 @@ server = SyncServer(default_interface=interface)
 # server.list_agents
 @app.get("/agents")
 def list_agents(user_id: str):
-    agents_list = utils.list_agent_config_files()
     interface.clear()
+    agents_list = utils.list_agent_config_files()
     return {"num_agents": len(agents_list), "agent_names": agents_list}
 
 
 # server.create_agent
 @app.post("/agents")
 def create_agents(body: CreateConfig):
-    agent_id = server.create_agent(user_id=body.user_id, config=body.config)
     interface.clear()
+    try:
+        agent_id = server.create_agent(user_id=body.user_id, config=body.config)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{e}")
     return {"agent_id": agent_id}
 
 
 # server.user_message
 @app.post("/agents/message")
 def user_message(body: UserMessage):
-    server.user_message(user_id=body.user_id, agent_id=body.agent_id, message=body.message)
     interface.clear()
+    try:
+        server.user_message(user_id=body.user_id, agent_id=body.agent_id, message=body.message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{e}")
     return {"message": interface.buffer}
 
 
 # server.run_command
 @app.post("/agents/command")
 def run_command(body: Command):
-    response = server.run_command(user_id=body.user_id, agent_id=body.agent_id, command=body.command)
     interface.clear()
+    try:
+        response = server.run_command(user_id=body.user_id, agent_id=body.agent_id, command=body.command)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{e}")
+    response = server.run_command(user_id=body.user_id, agent_id=body.agent_id, command=body.command)
     return {"response": response}
