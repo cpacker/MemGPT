@@ -1,3 +1,4 @@
+import os
 import pytest
 from unittest.mock import Mock, AsyncMock, MagicMock
 
@@ -54,8 +55,14 @@ async def test_websockets():
     ws_interface.register_client(mock_websocket)
 
     # Create an agent and hook it up to the WebSocket interface
-    # config = MemGPTConfig()
-    # config = MemGPTConfig.load()
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key is None:
+        ws_interface.close()
+        return
+    config = MemGPTConfig.load()
+    if config.openai_key is None:
+        config.openai_key = api_key
+        config.save()
 
     # Mock the persistence manager
     # create agents with defaults
