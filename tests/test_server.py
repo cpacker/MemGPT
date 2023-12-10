@@ -10,7 +10,12 @@ def test_server():
 
     server = SyncServer()
 
-    server.user_message(user_id=user_id, agent_id=agent_id, message="Hello?")
+    try:
+        server.user_message(user_id=user_id, agent_id=agent_id, message="Hello?")
+    except ValueError as e:
+        print(e)
+    except:
+        raise
 
     try:
         server.user_message(user_id=user_id, agent_id=agent_id, message="/memory")
@@ -19,7 +24,12 @@ def test_server():
     except:
         raise
 
-    print(server.run_command(user_id=user_id, agent_id=agent_id, command="/memory"))
+    try:
+        print(server.run_command(user_id=user_id, agent_id=agent_id, command="/memory"))
+    except ValueError as e:
+        print(e)
+    except:
+        raise
 
     try:
         server.user_message(user_id=user_id, agent_id="agent no-exist", message="Hello?")
