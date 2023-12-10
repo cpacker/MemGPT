@@ -571,6 +571,8 @@ class Agent(object):
                 # Special handling for AutoGen messages with 'name' field
                 try:
                     user_message_json = json.loads(user_message)
+                    # Treat 'name' as a special field
+                    # If it exists in the input message, elevate it to the 'message' level
                     if "name" in user_message_json:
                         packed_user_message["name"] = user_message_json["name"]
                         user_message_json.pop("name", None)
