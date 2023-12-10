@@ -172,6 +172,7 @@ class SyncServer(Server):
             else:
                 break
 
+        memgpt_agent.interface.step_yield()
         printd(f"Finished agent step")
 
     def _command(self, user_id: str, agent_id: str, command: str) -> Union[str, None]:
