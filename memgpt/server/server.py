@@ -33,7 +33,7 @@ class Server(object):
         agent_config: Union[dict, AgentConfig],
         interface: Union[AgentInterface, None],
         persistence_manager: Union[PersistenceManager, None],
-    ) -> None:
+    ) -> str:
         """Create a new agent using a config"""
         raise NotImplementedError
 
@@ -334,7 +334,7 @@ class SyncServer(Server):
         agent_config: Union[dict, AgentConfig],
         interface: Union[AgentInterface, None] = None,
         persistence_manager: Union[PersistenceManager, None] = None,
-    ) -> None:
+    ) -> str:
         """Create a new agent using a config"""
 
         # Initialize the agent based on the provided configuration
@@ -360,4 +360,4 @@ class SyncServer(Server):
         )
         print("Created new agent from config")
 
-        return agent
+        return agent.config.name
