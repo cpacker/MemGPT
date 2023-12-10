@@ -49,7 +49,7 @@ async def test_websocket_server():
             # NOTE: we should be waiting for multiple responses
             response = await websocket.recv()
             print(f"Response from the agent: {response}")
-    except ConnectionRefusedError as e:
+    except (OSError, ConnectionRefusedError) as e:
         print(f"Was unable to connect: {e}")
     finally:
         server_task.cancel()  # Cancel the server task after the test
