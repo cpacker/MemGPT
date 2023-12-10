@@ -20,6 +20,9 @@ class BaseWebSocketInterface(AgentInterface):
         """Unregister a client connection"""
         self.clients.remove(websocket)
 
+    def step_yield(self):
+        pass
+
 
 class AsyncWebSocketInterface(BaseWebSocketInterface):
     """WebSocket calls are async"""
