@@ -79,7 +79,7 @@ def get_login_event(last_login="Never (first login)", include_location=False, lo
     return json.dumps(packaged_message)
 
 
-def package_user_message(user_message, time=None, include_location=False, location_name="San Francisco, CA, USA"):
+def package_user_message(user_message, time=None, include_location=False, location_name="San Francisco, CA, USA", name=None):
     # Package the message with time and location
     formatted_time = time if time else get_local_time()
     packaged_message = {
@@ -90,6 +90,9 @@ def package_user_message(user_message, time=None, include_location=False, locati
 
     if include_location:
         packaged_message["location"] = location_name
+
+    if name:
+        packaged_message["name"] = name
 
     return json.dumps(packaged_message)
 
