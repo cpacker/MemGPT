@@ -19,6 +19,9 @@ class WebSocketServer:
         self.interface = SyncWebSocketInterface()
         self.server = SyncServer(default_interface=self.interface)
 
+    def __del__(self):
+        self.interface.close()
+
     def initialize_server(self):
         print("Server is initializing...")
         print(f"Listening on {self.host}:{self.port}...")
