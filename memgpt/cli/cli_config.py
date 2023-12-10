@@ -19,12 +19,17 @@ app = typer.Typer()
 
 
 def get_azure_credentials():
-    azure_key = os.getenv("AZURE_OPENAI_KEY")
-    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    azure_version = os.getenv("AZURE_OPENAI_VERSION")
-    azure_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-    azure_embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT")
-    return azure_key, azure_endpoint, azure_version, azure_deployment, azure_embedding_deployment
+    creds = dict(
+        azure_key=os.getenv("AZURE_OPENAI_KEY"),
+        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        azure_version=os.getenv("AZURE_OPENAI_VERSION"),
+        azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+        azure_embedding_deployment=os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT"),
+    )
+    # embedding endpoint and version default to non-embedding
+    creds["azure_embedding_endpoint"] = os.getenv("AZURE_OPENAI_EMBEDDING_ENDPOINT", creds["azure_endpoint"])
+    creds["azure_embedding_version"] = os.getenv("AZURE_OPENAI_EMBEDDING_VERSION", creds["azure_version"])
+    return creds
 
 
 def get_openai_credentials():
@@ -53,7 +58,7 @@ def configure_llm_endpoint(config: MemGPTConfig):
         provider = "openai"
     elif provider == "azure":
         model_endpoint_type = "azure"
-        _, model_endpoint, _, _, _ = get_azure_credentials()
+        model_endpoint = get_azure_credentials()["azure_endpoint"]
     else:  # local models
         backend_options = ["webui", "webui-legacy", "llamacpp", "koboldcpp", "ollama", "lmstudio", "vllm", "openai"]
         default_model_endpoint_type = None
@@ -179,7 +184,7 @@ def configure_embedding_endpoint(config: MemGPTConfig):
         embedding_dim = 1536
     elif embedding_provider == "azure":
         embedding_endpoint_type = "azure"
-        _, _, _, _, embedding_endpoint = get_azure_credentials()
+        embedding_endpoint = get_azure_credentials()["azure_embedding_endpoint"]
         embedding_dim = 1536
     elif embedding_provider == "hugging-face":
         # configure hugging face embedding endpoint (https://github.com/huggingface/text-embeddings-inference)
@@ -294,13 +299,15 @@ def configure():
     archival_storage_type, archival_storage_uri, archival_storage_path = configure_archival_storage(config)
 
     # check credentials
-    azure_key, azure_endpoint, azure_version, azure_deployment, azure_embedding_deployment = get_azure_credentials()
+    azure_creds = get_azure_credentials()
+    # azure_key, azure_endpoint, azure_version, azure_deployment, azure_embedding_deployment = get_azure_credentials()
     openai_key = get_openai_credentials()
     if model_endpoint_type == "azure" or embedding_endpoint_type == "azure":
-        if all([azure_key, azure_endpoint, azure_version]):
-            print(f"Using Microsoft endpoint {azure_endpoint}.")
-            if all([azure_deployment, azure_embedding_deployment]):
-                print(f"Using deployment id {azure_deployment}")
+        if all([azure_creds["azure_key"], azure_creds["azure_endpoint"], azure_creds["azure_version"]]):
+            print(f"Using Microsoft endpoint {azure_creds['azure_endpoint']}.")
+            # Deployment can optionally customize your endpoint model name
+            if all([azure_creds["azure_deployment"], azure_creds["azure_embedding_deployment"]]):
+                print(f"Using deployment id {azure_creds['azure_deployment']}")
         else:
             raise ValueError(
                 "Missing environment variables for Azure (see https://memgpt.readthedocs.io/en/latest/endpoints/#azure). Please set then run `memgpt configure` again."
@@ -330,11 +337,11 @@ def configure():
         agent=default_agent,
         # credentials
         openai_key=openai_key,
-        azure_key=azure_key,
-        azure_endpoint=azure_endpoint,
-        azure_version=azure_version,
-        azure_deployment=azure_deployment,
-        azure_embedding_deployment=azure_embedding_deployment,
+        azure_key=azure_creds["azure_key"],
+        azure_endpoint=azure_creds["azure_endpoint"],
+        azure_version=azure_creds["azure_version"],
+        azure_deployment=azure_creds["azure_deployment"],  # OK if None
+        azure_embedding_deployment=azure_creds["azure_embedding_deployment"],  # OK if None
         # storage
         archival_storage_type=archival_storage_type,
         archival_storage_uri=archival_storage_uri,
