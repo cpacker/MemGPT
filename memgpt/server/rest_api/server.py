@@ -20,7 +20,7 @@ Start the server with:
 """
 
 
-class CreateConfig(BaseModel):
+class CreateAgentConfig(BaseModel):
     user_id: str
     config: dict
 
@@ -53,7 +53,7 @@ def list_agents(user_id: str):
 
 # server.create_agent
 @app.post("/agents")
-def create_agents(body: CreateConfig):
+def create_agents(body: CreateAgentConfig):
     interface.clear()
     try:
         agent_id = server.create_agent(user_id=body.user_id, config=body.config)
