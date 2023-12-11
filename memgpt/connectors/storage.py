@@ -69,6 +69,7 @@ class StorageConnector:
         else:
             filter_conditions = self.filters
         print("FILTERS", filter_conditions)
+        return filter_conditions
         return [getattr(self.db_model, key) == value for key, value in filter_conditions.items()]
 
     def generate_table_name(self, agent_config: AgentConfig, table_type: TableType):
@@ -138,6 +139,11 @@ class StorageConnector:
             from memgpt.connectors.db import PostgresStorageConnector
 
             return PostgresStorageConnector(agent_config=agent_config, table_type=TableType.RECALL_MEMORY)
+
+        elif storage_type == "chroma":
+            from memgpt.connectors.chroma import ChromaStorageConnector
+
+            return ChromaStorageConnector(agent_config=agent_config, table_type=TableType.RECALL_MEMORY)
 
         else:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")
