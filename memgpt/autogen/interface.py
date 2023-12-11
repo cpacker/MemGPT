@@ -71,7 +71,8 @@ class AutoGenInterface(object):
         if not self.show_inner_thoughts:
             return
         message = f"\x1B[3m{Fore.LIGHTBLACK_EX}💭 {msg}{Style.RESET_ALL}" if self.fancy else f"[inner thoughts] {msg}"
-        self.message_list.append(message)
+        print(message)
+        # self.message_list.append(message)
 
     def assistant_message(self, msg):
         if self.debug:
@@ -83,13 +84,15 @@ class AutoGenInterface(object):
         if self.debug:
             print(f"memory :: {msg}")
         message = f"{Fore.LIGHTMAGENTA_EX}{Style.BRIGHT}🧠 {Fore.LIGHTMAGENTA_EX}{msg}{Style.RESET_ALL}" if self.fancy else f"[memory] {msg}"
-        self.message_list.append(message)
+        # self.message_list.append(message)
+        print(message)
 
     def system_message(self, msg):
         if self.debug:
             print(f"system :: {msg}")
         message = f"{Fore.MAGENTA}{Style.BRIGHT}🖥️ [system] {Fore.MAGENTA}{msg}{Style.RESET_ALL}" if self.fancy else f"[system] {msg}"
         self.message_list.append(message)
+        print(message)
 
     def user_message(self, msg, raw=False):
         if self.debug:
@@ -200,4 +203,5 @@ class AutoGenInterface(object):
                 message = f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}" if self.fancy else f"[function] {msg}"
 
         if message:
-            self.message_list.append(message)
+            # self.message_list.append(message)
+            print(message)

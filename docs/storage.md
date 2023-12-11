@@ -19,10 +19,6 @@ pip install 'pymemgpt[postgres]'
 You will need to have a URI to a Postgres database which support [pgvector](https://github.com/pgvector/pgvector). You can either use a [hosted provider](https://github.com/pgvector/pgvector/issues/54) or [install pgvector](https://github.com/pgvector/pgvector#installation).
 
 ## Chroma
-To enable the Chroma storage backend, install the dependencies with: 
-```
-pip install `pymemgpt[chroma]`
-```
 You can configure Chroma with both the HTTP and persistent storage client via `memgpt configure`. You will need to specify either a persistent storage path or host/port dependending on your client choice. The example below shows how to configure Chroma with local persistent storage: 
 ```
 ? Select LLM inference provider: openai
@@ -38,10 +34,6 @@ You can configure Chroma with both the HTTP and persistent storage client via `m
 ```
 
 ## LanceDB
-To enable the LanceDB backend, make sure to install the required dependencies with:
-```
-pip install 'pymemgpt[lancedb]'
-```
 You have to enable the LanceDB backend by running 
  ```
  memgpt configure
