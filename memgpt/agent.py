@@ -568,6 +568,17 @@ class Agent(object):
             if user_message is not None:
                 self.interface.user_message(user_message)
                 packed_user_message = {"role": "user", "content": user_message}
+                # Special handling for AutoGen messages with 'name' field
+                try:
+                    user_message_json = json.loads(user_message)
+                    # Treat 'name' as a special field
+                    # If it exists in the input message, elevate it to the 'message' level
+                    if "name" in user_message_json:
+                        packed_user_message["name"] = user_message_json["name"]
+                        user_message_json.pop("name", None)
+                        packed_user_message["content"] = json.dumps(user_message_json)
+                except Exception as e:
+                    print(f"{CLI_WARNING_PREFIX}handling of 'name' field failed with: {e}")
                 input_message_sequence = self.messages + [packed_user_message]
             else:
                 input_message_sequence = self.messages
