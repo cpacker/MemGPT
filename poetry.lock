@@ -3076,6 +3076,24 @@ tomli = {version = ">=1.0.0", markers = "python_version < \"3.11\""}
 testing = ["argcomplete", "attrs (>=19.2.0)", "hypothesis (>=3.56)", "mock", "nose", "pygments (>=2.7.2)", "requests", "setuptools", "xmlschema"]
 
 [[package]]
+name = "pytest-asyncio"
+version = "0.23.2"
+description = "Pytest support for asyncio"
+optional = true
+python-versions = ">=3.8"
+files = [
+    {file = "pytest-asyncio-0.23.2.tar.gz", hash = "sha256:c16052382554c7b22d48782ab3438d5b10f8cf7a4bdcae7f0f67f097d95beecc"},
+    {file = "pytest_asyncio-0.23.2-py3-none-any.whl", hash = "sha256:ea9021364e32d58f0be43b91c6233fb8d2224ccef2398d6837559e587682808f"},
+]
+
+[package.dependencies]
+pytest = ">=7.0.0"
+
+[package.extras]
+docs = ["sphinx (>=5.3)", "sphinx-rtd-theme (>=1.0)"]
+testing = ["coverage (>=6.2)", "hypothesis (>=5.7.1)"]
+
+[[package]]
 name = "python-box"
 version = "7.1.1"
 description = "Advanced Python dictionaries with dot notation access"
@@ -4775,7 +4793,7 @@ docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.link
 testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-ignore-flaky", "pytest-mypy (>=0.9.1)", "pytest-ruff"]
 
 [extras]
-dev = ["black", "datasets", "pre-commit", "pytest"]
+dev = ["black", "datasets", "pre-commit", "pytest", "pytest-asyncio"]
 local = ["huggingface-hub", "torch", "transformers"]
 postgres = ["pg8000", "pgvector", "psycopg", "psycopg-binary", "psycopg2-binary"]
 server = ["fastapi", "uvicorn", "websockets"]
@@ -4783,4 +4801,4 @@ server = ["fastapi", "uvicorn", "websockets"]
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.12,>=3.9"
-content-hash = "03088be6e262c2462b987c6af320b9455a0801445c2df9adaea26cec35bd1076"
+content-hash = "57ef6a4109835fdf2b8d1ee0da3d16df756058123f32ed6d3a18748f8af62b88"

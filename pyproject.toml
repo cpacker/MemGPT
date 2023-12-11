@@ -52,11 +52,12 @@ pyyaml = "^6.0.1"
 fastapi = {version = "^0.104.1", optional = true}
 uvicorn = {version = "^0.24.0.post1", optional = true}
 chromadb = "^0.4.18"
+pytest-asyncio = {version = "^0.23.2", optional = true}
 
 [tool.poetry.extras]
 local = ["torch", "huggingface-hub", "transformers"]
 postgres = ["pgvector", "psycopg", "psycopg-binary", "psycopg2-binary", "pg8000"]
-dev = ["pytest", "black", "pre-commit", "datasets"]
+dev = ["pytest", "pytest-asyncio", "black", "pre-commit", "datasets"]
 server = ["websockets", "fastapi", "uvicorn"]
 
 [build-system]
