@@ -53,6 +53,7 @@ fastapi = {version = "^0.104.1", optional = true}
 uvicorn = {version = "^0.24.0.post1", optional = true}
 chromadb = "^0.4.18"
 pytest-asyncio = {version = "^0.23.2", optional = true}
+pydantic = "^2.5.2"
 
 [tool.poetry.extras]
 local = ["torch", "huggingface-hub", "transformers"]
