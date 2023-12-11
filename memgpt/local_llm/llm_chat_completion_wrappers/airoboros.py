@@ -332,15 +332,27 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
             assert message["role"] in ["user", "assistant", "function"], message
 
             if message["role"] == "user":
+                # Support for AutoGen naming of agents
+                if "name" in message:
+                    user_prefix = message["name"].strip()
+                    user_prefix = f"USER ({user_prefix})"
+                else:
+                    user_prefix = "USER"
                 if self.simplify_json_content:
                     try:
                         content_json = json.loads(message["content"])
                         content_simple = content_json["message"]
-                        prompt += f"\nUSER: {content_simple}"
+                        prompt += f"\n{user_prefix}: {content_simple}"
                     except:
-                        prompt += f"\nUSER: {message['content']}"
+                        prompt += f"\n{user_prefix}: {message['content']}"
             elif message["role"] == "assistant":
-                prompt += f"\nASSISTANT:"
+                # Support for AutoGen naming of agents
+                if "name" in message:
+                    assistant_prefix = message["name"].strip()
+                    assistant_prefix = f"ASSISTANT ({assistant_prefix})"
+                else:
+                    assistant_prefix = "ASSISTANT"
+                prompt += f"\n{assistant_prefix}:"
                 # need to add the function call if there was one
                 inner_thoughts = message["content"]
                 if "function_call" in message and message["function_call"]:
