@@ -347,7 +347,7 @@ class SyncServer(Server):
             interface = self.default_interface
 
         if persistence_manager is None:
-            persistence_manager = self.default_persistence_manager_cls()
+            persistence_manager = self.default_persistence_manager_cls(agent_config=agent_config)
 
         # Create agent via preset from config
         agent = presets.use_preset(
@@ -359,6 +359,7 @@ class SyncServer(Server):
             interface,
             persistence_manager,
         )
-        print("Created new agent from config")
+        agent.save()
+        print(f"Created new agent from config: {agent}")
 
         return agent.config.name

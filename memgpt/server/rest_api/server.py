@@ -56,7 +56,7 @@ def list_agents(user_id: str):
 def create_agents(body: CreateAgentConfig):
     interface.clear()
     try:
-        agent_id = server.create_agent(user_id=body.user_id, config=body.config)
+        agent_id = server.create_agent(user_id=body.user_id, agent_config=body.config)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{e}")
     return {"agent_id": agent_id}
