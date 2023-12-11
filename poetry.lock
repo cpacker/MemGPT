@@ -2886,19 +2886,19 @@ pyasn1 = ">=0.4.6,<0.6.0"
 
 [[package]]
 name = "pyautogen"
-version = "0.2.2"
+version = "0.2.0"
 description = "Enabling Next-Gen LLM Applications via Multi-Agent Conversation Framework"
 optional = true
 python-versions = ">=3.8, <3.12"
 files = [
-    {file = "pyautogen-0.2.2-py3-none-any.whl", hash = "sha256:c47b386c77ef7cc2e5e7e37ef9f93f543ccf055a0f3da2c509285422914f1de6"},
-    {file = "pyautogen-0.2.2.tar.gz", hash = "sha256:ef44ed706280f14b7ee256641d2407a12627a56f0b4fc0a3f6095be5ff11ad4b"},
+    {file = "pyautogen-0.2.0-py3-none-any.whl", hash = "sha256:d7bf4d239f85152e191026d8173f649e256c431cf31b93ca3629cd2f0c525a46"},
+    {file = "pyautogen-0.2.0.tar.gz", hash = "sha256:858f2d15eaa68f043f7b67b975a6d27f738c98ca4d7e0e96b400061c0ac3e692"},
 ]
 
 [package.dependencies]
 diskcache = "*"
 flaml = "*"
-openai = ">=1.3,<2.0"
+openai = ">=1.2,<2.0"
 python-dotenv = "*"
 termcolor = "*"
 tiktoken = "*"
@@ -4864,6 +4864,7 @@ docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.link
 testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-ignore-flaky", "pytest-mypy (>=0.9.1)", "pytest-ruff"]
 
 [extras]
+autogen = ["pyautogen"]
 dev = ["black", "datasets", "pre-commit", "pytest"]
 local = ["huggingface-hub", "torch", "transformers"]
 postgres = ["pg8000", "pgvector", "psycopg", "psycopg-binary", "psycopg2-binary"]
@@ -4871,4 +4872,4 @@ postgres = ["pg8000", "pgvector", "psycopg", "psycopg-binary", "psycopg2-binary"
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.12,>=3.9"
-content-hash = "0109e550530ef571e45e3b0ecc6706f842fc356402597536fd3000df5ff8ea42"
+content-hash = "75ad9a5b77c0ad195540ab35bddaacfe186ec974ab80607c14b16f7ead8b51bc"

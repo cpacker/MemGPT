@@ -6,7 +6,7 @@
 
 !!! warning "Tested with `pyautogen` v0.2.0"
 
-    The MemGPT+AutoGen integration was last tested using AutoGen version v0.2.0.
+    The MemGPT+AutoGen integration was last tested using AutoGen version v0.2.2.
     
     If you are having issues, please first try installing the specific version of AutoGen using `pip install pyautogen==0.2.0`
 
