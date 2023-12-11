@@ -50,10 +50,12 @@ def create_memgpt_autogen_agent_from_config(
         user_desc = "Work by yourself, the user won't reply. Elaborate as much as possible."
 
     # If using azure or openai, save the credentials to the config
-    if llm_config["model_endpoint_type"] in ["azure", "openai"]:
+    config = MemGPTConfig.load()
+    # input(f"llm_config! {llm_config}")
+    # input(f"config! {config}")
+    if llm_config["model_endpoint_type"] in ["azure", "openai"] or llm_config["model_endpoint_type"] != config.model_endpoint_type:
         # we load here to make sure we don't override existing values
         # all we want to do is add extra credentials
-        config = MemGPTConfig.load()
 
         if llm_config["model_endpoint_type"] == "azure":
             config.azure_key = llm_config["azure_key"]
@@ -67,7 +69,14 @@ def create_memgpt_autogen_agent_from_config(
             config.openai_key = llm_config["openai_key"]
             llm_config.pop("openai_key")
 
+        # else:
+        #     config.model_endpoint_type = llm_config["model_endpoint_type"]
+
         config.save()
+
+    # if llm_config["model_endpoint"] != config.model_endpoint:
+    #     config.model_endpoint = llm_config["model_endpoint"]
+    #     config.save()
 
     # Create an AgentConfig option from the inputs
     llm_config.pop("name", None)
@@ -257,6 +266,20 @@ class MemGPTAgent(ConversableAgent):
         """Extract the subset of messages that's actually new"""
         return entire_message_list[self.messages_processed_up_to_idx :]
 
+    @staticmethod
+    def _format_autogen_message(autogen_message):
+        # {'content': "...", 'name': '...', 'role': 'user'}
+        if not isinstance(autogen_message, dict) or ():
+            print(f"Warning: AutoGen message was not a dict -- {autogen_message}")
+            user_message = system.package_user_message(autogen_message)
+        elif "content" not in autogen_message or "name" not in autogen_message or "name" not in autogen_message:
+            print(f"Warning: AutoGen message was missing fields -- {autogen_message}")
+            user_message = system.package_user_message(autogen_message)
+        else:
+            user_message = system.package_user_message(user_message=autogen_message["content"], name=autogen_message["name"])
+
+        return user_message
+
     def _generate_reply_for_user_message(
         self,
         messages: Optional[List[Dict]] = None,
@@ -280,7 +303,8 @@ class MemGPTAgent(ConversableAgent):
             return True, self._default_auto_reply
 
         # Package the user message
-        user_message = system.package_user_message(user_message)
+        # user_message = system.package_user_message(user_message)
+        user_message = self._format_autogen_message(user_message)
 
         # Send a single message into MemGPT
         while True:
