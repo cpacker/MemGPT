@@ -56,6 +56,7 @@ pyautogen = {version = "^0.2.2", optional = true}
 local = ["torch", "huggingface-hub", "transformers"]
 postgres = ["pgvector", "psycopg", "psycopg-binary", "psycopg2-binary", "pg8000"]
 dev = ["pytest", "black", "pre-commit", "datasets"]
+autogen = ["pyautogen"]
 
 [build-system]
 requires = ["poetry-core"]
