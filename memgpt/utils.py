@@ -31,6 +31,21 @@ def united_diff(str1, str2):
     return "".join(diff)
 
 
+def parse_formatted_time(formatted_time):
+    # parse times returned by memgpt.utils.get_formatted_time()
+    return datetime.strptime(formatted_time, "%Y-%m-%d %I:%M:%S %p %Z%z")
+
+
+def datetime_to_timestamp(dt):
+    # convert datetime object to integer timestamp
+    return int(dt.timestamp())
+
+
+def timestamp_to_datetime(ts):
+    # convert integer timestamp to datetime object
+    return datetime.fromtimestamp(ts)
+
+
 def get_local_time_military():
     # Get the current time in UTC
     current_time_utc = datetime.now(pytz.utc)

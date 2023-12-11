@@ -267,12 +267,7 @@ def configure_archival_storage(config: MemGPTConfig):
         if chroma_type == "http":
             archival_storage_uri = questionary.text("Enter chroma ip (e.g. localhost:8000):", default="localhost:8000").ask()
         if chroma_type == "persistent":
-            print(config.config_path, config.archival_storage_path)
-            default_archival_storage_path = (
-                config.archival_storage_path if config.archival_storage_path else os.path.join(config.config_path, "chroma")
-            )
-            print(default_archival_storage_path)
-            archival_storage_path = questionary.text("Enter persistent storage location:", default=default_archival_storage_path).ask()
+            archival_storage_path = os.path.join(MEMGPT_DIR, "chroma")
 
     return archival_storage_type, archival_storage_uri, archival_storage_path
 
@@ -281,7 +276,7 @@ def configure_archival_storage(config: MemGPTConfig):
 
 def configure_recall_storage(config: MemGPTConfig):
     # Configure recall storage backend
-    recall_storage_options = ["local", "postgres"]
+    recall_storage_options = ["local", "postgres", "chroma"]
     recall_storage_type = questionary.select(
         "Select storage backend for recall data:", recall_storage_options, default=config.recall_storage_type
     ).ask()
@@ -292,6 +287,15 @@ def configure_recall_storage(config: MemGPTConfig):
             "Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}):",
             default=config.recall_storage_uri if config.recall_storage_uri else "",
         ).ask()
+
+    # configure chroma
+    if recall_storage_type == "chroma":
+        chroma_type = questionary.select("Select chroma backend:", ["http", "persistent"], default="http").ask()
+        if chroma_type == "http":
+            recall_storage_uri = questionary.text("Enter chroma ip (e.g. localhost:8000):", default="localhost:8000").ask()
+        if chroma_type == "persistent":
+            recall_storage_path = os.path.join(MEMGPT_DIR, "chroma")
+
     return recall_storage_type, recall_storage_uri, recall_storage_path
 
 

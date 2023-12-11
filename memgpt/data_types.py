@@ -36,6 +36,7 @@ class Message(Record):
         role: str,
         text: str,
         model: str,  # model used to make function call
+        user: Optional[str] = None,  # optional participant name
         created_at: Optional[str] = None,
         function_name: Optional[str] = None,  # name of function called
         function_args: Optional[str] = None,  # args of function called
@@ -44,9 +45,12 @@ class Message(Record):
         id: Optional[str] = None,
     ):
         super().__init__(user_id, agent_id, text, id)
-        self.role = role  # role (agent/user/function)
         self.model = model  # model name (e.g. gpt-4)
         self.created_at = created_at
+
+        # openai info
+        self.role = role  # role (agent/user/function)
+        self.user = user
 
         # function call info (optional)
         self.function_name = function_name

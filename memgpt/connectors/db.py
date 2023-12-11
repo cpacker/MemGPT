@@ -145,6 +145,15 @@ class PostgresStorageConnector(StorageConnector):
         self.Session = sessionmaker(bind=self.engine)
         self.Session().execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
 
+    def get_filters(self, filters: Optional[Dict] = {}):
+        if filters is not None:
+            filter_conditions = {**self.filters, **filters}
+        else:
+            filter_conditions = self.filters
+        print("FILTERS", filter_conditions)
+
+        return [getattr(self.db_model, key) == value for key, value in filter_conditions.items()]
+
     def get_all_paginated(self, page_size: int, filters: Optional[Dict]) -> Iterator[List[Record]]:
         session = self.Session()
         offset = 0
