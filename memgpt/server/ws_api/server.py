@@ -1,19 +1,20 @@
 import asyncio
 import json
+import sys
 import traceback
 
 import websockets
 
 from memgpt.server.server import SyncServer
 from memgpt.server.ws_api.interface import SyncWebSocketInterface
-from memgpt.server.constants import DEFAULT_PORT
+from memgpt.server.constants import WS_DEFAULT_PORT
 import memgpt.server.ws_api.protocol as protocol
 import memgpt.system as system
 import memgpt.constants as memgpt_constants
 
 
 class WebSocketServer:
-    def __init__(self, host="localhost", port=DEFAULT_PORT):
+    def __init__(self, host="localhost", port=WS_DEFAULT_PORT):
         self.host = host
         self.port = port
         self.interface = SyncWebSocketInterface()
@@ -103,5 +104,14 @@ class WebSocketServer:
 
 
 if __name__ == "__main__":
-    server = WebSocketServer()
+    port = WS_DEFAULT_PORT
+
+    # Check if a port argument is provided
+    if len(sys.argv) > 1:
+        try:
+            port = int(sys.argv[1])
+        except ValueError:
+            print(f"Invalid port number. Using default port {port}.")
+
+    server = WebSocketServer(port=port)
     asyncio.run(server.run())

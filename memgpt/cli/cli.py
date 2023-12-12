@@ -22,6 +22,7 @@ from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
 from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
+from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
 
 
 class ServerChoice(Enum):
@@ -29,16 +30,21 @@ class ServerChoice(Enum):
     ws_api = "websocket"
 
 
-def server(type: ServerChoice = typer.Option("rest", help="Server to run")):
+def server(
+    type: ServerChoice = typer.Option("rest", help="Server to run"), port: int = typer.Option(None, help="Port to run the server on")
+):
     """Launch a MemGPT server process"""
 
     if type == ServerChoice.rest_api:
+        if port is None:
+            port = REST_DEFAULT_PORT
+
         # Change to the desired directory
         script_path = Path(__file__).resolve()
         script_dir = script_path.parent
 
         server_directory = os.path.join(script_dir.parent, "server", "rest_api")
-        command = "uvicorn server:app --reload"
+        command = f"uvicorn server:app --reload --port {port}"
 
         # Run the command
         print(f"Running REST server: {command} (inside {server_directory})")
@@ -58,12 +64,15 @@ def server(type: ServerChoice = typer.Option("rest", help="Server to run")):
             sys.exit(0)
 
     elif type == ServerChoice.ws_api:
+        if port is None:
+            port = WS_DEFAULT_PORT
+
         # Change to the desired directory
         script_path = Path(__file__).resolve()
         script_dir = script_path.parent
 
         server_directory = os.path.join(script_dir.parent, "server", "ws_api")
-        command = "python server.py"
+        command = f"python server.py {port}"
 
         # Run the command
         print(f"Running WS (websockets) server: {command} (inside {server_directory})")
