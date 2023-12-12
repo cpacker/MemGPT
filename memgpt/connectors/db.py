@@ -8,8 +8,9 @@ from sqlalchemy.orm import sessionmaker, mapped_column
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 from sqlalchemy import Column, BIGINT, String, DateTime
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy_json import mutable_json_type
+import uuid
 
 import re
 from tqdm import tqdm
@@ -41,7 +42,7 @@ def get_db_model(table_name: str, table_type: TableType):
             __abstract__ = True  # this line is necessary
 
             # Assuming passage_id is the primary key
-            id = Column(BIGINT, primary_key=True, nullable=False, autoincrement=True)
+            id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
             user_id = Column(String, nullable=False)
             text = Column(String, nullable=False)
             doc_id = Column(String)
@@ -77,7 +78,7 @@ def get_db_model(table_name: str, table_type: TableType):
             __abstract__ = True  # this line is necessary
 
             # Assuming message_id is the primary key
-            id = Column(BIGINT, primary_key=True, nullable=False, autoincrement=True)
+            id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
             user_id = Column(String, nullable=False)
             agent_id = Column(String, nullable=False)
             role = Column(String, nullable=False)
