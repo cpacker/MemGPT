@@ -35,6 +35,11 @@ class Server(object):
         raise NotImplementedError
 
     @abstractmethod
+    def get_agent_config(self, user_id: str, agent_id: str) -> dict:
+        """Return the config of an agent"""
+        raise NotImplementedError
+
+    @abstractmethod
     def create_agent(
         self,
         user_id: str,
@@ -448,3 +453,11 @@ class SyncServer(LockingServer):
         }
 
         return memory_obj
+
+    def get_agent_config(self, user_id: str, agent_id: str) -> dict:
+        """Return the config of an agent"""
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        agent_config = vars(memgpt_agent.config)
+
+        return agent_config
