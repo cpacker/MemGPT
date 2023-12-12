@@ -4,6 +4,10 @@ import sys
 import io
 import logging
 import questionary
+from pathlib import Path
+import os
+import subprocess
+from enum import Enum
 
 from llama_index import set_global_service_context
 from llama_index import ServiceContext
@@ -18,6 +22,65 @@ from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
 from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
+
+
+class ServerChoice(Enum):
+    rest_api = "rest"
+    ws_api = "websocket"
+
+
+def server(type: ServerChoice = typer.Option("rest", help="Server to run")):
+    """Launch a MemGPT server process"""
+
+    if type == ServerChoice.rest_api:
+        # Change to the desired directory
+        script_path = Path(__file__).resolve()
+        script_dir = script_path.parent
+
+        server_directory = os.path.join(script_dir.parent, "server", "rest_api")
+        command = "uvicorn server:app --reload"
+
+        # Run the command
+        print(f"Running REST server: {command} (inside {server_directory})")
+
+        try:
+            # Start the subprocess in a new session
+            process = subprocess.Popen(command, shell=True, start_new_session=True, cwd=server_directory)
+            process.wait()
+        except KeyboardInterrupt:
+            # Handle CTRL-C
+            print("Terminating the server...")
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+            sys.exit(0)
+
+    elif type == ServerChoice.ws_api:
+        # Change to the desired directory
+        script_path = Path(__file__).resolve()
+        script_dir = script_path.parent
+
+        server_directory = os.path.join(script_dir.parent, "server", "ws_api")
+        command = "python server.py"
+
+        # Run the command
+        print(f"Running WS (websockets) server: {command} (inside {server_directory})")
+
+        try:
+            # Start the subprocess in a new session
+            process = subprocess.Popen(command, shell=True, start_new_session=True, cwd=server_directory)
+            process.wait()
+        except KeyboardInterrupt:
+            # Handle CTRL-C
+            print("Terminating the server...")
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+            sys.exit(0)
 
 
 def run(
