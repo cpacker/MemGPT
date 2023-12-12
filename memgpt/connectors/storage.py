@@ -70,7 +70,6 @@ class StorageConnector:
             filter_conditions = self.filters
         print("FILTERS", filter_conditions)
         return filter_conditions
-        return [getattr(self.db_model, key) == value for key, value in filter_conditions.items()]
 
     def generate_table_name(self, agent_config: AgentConfig, table_type: TableType):
 
@@ -99,59 +98,42 @@ class StorageConnector:
                 raise ValueError(f"Table type {table_type} not implemented")
 
     @staticmethod
-    def get_archival_storage_connector(agent_config: Optional[AgentConfig] = None):
-        storage_type = MemGPTConfig.load().archival_storage_type
+    def get_storage_connector(table_type: TableType, storage_type: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
 
-        if storage_type == "local":
-            from memgpt.connectors.local import VectorIndexStorageConnector
+        # read from config if not provided
+        if storage_type is None:
+            storage_type = MemGPTConfig.load().archival_storage_type
 
-            return VectorIndexStorageConnector(agent_config=agent_config, table_type=TableType.ARCHIVAL_MEMORY)
-
-        elif storage_type == "postgres":
+        if storage_type == "postgres":
             from memgpt.connectors.db import PostgresStorageConnector
 
-            return PostgresStorageConnector(agent_config=agent_config, table_type=TableType.ARCHIVAL_MEMORY)
+            return PostgresStorageConnector(agent_config=agent_config, table_type=table_type)
         elif storage_type == "chroma":
             from memgpt.connectors.chroma import ChromaStorageConnector
 
-            return ChromaStorageConnector(agent_config=agent_config, table_type=TableType.ARCHIVAL_MEMORY)
+            return ChromaStorageConnector(agent_config=agent_config, table_type=table_type)
         elif storage_type == "lancedb":
             from memgpt.connectors.db import LanceDBConnector
 
-            return LanceDBConnector(agent_config=agent_config, table_type=TableType.ARCHIVAL_MEMORY)
+            return LanceDBConnector(agent_config=agent_config, table_type=table_type)
 
         else:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")
+
+    @staticmethod
+    def get_archival_storage_connector(agent_config: Optional[AgentConfig] = None):
+        return StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, agent_config=agent_config)
 
     @staticmethod
     def get_recall_storage_connector(agent_config: Optional[AgentConfig] = None):
-        storage_type = MemGPTConfig.load().recall_storage_type
-
-        print("Recall storage type", storage_type)
-
-        if storage_type == "local":
-            from memgpt.connectors.local import InMemoryStorageConnector
-
-            # maintains in-memory list for storage
-            return InMemoryStorageConnector(agent_config=agent_config, table_type=TableType.RECALL_MEMORY)
-
-        elif storage_type == "postgres":
-            from memgpt.connectors.db import PostgresStorageConnector
-
-            return PostgresStorageConnector(agent_config=agent_config, table_type=TableType.RECALL_MEMORY)
-
-        elif storage_type == "chroma":
-            from memgpt.connectors.chroma import ChromaStorageConnector
-
-            return ChromaStorageConnector(agent_config=agent_config, table_type=TableType.RECALL_MEMORY)
-
-        else:
-            raise NotImplementedError(f"Storage type {storage_type} not implemented")
+        return StorageConnector.get_storage_connector(TableType.RECALL_MEMORY, agent_config=agent_config)
 
     @staticmethod
-    def list_loaded_data():
+    def list_loaded_data(storage_type: Optional[str] = None):
         # TODO: modify this to simply list loaded data from a given user
-        storage_type = MemGPTConfig.load().archival_storage_type
+        if storage_type is None:
+            storage_type = MemGPTConfig.load().archival_storage_type
+
         if storage_type == "local":
             from memgpt.connectors.local import VectorIndexStorageConnector
 

@@ -21,9 +21,8 @@ from memgpt.interface import CLIInterface as interface  # for printing to termin
 import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.constants as constants
-import memgpt.errors as errors
-from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart
-from memgpt.cli.cli_config import configure, list, add
+from memgpt.cli.cli import run, attach, version
+from memgpt.cli.cli_config import configure, list, add, delete
 from memgpt.cli.cli_load import app as load_app
 from memgpt.connectors.storage import StorageConnector
 
@@ -34,9 +33,7 @@ app.command(name="attach")(attach)
 app.command(name="configure")(configure)
 app.command(name="list")(list)
 app.command(name="add")(add)
-app.command(name="server")(server)
-app.command(name="folder")(open_folder)
-app.command(name="quickstart")(quickstart)
+app.command(name="delete")(delete)
 # load data commands
 app.add_typer(load_app, name="load")
 
