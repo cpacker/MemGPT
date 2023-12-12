@@ -1,6 +1,9 @@
 from abc import abstractmethod
-from typing import Union
+from typing import Union, Callable
 import json
+from threading import Lock
+from functools import wraps
+from fastapi import HTTPException
 
 from memgpt.system import package_user_message
 from memgpt.config import AgentConfig
@@ -51,8 +54,50 @@ class Server(object):
         raise NotImplementedError
 
 
+class LockingServer(Server):
+    """Basic support for concurrency protections (all requests that modify an agent lock the agent until the operation is complete)"""
+
+    # Locks for each agent
+    _agent_locks = {}
+
+    @staticmethod
+    def agent_lock_decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(self, user_id: str, agent_id: str, *args, **kwargs):
+            # print("Locking check")
+
+            # Initialize the lock for the agent_id if it doesn't exist
+            if agent_id not in self._agent_locks:
+                # print(f"Creating lock for agent_id = {agent_id}")
+                self._agent_locks[agent_id] = Lock()
+
+            # Check if the agent is currently locked
+            if not self._agent_locks[agent_id].acquire(blocking=False):
+                # print(f"agent_id = {agent_id} is busy")
+                raise HTTPException(status_code=423, detail=f"Agent '{agent_id}' is currently busy.")
+
+            try:
+                # Execute the function
+                # print(f"running function on agent_id = {agent_id}")
+                return func(self, user_id, agent_id, *args, **kwargs)
+            finally:
+                # Release the lock
+                # print(f"releasing lock on agent_id = {agent_id}")
+                self._agent_locks[agent_id].release()
+
+        return wrapper
+
+    @agent_lock_decorator
+    def user_message(self, user_id: str, agent_id: str, message: str) -> None:
+        raise NotImplementedError
+
+    @agent_lock_decorator
+    def run_command(self, user_id: str, agent_id: str, command: str) -> Union[str, None]:
+        raise NotImplementedError
+
+
 # TODO actually use "user_id" for something
-class SyncServer(Server):
+class SyncServer(LockingServer):
     """Simple single-threaded / blocking server process"""
 
     def __init__(
@@ -310,6 +355,7 @@ class SyncServer(Server):
             input_message = system.get_token_limit_warning()
             self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
 
+    @LockingServer.agent_lock_decorator
     def user_message(self, user_id: str, agent_id: str, message: str) -> None:
         """Process an incoming user message and feed it through the MemGPT agent"""
         from memgpt.utils import printd
@@ -329,6 +375,7 @@ class SyncServer(Server):
             # Run the agent state forward
             self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
 
+    @LockingServer.agent_lock_decorator
     def run_command(self, user_id: str, agent_id: str, command: str) -> Union[str, None]:
         """Run a command on the agent"""
         # If the input begins with a command prefix, attempt to process it as a command

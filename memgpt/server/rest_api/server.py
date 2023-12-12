@@ -105,6 +105,8 @@ async def user_message(body: UserMessage):
 
             # Return the streaming response using the generator
             return StreamingResponse(formatted_message_generator(), media_type="text/event-stream")
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
 
@@ -112,6 +114,8 @@ async def user_message(body: UserMessage):
         interface.clear()
         try:
             server.user_message(user_id=body.user_id, agent_id=body.agent_id, message=body.message)
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
         return {"messages": interface.to_list()}
@@ -123,6 +127,8 @@ def run_command(body: Command):
     interface.clear()
     try:
         response = server.run_command(user_id=body.user_id, agent_id=body.agent_id, command=body.command)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{e}")
     response = server.run_command(user_id=body.user_id, agent_id=body.agent_id, command=body.command)
