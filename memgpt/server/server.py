@@ -25,8 +25,13 @@ class Server(object):
     """Abstract server class that supports multi-agent multi-user"""
 
     @abstractmethod
-    def list_agents(self, user_id: str, agent_id: str) -> str:
+    def list_agents(self, user_id: str) -> dict:
         """List all available agents to a user"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_agent_memory(self, user_id: str, agent_id: str) -> dict:
+        """Return the memory of an agent (core memory + non-core statistics)"""
         raise NotImplementedError
 
     @abstractmethod
@@ -418,3 +423,28 @@ class SyncServer(LockingServer):
         print(f"Created new agent from config: {agent}")
 
         return agent.config.name
+
+    def list_agents(self, user_id: str) -> dict:
+        """List all available agents to a user"""
+        agents_list = utils.list_agent_config_files()
+        return {"num_agents": len(agents_list), "agent_names": agents_list}
+
+    def get_agent_memory(self, user_id: str, agent_id: str) -> dict:
+        """Return the memory of an agent (core memory + non-core statistics)"""
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        core_memory = memgpt_agent.memory
+        recall_memory = memgpt_agent.persistence_manager.recall_memory
+        archival_memory = memgpt_agent.persistence_manager.archival_memory
+
+        memory_obj = {
+            "core_memory": {
+                "persona": core_memory.persona,
+                "human": core_memory.human,
+            },
+            "recall_memory": len(recall_memory) if recall_memory is not None else None,
+            "archival_memory": len(archival_memory) if archival_memory is not None else None,
+        }
+
+        return memory_obj

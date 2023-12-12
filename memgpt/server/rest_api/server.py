@@ -64,8 +64,13 @@ app = FastAPI(lifespan=lifespan)
 @app.get("/agents")
 def list_agents(user_id: str):
     interface.clear()
-    agents_list = utils.list_agent_config_files()
-    return {"num_agents": len(agents_list), "agent_names": agents_list}
+    return server.list_agents(user_id=user_id)
+
+
+@app.get("/agents/memory")
+def get_agent_memory(user_id: str, agent_id: str):
+    interface.clear()
+    return server.get_agent_memory(user_id=user_id, agent_id=agent_id)
 
 
 # server.create_agent
