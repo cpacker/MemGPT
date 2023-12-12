@@ -61,6 +61,7 @@ def server(
                 process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 process.kill()
+                print("Server terminated with kill()")
             sys.exit(0)
 
     elif type == ServerChoice.ws_api:
@@ -89,6 +90,7 @@ def server(
                 process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 process.kill()
+                print("Server terminated with kill()")
             sys.exit(0)
 
 

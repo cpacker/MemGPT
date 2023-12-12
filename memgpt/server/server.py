@@ -82,6 +82,14 @@ class SyncServer(Server):
         # The default persistence manager that will get assigned to agents ON CREATION
         self.default_persistence_manager_cls = default_persistence_manager_cls
 
+    def save_agents(self):
+        for agent_d in self.active_agents:
+            try:
+                agent_d["agent"].save()
+                print(f"Saved agent {agent_d['agent_id']}")
+            except Exception as e:
+                print(f"Error occured while trying to save agent {agent_d['agent_id']}:\n{e}")
+
     def _get_agent(self, user_id: str, agent_id: str) -> Union[Agent, None]:
         """Get the agent object from the in-memory object store"""
         for d in self.active_agents:

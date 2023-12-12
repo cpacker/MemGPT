@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import asynccontextmanager
 import json
 from typing import Union
 
@@ -38,9 +39,25 @@ class Command(BaseModel):
     command: str
 
 
-app = FastAPI()
-interface = QueuingInterface()
-server = SyncServer(default_interface=interface)
+server = None
+interface = None
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    global server
+    global interface
+    interface = QueuingInterface()
+    server = SyncServer(default_interface=interface)
+    yield
+    server.save_agents()
+    server = None
+
+
+app = FastAPI(lifespan=lifespan)
+
+# app = FastAPI()
+# server = SyncServer(default_interface=interface)
 
 
 # server.list_agents
@@ -110,3 +127,9 @@ def run_command(body: Command):
         raise HTTPException(status_code=500, detail=f"{e}")
     response = server.run_command(user_id=body.user_id, agent_id=body.agent_id, command=body.command)
     return {"response": response}
+
+
+@app.on_event("shutdown")
+def shutdown_event():
+    # Your shutdown logic here
+    print("Shutdown event triggered")

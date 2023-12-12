@@ -1,5 +1,6 @@
 import asyncio
 import json
+import signal
 import sys
 import traceback
 
@@ -20,8 +21,15 @@ class WebSocketServer:
         self.interface = SyncWebSocketInterface()
         self.server = SyncServer(default_interface=self.interface)
 
-    def __del__(self):
-        self.interface.close()
+    def shutdown_server(self):
+        try:
+            self.server.save_agents()
+        except Exception as e:
+            print(f"Saving agents failed with: {e}")
+        try:
+            self.interface.close()
+        except Exception as e:
+            print(f"Closing the WS interface failed with: {e}")
 
     def initialize_server(self):
         print("Server is initializing...")
@@ -103,10 +111,21 @@ class WebSocketServer:
             self.interface.unregister_client(websocket)
 
 
+def handle_sigterm(*args):
+    # Perform necessary cleanup
+    print("SIGTERM received, shutting down...")
+    # Note: This should be quick and not involve asynchronous calls
+    print("Shutting down the server...")
+    server.shutdown_server()
+    print("Server has been shut down.")
+    sys.exit(0)
+
+
 if __name__ == "__main__":
-    port = WS_DEFAULT_PORT
+    signal.signal(signal.SIGTERM, handle_sigterm)
 
     # Check if a port argument is provided
+    port = WS_DEFAULT_PORT
     if len(sys.argv) > 1:
         try:
             port = int(sys.argv[1])
@@ -114,4 +133,10 @@ if __name__ == "__main__":
             print(f"Invalid port number. Using default port {port}.")
 
     server = WebSocketServer(port=port)
-    asyncio.run(server.run())
+    try:
+        asyncio.run(server.run())
+    except KeyboardInterrupt:
+        print("Shutting down the server...")
+    finally:
+        server.shutdown_server()
+        print("Server has been shut down.")
