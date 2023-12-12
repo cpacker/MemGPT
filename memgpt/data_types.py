@@ -1,4 +1,5 @@
 """ This module contains the data types used by MemGPT. Each data type must include a function to create a DB model. """
+import uuid
 from abc import abstractmethod
 from typing import Optional
 import numpy as np
@@ -18,7 +19,10 @@ class Record:
         self.user_id = user_id
         self.agent_id = agent_id
         self.text = text
-        self.id = id
+        if id is None:
+            self.id = uuid.uuid4()
+        else:
+            self.id = id
         # todo: generate unique uuid
         # todo: self.role = role (?)
 

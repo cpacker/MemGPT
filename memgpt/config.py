@@ -300,50 +300,6 @@ class AgentConfig:
             os.path.join(MEMGPT_DIR, "agents", self.name, "config.json") if agent_config_path is None else agent_config_path
         )
 
-    def link_functions(self, function_schemas):
-
-        # need to dynamically link the functions
-        # the saved agent.functions will just have the schemas, but we need to
-        # go through the functions library and pull the respective python functions
-
-        # Available functions is a mapping from:
-        # function_name -> {
-        #   json_schema: schema
-        #   python_function: function
-        # }
-        # agent.functions is a list of schemas (OpenAI kwarg functions style, see: https://platform.openai.com/docs/api-reference/chat/create)
-        # [{'name': ..., 'description': ...}, {...}]
-        available_functions = load_all_function_sets()
-        linked_function_set = {}
-        for f_schema in function_schemas:
-            # Attempt to find the function in the existing function library
-            f_name = f_schema.get("name")
-            if f_name is None:
-                raise ValueError(f"While loading agent.state.functions encountered a bad function schema object with no name:\n{f_schema}")
-            linked_function = available_functions.get(f_name)
-            if linked_function is None:
-                raise ValueError(
-                    f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
-                )
-            # Once we find a matching function, make sure the schema is identical
-            if json.dumps(f_schema) != json.dumps(linked_function["json_schema"]):
-                # error_message = (
-                #     f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different."
-                #     + f"\n>>>agent.state.functions\n{json.dumps(f_schema, indent=2)}"
-                #     + f"\n>>>function library\n{json.dumps(linked_function['json_schema'], indent=2)}"
-                # )
-                schema_diff = get_schema_diff(f_schema, linked_function["json_schema"])
-                error_message = (
-                    f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different.\n"
-                    + "".join(schema_diff)
-                )
-
-                # NOTE to handle old configs, instead of erroring here let's just warn
-                # raise ValueError(error_message)
-                utils.printd(error_message)
-            linked_function_set[f_name] = linked_function
-        return linked_function_set
-
     def generate_agent_id(self, length=6):
         ## random character based
         # characters = string.ascii_lowercase + string.digits
@@ -358,6 +314,9 @@ class AgentConfig:
         # i.e. previous source will be overriden
         self.data_sources.append(data_source)
         self.save()
+
+    def save_dir(self):
+        return os.path.join(MEMGPT_DIR, "agents", self.name)
 
     def save_state_dir(self):
         # directory to save agent state

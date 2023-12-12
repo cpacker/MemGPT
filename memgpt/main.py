@@ -22,7 +22,7 @@ import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.constants as constants
 from memgpt.cli.cli import run, attach, version
-from memgpt.cli.cli_config import configure, list, add
+from memgpt.cli.cli_config import configure, list, add, delete
 from memgpt.cli.cli_load import app as load_app
 from memgpt.connectors.storage import StorageConnector
 
@@ -33,6 +33,7 @@ app.command(name="attach")(attach)
 app.command(name="configure")(configure)
 app.command(name="list")(list)
 app.command(name="add")(add)
+app.command(name="delete")(delete)
 # load data commands
 app.add_typer(load_app, name="load")
 

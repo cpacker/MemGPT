@@ -97,14 +97,14 @@ def embedding_model():
 
     # load config
     config = MemGPTConfig.load()
+    endpoint_type = config.embedding_endpoint_type
 
-    endpoint = config.embedding_endpoint_type
-    if endpoint == "openai":
+    if endpoint_type == "openai":
         model = OpenAIEmbedding(
             api_base=config.embedding_endpoint, api_key=config.openai_key, additional_kwargs={"user": config.anon_clientid}
         )
         return model
-    elif endpoint == "azure":
+    elif endpoint_type == "azure":
         # https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings
         model = "text-embedding-ada-002"
         deployment = config.azure_embedding_deployment if config.azure_embedding_deployment is not None else model
@@ -116,7 +116,7 @@ def embedding_model():
             api_type="azure",
             api_version=config.azure_version,
         )
-    elif endpoint == "hugging-face":
+    elif endpoint_type == "hugging-face":
         embed_model = EmbeddingEndpoint(model=config.embedding_model, base_url=config.embedding_endpoint, user=config.anon_clientid)
         return embed_model
     else:

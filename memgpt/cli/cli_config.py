@@ -10,7 +10,7 @@ from memgpt import utils
 
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
-from memgpt.connectors.storage import StorageConnector
+from memgpt.connectors.storage import StorageConnector, TableType
 from memgpt.constants import LLM_MAX_TOKENS
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
@@ -458,3 +458,31 @@ def add(
         # write text to file
         with open(os.path.join(directory, name), "w") as f:
             f.write(text)
+
+
+@app.command()
+def delete(
+    option: str,
+    name: str = typer.Option(help="Name of human/persona/agent/source to delete"),
+):
+    if option == "agent":
+        # delete state/config
+        # TODO: this will eventually need to go through the storage connector
+        agent_config = AgentConfig.load(name)
+        # remove directory
+        shutil.rmtree(agent_config.save_dir())
+
+        # delete memory
+        recall_storage = StorageConnector.get_recall_storage_connector(agent_config)
+        recall_storage.delete()
+        archival_storage = StorageConnector.get_archival_storage_connector(agent_config)
+        archival_storage.delete()
+
+    elif option == "source":
+        # TODO: also delete document store
+        # TODO: remove data from any agents that have loaded it in (?)
+        storage = StorageConnector.get_storage_connector(table_type=TableType.PASSAGES)
+        storage.delete({"data_source": name})
+
+    else:
+        raise NotImplementedError
