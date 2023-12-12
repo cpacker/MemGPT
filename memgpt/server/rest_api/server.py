@@ -133,9 +133,3 @@ def run_command(body: Command):
         raise HTTPException(status_code=500, detail=f"{e}")
     response = server.run_command(user_id=body.user_id, agent_id=body.agent_id, command=body.command)
     return {"response": response}
-
-
-@app.on_event("shutdown")
-def shutdown_event():
-    # Your shutdown logic here
-    print("Shutdown event triggered")
