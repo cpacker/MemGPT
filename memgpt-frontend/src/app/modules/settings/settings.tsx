@@ -3,6 +3,8 @@ import { Separator } from "@memgpt/components/separator"
 import { SidebarNav } from "./sidebar-nav"
 import React from 'react';
 import { Outlet } from 'react-router-dom';
+import { useAgentMemoryQuery } from '../../libs/agents/use-agent-memory.query';
+import { useCurrentAgent } from '../../libs/agents/agent.store';
 
 const sidebarNavItems = [
   {
@@ -17,6 +19,10 @@ export type SidebarNavItem = {
 };
 
 export function Settings() {
+  const currentAgent = useCurrentAgent();
+  const {data} = useAgentMemoryQuery(currentAgent?.name);
+
+  console.log(data)
   return (
     <>
       <div className="space-y-6 p-10 pb-16">

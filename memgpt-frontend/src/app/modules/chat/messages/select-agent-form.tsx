@@ -19,7 +19,7 @@ const SelectAgentForm = () => {
       </CardDescription>
     </CardHeader>
     <CardContent className='grid gap-1'>
-      {(data ?? []).map((agent, i) =>
+      {(data?.agents ?? []).map((agent, i) =>
         <button key={i} onClick={() => setNewAgent(agent)}
                 className={cn('text-left -mx-2 flex items-start space-x-4 rounded-md p-2 transition-all',
                   newAgent?.name === agent.name ? 'bg-accent text-accent-foreground' : 'hover:bg-accent hover:text-accent-foreground',

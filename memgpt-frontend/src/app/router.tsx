@@ -1,10 +1,9 @@
 import React from 'react';
 import Header from './shared/layout/header';
 import Footer from './shared/layout/footer';
-import { createBrowserRouter, Outlet, redirect } from 'react-router-dom';
-import Chat from './modules/chat/chat';
+import { createBrowserRouter, Outlet } from 'react-router-dom';
 import { settingsRoute } from './modules/settings/settings.routes';
-import Index from './index';
+import Home from './modules/home/home';
 import { chatRoute } from './modules/chat/chat.routes';
 
 const rootRoute = () => <>
@@ -22,7 +21,7 @@ export const router = createBrowserRouter([
     children: [
       {
         path: '',
-        element: <Index/>
+        element: <Home/>
       },
       chatRoute,
       settingsRoute
