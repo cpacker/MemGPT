@@ -443,7 +443,7 @@ class SyncServer(LockingServer):
     def list_agents(self, user_id: str) -> dict:
         """List all available agents to a user"""
         agents_list = utils.list_agent_config_files()
-        return {"num_agents": len(agents_list), "agent_names": agents_list}
+        return {"num_agents": len(agents_list), "agents": [AgentConfig.load(f).__dict__ for f in agents_list]}
 
     def get_agent_memory(self, user_id: str, agent_id: str) -> dict:
         """Return the memory of an agent (core memory + non-core statistics)"""
