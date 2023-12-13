@@ -13,6 +13,7 @@ from memgpt.local_llm.llamacpp.api import get_llamacpp_completion
 from memgpt.local_llm.koboldcpp.api import get_koboldcpp_completion
 from memgpt.local_llm.ollama.api import get_ollama_completion
 from memgpt.local_llm.vllm.api import get_vllm_completion
+from memgpt.local_llm.togetherai.api import get_togetherai_completion
 from memgpt.local_llm.llm_chat_completion_wrappers import simple_summary_wrapper
 from memgpt.local_llm.constants import DEFAULT_WRAPPER
 from memgpt.local_llm.utils import get_available_wrappers
@@ -100,6 +101,8 @@ def get_chat_completion(
             result = get_ollama_completion(endpoint, model, prompt, context_window)
         elif endpoint_type == "vllm":
             result = get_vllm_completion(endpoint, model, prompt, context_window, user)
+        elif endpoint_type == "togetherai":
+            result = get_togetherai_completion(endpoint, model, prompt, context_window, user)
         else:
             raise LocalLLMError(
                 f"Invalid endpoint type {endpoint_type}, please set variable depending on your backend (webui, lmstudio, llamacpp, koboldcpp)"

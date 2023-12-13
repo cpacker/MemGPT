@@ -4,12 +4,12 @@ import requests
 
 from ..utils import load_grammar_file, count_tokens
 
-API_SUFFIX = "/v1/completions"
+API_SUFFIX = "/inference"
 DEBUG = False
 
 
-def get_vllm_completion(endpoint, model, prompt, context_window, user, settings={}, grammar=None):
-    """https://github.com/vllm-project/vllm/blob/main/examples/api_client.py"""
+def get_togetherai_completion(endpoint, model, prompt, context_window, user, settings={}, grammar=None):
+    """https://docs.together.ai/docs/inference-rest"""
     prompt_tokens = count_tokens(prompt)
     if prompt_tokens > context_window:
         raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_window} tokens)")
