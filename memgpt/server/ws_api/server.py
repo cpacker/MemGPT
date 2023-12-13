@@ -1,26 +1,37 @@
 import asyncio
 import json
+import signal
+import sys
 import traceback
 
 import websockets
 
 from memgpt.server.server import SyncServer
 from memgpt.server.ws_api.interface import SyncWebSocketInterface
-from memgpt.server.constants import DEFAULT_PORT
+from memgpt.server.constants import WS_DEFAULT_PORT
 import memgpt.server.ws_api.protocol as protocol
 import memgpt.system as system
 import memgpt.constants as memgpt_constants
 
 
 class WebSocketServer:
-    def __init__(self, host="localhost", port=DEFAULT_PORT):
+    def __init__(self, host="localhost", port=WS_DEFAULT_PORT):
         self.host = host
         self.port = port
         self.interface = SyncWebSocketInterface()
         self.server = SyncServer(default_interface=self.interface)
 
-    def __del__(self):
-        self.interface.close()
+    def shutdown_server(self):
+        try:
+            self.server.save_agents()
+            print(f"Saved agents")
+        except Exception as e:
+            print(f"Saving agents failed with: {e}")
+        try:
+            self.interface.close()
+            print(f"Closed the WS interface")
+        except Exception as e:
+            print(f"Closing the WS interface failed with: {e}")
 
     def initialize_server(self):
         print("Server is initializing...")
@@ -102,6 +113,36 @@ class WebSocketServer:
             self.interface.unregister_client(websocket)
 
 
+def start_server():
+    # Check if a port argument is provided
+    port = WS_DEFAULT_PORT
+    if len(sys.argv) > 1:
+        try:
+            port = int(sys.argv[1])
+        except ValueError:
+            print(f"Invalid port number. Using default port {port}.")
+
+    server = WebSocketServer(port=port)
+
+    def handle_sigterm(*args):
+        # Perform necessary cleanup
+        print("SIGTERM received, shutting down...")
+        # Note: This should be quick and not involve asynchronous calls
+        print("Shutting down the server...")
+        server.shutdown_server()
+        print("Server has been shut down.")
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, handle_sigterm)
+
+    try:
+        asyncio.run(server.run())
+    except KeyboardInterrupt:
+        print("Shutting down the server...")
+    finally:
+        server.shutdown_server()
+        print("Server has been shut down.")
+
+
 if __name__ == "__main__":
-    server = WebSocketServer()
-    asyncio.run(server.run())
+    start_server()

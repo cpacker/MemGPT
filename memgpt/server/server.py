@@ -1,9 +1,12 @@
 from abc import abstractmethod
-from typing import Union
+from typing import Union, Callable
 import json
+from threading import Lock
+from functools import wraps
+from fastapi import HTTPException
 
 from memgpt.system import package_user_message
-from memgpt.config import AgentConfig
+from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.agent import Agent
 import memgpt.system as system
 import memgpt.constants as constants
@@ -11,6 +14,7 @@ from memgpt.cli.cli import attach
 from memgpt.connectors.storage import StorageConnector
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
+import memgpt.server.utils as server_utils
 from memgpt.persistence_manager import PersistenceManager, LocalStateManager
 
 # TODO use custom interface
@@ -22,8 +26,28 @@ class Server(object):
     """Abstract server class that supports multi-agent multi-user"""
 
     @abstractmethod
-    def list_agents(self, user_id: str, agent_id: str) -> str:
+    def list_agents(self, user_id: str) -> dict:
         """List all available agents to a user"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_agent_memory(self, user_id: str, agent_id: str) -> dict:
+        """Return the memory of an agent (core memory + non-core statistics)"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_agent_config(self, user_id: str, agent_id: str) -> dict:
+        """Return the config of an agent"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_server_config(self, user_id: str) -> dict:
+        """Return the base config"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def update_agent_core_memory(self, user_id: str, agent_id: str, new_memory_contents: dict) -> dict:
+        """Update the agents core memory block, return the new state"""
         raise NotImplementedError
 
     @abstractmethod
@@ -51,8 +75,50 @@ class Server(object):
         raise NotImplementedError
 
 
+class LockingServer(Server):
+    """Basic support for concurrency protections (all requests that modify an agent lock the agent until the operation is complete)"""
+
+    # Locks for each agent
+    _agent_locks = {}
+
+    @staticmethod
+    def agent_lock_decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(self, user_id: str, agent_id: str, *args, **kwargs):
+            # print("Locking check")
+
+            # Initialize the lock for the agent_id if it doesn't exist
+            if agent_id not in self._agent_locks:
+                # print(f"Creating lock for agent_id = {agent_id}")
+                self._agent_locks[agent_id] = Lock()
+
+            # Check if the agent is currently locked
+            if not self._agent_locks[agent_id].acquire(blocking=False):
+                # print(f"agent_id = {agent_id} is busy")
+                raise HTTPException(status_code=423, detail=f"Agent '{agent_id}' is currently busy.")
+
+            try:
+                # Execute the function
+                # print(f"running function on agent_id = {agent_id}")
+                return func(self, user_id, agent_id, *args, **kwargs)
+            finally:
+                # Release the lock
+                # print(f"releasing lock on agent_id = {agent_id}")
+                self._agent_locks[agent_id].release()
+
+        return wrapper
+
+    @agent_lock_decorator
+    def user_message(self, user_id: str, agent_id: str, message: str) -> None:
+        raise NotImplementedError
+
+    @agent_lock_decorator
+    def run_command(self, user_id: str, agent_id: str, command: str) -> Union[str, None]:
+        raise NotImplementedError
+
+
 # TODO actually use "user_id" for something
-class SyncServer(Server):
+class SyncServer(LockingServer):
     """Simple single-threaded / blocking server process"""
 
     def __init__(
@@ -81,6 +147,14 @@ class SyncServer(Server):
 
         # The default persistence manager that will get assigned to agents ON CREATION
         self.default_persistence_manager_cls = default_persistence_manager_cls
+
+    def save_agents(self):
+        for agent_d in self.active_agents:
+            try:
+                agent_d["agent"].save()
+                print(f"Saved agent {agent_d['agent_id']}")
+            except Exception as e:
+                print(f"Error occured while trying to save agent {agent_d['agent_id']}:\n{e}")
 
     def _get_agent(self, user_id: str, agent_id: str) -> Union[Agent, None]:
         """Get the agent object from the in-memory object store"""
@@ -302,6 +376,7 @@ class SyncServer(Server):
             input_message = system.get_token_limit_warning()
             self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
 
+    @LockingServer.agent_lock_decorator
     def user_message(self, user_id: str, agent_id: str, message: str) -> None:
         """Process an incoming user message and feed it through the MemGPT agent"""
         from memgpt.utils import printd
@@ -321,6 +396,7 @@ class SyncServer(Server):
             # Run the agent state forward
             self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
 
+    @LockingServer.agent_lock_decorator
     def run_command(self, user_id: str, agent_id: str, command: str) -> Union[str, None]:
         """Run a command on the agent"""
         # If the input begins with a command prefix, attempt to process it as a command
@@ -363,3 +439,83 @@ class SyncServer(Server):
         print(f"Created new agent from config: {agent}")
 
         return agent.config.name
+
+    def list_agents(self, user_id: str) -> dict:
+        """List all available agents to a user"""
+        agents_list = utils.list_agent_config_files()
+        return {"num_agents": len(agents_list), "agent_names": agents_list}
+
+    def get_agent_memory(self, user_id: str, agent_id: str) -> dict:
+        """Return the memory of an agent (core memory + non-core statistics)"""
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        core_memory = memgpt_agent.memory
+        recall_memory = memgpt_agent.persistence_manager.recall_memory
+        archival_memory = memgpt_agent.persistence_manager.archival_memory
+
+        memory_obj = {
+            "core_memory": {
+                "persona": core_memory.persona,
+                "human": core_memory.human,
+            },
+            "recall_memory": len(recall_memory) if recall_memory is not None else None,
+            "archival_memory": len(archival_memory) if archival_memory is not None else None,
+        }
+
+        return memory_obj
+
+    def get_agent_config(self, user_id: str, agent_id: str) -> dict:
+        """Return the config of an agent"""
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        agent_config = vars(memgpt_agent.config)
+
+        return agent_config
+
+    def get_server_config(self, user_id: str) -> dict:
+        """Return the base config"""
+        base_config = vars(MemGPTConfig.load())
+
+        def clean_keys(config):
+            config_copy = config.copy()
+            for k, v in config.items():
+                if k == "key" or "_key" in k:
+                    config_copy[k] = server_utils.shorten_key_middle(v, chars_each_side=5)
+            return config_copy
+
+        clean_base_config = clean_keys(base_config)
+        return clean_base_config
+
+    def update_agent_core_memory(self, user_id: str, agent_id: str, new_memory_contents: dict) -> dict:
+        """Update the agents core memory block, return the new state"""
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        old_core_memory = self.get_agent_memory(user_id=user_id, agent_id=agent_id)["core_memory"]
+        new_core_memory = old_core_memory.copy()
+
+        modified = False
+        if "persona" in new_memory_contents and new_memory_contents["persona"] is not None:
+            new_persona = new_memory_contents["persona"]
+            if old_core_memory["persona"] != new_persona:
+                new_core_memory["persona"] = new_persona
+                memgpt_agent.memory.edit_persona(new_persona)
+                modified = True
+
+        elif "human" in new_memory_contents and new_memory_contents["human"] is not None:
+            new_human = new_memory_contents["human"]
+            if old_core_memory["human"] != new_human:
+                new_core_memory["human"] = new_human
+                memgpt_agent.memory.edit_human(new_human)
+                modified = True
+
+        # If we modified the memory contents, we need to rebuild the memory block inside the system message
+        if modified:
+            memgpt_agent.rebuild_memory()
+
+        return {
+            "old_core_memory": old_core_memory,
+            "new_core_memory": new_core_memory,
+            "modified": modified,
+        }

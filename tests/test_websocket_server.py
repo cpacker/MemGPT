@@ -4,7 +4,7 @@ import json
 import websockets
 import pytest
 
-from memgpt.server.constants import DEFAULT_PORT
+from memgpt.server.constants import WS_DEFAULT_PORT
 from memgpt.server.ws_api.server import WebSocketServer
 from memgpt.config import AgentConfig
 
@@ -30,7 +30,7 @@ async def test_websocket_server():
     # )
     test_config = {}
 
-    uri = f"ws://{host}:{DEFAULT_PORT}"
+    uri = f"ws://{host}:{WS_DEFAULT_PORT}"
     try:
         async with websockets.connect(uri) as websocket:
             # Initialize the server with a test config

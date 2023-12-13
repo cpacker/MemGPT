@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import asynccontextmanager
 import json
 from typing import Union
 
@@ -38,17 +39,64 @@ class Command(BaseModel):
     command: str
 
 
-app = FastAPI()
-interface = QueuingInterface()
-server = SyncServer(default_interface=interface)
+class CoreMemory(BaseModel):
+    user_id: str
+    agent_id: str
+    human: str | None = None
+    persona: str | None = None
+
+
+server = None
+interface = None
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    global server
+    global interface
+    interface = QueuingInterface()
+    server = SyncServer(default_interface=interface)
+    yield
+    server.save_agents()
+    server = None
+
+
+app = FastAPI(lifespan=lifespan)
+
+# app = FastAPI()
+# server = SyncServer(default_interface=interface)
 
 
 # server.list_agents
 @app.get("/agents")
 def list_agents(user_id: str):
     interface.clear()
-    agents_list = utils.list_agent_config_files()
-    return {"num_agents": len(agents_list), "agent_names": agents_list}
+    return server.list_agents(user_id=user_id)
+
+
+@app.get("/agents/memory")
+def get_agent_memory(user_id: str, agent_id: str):
+    interface.clear()
+    return server.get_agent_memory(user_id=user_id, agent_id=agent_id)
+
+
+@app.put("/agents/memory")
+def get_agent_memory(body: CoreMemory):
+    interface.clear()
+    new_memory_contents = {"persona": body.persona, "human": body.human}
+    return server.update_agent_core_memory(user_id=body.user_id, agent_id=body.agent_id, new_memory_contents=new_memory_contents)
+
+
+@app.get("/agents/config")
+def get_agent_config(user_id: str, agent_id: str):
+    interface.clear()
+    return server.get_agent_config(user_id=user_id, agent_id=agent_id)
+
+
+@app.get("/config")
+def get_server_config(user_id: str):
+    interface.clear()
+    return server.get_server_config(user_id=user_id)
 
 
 # server.create_agent
@@ -88,6 +136,8 @@ async def user_message(body: UserMessage):
 
             # Return the streaming response using the generator
             return StreamingResponse(formatted_message_generator(), media_type="text/event-stream")
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
 
@@ -95,6 +145,8 @@ async def user_message(body: UserMessage):
         interface.clear()
         try:
             server.user_message(user_id=body.user_id, agent_id=body.agent_id, message=body.message)
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
         return {"messages": interface.to_list()}
@@ -106,6 +158,8 @@ def run_command(body: Command):
     interface.clear()
     try:
         response = server.run_command(user_id=body.user_id, agent_id=body.agent_id, command=body.command)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{e}")
     response = server.run_command(user_id=body.user_id, agent_id=body.agent_id, command=body.command)

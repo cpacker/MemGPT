@@ -18,6 +18,8 @@ class QueuingInterface(AgentInterface):
                 items.append(self.buffer.get_nowait())
             except queue.Empty:
                 break
+        if len(items) > 1 and items[-1] == "STOP":
+            items.pop()
         return items
 
     def clear(self):

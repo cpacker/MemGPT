@@ -4,7 +4,7 @@ import json
 import websockets
 
 import memgpt.server.ws_api.protocol as protocol
-from memgpt.server.constants import DEFAULT_PORT, CLIENT_TIMEOUT
+from memgpt.server.constants import WS_DEFAULT_PORT, WS_CLIENT_TIMEOUT
 from memgpt.server.utils import condition_to_stop_receiving, print_server_response
 
 
@@ -26,7 +26,7 @@ async def send_message_and_print_replies(websocket, user_message, agent_id):
 
     # Wait for messages in a loop, since the server may send a few
     while True:
-        response = await asyncio.wait_for(websocket.recv(), CLIENT_TIMEOUT)
+        response = await asyncio.wait_for(websocket.recv(), WS_CLIENT_TIMEOUT)
         response = json.loads(response)
 
         if CLEAN_RESPONSES:
@@ -44,7 +44,7 @@ async def basic_cli_client():
 
     Meant to illustrate how to use the server.py process, so limited in features (only supports sending user messages)
     """
-    uri = f"ws://localhost:{DEFAULT_PORT}"
+    uri = f"ws://localhost:{WS_DEFAULT_PORT}"
 
     closed_on_message = False
     retry_attempts = 0
