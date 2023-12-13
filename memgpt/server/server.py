@@ -6,7 +6,7 @@ from functools import wraps
 from fastapi import HTTPException
 
 from memgpt.system import package_user_message
-from memgpt.config import AgentConfig
+from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.agent import Agent
 import memgpt.system as system
 import memgpt.constants as constants
@@ -14,6 +14,7 @@ from memgpt.cli.cli import attach
 from memgpt.connectors.storage import StorageConnector
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
+import memgpt.server.utils as server_utils
 from memgpt.persistence_manager import PersistenceManager, LocalStateManager
 
 # TODO use custom interface
@@ -37,6 +38,11 @@ class Server(object):
     @abstractmethod
     def get_agent_config(self, user_id: str, agent_id: str) -> dict:
         """Return the config of an agent"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_server_config(self, user_id: str) -> dict:
+        """Return the base config"""
         raise NotImplementedError
 
     @abstractmethod
@@ -461,3 +467,17 @@ class SyncServer(LockingServer):
         agent_config = vars(memgpt_agent.config)
 
         return agent_config
+
+    def get_server_config(self, user_id: str) -> dict:
+        """Return the base config"""
+        base_config = vars(MemGPTConfig.load())
+
+        def clean_keys(config):
+            config_copy = config.copy()
+            for k, v in config.items():
+                if k == "key" or "_key" in k:
+                    config_copy[k] = server_utils.shorten_key_middle(v, chars_each_side=5)
+            return config_copy
+
+        clean_base_config = clean_keys(base_config)
+        return clean_base_config

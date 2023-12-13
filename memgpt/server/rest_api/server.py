@@ -79,6 +79,12 @@ def get_agent_config(user_id: str, agent_id: str):
     return server.get_agent_config(user_id=user_id, agent_id=agent_id)
 
 
+@app.get("/config")
+def get_server_config(user_id: str):
+    interface.clear()
+    return server.get_server_config(user_id=user_id)
+
+
 # server.create_agent
 @app.post("/agents")
 def create_agents(body: CreateAgentConfig):
