@@ -46,6 +46,11 @@ class Server(object):
         raise NotImplementedError
 
     @abstractmethod
+    def update_agent_core_memory(self, user_id: str, agent_id: str, new_memory_contents: dict) -> dict:
+        """Update the agents core memory block, return the new state"""
+        raise NotImplementedError
+
+    @abstractmethod
     def create_agent(
         self,
         user_id: str,
@@ -481,3 +486,36 @@ class SyncServer(LockingServer):
 
         clean_base_config = clean_keys(base_config)
         return clean_base_config
+
+    def update_agent_core_memory(self, user_id: str, agent_id: str, new_memory_contents: dict) -> dict:
+        """Update the agents core memory block, return the new state"""
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        old_core_memory = self.get_agent_memory(user_id=user_id, agent_id=agent_id)["core_memory"]
+        new_core_memory = old_core_memory.copy()
+
+        modified = False
+        if "persona" in new_memory_contents and new_memory_contents["persona"] is not None:
+            new_persona = new_memory_contents["persona"]
+            if old_core_memory["persona"] != new_persona:
+                new_core_memory["persona"] = new_persona
+                memgpt_agent.memory.edit_persona(new_persona)
+                modified = True
+
+        elif "human" in new_memory_contents and new_memory_contents["human"] is not None:
+            new_human = new_memory_contents["human"]
+            if old_core_memory["human"] != new_human:
+                new_core_memory["human"] = new_human
+                memgpt_agent.memory.edit_human(new_human)
+                modified = True
+
+        # If we modified the memory contents, we need to rebuild the memory block inside the system message
+        if modified:
+            memgpt_agent.rebuild_memory()
+
+        return {
+            "old_core_memory": old_core_memory,
+            "new_core_memory": new_core_memory,
+            "modified": modified,
+        }
