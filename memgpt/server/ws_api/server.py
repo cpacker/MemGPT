@@ -83,7 +83,11 @@ class WebSocketServer:
                     await websocket.send(protocol.server_agent_response_start())
                     try:
                         # self.run_step(user_message)
-                        self.server.user_message(user_id="NULL", agent_id=data["agent_id"], message=user_message)
+                        self.server.user_message(
+                            user_id="NULL",
+                            agent_id=data["agent_id"],
+                            message=user_message,
+                        )
                     except Exception as e:
                         print(f"[server] self.server.user_message failed with:\n{e}")
                         print(f"{traceback.format_exc()}")

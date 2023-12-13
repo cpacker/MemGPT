@@ -1,4 +1,10 @@
-from autogen.agentchat import Agent, ConversableAgent, UserProxyAgent, GroupChat, GroupChatManager
+from autogen.agentchat import (
+    Agent,
+    ConversableAgent,
+    UserProxyAgent,
+    GroupChat,
+    GroupChatManager,
+)
 from memgpt.agent import Agent as _Agent
 
 from typing import Callable, Optional, List, Dict, Union, Any, Tuple
@@ -11,7 +17,13 @@ import memgpt.utils as utils
 import memgpt.presets.presets as presets
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.cli.cli import attach
-from memgpt.cli.cli_load import load_directory, load_webpage, load_index, load_database, load_vector_database
+from memgpt.cli.cli_load import (
+    load_directory,
+    load_webpage,
+    load_index,
+    load_database,
+    load_vector_database,
+)
 from memgpt.connectors.storage import StorageConnector
 
 

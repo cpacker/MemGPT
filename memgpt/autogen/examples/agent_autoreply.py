@@ -17,7 +17,7 @@ from memgpt.constants import LLM_MAX_TOKENS
 
 LLM_BACKEND = "openai"
 # LLM_BACKEND = "azure"
-#LLM_BACKEND = "local"
+# LLM_BACKEND = "local"
 
 if LLM_BACKEND == "openai":
     # For demo purposes let's use gpt-4

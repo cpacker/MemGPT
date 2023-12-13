@@ -56,7 +56,10 @@ def load_all_function_sets(merge=True):
         sys.path.append(user_scripts_dir)
 
     schemas_and_functions = {}
-    for dir_path, module_files in [(function_sets_dir, example_module_files), (user_scripts_dir, user_module_files)]:
+    for dir_path, module_files in [
+        (function_sets_dir, example_module_files),
+        (user_scripts_dir, user_module_files),
+    ]:
         for file in module_files:
             module_name = file[:-3]  # Remove '.py' from filename
             if dir_path == user_scripts_dir:

@@ -7,7 +7,9 @@ import json
 from box import Box
 
 from memgpt.local_llm.webui.api import get_webui_completion
-from memgpt.local_llm.webui.legacy_api import get_webui_completion as get_webui_completion_legacy
+from memgpt.local_llm.webui.legacy_api import (
+    get_webui_completion as get_webui_completion_legacy,
+)
 from memgpt.local_llm.lmstudio.api import get_lmstudio_completion
 from memgpt.local_llm.llamacpp.api import get_llamacpp_completion
 from memgpt.local_llm.koboldcpp.api import get_koboldcpp_completion
@@ -72,7 +74,11 @@ def get_chat_completion(
         if "grammar" in wrapper:
             grammar_name = "json_func_calls_with_inner_thoughts"
 
-    if grammar_name is not None and endpoint_type not in ["koboldcpp", "llamacpp", "webui"]:
+    if grammar_name is not None and endpoint_type not in [
+        "koboldcpp",
+        "llamacpp",
+        "webui",
+    ]:
         print(f"{CLI_WARNING_PREFIX}grammars are currently only supported when using llama.cpp as the MemGPT local LLM backend")
 
     # First step: turn the message sequence into a prompt that the model expects

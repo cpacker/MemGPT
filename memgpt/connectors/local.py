@@ -38,7 +38,11 @@ class LocalStorageConnector(StorageConnector):
 
         # llama index contexts
         self.embed_model = embedding_model()
-        self.service_context = ServiceContext.from_defaults(llm=None, embed_model=self.embed_model, chunk_size=config.embedding_chunk_size)
+        self.service_context = ServiceContext.from_defaults(
+            llm=None,
+            embed_model=self.embed_model,
+            chunk_size=config.embedding_chunk_size,
+        )
         set_global_service_context(self.service_context)
 
         # load/create index

@@ -56,7 +56,8 @@ def store_docs(name, docs, show_progress=True):
 
 @app.command("index")
 def load_index(
-    name: str = typer.Option(help="Name of dataset to load."), dir: str = typer.Option(help="Path to directory containing index.")
+    name: str = typer.Option(help="Name of dataset to load."),
+    dir: str = typer.Option(help="Path to directory containing index."),
 ):
     """Load a LlamaIndex saved VectorIndex into MemGPT"""
     # load index data
@@ -189,7 +190,10 @@ def load_vector_database(
     config = MemGPTConfig.load()
 
     # Prepare a select statement
-    select_statement = select(table.c[text_column], table.c[embedding_column].cast(Vector(config.embedding_dim)))
+    select_statement = select(
+        table.c[text_column],
+        table.c[embedding_column].cast(Vector(config.embedding_dim)),
+    )
 
     # Execute the query and fetch the results
     with engine.connect() as connection:

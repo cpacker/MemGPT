@@ -19,7 +19,10 @@ from memgpt.config import MemGPTConfig, AgentConfig
 import argparse
 
 
-@pytest.mark.skipif(not os.getenv("PGVECTOR_TEST_DB_URL") or not os.getenv("OPENAI_API_KEY"), reason="Missing PG URI and/or OpenAI API key")
+@pytest.mark.skipif(
+    not os.getenv("PGVECTOR_TEST_DB_URL") or not os.getenv("OPENAI_API_KEY"),
+    reason="Missing PG URI and/or OpenAI API key",
+)
 def test_postgres_openai():
     if not os.getenv("PGVECTOR_TEST_DB_URL"):
         return  # soft pass
@@ -27,7 +30,10 @@ def test_postgres_openai():
         return  # soft pass
 
     # os.environ["MEMGPT_CONFIG_PATH"] = "./config"
-    config = MemGPTConfig(archival_storage_type="postgres", archival_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"))
+    config = MemGPTConfig(
+        archival_storage_type="postgres",
+        archival_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
+    )
     print(config.config_path)
     assert config.archival_storage_uri is not None
     config.archival_storage_uri = config.archival_storage_uri.replace(
@@ -38,7 +44,11 @@ def test_postgres_openai():
 
     embed_model = embedding_model()
 
-    passage = ["This is a test passage", "This is another test passage", "Cinderella wept"]
+    passage = [
+        "This is a test passage",
+        "This is another test passage",
+        "Cinderella wept",
+    ]
 
     db = PostgresStorageConnector(name="test-openai")
 
@@ -77,7 +87,11 @@ def test_chroma_openai():
     config.save()
     embed_model = embedding_model()
 
-    passage = ["This is a test passage", "This is another test passage", "Cinderella wept"]
+    passage = [
+        "This is a test passage",
+        "This is another test passage",
+        "Cinderella wept",
+    ]
 
     db = ChromaStorageConnector(name="test-openai")
 
@@ -98,21 +112,29 @@ def test_chroma_openai():
 
 
 @pytest.mark.skipif(
-    not os.getenv("LANCEDB_TEST_URL") or not os.getenv("OPENAI_API_KEY"), reason="Missing LANCEDB URI and/or OpenAI API key"
+    not os.getenv("LANCEDB_TEST_URL") or not os.getenv("OPENAI_API_KEY"),
+    reason="Missing LANCEDB URI and/or OpenAI API key",
 )
 def test_lancedb_openai():
     assert os.getenv("LANCEDB_TEST_URL") is not None
     if os.getenv("OPENAI_API_KEY") is None:
         return  # soft pass
 
-    config = MemGPTConfig(archival_storage_type="lancedb", archival_storage_uri=os.getenv("LANCEDB_TEST_URL"))
+    config = MemGPTConfig(
+        archival_storage_type="lancedb",
+        archival_storage_uri=os.getenv("LANCEDB_TEST_URL"),
+    )
     print(config.config_path)
     assert config.archival_storage_uri is not None
     print(config)
 
     embed_model = embedding_model()
 
-    passage = ["This is a test passage", "This is another test passage", "Cinderella wept"]
+    passage = [
+        "This is a test passage",
+        "This is another test passage",
+        "Cinderella wept",
+    ]
 
     db = LanceDBConnector(name="test-openai")
 
@@ -151,7 +173,11 @@ def test_postgres_local():
 
     embed_model = embedding_model()
 
-    passage = ["This is a test passage", "This is another test passage", "Cinderella wept"]
+    passage = [
+        "This is a test passage",
+        "This is another test passage",
+        "Cinderella wept",
+    ]
 
     db = PostgresStorageConnector(name="test-local")
 
@@ -188,7 +214,11 @@ def test_lancedb_local():
 
     embed_model = embedding_model()
 
-    passage = ["This is a test passage", "This is another test passage", "Cinderella wept"]
+    passage = [
+        "This is a test passage",
+        "This is another test passage",
+        "Cinderella wept",
+    ]
 
     db = LanceDBConnector(name="test-local")
 

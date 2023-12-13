@@ -43,7 +43,12 @@ def test_schema_generator():
         "description": "Sends a message to the human user.",
         "parameters": {
             "type": "object",
-            "properties": {"message": {"type": "string", "description": "Message contents. All unicode (including emojis) are supported."}},
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "Message contents. All unicode (including emojis) are supported.",
+                }
+            },
             "required": ["message"],
         },
     }

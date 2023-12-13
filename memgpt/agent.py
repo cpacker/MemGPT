@@ -6,10 +6,22 @@ import traceback
 
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import AgentConfig, MemGPTConfig
-from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
+from memgpt.system import (
+    get_login_event,
+    package_function_response,
+    package_summarize_message,
+    get_initial_boot_messages,
+)
 from memgpt.memory import CoreMemory as Memory, summarize_messages
 from memgpt.openai_tools import create, is_context_overflow_error
-from memgpt.utils import get_local_time, parse_json, united_diff, printd, count_tokens, get_schema_diff
+from memgpt.utils import (
+    get_local_time,
+    parse_json,
+    united_diff,
+    printd,
+    count_tokens,
+    get_schema_diff,
+)
 from memgpt.constants import (
     FIRST_MESSAGE_ATTEMPTS,
     MESSAGE_SUMMARY_WARNING_FRAC,
@@ -29,13 +41,23 @@ def initialize_memory(ai_notes, human_notes):
         raise ValueError(ai_notes)
     if human_notes is None:
         raise ValueError(human_notes)
-    memory = Memory(human_char_limit=CORE_MEMORY_HUMAN_CHAR_LIMIT, persona_char_limit=CORE_MEMORY_PERSONA_CHAR_LIMIT)
+    memory = Memory(
+        human_char_limit=CORE_MEMORY_HUMAN_CHAR_LIMIT,
+        persona_char_limit=CORE_MEMORY_PERSONA_CHAR_LIMIT,
+    )
     memory.edit_persona(ai_notes)
     memory.edit_human(human_notes)
     return memory
 
 
-def construct_system_with_memory(system, memory, memory_edit_timestamp, archival_memory=None, recall_memory=None, include_char_count=True):
+def construct_system_with_memory(
+    system,
+    memory,
+    memory_edit_timestamp,
+    archival_memory=None,
+    recall_memory=None,
+    include_char_count=True,
+):
     full_system_message = "\n".join(
         [
             system,
@@ -68,7 +90,11 @@ def initialize_message_sequence(
         memory_edit_timestamp = get_local_time()
 
     full_system_message = construct_system_with_memory(
-        system, memory, memory_edit_timestamp, archival_memory=archival_memory, recall_memory=recall_memory
+        system,
+        memory,
+        memory_edit_timestamp,
+        archival_memory=archival_memory,
+        recall_memory=recall_memory,
     )
     first_user_message = get_login_event()  # event letting MemGPT know the user just logged in
 
@@ -486,7 +512,11 @@ class Agent(object):
                     }
                 )  # extend conversation with function response
                 self.interface.function_message(f"Error: {error_msg}")
-                return messages, None, True  # force a heartbeat to allow agent to handle error
+                return (
+                    messages,
+                    None,
+                    True,
+                )  # force a heartbeat to allow agent to handle error
 
             # Failure case 2: function name is OK, but function args are bad JSON
             try:
@@ -503,7 +533,11 @@ class Agent(object):
                     }
                 )  # extend conversation with function response
                 self.interface.function_message(f"Error: {error_msg}")
-                return messages, None, True  # force a heartbeat to allow agent to handle error
+                return (
+                    messages,
+                    None,
+                    True,
+                )  # force a heartbeat to allow agent to handle error
 
             # (Still parsing function args)
             # Handle requests for immediate heartbeat
@@ -538,7 +572,11 @@ class Agent(object):
                     }
                 )  # extend conversation with function response
                 self.interface.function_message(f"Error: {error_msg}")
-                return messages, None, True  # force a heartbeat to allow agent to handle error
+                return (
+                    messages,
+                    None,
+                    True,
+                )  # force a heartbeat to allow agent to handle error
 
             # If no failures happened along the way: ...
             # Step 4: send the info on the function call and function response to GPT
@@ -560,7 +598,13 @@ class Agent(object):
 
         return messages, heartbeat_request, function_failed
 
-    def step(self, user_message, first_message=False, first_message_retry_limit=FIRST_MESSAGE_ATTEMPTS, skip_verify=False):
+    def step(
+        self,
+        user_message,
+        first_message=False,
+        first_message_retry_limit=FIRST_MESSAGE_ATTEMPTS,
+        skip_verify=False,
+    ):
         """Top-level event message handler for the MemGPT agent"""
 
         try:
@@ -611,7 +655,11 @@ class Agent(object):
             # (if yes) Step 4: send the info on the function call and function response to LLM
             response_message = response.choices[0].message
             response_message_copy = response_message.copy()
-            all_response_messages, heartbeat_request, function_failed = self.handle_ai_response(response_message)
+            (
+                all_response_messages,
+                heartbeat_request,
+                function_failed,
+            ) = self.handle_ai_response(response_message)
 
             # Add the extra metadata to the assistant response
             # (e.g. enough metadata to enable recreating the API call)
@@ -657,7 +705,12 @@ class Agent(object):
                 )
 
             self.append_to_messages(all_new_messages)
-            return all_new_messages, heartbeat_request, function_failed, active_memory_warning
+            return (
+                all_new_messages,
+                heartbeat_request,
+                function_failed,
+                active_memory_warning,
+            )
 
         except Exception as e:
             printd(f"step() failed\nuser_message = {user_message}\nerror = {e}")
@@ -735,7 +788,10 @@ class Agent(object):
                 if (self.model is not None and self.model in LLM_MAX_TOKENS)
                 else str(LLM_MAX_TOKENS["DEFAULT"])
             )
-        summary = summarize_messages(agent_config=self.config, message_sequence_to_summarize=message_sequence_to_summarize)
+        summary = summarize_messages(
+            agent_config=self.config,
+            message_sequence_to_summarize=message_sequence_to_summarize,
+        )
         printd(f"Got summary: {summary}")
 
         # Metadata that's useful for the agent to see

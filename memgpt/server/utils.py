@@ -1,6 +1,11 @@
 def condition_to_stop_receiving(response):
     """Determines when to stop listening to the server"""
-    if response.get("type") in ["agent_response_end", "agent_response_error", "command_response", "server_error"]:
+    if response.get("type") in [
+        "agent_response_end",
+        "agent_response_error",
+        "command_response",
+        "server_error",
+    ]:
         return True
     else:
         return False

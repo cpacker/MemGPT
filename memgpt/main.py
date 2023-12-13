@@ -127,7 +127,10 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                     if amount == 0:
                         interface.print_messages(memgpt_agent.messages, dump=True)
                     else:
-                        interface.print_messages(memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
+                        interface.print_messages(
+                            memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :],
+                            dump=True,
+                        )
                     continue
 
                 elif user_input.lower() == "/dumpraw":
@@ -236,9 +239,12 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
         skip_next_user_input = False
 
         def process_agent_step(user_message, no_verify):
-            new_messages, heartbeat_request, function_failed, token_warning = memgpt_agent.step(
-                user_message, first_message=False, skip_verify=no_verify
-            )
+            (
+                new_messages,
+                heartbeat_request,
+                function_failed,
+                token_warning,
+            ) = memgpt_agent.step(user_message, first_message=False, skip_verify=no_verify)
 
             skip_next_user_input = False
             if token_warning:
@@ -256,11 +262,19 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
         while True:
             try:
                 if strip_ui:
-                    new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
+                    (
+                        new_messages,
+                        user_message,
+                        skip_next_user_input,
+                    ) = process_agent_step(user_message, no_verify)
                     break
                 else:
                     with console.status("[bold cyan]Thinking...") as status:
-                        new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
+                        (
+                            new_messages,
+                            user_message,
+                            skip_next_user_input,
+                        ) = process_agent_step(user_message, no_verify)
                         break
             except KeyboardInterrupt:
                 print("User interrupt occured.")

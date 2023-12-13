@@ -4,7 +4,11 @@ from typing import get_args
 
 from docstring_parser import parse
 
-from memgpt.constants import FUNCTION_PARAM_NAME_REQ_HEARTBEAT, FUNCTION_PARAM_TYPE_REQ_HEARTBEAT, FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT
+from memgpt.constants import (
+    FUNCTION_PARAM_NAME_REQ_HEARTBEAT,
+    FUNCTION_PARAM_TYPE_REQ_HEARTBEAT,
+    FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
+)
 
 NO_HEARTBEAT_FUNCTIONS = ["send_message", "pause_heartbeats"]
 

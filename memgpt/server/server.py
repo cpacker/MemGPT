@@ -146,9 +146,12 @@ class SyncServer(Server):
         next_input_message = input_message
         counter = 0
         while True:
-            new_messages, heartbeat_request, function_failed, token_warning = memgpt_agent.step(
-                next_input_message, first_message=False, skip_verify=no_verify
-            )
+            (
+                new_messages,
+                heartbeat_request,
+                function_failed,
+                token_warning,
+            ) = memgpt_agent.step(next_input_message, first_message=False, skip_verify=no_verify)
             counter += 1
 
             # Chain stops
@@ -225,7 +228,10 @@ class SyncServer(Server):
             if amount == 0:
                 memgpt_agent.interface.print_messages(memgpt_agent.messages, dump=True)
             else:
-                memgpt_agent.interface.print_messages(memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
+                memgpt_agent.interface.print_messages(
+                    memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :],
+                    dump=True,
+                )
 
         elif command.lower() == "dumpraw":
             memgpt_agent.interface.print_messages_raw(memgpt_agent.messages)

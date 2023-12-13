@@ -69,17 +69,27 @@ class ChromaStorageConnector(StorageConnector):
         return [Passage(text=text, embedding=embedding) for (text, embedding) in zip(results["documents"], results["embeddings"])]
 
     def insert(self, passage: Passage):
-        self.collection.add(documents=[passage.text], embeddings=[passage.embedding], ids=[str(self.collection.count())])
+        self.collection.add(
+            documents=[passage.text],
+            embeddings=[passage.embedding],
+            ids=[str(self.collection.count())],
+        )
 
     def insert_many(self, passages: List[Passage], show_progress=True):
         count = self.collection.count()
         ids = [str(count + i) for i in range(len(passages))]
         self.collection.add(
-            documents=[passage.text for passage in passages], embeddings=[passage.embedding for passage in passages], ids=ids
+            documents=[passage.text for passage in passages],
+            embeddings=[passage.embedding for passage in passages],
+            ids=ids,
         )
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10) -> List[Passage]:
-        results = self.collection.query(query_embeddings=[query_vec], n_results=top_k, include=["embeddings", "documents"])
+        results = self.collection.query(
+            query_embeddings=[query_vec],
+            n_results=top_k,
+            include=["embeddings", "documents"],
+        )
         # get index [0] since query is passed as list
         return [Passage(text=text, embedding=embedding) for (text, embedding) in zip(results["documents"][0], results["embeddings"][0])]
 

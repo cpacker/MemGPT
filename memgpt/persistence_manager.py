@@ -108,7 +108,10 @@ class LocalStateManager(PersistenceManager):
 
     def swap_system_message(self, new_system_message):
         # first tag with timestamps
-        new_system_message = {"timestamp": get_local_time(), "message": new_system_message}
+        new_system_message = {
+            "timestamp": get_local_time(),
+            "message": new_system_message,
+        }
 
         printd(f"{self.__class__.__name__}.swap_system_message")
         self.messages[0] = new_system_message

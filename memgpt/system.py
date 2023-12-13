@@ -28,7 +28,11 @@ def get_initial_boot_messages(version="startup"):
                 },
             },
             # obligatory function return message
-            {"role": "function", "name": "send_message", "content": package_function_response(True, None)},
+            {
+                "role": "function",
+                "name": "send_message",
+                "content": package_function_response(True, None),
+            },
         ]
 
     elif version == "startup_with_send_message_gpt35":
@@ -37,10 +41,17 @@ def get_initial_boot_messages(version="startup"):
             {
                 "role": "assistant",
                 "content": "*inner thoughts* Still waiting on the user. Sending a message with function.",
-                "function_call": {"name": "send_message", "arguments": '{\n  "message": "' + f"Hi, is anyone there?" + '"\n}'},
+                "function_call": {
+                    "name": "send_message",
+                    "arguments": '{\n  "message": "' + f"Hi, is anyone there?" + '"\n}',
+                },
             },
             # obligatory function return message
-            {"role": "function", "name": "send_message", "content": package_function_response(True, None)},
+            {
+                "role": "function",
+                "name": "send_message",
+                "content": package_function_response(True, None),
+            },
         ]
 
     else:
@@ -49,7 +60,11 @@ def get_initial_boot_messages(version="startup"):
     return messages
 
 
-def get_heartbeat(reason="Automated timer", include_location=False, location_name="San Francisco, CA, USA"):
+def get_heartbeat(
+    reason="Automated timer",
+    include_location=False,
+    location_name="San Francisco, CA, USA",
+):
     # Package the message with time and location
     formatted_time = get_local_time()
     packaged_message = {
@@ -64,7 +79,11 @@ def get_heartbeat(reason="Automated timer", include_location=False, location_nam
     return json.dumps(packaged_message)
 
 
-def get_login_event(last_login="Never (first login)", include_location=False, location_name="San Francisco, CA, USA"):
+def get_login_event(
+    last_login="Never (first login)",
+    include_location=False,
+    location_name="San Francisco, CA, USA",
+):
     # Package the message with time and location
     formatted_time = get_local_time()
     packaged_message = {
@@ -79,7 +98,13 @@ def get_login_event(last_login="Never (first login)", include_location=False, lo
     return json.dumps(packaged_message)
 
 
-def package_user_message(user_message, time=None, include_location=False, location_name="San Francisco, CA, USA", name=None):
+def package_user_message(
+    user_message,
+    time=None,
+    include_location=False,
+    location_name="San Francisco, CA, USA",
+    name=None,
+):
     # Package the message with time and location
     formatted_time = time if time else get_local_time()
     packaged_message = {

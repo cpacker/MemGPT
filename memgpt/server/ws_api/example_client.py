@@ -77,7 +77,11 @@ async def basic_cli_client():
 
                     # Send a message to the agent
                     try:
-                        await send_message_and_print_replies(websocket=websocket, user_message=user_input, agent_id=AGENT_NAME)
+                        await send_message_and_print_replies(
+                            websocket=websocket,
+                            user_message=user_input,
+                            agent_id=AGENT_NAME,
+                        )
                         retry_attempts = 0
                     except websockets.exceptions.ConnectionClosedError:
                         print("Connection to server was lost. Attempting to reconnect...")

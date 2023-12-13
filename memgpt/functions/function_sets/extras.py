@@ -4,7 +4,11 @@ import json
 import requests
 
 
-from memgpt.constants import MESSAGE_CHATGPT_FUNCTION_MODEL, MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE, MAX_PAUSE_HEARTBEATS
+from memgpt.constants import (
+    MESSAGE_CHATGPT_FUNCTION_MODEL,
+    MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
+    MAX_PAUSE_HEARTBEATS,
+)
 from memgpt.openai_tools import create
 
 
@@ -121,6 +125,10 @@ def http_request(self, method: str, url: str, payload_json: Optional[str] = None
             print(f"[HTTP] launching {method} request to {url}, payload=\n{json.dumps(payload, indent=2)}")
             response = requests.request(method, url, json=payload, headers=headers)
 
-        return {"status_code": response.status_code, "headers": dict(response.headers), "body": response.text}
+        return {
+            "status_code": response.status_code,
+            "headers": dict(response.headers),
+            "body": response.text,
+        }
     except Exception as e:
         return {"error": str(e)}

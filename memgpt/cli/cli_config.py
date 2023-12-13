@@ -12,7 +12,11 @@ from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
 from memgpt.connectors.storage import StorageConnector
 from memgpt.constants import LLM_MAX_TOKENS
-from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
+from memgpt.local_llm.constants import (
+    DEFAULT_ENDPOINTS,
+    DEFAULT_OLLAMA_MODEL,
+    DEFAULT_WRAPPER_NAME,
+)
 from memgpt.local_llm.utils import get_available_wrappers
 
 app = typer.Typer()
@@ -43,11 +47,16 @@ def configure_llm_endpoint(config: MemGPTConfig):
 
     # get default
     default_model_endpoint_type = config.model_endpoint_type
-    if config.model_endpoint_type is not None and config.model_endpoint_type not in ["openai", "azure"]:  # local model
+    if config.model_endpoint_type is not None and config.model_endpoint_type not in [
+        "openai",
+        "azure",
+    ]:  # local model
         default_model_endpoint_type = "local"
 
     provider = questionary.select(
-        "Select LLM inference provider:", choices=["openai", "azure", "local"], default=default_model_endpoint_type
+        "Select LLM inference provider:",
+        choices=["openai", "azure", "local"],
+        default=default_model_endpoint_type,
     ).ask()
 
     # set: model_endpoint_type, model_endpoint
@@ -60,7 +69,16 @@ def configure_llm_endpoint(config: MemGPTConfig):
         model_endpoint_type = "azure"
         model_endpoint = get_azure_credentials()["azure_endpoint"]
     else:  # local models
-        backend_options = ["webui", "webui-legacy", "llamacpp", "koboldcpp", "ollama", "lmstudio", "vllm", "openai"]
+        backend_options = [
+            "webui",
+            "webui-legacy",
+            "llamacpp",
+            "koboldcpp",
+            "ollama",
+            "lmstudio",
+            "vllm",
+            "openai",
+        ]
         default_model_endpoint_type = None
         if config.model_endpoint_type in backend_options:
             # set from previous config
@@ -100,11 +118,18 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str):
     # set: model, model_wrapper
     model, model_wrapper = None, None
     if model_endpoint_type == "openai" or model_endpoint_type == "azure":
-        model_options = ["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
+        model_options = [
+            "gpt-4",
+            "gpt-4-1106-preview",
+            "gpt-3.5-turbo",
+            "gpt-3.5-turbo-16k",
+        ]
         # TODO: select
         valid_model = config.model in model_options
         model = questionary.select(
-            "Select default model (recommended: gpt-4):", choices=model_options, default=config.model if valid_model else model_options[0]
+            "Select default model (recommended: gpt-4):",
+            choices=model_options,
+            default=config.model if valid_model else model_options[0],
         ).ask()
     else:  # local models
         # ollama also needs model type
@@ -174,9 +199,16 @@ def configure_embedding_endpoint(config: MemGPTConfig):
 
     default_embedding_endpoint_type = config.embedding_endpoint_type
 
-    embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = None, None, None, None
+    embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = (
+        None,
+        None,
+        None,
+        None,
+    )
     embedding_provider = questionary.select(
-        "Select embedding provider:", choices=["openai", "azure", "hugging-face", "local"], default=default_embedding_endpoint_type
+        "Select embedding provider:",
+        choices=["openai", "azure", "hugging-face", "local"],
+        default=default_embedding_endpoint_type,
     ).ask()
     if embedding_provider == "openai":
         embedding_endpoint_type = "openai"
@@ -207,7 +239,10 @@ def configure_embedding_endpoint(config: MemGPTConfig):
 
         # get model dimentions
         default_embedding_dim = config.embedding_dim if config.embedding_dim else "1024"
-        embedding_dim = questionary.text("Enter embedding model dimentions (e.g. 1024):", default=str(default_embedding_dim)).ask()
+        embedding_dim = questionary.text(
+            "Enter embedding model dimentions (e.g. 1024):",
+            default=str(default_embedding_dim),
+        ).ask()
         try:
             embedding_dim = int(embedding_dim)
         except Exception as e:
@@ -248,7 +283,9 @@ def configure_archival_storage(config: MemGPTConfig):
     # Configure archival storage backend
     archival_storage_options = ["local", "lancedb", "postgres", "chroma"]
     archival_storage_type = questionary.select(
-        "Select storage backend for archival data:", archival_storage_options, default=config.archival_storage_type
+        "Select storage backend for archival data:",
+        archival_storage_options,
+        default=config.archival_storage_type,
     ).ask()
     archival_storage_uri, archival_storage_path = None, None
 
@@ -277,7 +314,10 @@ def configure_archival_storage(config: MemGPTConfig):
                 config.archival_storage_path if config.archival_storage_path else os.path.join(config.config_path, "chroma")
             )
             print(default_archival_storage_path)
-            archival_storage_path = questionary.text("Enter persistent storage location:", default=default_archival_storage_path).ask()
+            archival_storage_path = questionary.text(
+                "Enter persistent storage location:",
+                default=default_archival_storage_path,
+            ).ask()
 
     return archival_storage_type, archival_storage_uri, archival_storage_path
 
@@ -294,19 +334,39 @@ def configure():
     config = MemGPTConfig.load()
     model_endpoint_type, model_endpoint = configure_llm_endpoint(config)
     model, model_wrapper, context_window = configure_model(config, model_endpoint_type)
-    embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = configure_embedding_endpoint(config)
+    (
+        embedding_endpoint_type,
+        embedding_endpoint,
+        embedding_dim,
+        embedding_model,
+    ) = configure_embedding_endpoint(config)
     default_preset, default_persona, default_human, default_agent = configure_cli(config)
-    archival_storage_type, archival_storage_uri, archival_storage_path = configure_archival_storage(config)
+    (
+        archival_storage_type,
+        archival_storage_uri,
+        archival_storage_path,
+    ) = configure_archival_storage(config)
 
     # check credentials
     azure_creds = get_azure_credentials()
     # azure_key, azure_endpoint, azure_version, azure_deployment, azure_embedding_deployment = get_azure_credentials()
     openai_key = get_openai_credentials()
     if model_endpoint_type == "azure" or embedding_endpoint_type == "azure":
-        if all([azure_creds["azure_key"], azure_creds["azure_endpoint"], azure_creds["azure_version"]]):
+        if all(
+            [
+                azure_creds["azure_key"],
+                azure_creds["azure_endpoint"],
+                azure_creds["azure_version"],
+            ]
+        ):
             print(f"Using Microsoft endpoint {azure_creds['azure_endpoint']}.")
             # Deployment can optionally customize your endpoint model name
-            if all([azure_creds["azure_deployment"], azure_creds["azure_embedding_deployment"]]):
+            if all(
+                [
+                    azure_creds["azure_deployment"],
+                    azure_creds["azure_embedding_deployment"],
+                ]
+            ):
                 print(f"Using deployment id {azure_creds['azure_deployment']}")
         else:
             raise ValueError(
@@ -356,7 +416,14 @@ def list(option: str):
     if option == "agents":
         """List all agents"""
         table = PrettyTable()
-        table.field_names = ["Name", "Model", "Persona", "Human", "Data Source", "Create Time"]
+        table.field_names = [
+            "Name",
+            "Model",
+            "Persona",
+            "Human",
+            "Data Source",
+            "Create Time",
+        ]
         for agent_file in utils.list_agent_config_files():
             agent_name = os.path.basename(agent_file).replace(".json", "")
             agent_config = AgentConfig.load(agent_name)

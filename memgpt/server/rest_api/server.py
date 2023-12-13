@@ -74,7 +74,13 @@ async def user_message(body: UserMessage):
             # Check if server.user_message is an async function
             if asyncio.iscoroutinefunction(server.user_message):
                 # Start the async task
-                asyncio.create_task(server.user_message(user_id=body.user_id, agent_id=body.agent_id, message=body.message))
+                asyncio.create_task(
+                    server.user_message(
+                        user_id=body.user_id,
+                        agent_id=body.agent_id,
+                        message=body.message,
+                    )
+                )
             else:
                 # Run the synchronous function in a thread pool
                 loop = asyncio.get_event_loop()

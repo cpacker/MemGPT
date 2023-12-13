@@ -101,7 +101,9 @@ def embedding_model():
     endpoint = config.embedding_endpoint_type
     if endpoint == "openai":
         model = OpenAIEmbedding(
-            api_base=config.embedding_endpoint, api_key=config.openai_key, additional_kwargs={"user": config.anon_clientid}
+            api_base=config.embedding_endpoint,
+            api_key=config.openai_key,
+            additional_kwargs={"user": config.anon_clientid},
         )
         return model
     elif endpoint == "azure":
@@ -116,7 +118,11 @@ def embedding_model():
             api_version=config.azure_version,
         )
     elif endpoint == "hugging-face":
-        embed_model = EmbeddingEndpoint(model=config.embedding_model, base_url=config.embedding_endpoint, user=config.anon_clientid)
+        embed_model = EmbeddingEndpoint(
+            model=config.embedding_model,
+            base_url=config.embedding_endpoint,
+            user=config.anon_clientid,
+        )
         return embed_model
     else:
         # default to hugging face model running local

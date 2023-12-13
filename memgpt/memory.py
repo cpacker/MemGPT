@@ -22,7 +22,14 @@ class CoreMemory(object):
     and any other baseline data you deem necessary for the AI's basic functioning.
     """
 
-    def __init__(self, persona=None, human=None, persona_char_limit=None, human_char_limit=None, archival_memory_exists=True):
+    def __init__(
+        self,
+        persona=None,
+        human=None,
+        persona_char_limit=None,
+        human_char_limit=None,
+        archival_memory_exists=True,
+    ):
         self.persona = persona
         self.human = human
         self.persona_char_limit = persona_char_limit
@@ -114,7 +121,12 @@ def summarize_messages(
         trunc_ratio = (MESSAGE_SUMMARY_WARNING_FRAC * context_window / summary_input_tkns) * 0.8  # For good measure...
         cutoff = int(len(message_sequence_to_summarize) * trunc_ratio)
         summary_input = str(
-            [summarize_messages(agent_config=agent_config, message_sequence_to_summarize=message_sequence_to_summarize[:cutoff])]
+            [
+                summarize_messages(
+                    agent_config=agent_config,
+                    message_sequence_to_summarize=message_sequence_to_summarize[:cutoff],
+                )
+            ]
             + message_sequence_to_summarize[cutoff:]
         )
     message_sequence = [
@@ -335,7 +347,13 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             # breakup string into passages
             for node in parser.get_nodes_from_documents([Document(text=memory_string)]):
                 embedding = self.embed_model.get_text_embedding(node.text)
-                passages.append(Passage(text=node.text, embedding=embedding, doc_id=f"agent_{self.agent_config.name}_memory"))
+                passages.append(
+                    Passage(
+                        text=node.text,
+                        embedding=embedding,
+                        doc_id=f"agent_{self.agent_config.name}_memory",
+                    )
+                )
 
             # insert passages
             self.storage.insert_many(passages)

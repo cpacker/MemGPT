@@ -165,7 +165,12 @@ def get_schema_diff(schema_a, schema_b):
     linked_function_json = json.dumps(schema_b, indent=2)
 
     # Compute the difference using difflib
-    difference = list(difflib.ndiff(f_schema_json.splitlines(keepends=True), linked_function_json.splitlines(keepends=True)))
+    difference = list(
+        difflib.ndiff(
+            f_schema_json.splitlines(keepends=True),
+            linked_function_json.splitlines(keepends=True),
+        )
+    )
 
     # Filter out lines that don't represent changes
     difference = [line for line in difference if line.startswith("+ ") or line.startswith("- ")]

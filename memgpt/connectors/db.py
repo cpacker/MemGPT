@@ -44,7 +44,11 @@ def get_db_model(table_name: str):
 
     """Create database model for table_name"""
     class_name = f"{table_name.capitalize()}Model"
-    Model = type(class_name, (PassageModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
+    Model = type(
+        class_name,
+        (PassageModel,),
+        {"__tablename__": table_name, "__table_args__": {"extend_existing": True}},
+    )
     return Model
 
 
@@ -105,7 +109,12 @@ class PostgresStorageConnector(StorageConnector):
         db_passage = session.query(self.db_model).get(id)
         if db_passage is None:
             return None
-        return Passage(text=db_passage.text, embedding=db_passage.embedding, doc_id=db_passage.doc_id, passage_id=db_passage.passage_id)
+        return Passage(
+            text=db_passage.text,
+            embedding=db_passage.embedding,
+            doc_id=db_passage.doc_id,
+            passage_id=db_passage.passage_id,
+        )
 
     def size(self) -> int:
         # return size of table
@@ -133,7 +142,12 @@ class PostgresStorageConnector(StorageConnector):
 
         # Convert the results into Passage objects
         passages = [
-            Passage(text=result.text, embedding=np.frombuffer(result.embedding), doc_id=result.doc_id, passage_id=result.id)
+            Passage(
+                text=result.text,
+                embedding=np.frombuffer(result.embedding),
+                doc_id=result.doc_id,
+                passage_id=result.id,
+            )
             for result in results
         ]
         return passages
@@ -228,7 +242,13 @@ class LanceDBConnector(StorageConnector):
 
             # Yield a list of Passage objects converted from the chunk
             yield [
-                Passage(text=p["text"], embedding=p["vector"], doc_id=p["doc_id"], passage_id=p["passage_id"]) for p in db_passages_chunk
+                Passage(
+                    text=p["text"],
+                    embedding=p["vector"],
+                    doc_id=p["doc_id"],
+                    passage_id=p["passage_id"],
+                )
+                for p in db_passages_chunk
             ]
 
             # Increment the offset to get the next chunk in the next iteration
@@ -236,14 +256,25 @@ class LanceDBConnector(StorageConnector):
 
     def get_all(self, limit=10) -> List[Passage]:
         db_passages = self.table.to_lance().to_table(limit=limit).to_pylist()
-        return [Passage(text=p["text"], embedding=p["vector"], doc_id=p["doc_id"], passage_id=p["passage_id"]) for p in db_passages]
+        return [
+            Passage(
+                text=p["text"],
+                embedding=p["vector"],
+                doc_id=p["doc_id"],
+                passage_id=p["passage_id"],
+            )
+            for p in db_passages
+        ]
 
     def get(self, id: str) -> Optional[Passage]:
         db_passage = self.table.where(f"passage_id={id}").to_list()
         if len(db_passage) == 0:
             return None
         return Passage(
-            text=db_passage["text"], embedding=db_passage["embedding"], doc_id=db_passage["doc_id"], passage_id=db_passage["passage_id"]
+            text=db_passage["text"],
+            embedding=db_passage["embedding"],
+            doc_id=db_passage["doc_id"],
+            passage_id=db_passage["passage_id"],
         )
 
     def size(self) -> int:
@@ -255,7 +286,14 @@ class LanceDBConnector(StorageConnector):
             return 0
 
     def insert(self, passage: Passage):
-        data = [{"doc_id": passage.doc_id, "text": passage.text, "passage_id": passage.passage_id, "vector": passage.embedding}]
+        data = [
+            {
+                "doc_id": passage.doc_id,
+                "text": passage.text,
+                "passage_id": passage.passage_id,
+                "vector": passage.embedding,
+            }
+        ]
 
         if self.table is not None:
             self.table.add(data)
@@ -266,7 +304,12 @@ class LanceDBConnector(StorageConnector):
         data = []
         iterable = tqdm(passages) if show_progress else passages
         for passage in iterable:
-            temp_dict = {"doc_id": passage.doc_id, "text": passage.text, "passage_id": passage.passage_id, "vector": passage.embedding}
+            temp_dict = {
+                "doc_id": passage.doc_id,
+                "text": passage.text,
+                "passage_id": passage.passage_id,
+                "vector": passage.embedding,
+            }
             data.append(temp_dict)
 
         if self.table is not None:
@@ -279,7 +322,12 @@ class LanceDBConnector(StorageConnector):
         results = self.table.search(query_vec).limit(top_k).to_list()
         # Convert the results into Passage objects
         passages = [
-            Passage(text=result["text"], embedding=result["vector"], doc_id=result["doc_id"], passage_id=result["passage_id"])
+            Passage(
+                text=result["text"],
+                embedding=result["vector"],
+                doc_id=result["doc_id"],
+                passage_id=result["passage_id"],
+            )
             for result in results
         ]
         return passages

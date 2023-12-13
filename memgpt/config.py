@@ -213,7 +213,15 @@ class MemGPTConfig:
         if not os.path.exists(MEMGPT_DIR):
             os.makedirs(MEMGPT_DIR, exist_ok=True)
 
-        folders = ["personas", "humans", "archival", "agents", "functions", "system_prompts", "presets"]
+        folders = [
+            "personas",
+            "humans",
+            "archival",
+            "agents",
+            "functions",
+            "system_prompts",
+            "presets",
+        ]
         for folder in folders:
             if not os.path.exists(os.path.join(MEMGPT_DIR, folder)):
                 os.makedirs(os.path.join(MEMGPT_DIR, folder))
