@@ -24,10 +24,12 @@ class WebSocketServer:
     def shutdown_server(self):
         try:
             self.server.save_agents()
+            print(f"Saved agents")
         except Exception as e:
             print(f"Saving agents failed with: {e}")
         try:
             self.interface.close()
+            print(f"Closed the WS interface")
         except Exception as e:
             print(f"Closing the WS interface failed with: {e}")
 
@@ -111,19 +113,7 @@ class WebSocketServer:
             self.interface.unregister_client(websocket)
 
 
-def handle_sigterm(*args):
-    # Perform necessary cleanup
-    print("SIGTERM received, shutting down...")
-    # Note: This should be quick and not involve asynchronous calls
-    print("Shutting down the server...")
-    server.shutdown_server()
-    print("Server has been shut down.")
-    sys.exit(0)
-
-
-if __name__ == "__main__":
-    signal.signal(signal.SIGTERM, handle_sigterm)
-
+def start_server():
     # Check if a port argument is provided
     port = WS_DEFAULT_PORT
     if len(sys.argv) > 1:
@@ -133,6 +123,18 @@ if __name__ == "__main__":
             print(f"Invalid port number. Using default port {port}.")
 
     server = WebSocketServer(port=port)
+
+    def handle_sigterm(*args):
+        # Perform necessary cleanup
+        print("SIGTERM received, shutting down...")
+        # Note: This should be quick and not involve asynchronous calls
+        print("Shutting down the server...")
+        server.shutdown_server()
+        print("Server has been shut down.")
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, handle_sigterm)
+
     try:
         asyncio.run(server.run())
     except KeyboardInterrupt:
@@ -140,3 +142,7 @@ if __name__ == "__main__":
     finally:
         server.shutdown_server()
         print("Server has been shut down.")
+
+
+if __name__ == "__main__":
+    start_server()
