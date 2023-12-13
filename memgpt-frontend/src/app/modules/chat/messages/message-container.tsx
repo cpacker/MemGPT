@@ -3,7 +3,7 @@ import MessageContainerLayout from './message-container-layout';
 import StatusIndicator from './status-indicator';
 import ThinkingIndicator from './thinking-indicator';
 import { Message } from '../../../libs/messages/message';
-import { ReadyState } from '../../../libs/messages/message-socket.store';
+import { ReadyState } from '../../../libs/messages/message-stream.store';
 import MessageContainerConnecting from './message-container-connecting';
 import { pickMessageElement } from './message/pick-message-element';
 import SelectAgentForm from './select-agent-form';
@@ -20,13 +20,6 @@ const MessageContainer = ({ agentSet, isThinking, messages, readyState }: {
   if (!agentSet) {
     return <MessageContainerLayout>
       <SelectAgentForm/>
-    </MessageContainerLayout>;
-  }
-
-  if (readyState === ReadyState.CONNECTING) {
-    return <MessageContainerLayout>
-      <StatusIndicator readyState={readyState} />
-      <MessageContainerConnecting />
     </MessageContainerLayout>;
   }
 

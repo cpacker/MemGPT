@@ -4,11 +4,12 @@ import React, { useEffect } from 'react';
 import { router } from './router';
 import { Toaster } from '@memgpt/components/toast';
 import { RouterProvider } from 'react-router-dom';
-import { useMessageSocketActions } from './libs/messages/message-socket.store';
+import { useMessageSocketActions } from './libs/messages/message-stream.store';
 import { useCurrentAgent } from './libs/agents/agent.store';
 import { useMessageHistoryActions } from './libs/messages/message-history.store';
 import { Message } from './libs/messages/message';
 import { useNextMessageLoadingActions } from './libs/messages/next-message-loading.store';
+import { useAgentMemoryQuery } from './libs/agents/use-agent-memory.query';
 
 const queryClient = new QueryClient();
 
@@ -24,16 +25,16 @@ export function App() {
     if (currentAgent) {
       addMessage(currentAgent.name, message);
     }
-  }), [registerOnMessageCallback, currentAgent]);
+  }), [registerOnMessageCallback, currentAgent, setLoading, addMessage]);
 
   useEffect(() => {
     if (!currentAgent) return;
     setAgentParam(currentAgent.name);
-  }, [currentAgent]);
+  }, [currentAgent, setAgentParam]);
 
   useEffect(() => {
     return () => resetSocket();
-  }, []);
+  }, [resetSocket]);
 
   return (
     <QueryClientProvider client={queryClient}>

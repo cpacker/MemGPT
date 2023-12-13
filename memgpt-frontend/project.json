@@ -9,7 +9,7 @@
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "../memgpt/web/static_files"
+        "outputPath": "../memgpt/server/static_files"
       },
       "configurations": {
         "development": {

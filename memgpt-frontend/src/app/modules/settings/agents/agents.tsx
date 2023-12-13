@@ -44,7 +44,7 @@ export function AgentsForm() {
   });
 
   function onSubmit(formValues: AgentsFormValues) {
-    const existingAgent = (data ?? []).find(agent => agent.name === formValues.currentAgentName);
+    const existingAgent = (data?.agents ?? []).find(agent => agent.name === formValues.currentAgentName);
     if (existingAgent) {
       setAgent(existingAgent);
       toast({
@@ -73,7 +73,7 @@ export function AgentsForm() {
                   defaultValue={field.value}
                   className='flex flex-wrap gap-8 pt-2'
                 >
-                  {data?.map((agent, i) => <FormItem key={i}>
+                  {data?.agents?.map((agent, i) => <FormItem key={i}>
                     <FormLabel className='[&:has([data-state=checked])>div]:border-primary'>
                       <FormControl>
                         <RadioGroupItem value={agent.name} className='sr-only' />

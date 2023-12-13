@@ -4,8 +4,8 @@ import UserInput from './user-input';
 import {
   ReadyState,
   useMessageSocketActions,
-  useMessageSocketReadyState,
-} from '../../libs/messages/message-socket.store';
+  useMessageStreamReadyState,
+} from '../../libs/messages/message-stream.store';
 import {
   useMessageHistory,
   useMessageHistoryActions,
@@ -19,7 +19,7 @@ const Chat = () => {
   const currentAgent = useCurrentAgent();
   const messages = useMessagesForKey(currentAgent?.name ?? '');
 
-  const readyState = useMessageSocketReadyState();
+  const readyState = useMessageStreamReadyState();
   const { sendMessage } = useMessageSocketActions();
   const { addMessage } = useMessageHistoryActions();
 
@@ -35,7 +35,7 @@ const Chat = () => {
 
   return (<div className='max-w-screen-xl mx-auto p-4'>
       <MessageContainer agentSet={!!currentAgent} isThinking={isThinking} readyState={readyState} messages={messages} />
-      <UserInput enabled={readyState === ReadyState.OPEN} onSend={sendUserMessageAndAddToHistory} />
+      <UserInput enabled={readyState !== ReadyState.LOADING} onSend={sendUserMessageAndAddToHistory} />
     </div>
   );
 };
