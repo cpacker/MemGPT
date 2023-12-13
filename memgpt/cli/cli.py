@@ -16,7 +16,6 @@ from memgpt.interface import CLIInterface as interface  # for printing to termin
 from memgpt.cli.cli_config import configure
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
-from memgpt.web.server.main import start_uvicorn_fastapi_server
 from memgpt.utils import printd
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import MemGPTConfig, AgentConfig
@@ -158,11 +157,6 @@ def run(
         config.debug = debug
     if no_verify:
         config.no_verify = no_verify
-
-    if server is True:
-        start_uvicorn_fastapi_server(config)
-        return
-
     # determine agent to use, if not provided
     if not yes and not agent:
         agent_files = utils.list_agent_config_files()
@@ -273,10 +267,7 @@ def run(
     # start event loop
     from memgpt.main import run_agent_loop
 
-    if server is False:  # TODO: add back no_verify
-        run_agent_loop(memgpt_agent, first, no_verify, config)  # TODO: add back no_verify
-    else:
-        start_uvicorn_fastapi_server(memgpt_agent, config)
+    run_agent_loop(memgpt_agent, first, no_verify, config)  # TODO: add back no_verify
 
 
 def attach(
