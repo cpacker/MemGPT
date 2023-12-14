@@ -129,7 +129,7 @@ def validate_function_response(function_response_string: any, strict: bool = Fal
         print(
             f"{CLI_WARNING_PREFIX}function return was over limit ({len(function_response_string)} > {FUNCTION_RETURN_CHAR_LIMIT}) and was truncated"
         )
-        function_response_string = function_response_string[:FUNCTION_RETURN_CHAR_LIMIT] + "..."
+        function_response_string = f"{function_response_string[:FUNCTION_RETURN_CHAR_LIMIT]}... [NOTE: function output was truncated since it exceeded the character limit ({len(function_response_string)} > {FUNCTION_RETURN_CHAR_LIMIT})]"
 
     return function_response_string
 
