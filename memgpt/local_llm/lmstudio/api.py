@@ -7,12 +7,13 @@ from ..utils import count_tokens
 
 LMSTUDIO_API_CHAT_SUFFIX = "/v1/chat/completions"
 LMSTUDIO_API_COMPLETIONS_SUFFIX = "/v1/completions"
-DEBUG = False
 
 
 # TODO move to "completions" by default, not "chat"
 def get_lmstudio_completion(endpoint, prompt, context_window, settings=SIMPLE, api="chat"):
     """Based on the example for using LM Studio as a backend from https://github.com/lmstudio-ai/examples/tree/main/Hello%2C%20world%20-%20OpenAI%20python%20client"""
+    from memgpt.utils import printd
+
     prompt_tokens = count_tokens(prompt)
     if prompt_tokens > context_window:
         raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_window} tokens)")
@@ -52,14 +53,13 @@ def get_lmstudio_completion(endpoint, prompt, context_window, settings=SIMPLE, a
         response = requests.post(URI, json=request)
         if response.status_code == 200:
             result_full = response.json()
+            printd(f"JSON API response:\n{result_full}")
             if api == "chat":
                 result = result_full["choices"][0]["message"]["content"]
                 usage = result_full.get("usage", None)
             elif api == "completions":
                 result = result_full["choices"][0]["text"]
                 usage = result_full.get("usage", None)
-            if DEBUG:
-                print(f"json API response.text: {result}")
         else:
             # Example error: msg={"error":"Context length exceeded. Tokens in context: 8000, Context length: 8000"}
             if "context length" in str(response.text).lower():

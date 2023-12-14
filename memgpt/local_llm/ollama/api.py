@@ -7,11 +7,12 @@ from ..utils import count_tokens
 from ...errors import LocalLLMError
 
 OLLAMA_API_SUFFIX = "/api/generate"
-DEBUG = False
 
 
 def get_ollama_completion(endpoint, model, prompt, context_window, settings=SIMPLE, grammar=None):
     """See https://github.com/jmorganca/ollama/blob/main/docs/api.md for instructions on how to run the LLM web server"""
+    from memgpt.utils import printd
+
     prompt_tokens = count_tokens(prompt)
     if prompt_tokens > context_window:
         raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_window} tokens)")
@@ -41,9 +42,8 @@ def get_ollama_completion(endpoint, model, prompt, context_window, settings=SIMP
         if response.status_code == 200:
             # https://github.com/jmorganca/ollama/blob/main/docs/api.md
             result_full = response.json()
+            printd(f"JSON API response:\n{result_full}")
             result = result_full["response"]
-            if DEBUG:
-                print(f"json API response.text: {result}")
         else:
             raise Exception(
                 f"API call got non-200 response code (code={response.status_code}, msg={response.text}) for address: {URI}."
@@ -56,7 +56,8 @@ def get_ollama_completion(endpoint, model, prompt, context_window, settings=SIMP
 
     # Pass usage statistics back to main thread
     # These are used to compute memory warning messages
-    completion_tokens = result_full.get("sample_count", None) if usage is not None else None
+    # https://github.com/jmorganca/ollama/blob/main/docs/api.md#response
+    completion_tokens = result_full.get("eval_count", None)
     total_tokens = prompt_tokens + completion_tokens if completion_tokens is not None else None
     usage = {
         "prompt_tokens": prompt_tokens,  # can also grab from "prompt_eval_count"

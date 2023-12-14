@@ -6,12 +6,12 @@ from .settings import SIMPLE
 from ..utils import load_grammar_file, count_tokens
 
 KOBOLDCPP_API_SUFFIX = "/api/v1/generate"
-DEBUG = False
-# DEBUG = True
 
 
 def get_koboldcpp_completion(endpoint, prompt, context_window, grammar=None, settings=SIMPLE):
     """See https://lite.koboldai.net/koboldcpp_api for API spec"""
+    from memgpt.utils import printd
+
     prompt_tokens = count_tokens(prompt)
     if prompt_tokens > context_window:
         raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_window} tokens)")
@@ -35,9 +35,8 @@ def get_koboldcpp_completion(endpoint, prompt, context_window, grammar=None, set
         response = requests.post(URI, json=request)
         if response.status_code == 200:
             result_full = response.json()
+            printd(f"JSON API response:\n{result_full}")
             result = result_full["results"][0]["text"]
-            if DEBUG:
-                print(f"json API response.text: {result}")
         else:
             raise Exception(
                 f"API call got non-200 response code (code={response.status_code}, msg={response.text}) for address: {URI}."

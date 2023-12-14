@@ -157,4 +157,5 @@ def get_chat_completion(
             },
         }
     )
+    printd(response)
     return response
