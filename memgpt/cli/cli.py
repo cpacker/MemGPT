@@ -31,7 +31,9 @@ class ServerChoice(Enum):
 
 
 def server(
-    type: ServerChoice = typer.Option("rest", help="Server to run"), port: int = typer.Option(None, help="Port to run the server on")
+    type: ServerChoice = typer.Option("rest", help="Server to run"),
+    port: int = typer.Option(None, help="Port to run the server on"),
+    host: str = typer.Option(None, help="Host to run the server on (default to localhost)"),
 ):
     """Launch a MemGPT server process"""
 
@@ -44,7 +46,10 @@ def server(
         script_dir = script_path.parent
 
         server_directory = os.path.join(script_dir.parent, "server", "rest_api")
-        command = f"uvicorn server:app --reload --port {port}"
+        if host is None:
+            command = f"uvicorn server:app --reload --port {port}"
+        else:
+            command = f"uvicorn server:app --reload --port {port} --host {host}"
 
         # Run the command
         print(f"Running REST server: {command} (inside {server_directory})")
