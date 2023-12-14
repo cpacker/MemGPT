@@ -11,7 +11,7 @@ from memgpt.constants import MAX_PAUSE_HEARTBEATS, RETRIEVAL_QUERY_DEFAULT_PAGE_
 # If the function fails, throw an exception
 
 
-def send_message(self, message: str):
+def send_message(self, message: str) -> Optional[str]:
     """
     Sends a message to the human user.
 
@@ -37,7 +37,7 @@ Returns:
 """
 
 
-def pause_heartbeats(self, minutes: int):
+def pause_heartbeats(self, minutes: int) -> Optional[str]:
     minutes = min(MAX_PAUSE_HEARTBEATS, minutes)
 
     # Record the current time
@@ -51,7 +51,7 @@ def pause_heartbeats(self, minutes: int):
 pause_heartbeats.__doc__ = pause_heartbeats_docstring
 
 
-def core_memory_append(self, name: str, content: str):
+def core_memory_append(self, name: str, content: str) -> Optional[str]:
     """
     Append to the contents of core memory.
 
@@ -67,7 +67,7 @@ def core_memory_append(self, name: str, content: str):
     return None
 
 
-def core_memory_replace(self, name: str, old_content: str, new_content: str):
+def core_memory_replace(self, name: str, old_content: str, new_content: str) -> Optional[str]:
     """
     Replace to the contents of core memory. To delete memories, use an empty string for new_content.
 
@@ -84,7 +84,7 @@ def core_memory_replace(self, name: str, old_content: str, new_content: str):
     return None
 
 
-def conversation_search(self, query: str, page: Optional[int] = 0):
+def conversation_search(self, query: str, page: Optional[int] = 0) -> Optional[str]:
     """
     Search prior conversation history using case-insensitive string matching.
 
@@ -107,7 +107,7 @@ def conversation_search(self, query: str, page: Optional[int] = 0):
     return results_str
 
 
-def conversation_search_date(self, start_date: str, end_date: str, page: Optional[int] = 0):
+def conversation_search_date(self, start_date: str, end_date: str, page: Optional[int] = 0) -> Optional[str]:
     """
     Search prior conversation history using a date range.
 
@@ -131,7 +131,7 @@ def conversation_search_date(self, start_date: str, end_date: str, page: Optiona
     return results_str
 
 
-def archival_memory_insert(self, content: str):
+def archival_memory_insert(self, content: str) -> Optional[str]:
     """
     Add to archival memory. Make sure to phrase the memory contents such that it can be easily queried later.
 
@@ -145,7 +145,7 @@ def archival_memory_insert(self, content: str):
     return None
 
 
-def archival_memory_search(self, query: str, page: Optional[int] = 0):
+def archival_memory_search(self, query: str, page: Optional[int] = 0) -> Optional[str]:
     """
     Search archival memory using semantic (embedding-based) search.
 
