@@ -156,7 +156,6 @@ def run(
         config.debug = debug
     if no_verify:
         config.no_verify = no_verify
-
     # determine agent to use, if not provided
     if not yes and not agent:
         agent_files = utils.list_agent_config_files()
