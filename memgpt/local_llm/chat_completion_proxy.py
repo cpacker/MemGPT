@@ -16,6 +16,7 @@ from memgpt.local_llm.vllm.api import get_vllm_completion
 from memgpt.local_llm.llm_chat_completion_wrappers import simple_summary_wrapper
 from memgpt.local_llm.constants import DEFAULT_WRAPPER
 from memgpt.local_llm.utils import get_available_wrappers, count_tokens
+from memgpt.local_llm.function_parser import patch_function
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
 from memgpt.errors import LocalLLMConnectionError, LocalLLMError
 from memgpt.constants import CLI_WARNING_PREFIX
@@ -34,6 +35,8 @@ def get_chat_completion(
     wrapper=None,
     endpoint=None,
     endpoint_type=None,
+    # optional cleanup
+    function_correction=True,
 ):
     from memgpt.utils import printd
 
@@ -114,6 +117,10 @@ def get_chat_completion(
         printd(json.dumps(chat_completion_result, indent=2))
     except Exception as e:
         raise LocalLLMError(f"Failed to parse JSON from local LLM response - error: {str(e)}")
+
+    # Run through some manual function correction (optional)
+    if function_correction:
+        chat_completion_result = patch_function(chat_completion_result)
 
     # Fill in potential missing usage information (used for tracking token use)
     if not ("prompt_tokens" in usage and "completion_tokens" in usage and "total_tokens" in usage):
