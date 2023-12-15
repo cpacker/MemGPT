@@ -423,11 +423,14 @@ class Agent(object):
         response_message = response.choices[0].message
 
         # First message should be a call to send_message with a non-empty content
-        if require_send_message and not response_message.get("function_call"):
+        if require_send_message and not (response_message.get("function_call") or response_message.get("tool_calls")):
             printd(f"First message didn't include function call: {response_message}")
             return False
 
         function_call = response_message.get("function_call")
+        if function_call is None and "tool_calls" in response_message and len(response_message["tool_calls"]) >= 1:
+            # Support for responses that have "tool_calls" instead of "function"
+            function_call = response_message["tool_calls"][0].get("function")
         function_name = function_call.get("name") if function_call is not None else ""
         if require_send_message and function_name != "send_message" and function_name != "archival_memory_search":
             printd(f"First message function call wasn't send_message or archival_memory_search: {response_message}")
@@ -463,7 +466,14 @@ class Agent(object):
         messages = []  # append these to the history when done
 
         # Step 2: check if LLM wanted to call a function
-        if response_message.get("function_call"):
+        if response_message.get("function_call") or response_message.get("tool_calls"):
+            # TODO handle parallel function calling / move internal represetations to tool_calls from function_call
+            if "tool_calls" in response_message:
+                # Hack to go backwards from tool_calls to function_call representation
+                if len(response_message["tool_calls"]) > 1:
+                    print(f"{CLI_WARNING_PREFIX}multiple tool calls not supported (got {len(response_message['tool_calls'])})")
+                response_message["function_call"] = response_message["tool_calls"][0]["function"]
+
             # The content if then internal monologue, not chat
             self.interface.internal_monologue(response_message.content)
             messages.append(response_message)  # extend conversation with assistant's reply
