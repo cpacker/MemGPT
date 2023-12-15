@@ -1,16 +1,18 @@
 import asyncio
+import os
 from contextlib import asynccontextmanager
 import json
-from typing import Union
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.cors import CORSMiddleware
+from starlette.staticfiles import StaticFiles
+
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.interface import QueuingInterface
-import memgpt.utils as utils
-
 
 """
 Basic REST API sitting on top of the internal MemGPT python server (SyncServer)
@@ -46,8 +48,19 @@ class CoreMemory(BaseModel):
     persona: str | None = None
 
 
-server = None
-interface = None
+class SPAStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        try:
+            return await super().get_response(path, scope)
+        except (HTTPException, StarletteHTTPException) as ex:
+            if ex.status_code == 404:
+                return await super().get_response("index.html", scope)
+            else:
+                raise ex
+
+
+server: SyncServer | None = None
+interface: QueuingInterface | None = None
 
 
 @asynccontextmanager
@@ -61,13 +74,26 @@ async def lifespan(application: FastAPI):
     server = None
 
 
+CORS_ORIGINS = [
+    "http://localhost:4200",
+    "http://localhost:4201",
+    "http://localhost:8283",
+    "http://127.0.0.1:4200",
+    "http://127.0.0.1:4201",
+    "http://127.0.0.1:8283",
+]
+
 app = FastAPI(lifespan=lifespan)
 
-# app = FastAPI()
-# server = SyncServer(default_interface=interface)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-# server.list_agents
 @app.get("/agents")
 def list_agents(user_id: str):
     interface.clear()
@@ -122,7 +148,7 @@ async def user_message(body: UserMessage):
             # Check if server.user_message is an async function
             if asyncio.iscoroutinefunction(server.user_message):
                 # Start the async task
-                asyncio.create_task(server.user_message(user_id=body.user_id, agent_id=body.agent_id, message=body.message))
+                await asyncio.create_task(server.user_message(user_id=body.user_id, agent_id=body.agent_id, message=body.message))
             else:
                 # Run the synchronous function in a thread pool
                 loop = asyncio.get_event_loop()
@@ -162,5 +188,14 @@ def run_command(body: Command):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{e}")
-    response = server.run_command(user_id=body.user_id, agent_id=body.agent_id, command=body.command)
     return {"response": response}
+
+
+app.mount(
+    "/",
+    SPAStaticFiles(
+        directory=os.path.join(os.getcwd(), "..", "static_files"),
+        html=True,
+    ),
+    name="spa-static-files",
+)

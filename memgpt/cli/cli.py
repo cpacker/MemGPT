@@ -374,7 +374,6 @@ def run(
         config.debug = debug
     if no_verify:
         config.no_verify = no_verify
-
     # determine agent to use, if not provided
     if not yes and not agent:
         agents = ms.list_agents(user_id=user.id)
