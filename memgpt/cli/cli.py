@@ -111,7 +111,6 @@ def run(
     model_endpoint_type: str = typer.Option(None, help="Specify the LLM model endpoint type"),
     context_window: int = typer.Option(None, help="The context window of the LLM you are using (e.g. 8k for most Mistral 7B variants)"),
     # other
-    server: bool = typer.Option(False, "--server", help="Start MemGPT as a Web Server"),
     first: bool = typer.Option(False, "--first", help="Use --first to send the first message in the sequence"),
     strip_ui: bool = typer.Option(False, help="Remove all the bells and whistles in CLI output (helpful for testing)"),
     debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
