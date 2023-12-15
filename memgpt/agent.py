@@ -803,7 +803,7 @@ class Agent(object):
                 raise Exception("Finish reason was length (maximum context length)")
 
             # catches for soft errors
-            if response.choices[0].finish_reason not in ["stop", "function_call"]:
+            if response.choices[0].finish_reason not in ["stop", "function_call", "tool_calls"]:
                 raise Exception(f"API call finish with bad finish reason: {response}")
 
             # unpack with response.choices[0].message.content
