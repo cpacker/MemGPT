@@ -6,6 +6,12 @@
 
     **Context Overflow Policy = Stop at limit**: If you see "Context Overflow Policy" inside LM Studio's "Tools" panel on the right side (below "Server Model Settings"), set it to **Stop at limit**. The default setting "Keep the system prompt ... truncate middle" will break MemGPT.
 
+!!! note "Update your LM Studio"
+
+    The current `lmstudio` backend will only work if your LM Studio is version 0.2.9 or newer.
+
+    If you are on a version of LM Studio older than 0.2.9 (<= 0.2.8), select `lmstudio-legacy` as your backend type.
+
 <img width="911" alt="image" src="https://github.com/cpacker/MemGPT/assets/5475622/d499e82e-348c-4468-9ea6-fd15a13eb7fa">
 
 1. Download [LM Studio](https://lmstudio.ai/) and the model you want to test with
