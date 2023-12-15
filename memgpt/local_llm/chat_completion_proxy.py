@@ -120,7 +120,7 @@ def get_chat_completion(
 
     # Run through some manual function correction (optional)
     if function_correction:
-        chat_completion_result = patch_function(chat_completion_result)
+        chat_completion_result = patch_function(message_history=messages, new_message=chat_completion_result)
 
     # Fill in potential missing usage information (used for tracking token use)
     if not ("prompt_tokens" in usage and "completion_tokens" in usage and "total_tokens" in usage):
