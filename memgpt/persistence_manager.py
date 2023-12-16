@@ -5,7 +5,7 @@ from memgpt.memory import (
     DummyRecallMemory,
     EmbeddingArchivalMemory,
 )
-from memgpt.utils import get_local_time, printd, CustomUnpickler
+from memgpt.utils import get_local_time, printd, OpenAIBackcompatUnpickler
 
 
 class PersistenceManager(ABC):
@@ -55,7 +55,7 @@ class LocalStateManager(PersistenceManager):
             # Patch for stripped openai package
             # ModuleNotFoundError: No module named 'openai.openai_object'
             with open(filename, "rb") as f:
-                unpickler = CustomUnpickler(f)
+                unpickler = OpenAIBackcompatUnpickler(f)
                 data = unpickler.load()
             # print(f"Unpickled data:\n{data.keys()}")
 

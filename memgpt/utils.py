@@ -19,75 +19,10 @@ from memgpt.openai_backcompat.openai_object import OpenAIObject
 DEBUG = False
 
 
-# Assuming 'openai.openai_object' is a simple JSON object, create a substitute class
-class OpenAIObjectSubstitute:
-    def __init__(self, data):
-        self.data = data
-
-    def __getattr__(self, name):
-        # Implement any necessary methods or attributes here
-        return self.data.get(name)
-
-
-def openai_object_to_box(*args, **kwargs):
-    # Initialize a Box with default configuration
-    box_obj = Box()
-
-    # Prepare data from args and kwargs
-    data = dict(zip(["id", "api_key", "api_version", "api_type", "organization"], args))
-    data.update(kwargs)
-
-    # Update the Box object with actual data
-    box_obj.update(data)
-
-    print("BOX", box_obj)
-    print("args", args)
-    return box_obj
-
-
-# Custom function to handle openai.openai_object conversion
-def openai_object_to_dict(*args, **kwargs):
-    # Construct a dictionary from args and kwargs
-    data = {}
-    # Assuming the first argument is always the id
-    if args:
-        data["id"] = args[0]
-    data.update(kwargs)
-    return data
-
-
-class BoxSubstitute(Box):
-    def __setstate__(self, state):
-        # Check if '_box_config' is in the state, else initialize it
-        if "_box_config" not in state:
-            state["_box_config"] = Box._box_config_default.copy()
-        super().__setstate__(state)
-
-
-class OpenAIObjectMock:
-    def __init__(self, *args, **kwargs):
-        # Set attributes from args and kwargs
-        for key, value in zip(["id", "api_key", "api_version", "api_type", "organization"], args):
-            setattr(self, key, value)
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-
-    def __getattr__(self, name):
-        # Return None or a default value if the attribute doesn't exist
-        return getattr(self, name, None)
-
-
 # Custom unpickler
-class CustomUnpickler(pickle.Unpickler):
+class OpenAIBackcompatUnpickler(pickle.Unpickler):
     def find_class(self, module, name):
         if module == "openai.openai_object":
-            # return OpenAIObjectSubstitute
-            # return Box
-            # return openai_object_to_box
-            # return BoxSubstitute
-            # return dict
-            # return openai_object_to_dict
-            # return OpenAIObjectMock
             return OpenAIObject
         return super().find_class(module, name)
 
