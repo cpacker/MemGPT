@@ -3,7 +3,6 @@ import json
 import os
 import pickle
 
-from box import Box
 import difflib
 import demjson3 as demjson
 import pytz
