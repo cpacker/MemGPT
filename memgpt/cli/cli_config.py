@@ -14,7 +14,7 @@ from memgpt.connectors.storage import StorageConnector
 from memgpt.constants import LLM_MAX_TOKENS
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
-from memgpt.openai_tools import openai_get_model_list
+from memgpt.openai_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 
 app = typer.Typer()
 
@@ -97,15 +97,18 @@ def configure_llm_endpoint(config: MemGPTConfig):
     return model_endpoint_type, model_endpoint
 
 
-def configure_model(config: MemGPTConfig, model_endpoint_type: str):
+def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoint: str):
     # set: model, model_wrapper
     model, model_wrapper = None, None
     if model_endpoint_type == "openai" or model_endpoint_type == "azure":
         try:
-            model_options = openai_get_model_list(url=config.model_endpoint, api_key=config.openai_key)
+            if model_endpoint_type == "openai":
+                model_options = openai_get_model_list(url=model_endpoint, api_key=config.openai_key)
+            elif model_endpoint_type == "azure":
+                model_options = azure_openai_get_model_list(url=model_endpoint, api_key=config.azure_key, api_version=config.azure_version)
             model_options = [obj["id"] for obj in model_options["data"] if obj["id"].startswith("gpt-")]
         except:
-            print(f"Failed to get model list from {config.model_endpoint}, using defaults")
+            print(f"Failed to get model list from {model_endpoint}, using defaults")
             model_options = ["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
         other_option_str = "other (enter name)"
         valid_model = config.model in model_options
@@ -130,24 +133,51 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str):
             ).ask()
             model = None if len(model) == 0 else model
 
+        default_model = config.model if config.model and config.model_endpoint_type == "vllm" else ""
+
         # vllm needs huggingface model tag
         if model_endpoint_type == "vllm":
-            default_model = config.model if config.model and config.model_endpoint_type == "vllm" else ""
-            model = questionary.text(
-                "Enter HuggingFace model tag (e.g. ehartford/dolphin-2.2.1-mistral-7b):",
-                default=default_model,
-            ).ask()
-            model = None if len(model) == 0 else model
-            model_wrapper = None  # no model wrapper for vLLM
+            try:
+                # Don't filter model list for vLLM since model list is likely much smaller than OpenAI/Azure endpoint
+                # + probably has custom model names
+                model_options = openai_get_model_list(url=smart_urljoin(model_endpoint, "v1"), api_key=None)
+                model_options = [obj["id"] for obj in model_options["data"]]
+            except:
+                print(f"Failed to get model list from {model_endpoint}, using defaults")
+                model_options = None
+
+            # If we got model options from vLLM endpoint, allow selection + custom input
+            if model_options is not None:
+                other_option_str = "other (enter name)"
+                valid_model = config.model in model_options
+                model_options.append(other_option_str)
+                model = questionary.select(
+                    "Select default model:", choices=model_options, default=config.model if valid_model else model_options[0]
+                ).ask()
+
+                # If we got custom input, ask for raw input
+                if model == other_option_str:
+                    model = questionary.text(
+                        "Enter HuggingFace model tag (e.g. ehartford/dolphin-2.2.1-mistral-7b):",
+                        default=default_model,
+                    ).ask()
+                    # TODO allow empty string for input?
+                    model = None if len(model) == 0 else model
+
+            else:
+                model = questionary.text(
+                    "Enter HuggingFace model tag (e.g. ehartford/dolphin-2.2.1-mistral-7b):",
+                    default=default_model,
+                ).ask()
+                model = None if len(model) == 0 else model
 
         # model wrapper
-        if model_endpoint_type != "vllm":
-            available_model_wrappers = builtins.list(get_available_wrappers().keys())
-            model_wrapper = questionary.select(
-                f"Select default model wrapper (recommended: {DEFAULT_WRAPPER_NAME}):",
-                choices=available_model_wrappers,
-                default=DEFAULT_WRAPPER_NAME,
-            ).ask()
+        available_model_wrappers = builtins.list(get_available_wrappers().keys())
+        model_wrapper = questionary.select(
+            f"Select default model wrapper (recommended: {DEFAULT_WRAPPER_NAME}):",
+            choices=available_model_wrappers,
+            default=DEFAULT_WRAPPER_NAME,
+        ).ask()
 
     # set: context_window
     if str(model) not in LLM_MAX_TOKENS:
@@ -307,7 +337,7 @@ def configure():
     # Will pre-populate with defaults, or what the user previously set
     config = MemGPTConfig.load()
     model_endpoint_type, model_endpoint = configure_llm_endpoint(config)
-    model, model_wrapper, context_window = configure_model(config, model_endpoint_type)
+    model, model_wrapper, context_window = configure_model(config, model_endpoint_type, model_endpoint)
     embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = configure_embedding_endpoint(config)
     default_preset, default_persona, default_human, default_agent = configure_cli(config)
     archival_storage_type, archival_storage_uri, archival_storage_path = configure_archival_storage(config)
