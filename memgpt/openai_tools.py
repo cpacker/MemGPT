@@ -77,6 +77,46 @@ def clean_azure_endpoint(raw_endpoint_name):
     return endpoint_address
 
 
+def openai_get_model_list(url: str, api_key: str) -> dict:
+    """https://platform.openai.com/docs/api-reference/models/list"""
+    from memgpt.utils import printd
+
+    url = smart_urljoin(url, "models")
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+
+    printd(f"Sending request to {url}")
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
+        response = response.json()  # convert to dict from string
+        printd(f"response = {response}")
+        return response
+    except requests.exceptions.HTTPError as http_err:
+        # Handle HTTP errors (e.g., response 4XX, 5XX)
+        try:
+            response = response.json()
+        except:
+            pass
+        printd(f"Got HTTPError, exception={http_err}, response={response}")
+        raise http_err
+    except requests.exceptions.RequestException as req_err:
+        # Handle other requests-related errors (e.g., connection error)
+        try:
+            response = response.json()
+        except:
+            pass
+        printd(f"Got RequestException, exception={req_err}, response={response}")
+        raise req_err
+    except Exception as e:
+        # Handle other potential errors
+        try:
+            response = response.json()
+        except:
+            pass
+        printd(f"Got unknown Exception, exception={e}, response={response}")
+        raise e
+
+
 def openai_chat_completions_request(url, api_key, data):
     """https://platform.openai.com/docs/guides/text-generation?lang=curl"""
     from memgpt.utils import printd

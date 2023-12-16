@@ -14,6 +14,7 @@ from memgpt.connectors.storage import StorageConnector
 from memgpt.constants import LLM_MAX_TOKENS
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
+from memgpt.openai_tools import openai_get_model_list
 
 app = typer.Typer()
 
@@ -100,10 +101,15 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str):
     # set: model, model_wrapper
     model, model_wrapper = None, None
     if model_endpoint_type == "openai" or model_endpoint_type == "azure":
-        model_options = ["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
+        try:
+            model_options = openai_get_model_list(url=config.model_endpoint, api_key=config.openai_key)
+            model_options = [obj["id"] for obj in model_options["data"] if obj["id"].startswith("gpt-")]
+        except:
+            print(f"Failed to get model list from {config.model_endpoint}, using defaults")
+            model_options = ["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
         other_option_str = "other (enter name)"
-        model_options.append(other_option_str)
         valid_model = config.model in model_options
+        model_options.append(other_option_str)
         model = questionary.select(
             "Select default model (recommended: gpt-4):", choices=model_options, default=config.model if valid_model else model_options[0]
         ).ask()
