@@ -6,7 +6,7 @@ from memgpt.memory import (
     BaseRecallMemory,
     EmbeddingArchivalMemory,
 )
-from memgpt.utils import get_local_time, printd
+from memgpt.utils import get_local_time, printd, OpenAIBackcompatUnpickler
 from memgpt.data_types import Message
 from memgpt.config import MemGPTConfig
 

@@ -1,17 +1,30 @@
 from datetime import datetime
 import re
+import json
+import os
+import pickle
+
 import difflib
 import demjson3 as demjson
-import json
 import pytz
-import os
 import tiktoken
+
 import memgpt
 from memgpt.constants import MEMGPT_DIR, FUNCTION_RETURN_CHAR_LIMIT, CLI_WARNING_PREFIX
+
+from memgpt.openai_backcompat.openai_object import OpenAIObject
 
 # TODO: what is this?
 # DEBUG = True
 DEBUG = False
+
+
+# Custom unpickler
+class OpenAIBackcompatUnpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        if module == "openai.openai_object":
+            return OpenAIObject
+        return super().find_class(module, name)
 
 
 def count_tokens(s: str, model: str = "gpt-4") -> int:
