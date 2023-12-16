@@ -692,7 +692,7 @@ graph = ["objgraph (>=1.7.2)"]
 name = "diskcache"
 version = "5.6.3"
 description = "Disk Cache -- Disk and file backed persistent cache."
-optional = false
+optional = true
 python-versions = ">=3"
 files = [
     {file = "diskcache-5.6.3-py3-none-any.whl", hash = "sha256:5e31b2d5fbad117cc363ebaf6b689474db18a1f6438bc82358b024abd4c2ca19"},
@@ -730,6 +730,16 @@ python-versions = ">=3.6,<4.0"
 files = [
     {file = "docstring_parser-0.15-py3-none-any.whl", hash = "sha256:d1679b86250d269d06a99670924d6bce45adc00b08069dae8c47d98e89b667a9"},
     {file = "docstring_parser-0.15.tar.gz", hash = "sha256:48ddc093e8b1865899956fcc03b03e66bb7240c310fac5af81814580c55bf682"},
+]
+
+[[package]]
+name = "docx2txt"
+version = "0.8"
+description = "A pure python-based utility to extract text and images from docx files."
+optional = false
+python-versions = "*"
+files = [
+    {file = "docx2txt-0.8.tar.gz", hash = "sha256:2c06d98d7cfe2d3947e5760a57d924e3ff07745b379c8737723922e7009236e5"},
 ]
 
 [[package]]
@@ -786,7 +796,7 @@ typing = ["typing-extensions (>=4.8)"]
 name = "flaml"
 version = "2.1.1"
 description = "A fast library for automated machine learning and tuning"
-optional = false
+optional = true
 python-versions = ">=3.6"
 files = [
     {file = "FLAML-2.1.1-py3-none-any.whl", hash = "sha256:ba34f1a06f3cbc6bb23a2ea4830a264375f6bba497f402122a73e42647a15535"},
@@ -1125,6 +1135,17 @@ python-versions = ">=3.7"
 files = [
     {file = "h11-0.14.0-py3-none-any.whl", hash = "sha256:e3fe4ac4b851c468cc8363d500db52c2ead036020723024a109d37346efaa761"},
     {file = "h11-0.14.0.tar.gz", hash = "sha256:8f19fbbe99e72420ff35c00b27a34cb9937e902a8b810e2c88300c6f0a3b699d"},
+]
+
+[[package]]
+name = "html2text"
+version = "2020.1.16"
+description = "Turn HTML into equivalent Markdown-structured text."
+optional = false
+python-versions = ">=3.5"
+files = [
+    {file = "html2text-2020.1.16-py3-none-any.whl", hash = "sha256:c7c629882da0cf377d66f073329ccf34a12ed2adf0169b9285ae4e63ef54c82b"},
+    {file = "html2text-2020.1.16.tar.gz", hash = "sha256:e296318e16b059ddb97f7a8a1d6a5c1d7af4544049a01e261731d2d5cc277bbb"},
 ]
 
 [[package]]
@@ -2889,7 +2910,7 @@ pyasn1 = ">=0.4.6,<0.6.0"
 name = "pyautogen"
 version = "0.2.0"
 description = "Enabling Next-Gen LLM Applications via Multi-Agent Conversation Framework"
-optional = false
+optional = true
 python-versions = ">=3.8, <3.12"
 files = [
     {file = "pyautogen-0.2.0-py3-none-any.whl", hash = "sha256:d7bf4d239f85152e191026d8173f649e256c431cf31b93ca3629cd2f0c525a46"},
@@ -3851,7 +3872,7 @@ doc = ["reno", "sphinx", "tornado (>=4.5)"]
 name = "termcolor"
 version = "2.4.0"
 description = "ANSI color formatting for output in terminal"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "termcolor-2.4.0-py3-none-any.whl", hash = "sha256:9297c0df9c99445c2412e832e882a7884038a25617c60cea2ad69488d4040d63"},
@@ -4883,6 +4904,7 @@ docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.link
 testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-ignore-flaky", "pytest-mypy (>=0.9.1)", "pytest-ruff"]
 
 [extras]
+autogen = ["pyautogen"]
 dev = ["black", "datasets", "pre-commit", "pytest", "pytest-asyncio"]
 local = ["huggingface-hub", "torch", "transformers"]
 postgres = ["pg8000", "pgvector", "psycopg", "psycopg-binary", "psycopg2-binary"]
@@ -4891,4 +4913,4 @@ server = ["fastapi", "uvicorn", "websockets"]
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.12,>=3.9"
-content-hash = "7f42967b71364246aa9c4ed604d71d43a31843a6d3113d8d08d9816b5cf39106"
+content-hash = "12010863b2b9c1e26dceace00ea4e1ea7cc95932ab77b1ef37a5473c2e375575"
