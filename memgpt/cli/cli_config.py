@@ -101,11 +101,19 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str):
     model, model_wrapper = None, None
     if model_endpoint_type == "openai" or model_endpoint_type == "azure":
         model_options = ["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
-        # TODO: select
+        other_option_str = "other (enter name)"
+        model_options.append(other_option_str)
         valid_model = config.model in model_options
         model = questionary.select(
             "Select default model (recommended: gpt-4):", choices=model_options, default=config.model if valid_model else model_options[0]
         ).ask()
+        if model == other_option_str:
+            model = questionary.text(
+                "Enter custom model name:",
+            ).ask()
+            # TODO allow empty string for input?
+            model = None if len(model) == 0 else model
+
     else:  # local models
         # ollama also needs model type
         if model_endpoint_type == "ollama":
