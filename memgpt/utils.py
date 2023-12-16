@@ -28,7 +28,7 @@ def open_folder_in_explorer(folder_path):
     :param folder_path: Absolute path to the folder to be opened.
     """
     if not os.path.exists(folder_path):
-        raise ValueError("The specified folder does not exist.")
+        raise ValueError(f"The specified folder {folder_path} does not exist.")
 
     # Determine the operating system
     os_name = platform.system()
