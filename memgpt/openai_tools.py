@@ -87,7 +87,7 @@ def openai_get_model_list(url: str, api_key: Union[str, None]) -> dict:
     if api_key is not None:
         headers["Authorization"] = f"Bearer {api_key}"
 
-    print(f"Sending request to {url}")
+    printd(f"Sending request to {url}")
     try:
         response = requests.get(url, headers=headers)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
@@ -132,7 +132,7 @@ def azure_openai_get_model_list(url: str, api_key: Union[str, None], api_version
     if api_key is not None:
         headers["api-key"] = f"{api_key}"
 
-    print(f"Sending request to {url}")
+    printd(f"Sending request to {url}")
     try:
         response = requests.get(url, headers=headers)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
