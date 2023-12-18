@@ -10,7 +10,8 @@ const messageSchema = z.object({
   ]),
   message_type: z.enum([
     'internal_monologue',
-    'function_message',
+    'function_call',
+    'function_return',
     'assistant_message',
     'user_message',
   ]).optional(),

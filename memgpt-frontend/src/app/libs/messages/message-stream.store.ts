@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { combine } from 'zustand/middleware';
 import { Message } from './message';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
+import { API_BASE_URL } from '../constants';
 
 export const enum ReadyState {
   IDLE,
@@ -9,7 +10,7 @@ export const enum ReadyState {
   ERROR,
 }
 
-const ENDPOINT_URL = 'http://localhost:8283/agents/message';
+const ENDPOINT_URL = API_BASE_URL + '/agents/message';
 
 const useMessageStreamStore = create(combine({
     socket: null as EventSource | null,
@@ -60,6 +61,18 @@ const useMessageStreamStore = create(combine({
                 type: 'agent_response',
                 message_type: 'assistant_message',
                 message: parsedData['assistant_message'],
+              })
+            } else if (parsedData['function_call'] != null) {
+              onMessageCallback({
+                type: 'agent_response',
+                message_type: 'function_call',
+                message: parsedData['function_call'],
+              })
+            } else if (parsedData['function_return'] != null) {
+              onMessageCallback({
+                type: 'agent_response',
+                message_type: 'function_return',
+                message: parsedData['function_return'],
               })
             }
             onSuccessCb();
