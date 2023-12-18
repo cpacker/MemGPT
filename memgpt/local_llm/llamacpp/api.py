@@ -2,21 +2,23 @@ import os
 from urllib.parse import urljoin
 import requests
 
-from .settings import SIMPLE
-from ..utils import load_grammar_file, count_tokens
+from memgpt.local_llm.settings.settings import get_completions_settings
+from memgpt.local_llm.utils import count_tokens, load_grammar_file
+
 
 LLAMACPP_API_SUFFIX = "/completion"
-DEBUG = False
-# DEBUG = True
 
 
-def get_llamacpp_completion(endpoint, prompt, context_window, grammar=None, settings=SIMPLE):
+def get_llamacpp_completion(endpoint, prompt, context_window, grammar=None):
     """See https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md for instructions on how to run the LLM web server"""
+    from memgpt.utils import printd
+
     prompt_tokens = count_tokens(prompt)
     if prompt_tokens > context_window:
         raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_window} tokens)")
 
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
+    settings = get_completions_settings()
     request = settings
     request["prompt"] = prompt
 
@@ -33,10 +35,9 @@ def get_llamacpp_completion(endpoint, prompt, context_window, grammar=None, sett
         URI = urljoin(endpoint.strip("/") + "/", LLAMACPP_API_SUFFIX.strip("/"))
         response = requests.post(URI, json=request)
         if response.status_code == 200:
-            result = response.json()
-            result = result["content"]
-            if DEBUG:
-                print(f"json API response.text: {result}")
+            result_full = response.json()
+            printd(f"JSON API response:\n{result_full}")
+            result = result_full["content"]
         else:
             raise Exception(
                 f"API call got non-200 response code (code={response.status_code}, msg={response.text}) for address: {URI}."
@@ -47,4 +48,14 @@ def get_llamacpp_completion(endpoint, prompt, context_window, grammar=None, sett
         # TODO handle gracefully
         raise
 
-    return result
+    # Pass usage statistics back to main thread
+    # These are used to compute memory warning messages
+    completion_tokens = result_full.get("tokens_predicted", None)
+    total_tokens = prompt_tokens + completion_tokens if completion_tokens is not None else None
+    usage = {
+        "prompt_tokens": prompt_tokens,  # can grab from "tokens_evaluated", but it's usually wrong (set to 0)
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+    }
+
+    return result, usage

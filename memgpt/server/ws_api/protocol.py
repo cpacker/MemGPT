@@ -80,12 +80,12 @@ def server_agent_function_message(msg):
 # Client -> server
 
 
-def client_user_message(msg, agent_name=None):
+def client_user_message(msg, agent_id=None):
     return json.dumps(
         {
             "type": "user_message",
             "message": msg,
-            "agent_name": agent_name,
+            "agent_id": agent_id,
         }
     )
 
@@ -96,15 +96,5 @@ def client_command_create(config):
             "type": "command",
             "command": "create_agent",
             "config": config,
-        }
-    )
-
-
-def client_command_load(agent_name):
-    return json.dumps(
-        {
-            "type": "command",
-            "command": "load_agent",
-            "name": agent_name,
         }
     )

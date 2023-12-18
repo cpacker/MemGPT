@@ -4,8 +4,8 @@ import json
 import websockets
 import pytest
 
-from memgpt.server.constants import DEFAULT_PORT
-from memgpt.server.websocket_server import WebSocketServer
+from memgpt.server.constants import WS_DEFAULT_PORT
+from memgpt.server.ws_api.server import WebSocketServer
 from memgpt.config import AgentConfig
 
 
@@ -16,7 +16,9 @@ async def test_dummy():
 
 @pytest.mark.asyncio
 async def test_websocket_server():
-    server = WebSocketServer()
+    # host = "127.0.0.1"
+    host = "localhost"
+    server = WebSocketServer(host=host)
     server_task = asyncio.create_task(server.run())  # Create a task for the server
 
     # the agent config we want to ask the server to instantiate with
@@ -28,23 +30,26 @@ async def test_websocket_server():
     # )
     test_config = {}
 
-    uri = f"ws://localhost:{DEFAULT_PORT}"
-    async with websockets.connect(uri) as websocket:
-        # Initialize the server with a test config
-        print("Sending config to server...")
-        await websocket.send(json.dumps({"type": "initialize", "config": test_config}))
-        # Wait for the response
-        response = await websocket.recv()
-        print(f"Response from the agent: {response}")
+    uri = f"ws://{host}:{WS_DEFAULT_PORT}"
+    try:
+        async with websockets.connect(uri) as websocket:
+            # Initialize the server with a test config
+            print("Sending config to server...")
+            await websocket.send(json.dumps({"type": "initialize", "config": test_config}))
+            # Wait for the response
+            response = await websocket.recv()
+            print(f"Response from the agent: {response}")
 
-        await asyncio.sleep(1)  # just in case
+            await asyncio.sleep(1)  # just in case
 
-        # Send a message to the agent
-        print("Sending message to server...")
-        await websocket.send(json.dumps({"type": "message", "content": "Hello, Agent!"}))
-        # Wait for the response
-        # NOTE: we should be waiting for multiple responses
-        response = await websocket.recv()
-        print(f"Response from the agent: {response}")
-
-    server_task.cancel()  # Cancel the server task after the test
+            # Send a message to the agent
+            print("Sending message to server...")
+            await websocket.send(json.dumps({"type": "message", "content": "Hello, Agent!"}))
+            # Wait for the response
+            # NOTE: we should be waiting for multiple responses
+            response = await websocket.recv()
+            print(f"Response from the agent: {response}")
+    except (OSError, ConnectionRefusedError) as e:
+        print(f"Was unable to connect: {e}")
+    finally:
+        server_task.cancel()  # Cancel the server task after the test

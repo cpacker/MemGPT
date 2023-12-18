@@ -8,7 +8,7 @@
 
     The MemGPT+AutoGen integration was last tested using AutoGen version v0.2.0.
     
-    If you are having issues, please first try installing the specific version of AutoGen using `pip install pyautogen==0.2.0`
+    If you are having issues, please first try installing the specific version of AutoGen using `pip install pyautogen==0.2.0` (or `poetry install -E autogen` if you are using Poetry).
 
 ## Overview
 

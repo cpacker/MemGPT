@@ -2,16 +2,19 @@ import os
 from urllib.parse import urljoin
 import requests
 
-from .settings import SIMPLE
-from ..utils import count_tokens
-from ...errors import LocalLLMError
+
+from memgpt.local_llm.settings.settings import get_completions_settings
+from memgpt.utils import count_tokens
+from memgpt.errors import LocalLLMError
+
 
 OLLAMA_API_SUFFIX = "/api/generate"
-DEBUG = False
 
 
-def get_ollama_completion(endpoint, model, prompt, context_window, settings=SIMPLE, grammar=None):
+def get_ollama_completion(endpoint, model, prompt, context_window, grammar=None):
     """See https://github.com/jmorganca/ollama/blob/main/docs/api.md for instructions on how to run the LLM web server"""
+    from memgpt.utils import printd
+
     prompt_tokens = count_tokens(prompt)
     if prompt_tokens > context_window:
         raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_window} tokens)")
@@ -22,10 +25,30 @@ def get_ollama_completion(endpoint, model, prompt, context_window, settings=SIMP
         )
 
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
-    request = settings
-    request["prompt"] = prompt
-    request["model"] = model
-    request["options"]["num_ctx"] = context_window
+    # https://github.com/jmorganca/ollama/blob/main/docs/modelfile.md#valid-parameters-and-values
+    settings = get_completions_settings()
+    settings.update(
+        {
+            # specific naming for context length
+            "num_ctx": context_window,
+        }
+    )
+
+    # https://github.com/jmorganca/ollama/blob/main/docs/api.md#generate-a-completion
+    request = {
+        ## base parameters
+        "model": model,
+        "prompt": prompt,
+        # "images": [],  # TODO eventually support
+        ## advanced parameters
+        # "format": "json",  # TODO eventually support
+        "stream": False,
+        "options": settings,
+        "system": "",  # no prompt formatting
+        "template": "{{ .Prompt }}",  # no prompt formatting
+        "raw": True,  # no prompt formatting
+        "context": None,  # no memory via prompt formatting
+    }
 
     # Set grammar
     if grammar is not None:
@@ -39,10 +62,10 @@ def get_ollama_completion(endpoint, model, prompt, context_window, settings=SIMP
         URI = urljoin(endpoint.strip("/") + "/", OLLAMA_API_SUFFIX.strip("/"))
         response = requests.post(URI, json=request)
         if response.status_code == 200:
-            result = response.json()
-            result = result["response"]
-            if DEBUG:
-                print(f"json API response.text: {result}")
+            # https://github.com/jmorganca/ollama/blob/main/docs/api.md
+            result_full = response.json()
+            printd(f"JSON API response:\n{result_full}")
+            result = result_full["response"]
         else:
             raise Exception(
                 f"API call got non-200 response code (code={response.status_code}, msg={response.text}) for address: {URI}."
@@ -53,4 +76,15 @@ def get_ollama_completion(endpoint, model, prompt, context_window, settings=SIMP
         # TODO handle gracefully
         raise
 
-    return result
+    # Pass usage statistics back to main thread
+    # These are used to compute memory warning messages
+    # https://github.com/jmorganca/ollama/blob/main/docs/api.md#response
+    completion_tokens = result_full.get("eval_count", None)
+    total_tokens = prompt_tokens + completion_tokens if completion_tokens is not None else None
+    usage = {
+        "prompt_tokens": prompt_tokens,  # can also grab from "prompt_eval_count"
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+    }
+
+    return result, usage

@@ -3,7 +3,7 @@ import threading
 
 
 from memgpt.interface import AgentInterface
-import memgpt.server.websocket_protocol as protocol
+import memgpt.server.ws_api.protocol as protocol
 
 
 class BaseWebSocketInterface(AgentInterface):
@@ -19,6 +19,9 @@ class BaseWebSocketInterface(AgentInterface):
     def unregister_client(self, websocket):
         """Unregister a client connection"""
         self.clients.remove(websocket)
+
+    def step_yield(self):
+        pass
 
 
 class AsyncWebSocketInterface(BaseWebSocketInterface):
