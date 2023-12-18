@@ -38,35 +38,16 @@ def server(
     """Launch a MemGPT server process"""
 
     if type == ServerChoice.rest_api:
-        if port is None:
-            port = REST_DEFAULT_PORT
-
-        # Change to the desired directory
-        script_path = Path(__file__).resolve()
-        script_dir = script_path.parent
-
-        server_directory = os.path.join(script_dir.parent, "server", "rest_api")
-        if host is None:
-            command = f"uvicorn server:app --reload --port {port}"
-        else:
-            command = f"uvicorn server:app --reload --port {port} --host {host}"
-
-        # Run the command
-        print(f"Running REST server: {command} (inside {server_directory})")
+        import uvicorn
+        from memgpt.server.rest_api.server import app
 
         try:
             # Start the subprocess in a new session
-            process = subprocess.Popen(command, shell=True, start_new_session=True, cwd=server_directory)
-            process.wait()
+            uvicorn.run(app, host=host or "localhost", port=port or REST_DEFAULT_PORT)
+
         except KeyboardInterrupt:
             # Handle CTRL-C
             print("Terminating the server...")
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                print("Server terminated with kill()")
             sys.exit(0)
 
     elif type == ServerChoice.ws_api:
