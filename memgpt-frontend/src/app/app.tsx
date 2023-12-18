@@ -9,7 +9,7 @@ import { useCurrentAgent } from './libs/agents/agent.store';
 import { useMessageHistoryActions } from './libs/messages/message-history.store';
 import { Message } from './libs/messages/message';
 import { useNextMessageLoadingActions } from './libs/messages/next-message-loading.store';
-import { useAgentMemoryQuery } from './libs/agents/use-agent-memory.query';
+import { ThemeProvider } from './shared/theme';
 
 const queryClient = new QueryClient();
 
@@ -38,9 +38,11 @@ export function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <ThemeProvider>
+        <RouterProvider router={router} />
+        <Toaster />
+      </ThemeProvider>
       <ReactQueryDevtools initialIsOpen={false} />
-      <Toaster />
     </QueryClientProvider>
   );
 }
