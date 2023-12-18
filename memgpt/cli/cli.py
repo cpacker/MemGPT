@@ -1,6 +1,5 @@
 import typer
 import json
-import requests
 import sys
 import io
 import logging
@@ -24,34 +23,6 @@ from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
 from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
-
-
-class QuickstartChoice(Enum):
-    # openai = "openai"
-    # azure = "azure"
-    memgpt_hosted = "memgpt"
-
-
-def quickstart(
-    type: QuickstartChoice = typer.Option("memgpt", help="Quickstart setup type"),
-):
-    """Set the base config file with a single command"""
-    if type == QuickstartChoice.memgpt_hosted:
-        # Download the latest memgpt hosted config
-        url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/configs/memgpt_hosted.json"
-        response = requests.get(url)
-
-        # Check if the request was successful
-        if response.status_code == 200:
-            # Parse the response content as JSON
-            config = response.json()
-            # Output a success message and the first few items in the dictionary as a sample
-            print("JSON file downloaded and loaded into a dictionary successfully.")
-        else:
-            print(f"Failed to download config from {url}. Status code:", response.status_code)
-
-    else:
-        raise NotImplementedError(type)
 
 
 def open_folder():
