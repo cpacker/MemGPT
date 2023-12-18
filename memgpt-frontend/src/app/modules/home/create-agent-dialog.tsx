@@ -4,6 +4,7 @@ import { Label } from '@memgpt/components/label';
 import { Input } from '@memgpt/components/input';
 import { Button } from '@memgpt/components/button';
 import { useAgentsCreateMutation } from '../../libs/agents/use-agents.mutation';
+import { Loader2 } from 'lucide-react';
 
 const CreateAgentDialog = (props: {open: boolean, onOpenChange: (open: boolean) => void}) => {
   const createAgent = useAgentsCreateMutation();
@@ -22,7 +23,9 @@ const CreateAgentDialog = (props: {open: boolean, onOpenChange: (open: boolean) 
                 human: `${formData.get('human')}`,
                 persona: `${formData.get('persona')}`,
                 model: `${formData.get('model')}`,
-              }
+              },
+            }, {
+              onSuccess: () => props.onOpenChange(false)
             })
           }}
         >
@@ -79,7 +82,9 @@ const CreateAgentDialog = (props: {open: boolean, onOpenChange: (open: boolean) 
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit">Create Agent</Button>
+            <Button type="submit" disabled={createAgent.isPending}>
+              {createAgent.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : undefined}
+              {createAgent.isPending ? 'Creating Agent' : 'Create Agent'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
