@@ -2,13 +2,13 @@ import os
 from urllib.parse import urljoin
 import requests
 
-from .legacy_settings import SIMPLE
-from ..utils import load_grammar_file, count_tokens
+from memgpt.local_llm.settings.settings import get_completions_settings
+from memgpt.local_llm.utils import load_grammar_file, count_tokens
 
 WEBUI_API_SUFFIX = "/api/v1/generate"
 
 
-def get_webui_completion(endpoint, prompt, context_window, settings=SIMPLE, grammar=None):
+def get_webui_completion(endpoint, prompt, context_window, grammar=None):
     """See https://github.com/oobabooga/text-generation-webui for instructions on how to run the LLM web server"""
     from memgpt.utils import printd
 
@@ -17,7 +17,10 @@ def get_webui_completion(endpoint, prompt, context_window, settings=SIMPLE, gram
         raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_window} tokens)")
 
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
+    settings = get_completions_settings()
     request = settings
+    request["stopping_strings"] = request["stop"]  # alias
+    request["max_new_tokens"] = 3072  # random hack?
     request["prompt"] = prompt
     request["truncation_length"] = context_window  # assuming mistral 7b
 
