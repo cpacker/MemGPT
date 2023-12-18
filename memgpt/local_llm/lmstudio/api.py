@@ -10,7 +10,6 @@ LMSTUDIO_API_CHAT_SUFFIX = "/v1/chat/completions"
 LMSTUDIO_API_COMPLETIONS_SUFFIX = "/v1/completions"
 
 
-# TODO move to "completions" by default, not "chat"
 def get_lmstudio_completion(endpoint, prompt, context_window, api="completions"):
     """Based on the example for using LM Studio as a backend from https://github.com/lmstudio-ai/examples/tree/main/Hello%2C%20world%20-%20OpenAI%20python%20client"""
     from memgpt.utils import printd
