@@ -22,8 +22,11 @@ const useMessageStreamStore = create(combine({
     actions: {
       setAgentParam: (agentParam: string) => set(state => ({ ...state, agentParam })),
       sendMessage: (message: string) => {
+        set(state => ({ ...state, readyState: ReadyState.LOADING }))
+
         const agent_id = get().agentParam;
         const onMessageCallback = get().onMessageCallback;
+        const onCloseCb = () => set(state => ({ ...state, readyState: ReadyState.IDLE }));
         const onSuccessCb = () => set(state => ({ ...state, readyState: ReadyState.IDLE }))
         const onOpenCb = () => set(state => ({ ...state, readyState: ReadyState.LOADING }))
         const errorCb = () => set(state => ({ ...state, readyState: ReadyState.ERROR }))
@@ -62,6 +65,7 @@ const useMessageStreamStore = create(combine({
                 message_type: 'assistant_message',
                 message: parsedData['assistant_message'],
               })
+              onSuccessCb();
             } else if (parsedData['function_call'] != null) {
               onMessageCallback({
                 type: 'agent_response',
@@ -75,10 +79,10 @@ const useMessageStreamStore = create(combine({
                 message: parsedData['function_return'],
               })
             }
-            onSuccessCb();
           },
           onclose() {
             console.log('Connection closed by the server');
+            onCloseCb();
           },
           onerror(err) {
             console.log('There was an error from server', err);

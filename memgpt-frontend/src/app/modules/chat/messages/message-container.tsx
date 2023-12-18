@@ -1,15 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import MessageContainerLayout from './message-container-layout';
-import StatusIndicator from './status-indicator';
 import ThinkingIndicator from './thinking-indicator';
 import { Message } from '../../../libs/messages/message';
 import { ReadyState } from '../../../libs/messages/message-stream.store';
 import { pickMessageElement } from './message/pick-message-element';
 import SelectAgentForm from './select-agent-form';
 
-const MessageContainer = ({ agentSet, isThinking, messages, readyState }: {
+const MessageContainer = ({ agentSet, messages, readyState }: {
   agentSet: boolean;
-  isThinking: boolean;
   messages: Message[];
   readyState: ReadyState
 }) => {
@@ -22,10 +20,10 @@ const MessageContainer = ({ agentSet, isThinking, messages, readyState }: {
     </MessageContainerLayout>;
   }
 
-  return <MessageContainerLayout><StatusIndicator readyState={readyState} />
+  return <MessageContainerLayout>
     <div className='flex flex-col flex-1 px-4 py-6 space-y-4' ref={messageBox}>
       {messages.map((message, i) => pickMessageElement(message, i))}
-      {isThinking ? <ThinkingIndicator className='py-3 px-3 flex items-center' /> : undefined}
+      {readyState === ReadyState.LOADING ? <ThinkingIndicator className='py-3 px-3 flex items-center' /> : undefined}
     </div>
   </MessageContainerLayout>;
 };
