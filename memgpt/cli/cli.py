@@ -32,13 +32,41 @@ class QuickstartChoice(Enum):
     memgpt_hosted = "memgpt"
 
 
+def set_config_with_dict(new_config: dict):
+    """Set the base config using a dict"""
+    from memgpt.utils import printd
+
+    old_config = MemGPTConfig.load()
+    modified = False
+    for k, v in vars(old_config).items():
+        if k in new_config:
+            if v != new_config[k]:
+                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
+                modified = True
+                # old_config[k] = new_config[k]
+                setattr(old_config, k, v)  # Set the new value using dot notation
+            else:
+                printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+
+    if modified:
+        old_config.save()
+
+
 def quickstart(
     type: QuickstartChoice = typer.Option("memgpt", help="Quickstart setup type"),
+    debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
 ):
     """Set the base config file with a single command"""
+    # setup logger
+    utils.DEBUG = debug
+    logging.getLogger().setLevel(logging.CRITICAL)
+    if debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+
     if type == QuickstartChoice.memgpt_hosted:
         # Download the latest memgpt hosted config
-        url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/configs/memgpt_hosted.json"
+        # url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/configs/memgpt_hosted.json"
+        url = "https://raw.githubusercontent.com/cpacker/MemGPT/quickstart-command/configs/memgpt_hosted.json"
         response = requests.get(url)
 
         # Check if the request was successful
@@ -46,7 +74,8 @@ def quickstart(
             # Parse the response content as JSON
             config = response.json()
             # Output a success message and the first few items in the dictionary as a sample
-            print("JSON file downloaded and loaded into a dictionary successfully.")
+            print("JSON config file downloaded successfully.")
+            set_config_with_dict(config)
         else:
             print(f"Failed to download config from {url}. Status code:", response.status_code)
 
