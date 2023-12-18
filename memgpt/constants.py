@@ -6,6 +6,8 @@ DEFAULT_MEMGPT_MODEL = "gpt-4"
 DEFAULT_PERSONA = "sam_pov"
 DEFAULT_HUMAN = "basic"
 
+LOGGER_NAME = "MemGPT"
+
 FIRST_MESSAGE_ATTEMPTS = 10
 
 INITIAL_BOOT_MESSAGE = "Boot sequence complete. Persona activated."

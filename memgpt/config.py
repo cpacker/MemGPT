@@ -1,3 +1,6 @@
+import logging
+import logging.config
+from memgpt.memgptlog import logger,reload_logger
 import inspect
 import json
 import os
@@ -7,8 +10,10 @@ import configparser
 
 import memgpt
 import memgpt.utils as utils
-from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS, DEFAULT_HUMAN, DEFAULT_PERSONA
+from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS, DEFAULT_HUMAN, DEFAULT_PERSONA, LOGGER_NAME
 from memgpt.presets.presets import DEFAULT_PRESET
+
+
 
 
 # helper functions for writing to configs
@@ -84,6 +89,14 @@ class MemGPTConfig:
     # version (for backcompat)
     memgpt_version: str = None
 
+    # logging (for logger)
+    logging_level: str = "CRITICAL"  # default log level
+    logging_enable_logfile: bool = True
+    logging_backup_count: int = 3
+    logging_max_file_bytes: int = 10 * 1024 * 1024  # 10 MB in bytes
+    logging_logdir: str = os.path.join(MEMGPT_DIR, "logs")
+    logging_logpathname: str = os.path.join(logging_logdir, "memgpt.log")
+
     def __post_init__(self):
         # ensure types
         self.embedding_chunk_size = int(self.embedding_chunk_size)
@@ -104,6 +117,8 @@ class MemGPTConfig:
         else:
             config_path = MemGPTConfig.config_path
 
+        # insure all configuration directories exist
+        cls.create_config_dir()
         if os.path.exists(config_path):
             # read existing config
             config.read(config_path)
@@ -134,14 +149,44 @@ class MemGPTConfig:
                 "anon_clientid": get_field(config, "client", "anon_clientid"),
                 "config_path": config_path,
                 "memgpt_version": get_field(config, "version", "memgpt_version"),
+                "logging_level": get_field(config, "logger_MemGPT", "level"),
+                "logging_enable_logfile": True if "consoleHandler,logfileHandler" == get_field(config, "logger_MemGPT",
+                                                                                               "handlers") else False,
+                "logging_backup_count": get_field(config, "handler_logfileHandler", "backupcount"),
+                "logging_max_file_bytes": get_field(config, "handler_logfileHandler", "maxBytes"),
+                "logging_logdir": get_field(config, "logging_paths", "logdir"),
+                "logging_logpathname": get_field(config, "logging_paths", "logpathname"),
             }
+            # ensure logging is config is set correctly support for upgrades
+            force_save = False
+            if config_dict["logging_level"] is None or config_dict["logging_backup_count"] is None or config_dict[
+                "logging_max_file_bytes"] is None or config_dict["logging_logdir"] is None or config_dict[
+                "logging_logpathname"] is None:
+                # load loggind defaults if none
+                config_dict["logging_enable_logfile"] = MemGPTConfig.logging_enable_logfile
+                config_dict["logging_level"] = MemGPTConfig.logging_level
+                config_dict["logging_backup_count"] = MemGPTConfig.logging_backup_count
+                config_dict["logging_max_file_bytes"] = MemGPTConfig.logging_max_file_bytes
+                config_dict["logging_logdir"] = MemGPTConfig.logging_logdir
+                config_dict["logging_logpathname"] = MemGPTConfig.logging_logpathname
+                force_save = True
             config_dict = {k: v for k, v in config_dict.items() if v is not None}
+
+            if force_save:
+                temp_config = cls(**config_dict)
+                temp_config.save()
+                logger = logging.getLogger(LOGGER_NAME)
+                logger.debug(f'Updated Missing Logging Configuration: {config_path}')
+
             return cls(**config_dict)
 
         # create new config
         anon_clientid = MemGPTConfig.generate_uuid()
         config = cls(anon_clientid=anon_clientid, config_path=config_path)
+        config.create_config_dir()  # create dirs
         config.save()  # save updated config
+        logger = logging.getLogger(LOGGER_NAME)
+        logger.debug(f'Created New Configuration: {config_path}')
         return config
 
     def save(self):
@@ -192,10 +237,54 @@ class MemGPTConfig:
             self.anon_clientid = self.generate_uuid()
         set_field(config, "client", "anon_clientid", self.anon_clientid)
 
-        if not os.path.exists(MEMGPT_DIR):
-            os.makedirs(MEMGPT_DIR, exist_ok=True)
+        # logging
+        set_field(config, "loggers", "keys", "root,MemGPT")
+        set_field(config, "handlers", "keys", "consoleHandler,logfileHandler")
+        set_field(config, "formatters", "keys", "consoleFormatter,logfileFormatter")
+        # logging root possibly used by other modules not using MemGPT logger
+        set_field(config, "logger_root", "level", "CRITICAL")
+        set_field(config, "logger_root", "handlers", "consoleHandler")
+        # logging MemGPT
+        set_field(config, "logger_MemGPT", "level", self.logging_level)
+        if self.logging_enable_logfile:
+            # this will enable logging to file
+            set_field(config, "logger_MemGPT", "handlers", "consoleHandler,logfileHandler")
+        else:
+            # this removes file logging if not enabled
+            set_field(config, "logger_MemGPT", "handlers", "consoleHandler")
+        set_field(config, "logger_MemGPT", "qualname", "MemGPT")
+        set_field(config, "logger_MemGPT", "propagate", "0")  # do not propigate to root
+        # console logging handler
+        set_field(config, "handler_consoleHandler", "class", "StreamHandler")
+        set_field(config, "handler_consoleHandler", "level", self.logging_level)
+        set_field(config, "handler_consoleHandler", "formatter", "consoleFormatter")
+        set_field(config, "handler_consoleHandler", "args", "(sys.stdout,)")
+        # console logging formatter
+        set_field(config, "formatter_consoleFormatter", "format", "%(name)s - %(levelname)s - %(message)s")
+        if self.logging_enable_logfile:
+            set_field(config, "formatter_logfileFormatter", "format",
+                      "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+            # logfile logging handler Rotating File Handler
+            set_field(config, "handler_logfileHandler", "class", "handlers.RotatingFileHandler")
+            set_field(config, "handler_logfileHandler", "level", self.logging_level)
+            fixed_logpathname = utils.fix_file_path(self.logging_logpathname)
+            set_field(config, "handler_logfileHandler", "args",
+                      f"('{fixed_logpathname}', {self.logging_max_file_bytes}, {self.logging_backup_count})")
+            set_field(config, "handler_logfileHandler", "formatter", "logfileFormatter")
+        # logging paths
+        set_field(config, "logging_paths", "logdir", self.logging_logdir)
+        set_field(config, "logging_paths", "logpathname", self.logging_logpathname)
+
+        # always make sure all directories are present
+        self.create_config_dir()
+
         with open(self.config_path, "w") as f:
             config.write(f)
+        # reload logging config after write.
+        logging.config.fileConfig(self.config_path,disable_existing_loggers=False)
+        # reset the logger (global) logger is defined as global
+        reload_logger()
+        logger.debug(f'Saved Config:  {self.config_path}')
 
     @staticmethod
     def exists():
@@ -213,7 +302,7 @@ class MemGPTConfig:
         if not os.path.exists(MEMGPT_DIR):
             os.makedirs(MEMGPT_DIR, exist_ok=True)
 
-        folders = ["personas", "humans", "archival", "agents", "functions", "system_prompts", "presets"]
+        folders = ["personas", "humans", "archival", "agents", "functions", "system_prompts", "presets", "logs"]
         for folder in folders:
             if not os.path.exists(os.path.join(MEMGPT_DIR, folder)):
                 os.makedirs(os.path.join(MEMGPT_DIR, folder))
@@ -282,7 +371,8 @@ class AgentConfig:
 
         # save agent config
         self.agent_config_path = (
-            os.path.join(MEMGPT_DIR, "agents", self.name, "config.json") if agent_config_path is None else agent_config_path
+            os.path.join(MEMGPT_DIR, "agents", self.name,
+                         "config.json") if agent_config_path is None else agent_config_path
         )
 
     def generate_agent_id(self, length=6):
