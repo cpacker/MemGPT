@@ -13,7 +13,7 @@ const AgentCard = ({ name, persona, human, create_time, className, onBtnClick, i
   <CardHeader>
     <CardTitle className="flex items-center justify-between">
       <span>{name}</span>
-      {isCurrentAgent && <Badge variant="secondary">Current Agent</Badge>}
+      {isCurrentAgent && <Badge className="whitespace-nowrap">Current Agent</Badge>}
     </CardTitle>
     <CardDescription>{persona}</CardDescription>
   </CardHeader>
