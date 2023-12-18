@@ -1,16 +1,58 @@
 from datetime import datetime
+import json
+import os
+import pickle
+import platform
+import subprocess
+
+
 import difflib
 import demjson3 as demjson
-import json
 import pytz
-import os
 import tiktoken
+
 import memgpt
-from memgpt.constants import MEMGPT_DIR
+from memgpt.constants import MEMGPT_DIR, FUNCTION_RETURN_CHAR_LIMIT, CLI_WARNING_PREFIX
+
+from memgpt.openai_backcompat.openai_object import OpenAIObject
 
 # TODO: what is this?
 # DEBUG = True
 DEBUG = False
+
+
+def open_folder_in_explorer(folder_path):
+    """
+    Opens the specified folder in the system's native file explorer.
+
+    :param folder_path: Absolute path to the folder to be opened.
+    """
+    if not os.path.exists(folder_path):
+        raise ValueError(f"The specified folder {folder_path} does not exist.")
+
+    # Determine the operating system
+    os_name = platform.system()
+
+    # Open the folder based on the operating system
+    if os_name == "Windows":
+        # Windows: use 'explorer' command
+        subprocess.run(["explorer", folder_path], check=True)
+    elif os_name == "Darwin":
+        # macOS: use 'open' command
+        subprocess.run(["open", folder_path], check=True)
+    elif os_name == "Linux":
+        # Linux: use 'xdg-open' command (works for most Linux distributions)
+        subprocess.run(["xdg-open", folder_path], check=True)
+    else:
+        raise OSError(f"Unsupported operating system {os_name}.")
+
+
+# Custom unpickler
+class OpenAIBackcompatUnpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        if module == "openai.openai_object":
+            return OpenAIObject
+        return super().find_class(module, name)
 
 
 def count_tokens(s: str, model: str = "gpt-4") -> int:
@@ -86,6 +128,52 @@ def parse_json(string):
     except demjson.JSONDecodeError as e:
         print(f"Error parsing json with demjson package: {e}")
         raise e
+
+
+def validate_function_response(function_response_string: any, strict: bool = False) -> str:
+    """Check to make sure that a function used by MemGPT returned a valid response
+
+    Responses need to be strings (or None) that fall under a certain text count limit.
+    """
+    if not isinstance(function_response_string, str):
+        # Soft correction for a few basic types
+
+        if function_response_string is None:
+            # function_response_string = "Empty (no function output)"
+            function_response_string = "None"  # backcompat
+
+        elif isinstance(function_response_string, dict):
+            if strict:
+                # TODO add better error message
+                raise ValueError(function_response_string)
+
+            # Allow dict through since it will be cast to json.dumps()
+            try:
+                # TODO find a better way to do this that won't result in double escapes
+                function_response_string = json.dumps(function_response_string)
+            except:
+                raise ValueError(function_response_string)
+
+        else:
+            if strict:
+                # TODO add better error message
+                raise ValueError(function_response_string)
+
+            # Try to convert to a string, but throw a warning to alert the user
+            try:
+                function_response_string = str(function_response_string)
+            except:
+                raise ValueError(function_response_string)
+
+    # Now check the length and make sure it doesn't go over the limit
+    # TODO we should change this to a max token limit that's variable based on tokens remaining (or context-window)
+    if len(function_response_string) > FUNCTION_RETURN_CHAR_LIMIT:
+        print(
+            f"{CLI_WARNING_PREFIX}function return was over limit ({len(function_response_string)} > {FUNCTION_RETURN_CHAR_LIMIT}) and was truncated"
+        )
+        function_response_string = f"{function_response_string[:FUNCTION_RETURN_CHAR_LIMIT]}... [NOTE: function output was truncated since it exceeded the character limit ({len(function_response_string)} > {FUNCTION_RETURN_CHAR_LIMIT})]"
+
+    return function_response_string
 
 
 def list_agent_config_files(sort="last_modified"):

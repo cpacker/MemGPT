@@ -158,7 +158,7 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
     def clean_function_args(self, function_name, function_args):
         """Some basic MemGPT-specific cleaning of function args"""
         cleaned_function_name = function_name
-        cleaned_function_args = function_args.copy()
+        cleaned_function_args = function_args.copy() if function_args is not None else {}
 
         if function_name == "send_message":
             # strip request_heartbeat
@@ -379,7 +379,7 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
     def clean_function_args(self, function_name, function_args):
         """Some basic MemGPT-specific cleaning of function args"""
         cleaned_function_name = function_name
-        cleaned_function_args = function_args.copy()
+        cleaned_function_args = function_args.copy() if function_args is not None else {}
 
         if function_name == "send_message":
             # strip request_heartbeat

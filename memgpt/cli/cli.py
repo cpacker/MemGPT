@@ -4,6 +4,10 @@ import sys
 import io
 import logging
 import questionary
+from pathlib import Path
+import os
+import subprocess
+from enum import Enum
 
 from llama_index import set_global_service_context
 from llama_index import ServiceContext
@@ -13,12 +17,96 @@ from memgpt.interface import CLIInterface as interface  # for printing to termin
 from memgpt.cli.cli_config import configure
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
-from memgpt.utils import printd
+from memgpt.utils import printd, open_folder_in_explorer
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
 from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
+from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
+
+
+def open_folder():
+    """Open a folder viewer of the MemGPT home directory"""
+    try:
+        print(f"Opening home folder: {MEMGPT_DIR}")
+        open_folder_in_explorer(MEMGPT_DIR)
+    except Exception as e:
+        print(f"Failed to open folder with system viewer, error:\n{e}")
+
+
+class ServerChoice(Enum):
+    rest_api = "rest"
+    ws_api = "websocket"
+
+
+def server(
+    type: ServerChoice = typer.Option("rest", help="Server to run"),
+    port: int = typer.Option(None, help="Port to run the server on"),
+    host: str = typer.Option(None, help="Host to run the server on (default to localhost)"),
+):
+    """Launch a MemGPT server process"""
+
+    if type == ServerChoice.rest_api:
+        if port is None:
+            port = REST_DEFAULT_PORT
+
+        # Change to the desired directory
+        script_path = Path(__file__).resolve()
+        script_dir = script_path.parent
+
+        server_directory = os.path.join(script_dir.parent, "server", "rest_api")
+        if host is None:
+            command = f"uvicorn server:app --reload --port {port}"
+        else:
+            command = f"uvicorn server:app --reload --port {port} --host {host}"
+
+        # Run the command
+        print(f"Running REST server: {command} (inside {server_directory})")
+
+        try:
+            # Start the subprocess in a new session
+            process = subprocess.Popen(command, shell=True, start_new_session=True, cwd=server_directory)
+            process.wait()
+        except KeyboardInterrupt:
+            # Handle CTRL-C
+            print("Terminating the server...")
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                print("Server terminated with kill()")
+            sys.exit(0)
+
+    elif type == ServerChoice.ws_api:
+        if port is None:
+            port = WS_DEFAULT_PORT
+
+        # Change to the desired directory
+        script_path = Path(__file__).resolve()
+        script_dir = script_path.parent
+
+        server_directory = os.path.join(script_dir.parent, "server", "ws_api")
+        command = f"python server.py {port}"
+
+        # Run the command
+        print(f"Running WS (websockets) server: {command} (inside {server_directory})")
+
+        try:
+            # Start the subprocess in a new session
+            process = subprocess.Popen(command, shell=True, start_new_session=True, cwd=server_directory)
+            process.wait()
+        except KeyboardInterrupt:
+            # Handle CTRL-C
+            print("Terminating the server...")
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                print("Server terminated with kill()")
+            sys.exit(0)
 
 
 def run(
