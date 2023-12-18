@@ -2,21 +2,35 @@ import os
 from urllib.parse import urljoin
 import requests
 
-from .settings import SIMPLE
-from ..utils import count_tokens
+from memgpt.local_llm.settings.settings import get_completions_settings
+from memgpt.utils import count_tokens
+
 
 LMSTUDIO_API_CHAT_SUFFIX = "/v1/chat/completions"
 LMSTUDIO_API_COMPLETIONS_SUFFIX = "/v1/completions"
 
 
-# TODO move to "completions" by default, not "chat"
-def get_lmstudio_completion(endpoint, prompt, context_window, settings=SIMPLE, api="completions"):
+def get_lmstudio_completion(endpoint, prompt, context_window, api="completions"):
     """Based on the example for using LM Studio as a backend from https://github.com/lmstudio-ai/examples/tree/main/Hello%2C%20world%20-%20OpenAI%20python%20client"""
     from memgpt.utils import printd
 
     prompt_tokens = count_tokens(prompt)
     if prompt_tokens > context_window:
         raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_window} tokens)")
+
+    settings = get_completions_settings()
+    settings.update(
+        {
+            "input_prefix": "",
+            "input_suffix": "",
+            # This controls how LM studio handles context overflow
+            # In MemGPT we handle this ourselves, so this should be disabled
+            # "context_overflow_policy": 0,
+            "lmstudio": {"context_overflow_policy": 0},  # 0 = stop at limit
+            "stream": False,
+            "model": "local model",
+        }
+    )
 
     # Uses the ChatCompletions API style
     # Seems to work better, probably because it's applying some extra settings under-the-hood?
