@@ -1,5 +1,4 @@
-import React from 'react';
-import { Label } from '@memgpt/components/label';
+import React, { useState } from 'react';
 import { Input } from '@memgpt/components/input';
 import { Button } from '@memgpt/components/button';
 
@@ -9,17 +8,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from '@memgpt/components/form';
+import { Brain } from 'lucide-react';
+import MemoryView from './memory-view/memory-view';
 
 const formSchema = z.object({
   message: z.string().min(1, 'Message cannot be empty...'),
 });
 const UserInput = (props: { enabled: boolean; onSend: (message: string) => void }) => {
+  const [open, setOpen] = useState(false);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -46,11 +47,15 @@ const UserInput = (props: { enabled: boolean; onSend: (message: string) => void 
               <FormMessage />
             </FormItem>
           )}
-        ></FormField>
-        <Button disabled={!props.enabled} className="mt-8" type="submit">
-          Send
-        </Button>
-      </form>
+          />
+        <div className="mt-8 flex gap-2">
+          <Button disabled={!props.enabled}type="submit">
+            Send
+          </Button>
+          <Button onClick={() => setOpen(true)} className="ml-1" type="button" size="icon" variant="outline"><Brain className="h-4 w-4" /></Button>
+        </div>
+         </form>
+      <MemoryView open={open} onOpenChange={(open) => setOpen(open)}/>
     </Form>
   );
 };

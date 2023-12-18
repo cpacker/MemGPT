@@ -20,7 +20,7 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface):
         interface.clear()
         return server.get_agent_memory(user_id=user_id, agent_id=agent_id)
 
-    @router.put("/agents/memory")
+    @router.post("/agents/memory")
     def get_agent_memory(body: CoreMemory):
         interface.clear()
         new_memory_contents = {"persona": body.persona, "human": body.human}

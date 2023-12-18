@@ -503,7 +503,7 @@ class SyncServer(LockingServer):
                 memgpt_agent.memory.edit_persona(new_persona)
                 modified = True
 
-        elif "human" in new_memory_contents and new_memory_contents["human"] is not None:
+        if "human" in new_memory_contents and new_memory_contents["human"] is not None:
             new_human = new_memory_contents["human"]
             if old_core_memory["human"] != new_human:
                 new_core_memory["human"] = new_human
