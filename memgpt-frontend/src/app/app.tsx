@@ -8,24 +8,21 @@ import { useMessageSocketActions } from './libs/messages/message-stream.store';
 import { useCurrentAgent } from './libs/agents/agent.store';
 import { useMessageHistoryActions } from './libs/messages/message-history.store';
 import { Message } from './libs/messages/message';
-import { useNextMessageLoadingActions } from './libs/messages/next-message-loading.store';
-import { useAgentMemoryQuery } from './libs/agents/use-agent-memory.query';
+import { ThemeProvider } from './shared/theme';
 
 const queryClient = new QueryClient();
 
 export function App() {
   const { setAgentParam, registerOnMessageCallback, resetSocket } = useMessageSocketActions();
   const { addMessage } =useMessageHistoryActions()
-  const { setLoading } = useNextMessageLoadingActions()
 
   const currentAgent = useCurrentAgent();
 
   useEffect(() => registerOnMessageCallback((message: Message) => {
-    setLoading(message['type'] === 'agent_response_start');
     if (currentAgent) {
       addMessage(currentAgent.name, message);
     }
-  }), [registerOnMessageCallback, currentAgent, setLoading, addMessage]);
+  }), [registerOnMessageCallback, currentAgent, addMessage]);
 
   useEffect(() => {
     if (!currentAgent) return;
@@ -38,9 +35,11 @@ export function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <ThemeProvider>
+        <RouterProvider router={router} />
+        <Toaster />
+      </ThemeProvider>
       <ReactQueryDevtools initialIsOpen={false} />
-      <Toaster />
     </QueryClientProvider>
   );
 }
