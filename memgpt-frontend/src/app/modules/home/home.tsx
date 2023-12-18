@@ -14,12 +14,12 @@ const Home = () => {
   const [showingAgentCreation, setShowingAgentCreation] = useState(false);
 
   const agentsOrSkeletons = isLoading ? <>
-      <Skeleton className="flex-none opacity-30 w-80" />
-      <Skeleton className="flex-none opacity-30 w-80" />
+      <Skeleton className="flex-none opacity-30 w-full sm:w-80" />
+      <Skeleton className="flex-none opacity-30 w-full sm:w-80" />
     </>
     : (data?.agents ?? [])
       .map((a) =>
-        <AgentCard className="flex-none w-80 snap-center shadow-md snap-always" key={a.name}
+        <AgentCard className="h-52 flex-none w-full sm:w-80 snap-center shadow-md snap-always" key={a.name}
                    name={a.name} human={a.human} persona={a.persona}
                    create_time={a.create_time}
                    onBtnClick={() => setAgent(a)}
@@ -28,23 +28,21 @@ const Home = () => {
 
   return (
     <>
-      <div className="h-full flex-col flex items-center">
+      <div className="flex-col flex items-center overflow-y-scroll h-full">
         <div className="p-2 pt-40 pb-12">
           <h1 className={cnH1()}>Welcome to MemGPT</h1>
           <p className={cnLead('mt-2 mb-4')}>Select or create an agent to start your conversation...</p>
         </div>
         <div className="w-full mx-auto max-w-screen-2xl px-8">
           <div
-            className="no-scrollbar min-h-[200px] snap-x snap-mandatory flex gap-12 overflow-auto px-8 py-4">
-            <div className="flex-none w-80"></div>
-            {agentsOrSkeletons}
+            className="flex gap-12 flex-wrap px-8 py-4">
             <button
               onClick={() => setShowingAgentCreation(true)}
-              className="text-muted-foreground flex-col items-center justify-center flex flex-none border snap-center snap-always rounded-md w-80">
+              className="h-52 text-muted-foreground flex-col items-center justify-center flex flex-none border snap-center snap-always rounded-md w-full sm:w-80">
               <LucidePlus className="h-8 w-8" />
               <span className="mt-2">Add New</span>
             </button>
-            <div className="flex-none w-80"></div>
+            {agentsOrSkeletons}
           </div>
         </div>
       </div>
