@@ -61,6 +61,18 @@ const useMessageStreamStore = create(combine({
                 message_type: 'assistant_message',
                 message: parsedData['assistant_message'],
               })
+            } else if (parsedData['function_call'] != null) {
+              onMessageCallback({
+                type: 'agent_response',
+                message_type: 'function_call',
+                message: parsedData['function_call'],
+              })
+            } else if (parsedData['function_return'] != null) {
+              onMessageCallback({
+                type: 'agent_response',
+                message_type: 'function_return',
+                message: parsedData['function_return'],
+              })
             }
             onSuccessCb();
           },
