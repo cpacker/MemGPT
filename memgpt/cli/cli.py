@@ -44,11 +44,12 @@ def set_config_with_dict(new_config: dict):
                 printd(f"Replacing config {k}: {v} -> {new_config[k]}")
                 modified = True
                 # old_config[k] = new_config[k]
-                setattr(old_config, k, v)  # Set the new value using dot notation
+                setattr(old_config, k, new_config[k])  # Set the new value using dot notation
             else:
                 printd(f"Skipping new config {k}: {v} == {new_config[k]}")
 
     if modified:
+        printd(f"Saving new config file.")
         old_config.save()
 
 
