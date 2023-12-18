@@ -1,3 +1,5 @@
+from memgpt.local_llm.settings.simple import settings as simple_settings
+
 settings = {
     "max_new_tokens": 250,
     "do_sample": False,
@@ -20,14 +22,15 @@ settings = {
     "add_bos_token": True,
     # NOTE: important - these are the BASE stopping strings, and should be combined with {{user}}/{{char}}-based stopping strings
     "stopping_strings": [
+        simple_settings["stop"]
         # '### Response (JSON only, engaging, natural, authentic, descriptive, creative):',
-        "</s>",
-        "<|",
-        "\n#",
-        "\n*{{user}} ",
-        "\n\n\n",
-        "\n{",
-        ",\n{",
+        # "</s>",
+        # "<|",
+        # "\n#",
+        # "\n*{{user}} ",
+        # "\n\n\n",
+        # "\n{",
+        # ",\n{",
     ],
     "truncation_length": 4096,
     "ban_eos_token": False,
