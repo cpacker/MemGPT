@@ -54,7 +54,7 @@ def get_chat_completion(
         # Warn the user that we're using the fallback
         if not has_shown_warning:
             print(
-                f"{CLI_WARNING_PREFIX}no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --wrapper)"
+                f"{CLI_WARNING_PREFIX}no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --model-wrapper)"
             )
             has_shown_warning = True
         if endpoint_type in ["koboldcpp", "llamacpp", "webui"]:
