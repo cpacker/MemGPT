@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { combine } from 'zustand/middleware';
 import { Message } from './message';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
+import { API_BASE_URL } from '../constants';
 
 export const enum ReadyState {
   IDLE,
@@ -9,7 +10,7 @@ export const enum ReadyState {
   ERROR,
 }
 
-const ENDPOINT_URL = 'http://localhost:8283/agents/message';
+const ENDPOINT_URL = API_BASE_URL + '/agents/message';
 
 const useMessageStreamStore = create(combine({
     socket: null as EventSource | null,
