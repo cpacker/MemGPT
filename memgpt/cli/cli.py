@@ -96,7 +96,7 @@ def quickstart(
         api_key = os.getenv("OPENAI_API_KEY")
         while api_key is None or len(api_key) == 0:
             # Ask for API key as input
-            api_key = questionary.text("Enter your OpenAI API key (starts with 'sk..'):").ask()
+            api_key = questionary.text("Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):").ask()
 
         url = "https://raw.githubusercontent.com/cpacker/MemGPT/quickstart-command/configs/openai.json"
         response = requests.get(url)
