@@ -313,7 +313,7 @@ User_proxy (to chat_manager):
 
 [examples/agent_docs.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_docs.py) contains an example of a groupchat where the MemGPT autogen agent has access to documents.
 
-First, follow the instructions in [Example - chat with your data - Creating an external data source](../example_data/#creating-an-external-data-source):
+First, follow the instructions in [Example - chat with your data - Creating an external data source](example_data/#creating-an-external-data-source):
 
 To download the MemGPT research paper we'll use `curl` (you can also just download the PDF from your browser):
 ```sh

@@ -78,4 +78,4 @@ $ memgpt configure
 Note: **your Azure endpoint must support functions** or you will get an error. See [this GitHub issue](https://github.com/cpacker/MemGPT/issues/91) for more information.
 
 ## Local Models & Custom Endpoints 
-MemGPT supports running open source models, both being run locally or as a hosted service. Setting up MemGPT to run with open models requires a bit more setup, follow [the instructions here](../local_llm).
+MemGPT supports running open source models, both being run locally or as a hosted service. Setting up MemGPT to run with open models requires a bit more setup, follow [the instructions here](local_llm).

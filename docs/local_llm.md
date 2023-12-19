@@ -14,7 +14,7 @@ category: 6580da9a40bb410016b8b0c3
 >
 > When using open LLMs with MemGPT, **the main failure case will be your LLM outputting a string that cannot be understood by MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)` and interact with the user (`send_message(...)`), so your LLM needs generate outputs that can be parsed into MemGPT function calls.
 >
-> Make sure to check the [local LLM troubleshooting page](../local_llm_faq) to see common issues before raising a new issue or posting on Discord.
+> Make sure to check the [local LLM troubleshooting page](local_llm_faq) to see common issues before raising a new issue or posting on Discord.
 
 ### Installing dependencies
 To install dependencies required for running local models, run:
@@ -101,11 +101,11 @@ Note that even though grammar-based sampling can reduce the mistakes your LLM ma
 
 Currently, MemGPT supports the following backends:
 
-* [oobabooga web UI](../webui) (Mac, Windows, Linux) (✔️ supports grammars)
-* [LM Studio](../lmstudio) (Mac, Windows) (❌ does not support grammars)
-* [koboldcpp](../koboldcpp) (Mac, Windows, Linux) (✔️ supports grammars)
-* [llama.cpp](../llamacpp) (Mac, Windows, Linux) (✔️ supports grammars)
-* [vllm](../vllm) (Mac, Windows, Linux) (❌ does not support grammars)
+* [oobabooga web UI](webui) (Mac, Windows, Linux) (✔️ supports grammars)
+* [LM Studio](lmstudio) (Mac, Windows) (❌ does not support grammars)
+* [koboldcpp](koboldcpp) (Mac, Windows, Linux) (✔️ supports grammars)
+* [llama.cpp](llamacpp) (Mac, Windows, Linux) (✔️ supports grammars)
+* [vllm](vllm) (Mac, Windows, Linux) (❌ does not support grammars)
 
 If you would like us to support a new backend, feel free to open an issue or pull request on [the MemGPT GitHub page](https://github.com/cpacker/MemGPT)!
 

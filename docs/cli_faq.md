@@ -12,7 +12,7 @@ category: 6580d34ee5e4d00068bf2a1d
 
 ### How can I use MemGPT to chat with my docs?
 
-Check out our [chat with your docs example](../example_data) to get started.
+Check out our [chat with your docs example](example_data) to get started.
 
 ### How do I save a chat and continue it later?
 
