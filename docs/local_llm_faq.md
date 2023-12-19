@@ -1,3 +1,9 @@
+---
+title: Troubleshooting 
+excerpt: FAQ for MemGPT + custom LLM backends
+category: 6580da9a40bb410016b8b0c3 
+---
+
 ### Problems getting MemGPT + local LLMs set up
 
 #### "Unable to connect to host ...", "API call got non-200 response code"

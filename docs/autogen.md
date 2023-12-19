@@ -1,14 +1,20 @@
-!!! question "Need help?"
+---
+title: MemGPT + AutoGen 
+excerpt: Creating AutoGen agents powered by MemGPT
+category: 6580dab16cade8003f996d17 
+---
 
-    If you need help visit our [Discord server](https://discord.gg/9GEQrxmVyE) and post in the #support channel.
-    
-    You can also check the [GitHub discussion page](https://github.com/cpacker/MemGPT/discussions/65), but the Discord server is the official support channel and is monitored more actively.
+> 📘 Need help?
+>
+> If you need help visit our [Discord server](https://discord.gg/9GEQrxmVyE) and post in the #support channel.
+>
+> You can also check the [GitHub discussion page](https://github.com/cpacker/MemGPT/discussions/65), but the Discord server is the official support channel and is monitored more actively.
 
-!!! warning "Tested with `pyautogen` v0.2.0"
-
-    The MemGPT+AutoGen integration was last tested using AutoGen version v0.2.0.
-    
-    If you are having issues, please first try installing the specific version of AutoGen using `pip install pyautogen==0.2.0` (or `poetry install -E autogen` if you are using Poetry).
+> ⚠️ Tested with `pyautogen` v0.2.0
+>
+> The MemGPT+AutoGen integration was last tested using AutoGen version v0.2.0.
+>
+> If you are having issues, please first try installing the specific version of AutoGen using `pip install pyautogen==0.2.0` (or `poetry install -E autogen` if you are using Poetry).
 
 ## Overview
 
@@ -71,13 +77,12 @@ For the purposes of this example, we're going to serve (host) the LLMs using [oo
 
 Install web UI and get a model set up on a local web server. You can use [our instructions on setting up web UI](https://memgpt.readthedocs.io/en/latest/webui/).
 
-!!! info "Choosing an LLM / model to use"
-
-    You'll need to decide on an LLM / model to use with web UI.
-    
-    MemGPT requires an LLM that is good at function calling to work well - if the LLM is bad at function calling, **MemGPT will not work properly**.
-
-    Visit [our Discord server](https://discord.gg/9GEQrxmVyE) and check the #model-chat channel for an up-to-date list of recommended LLMs / models to use with MemGPT.
+> 📘 Choosing an LLM / model to use
+> You'll need to decide on an LLM / model to use with web UI.
+>
+> MemGPT requires an LLM that is good at function calling to work well - if the LLM is bad at function calling, **MemGPT will not work properly**.
+>
+> Visit [our Discord server](https://discord.gg/9GEQrxmVyE) and check the #model-chat channel for an up-to-date list of recommended LLMs / models to use with MemGPT.
 
 ### Part 2: Get MemGPT working
 
@@ -87,14 +92,14 @@ Try setting up MemGPT with your local web UI backend [using the instructions her
 
 Once you've confirmed that you're able to chat with a MemGPT agent using `memgpt configure` and `memgpt run`, you're ready to move on to the next step.
 
-!!! info "Using RunPod as an LLM backend"
-
-    If you're using RunPod to run web UI, make sure that you set your endpoint to the RunPod IP address, **not the default localhost address**.
-
-    For example, during `memgpt configure`:
-    ```text
-    ? Enter default endpoint: https://yourpodaddresshere-5000.proxy.runpod.net
-    ```
+> 📘 Using RunPod as an LLM backend
+>
+> If you're using RunPod to run web UI, make sure that you set your endpoint to the RunPod IP address, **not the default localhost address**.
+>
+> For example, during `memgpt configure`:
+> ```text
+> ? Enter default endpoint: https://yourpodaddresshere-5000.proxy.runpod.net
+> ```
 
 ### Part 3: Creating a MemGPT AutoGen agent (groupchat example)
 
@@ -219,18 +224,19 @@ config_list_memgpt = [
 ]
 ```
 
-!!! info "Making internal monologue visible to AutoGen"
 
-    By default, MemGPT's inner monologue and function traces are hidden from other AutoGen agents.
-    
-    You can modify `interface_kwargs` to change the visibility of inner monologue and function calling:
-    ```python
-    interface_kwargs = {
-        "debug": False,  # this is the equivalent of the --debug flag in the MemGPT CLI
-        "show_inner_thoughts": True,  # this controls if internal monlogue will show up in AutoGen MemGPT agent's outputs
-        "show_function_outputs": True,  # this controls if function traces will show up in AutoGen MemGPT agent's outputs
-    }
-    ```
+> 📘 Making internal monologue visible to AutoGen
+>
+> By default, MemGPT's inner monologue and function traces are hidden from other AutoGen agents.
+>
+> You can modify `interface_kwargs` to change the visibility of inner monologue and function calling:
+> ```python
+> interface_kwargs = {
+>     "debug": False,  # this is the equivalent of the --debug flag in the MemGPT CLI
+>     "show_inner_thoughts": True,  # this controls if internal monlogue will show up in AutoGen MemGPT agent's outputs
+>     "show_function_outputs": True,  # this controls if function traces will show up in AutoGen MemGPT agent's outputs
+> }
+> ```
 
 The only parts of the `agent_groupchat.py` file you need to modify should be the `config_list` and `config_list_memgpt` (make sure to change `USE_OPENAI` to `True` or `False` depending on if you're trying to use a local LLM server like web UI, or OpenAI's API). Assuming you edited things correctly, you should now be able to run `agent_groupchat.py`:
 ```sh

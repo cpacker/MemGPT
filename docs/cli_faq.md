@@ -1,8 +1,12 @@
-# Frequently asked questions
+---
+title: Frequently asked questions (FAQ)
+excerpt: Check frequently asked questions
+category: 6580d34ee5e4d00068bf2a1d 
+---
 
-!!! note "Open / local LLM FAQ"
-
-    Questions specific to running your own open / local LLMs with MemGPT can be found [here](../local_llm_faq).
+> 📘 Open / local LLM FAQ
+> 
+> Questions specific to running your own open / local LLMs with MemGPT can be found [here](../local_llm_faq).
 
 ## MemGPT CLI
 

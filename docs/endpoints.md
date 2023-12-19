@@ -1,3 +1,9 @@
+---
+title: Configuring LLM backends 
+excerpt: Connecting MemGPT to various LLM backends 
+category: 6580d34ee5e4d00068bf2a1d 
+---
+
 You can use MemGPT with various LLM backends, including the OpenAI API, Azure OpenAI, and various local (or self-hosted) LLM backends.
 
 ## OpenAI
