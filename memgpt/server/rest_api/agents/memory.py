@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Body
+from fastapi import APIRouter, Depends, Body, Query
 from pydantic import BaseModel, Field
 
 from memgpt.server.rest_api.interface import QueuingInterface
@@ -29,8 +29,8 @@ class GetAgentMemoryResponse(BaseModel):
 class UpdateAgentMemoryRequest(BaseModel):
     user_id: str = Field(..., description="The unique identifier of the user.")
     agent_id: str = Field(..., description="The unique identifier of the agent.")
-    human: Optional[str] = Field(None, description="Human element of the core memory.")
-    persona: Optional[str] = Field(None, description="Persona element of the core memory.")
+    human: str = Field(None, description="Human element of the core memory.")
+    persona: str = Field(None, description="Persona element of the core memory.")
 
 
 class UpdateAgentMemoryResponse(BaseModel):
@@ -40,12 +40,18 @@ class UpdateAgentMemoryResponse(BaseModel):
 
 def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface):
     @router.get("/agents/memory", tags=["agents"], response_model=GetAgentMemoryResponse)
-    def get_agent_memory(request: GetAgentMemoryRequest = Depends()):
+    def get_agent_memory(
+        user_id: str = Query(..., description="The unique identifier of the user."),
+        agent_id: str = Query(..., description="The unique identifier of the agent."),
+    ):
         """
         Retrieve the memory state of a specific agent.
 
         This endpoint fetches the current memory state of the agent identified by the user ID and agent ID.
         """
+        # Validate with the Pydantic model (optional)
+        request = GetAgentMemoryRequest(user_id=user_id, agent_id=agent_id)
+
         interface.clear()
         memory = server.get_agent_memory(user_id=request.user_id, agent_id=request.agent_id)
         return GetAgentMemoryResponse(**memory)

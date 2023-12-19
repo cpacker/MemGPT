@@ -5,7 +5,7 @@ from threading import Lock
 from functools import wraps
 from fastapi import HTTPException
 
-from memgpt.system import package_user_message
+from memgpt.system import package_user_message, package_system_message
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.agent import Agent
 import memgpt.system as system
@@ -28,6 +28,11 @@ class Server(object):
     @abstractmethod
     def list_agents(self, user_id: str) -> dict:
         """List all available agents to a user"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_agent_messages(self, user_id: str, agent_id: str, start: int, count: int) -> list:
+        """Paginated query of in-context messages in agent message queue"""
         raise NotImplementedError
 
     @abstractmethod
@@ -64,6 +69,11 @@ class Server(object):
     @abstractmethod
     def user_message(self, user_id: str, agent_id: str, message: str) -> None:
         """Process a message from the user, internally calls step"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def system_message(self, user_id: str, agent_id: str, message: str) -> None:
+        """Process a message from the system, internally calls step"""
         raise NotImplementedError
 
     @abstractmethod
@@ -397,6 +407,26 @@ class SyncServer(LockingServer):
             self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
 
     @LockingServer.agent_lock_decorator
+    def system_message(self, user_id: str, agent_id: str, message: str) -> None:
+        """Process an incoming system message and feed it through the MemGPT agent"""
+        from memgpt.utils import printd
+
+        # Basic input sanitization
+        if not isinstance(message, str) or len(message) == 0:
+            raise ValueError(f"Invalid input: '{message}'")
+
+        # If the input begins with a command prefix, reject
+        elif message.startswith("/"):
+            raise ValueError(f"Invalid input: '{message}'")
+
+        # Else, process it as a user message to be fed to the agent
+        else:
+            # Package the user message first
+            packaged_system_message = package_system_message(system_message=message)
+            # Run the agent state forward
+            self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message)
+
+    @LockingServer.agent_lock_decorator
     def run_command(self, user_id: str, agent_id: str, command: str) -> Union[str, None]:
         """Run a command on the agent"""
         # If the input begins with a command prefix, attempt to process it as a command
@@ -464,6 +494,29 @@ class SyncServer(LockingServer):
         }
 
         return memory_obj
+
+    def get_agent_messages(self, user_id: str, agent_id: str, start: int, count: int) -> list:
+        """Paginated query of in-context messages in agent message queue"""
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        if start < 0 or count < 0:
+            raise ValueError("Start and count values should be non-negative")
+
+        # Reverse the list to make it in reverse chronological order
+        reversed_messages = memgpt_agent.messages[::-1]
+
+        # Check if start is within the range of the list
+        if start >= len(reversed_messages):
+            raise IndexError("Start index is out of range")
+
+        # Calculate the end index, ensuring it does not exceed the list length
+        end_index = min(start + count, len(reversed_messages))
+
+        # Slice the list for pagination
+        paginated_messages = reversed_messages[start:end_index]
+
+        return paginated_messages
 
     def get_agent_config(self, user_id: str, agent_id: str) -> dict:
         """Return the config of an agent"""

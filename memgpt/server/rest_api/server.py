@@ -1,3 +1,4 @@
+import json
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -56,6 +57,22 @@ app.include_router(setup_agents_message_router(server, interface), prefix=API_PR
 app.include_router(setup_config_index_router(server, interface), prefix=API_PREFIX)
 # / static files
 mount_static_files(app)
+
+
+@app.on_event("startup")
+def on_startup():
+    # Update the OpenAPI schema
+    if not app.openapi_schema:
+        app.openapi_schema = app.openapi()
+
+    if app.openapi_schema:
+        app.openapi_schema["servers"] = [{"url": "http://localhost:8283"}]
+        app.openapi_schema["info"]["title"] = "MemGPT API"
+
+    # Write out the OpenAPI schema to a file
+    with open("openapi.json", "w") as file:
+        print(f"Writing out openapi.json file")
+        json.dump(app.openapi_schema, file, indent=2)
 
 
 @app.on_event("shutdown")
