@@ -1,3 +1,9 @@
+---
+title: Configuring embedding backends 
+excerpt: Connecting MemGPT to various endpoint backends 
+category: 6580d34ee5e4d00068bf2a1d 
+---
+
 MemGPT uses embedding models for retrieval search over archival memory. You can use embeddings provided by OpenAI, Azure, or any model on Hugging Face. 
 
 ## OpenAI
@@ -47,11 +53,10 @@ MemGPT supports running embeddings with any Hugging Face model using the [Text E
 ## Local Embeddings 
 
 MemGPT can compute embeddings locally using a lightweight embedding model [`BAAI/bge-small-en-v1.5`](https://huggingface.co/BAAI/bge-small-en-v1.5). 
-!!! warning "Local LLM Performance"
 
-    The `BAAI/bge-small-en-v1.5` was chose to be lightweight, so you may notice degraded performance with embedding-based retrieval when using this option. 
-
-
+> 🚧 Local LLM Performance
+> 
+> The `BAAI/bge-small-en-v1.5` was chosen to be lightweight, so you may notice degraded performance with embedding-based retrieval when using this option. 
 
 To compute embeddings locally, install dependencies with: 
 ```

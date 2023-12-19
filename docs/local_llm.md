@@ -1,14 +1,20 @@
-!!! question "Need help?"
+---
+title: MemGPT + open models
+excerpt: Set up MemGPT to run with open LLMs
+category: 6580da9a40bb410016b8b0c3 
+---
 
-    If you need help visit our [Discord server](https://discord.gg/9GEQrxmVyE) and post in the #support channel.
-    
-    You can also check the [GitHub discussion page](https://github.com/cpacker/MemGPT/discussions/67), but the Discord server is the official support channel and is monitored more actively.
+> 📘 Need help?
+>
+> If you need help visit our [Discord server](https://discord.gg/9GEQrxmVyE) and post in the #support channel.
+>
+> You can also check the [GitHub discussion page](https://github.com/cpacker/MemGPT/discussions/67), but the Discord server is the official support channel and is monitored more actively.
 
-!!! warning "MemGPT + local LLM failure cases"
-
-    When using open LLMs with MemGPT, **the main failure case will be your LLM outputting a string that cannot be understood by MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)` and interact with the user (`send_message(...)`), so your LLM needs generate outputs that can be parsed into MemGPT function calls.
-
-    Make sure to check the [local LLM troubleshooting page](../local_llm_faq) to see common issues before raising a new issue or posting on Discord.
+> ⚠️ MemGPT + open LLM failure cases
+>
+> When using open LLMs with MemGPT, **the main failure case will be your LLM outputting a string that cannot be understood by MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)` and interact with the user (`send_message(...)`), so your LLM needs generate outputs that can be parsed into MemGPT function calls.
+>
+> Make sure to check the [local LLM troubleshooting page](local_llm_faq) to see common issues before raising a new issue or posting on Discord.
 
 ### Installing dependencies
 To install dependencies required for running local models, run:
@@ -95,19 +101,19 @@ Note that even though grammar-based sampling can reduce the mistakes your LLM ma
 
 Currently, MemGPT supports the following backends:
 
-* [oobabooga web UI](../webui) (Mac, Windows, Linux) (✔️ supports grammars)
-* [LM Studio](../lmstudio) (Mac, Windows) (❌ does not support grammars)
-* [koboldcpp](../koboldcpp) (Mac, Windows, Linux) (✔️ supports grammars)
-* [llama.cpp](../llamacpp) (Mac, Windows, Linux) (✔️ supports grammars)
-* [vllm](../vllm) (Mac, Windows, Linux) (❌ does not support grammars)
+* [oobabooga web UI](webui) (Mac, Windows, Linux) (✔️ supports grammars)
+* [LM Studio](lmstudio) (Mac, Windows) (❌ does not support grammars)
+* [koboldcpp](koboldcpp) (Mac, Windows, Linux) (✔️ supports grammars)
+* [llama.cpp](llamacpp) (Mac, Windows, Linux) (✔️ supports grammars)
+* [vllm](vllm) (Mac, Windows, Linux) (❌ does not support grammars)
 
 If you would like us to support a new backend, feel free to open an issue or pull request on [the MemGPT GitHub page](https://github.com/cpacker/MemGPT)!
 
 ### Which model should I use?
 
-!!! info "Recommended LLMs / models"
-
-    To see a list of recommended LLMs to use with MemGPT, visit our [Discord server](https://discord.gg/9GEQrxmVyE) and check the #model-chat channel.
+> 📘 Recommended LLMs / models
+>
+> To see a list of recommended LLMs to use with MemGPT, visit our [Discord server](https://discord.gg/9GEQrxmVyE) and check the #model-chat channel.
 
 If you are experimenting with MemGPT and local LLMs for the first time, we recommend you try the Dolphin Mistral finetune (e.g. [ehartford/dolphin-2.2.1-mistral-7b](https://huggingface.co/ehartford/dolphin-2.2.1-mistral-7b) or a quantized variant such as [dolphin-2.2.1-mistral-7b.Q6_K.gguf](https://huggingface.co/TheBloke/dolphin-2.2.1-mistral-7B-GGUF)), and use the default `airoboros` wrapper.
 
