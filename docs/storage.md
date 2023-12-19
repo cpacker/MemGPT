@@ -1,7 +1,7 @@
 ---
 title: Configuring storage backends 
 excerpt: Customizing the MemGPT storage backend
-category: 6580dabb585483000f0e6c7c 
+category: 6580d34ee5e4d00068bf2a1d 
 ---
 
 > ⚠️ Switching storage backends

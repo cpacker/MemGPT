@@ -1,7 +1,7 @@
 ---
 title: Adding support for new LLMs
 excerpt: Adding new LLMs via model wrappers
-category: 6580dabb585483000f0e6c7c 
+category: 6580da9a40bb410016b8b0c3
 ---
 
 > ⚠️ MemGPT + local LLM failure cases
