@@ -5,7 +5,7 @@ from threading import Lock
 from functools import wraps
 from fastapi import HTTPException
 
-from memgpt.system import package_user_message
+from memgpt.system import package_user_message, package_system_message
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.agent import Agent
 import memgpt.system as system
@@ -69,6 +69,11 @@ class Server(object):
     @abstractmethod
     def user_message(self, user_id: str, agent_id: str, message: str) -> None:
         """Process a message from the user, internally calls step"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def system_message(self, user_id: str, agent_id: str, message: str) -> None:
+        """Process a message from the system, internally calls step"""
         raise NotImplementedError
 
     @abstractmethod
@@ -400,6 +405,26 @@ class SyncServer(LockingServer):
             packaged_user_message = package_user_message(user_message=message)
             # Run the agent state forward
             self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
+
+    @LockingServer.agent_lock_decorator
+    def system_message(self, user_id: str, agent_id: str, message: str) -> None:
+        """Process an incoming system message and feed it through the MemGPT agent"""
+        from memgpt.utils import printd
+
+        # Basic input sanitization
+        if not isinstance(message, str) or len(message) == 0:
+            raise ValueError(f"Invalid input: '{message}'")
+
+        # If the input begins with a command prefix, reject
+        elif message.startswith("/"):
+            raise ValueError(f"Invalid input: '{message}'")
+
+        # Else, process it as a user message to be fed to the agent
+        else:
+            # Package the user message first
+            packaged_system_message = package_system_message(system_message=message)
+            # Run the agent state forward
+            self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message)
 
     @LockingServer.agent_lock_decorator
     def run_command(self, user_id: str, agent_id: str, command: str) -> Union[str, None]:
