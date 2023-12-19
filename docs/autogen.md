@@ -75,7 +75,7 @@ For the purposes of this example, we're going to serve (host) the LLMs using [oo
 
 ### Part 1: Get web UI working
 
-Install web UI and get a model set up on a local web server. You can use [our instructions on setting up web UI](https://memgpt.readthedocs.io/en/latest/webui/).
+Install web UI and get a model set up on a local web server. You can use [our instructions on setting up web UI](webui).
 
 > 📘 Choosing an LLM / model to use
 > You'll need to decide on an LLM / model to use with web UI.
@@ -88,7 +88,7 @@ Install web UI and get a model set up on a local web server. You can use [our in
 
 Before trying to integrate MemGPT with AutoGen, make sure that you can run MemGPT by itself with the web UI backend.
 
-Try setting up MemGPT with your local web UI backend [using the instructions here](https://memgpt.readthedocs.io/en/latest/local_llm/#using-memgpt-with-local-llms).
+Try setting up MemGPT with your local web UI backend [using the instructions here](local_llm/#using-memgpt-with-local-llms).
 
 Once you've confirmed that you're able to chat with a MemGPT agent using `memgpt configure` and `memgpt run`, you're ready to move on to the next step.
 
@@ -132,7 +132,7 @@ config_list = [
 config_list_memgpt = [
     {
         "preset": DEFAULT_PRESET,
-        "model": None,  # not required for web UI, only required for Ollama, see: https://memgpt.readthedocs.io/en/latest/ollama/
+        "model": None,  # not required for web UI, only required for Ollama, see: https://memgpt.readme.io/docs/ollama 
         "model_wrapper": "airoboros-l2-70b-2.1",  # airoboros is the default wrapper and should work for most models
         "model_endpoint_type": "webui",
         "model_endpoint": "http://localhost:5000",  # notice port 5000 for web UI
@@ -192,7 +192,7 @@ config_list_memgpt = [
 ```
 
 #### Azure OpenAI example
-Azure OpenAI API setup will be similar to OpenAI API, but requires additional config variables. First, make sure that you've set all the related Azure variables referenced in [our MemGPTAzure setup page](https://memgpt.readthedocs.io/en/latest/endpoints) (`AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_VERSION`, `AZURE_OPENAI_ENDPOINT`, etc). If you have all the variables set correctly, you should be able to create configs by pulling from the env variables:
+Azure OpenAI API setup will be similar to OpenAI API, but requires additional config variables. First, make sure that you've set all the related Azure variables referenced in [our MemGPT Azure setup page](https://memgpt.readme.io/docs/endpoints#azure-openai) (`AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_VERSION`, `AZURE_OPENAI_ENDPOINT`, etc). If you have all the variables set correctly, you should be able to create configs by pulling from the env variables:
 ```python
 # This config is for autogen agents that are not powered by MemGPT
 # See Auto

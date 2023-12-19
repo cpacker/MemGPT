@@ -38,7 +38,7 @@ In your terminal where you're running MemGPT, run `memgpt configure` to set the 
 ? Select LLM inference provider: local
 ? Select LLM backend (select 'openai' if you have an OpenAI compatible proxy): ollama
 ? Enter default endpoint: http://localhost:11434
-? Enter default model name (required for Ollama, see: https://memgpt.readthedocs.io/en/latest/ollama): dolphin2.2-mistral:7b-q6_K
+? Enter default model name (required for Ollama, see: https://memgpt.readme.io/docs/ollama): dolphin2.2-mistral:7b-q6_K
 ...
 ```
 
