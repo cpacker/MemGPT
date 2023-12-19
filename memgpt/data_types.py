@@ -100,11 +100,11 @@ class Passage(Record):
         metadata: Optional[dict] = {},
     ):
         super().__init__(user_id, agent_id, text, id)
-        self.text = text
+        print(self.text)
         self.data_source = data_source
         self.embedding = embedding
         self.doc_id = doc_id
         self.metadata = metadata
 
     def __repr__(self):
-        return f"Passage(text={self.text}, embedding={self.embedding})"
+        return str(vars(self))
