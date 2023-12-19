@@ -3,8 +3,8 @@ from enum import Enum
 import json
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Body, HTTPException
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, Body, HTTPException, Query
+from pydantic import BaseModel, Field, constr, validator
 from starlette.responses import StreamingResponse
 
 from memgpt.server.rest_api.interface import QueuingInterface
@@ -22,12 +22,8 @@ class UserMessageRequest(BaseModel):
     user_id: str = Field(..., description="The unique identifier of the user.")
     agent_id: str = Field(..., description="The unique identifier of the agent.")
     message: str = Field(..., description="The message content to be processed by the agent.")
-    stream: Optional[bool] = Field(
-        default=False, description="Flag to determine if the response should be streamed. Set to True for streaming."
-    )
-    role: Optional[MessageRoleType] = Field(
-        default=MessageRoleType.user, description="Role of the message sender (either 'user' or 'system'"
-    )
+    stream: bool = Field(default=False, description="Flag to determine if the response should be streamed. Set to True for streaming.")
+    role: MessageRoleType = Field(default=MessageRoleType.user, description="Role of the message sender (either 'user' or 'system')")
 
 
 class UserMessageResponse(BaseModel):
@@ -47,10 +43,18 @@ class GetAgentMessagesResponse(BaseModel):
 
 def setup_agents_message_router(server: SyncServer, interface: QueuingInterface):
     @router.get("/agents/message", tags=["agents"], response_model=GetAgentMessagesResponse)
-    def get_agent_messages(request: GetAgentMessagesRequest = Depends()):
+    def get_agent_messages(
+        user_id: str = Query(..., description="The unique identifier of the user."),
+        agent_id: str = Query(..., description="The unique identifier of the agent."),
+        start: int = Query(..., description="Message index to start on (reverse chronological)."),
+        count: int = Query(..., description="How many messages to retrieve."),
+    ):
         """
         Retrieve the in-context messages of a specific agent. Paginated, provide start and count to iterate.
         """
+        # Validate with the Pydantic model (optional)
+        request = GetAgentMessagesRequest(user_id=user_id, agent_id=agent_id, start=start, count=count)
+
         interface.clear()
         messages = server.get_agent_messages(user_id=request.user_id, agent_id=request.agent_id, start=request.start, count=request.count)
         return GetAgentMessagesResponse(messages=messages)
@@ -63,7 +67,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface)
         This endpoint accepts a message from a user and processes it through the agent.
         It can optionally stream the response if 'stream' is set to True.
         """
-        if request.role == "user":
+        if request.role == "user" or request.role is None:
             message_func = server.user_message
         elif request.role == "system":
             message_func = server.system_message

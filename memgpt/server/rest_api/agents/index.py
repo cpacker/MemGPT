@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, Body, HTTPException
+from fastapi import APIRouter, Depends, Body, Query, HTTPException
 from pydantic import BaseModel, Field
 
 from memgpt.server.rest_api.interface import QueuingInterface
@@ -29,12 +29,14 @@ class CreateAgentResponse(BaseModel):
 
 def setup_agents_index_router(server: SyncServer, interface: QueuingInterface):
     @router.get("/agents", tags=["agents"], response_model=ListAgentsResponse)
-    def list_agents(request: ListAgentsRequest = Depends()):
+    def list_agents(user_id: str = Query(..., description="Unique identifier of the user.")):
         """
         List all agents associated with a given user.
 
         This endpoint retrieves a list of all agents and their configurations associated with the specified user ID.
         """
+        request = ListAgentsRequest(user_id=user_id)
+
         interface.clear()
         agents_data = server.list_agents(user_id=request.user_id)
         return ListAgentsResponse(**agents_data)
