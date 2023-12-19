@@ -1,3 +1,9 @@
+---
+title: Contributing to the codebase
+excerpt: How to contribute to the MemGPT repo
+category: 6580dabb585483000f0e6c7c 
+---
+
 ## Installing from source
 
 To install MemGPT from source, start by cloning the repo:

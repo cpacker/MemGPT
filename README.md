@@ -6,12 +6,12 @@
 
  <strong>Try out our MemGPT chatbot on <a href="https://discord.gg/9GEQrxmVyE">Discord</a>!</strong>
 
- <strong>⭐ NEW: You can now run MemGPT with <a href="https://memgpt.readthedocs.io/en/latest/local_llm/">open/local LLMs</a> and <a href="https://memgpt.readthedocs.io/en/latest/autogen/">AutoGen</a>! ⭐ </strong>
+ <strong>⭐ NEW: You can now run MemGPT with <a href="https://memgpt.readme.io/docs/local_llm">open/local LLMs</a> and <a href="https://memgpt.readme.io/docs/autogen">AutoGen</a>! ⭐ </strong>
 
 
 [![Discord](https://img.shields.io/discord/1161736243340640419?label=Discord&logo=discord&logoColor=5865F2&style=flat-square&color=5865F2)](https://discord.gg/9GEQrxmVyE)
 [![arxiv 2310.08560](https://img.shields.io/badge/arXiv-2310.08560-B31B1B?logo=arxiv&style=flat-square)](https://arxiv.org/abs/2310.08560)
-[![Documentation](https://img.shields.io/github/v/release/cpacker/MemGPT?label=Documentation&logo=readthedocs&style=flat-square)](https://memgpt.readthedocs.io/en/latest/)
+[![Documentation](https://img.shields.io/github/v/release/cpacker/MemGPT?label=Documentation&logo=readthedocs&style=flat-square)](https://memgpt.readme.io/docs)
 
 </div>
 
@@ -96,7 +96,7 @@ You can run the following commands in the MemGPT CLI prompt:
 Once you exit the CLI with `/exit`, you can resume chatting with the same agent by specifying the agent name in `memgpt run --agent <NAME>`.
 
 ## Documentation
-See full documentation at: https://memgpt.readthedocs.io/
+See full documentation at: https://memgpt.readme.io
 
 ## Installing from source
 

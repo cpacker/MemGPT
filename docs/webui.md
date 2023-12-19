@@ -1,6 +1,12 @@
-!!! question "web UI troubleshooting"
+---
+title: oobobooga web UI
+excerpt: Setting up MemGPT with web UI
+category: 6580da9a40bb410016b8b0c3 
+---
 
-    If you have problems getting web UI set up, please use the [official web UI repo for support](https://github.com/oobabooga/text-generation-webui)! There will be more answered questions about web UI there vs here on the MemGPT repo.
+> 📘 web UI troubleshooting
+>
+> If you have problems getting web UI set up, please use the [official web UI repo for support](https://github.com/oobabooga/text-generation-webui)! There will be more answered questions about web UI there vs here on the MemGPT repo.
 
 To get MemGPT to work with a local LLM, you need to have the LLM running on a server that takes API requests.
 

@@ -58,7 +58,7 @@ elif LLM_BACKEND == "azure":
     azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
     assert (
         azure_openai_api_key is not None and azure_openai_version is not None and azure_openai_endpoint is not None
-    ), "Set all the required OpenAI Azure variables (see: https://memgpt.readthedocs.io/en/latest/endpoints/#azure)"
+    ), "Set all the required OpenAI Azure variables (see: https://memgpt.readme.io/docs/endpoints#azure-openai)"
 
     # This config is for AutoGen agents that are not powered by MemGPT
     config_list = [
@@ -108,7 +108,7 @@ elif LLM_BACKEND == "local":
     config_list_memgpt = [
         {
             "preset": DEFAULT_PRESET,
-            "model": None,  # only required for Ollama, see: https://memgpt.readthedocs.io/en/latest/ollama/
+            "model": None,  # only required for Ollama, see: https://memgpt.readme.io/docs/ollama
             "context_window": 8192,  # the context window of your model (for Mistral 7B-based models, it's likely 8192)
             "model_wrapper": "airoboros-l2-70b-2.1",  # airoboros is the default wrapper and should work for most models
             "model_endpoint_type": "lmstudio",  # can use webui, ollama, llamacpp, etc.
