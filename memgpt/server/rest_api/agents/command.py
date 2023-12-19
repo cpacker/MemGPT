@@ -18,7 +18,7 @@ class CommandResponse(BaseModel):
 
 
 def setup_agents_command_router(server: SyncServer, interface: QueuingInterface):
-    @router.post("/agents/command")
+    @router.post("/agents/command", tags=["agents"])
     def run_command(request: CommandRequest = Body(...)):
         """
         Execute a command on a specified agent.

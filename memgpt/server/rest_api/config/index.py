@@ -14,7 +14,7 @@ class CreateAgentConfig(BaseModel):
 
 
 def setup_config_index_router(server: SyncServer, interface: QueuingInterface):
-    @router.get("/config")
+    @router.get("/config", tags=["config"])
     def get_server_config(user_id: str):
         interface.clear()
         return server.get_server_config(user_id=user_id)

@@ -17,7 +17,7 @@ class AgentConfigResponse(BaseModel):
 
 
 def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
-    @router.get("/agents/config")
+    @router.get("/agents/config", tags=["agents"])
     def get_agent_config(request: AgentConfigRequest = Depends()):
         """
         Retrieve the configuration for a specific agent.

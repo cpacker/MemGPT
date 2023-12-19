@@ -43,7 +43,7 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface):
         agents_data = server.list_agents(user_id=request.user_id)
         return ListAgentsResponse(**agents_data)
 
-    @router.post("/agents")
+    @router.post("/agents", tags=["agents"])
     def create_agent(request: CreateAgentRequest = Body(...)):
         """
         Create a new agent with the specified configuration.

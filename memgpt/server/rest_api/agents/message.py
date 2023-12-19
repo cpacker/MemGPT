@@ -24,7 +24,7 @@ class UserMessageResponse(BaseModel):
 
 
 def setup_agents_message_router(server: SyncServer, interface: QueuingInterface):
-    @router.post("/agents/message")
+    @router.post("/agents/message", tags=["agents"])
     async def user_message(request: UserMessageRequest = Body(...)):
         """
         Process a user message and return the agent's response.

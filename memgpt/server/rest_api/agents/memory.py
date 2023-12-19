@@ -39,7 +39,7 @@ class UpdateAgentMemoryResponse(BaseModel):
 
 
 def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface):
-    @router.get("/agents/memory")
+    @router.get("/agents/memory", tags=["agents"])
     def get_agent_memory(request: GetAgentMemoryRequest = Depends()):
         """
         Retrieve the memory state of a specific agent.
@@ -54,7 +54,7 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface):
         memory = server.get_agent_memory(user_id=request.user_id, agent_id=request.agent_id)
         return GetAgentMemoryResponse(**memory)
 
-    @router.post("/agents/memory")
+    @router.post("/agents/memory", tags=["agents"])
     def update_agent_memory(request: UpdateAgentMemoryRequest = Body(...)):
         """
         Update the core memory of a specific agent.
