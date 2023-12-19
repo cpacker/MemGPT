@@ -16,7 +16,7 @@ Once you have a working copy of the source code, you should be able to modify th
 
 ## Installing MemGPT from source
 
-**Reminder**: if you plan on opening a pull request to contribute your changes, follow [our contributing guide's install instructions instead](https://github.com/cpacker/MemGPT/blob/main/CONTRIBUTING.md)!
+**Reminder**: if you plan on opening a pull request to contribute your changes, follow our [contributing guide's install instructions](https://github.com/cpacker/MemGPT/blob/main/CONTRIBUTING.md) instead!
 
 To install MemGPT from source, start by cloning the repo:
 ```sh
