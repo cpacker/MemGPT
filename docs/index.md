@@ -4,7 +4,7 @@ excerpt: Welcome to the MemGPT documentation!
 category: 6580d34ee5e4d00068bf2a1d 
 ---
 
-![memgpt llama](https://github.com/cpacker/MemGPT/assets/5475622/1e1f5449-b7e4-4d30-a108-d620f3bc1878)
+![memgpt llama](https://raw.githubusercontent.com/cpacker/MemGPT/migrate-docs/docs/assets/cozy_llama.webp)
 
 ## What is MemGPT?
 
