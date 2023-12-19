@@ -1,7 +1,7 @@
 ---
 title: Contributing to the codebase
 excerpt: How to contribute to the MemGPT repo
-category: 6580dabb585483000f0e6c7c 
+category: 6581eaa89a00e6001012822c 
 ---
 
 ## Installing from source
