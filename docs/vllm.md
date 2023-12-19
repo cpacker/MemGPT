@@ -1,3 +1,9 @@
+---
+title: vLLM 
+excerpt: Setting up MemGPT with vLLM 
+category: 6580da9a40bb410016b8b0c3 
+---
+
 1. Download + install [vLLM](https://docs.vllm.ai/en/latest/getting_started/installation.html)
 2. Launch a vLLM **OpenAI-compatible** API server using [the official vLLM documentation](https://docs.vllm.ai/en/latest/getting_started/quickstart.html)
 

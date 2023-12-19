@@ -16,13 +16,22 @@ from memgpt.interface import CLIInterface as interface  # for printing to termin
 from memgpt.cli.cli_config import configure
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
-from memgpt.utils import printd
+from memgpt.utils import printd, open_folder_in_explorer
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
 from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
+
+
+def open_folder():
+    """Open a folder viewer of the MemGPT home directory"""
+    try:
+        print(f"Opening home folder: {MEMGPT_DIR}")
+        open_folder_in_explorer(MEMGPT_DIR)
+    except Exception as e:
+        print(f"Failed to open folder with system viewer, error:\n{e}")
 
 
 class ServerChoice(Enum):

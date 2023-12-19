@@ -60,7 +60,7 @@ def configure_llm_endpoint(config: MemGPTConfig):
         model_endpoint_type = "azure"
         model_endpoint = get_azure_credentials()["azure_endpoint"]
     else:  # local models
-        backend_options = ["webui", "webui-legacy", "llamacpp", "koboldcpp", "ollama", "lmstudio", "vllm", "openai"]
+        backend_options = ["webui", "webui-legacy", "llamacpp", "koboldcpp", "ollama", "lmstudio", "lmstudio-legacy", "vllm", "openai"]
         default_model_endpoint_type = None
         if config.model_endpoint_type in backend_options:
             # set from previous config
@@ -111,7 +111,7 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str):
         if model_endpoint_type == "ollama":
             default_model = config.model if config.model and config.model_endpoint_type == "ollama" else DEFAULT_OLLAMA_MODEL
             model = questionary.text(
-                "Enter default model name (required for Ollama, see: https://memgpt.readthedocs.io/en/latest/ollama):",
+                "Enter default model name (required for Ollama, see: https://memgpt.readme.io/docs/ollama):",
                 default=default_model,
             ).ask()
             model = None if len(model) == 0 else model
@@ -310,12 +310,12 @@ def configure():
                 print(f"Using deployment id {azure_creds['azure_deployment']}")
         else:
             raise ValueError(
-                "Missing environment variables for Azure (see https://memgpt.readthedocs.io/en/latest/endpoints/#azure). Please set then run `memgpt configure` again."
+                "Missing environment variables for Azure (see https://memgpt.readme.io/docs/endpoints#azure-openai). Please set then run `memgpt configure` again."
             )
     if model_endpoint_type == "openai" or embedding_endpoint_type == "openai":
         if not openai_key:
             raise ValueError(
-                "Missing environment variables for OpenAI (see https://memgpt.readthedocs.io/en/latest/endpoints/#openai). Please set them and run `memgpt configure` again."
+                "Missing environment variables for OpenAI (see https://memgpt.readme.io/docs/endpoints#azure-openai). Please set them and run `memgpt configure` again."
             )
 
     config = MemGPTConfig(

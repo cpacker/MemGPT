@@ -89,7 +89,9 @@ def get_chat_completion(
         elif endpoint_type == "webui-legacy":
             result, usage = get_webui_completion_legacy(endpoint, prompt, context_window, grammar=grammar_name)
         elif endpoint_type == "lmstudio":
-            result, usage = get_lmstudio_completion(endpoint, prompt, context_window)
+            result, usage = get_lmstudio_completion(endpoint, prompt, context_window, api="completions")
+        elif endpoint_type == "lmstudio-legacy":
+            result, usage = get_lmstudio_completion(endpoint, prompt, context_window, api="chat")
         elif endpoint_type == "llamacpp":
             result, usage = get_llamacpp_completion(endpoint, prompt, context_window, grammar=grammar_name)
         elif endpoint_type == "koboldcpp":

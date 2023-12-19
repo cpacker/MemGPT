@@ -2,13 +2,13 @@ import os
 from urllib.parse import urljoin
 import requests
 
-from .settings import SIMPLE
-from ..utils import load_grammar_file, count_tokens
+from memgpt.local_llm.settings.settings import get_completions_settings
+from memgpt.local_llm.utils import load_grammar_file, count_tokens
 
 KOBOLDCPP_API_SUFFIX = "/api/v1/generate"
 
 
-def get_koboldcpp_completion(endpoint, prompt, context_window, grammar=None, settings=SIMPLE):
+def get_koboldcpp_completion(endpoint, prompt, context_window, grammar=None):
     """See https://lite.koboldai.net/koboldcpp_api for API spec"""
     from memgpt.utils import printd
 
@@ -17,6 +17,7 @@ def get_koboldcpp_completion(endpoint, prompt, context_window, grammar=None, set
         raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_window} tokens)")
 
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
+    settings = get_completions_settings()
     request = settings
     request["prompt"] = prompt
     request["max_context_length"] = context_window

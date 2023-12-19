@@ -1,3 +1,9 @@
+---
+title: Creating new MemGPT presets
+excerpt: Presets allow you to customize agent functionality
+category: 6580daaa48aeca0038fc2297 
+---
+
 MemGPT **presets** are a combination default settings including a system prompt and a function set. For example, the `memgpt_docs` preset uses a system prompt that is tuned for document analysis, while the default `memgpt_chat` is tuned for general chatting purposes.
 
 You can create your own presets by creating a `.yaml` file in the `~/.memgpt/presets` directory. If you want to use a new custom system prompt in your preset, you can create a `.txt` file in the `~/.memgpt/system_prompts` directory.
