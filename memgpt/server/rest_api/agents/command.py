@@ -18,18 +18,14 @@ class CommandResponse(BaseModel):
 
 
 def setup_agents_command_router(server: SyncServer, interface: QueuingInterface):
-    @router.post("/agents/command", tags=["agents"])
+    @router.post("/agents/command", tags=["agents"], response_model=CommandResponse)
     def run_command(request: CommandRequest = Body(...)):
         """
         Execute a command on a specified agent.
 
-        This endpoint receives a command to be executed on an agent. It uses the user and agent identifiers
-        to authenticate and route the command appropriately.
+        This endpoint receives a command to be executed on an agent. It uses the user and agent identifiers to authenticate and route the command appropriately.
 
         Raises an HTTPException for any processing errors.
-
-        :param body: Command object containing user_id, agent_id, and the command to execute.
-        :return: A CommandResponse object containing the result of the executed command.
         """
         interface.clear()
         try:

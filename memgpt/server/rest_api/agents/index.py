@@ -28,31 +28,21 @@ class CreateAgentResponse(BaseModel):
 
 
 def setup_agents_index_router(server: SyncServer, interface: QueuingInterface):
-    @router.get("/agents", tags=["agents"])
+    @router.get("/agents", tags=["agents"], response_model=ListAgentsResponse)
     def list_agents(request: ListAgentsRequest = Depends()):
         """
         List all agents associated with a given user.
 
-        This endpoint retrieves a list of all agents and their configurations associated with
-        the specified user ID. It clears any existing interface states before listing the agents.
-
-        :param request: ListAgentsRequest object containing the user_id.
-        :return: A ListAgentsResponse object containing the number of agents and their configurations.
+        This endpoint retrieves a list of all agents and their configurations associated with the specified user ID.
         """
         interface.clear()
         agents_data = server.list_agents(user_id=request.user_id)
         return ListAgentsResponse(**agents_data)
 
-    @router.post("/agents", tags=["agents"])
+    @router.post("/agents", tags=["agents"], response_model=CreateAgentResponse)
     def create_agent(request: CreateAgentRequest = Body(...)):
         """
         Create a new agent with the specified configuration.
-
-        This endpoint accepts a user ID and agent configuration to create a new agent.
-        It clears any existing interface states before creating the agent.
-
-        :param request: CreateAgentRequest object containing the user_id and agent configuration.
-        :return: A CreateAgentResponse object containing the ID of the newly created agent.
         """
         interface.clear()
         try:

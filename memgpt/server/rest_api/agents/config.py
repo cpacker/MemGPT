@@ -17,16 +17,12 @@ class AgentConfigResponse(BaseModel):
 
 
 def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
-    @router.get("/agents/config", tags=["agents"])
+    @router.get("/agents/config", tags=["agents"], response_model=AgentConfigResponse)
     def get_agent_config(request: AgentConfigRequest = Depends()):
         """
         Retrieve the configuration for a specific agent.
 
         This endpoint fetches the configuration details for a given agent, identified by the user and agent IDs.
-        It clears any existing interface states before retrieving the configuration.
-
-        :param request: AgentConfigRequest object containing the user_id and agent_id.
-        :return: An AgentConfigResponse object containing the configuration details of the requested agent.
         """
         interface.clear()
         config = server.get_agent_config(user_id=request.user_id, agent_id=request.agent_id)

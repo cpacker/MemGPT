@@ -24,16 +24,13 @@ class UserMessageResponse(BaseModel):
 
 
 def setup_agents_message_router(server: SyncServer, interface: QueuingInterface):
-    @router.post("/agents/message", tags=["agents"])
+    @router.post("/agents/message", tags=["agents"], response_model=UserMessageResponse)
     async def user_message(request: UserMessageRequest = Body(...)):
         """
         Process a user message and return the agent's response.
 
         This endpoint accepts a message from a user and processes it through the agent.
         It can optionally stream the response if 'stream' is set to True.
-
-        :param body: UserMessage object containing user_id, agent_id, message, and streaming option.
-        :return: If streaming, a continuous stream of messages. Otherwise, a list of processed messages.
         """
         if request.stream:
             # For streaming response

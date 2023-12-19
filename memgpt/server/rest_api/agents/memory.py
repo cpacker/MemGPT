@@ -39,33 +39,24 @@ class UpdateAgentMemoryResponse(BaseModel):
 
 
 def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface):
-    @router.get("/agents/memory", tags=["agents"])
+    @router.get("/agents/memory", tags=["agents"], response_model=GetAgentMemoryResponse)
     def get_agent_memory(request: GetAgentMemoryRequest = Depends()):
         """
         Retrieve the memory state of a specific agent.
 
         This endpoint fetches the current memory state of the agent identified by the user ID and agent ID.
-        It clears any existing interface states before retrieving the memory.
-
-        :param request: GetAgentMemoryRequest object containing the user_id and agent_id.
-        :return: A GetAgentMemoryResponse object containing the agent's memory state.
         """
         interface.clear()
         memory = server.get_agent_memory(user_id=request.user_id, agent_id=request.agent_id)
         return GetAgentMemoryResponse(**memory)
 
-    @router.post("/agents/memory", tags=["agents"])
+    @router.post("/agents/memory", tags=["agents"], response_model=UpdateAgentMemoryResponse)
     def update_agent_memory(request: UpdateAgentMemoryRequest = Body(...)):
         """
         Update the core memory of a specific agent.
 
-        This endpoint accepts new memory contents (human and persona) and updates the core memory of the
-        agent identified by the user ID and agent ID. It clears any existing interface states before updating.
-
-        :param request: UpdateAgentMemoryRequest object containing the user_id, agent_id, and new memory contents.
-        :return: An UpdateAgentMemoryResponse object with the old and new states of the agent's core memory.
+        This endpoint accepts new memory contents (human and persona) and updates the core memory of the agent identified by the user ID and agent ID.
         """
-        print(f"request:\n{request}")
         interface.clear()
         new_memory_contents = {"persona": request.persona, "human": request.human}
         response = server.update_agent_core_memory(
