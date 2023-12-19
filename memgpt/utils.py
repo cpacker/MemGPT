@@ -260,9 +260,10 @@ def get_schema_diff(schema_a, schema_b):
 
     return "".join(difference)
 
+
 def fix_file_path(path):
     """
     Converts backslashes to forward slashes in a file path.
     This is useful for ensuring compatibility in file paths across different systems.
     """
-    return path.replace('\\', '/')
+    return path.replace("\\", "/")

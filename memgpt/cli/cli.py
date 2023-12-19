@@ -139,7 +139,7 @@ def run(
     """
 
     # setup logger
-    #TODO: remove Utils Debug after global logging is complete.
+    # TODO: remove Utils Debug after global logging is complete.
     utils.DEBUG = debug
     # TODO: add logging command line options for runtime log level
 
