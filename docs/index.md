@@ -58,10 +58,10 @@ MemGPT is an open source project under active development. If you'd like to help
 ## Getting started
 
 <div class="container">
-  <a href="discord_bot" class="button green">
+  <a href="https://memgpt.readme.io/docs/discord_bot" class="button green">
     <span class="emoji">💬</span> Chat with the MemGPT Discord bot!
   </a>
-  <a href="quickstart" class="button blue">
+  <a href="https://memgpt.readme.io/docs/quickstart" class="button blue">
     <span class="emoji">🖥️</span> Run MemGPT locally on your own computer
   </a>
 </div>
@@ -73,7 +73,7 @@ MemGPT is an open source project under active development. If you'd like to help
     <span class="emoji">👋</span> Join the MemGPT community on Discord!
   </a>
 
-  <a href="contributing" class="button orange">
+  <a href="https://memgpt.readme.io/docs/contributing" class="button orange">
     <span class="emoji">❤️</span> Learn how to contribute to the MemGPT project!
   </a>
 </div>
