@@ -1,6 +1,6 @@
 import logging
 import logging.config
-from memgpt.memgptlog import logger,reload_logger
+from memgpt.memgptlog import logger, reload_logger
 import inspect
 import json
 import os
@@ -12,8 +12,6 @@ import memgpt
 import memgpt.utils as utils
 from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS, DEFAULT_HUMAN, DEFAULT_PERSONA, LOGGER_NAME
 from memgpt.presets.presets import DEFAULT_PRESET
-
-
 
 
 # helper functions for writing to configs
@@ -150,8 +148,9 @@ class MemGPTConfig:
                 "config_path": config_path,
                 "memgpt_version": get_field(config, "version", "memgpt_version"),
                 "logging_level": get_field(config, "logger_MemGPT", "level"),
-                "logging_enable_logfile": True if "consoleHandler,logfileHandler" == get_field(config, "logger_MemGPT",
-                                                                                               "handlers") else False,
+                "logging_enable_logfile": True
+                if "consoleHandler,logfileHandler" == get_field(config, "logger_MemGPT", "handlers")
+                else False,
                 "logging_backup_count": get_field(config, "handler_logfileHandler", "backupcount"),
                 "logging_max_file_bytes": get_field(config, "handler_logfileHandler", "maxBytes"),
                 "logging_logdir": get_field(config, "logging_paths", "logdir"),
@@ -159,9 +158,13 @@ class MemGPTConfig:
             }
             # ensure logging is config is set correctly support for upgrades
             force_save = False
-            if config_dict["logging_level"] is None or config_dict["logging_backup_count"] is None or config_dict[
-                "logging_max_file_bytes"] is None or config_dict["logging_logdir"] is None or config_dict[
-                "logging_logpathname"] is None:
+            if (
+                config_dict["logging_level"] is None
+                or config_dict["logging_backup_count"] is None
+                or config_dict["logging_max_file_bytes"] is None
+                or config_dict["logging_logdir"] is None
+                or config_dict["logging_logpathname"] is None
+            ):
                 # load loggind defaults if none
                 config_dict["logging_enable_logfile"] = MemGPTConfig.logging_enable_logfile
                 config_dict["logging_level"] = MemGPTConfig.logging_level
@@ -176,7 +179,7 @@ class MemGPTConfig:
                 temp_config = cls(**config_dict)
                 temp_config.save()
                 logger = logging.getLogger(LOGGER_NAME)
-                logger.debug(f'Updated Missing Logging Configuration: {config_path}')
+                logger.debug(f"Updated Missing Logging Configuration: {config_path}")
 
             return cls(**config_dict)
 
@@ -186,7 +189,7 @@ class MemGPTConfig:
         config.create_config_dir()  # create dirs
         config.save()  # save updated config
         logger = logging.getLogger(LOGGER_NAME)
-        logger.debug(f'Created New Configuration: {config_path}')
+        logger.debug(f"Created New Configuration: {config_path}")
         return config
 
     def save(self):
@@ -262,14 +265,17 @@ class MemGPTConfig:
         # console logging formatter
         set_field(config, "formatter_consoleFormatter", "format", "%(name)s - %(levelname)s - %(message)s")
         if self.logging_enable_logfile:
-            set_field(config, "formatter_logfileFormatter", "format",
-                      "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+            set_field(config, "formatter_logfileFormatter", "format", "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
             # logfile logging handler Rotating File Handler
             set_field(config, "handler_logfileHandler", "class", "handlers.RotatingFileHandler")
             set_field(config, "handler_logfileHandler", "level", self.logging_level)
             fixed_logpathname = utils.fix_file_path(self.logging_logpathname)
-            set_field(config, "handler_logfileHandler", "args",
-                      f"('{fixed_logpathname}', {self.logging_max_file_bytes}, {self.logging_backup_count})")
+            set_field(
+                config,
+                "handler_logfileHandler",
+                "args",
+                f"('{fixed_logpathname}', {self.logging_max_file_bytes}, {self.logging_backup_count})",
+            )
             set_field(config, "handler_logfileHandler", "formatter", "logfileFormatter")
         # logging paths
         set_field(config, "logging_paths", "logdir", self.logging_logdir)
@@ -281,10 +287,10 @@ class MemGPTConfig:
         with open(self.config_path, "w") as f:
             config.write(f)
         # reload logging config after write.
-        logging.config.fileConfig(self.config_path,disable_existing_loggers=False)
+        logging.config.fileConfig(self.config_path, disable_existing_loggers=False)
         # reset the logger (global) logger is defined as global
         reload_logger()
-        logger.debug(f'Saved Config:  {self.config_path}')
+        logger.debug(f"Saved Config:  {self.config_path}")
 
     @staticmethod
     def exists():
@@ -371,8 +377,7 @@ class AgentConfig:
 
         # save agent config
         self.agent_config_path = (
-            os.path.join(MEMGPT_DIR, "agents", self.name,
-                         "config.json") if agent_config_path is None else agent_config_path
+            os.path.join(MEMGPT_DIR, "agents", self.name, "config.json") if agent_config_path is None else agent_config_path
         )
 
     def generate_agent_id(self, length=6):
