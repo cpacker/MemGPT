@@ -31,6 +31,11 @@ class Server(object):
         raise NotImplementedError
 
     @abstractmethod
+    def get_agent_messages(self, user_id: str, agent_id: str, start: int, count: int) -> list:
+        """Paginated query of in-context messages in agent message queue"""
+        raise NotImplementedError
+
+    @abstractmethod
     def get_agent_memory(self, user_id: str, agent_id: str) -> dict:
         """Return the memory of an agent (core memory + non-core statistics)"""
         raise NotImplementedError
@@ -464,6 +469,29 @@ class SyncServer(LockingServer):
         }
 
         return memory_obj
+
+    def get_agent_messages(self, user_id: str, agent_id: str, start: int, count: int) -> list:
+        """Paginated query of in-context messages in agent message queue"""
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        if start < 0 or count < 0:
+            raise ValueError("Start and count values should be non-negative")
+
+        # Reverse the list to make it in reverse chronological order
+        reversed_messages = memgpt_agent.messages[::-1]
+
+        # Check if start is within the range of the list
+        if start >= len(reversed_messages):
+            raise IndexError("Start index is out of range")
+
+        # Calculate the end index, ensuring it does not exceed the list length
+        end_index = min(start + count, len(reversed_messages))
+
+        # Slice the list for pagination
+        paginated_messages = reversed_messages[start:end_index]
+
+        return paginated_messages
 
     def get_agent_config(self, user_id: str, agent_id: str) -> dict:
         """Return the config of an agent"""
