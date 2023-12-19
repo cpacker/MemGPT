@@ -16,10 +16,10 @@
       } else if (localStorage.theme === 'light') {
         if (document && document.documentElement) {
           document.documentElement.classList.remove('dark');
-          localStorage.setItem('darkMode', 'light');
+          localStorage.setItem('theme', 'light');
         }
       } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        localStorage.setItem('darkMode', 'system');
+        localStorage.setItem('theme', 'system');
         if (document && document.documentElement) {
           document.documentElement.classList.add('dark');
         }
@@ -29,8 +29,8 @@
         }
       }
     </script>
-    <script type="module" crossorigin src="/assets/index-156e79f0.js"></script>
-    <link rel="stylesheet" href="/assets/index-fc829661.css">
+    <script type="module" crossorigin src="/assets/index-e9686fdc.js"></script>
+    <link rel="stylesheet" href="/assets/index-27e4af26.css">
   </head>
   <body>
     <div class="h-full w-full" id="root"></div>
