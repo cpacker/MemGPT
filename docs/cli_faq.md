@@ -6,7 +6,7 @@ category: 6580d34ee5e4d00068bf2a1d
 
 > 📘 Open / local LLM FAQ
 > 
-> Questions specific to running your own open / local LLMs with MemGPT can be found [here](../local_llm_faq).
+> Questions specific to running your own open / local LLMs with MemGPT can be found [here](local_llm_faq).
 
 ## MemGPT CLI
 
