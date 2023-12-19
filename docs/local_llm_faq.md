@@ -4,9 +4,9 @@ excerpt: FAQ for MemGPT + custom LLM backends
 category: 6580da9a40bb410016b8b0c3 
 ---
 
-### Problems getting MemGPT + local LLMs set up
+## Problems getting MemGPT + local LLMs set up
 
-#### "Unable to connect to host ...", "API call got non-200 response code"
+### "Unable to connect to host ...", "API call got non-200 response code"
 
 This error happens when MemGPT tries to run the LLM on the remote server you specified, but the server isn't working as expected.
 
@@ -17,15 +17,15 @@ Exception: API call got non-200 response code (code=400, msg={"error": {"message
 
 Correcting the endpoint from `http://localhost:5001/v1` to `http://localhost:5001` (no `/v1` suffix) fixes the example error.
 
-### Common errors while running MemGPT with local LLMs
+## Common errors while running MemGPT with local LLMs
 
-#### "Warning: no wrapper specified for local LLM, using the default wrapper"
+### "Warning: no wrapper specified for local LLM, using the default wrapper"
 
 **You can ignore this warning.**
 
 This warning means that you did not specify a specific wrapper using the `--model-wrapper` flag, so MemGPT is using the default wrapper. If you would like to silence this warning, specify a wrapper with `--model-wrapper` or during `memgpt configure`.
 
-#### "Failed to parse JSON from local LLM response"
+### "Failed to parse JSON from local LLM response"
 
 This error occurs when the LLM you're using outputs a string that cannot be parsed into a MemGPT function call. This is basically an LLM output error - the LLM was not able to properly follow MemGPT instructions and generate a MemGPT-compatible function call string.
 
@@ -68,6 +68,6 @@ This string is not correct JSON - it is missing closing brackets and has a stray
 }
 ```
 
-#### "Got back an empty response string from ..."
+### "Got back an empty response string from ..."
 
 MemGPT asked the server to run the LLM, but got back an empty response. Double-check that your server is running properly and has context length set correctly (it should be set to 8k if using Mistral 7B models).
