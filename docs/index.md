@@ -42,7 +42,7 @@ category: 6580d34ee5e4d00068bf2a1d
 }
 </style>
 
-![memgpt llama](https://raw.githubusercontent.com/cpacker/MemGPT/main/docs/assets/cozy_llama.webp)
+![memgpt llama](https://raw.githubusercontent.com/cpacker/MemGPT/main/docs/assets/memgpt_cozy.webp)
 
 ## What is MemGPT?
 
