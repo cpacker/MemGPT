@@ -1,8 +1,13 @@
-!!! note "Note"
+---
+title: Example - perpetual chatbot 
+excerpt: Using MemGPT to create a perpetual chatbot
+category: 6580d34ee5e4d00068bf2a1d 
+---
 
-    Before starting this example, make sure that you've [properly installed MemGPT](../quickstart)
+> 📘 Confirm your installation
+> 
+> Before starting this example, make sure that you've [properly installed MemGPT](quickstart)
 
-## Using MemGPT to create a perpetual chatbot
 In this example, we're going to use MemGPT to create a chatbot with a custom persona. MemGPT chatbots are "perpetual chatbots", meaning that they can be run indefinitely without any context length limitations. MemGPT chatbots are self-aware that they have a "fixed context window", and will manually manage their own memories to get around this problem by moving information in and out of their small memory window and larger external storage.
 
 MemGPT chatbots always keep a reserved space in their "core" memory window to store their `persona` information (describes the bot's personality + basic functionality), and `human` information (which describes the human that the bot is chatting with). The MemGPT chatbot will update the `persona` and `human` core memory blocks over time as it learns more about the user (and itself).

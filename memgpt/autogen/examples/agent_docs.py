@@ -1,6 +1,6 @@
 """Example of how to add MemGPT into an AutoGen groupchat and chat with docs.
 
-See https://memgpt.readthedocs.io/en/latest/autogen/#loading-documents
+See https://memgpt.readme.io/docs/autogen#part-4-attaching-documents-to-memgpt-autogen-agents
 
 Based on the official AutoGen example here: https://github.com/microsoft/autogen/blob/main/notebook/agentchat_groupchat.ipynb
 
@@ -61,7 +61,7 @@ elif LLM_BACKEND == "azure":
     azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
     assert (
         azure_openai_api_key is not None and azure_openai_version is not None and azure_openai_endpoint is not None
-    ), "Set all the required OpenAI Azure variables (see: https://memgpt.readthedocs.io/en/latest/endpoints/#azure)"
+    ), "Set all the required OpenAI Azure variables (see: https://memgpt.readme.io/docs/endpoints#azure-openai)"
 
     # This config is for AutoGen agents that are not powered by MemGPT
     config_list = [
@@ -111,7 +111,7 @@ elif LLM_BACKEND == "local":
     config_list_memgpt = [
         {
             "preset": DEFAULT_PRESET,
-            "model": None,  # only required for Ollama, see: https://memgpt.readthedocs.io/en/latest/ollama/
+            "model": None,  # only required for Ollama, see: https://memgpt.readme.io/docs/ollama
             "context_window": 8192,  # the context window of your model (for Mistral 7B-based models, it's likely 8192)
             "model_wrapper": "airoboros-l2-70b-2.1",  # airoboros is the default wrapper and should work for most models
             "model_endpoint_type": "lmstudio",  # can use webui, ollama, llamacpp, etc.
@@ -153,7 +153,7 @@ memgpt_agent = create_memgpt_autogen_agent_from_config(
     default_auto_reply="...",  # Set a default auto-reply message here (non-empty auto-reply is required for LM Studio)
     skip_verify=False,  # NOTE: you should set this to True if you expect your MemGPT AutoGen agent to call a function other than send_message on the first turn
 )
-# NOTE: you need to follow steps to load document first: see https://memgpt.readthedocs.io/en/latest/autogen/#loading-documents
+# NOTE: you need to follow steps to load document first: see https://memgpt.readme.io/docs/autogen#part-4-attaching-documents-to-memgpt-autogen-agents
 memgpt_agent.load_and_attach("memgpt_research_paper", "directory")
 
 # Initialize the group chat between the agents

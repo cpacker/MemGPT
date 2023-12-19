@@ -1,3 +1,9 @@
+---
+title: koboldcpp 
+excerpt: Setting up MemGPT with koboldcpp 
+category: 6580da9a40bb410016b8b0c3 
+---
+
 1. Download + install [koboldcpp](https://github.com/LostRuins/koboldcpp/) and the model you want to test with
 2. In your terminal, run `./koboldcpp.py <MODEL> -contextsize <CONTEXT_LENGTH>`
 
