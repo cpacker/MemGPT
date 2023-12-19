@@ -1,4 +1,8 @@
-## Chatting with the MemGPT Discord Bot
+---
+title: Chatting with MemGPT Bot 
+excerpt: Get up and running with the MemGPT Discord Bot
+category: 6580da8eb6feb700166e5016 
+---
 
 The fastest way to experience MemGPT is to chat with the MemGPT Discord Bot.
 

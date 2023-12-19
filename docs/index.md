@@ -1,4 +1,12 @@
-# 📚🦙 Welcome to MemGPT
+---
+title: Introduction 
+excerpt: Welcome to the MemGPT documentation!
+category: 6580d34ee5e4d00068bf2a1d 
+---
+
+![memgpt llama](https://raw.githubusercontent.com/cpacker/MemGPT/migrate-docs/docs/assets/cozy_llama.webp)
+
+## What is MemGPT?
 
 MemGPT enables LLMs to manage their own memory and overcome limited context windows!
 
