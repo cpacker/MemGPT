@@ -6,6 +6,8 @@ category: 6580d34ee5e4d00068bf2a1d
 
 ![image](https://github.com/cpacker/MemGPT/assets/5475622/b262e63d-ec2c-4d27-beea-d4b8fa919879)
 
+## What is MemGPT?
+
 MemGPT enables LLMs to manage their own memory and overcome limited context windows!
 
 You can use MemGPT to:
