@@ -18,6 +18,8 @@ settings = {
         # '</s>',
         # '<|',
         # '\n#',
-        # '\n\n\n',
+        # "\n\n\n",
+        # prevent chaining function calls / multi json objects / run-on generations
+        "  }\n}\n",
     ],
 }
