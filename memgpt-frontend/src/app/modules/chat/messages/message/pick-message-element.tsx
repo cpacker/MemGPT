@@ -5,15 +5,15 @@ import MemgptMessage from './memgpt-message';
 import { cnInlineCode, cnMuted } from '@memgpt/components/typography';
 import React from 'react';
 
-export const pickMessageElement = ({ type, message_type, message }: Message, key: number) => {
+export const pickMessageElement = ({ type, message_type, message, date }: Message, key: number) => {
   if (type === 'user_message') {
-    return <UserMessage key={key} date={new Date()} message={message ?? ''} />;
+    return <UserMessage key={key} date={date} message={message ?? ''} />;
   }
-  if (type === 'agent_response_error') {
-    return <ErrorMessage key={key} date={new Date()} message={message ?? ''} />;
+  if (type === 'agent_response' && message_type === 'internal_error') {
+    return <ErrorMessage key={key} date={date} message={message ?? ''} />;
   }
   if (type === 'agent_response' && message_type === 'assistant_message') {
-    return <MemgptMessage key={key} date={new Date()} message={message ?? ''} />;
+    return <MemgptMessage key={key} date={date} message={message ?? ''} />;
   }
   if ((type === 'agent_response' && message_type === 'function_call' && !message?.includes('send_message'))
     || (type === 'agent_response' && message_type === 'function_return' && message !== 'None')) {

@@ -1,4 +1,5 @@
 import asyncio
+from asyncio import AbstractEventLoop
 from enum import Enum
 import json
 from typing import List, Optional
@@ -79,14 +80,21 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface)
             try:
                 # Start the generation process (similar to the non-streaming case)
                 # This should be a non-blocking call or run in a background task
-
                 # Check if server.user_message is an async function
                 if asyncio.iscoroutinefunction(message_func):
                     # Start the async task
                     await asyncio.create_task(message_func(user_id=request.user_id, agent_id=request.agent_id, message=request.message))
                 else:
+
+                    def handle_exception(exception_loop: AbstractEventLoop, context):
+                        # context["message"] will always be there; but context["exception"] may not
+                        error = context.get("exception") or context["message"]
+                        print(f"handling asyncio exception {context}")
+                        interface.error(str(error))
+
                     # Run the synchronous function in a thread pool
                     loop = asyncio.get_event_loop()
+                    loop.set_exception_handler(handle_exception)
                     loop.run_in_executor(None, message_func, request.user_id, request.agent_id, request.message)
 
                 async def formatted_message_generator():
