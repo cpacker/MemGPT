@@ -16,10 +16,10 @@
       } else if (localStorage.theme === 'light') {
         if (document && document.documentElement) {
           document.documentElement.classList.remove('dark');
-          localStorage.setItem('darkMode', 'light');
+          localStorage.setItem('theme', 'light');
         }
       } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        localStorage.setItem('darkMode', 'system');
+        localStorage.setItem('theme', 'system');
         if (document && document.documentElement) {
           document.documentElement.classList.add('dark');
         }

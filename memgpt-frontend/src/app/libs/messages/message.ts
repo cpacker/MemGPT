@@ -1,12 +1,10 @@
 import * as z from 'zod';
 
-const messageSchema = z.object({
+export const MessageSchema = z.object({
   type: z.enum([
     'user_message',
     'agent_response',
-    'agent_response_start',
-    'agent_response_end',
-    'agent_response_error',
+    'system_message',
   ]),
   message_type: z.enum([
     'internal_monologue',
@@ -14,8 +12,10 @@ const messageSchema = z.object({
     'function_return',
     'assistant_message',
     'user_message',
+    'internal_error'
   ]).optional(),
   message: z.string().optional(),
+  date: z.date()
 });
 
-export type Message = z.infer<typeof messageSchema>;
+export type Message = z.infer<typeof MessageSchema>;
