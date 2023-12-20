@@ -35,6 +35,7 @@ def get_chat_completion(
     endpoint=None,
     endpoint_type=None,
     # extra hints to allow for additional prompt formatting hacks
+    # TODO this could alternatively be supported via passing function_call="send_message" into the wrapper
     first_message=False,
 ):
     from memgpt.utils import printd
