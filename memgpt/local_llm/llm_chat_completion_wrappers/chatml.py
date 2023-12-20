@@ -10,12 +10,15 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
 
     def __init__(
         self,
-        simplify_json_content=True,
+        json_indent=2,
+        # simplify_json_content=True,
+        simplify_json_content=False,
         clean_function_args=True,
         include_assistant_prefix=True,
         assistant_prefix_extra='\n{\n  "function":',
         allow_custom_roles=True,  # allow roles outside user/assistant
-        allow_function_role=True,  # use function role for function replies?
+        # allow_function_role=True,  # use function role for function replies?
+        allow_function_role=False,  # use function role for function replies?
     ):
         self.simplify_json_content = simplify_json_content
         self.clean_func_args = clean_function_args
@@ -24,6 +27,8 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         # role-based
         self.allow_custom_roles = allow_custom_roles
         self.allow_function_role = allow_function_role
+        # how to set json in prompt
+        self.json_indent = json_indent
 
     def compile_function_block(self, functions) -> str:
         """functions dict -> string describing functions choices"""
@@ -66,7 +71,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         """assistant message -> string"""
         prompt = ""
 
-        def create_function_call(function_call, inner_thoughts=None, json_indent=2):
+        def create_function_call(function_call, inner_thoughts=None):
             """Go from ChatCompletion to Airoboros style function trace (in prompt)
 
             ChatCompletion data (inside message['function_call']):
@@ -92,7 +97,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
                     **json.loads(function_call["arguments"]),
                 },
             }
-            return json.dumps(airo_func_call, indent=json_indent)
+            return json.dumps(airo_func_call, indent=self.json_indent)
 
         # need to add the function call if there was one
         inner_thoughts = message["content"]
@@ -111,11 +116,19 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         if self.simplify_json_content:
             # Make user messages not JSON but plaintext instead
             try:
-                content_json = json.loads(message["content"])
-                content_simple = content_json["message"]
-                prompt += f"{content_simple}"
+                user_msg_json = json.loads(message["content"])
+                user_msg_str = user_msg_json["message"]
             except:
-                prompt += f"{message['content']}"
+                user_msg_str = message["content"]
+        else:
+            # Otherwise just dump the full json
+            try:
+                user_msg_json = json.loads(message["content"])
+                user_msg_str = json.dumps(user_msg_json, indent=self.json_indent)
+            except:
+                user_msg_str = message["content"]
+
+        prompt += user_msg_str
         return prompt
 
     # NOTE: BOS/EOS chatml tokens are NOT inserted here
@@ -126,7 +139,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         try:
             # indent the function replies
             function_return_dict = json.loads(message["content"])
-            function_return_str = json.dumps(function_return_dict, indent=2)
+            function_return_str = json.dumps(function_return_dict, indent=self.json_indent)
         except:
             function_return_str = message["content"]
 
@@ -169,8 +182,9 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
                     # TODO figure out what to do with functions if we disallow function role
                     role_str = "assistant"  # use user instead???
                     msg_str = self.compile_function_response(message)
+                    func_resp_prefix = "FUNCTION RETURN:\n"
                     # NOTE whatever the special prefix is, it should also be a stop token
-                    prompt += f"\n<|im_start|>{role_str}\nFUNCTION RETURN: {msg_str.strip()}<|im_end|>"
+                    prompt += f"\n<|im_start|>{role_str}\n{func_resp_prefix}{msg_str.strip()}<|im_end|>"
 
             else:
                 raise ValueError(message)
