@@ -1,5 +1,8 @@
 import asyncio
 import queue
+from datetime import datetime
+
+import pytz
 
 from memgpt.interface import AgentInterface
 
@@ -34,12 +37,17 @@ class QueuingInterface(AgentInterface):
                 message = self.buffer.get()
                 if message == "STOP":
                     break
-                yield message
+                yield message | {"date": datetime.now(tz=pytz.utc).isoformat()}
             else:
                 await asyncio.sleep(0.1)  # Small sleep to prevent a busy loop
 
     def step_yield(self):
         """Enqueue a special stop message"""
+        self.buffer.put("STOP")
+
+    def error(self, error: str):
+        """Enqueue a special stop message"""
+        self.buffer.put({"internal_error": error})
         self.buffer.put("STOP")
 
     def user_message(self, msg: str):

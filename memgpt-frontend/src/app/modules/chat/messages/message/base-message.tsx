@@ -10,8 +10,8 @@ export type BaseMessageProps = {
   fg: string;
   initials: string;
 };
-export const BaseMessage = (props: BaseMessageProps) => (
-  <div className={`flex items-end ${props.dir === 'ltr' ? 'justify-start' : 'justify-end'}`}>
+export const BaseMessage = (props: BaseMessageProps) => {
+  return <div className={`flex items-end ${props.dir === 'ltr' ? 'justify-start' : 'justify-end'}`}>
     <div className="flex flex-col space-y-1 text-xs max-w-xs mx-2 order-2 items-start">
       <div>
         <span
@@ -29,4 +29,4 @@ export const BaseMessage = (props: BaseMessageProps) => (
       <AvatarFallback className="border">{props.initials}</AvatarFallback>
     </Avatar>
   </div>
-);
+}

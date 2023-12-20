@@ -18,28 +18,34 @@ import { cn } from '@memgpt/utils';
 import { AgentMemoryUpdateSchema } from '../../../libs/agents/agent-memory-update';
 import { useAgentMemoryUpdateMutation } from '../../../libs/agents/use-agent-memory.mutation';
 import { Loader2 } from 'lucide-react';
+import { useCurrentAgent } from '../../../libs/agents/agent.store';
+import { useAgentMemoryQuery } from '../../../libs/agents/use-agent-memory.query';
 
 
-export function MemoryForm({ data, agentId, className }: { data: AgentMemory; agentId: string, className?: string }) {
+export function MemoryForm({ className }: { className?: string }) {
+  const currentAgent = useCurrentAgent();
+  const { data, isLoading } = useAgentMemoryQuery(currentAgent?.name);
   const mutation = useAgentMemoryUpdateMutation();
 
   const form = useForm<z.infer<typeof AgentMemoryUpdateSchema>>({
     resolver: zodResolver(AgentMemoryUpdateSchema),
     defaultValues: {
-      persona: data.core_memory.persona,
-      human: data.core_memory.human,
+      persona: data?.core_memory?.persona,
+      human: data?.core_memory?.human,
       user_id: 'null',
-      agent_id: agentId
-    }
+      agent_id: currentAgent?.name,
+    },
   });
 
   function onSubmit(data: z.infer<typeof AgentMemoryUpdateSchema>) {
-    mutation.mutate(data)
+    mutation.mutate(data);
   }
+
+  if (isLoading) return <p>Is loading</p>;
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className={cn('flex flex-col gap-8',className)}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className={cn('flex flex-col gap-8', className)}>
         <FormField
           control={form.control}
           name="persona"
@@ -79,7 +85,7 @@ export function MemoryForm({ data, agentId, className }: { data: AgentMemory; ag
           )}
         />
         <Button className="mt-4" type="submit" disabled={mutation.isPending}>
-          {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : undefined}
+          {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : undefined}
           {mutation.isPending ? 'Saving Changes' : 'Save Changes'}</Button>
       </form>
     </Form>

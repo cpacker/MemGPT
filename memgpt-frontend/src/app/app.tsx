@@ -13,25 +13,22 @@ import { ThemeProvider } from './shared/theme';
 const queryClient = new QueryClient();
 
 export function App() {
-  const { setAgentParam, registerOnMessageCallback, resetSocket } = useMessageSocketActions();
-  const { addMessage } =useMessageHistoryActions()
+  const { registerOnMessageCallback, abortStream } = useMessageSocketActions();
+  const { addMessage } = useMessageHistoryActions();
 
   const currentAgent = useCurrentAgent();
+
+  useEffect(() => {
+    if (currentAgent) {
+      abortStream();
+    }
+  }, [abortStream,currentAgent]);
 
   useEffect(() => registerOnMessageCallback((message: Message) => {
     if (currentAgent) {
       addMessage(currentAgent.name, message);
     }
-  }), [registerOnMessageCallback, currentAgent, addMessage]);
-
-  useEffect(() => {
-    if (!currentAgent) return;
-    setAgentParam(currentAgent.name);
-  }, [currentAgent, setAgentParam]);
-
-  useEffect(() => {
-    return () => resetSocket();
-  }, [resetSocket]);
+  }), [abortStream, registerOnMessageCallback, currentAgent, addMessage]);
 
   return (
     <QueryClientProvider client={queryClient}>

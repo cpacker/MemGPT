@@ -1,15 +1,20 @@
 import { create } from 'zustand';
 import { Message } from './message';
-import { combine } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { parseISO } from 'date-fns';
+
+const reviver = (key: string, value: unknown) => {
+  return key === 'date' ? parseISO(value as string) : value;
+};
 
 export type MessageHistory = {
   [key: string]: Message[]
 }
 
 const useMessageHistoryStore = create(
-  combine({
-      history: {} as MessageHistory,
-    }, (set) => ({
+  persist<{ history: MessageHistory, actions: { addMessage: (key: string, message: Message) => void } }>(
+    (set, get) => ({
+      history: {},
       actions: {
         addMessage: (key: string, message: Message) => set(prev => ({
           ...prev,
@@ -20,6 +25,11 @@ const useMessageHistoryStore = create(
         })),
       },
     }),
+    {
+      name: 'message-history-storage',
+      storage: createJSONStorage(() => localStorage, { reviver }),
+      partialize: ({ actions, ...rest }: any) => rest,
+    },
   ),
 );
 
