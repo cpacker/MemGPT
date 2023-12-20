@@ -8,6 +8,8 @@ from ...errors import LLMJSONParsingError
 class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
     """ChatML-style prompt formatter, tested for use with https://huggingface.co/ehartford/dolphin-2.5-mixtral-8x7b#training"""
 
+    supports_first_message = True
+
     def __init__(
         self,
         json_indent=2,
@@ -16,6 +18,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         clean_function_args=True,
         include_assistant_prefix=True,
         assistant_prefix_extra='\n{\n  "function":',
+        assistant_prefix_extra_first_message='\n{\n  "function": "send_message",',
         allow_custom_roles=True,  # allow roles outside user/assistant
         # allow_function_role=True,  # use function role for function replies?
         allow_function_role=False,  # use function role for function replies?
@@ -26,6 +29,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         self.clean_func_args = clean_function_args
         self.include_assistant_prefix = include_assistant_prefix
         self.assistant_prefix_extra = assistant_prefix_extra
+        self.assistant_prefix_extra_first_message = assistant_prefix_extra_first_message
 
         # role-based
         self.allow_custom_roles = allow_custom_roles
@@ -153,7 +157,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         prompt += function_return_str
         return prompt
 
-    def chat_completion_to_prompt(self, messages, functions):
+    def chat_completion_to_prompt(self, messages, functions, first_message=False):
         """chatml-style prompt formatting, with implied support for multi-role"""
         prompt = ""
 
@@ -198,8 +202,13 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
 
         if self.include_assistant_prefix:
             prompt += f"\n<|im_start|>assistant"
-            if self.assistant_prefix_extra:
-                prompt += self.assistant_prefix_extra
+            if first_message:
+                if self.assistant_prefix_extra_first_message:
+                    prompt += self.assistant_prefix_extra_first_message
+            else:
+                if self.assistant_prefix_extra:
+                    # assistant_prefix_extra='\n{\n  "function":',
+                    prompt += self.assistant_prefix_extra
 
         return prompt
 
@@ -219,7 +228,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         # TODO more cleaning to fix errors LLM makes
         return inner_thoughts, cleaned_function_name, cleaned_function_args
 
-    def output_to_chat_completion_response(self, raw_llm_output):
+    def output_to_chat_completion_response(self, raw_llm_output, first_message=False):
         """Turn raw LLM output into a ChatCompletion style response with:
         "message" = {
             "role": "assistant",
@@ -235,9 +244,10 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         """
         # if self.include_opening_brance_in_prefix and raw_llm_output[0] != "{":
         # raw_llm_output = "{" + raw_llm_output
-        if self.assistant_prefix_extra and raw_llm_output[: len(self.assistant_prefix_extra)] != self.assistant_prefix_extra:
+        assistant_prefix = self.assistant_prefix_extra_first_message if first_message else self.assistant_prefix_extra
+        if assistant_prefix and raw_llm_output[: len(assistant_prefix)] != assistant_prefix:
             # print(f"adding prefix back to llm, raw_llm_output=\n{raw_llm_output}")
-            raw_llm_output = self.assistant_prefix_extra + raw_llm_output
+            raw_llm_output = assistant_prefix + raw_llm_output
             # print(f"->\n{raw_llm_output}")
 
         try:
@@ -266,3 +276,11 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
             },
         }
         return message
+
+
+class ChatMLOuterInnerMonologueWrapper(ChatMLInnerMonologueWrapper):
+    """Moves the inner monologue outside the main function to allow the LLM to omit function calls
+
+    NOTE: warning - this makes it easier for the agent to forget to call functions,
+          so it is advised to use the function-forcing wrapper unless the LLM is very good
+    """
