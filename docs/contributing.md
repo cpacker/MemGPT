@@ -1,60 +1,25 @@
 ---
-title: Contributing to the codebase
-excerpt: How to contribute to the MemGPT repo
-category: 6580dabb585483000f0e6c7c 
+title: How to contribute
+excerpt: Learn how to contribute to the MemGPT project!
+category: 6581eaa89a00e6001012822c 
 ---
 
-## Installing from source
+![memgpt llama](https://raw.githubusercontent.com/cpacker/MemGPT/main/docs/assets/memgpt_library.webp)
 
-To install MemGPT from source, start by cloning the repo:
-```sh
-git clone git@github.com:cpacker/MemGPT.git
-```
+MemGPT is an active [open source](https://en.wikipedia.org/wiki/Open_source) project and we welcome community contributions! There are many ways to contribute for both programmers and non-programmers alike.
 
-### Installing dependencies with poetry (recommended)
+> 📘 Discord contributor role 
+>
+> Contributing to the codebase gets you a **contributor role** on [Discord](https://discord.gg/9GEQrxmVyE). If you're a contributor and we forgot to assign you the role, message the MemGPT team [on Discord](https://discord.gg/9GEQrxmVyE)!
 
-First, install Poetry using [the official instructions here](https://python-poetry.org/docs/#installation).
+## 👋 Community issues (requested contributions)
 
-Once Poetry is installed, navigate to the MemGPT directory and install the MemGPT project with Poetry:
-```shell
-cd MemGPT
-poetry shell
-poetry install -E dev -E postgres -E local 
-```
+If you're looking for a place to get started, you can see a list of potential contributions that the MemGPT team has marked as "help wanted" [on this GitHub page](https://github.com/cpacker/MemGPT/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22).
 
-Now when you want to use `memgpt`, make sure you first activate the `poetry` environment using poetry shell:
-```shell
-$ poetry shell
-(pymemgpt-py3.10) $ memgpt run
-```
+## 📖 Editing the MemGPT docs
 
-Alternatively, you can use `poetry run` (which will activate the `poetry` environment for the `memgpt run` command only):
-```shell
-poetry run memgpt run
-```
+We're always looking to improve our docs (like the page you're reading right now!). Proposing edits to the docs is easy and can even be done without ever having to set up the source code - [check our guide for instructions](contributing_docs).
 
-### Installing dependencies with pip
+## 🦙 Editing the MemGPT source code
 
-First you should set up a dedicated virtual environment. This is optional, but is highly recommended:
-```shell
-cd MemGPT
-python3 -m venv venv
-. venv/bin/activate
-```
-
-Once you've activated your virtual environment and are in the MemGPT project directory, you can install the dependencies with `pip`:
-```shell
-pip install -e '.[dev,postgres,local]'
-```
-
-Now, you should be able to run `memgpt` from the command-line using the downloaded source code (if you used a virtual environment, you have to activate the virtual environment to access `memgpt`):
-```shell
-$ . venv/bin/activate
-(venv) $ memgpt run
-```
-
-If you are having dependency issues using `pip`, we recommend you install the package using Poetry. Installing MemGPT from source using Poetry will ensure that you are using exact package versions that have been tested for the production build.
-
-## Contributing to the MemGPT project
-
-We welcome pull requests! Please see [our contributing guide](https://github.com/cpacker/MemGPT/blob/main/CONTRIBUTING.md) for instructions on how to contribute to the project.
+If you're interested in editing the MemGPT source code, [check our guide on building and contributing from source](contributing_code).
