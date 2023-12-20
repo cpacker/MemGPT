@@ -19,14 +19,21 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         allow_custom_roles=True,  # allow roles outside user/assistant
         # allow_function_role=True,  # use function role for function replies?
         allow_function_role=False,  # use function role for function replies?
+        no_function_role_role="assistant",  # if no function role, which role to use?
+        no_function_role_prefix="FUNCTION RETURN:\n",  # if no function role, what prefix to use?
     ):
         self.simplify_json_content = simplify_json_content
         self.clean_func_args = clean_function_args
         self.include_assistant_prefix = include_assistant_prefix
         self.assistant_prefix_extra = assistant_prefix_extra
+
         # role-based
         self.allow_custom_roles = allow_custom_roles
         self.allow_function_role = allow_function_role
+        # extras for when the function role is disallowed
+        self.no_function_role_role = no_function_role_role
+        self.no_function_role_prefix = no_function_role_prefix
+
         # how to set json in prompt
         self.json_indent = json_indent
 
@@ -180,9 +187,9 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
                     prompt += f"\n<|im_start|>{role_str}\n{msg_str.strip()}<|im_end|>"
                 else:
                     # TODO figure out what to do with functions if we disallow function role
-                    role_str = "assistant"  # use user instead???
+                    role_str = self.no_function_role_role
                     msg_str = self.compile_function_response(message)
-                    func_resp_prefix = "FUNCTION RETURN:\n"
+                    func_resp_prefix = self.no_function_role_prefix
                     # NOTE whatever the special prefix is, it should also be a stop token
                     prompt += f"\n<|im_start|>{role_str}\n{func_resp_prefix}{msg_str.strip()}<|im_end|>"
 
