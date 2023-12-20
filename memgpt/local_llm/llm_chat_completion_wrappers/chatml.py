@@ -133,6 +133,13 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
                 # TODO find a good way to add this
                 # prompt += f"\nASSISTANT: (function return) {message['content']}"
                 # prompt += f"\nFUNCTION RETURN: {message['content']}"
+                try:
+                    # indent the function replies
+                    function_return_dict = json.loads(message["content"])
+                    function_return_str = json.dumps(function_return_dict, indent=2)
+                    message["content"] = function_return_str
+                except:
+                    pass
                 prompt += f"\n<|im_start|>function\n{message['content']}"
                 prompt += "<|im_end|>"
                 continue
