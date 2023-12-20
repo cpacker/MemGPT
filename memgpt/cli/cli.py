@@ -70,8 +70,7 @@ def quickstart(
         # fallback to using local
         if latest:
             # Download the latest memgpt hosted config
-            # url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/configs/memgpt_hosted.json"
-            url = "https://raw.githubusercontent.com/cpacker/MemGPT/quickstart-command/configs/memgpt_hosted.json"
+            url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/configs/memgpt_hosted.json"
             response = requests.get(url)
 
             # Check if the request was successful
@@ -116,7 +115,7 @@ def quickstart(
                 # Ask for API key as input
                 api_key = questionary.text("Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):").ask()
 
-            url = "https://raw.githubusercontent.com/cpacker/MemGPT/quickstart-command/configs/openai.json"
+            url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/configs/openai.json"
             response = requests.get(url)
 
             # Check if the request was successful
