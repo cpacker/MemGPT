@@ -12,6 +12,8 @@ settings = {
         "<|im_start|>",
         "<|im_end|>",
         "<|im_sep|>",
+        # airoboros specific
+        "\n### ",
         # '\n' +
         # '</s>',
         # '<|',
