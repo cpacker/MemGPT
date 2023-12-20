@@ -54,7 +54,8 @@ def set_config_with_dict(new_config: dict):
 
 
 def quickstart(
-    type: QuickstartChoice = typer.Option("memgpt", help="Quickstart setup type"),
+    backend: QuickstartChoice = typer.Option("memgpt", help="Quickstart setup backend"),
+    latest: bool = typer.Option(False, "--latest", help="Use --latest to pull the latest config from online"),
     debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
 ):
     """Set the base config file with a single command"""
@@ -64,68 +65,96 @@ def quickstart(
     if debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    if type == QuickstartChoice.memgpt_hosted:
-        # Download the latest memgpt hosted config
-        # url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/configs/memgpt_hosted.json"
-        url = "https://raw.githubusercontent.com/cpacker/MemGPT/quickstart-command/configs/memgpt_hosted.json"
-        response = requests.get(url)
+    if backend == QuickstartChoice.memgpt_hosted:
+        # if latest, try to pull the config from the repo
+        # fallback to using local
+        if latest:
+            # Download the latest memgpt hosted config
+            # url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/configs/memgpt_hosted.json"
+            url = "https://raw.githubusercontent.com/cpacker/MemGPT/quickstart-command/configs/memgpt_hosted.json"
+            response = requests.get(url)
 
-        # Check if the request was successful
-        if response.status_code == 200:
-            # Parse the response content as JSON
-            config = response.json()
-            # Output a success message and the first few items in the dictionary as a sample
-            print("JSON config file downloaded successfully.")
-            set_config_with_dict(config)
+            # Check if the request was successful
+            if response.status_code == 200:
+                # Parse the response content as JSON
+                config = response.json()
+                # Output a success message and the first few items in the dictionary as a sample
+                print("JSON config file downloaded successfully.")
+                set_config_with_dict(config)
+            else:
+                print(f"Failed to download config from {url}. Status code:", response.status_code)
+
+                # Load the file from the relative path
+                script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
+                backup_config_path = os.path.join(script_dir, "..", "..", "configs", "memgpt_hosted.json")
+                try:
+                    with open(backup_config_path, "r") as file:
+                        backup_config = json.load(file)
+                    print("Loaded backup config file successfully.")
+                    set_config_with_dict(backup_config)
+                except FileNotFoundError:
+                    print(f"Backup config file not found at {backup_config_path}")
         else:
-            print(f"Failed to download config from {url}. Status code:", response.status_code)
-
             # Load the file from the relative path
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
             backup_config_path = os.path.join(script_dir, "..", "..", "configs", "memgpt_hosted.json")
             try:
                 with open(backup_config_path, "r") as file:
                     backup_config = json.load(file)
-                print("Loaded backup config file successfully.")
+                print("Loaded config file successfully.")
                 set_config_with_dict(backup_config)
             except FileNotFoundError:
-                print(f"Backup config file not found at {backup_config_path}")
+                print(f"Config file not found at {backup_config_path}")
 
-    elif type == QuickstartChoice.openai:
-        # Make sure we have an API key
-        api_key = os.getenv("OPENAI_API_KEY")
-        while api_key is None or len(api_key) == 0:
-            # Ask for API key as input
-            api_key = questionary.text("Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):").ask()
+    elif backend == QuickstartChoice.openai:
+        # if latest, try to pull the config from the repo
+        # fallback to using local
+        if latest:
+            # Make sure we have an API key
+            api_key = os.getenv("OPENAI_API_KEY")
+            while api_key is None or len(api_key) == 0:
+                # Ask for API key as input
+                api_key = questionary.text("Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):").ask()
 
-        url = "https://raw.githubusercontent.com/cpacker/MemGPT/quickstart-command/configs/openai.json"
-        response = requests.get(url)
+            url = "https://raw.githubusercontent.com/cpacker/MemGPT/quickstart-command/configs/openai.json"
+            response = requests.get(url)
 
-        # Check if the request was successful
-        if response.status_code == 200:
-            # Parse the response content as JSON
-            config = response.json()
-            # Output a success message and the first few items in the dictionary as a sample
-            print("JSON config file downloaded successfully.")
-            # Add the API key
-            config["openai_key"] = api_key
-            set_config_with_dict(config)
+            # Check if the request was successful
+            if response.status_code == 200:
+                # Parse the response content as JSON
+                config = response.json()
+                # Output a success message and the first few items in the dictionary as a sample
+                print("JSON config file downloaded successfully.")
+                # Add the API key
+                config["openai_key"] = api_key
+                set_config_with_dict(config)
+            else:
+                print(f"Failed to download config from {url}. Status code:", response.status_code)
+
+                # Load the file from the relative path
+                script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
+                backup_config_path = os.path.join(script_dir, "..", "..", "configs", "openai.json")
+                try:
+                    with open(backup_config_path, "r") as file:
+                        backup_config = json.load(file)
+                    print("Loaded backup config file successfully.")
+                    set_config_with_dict(backup_config)
+                except FileNotFoundError:
+                    print(f"Backup config file not found at {backup_config_path}")
         else:
-            print(f"Failed to download config from {url}. Status code:", response.status_code)
-
             # Load the file from the relative path
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
             backup_config_path = os.path.join(script_dir, "..", "..", "configs", "openai.json")
             try:
                 with open(backup_config_path, "r") as file:
                     backup_config = json.load(file)
-                print("Loaded backup config file successfully.")
+                print("Loaded config file successfully.")
                 set_config_with_dict(backup_config)
             except FileNotFoundError:
-                print(f"Backup config file not found at {backup_config_path}")
+                print(f"Config file not found at {backup_config_path}")
 
     else:
-        raise NotImplementedError(type)
+        raise NotImplementedError(backend)
 
 
 def open_folder():
