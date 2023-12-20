@@ -13,28 +13,21 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         simplify_json_content=True,
         clean_function_args=True,
         include_assistant_prefix=True,
-        # include_opening_brace_in_prefix=True,
-        # assistant_prefix_extra="\n{"
-        # assistant_prefix_extra='\n{\n  "function": ',
         assistant_prefix_extra='\n{\n  "function":',
-        include_section_separators=True,
+        allow_custom_roles=True,  # allow roles outside user/assistant
+        allow_function_role=True,  # use function role for function replies?
     ):
         self.simplify_json_content = simplify_json_content
         self.clean_func_args = clean_function_args
         self.include_assistant_prefix = include_assistant_prefix
-        # self.include_opening_brance_in_prefix = include_opening_brace_in_prefix
         self.assistant_prefix_extra = assistant_prefix_extra
-        self.include_section_separators = include_section_separators
+        # role-based
+        self.allow_custom_roles = allow_custom_roles
+        self.allow_function_role = allow_function_role
 
-    def chat_completion_to_prompt(self, messages, functions):
-        """Example for airoboros: https://huggingface.co/jondurbin/airoboros-l2-70b-2.1#prompt-format"""
+    def compile_function_block(self, functions) -> str:
+        """functions dict -> string describing functions choices"""
         prompt = ""
-
-        # System insturctions go first
-        assert messages[0]["role"] == "system"
-
-        prompt += "<|im_start|>system\n"
-        prompt += messages[0]["content"]
 
         # Next is the functions preamble
         def create_function_description(schema, add_inner_thoughts=True):
@@ -52,12 +45,28 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
             return func_str
 
         # prompt += f"\nPlease select the most suitable function and parameters from the list of available functions below, based on the user's input. Provide your response in JSON format."
-        prompt += f"\nPlease select the most suitable function and parameters from the list of available functions below, based on the ongoing conversation. Provide your response in JSON format."
+        prompt += f"Please select the most suitable function and parameters from the list of available functions below, based on the ongoing conversation. Provide your response in JSON format."
         prompt += f"\nAvailable functions:"
         for function_dict in functions:
             prompt += f"\n{create_function_description(function_dict)}"
 
-        def create_function_call(function_call, inner_thoughts=None):
+        return prompt
+
+    # NOTE: BOS/EOS chatml tokens are NOT inserted here
+    def compile_system_message(self, system_message, functions) -> str:
+        """system prompt + memory + functions -> string"""
+        prompt = ""
+        prompt += system_message
+        prompt += "\n"
+        prompt += self.compile_function_block(functions)
+        return prompt
+
+    # NOTE: BOS/EOS chatml tokens are NOT inserted here
+    def compile_assistant_message(self, message) -> str:
+        """assistant message -> string"""
+        prompt = ""
+
+        def create_function_call(function_call, inner_thoughts=None, json_indent=2):
             """Go from ChatCompletion to Airoboros style function trace (in prompt)
 
             ChatCompletion data (inside message['function_call']):
@@ -83,12 +92,55 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
                     **json.loads(function_call["arguments"]),
                 },
             }
-            return json.dumps(airo_func_call, indent=2)
+            return json.dumps(airo_func_call, indent=json_indent)
 
-        # Add a sep for the conversation
-        # if self.include_section_separators:
-        #     prompt += "\n### INPUT"
-        prompt += "<|im_end|>"
+        # need to add the function call if there was one
+        inner_thoughts = message["content"]
+        if "function_call" in message and message["function_call"]:
+            prompt += f"\n{create_function_call(message['function_call'], inner_thoughts=inner_thoughts)}"
+        else:
+            # TODO should we format this into JSON somehow?
+            prompt += inner_thoughts
+
+        return prompt
+
+    # NOTE: BOS/EOS chatml tokens are NOT inserted here
+    def compile_user_message(self, message) -> str:
+        """user message (should be JSON) -> string"""
+        prompt = ""
+        if self.simplify_json_content:
+            # Make user messages not JSON but plaintext instead
+            try:
+                content_json = json.loads(message["content"])
+                content_simple = content_json["message"]
+                prompt += f"{content_simple}"
+            except:
+                prompt += f"{message['content']}"
+        return prompt
+
+    # NOTE: BOS/EOS chatml tokens are NOT inserted here
+    def compile_function_response(self, message) -> str:
+        """function response message (should be JSON) -> string"""
+        # TODO we should clean up send_message returns to avoid cluttering the prompt
+        prompt = ""
+        try:
+            # indent the function replies
+            function_return_dict = json.loads(message["content"])
+            function_return_str = json.dumps(function_return_dict, indent=2)
+        except:
+            function_return_str = message["content"]
+
+        prompt += function_return_str
+        return prompt
+
+    def chat_completion_to_prompt(self, messages, functions):
+        """chatml-style prompt formatting, with implied support for multi-role"""
+        prompt = ""
+
+        # System insturctions go first
+        assert messages[0]["role"] == "system"
+        system_block = self.compile_system_message(system_message=messages[0]["content"], functions=functions)
+        prompt += f"<|im_start|>system\n{system_block.strip()}<|im_end|>"
 
         # Last are the user/assistant messages
         for message in messages[1:]:
@@ -96,62 +148,34 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
 
             if message["role"] == "user":
                 # Support for AutoGen naming of agents
-                if "name" in message:
-                    user_prefix = message["name"].strip()
-                    # user_prefix = f"USER ({user_prefix})"
-                    user_prefix = f"<|im_start|>{user_prefix.lower()}"
-                else:
-                    # user_prefix = "USER"
-                    user_prefix = "<|im_start|>user"
-                if self.simplify_json_content:
-                    try:
-                        content_json = json.loads(message["content"])
-                        content_simple = content_json["message"]
-                        # prompt += f"\n{user_prefix}: {content_simple}"
-                        prompt += f"\n{user_prefix}\n{content_simple}"
-                    except:
-                        # prompt += f"\n{user_prefix}: {message['content']}"
-                        prompt += f"\n{user_prefix}\n{message['content']}"
-                prompt += "<|im_end|>"
+                role_str = message["name"].strip().lower() if (self.allow_custom_roles and "name" in message) else message["role"]
+                msg_str = self.compile_user_message(message)
+
+                prompt += f"\n<|im_start|>{role_str}\n{msg_str.strip()}<|im_end|>"
+
             elif message["role"] == "assistant":
                 # Support for AutoGen naming of agents
-                if "name" in message:
-                    assistant_prefix = message["name"].strip()
-                    # assistant_prefix = f"ASSISTANT ({assistant_prefix})"
-                    assistant_prefix = f"<|im_start|>{assistant_prefix.lower()}"
-                else:
-                    # assistant_prefix = "ASSISTANT"
-                    assistant_prefix = "<|im_start|>assistant"
-                # prompt += f"\n{assistant_prefix}:"
-                prompt += f"\n{assistant_prefix}"
-                # need to add the function call if there was one
-                inner_thoughts = message["content"]
-                if "function_call" in message and message["function_call"]:
-                    prompt += f"\n{create_function_call(message['function_call'], inner_thoughts=inner_thoughts)}"
-                prompt += "<|im_end|>"
+                role_str = message["name"].strip().lower() if (self.allow_custom_roles and "name" in message) else message["role"]
+                msg_str = self.compile_assistant_message(message)
+
+                prompt += f"\n<|im_start|>{role_str}\n{msg_str.strip()}<|im_end|>"
+
             elif message["role"] == "function":
-                # TODO find a good way to add this
-                # prompt += f"\nASSISTANT: (function return) {message['content']}"
-                # prompt += f"\nFUNCTION RETURN: {message['content']}"
-                try:
-                    # indent the function replies
-                    function_return_dict = json.loads(message["content"])
-                    function_return_str = json.dumps(function_return_dict, indent=2)
-                    message["content"] = function_return_str
-                except:
-                    pass
-                prompt += f"\n<|im_start|>function\n{message['content']}"
-                prompt += "<|im_end|>"
-                continue
+                if self.allow_function_role:
+                    role_str = message["role"]
+                    msg_str = self.compile_function_response(message)
+                    prompt += f"\n<|im_start|>{role_str}\n{msg_str.strip()}<|im_end|>"
+                else:
+                    # TODO figure out what to do with functions if we disallow function role
+                    role_str = "assistant"  # use user instead???
+                    msg_str = self.compile_function_response(message)
+                    # NOTE whatever the special prefix is, it should also be a stop token
+                    prompt += f"\n<|im_start|>{role_str}\nFUNCTION RETURN: {msg_str.strip()}<|im_end|>"
+
             else:
                 raise ValueError(message)
 
-        # # Add a sep for the response
-        # if self.include_section_separators:
-        #     prompt += "\n### RESPONSE"
-
         if self.include_assistant_prefix:
-            # prompt += f"\nASSISTANT:"
             prompt += f"\n<|im_start|>assistant"
             if self.assistant_prefix_extra:
                 prompt += self.assistant_prefix_extra
