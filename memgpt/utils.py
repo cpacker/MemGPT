@@ -1,16 +1,58 @@
 from datetime import datetime
+import json
+import os
+import pickle
+import platform
+import subprocess
+
+
 import difflib
 import demjson3 as demjson
-import json
 import pytz
-import os
 import tiktoken
+
 import memgpt
 from memgpt.constants import MEMGPT_DIR, FUNCTION_RETURN_CHAR_LIMIT, CLI_WARNING_PREFIX
+
+from memgpt.openai_backcompat.openai_object import OpenAIObject
 
 # TODO: what is this?
 # DEBUG = True
 DEBUG = False
+
+
+def open_folder_in_explorer(folder_path):
+    """
+    Opens the specified folder in the system's native file explorer.
+
+    :param folder_path: Absolute path to the folder to be opened.
+    """
+    if not os.path.exists(folder_path):
+        raise ValueError(f"The specified folder {folder_path} does not exist.")
+
+    # Determine the operating system
+    os_name = platform.system()
+
+    # Open the folder based on the operating system
+    if os_name == "Windows":
+        # Windows: use 'explorer' command
+        subprocess.run(["explorer", folder_path], check=True)
+    elif os_name == "Darwin":
+        # macOS: use 'open' command
+        subprocess.run(["open", folder_path], check=True)
+    elif os_name == "Linux":
+        # Linux: use 'xdg-open' command (works for most Linux distributions)
+        subprocess.run(["xdg-open", folder_path], check=True)
+    else:
+        raise OSError(f"Unsupported operating system {os_name}.")
+
+
+# Custom unpickler
+class OpenAIBackcompatUnpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        if module == "openai.openai_object":
+            return OpenAIObject
+        return super().find_class(module, name)
 
 
 def count_tokens(s: str, model: str = "gpt-4") -> int:

@@ -1,5 +1,6 @@
 import typer
 import json
+import requests
 import sys
 import io
 import logging
@@ -16,13 +17,159 @@ from memgpt.interface import CLIInterface as interface  # for printing to termin
 from memgpt.cli.cli_config import configure
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
-from memgpt.utils import printd
+from memgpt.utils import printd, open_folder_in_explorer
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
 from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
+
+
+class QuickstartChoice(Enum):
+    openai = "openai"
+    # azure = "azure"
+    memgpt_hosted = "memgpt"
+
+
+def set_config_with_dict(new_config: dict):
+    """Set the base config using a dict"""
+    from memgpt.utils import printd
+
+    old_config = MemGPTConfig.load()
+    modified = False
+    for k, v in vars(old_config).items():
+        if k in new_config:
+            if v != new_config[k]:
+                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
+                modified = True
+                # old_config[k] = new_config[k]
+                setattr(old_config, k, new_config[k])  # Set the new value using dot notation
+            else:
+                printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+
+    if modified:
+        printd(f"Saving new config file.")
+        old_config.save()
+        typer.secho(f"\nMemGPT configuration file updated!", fg=typer.colors.GREEN)
+        typer.secho('Run "memgpt run" to create an agent with the new config.', fg=typer.colors.YELLOW)
+    else:
+        typer.secho(f"\nMemGPT configuration file unchanged.", fg=typer.colors.GREEN)
+        typer.secho('Run "memgpt run" to create an agent.', fg=typer.colors.YELLOW)
+
+
+def quickstart(
+    backend: QuickstartChoice = typer.Option("memgpt", help="Quickstart setup backend"),
+    latest: bool = typer.Option(False, "--latest", help="Use --latest to pull the latest config from online"),
+    debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
+):
+    """Set the base config file with a single command"""
+    # setup logger
+    utils.DEBUG = debug
+    logging.getLogger().setLevel(logging.CRITICAL)
+    if debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    if backend == QuickstartChoice.memgpt_hosted:
+        # if latest, try to pull the config from the repo
+        # fallback to using local
+        if latest:
+            # Download the latest memgpt hosted config
+            url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/configs/memgpt_hosted.json"
+            response = requests.get(url)
+
+            # Check if the request was successful
+            if response.status_code == 200:
+                # Parse the response content as JSON
+                config = response.json()
+                # Output a success message and the first few items in the dictionary as a sample
+                print("JSON config file downloaded successfully.")
+                set_config_with_dict(config)
+            else:
+                print(f"Failed to download config from {url}. Status code:", response.status_code)
+
+                # Load the file from the relative path
+                script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
+                backup_config_path = os.path.join(script_dir, "..", "..", "configs", "memgpt_hosted.json")
+                try:
+                    with open(backup_config_path, "r") as file:
+                        backup_config = json.load(file)
+                    print("Loaded backup config file successfully.")
+                    set_config_with_dict(backup_config)
+                except FileNotFoundError:
+                    print(f"Backup config file not found at {backup_config_path}")
+        else:
+            # Load the file from the relative path
+            script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
+            backup_config_path = os.path.join(script_dir, "..", "..", "configs", "memgpt_hosted.json")
+            try:
+                with open(backup_config_path, "r") as file:
+                    backup_config = json.load(file)
+                print("Loaded config file successfully.")
+                set_config_with_dict(backup_config)
+            except FileNotFoundError:
+                print(f"Config file not found at {backup_config_path}")
+
+    elif backend == QuickstartChoice.openai:
+        # Make sure we have an API key
+        api_key = os.getenv("OPENAI_API_KEY")
+        while api_key is None or len(api_key) == 0:
+            # Ask for API key as input
+            api_key = questionary.text("Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):").ask()
+
+        # if latest, try to pull the config from the repo
+        # fallback to using local
+        if latest:
+            url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/configs/openai.json"
+            response = requests.get(url)
+
+            # Check if the request was successful
+            if response.status_code == 200:
+                # Parse the response content as JSON
+                config = response.json()
+                # Output a success message and the first few items in the dictionary as a sample
+                print("JSON config file downloaded successfully.")
+                # Add the API key
+                config["openai_key"] = api_key
+                set_config_with_dict(config)
+            else:
+                print(f"Failed to download config from {url}. Status code:", response.status_code)
+
+                # Load the file from the relative path
+                script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
+                backup_config_path = os.path.join(script_dir, "..", "..", "configs", "openai.json")
+                try:
+                    with open(backup_config_path, "r") as file:
+                        backup_config = json.load(file)
+                        backup_config["openai_key"] = api_key
+                    print("Loaded backup config file successfully.")
+                    set_config_with_dict(backup_config)
+                except FileNotFoundError:
+                    print(f"Backup config file not found at {backup_config_path}")
+        else:
+            # Load the file from the relative path
+            script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
+            backup_config_path = os.path.join(script_dir, "..", "..", "configs", "openai.json")
+            try:
+                with open(backup_config_path, "r") as file:
+                    backup_config = json.load(file)
+                    backup_config["openai_key"] = api_key
+                print("Loaded config file successfully.")
+                set_config_with_dict(backup_config)
+            except FileNotFoundError:
+                print(f"Config file not found at {backup_config_path}")
+
+    else:
+        raise NotImplementedError(backend)
+
+
+def open_folder():
+    """Open a folder viewer of the MemGPT home directory"""
+    try:
+        print(f"Opening home folder: {MEMGPT_DIR}")
+        open_folder_in_explorer(MEMGPT_DIR)
+    except Exception as e:
+        print(f"Failed to open folder with system viewer, error:\n{e}")
 
 
 class ServerChoice(Enum):

@@ -1,3 +1,9 @@
+---
+title: llama.cpp 
+excerpt: Setting up MemGPT with llama.cpp 
+category: 6580da9a40bb410016b8b0c3 
+---
+
 1. Download + install [llama.cpp](https://github.com/ggerganov/llama.cpp) and the model you want to test with
 2. In your terminal, run `./server -m <MODEL> -c <CONTEXT_LENGTH>`
 

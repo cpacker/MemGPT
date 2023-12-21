@@ -2,14 +2,16 @@ import os
 from urllib.parse import urljoin
 import requests
 
-from .settings import SIMPLE
-from ..utils import count_tokens
-from ...errors import LocalLLMError
+
+from memgpt.local_llm.settings.settings import get_completions_settings
+from memgpt.utils import count_tokens
+from memgpt.errors import LocalLLMError
+
 
 OLLAMA_API_SUFFIX = "/api/generate"
 
 
-def get_ollama_completion(endpoint, model, prompt, context_window, settings=SIMPLE, grammar=None):
+def get_ollama_completion(endpoint, model, prompt, context_window, grammar=None):
     """See https://github.com/jmorganca/ollama/blob/main/docs/api.md for instructions on how to run the LLM web server"""
     from memgpt.utils import printd
 
@@ -23,10 +25,31 @@ def get_ollama_completion(endpoint, model, prompt, context_window, settings=SIMP
         )
 
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
-    request = settings
-    request["prompt"] = prompt
-    request["model"] = model
-    request["options"]["num_ctx"] = context_window
+    # https://github.com/jmorganca/ollama/blob/main/docs/modelfile.md#valid-parameters-and-values
+    settings = get_completions_settings()
+    settings.update(
+        {
+            # specific naming for context length
+            "num_ctx": context_window,
+        }
+    )
+
+    # https://github.com/jmorganca/ollama/blob/main/docs/api.md#generate-a-completion
+    request = {
+        ## base parameters
+        "model": model,
+        "prompt": prompt,
+        # "images": [],  # TODO eventually support
+        ## advanced parameters
+        # "format": "json",  # TODO eventually support
+        "stream": False,
+        "options": settings,
+        "raw": True,  # no prompt formatting
+        # "raw mode does not support template, system, or context"
+        # "system": "",  # no prompt formatting
+        # "template": "{{ .Prompt }}",  # no prompt formatting
+        # "context": None,  # no memory via prompt formatting
+    }
 
     # Set grammar
     if grammar is not None:

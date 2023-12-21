@@ -1,8 +1,13 @@
-!!! note "Note"
+---
+title: Example - chat with your data
+excerpt: Using MemGPT to chat with your own data
+category: 6580d34ee5e4d00068bf2a1d 
+---
 
-    Before starting this example, make sure that you've [properly installed MemGPT](../quickstart)
+> 📘 Confirm your installation
+> 
+> Before starting this example, make sure that you've [properly installed MemGPT](quickstart)
 
-## Using MemGPT to chat with your own data
 In this example, we're going to use MemGPT to chat with a custom data source. Specifically, we'll try loading in the MemGPT research paper and ask MemGPT questions about it.
 
 ### Creating an external data source
@@ -69,4 +74,4 @@ Now that the data has been loaded into the chatbot's memory, we can start to ask
 
 ### Loading other data types
 
-In this example, we loaded a single PDF into a chatbots external memory. However MemGPT supports various types of data, such as full directories of files and even databases - [see the full data sources list](../data_sources).
+In this example, we loaded a single PDF into a chatbots external memory. However MemGPT supports various types of data, such as full directories of files and even databases - [see the full data sources list](data_sources).
