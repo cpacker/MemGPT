@@ -280,6 +280,8 @@ def create(
     messages,
     functions=None,
     function_call="auto",
+    # hint
+    first_message=False,
 ):
     """Return response to chat completion with backoff"""
     from memgpt.utils import printd
@@ -329,4 +331,6 @@ def create(
             endpoint_type=agent_config.model_endpoint_type,
             wrapper=agent_config.model_wrapper,
             user=config.anon_clientid,
+            # hint
+            first_message=first_message,
         )

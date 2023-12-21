@@ -118,16 +118,15 @@ def get_local_time_timezone(timezone="America/Los_Angeles"):
 
 def get_local_time(timezone=None):
     if timezone is not None:
-        return get_local_time_timezone(timezone)
+        time_str = get_local_time_timezone(timezone)
     else:
         # Get the current time, which will be in the local timezone of the computer
         local_time = datetime.now().astimezone()
 
         # You may format it as you desire, including AM/PM
-        formatted_time = local_time.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
-        print("formatted_time", formatted_time)
+        time_str = local_time.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
 
-        return formatted_time
+    return time_str.strip()
 
 
 def parse_json(string):

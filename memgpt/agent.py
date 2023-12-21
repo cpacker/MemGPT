@@ -538,6 +538,7 @@ class Agent(object):
                 while True:
                     response = self.get_ai_reply(
                         message_sequence=input_message_sequence,
+                        first_message=True,  # passed through to the prompt formatter
                     )
                     if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
@@ -722,6 +723,7 @@ class Agent(object):
         self,
         message_sequence,
         function_call="auto",
+        first_message=False,  # hint
     ):
         """Get response from LLM API"""
         try:
@@ -730,6 +732,8 @@ class Agent(object):
                 messages=message_sequence,
                 functions=self.functions,
                 function_call=function_call,
+                # hint
+                first_message=first_message,
             )
             # special case for 'length'
             if response.choices[0].finish_reason == "length":
