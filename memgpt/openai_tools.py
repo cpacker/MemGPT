@@ -1,9 +1,7 @@
 import random
-import os
 import time
 import requests
 import time
-from typing import Callable, TypeVar
 import urllib
 
 from box import Box
