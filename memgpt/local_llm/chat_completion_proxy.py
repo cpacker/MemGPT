@@ -34,6 +34,9 @@ def get_chat_completion(
     wrapper=None,
     endpoint=None,
     endpoint_type=None,
+    # extra hints to allow for additional prompt formatting hacks
+    # TODO this could alternatively be supported via passing function_call="send_message" into the wrapper
+    first_message=False,
 ):
     from memgpt.utils import printd
 
@@ -76,7 +79,10 @@ def get_chat_completion(
 
     # First step: turn the message sequence into a prompt that the model expects
     try:
-        prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
+        if hasattr(llm_wrapper, "supports_first_message") and llm_wrapper.supports_first_message:
+            prompt = llm_wrapper.chat_completion_to_prompt(messages, functions, first_message=first_message)
+        else:
+            prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
         printd(prompt)
     except Exception as e:
         raise LocalLLMError(
@@ -109,10 +115,13 @@ def get_chat_completion(
 
     if result is None or result == "":
         raise LocalLLMError(f"Got back an empty response string from {endpoint}")
-    printd(f"Raw LLM output:\n{result}")
+    printd(f"Raw LLM output:\n====\n{result}\n====")
 
     try:
-        chat_completion_result = llm_wrapper.output_to_chat_completion_response(result)
+        if hasattr(llm_wrapper, "supports_first_message") and llm_wrapper.supports_first_message:
+            chat_completion_result = llm_wrapper.output_to_chat_completion_response(result, first_message=first_message)
+        else:
+            chat_completion_result = llm_wrapper.output_to_chat_completion_response(result)
         printd(json.dumps(chat_completion_result, indent=2))
     except Exception as e:
         raise LocalLLMError(f"Failed to parse JSON from local LLM response - error: {str(e)}")
