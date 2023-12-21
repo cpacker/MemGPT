@@ -51,6 +51,11 @@ def set_config_with_dict(new_config: dict):
     if modified:
         printd(f"Saving new config file.")
         old_config.save()
+        typer.secho(f"\nMemGPT configuration file updated!", fg=typer.colors.GREEN)
+        typer.secho('Run "memgpt run" to create an agent with the new config.', fg=typer.colors.YELLOW)
+    else:
+        typer.secho(f"\nMemGPT configuration file unchanged.", fg=typer.colors.GREEN)
+        typer.secho('Run "memgpt run" to create an agent.', fg=typer.colors.YELLOW)
 
 
 def quickstart(
@@ -106,15 +111,15 @@ def quickstart(
                 print(f"Config file not found at {backup_config_path}")
 
     elif backend == QuickstartChoice.openai:
+        # Make sure we have an API key
+        api_key = os.getenv("OPENAI_API_KEY")
+        while api_key is None or len(api_key) == 0:
+            # Ask for API key as input
+            api_key = questionary.text("Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):").ask()
+
         # if latest, try to pull the config from the repo
         # fallback to using local
         if latest:
-            # Make sure we have an API key
-            api_key = os.getenv("OPENAI_API_KEY")
-            while api_key is None or len(api_key) == 0:
-                # Ask for API key as input
-                api_key = questionary.text("Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):").ask()
-
             url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/configs/openai.json"
             response = requests.get(url)
 
@@ -136,6 +141,7 @@ def quickstart(
                 try:
                     with open(backup_config_path, "r") as file:
                         backup_config = json.load(file)
+                        backup_config["openai_key"] = api_key
                     print("Loaded backup config file successfully.")
                     set_config_with_dict(backup_config)
                 except FileNotFoundError:
@@ -147,6 +153,7 @@ def quickstart(
             try:
                 with open(backup_config_path, "r") as file:
                     backup_config = json.load(file)
+                    backup_config["openai_key"] = api_key
                 print("Loaded config file successfully.")
                 set_config_with_dict(backup_config)
             except FileNotFoundError:
