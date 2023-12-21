@@ -205,6 +205,9 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                             break
                     continue
 
+                elif user_input.lower() == "/summarize":
+                    memgpt_agent.summarize_messages_inplace()
+
                 # No skip options
                 elif user_input.lower() == "/wipe":
                     memgpt_agent = agent.Agent(interface)
