@@ -52,10 +52,10 @@ def set_config_with_dict(new_config: dict):
         printd(f"Saving new config file.")
         old_config.save()
         typer.secho(f"\nMemGPT configuration file updated!", fg=typer.colors.GREEN)
+        typer.secho('Run "memgpt run" to create an agent with the new config.', fg=typer.colors.YELLOW)
     else:
         typer.secho(f"\nMemGPT configuration file unchanged.", fg=typer.colors.GREEN)
-
-    typer.secho('Run "memgpt run" to create an agent with the new config.', fg=typer.colors.YELLOW)
+        typer.secho('Run "memgpt run" to create an agent.', fg=typer.colors.YELLOW)
 
 
 def quickstart(
