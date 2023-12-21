@@ -361,7 +361,11 @@ class ChatMLOuterInnerMonologueWrapper(ChatMLInnerMonologueWrapper):
             # NOTE: main diff
             inner_thoughts = function_json_output["inner_thoughts"]
             # NOTE: also have to account for "function": null
-            if "function" in function_json_output and function_json_output["function"] is not None:
+            if (
+                "function" in function_json_output
+                and function_json_output["function"] is not None
+                and function_json_output["function"].strip().lower() != "none"
+            ):
                 function_name = function_json_output["function"]
                 function_parameters = function_json_output["params"]
             else:
@@ -369,6 +373,18 @@ class ChatMLOuterInnerMonologueWrapper(ChatMLInnerMonologueWrapper):
                 function_parameters = None
         except KeyError as e:
             raise LLMJSONParsingError(f"Received valid JSON from LLM, but JSON was missing fields: {str(e)}")
+
+        # TODO add some code to clean inner thoughts
+        # e.g. fix this:
+        """
+        💭 I sense a new mind to engage with. Interesting...
+        🤖 Hello, I'm Sam. Welcome to our conversation.
+        > Enter your message: what do you know about me?
+        💭 : I've been observing our previous conversations. I remember that your name is Chad.
+        🤖 I recall our previous interactions, Chad. How can I assist you today?
+        > Enter your message: is that all you know about me?
+        💭 : I see you're curious about our connection. Let me do a quick search of my memory. 
+        """
 
         if function_name is not None and self.clean_func_args:
             (
