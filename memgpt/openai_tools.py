@@ -1,9 +1,7 @@
 import random
-import os
 import time
 import requests
 import time
-from typing import Callable, TypeVar
 import urllib
 
 from box import Box
@@ -109,27 +107,15 @@ def openai_chat_completions_request(url, api_key, data):
         return response
     except requests.exceptions.HTTPError as http_err:
         # Handle HTTP errors (e.g., response 4XX, 5XX)
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got HTTPError, exception={http_err}, payload={data}, response={response}")
+        printd(f"Got HTTPError, exception={http_err}, payload={data}")
         raise http_err
     except requests.exceptions.RequestException as req_err:
         # Handle other requests-related errors (e.g., connection error)
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got RequestException, exception={req_err}, response={response}")
+        printd(f"Got RequestException, exception={req_err}")
         raise req_err
     except Exception as e:
         # Handle other potential errors
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got unknown Exception, exception={e}, response={response}")
+        printd(f"Got unknown Exception, exception={e}")
         raise e
 
 
@@ -150,27 +136,15 @@ def openai_embeddings_request(url, api_key, data):
         return response
     except requests.exceptions.HTTPError as http_err:
         # Handle HTTP errors (e.g., response 4XX, 5XX)
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got HTTPError, exception={http_err}, response={response}")
+        printd(f"Got HTTPError, exception={http_err}, payload={data}")
         raise http_err
     except requests.exceptions.RequestException as req_err:
         # Handle other requests-related errors (e.g., connection error)
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got RequestException, exception={req_err}, response={response}")
+        printd(f"Got RequestException, exception={req_err}")
         raise req_err
     except Exception as e:
         # Handle other potential errors
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got unknown Exception, exception={e}, response={response}")
+        printd(f"Got unknown Exception, exception={e}")
         raise e
 
 
@@ -200,27 +174,15 @@ def azure_openai_chat_completions_request(resource_name, deployment_id, api_vers
         return response
     except requests.exceptions.HTTPError as http_err:
         # Handle HTTP errors (e.g., response 4XX, 5XX)
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got HTTPError, exception={http_err}, response={response}")
+        printd(f"Got HTTPError, exception={http_err}, payload={data}")
         raise http_err
     except requests.exceptions.RequestException as req_err:
         # Handle other requests-related errors (e.g., connection error)
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got RequestException, exception={req_err}, response={response}")
+        printd(f"Got RequestException, exception={req_err}")
         raise req_err
     except Exception as e:
         # Handle other potential errors
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got unknown Exception, exception={e}, response={response}")
+        printd(f"Got unknown Exception, exception={e}")
         raise e
 
 
@@ -242,27 +204,15 @@ def azure_openai_embeddings_request(resource_name, deployment_id, api_version, a
         return response
     except requests.exceptions.HTTPError as http_err:
         # Handle HTTP errors (e.g., response 4XX, 5XX)
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got HTTPError, exception={http_err}, response={response}")
+        printd(f"Got HTTPError, exception={http_err}, payload={data}")
         raise http_err
     except requests.exceptions.RequestException as req_err:
         # Handle other requests-related errors (e.g., connection error)
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got RequestException, exception={req_err}, response={response}")
+        printd(f"Got RequestException, exception={req_err}")
         raise req_err
     except Exception as e:
         # Handle other potential errors
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got unknown Exception, exception={e}, response={response}")
+        printd(f"Got unknown Exception, exception={e}")
         raise e
 
 
