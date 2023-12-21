@@ -1,5 +1,5 @@
 # import memgpt.local_llm.llm_chat_completion_wrappers.airoboros as airoboros
-from memgpt.local_llm.llm_chat_completion_wrappers.chatml import ChatMLInnerMonologueWrapper
+from memgpt.local_llm.llm_chat_completion_wrappers.chatml import ChatMLInnerMonologueWrapper, ChatMLOuterInnerMonologueWrapper
 
 DEFAULT_ENDPOINTS = {
     "koboldcpp": "http://localhost:5001",

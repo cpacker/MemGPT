@@ -41,79 +41,79 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         # how to set json in prompt
         self.json_indent = json_indent
 
-    def compile_function_block(self, functions) -> str:
+    def _compile_function_description(self, schema, add_inner_thoughts=True) -> str:
+        """Go from a JSON schema to a string description for a prompt"""
+        # airorobos style
+        func_str = ""
+        func_str += f"{schema['name']}:"
+        func_str += f"\n  description: {schema['description']}"
+        func_str += f"\n  params:"
+        if add_inner_thoughts:
+            func_str += f"\n    inner_thoughts: Deep inner monologue private to you only."
+        for param_k, param_v in schema["parameters"]["properties"].items():
+            # TODO we're ignoring type
+            func_str += f"\n    {param_k}: {param_v['description']}"
+        # TODO we're ignoring schema['parameters']['required']
+        return func_str
+
+    def _compile_function_block(self, functions) -> str:
         """functions dict -> string describing functions choices"""
         prompt = ""
-
-        # Next is the functions preamble
-        def create_function_description(schema, add_inner_thoughts=True):
-            # airorobos style
-            func_str = ""
-            func_str += f"{schema['name']}:"
-            func_str += f"\n  description: {schema['description']}"
-            func_str += f"\n  params:"
-            if add_inner_thoughts:
-                func_str += f"\n    inner_thoughts: Deep inner monologue private to you only."
-            for param_k, param_v in schema["parameters"]["properties"].items():
-                # TODO we're ignoring type
-                func_str += f"\n    {param_k}: {param_v['description']}"
-            # TODO we're ignoring schema['parameters']['required']
-            return func_str
 
         # prompt += f"\nPlease select the most suitable function and parameters from the list of available functions below, based on the user's input. Provide your response in JSON format."
         prompt += f"Please select the most suitable function and parameters from the list of available functions below, based on the ongoing conversation. Provide your response in JSON format."
         prompt += f"\nAvailable functions:"
         for function_dict in functions:
-            prompt += f"\n{create_function_description(function_dict)}"
+            prompt += f"\n{self._compile_function_description(function_dict)}"
 
         return prompt
 
     # NOTE: BOS/EOS chatml tokens are NOT inserted here
-    def compile_system_message(self, system_message, functions) -> str:
+    def _compile_system_message(self, system_message, functions) -> str:
         """system prompt + memory + functions -> string"""
         prompt = ""
         prompt += system_message
         prompt += "\n"
-        prompt += self.compile_function_block(functions)
+        prompt += self._compile_function_block(functions)
         return prompt
 
+    def _compile_function_call(self, function_call, inner_thoughts=None):
+        """Go from ChatCompletion to Airoboros style function trace (in prompt)
+
+        ChatCompletion data (inside message['function_call']):
+            "function_call": {
+                "name": ...
+                "arguments": {
+                    "arg1": val1,
+                    ...
+                }
+
+        Airoboros output:
+            {
+                "function": "send_message",
+                "params": {
+                "message": "Hello there! I am Sam, an AI developed by Liminal Corp. How can I assist you today?"
+                }
+            }
+        """
+        airo_func_call = {
+            "function": function_call["name"],
+            "params": {
+                "inner_thoughts": inner_thoughts,
+                **json.loads(function_call["arguments"]),
+            },
+        }
+        return json.dumps(airo_func_call, indent=self.json_indent)
+
     # NOTE: BOS/EOS chatml tokens are NOT inserted here
-    def compile_assistant_message(self, message) -> str:
+    def _compile_assistant_message(self, message) -> str:
         """assistant message -> string"""
         prompt = ""
-
-        def create_function_call(function_call, inner_thoughts=None):
-            """Go from ChatCompletion to Airoboros style function trace (in prompt)
-
-            ChatCompletion data (inside message['function_call']):
-                "function_call": {
-                    "name": ...
-                    "arguments": {
-                        "arg1": val1,
-                        ...
-                    }
-
-            Airoboros output:
-                {
-                  "function": "send_message",
-                  "params": {
-                    "message": "Hello there! I am Sam, an AI developed by Liminal Corp. How can I assist you today?"
-                  }
-                }
-            """
-            airo_func_call = {
-                "function": function_call["name"],
-                "params": {
-                    "inner_thoughts": inner_thoughts,
-                    **json.loads(function_call["arguments"]),
-                },
-            }
-            return json.dumps(airo_func_call, indent=self.json_indent)
 
         # need to add the function call if there was one
         inner_thoughts = message["content"]
         if "function_call" in message and message["function_call"]:
-            prompt += f"\n{create_function_call(message['function_call'], inner_thoughts=inner_thoughts)}"
+            prompt += f"\n{self._compile_function_call(message['function_call'], inner_thoughts=inner_thoughts)}"
         else:
             # TODO should we format this into JSON somehow?
             prompt += inner_thoughts
@@ -121,7 +121,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         return prompt
 
     # NOTE: BOS/EOS chatml tokens are NOT inserted here
-    def compile_user_message(self, message) -> str:
+    def _compile_user_message(self, message) -> str:
         """user message (should be JSON) -> string"""
         prompt = ""
         if self.simplify_json_content:
@@ -143,7 +143,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         return prompt
 
     # NOTE: BOS/EOS chatml tokens are NOT inserted here
-    def compile_function_response(self, message) -> str:
+    def _compile_function_response(self, message) -> str:
         """function response message (should be JSON) -> string"""
         # TODO we should clean up send_message returns to avoid cluttering the prompt
         prompt = ""
@@ -163,7 +163,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
 
         # System insturctions go first
         assert messages[0]["role"] == "system"
-        system_block = self.compile_system_message(system_message=messages[0]["content"], functions=functions)
+        system_block = self._compile_system_message(system_message=messages[0]["content"], functions=functions)
         prompt += f"<|im_start|>system\n{system_block.strip()}<|im_end|>"
 
         # Last are the user/assistant messages
@@ -173,26 +173,26 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
             if message["role"] == "user":
                 # Support for AutoGen naming of agents
                 role_str = message["name"].strip().lower() if (self.allow_custom_roles and "name" in message) else message["role"]
-                msg_str = self.compile_user_message(message)
+                msg_str = self._compile_user_message(message)
 
                 prompt += f"\n<|im_start|>{role_str}\n{msg_str.strip()}<|im_end|>"
 
             elif message["role"] == "assistant":
                 # Support for AutoGen naming of agents
                 role_str = message["name"].strip().lower() if (self.allow_custom_roles and "name" in message) else message["role"]
-                msg_str = self.compile_assistant_message(message)
+                msg_str = self._compile_assistant_message(message)
 
                 prompt += f"\n<|im_start|>{role_str}\n{msg_str.strip()}<|im_end|>"
 
             elif message["role"] == "function":
                 if self.allow_function_role:
                     role_str = message["role"]
-                    msg_str = self.compile_function_response(message)
+                    msg_str = self._compile_function_response(message)
                     prompt += f"\n<|im_start|>{role_str}\n{msg_str.strip()}<|im_end|>"
                 else:
                     # TODO figure out what to do with functions if we disallow function role
                     role_str = self.no_function_role_role
-                    msg_str = self.compile_function_response(message)
+                    msg_str = self._compile_function_response(message)
                     func_resp_prefix = self.no_function_role_prefix
                     # NOTE whatever the special prefix is, it should also be a stop token
                     prompt += f"\n<|im_start|>{role_str}\n{func_resp_prefix}{msg_str.strip()}<|im_end|>"
@@ -212,7 +212,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
 
         return prompt
 
-    def clean_function_args(self, function_name, function_args):
+    def _clean_function_args(self, function_name, function_args):
         """Some basic MemGPT-specific cleaning of function args"""
         cleaned_function_name = function_name
         cleaned_function_args = function_args.copy() if function_args is not None else {}
@@ -265,7 +265,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
                 inner_thoughts,
                 function_name,
                 function_parameters,
-            ) = self.clean_function_args(function_name, function_parameters)
+            ) = self._clean_function_args(function_name, function_parameters)
 
         message = {
             "role": "assistant",
@@ -283,4 +283,114 @@ class ChatMLOuterInnerMonologueWrapper(ChatMLInnerMonologueWrapper):
 
     NOTE: warning - this makes it easier for the agent to forget to call functions,
           so it is advised to use the function-forcing wrapper unless the LLM is very good
+
+    ie instead of:
+    {
+      "function": "send_message",
+      "params": {
+        "inner_thoughts": "User has repeated the message. Recognizing repetition and taking a different approach.",
+        "message": "It looks like you're repeating yourself, Chad. Is there something you're trying to express, or are you just
+    testing me?"
+      }
+    }
+
+    this wrapper does:
+    {
+      "inner_thoughts": "User has repeated the message. Recognizing repetition and taking a different approach.",
+      "function": "send_message",
+      "params": {
+        "message": "It looks like you're repeating yourself, Chad. Is there something you're trying to express, or are you just
+    testing me?"
+      }
+    }
     """
+
+    # TODO find a way to support forcing the first func call
+    supports_first_message = False
+
+    def __init__(self, **kwargs):
+        # Set a different default for assistant_prefix_extra if not provided
+        kwargs.setdefault("assistant_prefix_extra", '\n{\n  "inner_thoughts":')
+        super().__init__(**kwargs)
+
+    def _compile_function_block(self, functions) -> str:
+        """NOTE: modified to not include inner thoughts at all as extras"""
+        prompt = ""
+
+        prompt += " ".join(
+            [
+                "Please select the most suitable function and parameters from the list of available functions below, based on the ongoing conversation.",
+                "Provide your response in JSON format.",
+                "You must always include inner thoughts, but you do not always have to call a function.",
+            ]
+        )
+        prompt += f"\nAvailable functions:"
+        for function_dict in functions:
+            prompt += f"\n{self._compile_function_description(function_dict, add_inner_thoughts=False)}"
+
+        return prompt
+
+    def _compile_function_call(self, function_call, inner_thoughts=None):
+        """NOTE: Modified to put inner thoughts outside the function"""
+        airo_func_call = {
+            "inner_thoughts": inner_thoughts,
+            "function": function_call["name"],
+            "params": {
+                # "inner_thoughts": inner_thoughts,
+                **json.loads(function_call["arguments"]),
+            },
+        }
+        return json.dumps(airo_func_call, indent=self.json_indent)
+
+    def output_to_chat_completion_response(self, raw_llm_output, first_message=False):
+        """NOTE: Modified to expect "inner_thoughts" outside the function
+
+        Also, allow messages that have None/null function calls
+        """
+
+        # If we used a prefex to guide generation, we need to add it to the output as a preefix
+        assistant_prefix = self.assistant_prefix_extra_first_message if first_message else self.assistant_prefix_extra
+        if assistant_prefix and raw_llm_output[: len(assistant_prefix)] != assistant_prefix:
+            raw_llm_output = assistant_prefix + raw_llm_output
+
+        try:
+            function_json_output = clean_json(raw_llm_output)
+        except Exception as e:
+            raise Exception(f"Failed to decode JSON from LLM output:\n{raw_llm_output} - error\n{str(e)}")
+        try:
+            # NOTE: main diff
+            inner_thoughts = function_json_output["inner_thoughts"]
+            # NOTE: also have to account for "function": null
+            if "function" in function_json_output and function_json_output["function"] is not None:
+                function_name = function_json_output["function"]
+                function_parameters = function_json_output["params"]
+            else:
+                function_name = None
+                function_parameters = None
+        except KeyError as e:
+            raise LLMJSONParsingError(f"Received valid JSON from LLM, but JSON was missing fields: {str(e)}")
+
+        if function_name is not None and self.clean_func_args:
+            (
+                _inner_thoughts,  # NOTE: main diff (ignore)
+                function_name,
+                function_parameters,
+            ) = self._clean_function_args(function_name, function_parameters)
+
+        message = {
+            "role": "assistant",
+            "content": inner_thoughts,
+            # "function_call": {
+            #     "name": function_name,
+            #     "arguments": json.dumps(function_parameters),
+            # },
+        }
+
+        # Add the function if not none:
+        if function_name is not None:
+            message["function_call"] = {
+                "name": function_name,
+                "arguments": json.dumps(function_parameters),
+            }
+
+        return message
