@@ -63,6 +63,7 @@ def configure_llm_endpoint(config: MemGPTConfig):
                     openai_api_key = questionary.text(
                         "Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):"
                     ).ask()
+                config.openai_key = openai_api_key
                 config.save()
 
         model_endpoint_type = "openai"
@@ -213,6 +214,7 @@ def configure_embedding_endpoint(config: MemGPTConfig):
                     openai_api_key = questionary.text(
                         "Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):"
                     ).ask()
+                config.openai_key = openai_api_key
                 config.save()
 
         embedding_endpoint_type = "openai"
