@@ -108,7 +108,7 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
                 model_options = azure_openai_get_model_list(url=model_endpoint, api_key=config.azure_key, api_version=config.azure_version)
             model_options = [obj["id"] for obj in model_options["data"] if obj["id"].startswith("gpt-")]
         except:
-            print(f"Failed to get model list from {model_endpoint}, using defaults")
+            typer.secho(f"Failed to get model list from {model_endpoint}, using defaults", fg=typer.colors.RED)
             model_options = ["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
         other_option_str = "other (enter name)"
         valid_model = config.model in model_options
