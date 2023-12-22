@@ -117,6 +117,11 @@ class StorageConnector:
 
             return LanceDBConnector(agent_config=agent_config, table_type=table_type)
 
+        elif storage_type == "local":
+            from memgpt.connectors.local import InMemoryStorageConnector
+
+            return InMemoryStorageConnector(agent_config=agent_config, table_type=table_type)
+
         else:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")
 
@@ -133,6 +138,8 @@ class StorageConnector:
         # TODO: modify this to simply list loaded data from a given user
         if storage_type is None:
             storage_type = MemGPTConfig.load().archival_storage_type
+
+            return
 
         if storage_type == "local":
             from memgpt.connectors.local import VectorIndexStorageConnector
