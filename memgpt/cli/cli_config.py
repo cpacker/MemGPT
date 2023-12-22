@@ -137,27 +137,51 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
     # set: model, model_wrapper
     model, model_wrapper = None, None
     if model_endpoint_type == "openai" or model_endpoint_type == "azure":
+        # Get the model list from the openai / azure endpoint
+        hardcoded_model_options = ["gpt-4", "gpt-4-32k", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
+        fetched_model_options = None
         try:
             if model_endpoint_type == "openai":
-                model_options = openai_get_model_list(url=model_endpoint, api_key=config.openai_key)
+                fetched_model_options = openai_get_model_list(url=model_endpoint, api_key=config.openai_key)
             elif model_endpoint_type == "azure":
-                model_options = azure_openai_get_model_list(url=model_endpoint, api_key=config.azure_key, api_version=config.azure_version)
-            model_options = [obj["id"] for obj in model_options["data"] if obj["id"].startswith("gpt-")]
+                fetched_model_options = azure_openai_get_model_list(
+                    url=model_endpoint, api_key=config.azure_key, api_version=config.azure_version
+                )
+            fetched_model_options = [obj["id"] for obj in fetched_model_options["data"] if obj["id"].startswith("gpt-")]
         except:
-            typer.secho(f"Failed to get model list from {model_endpoint}, using defaults", fg=typer.colors.RED)
-            model_options = ["gpt-4", "gpt-4-32k", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
-        other_option_str = "other (enter name)"
-        valid_model = config.model in model_options
-        model_options.append(other_option_str)
+            # NOTE: if this fails, it means the user's key is probably bad
+            typer.secho(
+                f"Failed to get model list from {model_endpoint} - make sure your API key and endpoints are correct!", fg=typer.colors.RED
+            )
+
+        # First ask if the user wants to see the full model list (some may be incompatible)
+        see_all_option_str = "[see all options]"
+        other_option_str = "[enter model name manually]"
+
+        # Check if the model we have set already is even in the list (informs our default)
+        valid_model = config.model in hardcoded_model_options
         model = questionary.select(
-            "Select default model (recommended: gpt-4):", choices=model_options, default=config.model if valid_model else model_options[0]
+            "Select default model (recommended: gpt-4):",
+            choices=hardcoded_model_options + [see_all_option_str, other_option_str],
+            default=config.model if valid_model else hardcoded_model_options[0],
         ).ask()
-        if model == other_option_str:
-            model = questionary.text(
-                "Enter custom model name:",
+
+        # If the user asked for the full list, show it
+        if model == see_all_option_str:
+            typer.secho(f"Warning: not all models shown are guaranteed to work with MemGPT", fg=typer.colors.RED)
+            model = questionary.select(
+                "Select default model (recommended: gpt-4):",
+                choices=fetched_model_options + [other_option_str],
+                default=config.model if valid_model else fetched_model_options[0],
             ).ask()
-            # TODO allow empty string for input?
-            model = None if len(model) == 0 else model
+
+        # Finally if the user asked to manually input, allow it
+        if model == other_option_str:
+            model = ""
+            while len(model) == 0:
+                model = questionary.text(
+                    "Enter custom model name:",
+                ).ask()
 
     else:  # local models
         # ollama also needs model type
