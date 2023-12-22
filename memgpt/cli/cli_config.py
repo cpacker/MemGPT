@@ -52,13 +52,34 @@ def configure_llm_endpoint(config: MemGPTConfig):
 
     # set: model_endpoint_type, model_endpoint
     if provider == "openai":
+        # check for key
+        if config.openai_key is None:
+            # allow key to get pulled from env vars
+            openai_api_key = os.getenv("OPENAI_API_KEY", None)
+            if openai_api_key is None:
+                # if we still can't find it, ask for it as input
+                while openai_api_key is None or len(openai_api_key) == 0:
+                    # Ask for API key as input
+                    openai_api_key = questionary.text(
+                        "Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):"
+                    ).ask()
+
         model_endpoint_type = "openai"
         model_endpoint = "https://api.openai.com/v1"
         model_endpoint = questionary.text("Override default endpoint:", default=model_endpoint).ask()
         provider = "openai"
+
     elif provider == "azure":
+        # check for key
+        azure_creds = get_azure_credentials()
+        if azure_creds["azure_key"] is None:
+            raise ValueError(
+                "Missing environment variables for Azure (see https://memgpt.readme.io/docs/endpoints#azure-openai). Please set then run `memgpt configure` again."
+            )
+
         model_endpoint_type = "azure"
-        model_endpoint = get_azure_credentials()["azure_endpoint"]
+        model_endpoint = azure_creds["azure_endpoint"]
+
     else:  # local models
         backend_options = ["webui", "webui-legacy", "llamacpp", "koboldcpp", "ollama", "lmstudio", "lmstudio-legacy", "vllm", "openai"]
         default_model_endpoint_type = None
