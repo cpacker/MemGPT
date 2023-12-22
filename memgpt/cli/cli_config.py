@@ -308,6 +308,27 @@ def configure_recall_storage(config: MemGPTConfig):
 def configure():
     """Updates default MemGPT configurations"""
 
+    # check credentials
+    openai_key = get_openai_credentials()
+    azure_creds = get_azure_credentials()
+
+    if not openai_key and all(value is None or value == "" for value in azure_creds.values()):
+        raise ValueError(
+            "Missing environment variables (see https://memgpt.readme.io/docs/endpoints). Please set them and run `memgpt configure` again."
+        )
+    else:  # Detecting non-empty configurations for Azure or OpenAI
+        detected_services = []
+
+        if all([azure_creds["azure_key"], azure_creds["azure_endpoint"], azure_creds["azure_version"]]):
+            detected_services.append("Azure")
+
+        if openai_key:
+            detected_services.append("OpenAI")
+
+        if detected_services:
+            detected_services_message = ", ".join(detected_services)
+            typer.secho(f"Detected {detected_services_message} configuration.", fg=typer.colors.YELLOW)
+
     MemGPTConfig.create_config_dir()
 
     # Will pre-populate with defaults, or what the user previously set
@@ -318,26 +339,6 @@ def configure():
     default_preset, default_persona, default_human, default_agent = configure_cli(config)
     archival_storage_type, archival_storage_uri, archival_storage_path = configure_archival_storage(config)
     recall_storage_type, recall_storage_uri, recall_storage_path = configure_recall_storage(config)
-
-    # check credentials
-    azure_creds = get_azure_credentials()
-    # azure_key, azure_endpoint, azure_version, azure_deployment, azure_embedding_deployment = get_azure_credentials()
-    openai_key = get_openai_credentials()
-    if model_endpoint_type == "azure" or embedding_endpoint_type == "azure":
-        if all([azure_creds["azure_key"], azure_creds["azure_endpoint"], azure_creds["azure_version"]]):
-            print(f"Using Microsoft endpoint {azure_creds['azure_endpoint']}.")
-            # Deployment can optionally customize your endpoint model name
-            if all([azure_creds["azure_deployment"], azure_creds["azure_embedding_deployment"]]):
-                print(f"Using deployment id {azure_creds['azure_deployment']}")
-        else:
-            raise ValueError(
-                "Missing environment variables for Azure (see https://memgpt.readme.io/docs/endpoints#azure-openai). Please set then run `memgpt configure` again."
-            )
-    if model_endpoint_type == "openai" or embedding_endpoint_type == "openai":
-        if not openai_key:
-            raise ValueError(
-                "Missing environment variables for OpenAI (see https://memgpt.readme.io/docs/endpoints#azure-openai). Please set them and run `memgpt configure` again."
-            )
 
     config = MemGPTConfig(
         # model configs

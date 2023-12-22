@@ -421,34 +421,37 @@ def attach(
     agent: str = typer.Option(help="Specify agent to attach data to"),
     data_source: str = typer.Option(help="Data source to attach to avent"),
 ):
-    # loads the data contained in data source into the agent's memory
-    from memgpt.connectors.storage import StorageConnector
-    from tqdm import tqdm
+    try:
+        # loads the data contained in data source into the agent's memory
+        from memgpt.connectors.storage import StorageConnector
+        from tqdm import tqdm
 
-    agent_config = AgentConfig.load(agent)
+        agent_config = AgentConfig.load(agent)
 
-    # get storage connectors
-    source_storage = StorageConnector.get_archival_storage_connector(name=data_source)
-    dest_storage = StorageConnector.get_archival_storage_connector(agent_config=agent_config)
+        # get storage connectors
+        source_storage = StorageConnector.get_storage_connector(name=data_source)
+        dest_storage = StorageConnector.get_storage_connector(agent_config=agent_config)
 
-    size = source_storage.size()
-    typer.secho(f"Ingesting {size} passages into {agent_config.name}", fg=typer.colors.GREEN)
-    page_size = 100
-    generator = source_storage.get_all_paginated(page_size=page_size)  # yields List[Passage]
-    passages = []
-    for i in tqdm(range(0, size, page_size)):
-        passages = next(generator)
-        dest_storage.insert_many(passages)
+        size = source_storage.size()
+        typer.secho(f"Ingesting {size} passages into {agent_config.name}", fg=typer.colors.GREEN)
+        page_size = 100
+        generator = source_storage.get_all_paginated(page_size=page_size)  # yields List[Passage]
+        passages = []
+        for i in tqdm(range(0, size, page_size)):
+            passages = next(generator)
+            dest_storage.insert_many(passages)
 
-    # save destination storage
-    dest_storage.save()
+        # save destination storage
+        dest_storage.save()
 
-    total_agent_passages = dest_storage.size()
+        total_agent_passages = dest_storage.size()
 
-    typer.secho(
-        f"Attached data source {data_source} to agent {agent}, consisting of {len(passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
-        fg=typer.colors.GREEN,
-    )
+        typer.secho(
+            f"Attached data source {data_source} to agent {agent}, consisting of {len(passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
+            fg=typer.colors.GREEN,
+        )
+    except KeyboardInterrupt:
+        typer.secho(" Operation interrupted by KeyboardInterrupt.", fg=typer.colors.YELLOW)
 
 
 def version():
