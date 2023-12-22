@@ -311,7 +311,7 @@ def run(
 
         else:
             config_choices = {
-                "memgpt": "Use the free MemGPT hosted backend",
+                "memgpt": "Use the free MemGPT endpoints",
                 "openai": "Use OpenAI (requires an OpenAI API key)",
                 "other": "Other (OpenAI Azure, custom LLM endpoint, etc)",
             }
