@@ -15,6 +15,7 @@ from memgpt.constants import LLM_MAX_TOKENS
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.openai_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
+from memgpt.server.utils import shorten_key_middle
 
 app = typer.Typer()
 
@@ -64,6 +65,18 @@ def configure_llm_endpoint(config: MemGPTConfig):
                     openai_api_key = questionary.text(
                         "Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):"
                     ).ask()
+            config.openai_key = openai_api_key
+            config.save()
+        else:
+            # Give the user an opportunity to overwrite the key
+            openai_api_key = None
+            default_input = shorten_key_middle(config.openai_key) if config.openai_key.startswith("sk-") else config.openai_key
+            openai_api_key = questionary.text(
+                "Enter your OpenAI API key (hit enter to use existing key):",
+                default=default_input,
+            ).ask()
+            # If the user modified it, use the new one
+            if openai_api_key != default_input:
                 config.openai_key = openai_api_key
                 config.save()
 
@@ -132,7 +145,7 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
             model_options = [obj["id"] for obj in model_options["data"] if obj["id"].startswith("gpt-")]
         except:
             typer.secho(f"Failed to get model list from {model_endpoint}, using defaults", fg=typer.colors.RED)
-            model_options = ["gpt-4", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
+            model_options = ["gpt-4", "gpt-4-32k", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
         other_option_str = "other (enter name)"
         valid_model = config.model in model_options
         model_options.append(other_option_str)
@@ -389,7 +402,9 @@ def configure():
     config = MemGPTConfig.load()
     try:
         model_endpoint_type, model_endpoint = configure_llm_endpoint(config)
-        model, model_wrapper, context_window = configure_model(config, model_endpoint_type)
+        model, model_wrapper, context_window = configure_model(
+            config=config, model_endpoint_type=model_endpoint_type, model_endpoint=model_endpoint
+        )
         embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = configure_embedding_endpoint(config)
         default_preset, default_persona, default_human, default_agent = configure_cli(config)
         archival_storage_type, archival_storage_uri, archival_storage_path = configure_archival_storage(config)
