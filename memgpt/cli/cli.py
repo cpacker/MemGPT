@@ -322,10 +322,14 @@ def run(
             ).ask()
 
             if config_selection == config_choices["memgpt"]:
+                MemGPTConfig.create_config_dir()
                 quickstart(backend=QuickstartChoice.memgpt_hosted, debug=debug, terminal=False, latest=False)
             elif config_selection == config_choices["openai"]:
+                MemGPTConfig.create_config_dir()
                 quickstart(backend=QuickstartChoice.openai, debug=debug, terminal=False, latest=False)
             elif config_selection == config_choices["other"]:
+                # create_config_dir() is run inside configure()
+                # MemGPTConfig.create_config_dir()
                 configure()
             else:
                 raise ValueError(config_selection)
