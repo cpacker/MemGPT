@@ -23,6 +23,8 @@ class Record:
             self.id = uuid.uuid4()
         else:
             self.id = id
+
+        assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
         # todo: generate unique uuid
         # todo: self.role = role (?)
 
@@ -78,8 +80,8 @@ class Document(Record):
         self.data_source = data_source
         # TODO: add optional embedding?
 
-    def __repr__(self) -> str:
-        pass
+    # def __repr__(self) -> str:
+    #    pass
 
 
 class Passage(Record):
@@ -106,5 +108,5 @@ class Passage(Record):
         self.doc_id = doc_id
         self.metadata = metadata
 
-    def __repr__(self):
-        return str(vars(self))
+    # def __repr__(self):
+    #    pass

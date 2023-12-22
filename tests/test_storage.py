@@ -56,8 +56,8 @@ def generate_messages():
     return messages
 
 
-@pytest.mark.parametrize("storage_connector", ["postgres", "chroma", "lancedb"])
-# @pytest.mark.parametrize("storage_connector", ["postgres"])
+@pytest.mark.parametrize("storage_connector", ["postgres", "chroma", "sqllite", "lancedb"])
+# @pytest.mark.parametrize("storage_connector", ["sqllite"])
 @pytest.mark.parametrize("table_type", [TableType.RECALL_MEMORY, TableType.ARCHIVAL_MEMORY])
 def test_storage(storage_connector, table_type):
 
@@ -86,9 +86,9 @@ def test_storage(storage_connector, table_type):
             return
         config.archival_storage_type = "chroma"
         config.archival_storage_path = "./test_chroma"
-    if storage_connector == "local":
+    if storage_connector == "sqllite":
         if table_type == TableType.ARCHIVAL_MEMORY:
-            print("Skipping test, local only supported for recall memory")
+            print("Skipping test, sqllite only supported for recall memory")
             return
         config.recall_storage_type = "local"
 
