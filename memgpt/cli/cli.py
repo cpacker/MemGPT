@@ -32,7 +32,7 @@ class QuickstartChoice(Enum):
     memgpt_hosted = "memgpt"
 
 
-def set_config_with_dict(new_config: dict):
+def set_config_with_dict(new_config: dict) -> bool:
     """Set the base config using a dict"""
     from memgpt.utils import printd
 
@@ -51,27 +51,30 @@ def set_config_with_dict(new_config: dict):
     if modified:
         printd(f"Saving new config file.")
         old_config.save()
-        typer.secho(f"\n📖 MemGPT configuration file updated!", fg=typer.colors.GREEN)
+        typer.secho(f"📖 MemGPT configuration file updated!", fg=typer.colors.GREEN)
         typer.secho(f"🧠 model\t-> {old_config.model}\n🖥️  endpoint\t-> {old_config.model_endpoint}", fg=typer.colors.GREEN)
-        typer.secho('⚡ Run "memgpt run" to create an agent with the new config.\n', fg=typer.colors.YELLOW)
+        return True
     else:
-        typer.secho(f"\n📖 MemGPT configuration file unchanged.", fg=typer.colors.WHITE)
+        typer.secho(f"📖 MemGPT configuration file unchanged.", fg=typer.colors.WHITE)
         typer.secho(f"🧠 model\t-> {old_config.model}\n🖥️  endpoint\t-> {old_config.model_endpoint}", fg=typer.colors.WHITE)
-        typer.secho('⚡ Run "memgpt run" to create an agent.\n', fg=typer.colors.YELLOW)
+        return False
 
 
 def quickstart(
     backend: QuickstartChoice = typer.Option("memgpt", help="Quickstart setup backend"),
     latest: bool = typer.Option(False, "--latest", help="Use --latest to pull the latest config from online"),
     debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
+    terminal: bool = True,
 ):
     """Set the base config file with a single command"""
+
     # setup logger
     utils.DEBUG = debug
     logging.getLogger().setLevel(logging.CRITICAL)
     if debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
+    config_was_modified = False
     if backend == QuickstartChoice.memgpt_hosted:
         # if latest, try to pull the config from the repo
         # fallback to using local
@@ -85,10 +88,10 @@ def quickstart(
                 # Parse the response content as JSON
                 config = response.json()
                 # Output a success message and the first few items in the dictionary as a sample
-                print("JSON config file downloaded successfully.")
-                set_config_with_dict(config)
+                printd("JSON config file downloaded successfully.")
+                config_was_modified = set_config_with_dict(config)
             else:
-                print(f"Failed to download config from {url}. Status code:", response.status_code)
+                typer.secho(f"Failed to download config from {url}. Status code: {response.status_code}", fg=typer.colors.RED)
 
                 # Load the file from the relative path
                 script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
@@ -96,10 +99,11 @@ def quickstart(
                 try:
                     with open(backup_config_path, "r") as file:
                         backup_config = json.load(file)
-                    print("Loaded backup config file successfully.")
-                    set_config_with_dict(backup_config)
+                    printd("Loaded backup config file successfully.")
+                    config_was_modified = set_config_with_dict(backup_config)
                 except FileNotFoundError:
-                    print(f"Backup config file not found at {backup_config_path}")
+                    typer.secho(f"Backup config file not found at {backup_config_path}", fg=typer.colors.RED)
+                    return
         else:
             # Load the file from the relative path
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
@@ -107,10 +111,11 @@ def quickstart(
             try:
                 with open(backup_config_path, "r") as file:
                     backup_config = json.load(file)
-                print("Loaded config file successfully.")
-                set_config_with_dict(backup_config)
+                printd("Loaded config file successfully.")
+                config_was_modified = set_config_with_dict(backup_config)
             except FileNotFoundError:
-                print(f"Config file not found at {backup_config_path}")
+                typer.secho(f"Config file not found at {backup_config_path}", fg=typer.colors.RED)
+                return
 
     elif backend == QuickstartChoice.openai:
         # Make sure we have an API key
@@ -133,9 +138,9 @@ def quickstart(
                 print("JSON config file downloaded successfully.")
                 # Add the API key
                 config["openai_key"] = api_key
-                set_config_with_dict(config)
+                config_was_modified = set_config_with_dict(config)
             else:
-                print(f"Failed to download config from {url}. Status code:", response.status_code)
+                typer.secho(f"Failed to download config from {url}. Status code: {response.status_code}", fg=typer.colors.RED)
 
                 # Load the file from the relative path
                 script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
@@ -144,10 +149,11 @@ def quickstart(
                     with open(backup_config_path, "r") as file:
                         backup_config = json.load(file)
                         backup_config["openai_key"] = api_key
-                    print("Loaded backup config file successfully.")
-                    set_config_with_dict(backup_config)
+                    printd("Loaded backup config file successfully.")
+                    config_was_modified = set_config_with_dict(backup_config)
                 except FileNotFoundError:
-                    print(f"Backup config file not found at {backup_config_path}")
+                    typer.secho(f"Backup config file not found at {backup_config_path}", fg=typer.colors.RED)
+                    return
         else:
             # Load the file from the relative path
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
@@ -156,13 +162,21 @@ def quickstart(
                 with open(backup_config_path, "r") as file:
                     backup_config = json.load(file)
                     backup_config["openai_key"] = api_key
-                print("Loaded config file successfully.")
-                set_config_with_dict(backup_config)
+                printd("Loaded config file successfully.")
+                config_was_modified = set_config_with_dict(backup_config)
             except FileNotFoundError:
-                print(f"Config file not found at {backup_config_path}")
+                typer.secho(f"Config file not found at {backup_config_path}", fg=typer.colors.RED)
+                return
 
     else:
         raise NotImplementedError(backend)
+
+    # 'terminal' = quickstart was run alone, in which case we should guide the user on the next command
+    if terminal:
+        if config_was_modified:
+            typer.secho('⚡ Run "memgpt run" to create an agent with the new config.', fg=typer.colors.YELLOW)
+        else:
+            typer.secho('⚡ Run "memgpt run" to create an agent.', fg=typer.colors.YELLOW)
 
 
 def open_folder():
@@ -308,9 +322,9 @@ def run(
             ).ask()
 
             if config_selection == config_choices["memgpt"]:
-                quickstart(backend=QuickstartChoice.memgpt_hosted, debug=debug)
+                quickstart(backend=QuickstartChoice.memgpt_hosted, debug=debug, terminal=False)
             elif config_selection == config_choices["openai"]:
-                quickstart(backend=QuickstartChoice.openai, debug=debug)
+                quickstart(backend=QuickstartChoice.openai, debug=debug, terminal=False)
             elif config_selection == config_choices["other"]:
                 configure()
             else:
