@@ -122,6 +122,11 @@ class StorageConnector:
 
             return InMemoryStorageConnector(agent_config=agent_config, table_type=table_type)
 
+        elif storage_type == "sqllite":
+            from memgpt.connectors.db import SQLLiteStorageConnector
+
+            return SQLLiteStorageConnector(agent_config=agent_config, table_type=table_type)
+
         else:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")
 
@@ -144,6 +149,7 @@ class StorageConnector:
         if storage_type == "local":
             from memgpt.connectors.local import VectorIndexStorageConnector
 
+            # TODO: remove
             return VectorIndexStorageConnector.list_loaded_data()
         elif storage_type == "postgres":
             from memgpt.connectors.db import PostgresStorageConnector

@@ -70,12 +70,12 @@ class MemGPTConfig:
 
     # database configs: archival
     archival_storage_type: str = "local"  # local, db
-    archival_storage_path: str = None  # TODO: set to memgpt dir
+    archival_storage_path: str = MEMGPT_DIR  # TODO: set to memgpt dir
     archival_storage_uri: str = None  # TODO: eventually allow external vector DB
 
     # database configs: recall
     recall_storage_type: str = "local"  # local, db
-    recall_storage_path: str = None  # TODO: set to memgpt dir
+    recall_storage_path: str = MEMGPT_DIR
     recall_storage_uri: str = None  # TODO: eventually allow external vector DB
 
     # database configs: agent state
