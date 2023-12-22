@@ -2,12 +2,13 @@ import os
 from urllib.parse import urljoin
 import requests
 
-from ..utils import load_grammar_file, count_tokens
+from memgpt.local_llm.settings.settings import get_completions_settings
+from memgpt.local_llm.utils import load_grammar_file, count_tokens
 
 WEBUI_API_SUFFIX = "/v1/completions"
 
 
-def get_vllm_completion(endpoint, model, prompt, context_window, user, settings={}, grammar=None):
+def get_vllm_completion(endpoint, model, prompt, context_window, user, grammar=None):
     """https://github.com/vllm-project/vllm/blob/main/examples/api_client.py"""
     from memgpt.utils import printd
 
@@ -16,9 +17,10 @@ def get_vllm_completion(endpoint, model, prompt, context_window, user, settings=
         raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_window} tokens)")
 
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
+    settings = get_completions_settings()
     request = settings
     request["prompt"] = prompt
-    request["max_tokens"] = int(context_window - prompt_tokens)
+    request["max_tokens"] = 3000  # int(context_window - prompt_tokens)
     request["stream"] = False
     request["user"] = user
 

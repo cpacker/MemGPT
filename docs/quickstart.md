@@ -1,39 +1,53 @@
+---
+title: Quickstart 
+excerpt: Get up and running with MemGPT 
+category: 6580d34ee5e4d00068bf2a1d 
+---
+
 ### Installation
 
 To install MemGPT, make sure you have Python installed on your computer, then run:
-
 ```sh
 pip install pymemgpt
 ```
 
 If you already have MemGPT installed, you can update to the latest version with:
-
 ```sh
-pip install pymemgpt -U --pre
+pip install pymemgpt -U
 ```
 
-### Running MemGPT using the OpenAI API
+### Running MemGPT
 
-Add your OpenAI API key to your environment:
-
-```sh
-export OPENAI_API_KEY=YOUR_API_KEY # on Linux/Mac
-set OPENAI_API_KEY=YOUR_API_KEY # on Windows
-$Env:OPENAI_API_KEY = "YOUR_API_KEY" # on Windows (PowerShell)
-```
-Configure default settings for MemGPT by running:
-```sh
-memgpt configure
-```
-Now, you can run MemGPT with:
+Now, you can run MemGPT and start chatting with a MemGPT agent with:
 ```sh
 memgpt run
 ```
 
-In this example we use the OpenAI API, but you can run MemGPT with other backends! See:
+If you're running MemGPT for the first time, you'll see two quickstart options:
 
-* [Running MemGPT on OpenAI Azure and custom OpenAI endpoints](endpoints.md)
-* [Running MemGPT with your own LLMs (Llama 2, Mistral 7B, etc.)](local_llm.md)
+1. **OpenAI**: select this if you'd like to run MemGPT with OpenAI models like GPT-4 (requires an OpenAI API key)
+2. **MemGPT Free Endpoint**: select this if you'd like to try MemGPT on a top open LLM for free (currently variants of Mixtral 8x7b!)
+
+Neither of these options require you to have an LLM running on your own machine. If you'd like to run MemGPT with your custom LLM setup (or on OpenAI Azure), select **Other** to proceed to the advanced setup.
+
+### Quickstart
+
+If you'd ever like to quickly switch back to the default **OpenAI** or **MemGPT Free Endpoint** options, you can use the `quickstart` command:
+```sh
+# this will set you up on the MemGPT Free Endpoint 
+memgpt quickstart
+```
+```sh
+# this will set you up on the default OpenAI settings
+memgpt quickstart --backend openai
+```
+
+### Advanced setup
+
+MemGPT supports a large number of LLM backends! See:
+
+* [Running MemGPT on OpenAI Azure and custom OpenAI endpoints](endpoints)
+* [Running MemGPT with your own LLMs (Llama 2, Mistral 7B, etc.)](local_llm)
 
 ### Command-line arguments
 
@@ -73,5 +87,5 @@ Once you exit the CLI with `/exit`, you can resume chatting with the same agent 
 
 Check out the following tutorials on how to set up custom chatbots and chatbots for talking to your data:
 
-* [Using MemGPT to create a perpetual chatbot](example_chat.md)
-* [Using MemGPT to chat with your own data](example_data.md)
+* [Using MemGPT to create a perpetual chatbot](example_chat)
+* [Using MemGPT to chat with your own data](example_data)

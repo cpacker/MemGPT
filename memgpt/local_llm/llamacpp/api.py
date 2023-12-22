@@ -2,13 +2,14 @@ import os
 from urllib.parse import urljoin
 import requests
 
-from .settings import SIMPLE
-from ..utils import load_grammar_file, count_tokens
+from memgpt.local_llm.settings.settings import get_completions_settings
+from memgpt.local_llm.utils import count_tokens, load_grammar_file
+
 
 LLAMACPP_API_SUFFIX = "/completion"
 
 
-def get_llamacpp_completion(endpoint, prompt, context_window, grammar=None, settings=SIMPLE):
+def get_llamacpp_completion(endpoint, prompt, context_window, grammar=None):
     """See https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md for instructions on how to run the LLM web server"""
     from memgpt.utils import printd
 
@@ -17,6 +18,7 @@ def get_llamacpp_completion(endpoint, prompt, context_window, grammar=None, sett
         raise Exception(f"Request exceeds maximum context length ({prompt_tokens} > {context_window} tokens)")
 
     # Settings for the generation, includes the prompt + stop tokens, max length, etc
+    settings = get_completions_settings()
     request = settings
     request["prompt"] = prompt
 

@@ -21,7 +21,8 @@ from memgpt.interface import CLIInterface as interface  # for printing to termin
 import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.constants as constants
-from memgpt.cli.cli import run, attach, version, server, open_folder
+import memgpt.errors as errors
+from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart
 from memgpt.cli.cli_config import configure, list, add
 from memgpt.cli.cli_load import app as load_app
 from memgpt.connectors.storage import StorageConnector
@@ -35,6 +36,7 @@ app.command(name="list")(list)
 app.command(name="add")(add)
 app.command(name="server")(server)
 app.command(name="folder")(open_folder)
+app.command(name="quickstart")(quickstart)
 # load data commands
 app.add_typer(load_app, name="load")
 
@@ -202,6 +204,22 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                             args["message"] = text
                             memgpt_agent.messages[x].get("function_call").update({"arguments": json.dumps(args)})
                             break
+                    continue
+
+                elif user_input.lower() == "/summarize":
+                    try:
+                        memgpt_agent.summarize_messages_inplace()
+                        typer.secho(
+                            f"/summarize succeeded",
+                            fg=typer.colors.GREEN,
+                            bold=True,
+                        )
+                    except errors.LLMError as e:
+                        typer.secho(
+                            f"/summarize failed:\n{e}",
+                            fg=typer.colors.RED,
+                            bold=True,
+                        )
                     continue
 
                 # No skip options
