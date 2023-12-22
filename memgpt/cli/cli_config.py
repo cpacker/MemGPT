@@ -343,11 +343,15 @@ def configure():
 
     # Will pre-populate with defaults, or what the user previously set
     config = MemGPTConfig.load()
-    model_endpoint_type, model_endpoint = configure_llm_endpoint(config)
-    model, model_wrapper, context_window = configure_model(config, model_endpoint_type)
-    embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = configure_embedding_endpoint(config)
-    default_preset, default_persona, default_human, default_agent = configure_cli(config)
-    archival_storage_type, archival_storage_uri, archival_storage_path = configure_archival_storage(config)
+    try:
+        model_endpoint_type, model_endpoint = configure_llm_endpoint(config)
+        model, model_wrapper, context_window = configure_model(config, model_endpoint_type)
+        embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = configure_embedding_endpoint(config)
+        default_preset, default_persona, default_human, default_agent = configure_cli(config)
+        archival_storage_type, archival_storage_uri, archival_storage_path = configure_archival_storage(config)
+    except ValueError as e:
+        typer.secho(str(e), fg=typer.colors.RED)
+        return
 
     config = MemGPTConfig(
         # model configs
@@ -378,7 +382,7 @@ def configure():
         archival_storage_uri=archival_storage_uri,
         archival_storage_path=archival_storage_path,
     )
-    print(f"Saving config to {config.config_path}")
+    typer.secho(f"📖 Saving config to {config.config_path}", fg=typer.colors.GREEN)
     config.save()
 
 
