@@ -51,11 +51,13 @@ def set_config_with_dict(new_config: dict):
     if modified:
         printd(f"Saving new config file.")
         old_config.save()
-        typer.secho(f"\nMemGPT configuration file updated!", fg=typer.colors.GREEN)
-        typer.secho('Run "memgpt run" to create an agent with the new config.', fg=typer.colors.YELLOW)
+        typer.secho(f"\n📖 MemGPT configuration file updated!", fg=typer.colors.GREEN)
+        typer.secho(f"🧠 model\t-> {old_config.model}\n🖥️  endpoint\t-> {old_config.model_endpoint}", fg=typer.colors.GREEN)
+        typer.secho('⚡ Run "memgpt run" to create an agent with the new config.\n', fg=typer.colors.YELLOW)
     else:
-        typer.secho(f"\nMemGPT configuration file unchanged.", fg=typer.colors.GREEN)
-        typer.secho('Run "memgpt run" to create an agent.', fg=typer.colors.YELLOW)
+        typer.secho(f"\n📖 MemGPT configuration file unchanged.", fg=typer.colors.WHITE)
+        typer.secho(f"🧠 model\t-> {old_config.model}\n🖥️  endpoint\t-> {old_config.model_endpoint}", fg=typer.colors.WHITE)
+        typer.secho('⚡ Run "memgpt run" to create an agent.\n', fg=typer.colors.YELLOW)
 
 
 def quickstart(
@@ -281,14 +283,41 @@ def run(
     if debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    if not MemGPTConfig.exists():  # if no config, run configure
+    if not MemGPTConfig.exists():
+        # if no config, ask about quickstart
+        # do you want to do:
+        # - openai (run quickstart)
+        # - memgpt hosted (run quickstart)
+        # - other (run configure)
         if yes:
-            # use defaults
+            # if user is passing '-y' to bypass all inputs, use memgpt hosted
+            # since it can't fail out if you don't have an API key
+            quickstart(backend=QuickstartChoice.memgpt_hosted)
             config = MemGPTConfig()
+
         else:
-            # use input
-            configure()
+            config_choices = {
+                "memgpt": "Use the free MemGPT hosted backend",
+                "openai": "Use OpenAI (requires an OpenAI API key)",
+                "other": "Other (OpenAI Azure, custom LLM endpoint, etc)",
+            }
+            config_selection = questionary.select(
+                "How would you like to set up MemGPT?",
+                choices=list(config_choices.values()),
+                default=config_choices["memgpt"],
+            ).ask()
+
+            if config_selection == config_choices["memgpt"]:
+                quickstart(backend=QuickstartChoice.memgpt_hosted, debug=debug)
+            elif config_selection == config_choices["openai"]:
+                quickstart(backend=QuickstartChoice.openai, debug=debug)
+            elif config_selection == config_choices["other"]:
+                configure()
+            else:
+                raise ValueError(config_selection)
+
             config = MemGPTConfig.load()
+
     else:  # load config
         config = MemGPTConfig.load()
 
