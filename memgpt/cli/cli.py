@@ -322,9 +322,9 @@ def run(
             ).ask()
 
             if config_selection == config_choices["memgpt"]:
-                quickstart(backend=QuickstartChoice.memgpt_hosted, debug=debug, terminal=False)
+                quickstart(backend=QuickstartChoice.memgpt_hosted, debug=debug, terminal=False, latest=False)
             elif config_selection == config_choices["openai"]:
-                quickstart(backend=QuickstartChoice.openai, debug=debug, terminal=False)
+                quickstart(backend=QuickstartChoice.openai, debug=debug, terminal=False, latest=False)
             elif config_selection == config_choices["other"]:
                 configure()
             else:
