@@ -55,6 +55,9 @@ coverage.xml
 # Jupyter Notebook
 .ipynb_checkpoints
 
+# Temp directiories
+test_chroma
+
 # Environment directories
 .env
 .venv
@@ -65,6 +68,9 @@ ENV/
 # Spyder project settings
 .spyderproject
 .spyproject
+
+# PyCharm project settings
+.idea
 
 # Rope project settings
 .ropeproject

@@ -287,7 +287,8 @@ class MemGPTAgent(ConversableAgent):
         self.agent.interface.reset_message_list()
 
         new_messages = self.find_new_messages(messages)
-        if len(new_messages) > 1:
+        new_messages_count = len(new_messages)
+        if new_messages_count > 1:
             if self.concat_other_agent_messages:
                 # Combine all the other messages into one message
                 user_message = "\n".join([self.format_other_agent_message(m) for m in new_messages])
@@ -295,7 +296,7 @@ class MemGPTAgent(ConversableAgent):
                 # Extend the MemGPT message list with multiple 'user' messages, then push the last one with agent.step()
                 self.agent.messages.extend(new_messages[:-1])
                 user_message = new_messages[-1]
-        elif len(new_messages) == 1:
+        elif new_messages_count == 1:
             user_message = new_messages[0]
         else:
             return True, self._default_auto_reply
@@ -328,7 +329,7 @@ class MemGPTAgent(ConversableAgent):
 
         # Pass back to AutoGen the pretty-printed calls MemGPT made to the interface
         pretty_ret = MemGPTAgent.pretty_concat(self.agent.interface.message_list)
-        self.messages_processed_up_to_idx += len(new_messages)
+        self.messages_processed_up_to_idx += new_messages_count
         return True, pretty_ret
 
     @staticmethod
