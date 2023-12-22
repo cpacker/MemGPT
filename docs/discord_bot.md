@@ -14,10 +14,10 @@ Join <a href="https://discord.gg/9GEQrxmVyE">Discord</a></strong> and message th
 Make sure your privacy settings on this server are open so that MemGPT Bot can DM you: \
 MemGPT → Privacy Settings → Direct Messages set to ON
 <div align="center">
- <img src="https://memgpt.ai/assets/img/discord/dm_settings.png" alt="set DMs settings on MemGPT server to be open in MemGPT so that MemGPT Bot can message you" width="400">
+ <img src="https://research.memgpt.ai/assets/img/discord/dm_settings.png" alt="set DMs settings on MemGPT server to be open in MemGPT so that MemGPT Bot can message you" width="400">
 </div>
 
 You can see the full list of available commands when you enter `/` into the message box.
 <div align="center">
- <img src="https://memgpt.ai/assets/img/discord/slash_commands.png" alt="MemGPT Bot slash commands" width="400">
+ <img src="https://research.memgpt.ai/assets/img/discord/slash_commands.png" alt="MemGPT Bot slash commands" width="400">
 </div>
