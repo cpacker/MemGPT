@@ -19,6 +19,8 @@ class ChromaStorageConnector(StorageConnector):
         super().__init__(table_type=table_type, agent_config=agent_config)
         config = MemGPTConfig.load()
 
+        assert table_type == TableType.ARCHIVAL_MEMORY, "Chroma only supports archival memory"
+
         # create chroma client
         if config.archival_storage_path:
             self.client = chromadb.PersistentClient(config.archival_storage_path)
@@ -34,7 +36,6 @@ class ChromaStorageConnector(StorageConnector):
 
     def get_filters(self, filters: Optional[Dict] = {}):
         # get all filters for query
-        print("GET FILTER", filters)
         if filters is not None:
             filter_conditions = {**self.filters, **filters}
         else:
@@ -53,12 +54,9 @@ class ChromaStorageConnector(StorageConnector):
     def get_all_paginated(self, page_size: int, filters: Optional[Dict] = {}) -> Iterator[List[Record]]:
         offset = 0
         ids, filters = self.get_filters(filters)
-        print("FILTERS", filters)
         while True:
             # Retrieve a chunk of records with the given page_size
-            print("querying...", self.collection.count(), "offset", offset, "page", page_size)
             results = self.collection.get(ids=ids, offset=offset, limit=page_size, include=self.include, where=filters)
-            print(len(results["embeddings"]))
 
             # If the chunk is empty, we've retrieved all records
             if len(results["embeddings"]) == 0:
@@ -72,9 +70,6 @@ class ChromaStorageConnector(StorageConnector):
 
     def results_to_records(self, results):
         # convert timestamps to datetime
-        print("ID", results["ids"])
-        print("ID TYPE", type(results["ids"][0]))
-        print(uuid.UUID(results["ids"][0]))
         for metadata in results["metadatas"]:
             if "created_at" in metadata:
                 metadata["created_at"] = timestamp_to_datetime(metadata["created_at"])
@@ -126,13 +121,11 @@ class ChromaStorageConnector(StorageConnector):
                 record_metadata = {}
             metadata = {key: value for key, value in metadata.items() if value is not None}  # null values not allowed
             metadata = {**metadata, **record_metadata}  # merge with metadata
-            print("m", metadata)
             metadatas.append(metadata)
         return ids, documents, embeddings, metadatas
 
     def insert(self, record: Record):
         ids, documents, embeddings, metadatas = self.format_records([record])
-        print("metadata", record, metadatas)
         if not any(embeddings):
             self.collection.add(documents=documents, ids=ids, metadatas=metadatas)
         else:
@@ -149,10 +142,14 @@ class ChromaStorageConnector(StorageConnector):
         ids, filters = self.get_filters(filters)
         self.collection.delete(ids=ids, where=filters)
 
+    def delete_table(self):
+        # drop collection
+        self.client.delete_collection(self.collection.name)
+
     def save(self):
         # save to persistence file (nothing needs to be done)
         printd("Saving chroma")
-        pass
+        raise NotImplementedError
 
     def size(self, filters: Optional[Dict] = {}) -> int:
         # unfortuantely, need to use pagination to get filtering
