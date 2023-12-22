@@ -4,6 +4,7 @@ import psycopg
 
 
 from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text
+from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker, mapped_column
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
@@ -81,12 +82,18 @@ def get_db_model(table_name: str, table_type: TableType):
             id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
             user_id = Column(String, nullable=False)
             agent_id = Column(String, nullable=False)
+
+            # openai info
             role = Column(String, nullable=False)
             text = Column(String, nullable=False)
             model = Column(String, nullable=False)
+            user = Column(String)  # optional: multi-agent only
+
+            # function info
             function_name = Column(String)
             function_args = Column(String)
             function_response = Column(String)
+
             embedding = mapped_column(Vector(config.embedding_dim))
 
             # Add a datetime column, with default value as the current time
@@ -100,6 +107,7 @@ def get_db_model(table_name: str, table_type: TableType):
                     user_id=self.user_id,
                     agent_id=self.agent_id,
                     role=self.role,
+                    user=self.user,
                     text=self.text,
                     model=self.model,
                     function_name=self.function_name,
@@ -118,7 +126,7 @@ def get_db_model(table_name: str, table_type: TableType):
         raise ValueError(f"Table type {table_type} not implemented")
 
 
-class PostgresStorageConnector(StorageConnector):
+class SQLStorageConnector(StorageConnector):
     """Storage via Postgres"""
 
     # TODO: this should probably eventually be moved into a parent DB class
@@ -126,6 +134,8 @@ class PostgresStorageConnector(StorageConnector):
     def __init__(self, table_type: str, agent_config: Optional[AgentConfig] = None):
         super().__init__(table_type=table_type, agent_config=agent_config)
         config = MemGPTConfig.load()
+
+        # TODO: only support recall memory (need postgres for archival)
 
         # get storage URI
         if table_type == TableType.ARCHIVAL_MEMORY:
@@ -155,20 +165,20 @@ class PostgresStorageConnector(StorageConnector):
 
         return [getattr(self.db_model, key) == value for key, value in filter_conditions.items()]
 
-    def get_all_paginated(self, page_size: int, filters: Optional[Dict]) -> Iterator[List[Record]]:
+    def get_all_paginated(self, page_size: int, filters: Optional[Dict] = {}) -> Iterator[List[Record]]:
         session = self.Session()
         offset = 0
         filters = self.get_filters(filters)
         while True:
             # Retrieve a chunk of records with the given page_size
-            db_passages_chunk = session.query(self.db_model).filter(*filters).offset(offset).limit(page_size).all()
+            db_record_chunk = session.query(self.db_model).filter(*filters).offset(offset).limit(page_size).all()
 
             # If the chunk is empty, we've retrieved all records
-            if not db_passages_chunk:
+            if not db_record_chunk:
                 break
 
             # Yield a list of Record objects converted from the chunk
-            yield [self.type(**p.to_dict()) for p in db_passages_chunk]
+            yield [record.to_record() for record in db_record_chunk]
 
             # Increment the offset to get the next chunk in the next iteration
             offset += page_size
@@ -179,10 +189,9 @@ class PostgresStorageConnector(StorageConnector):
         db_records = session.query(self.db_model).filter(*filters).limit(limit).all()
         return [record.to_record() for record in db_records]
 
-    def get(self, id: str, filters: Optional[Dict] = {}) -> Optional[Record]:
+    def get(self, id: str) -> Optional[Record]:
         session = self.Session()
-        filters = self.get_filters(filters)
-        db_record = session.query(self.db_model).filter(*filters).get(id)
+        db_record = session.query(self.db_model).get(id)
         if db_record is None:
             return None
         return db_record.to_record()
@@ -209,15 +218,7 @@ class PostgresStorageConnector(StorageConnector):
         session.commit()
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
-        session = self.Session()
-        filters = self.get_filters(filters)
-        results = session.scalars(
-            select(self.db_model).filter(*filters).order_by(self.db_model.embedding.l2_distance(query_vec)).limit(top_k)
-        ).all()
-
-        # Convert the results into Passage objects
-        records = [result.to_record() for result in results]
-        return records
+        raise NotImplementedError("Vector query not implemented for SQLStorageConnector")
 
     def save(self):
         return
@@ -255,10 +256,69 @@ class PostgresStorageConnector(StorageConnector):
         # todo: make fuzz https://stackoverflow.com/questions/42388956/create-a-full-text-search-index-with-sqlalchemy-on-postgresql/42390204#42390204
         session = self.Session()
         filters = self.get_filters({})
-        results = session.query(self.db_model).filter(*filters).filter(self.db_model.text.contains(query)).all()
-        print(results)
+        results = session.query(self.db_model).filter(*filters).filter(func.lower(self.db_model.text).contains(func.lower(query))).all()
         # return [self.type(**vars(result)) for result in results]
         return [result.to_record() for result in results]
+
+    def delete_table(self):
+        session = self.Session()
+        self.db_model.__table__.drop(session.bind)
+        session.commit()
+
+    def delete(self, filters: Optional[Dict] = {}):
+        session = self.Session()
+        filters = self.get_filters(filters)
+        session.query(self.db_model).filter(*filters).delete()
+        session.commit()
+
+
+class PostgresStorageConnector(SQLStorageConnector):
+    """Storage via Postgres"""
+
+    # TODO: this should probably eventually be moved into a parent DB class
+
+    def __init__(self, table_type: str, agent_config: Optional[AgentConfig] = None):
+        super().__init__(table_type=table_type, agent_config=agent_config)
+        self.Session().execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
+
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
+        session = self.Session()
+        filters = self.get_filters(filters)
+        results = session.scalars(
+            select(self.db_model).filter(*filters).order_by(self.db_model.embedding.l2_distance(query_vec)).limit(top_k)
+        ).all()
+
+        # Convert the results into Passage objects
+        records = [result.to_record() for result in results]
+        return records
+
+    def delete(self, filters: Optional[Dict] = {}):
+        session = self.Session()
+        filters = self.get_filters(filters)
+        session.query(self.db_model).filter(*filters).delete()
+        session.commit()
+
+
+class PostgresStorageConnector(SQLStorageConnector):
+    """Storage via Postgres"""
+
+    # TODO: this should probably eventually be moved into a parent DB class
+
+    def __init__(self, table_type: str, agent_config: Optional[AgentConfig] = None):
+        super().__init__(table_type=table_type, agent_config=agent_config)
+        self.Session().execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
+
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
+        session = self.Session()
+        filters = self.get_filters(filters)
+        results = session.scalars(
+            select(self.db_model).filter(*filters).order_by(self.db_model.embedding.l2_distance(query_vec)).limit(top_k)
+        ).all()
+
+        # Convert the results into Passage objects
+        records = [result.to_record() for result in results]
+        return records
+
 
 class LanceDBConnector(StorageConnector):
     """Storage via LanceDB"""
@@ -276,8 +336,6 @@ class LanceDBConnector(StorageConnector):
             self.table_name = self.generate_table_name(name)
         else:
             raise ValueError("Must specify either agent config or name")
-
-        printd(f"Using table name {self.table_name}")
 
         # create table
         self.uri = config.archival_storage_uri
@@ -326,7 +384,7 @@ class LanceDBConnector(StorageConnector):
         if self.table:
             return len(self.table)
         else:
-            print(f"Table with name {self.table_name} not present")
+            printd(f"Table with name {self.table_name} not present")
             return 0
 
     def insert(self, passage: Passage):

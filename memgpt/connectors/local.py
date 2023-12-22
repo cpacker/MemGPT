@@ -1,4 +1,5 @@
 from typing import Optional, List, Iterator
+import shutil
 from memgpt.config import AgentConfig, MemGPTConfig
 from tqdm import tqdm
 import re
@@ -181,39 +182,56 @@ class InMemoryStorageConnector(StorageConnector):
             raise ValueError(f"Table type {table_type} not supported by InMemoryStorageConnector")
 
         # TODO: load if exists
+        self.agent_config = agent_config
         if agent_config is None:
             # is a data source
             raise ValueError("Cannot load data source from InMemoryStorageConnector")
         else:
             directory = agent_config.save_state_dir()
-            json_files = glob.glob(os.path.join(directory, "*.json"))  # This will list all .json files in the current directory.
-            if not json_files:
-                print(f"/load error: no .json checkpoint files found")
-                raise ValueError(f"Cannot load {agent_config.name} - no saved checkpoints found in {directory}")
+            if os.path.exists(directory):
+                print(f"Loading saved agent {agent_config.name} from {directory}")
+                json_files = glob.glob(os.path.join(directory, "*.json"))  # This will list all .json files in the current directory.
+                if not json_files:
+                    print(f"/load error: no .json checkpoint files found")
+                    raise ValueError(f"Cannot load {agent_config.name} - no saved checkpoints found in {directory}")
 
-            # Sort files based on modified timestamp, with the latest file being the first.
-            filename = max(json_files, key=os.path.getmtime)
-            state = json.load(open(filename, "r"))
+                # Sort files based on modified timestamp, with the latest file being the first.
+                filename = max(json_files, key=os.path.getmtime)
+                state = json.load(open(filename, "r"))
 
-            # load persistence manager
-            filename = os.path.basename(filename).replace(".json", ".persistence.pickle")
-            directory = agent_config.save_persistence_manager_dir()
-            printd(f"Loading persistence manager from {os.path.join(directory, filename)}")
-            with open(filename, "rb") as f:
-                data = pickle.load(f)
-                self.rows = data["all_messages"]
+                # load persistence manager
+                filename = os.path.basename(filename).replace(".json", ".persistence.pickle")
+                directory = agent_config.save_persistence_manager_dir()
+                printd(f"Loading persistence manager from {os.path.join(directory, filename)}")
+                with open(filename, "rb") as f:
+                    data = pickle.load(f)
+                    self.rows = data["all_messages"]
+            else:
+                print(f"Creating new agent {agent_config.name}")
+                self.rows = []
 
         # convert to Record class
         self.rows = [self.json_to_message(m) for m in self.rows]
 
     def get_all_paginated(self, page_size: int, filters: Optional[Dict] = {}) -> Iterator[List[Record]]:
-        raise NotImplementedError
+        offset = 0
+        while True:
+            yield self.rows[offset : offset + page_size]
+            offset += page_size
+            if offset >= len(self.rows):
+                break
 
-    def get_all(self, limit: int, filters: Optional[Dict]) -> List[Record]:
-        raise NotImplementedError
+    def get_all(self, limit: Optional[int] = None, filters: Optional[Dict] = {}) -> List[Record]:
+        if limit:
+            return self.rows[:limit]
+        return self.rows
 
     def get(self, id: str) -> Record:
-        raise NotImplementedError
+        match_row = [row for row in self.rows if row.id == id]
+        if len(match_row) == 0:
+            return None
+        assert len(match_row) == 1, f"Expected 1 match, got {len(match_row)} matches"
+        return match_row[0]
 
     def insert(self, record: Record):
         self.rows.append(record)
@@ -284,3 +302,12 @@ class InMemoryStorageConnector(StorageConnector):
 
     def query_text(self, query: str) -> List[Record]:
         return [row for row in self.rows if row.role not in ["system", "function"] and query.lower() in row.text.lower()]
+
+    def delete(self, filters: Optional[Dict] = {}):
+        raise NotImplementedError
+
+    def delete_table(self, filters: Optional[Dict] = {}):
+        if os.path.exists(self.agent_config.save_state_dir()):
+            shutil.rmtree(self.agent_config.save_state_dir())
+        if os.path.exists(self.agent_config.save_persistence_manager_dir()):
+            shutil.rmtree(self.agent_config.save_persistence_manager_dir())
