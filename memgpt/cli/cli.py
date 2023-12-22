@@ -80,7 +80,7 @@ def quickstart(
         # fallback to using local
         if latest:
             # Download the latest memgpt hosted config
-            url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/configs/memgpt_hosted.json"
+            url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/memgpt/configs/memgpt_hosted.json"
             response = requests.get(url)
 
             # Check if the request was successful
@@ -95,7 +95,7 @@ def quickstart(
 
                 # Load the file from the relative path
                 script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-                backup_config_path = os.path.join(script_dir, "..", "..", "configs", "memgpt_hosted.json")
+                backup_config_path = os.path.join(script_dir, "..", "configs", "memgpt_hosted.json")
                 try:
                     with open(backup_config_path, "r") as file:
                         backup_config = json.load(file)
@@ -107,7 +107,7 @@ def quickstart(
         else:
             # Load the file from the relative path
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-            backup_config_path = os.path.join(script_dir, "..", "..", "configs", "memgpt_hosted.json")
+            backup_config_path = os.path.join(script_dir, "..", "configs", "memgpt_hosted.json")
             try:
                 with open(backup_config_path, "r") as file:
                     backup_config = json.load(file)
@@ -127,7 +127,7 @@ def quickstart(
         # if latest, try to pull the config from the repo
         # fallback to using local
         if latest:
-            url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/configs/openai.json"
+            url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/memgpt/configs/openai.json"
             response = requests.get(url)
 
             # Check if the request was successful
@@ -144,7 +144,7 @@ def quickstart(
 
                 # Load the file from the relative path
                 script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-                backup_config_path = os.path.join(script_dir, "..", "..", "configs", "openai.json")
+                backup_config_path = os.path.join(script_dir, "..", "configs", "openai.json")
                 try:
                     with open(backup_config_path, "r") as file:
                         backup_config = json.load(file)
@@ -157,7 +157,7 @@ def quickstart(
         else:
             # Load the file from the relative path
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-            backup_config_path = os.path.join(script_dir, "..", "..", "configs", "openai.json")
+            backup_config_path = os.path.join(script_dir, "..", "configs", "openai.json")
             try:
                 with open(backup_config_path, "r") as file:
                     backup_config = json.load(file)
