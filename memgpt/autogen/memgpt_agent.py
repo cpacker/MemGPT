@@ -213,19 +213,18 @@ class MemGPTAgent(ConversableAgent):
 
     def load(self, name: str, type: str, **kwargs):
         # call load function based on type
-        match type:
-            case "directory":
-                load_directory(name=name, **kwargs)
-            case "webpage":
-                load_webpage(name=name, **kwargs)
-            case "index":
-                load_index(name=name, **kwargs)
-            case "database":
-                load_database(name=name, **kwargs)
-            case "vector_database":
-                load_vector_database(name=name, **kwargs)
-            case _:
-                raise ValueError(f"Invalid data source type {type}")
+        if type == "directory":
+            load_directory(name=name, **kwargs)
+        elif type == "webpage":
+            load_webpage(name=name, **kwargs)
+        elif type == "index":
+            load_index(name=name, **kwargs)
+        elif type == "database":
+            load_database(name=name, **kwargs)
+        elif type == "vector_database":
+            load_vector_database(name=name, **kwargs)
+        else:
+            raise ValueError(f"Invalid data source type {type}")
 
     def attach(self, data_source: str):
         # attach new data
