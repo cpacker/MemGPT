@@ -315,6 +315,7 @@ def run(
                 "openai": "Use OpenAI (requires an OpenAI API key)",
                 "other": "Other (OpenAI Azure, custom LLM endpoint, etc)",
             }
+            print()
             config_selection = questionary.select(
                 "How would you like to set up MemGPT?",
                 choices=list(config_choices.values()),
@@ -322,9 +323,11 @@ def run(
             ).ask()
 
             if config_selection == config_choices["memgpt"]:
+                print()
                 MemGPTConfig.create_config_dir()
                 quickstart(backend=QuickstartChoice.memgpt_hosted, debug=debug, terminal=False, latest=False)
             elif config_selection == config_choices["openai"]:
+                print()
                 MemGPTConfig.create_config_dir()
                 quickstart(backend=QuickstartChoice.openai, debug=debug, terminal=False, latest=False)
             elif config_selection == config_choices["other"]:
