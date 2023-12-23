@@ -38,3 +38,5 @@ Other trademarks, service marks, graphics and logos used in connection with the 
 **No Class Actions**. You may resolve disputes with us only on an individual basis; you may not bring a claim as a plaintiff or a class member in a class, consolidated, or representative action. **Class arbitrations, class actions, private attorney general actions, and consolidation with other arbitrations are not permitted.**
 
 **Governing Law**. You agree that these Terms, and your use of MemGPT, are governed by California law, in the United States of America, without regard to its principles of conflicts of law.
+
+**Creative Commons Sharealike License**. This document is derived from the [Automattic legalmattic repository](https://github.com/Automattic/legalmattic) distributed under a Creative Commons Sharealike license. Thank you Automattic!
