@@ -117,9 +117,7 @@ We generally discard information about you when it's no longer needed for the pu
 
 ### Security
 
-While no online service is 100% secure, we work very hard to protect information about you against unauthorized access, use, alteration, or destruction, and take reasonable measures to do so. We monitor our Services for potential vulnerabilities and attacks.
-
-To enhance the security of your account, we encourage you to enable our advanced security settings when available, like [Two Step Authentication](https://en.support.wordpress.com/security/two-step-authentication/).
+While no online service is 100% secure, we work very hard to protect information about you against unauthorized access, use, alteration, or destruction, and take reasonable measures to do so. We monitor our Services for potential vulnerabilities and attacks. To enhance the security of your account, we encourage you to enable our advanced security settings when available.
 
 ### Choices
 
