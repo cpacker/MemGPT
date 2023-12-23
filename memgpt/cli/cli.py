@@ -421,8 +421,11 @@ def run(
         # Update the agent config with any overrides
         agent_config.save()
 
-        # load existing agent
-        memgpt_agent = Agent.load_agent(interface, agent_config)
+        # Supress llama-index noise
+        with suppress_stdout():
+            # load existing agent
+            memgpt_agent = Agent.load_agent(interface, agent_config)
+
     else:  # create new agent
         # create new agent config: override defaults with args if provided
         typer.secho("\n🧬 Creating new agent...", fg=typer.colors.WHITE)
