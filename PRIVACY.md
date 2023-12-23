@@ -1,5 +1,5 @@
 Privacy Policy
---------------
+==============
 
 Your privacy is critically important to us. As an overview:
 
@@ -193,7 +193,7 @@ If you have a question about this Privacy Policy, please contact us through our 
 
 #### *Ads and Analytics Services Provided by Others*
 
-Ads appearing on any of our Services may be delivered by advertising networks. Other parties may also provide analytics services via our Services. These ad networks and analytics providers may set tracking technologies (like cookies) to collect information about your use of our Services and across other websites and online services. These technologies allow these third parties to recognize your device to compile information about you or others who use your device. This information allows us and other companies to, among other things, analyze and track usage, determine the popularity of certain content, and deliver ads that may be more targeted to your interests. Please note this Privacy Policy only covers the collection of information by MemGPT and does not cover the collection of information by any third-party advertisers or analytics providers.
+Ads appearing on any of our Services may be delivered by advertising networks. Othjjgger parties may also provide analytics services via our Services. These ad networks and analytics providers may set tracking technologies (like cookies) to collect information about your use of our Services and across other websites and online services. These technologies allow these third parties to recognize your device to compile information about you or others who use your device. This information allows us and other companies to, among other things, analyze and track usage, determine the popularity of certain content, and deliver ads that may be more targeted to your interests. Please note this Privacy Policy only covers the collection of information by MemGPT and does not cover the collection of information by any third-party advertisers or analytics providers.
 
 #### *Third-Party Software and Services*
 
@@ -206,4 +206,3 @@ Although most changes are likely to be minor, we may change its Privacy Policy f
 ### Creative Commons Sharealike License
 
 This privacy policy is derived from the [Automattic Privacy Policy](https://github.com/Automattic/legalmattic) distributed under a Creative Commons Sharealike license. Thank you Automattic!
-

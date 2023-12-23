@@ -135,6 +135,10 @@ For issues and feature requests, please [open a GitHub issue](https://github.com
 ## Datasets
 Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded at [Hugging Face](https://huggingface.co/MemGPT).
 
+## Legal notices
+
+By using MemGPT and related MemGPT services (such as the MemGPT endpoint or hosted service), you agree to our [privacy policy](PRIVACY.md) and [terms of service](TERMS.md).
+
 ## 🚀 Project Roadmap
 - [x] Release MemGPT Discord bot demo (perpetual chatbot)
 - [x] Add additional workflows (load SQL/text into MemGPT external context)

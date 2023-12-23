@@ -1,7 +1,5 @@
-MEMGPT TERMS OF SERVICE
-========================
-
-Effective Date: Dec 22, 2023
+Terms of Service
+================
 
 **Binding Agreement**. This is a binding contract ("Terms") between you and the developers of MemGPT and associated services ("we," "us," "our," "MemGPT developers", "MemGPT"). These Terms apply whenever you use any of the sites, apps, products, or services ("Services") we offer, in existence now to created in the future. Further, we may automatically upgrade our Services, and these Terms will apply to such upgrades. By accessing or using the Services, you agree to be bound by these Terms. If you use our services on behalf of an organization, you agree to these terms on behalf of that organization. If you do not agree to these Terms, you may not use the Services.
 
