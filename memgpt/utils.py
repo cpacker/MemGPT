@@ -5,7 +5,9 @@ import os
 import pickle
 import platform
 import subprocess
-
+import sys
+import io
+from contextlib import contextmanager
 
 import difflib
 import demjson3 as demjson
@@ -20,6 +22,18 @@ from memgpt.openai_backcompat.openai_object import OpenAIObject
 # TODO: what is this?
 # DEBUG = True
 DEBUG = False
+
+
+@contextmanager
+def suppress_stdout():
+    """Used to temporarily stop stdout (eg for the 'MockLLM' message)"""
+    new_stdout = io.StringIO()
+    old_stdout = sys.stdout
+    sys.stdout = new_stdout
+    try:
+        yield
+    finally:
+        sys.stdout = old_stdout
 
 
 def open_folder_in_explorer(folder_path):
