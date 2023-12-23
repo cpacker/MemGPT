@@ -376,7 +376,7 @@ def run(
 
     # create agent config
     if agent and AgentConfig.exists(agent):  # use existing agent
-        typer.secho(f"\nUsing existing agent {agent}", fg=typer.colors.GREEN)
+        typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
         agent_config = AgentConfig.load(agent)
         printd("State path:", agent_config.save_state_dir())
         printd("Persistent manager path:", agent_config.save_persistence_manager_dir())
