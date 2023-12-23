@@ -17,7 +17,7 @@ from memgpt.interface import CLIInterface as interface  # for printing to termin
 from memgpt.cli.cli_config import configure
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
-from memgpt.utils import printd, open_folder_in_explorer
+from memgpt.utils import printd, open_folder_in_explorer, suppress_stdout
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
@@ -318,6 +318,7 @@ def run(
                 "openai": "Use OpenAI (requires an OpenAI API key)",
                 "other": "Other (OpenAI Azure, custom LLM endpoint, etc)",
             }
+            print()
             config_selection = questionary.select(
                 "How would you like to set up MemGPT?",
                 choices=list(config_choices.values()),
@@ -325,8 +326,10 @@ def run(
             ).ask()
 
             if config_selection == config_choices["memgpt"]:
+                print()
                 quickstart(backend=QuickstartChoice.memgpt_hosted, debug=debug, terminal=False, latest=False)
             elif config_selection == config_choices["openai"]:
+                print()
                 quickstart(backend=QuickstartChoice.openai, debug=debug, terminal=False, latest=False)
             elif config_selection == config_choices["other"]:
                 configure()
@@ -356,6 +359,7 @@ def run(
         agents = [AgentConfig.load(f).name for f in agent_files]
 
         if len(agents) > 0 and not any([persona, human, model]):
+            print()
             select_agent = questionary.confirm("Would you like to select an existing agent?").ask()
             if select_agent:
                 agent = questionary.select("Select agent:", choices=agents).ask()
@@ -371,7 +375,7 @@ def run(
 
     # create agent config
     if agent and AgentConfig.exists(agent):  # use existing agent
-        typer.secho(f"Using existing agent {agent}", fg=typer.colors.GREEN)
+        typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
         agent_config = AgentConfig.load(agent)
         printd("State path:", agent_config.save_state_dir())
         printd("Persistent manager path:", agent_config.save_persistence_manager_dir())
@@ -419,11 +423,14 @@ def run(
         # Update the agent config with any overrides
         agent_config.save()
 
-        # load existing agent
-        memgpt_agent = Agent.load_agent(interface, agent_config)
+        # Supress llama-index noise
+        with suppress_stdout():
+            # load existing agent
+            memgpt_agent = Agent.load_agent(interface, agent_config)
+
     else:  # create new agent
         # create new agent config: override defaults with args if provided
-        typer.secho("Creating new agent...", fg=typer.colors.GREEN)
+        typer.secho("\n🧬 Creating new agent...", fg=typer.colors.WHITE)
         agent_config = AgentConfig(
             name=agent,
             persona=persona,
@@ -436,12 +443,16 @@ def run(
             context_window=context_window,
         )
 
-        # TODO: allow configrable state manager (only local is supported right now)
-        persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
-
         # save new agent config
         agent_config.save()
-        typer.secho(f"Created new agent {agent_config.name}.", fg=typer.colors.GREEN)
+        typer.secho(f"->  🤖 Using persona profile '{agent_config.persona}'", fg=typer.colors.WHITE)
+        typer.secho(f"->  🧑 Using human profile '{agent_config.human}'", fg=typer.colors.WHITE)
+        typer.secho(f"🎉 Created new agent '{agent_config.name}'", fg=typer.colors.GREEN)
+
+        # Supress llama-index noise
+        with suppress_stdout():
+            # TODO: allow configrable state manager (only local is supported right now)
+            persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
 
         # create agent
         memgpt_agent = presets.use_preset(
@@ -460,6 +471,7 @@ def run(
     # start event loop
     from memgpt.main import run_agent_loop
 
+    print()  # extra space
     run_agent_loop(memgpt_agent, first, no_verify, config)  # TODO: add back no_verify
 
 

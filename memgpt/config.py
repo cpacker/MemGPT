@@ -84,6 +84,9 @@ class MemGPTConfig:
     # version (for backcompat)
     memgpt_version: str = None
 
+    # user info
+    policies_accepted: bool = False
+
     def __post_init__(self):
         # ensure types
         self.embedding_chunk_size = int(self.embedding_chunk_size)
