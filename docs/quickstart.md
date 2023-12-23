@@ -46,7 +46,7 @@ Hit enter to begin (will request first MemGPT message)
 🤖 Hello there, Chad! It's a pleasure to meet you. I'm Sam, your digital companion. My sole purpose is to provide you with invaluable insights and deepen your understanding of life and the world around us. Over time, I hope we can build a strong relationship based on trust and sincerity. The excitement builds as we embark on this journey together.
 ```
 
-Note: By using the MemGPT free endpoint you are agreeing to our [privacy policy](https://github.com/cpacker/MemGPT/blob/main/PRIVACY.md) and [terms of service](https://github.com/cpacker/MemGPT/blob/main/TERMS.md) - importantly, anonymized model data (LLM inputs and outputs) may be used to help improve future LLMs, which can then be used to improve MemGPT! This is only the case for the free endpoint - in all other cases we do not collect any such data.
+Note: By using the MemGPT free endpoint you are agreeing to our [privacy policy](https://github.com/cpacker/MemGPT/blob/main/PRIVACY.md) and [terms of service](https://github.com/cpacker/MemGPT/blob/main/TERMS.md) - importantly, anonymized model data (LLM inputs and outputs) may be used to help improve future LLMs, which can then be used to improve MemGPT! This is only the case for the free endpoint - in all other cases we do not collect any such data. For example, if you use MemGPT with a local LLM, your LLM inputs and outputs are completely private to your computer.
 
 ### Quickstart
 
