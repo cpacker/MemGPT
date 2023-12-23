@@ -74,6 +74,9 @@ def quickstart(
     if debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
+    # make sure everything is set up properly
+    MemGPTConfig.create_config_dir()
+
     config_was_modified = False
     if backend == QuickstartChoice.memgpt_hosted:
         # if latest, try to pull the config from the repo
@@ -324,15 +327,11 @@ def run(
 
             if config_selection == config_choices["memgpt"]:
                 print()
-                MemGPTConfig.create_config_dir()
                 quickstart(backend=QuickstartChoice.memgpt_hosted, debug=debug, terminal=False, latest=False)
             elif config_selection == config_choices["openai"]:
                 print()
-                MemGPTConfig.create_config_dir()
                 quickstart(backend=QuickstartChoice.openai, debug=debug, terminal=False, latest=False)
             elif config_selection == config_choices["other"]:
-                # create_config_dir() is run inside configure()
-                # MemGPTConfig.create_config_dir()
                 configure()
             else:
                 raise ValueError(config_selection)
