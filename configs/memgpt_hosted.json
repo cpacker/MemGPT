@@ -8,5 +8,5 @@
     "embedding_endpoint": "http://embeddings.memgpt.ai",
     "embedding_model": "BAAI/bge-large-en-v1.5",
     "embedding_dim": 1536,
-    "embedding_chunk_size": 300
+    "embedding_chunk_size": 300,
 }

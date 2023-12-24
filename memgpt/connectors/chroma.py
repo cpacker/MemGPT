@@ -149,7 +149,6 @@ class ChromaStorageConnector(StorageConnector):
     def save(self):
         # save to persistence file (nothing needs to be done)
         printd("Saving chroma")
-        raise NotImplementedError
 
     def size(self, filters: Optional[Dict] = {}) -> int:
         # unfortuantely, need to use pagination to get filtering

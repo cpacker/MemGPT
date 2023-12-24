@@ -415,7 +415,7 @@ def configure_archival_storage(config: MemGPTConfig):
 
 def configure_recall_storage(config: MemGPTConfig):
     # Configure recall storage backend
-    recall_storage_options = ["local", "postgres", "chroma"]
+    recall_storage_options = ["sqlite", "postgres", "chroma"]
     recall_storage_type = questionary.select(
         "Select storage backend for recall data:", recall_storage_options, default=config.recall_storage_type
     ).ask()
@@ -458,6 +458,7 @@ def configure():
         embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = configure_embedding_endpoint(config)
         default_preset, default_persona, default_human, default_agent = configure_cli(config)
         archival_storage_type, archival_storage_uri, archival_storage_path = configure_archival_storage(config)
+        recall_storage_type, recall_storage_uri, recall_storage_path = configure_recall_storage(config)
     except ValueError as e:
         typer.secho(str(e), fg=typer.colors.RED)
         return
