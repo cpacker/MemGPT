@@ -9,6 +9,9 @@ from datasets import load_dataset
 
 # import memgpt
 from memgpt.cli.cli_load import load_directory, load_database, load_webpage
+from memgpt.cli.cli import attach
+from memgpt.constants import DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_HUMAN
+from memgpt.config import AgentConfig, MemGPTConfig
 
 # import memgpt.presets as presets
 # import memgpt.personas.personas as personas
@@ -64,6 +67,28 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector):
     # test: listing sources
     sources = data_source_conn.get_all()
     print("All sources", [s.name for s in sources])
+
+    # test loading into an agent
+    # create agent
+    agent_config = AgentConfig(
+        name="test_agent",
+        persona=DEFAULT_PERSONA,
+        human=DEFAULT_HUMAN,
+        model=DEFAULT_MEMGPT_MODEL,
+    )
+    agent_config.save()
+    # create storage connector
+    conn = StorageConnector.get_storage_connector(
+        storage_type=passage_storage_connector, table_type=TableType.ARCHIVAL_MEMORY, agent_config=agent_config
+    )
+    assert conn.size() == 0
+
+    # attach data
+    attach(agent=agent_config.name, data_source=name)
+
+    # test to see if contained in storage
+    assert len(passages) == conn.size()
+    assert len(passages) == len(conn.get_all({"data_source": name}))
 
     # test: delete source
     data_source_conn.delete({"name": name})

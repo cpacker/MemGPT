@@ -42,13 +42,19 @@ class ChromaStorageConnector(StorageConnector):
             filter_conditions = self.filters
 
         # convert to chroma format
-        chroma_filters = {"$and": []}
+        chroma_filters = []
         ids = []
         for key, value in filter_conditions.items():
             if key == "id":
                 ids = [str(value)]
                 continue
-            chroma_filters["$and"].append({key: {"$eq": value}})
+            chroma_filters.append({key: {"$eq": value}})
+
+        if len(chroma_filters) > 1:
+            chroma_filters = {"$and": chroma_filters}
+        else:
+            chroma_filters = chroma_filters[0]
+
         return ids, chroma_filters
 
     def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000) -> Iterator[List[Record]]:
@@ -133,6 +139,7 @@ class ChromaStorageConnector(StorageConnector):
 
     def insert_many(self, records: List[Record], show_progress=True):
         ids, documents, embeddings, metadatas = self.format_records(records)
+        print("Inserting", ids)
         if not any(embeddings):
             self.collection.add(documents=documents, ids=ids, metadatas=metadatas)
         else:
