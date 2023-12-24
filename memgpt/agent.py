@@ -323,43 +323,38 @@ class Agent(object):
         # TODO: support loading from specific file
         agent_name = agent_config.name
 
+        # TODO: update this for metadata database
+
         # load state
-        if agent_config.memgpt_version <= "0.2.6":
-            directory = agent_config.save_state_dir()
-            json_files = glob.glob(os.path.join(directory, "*.json"))  # This will list all .json files in the current directory.
-            if not json_files:
-                print(f"/load error: no .json checkpoint files found")
-                raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {directory}")
+        directory = agent_config.save_state_dir()
+        json_files = glob.glob(os.path.join(directory, "*.json"))  # This will list all .json files in the current directory.
+        if not json_files:
+            print(f"/load error: no .json checkpoint files found")
+            raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {directory}")
 
-            # Sort files based on modified timestamp, with the latest file being the first.
-            filename = max(json_files, key=os.path.getmtime)
-            state = json.load(open(filename, "r"))
+        # Sort files based on modified timestamp, with the latest file being the first.
+        filename = max(json_files, key=os.path.getmtime)
+        state = json.load(open(filename, "r"))
 
-            # load persistence manager
-            persistence_manager = LocalStateManager.load(agent_config)
+        # load persistence manager
+        persistence_manager = LocalStateManager.load(agent_config)
 
-            messages = state["messages"]
-            agent = cls(
-                config=agent_config,
-                model=state["model"],
-                system=state["system"],
-                functions=link_functions(state["functions"]),
-                interface=interface,
-                persistence_manager=persistence_manager,
-                persistence_manager_init=False,
-                persona_notes=state["memory"]["persona"],
-                human_notes=state["memory"]["human"],
-                messages_total=state["messages_total"] if "messages_total" in state else len(messages) - 1,
-            )
-            agent._messages = messages
-            agent.memory = initialize_memory(state["memory"]["persona"], state["memory"]["human"])
-        else:
-            # TODO
-            agent = cls(
-                config=agent_config,
-                persistence_manager=LocalStateManager.load(agent_config),
-                persistence_manager_init=False,
-            )
+        messages = state["messages"]
+        agent = cls(
+            config=agent_config,
+            model=state["model"],
+            system=state["system"],
+            functions=link_functions(state["functions"]),
+            interface=interface,
+            persistence_manager=persistence_manager,
+            persistence_manager_init=False,
+            persona_notes=state["memory"]["persona"],
+            human_notes=state["memory"]["human"],
+            messages_total=state["messages_total"] if "messages_total" in state else len(messages) - 1,
+        )
+        agent._messages = messages
+        agent.memory = initialize_memory(state["memory"]["persona"], state["memory"]["human"])
+
         return agent
 
     def verify_first_message_correctness(self, response, require_send_message=True, require_monologue=False):

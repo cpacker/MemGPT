@@ -26,6 +26,7 @@ class TableType:
     DOCUMENTS = "documents"  # TODO
     USERS = "users"  # TODO
     AGENTS = "agents"  # TODO
+    DATA_SOURCES = "data_sources"  # TODO
 
 
 # table names used by MemGPT
@@ -55,11 +56,13 @@ class StorageConnector:
         self.table_name = self.generate_table_name(agent_config, table_type=table_type)
         printd(f"Using table name {self.table_name}")
 
-        # setup base filters
+        # setup base filters for agent-specific tables
         if self.table_type == TableType.ARCHIVAL_MEMORY or self.table_type == TableType.RECALL_MEMORY:
             # agent-specific table
             self.filters = {"user_id": self.user_id, "agent_id": self.agent_config.name}
-        else:
+
+        # setup base filters for user-specific tables
+        if self.table_type == TableType.PASSAGES or self.table_type == TableType.DOCUMENTS:
             self.filters = {"user_id": self.user_id}
 
     def get_filters(self, filters: Optional[Dict] = {}):
@@ -100,9 +103,16 @@ class StorageConnector:
     @staticmethod
     def get_storage_connector(table_type: TableType, storage_type: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
 
+        print("STORAGE", storage_type, table_type)
+
         # read from config if not provided
         if storage_type is None:
-            storage_type = MemGPTConfig.load().archival_storage_type
+            if table_type == TableType.ARCHIVAL_MEMORY:
+                storage_type = MemGPTConfig.load().archival_storage_type
+            elif table_type == TableType.RECALL_MEMORY:
+                storage_type = MemGPTConfig.load().recall_storage_type
+            # TODO: other tables
+            print("read storage from config")
 
         if storage_type == "postgres":
             from memgpt.connectors.db import PostgresStorageConnector
@@ -122,7 +132,7 @@ class StorageConnector:
 
             return InMemoryStorageConnector(agent_config=agent_config, table_type=table_type)
 
-        elif storage_type == "sqllite":
+        elif storage_type == "sqlite":
             from memgpt.connectors.db import SQLLiteStorageConnector
 
             return SQLLiteStorageConnector(agent_config=agent_config, table_type=table_type)

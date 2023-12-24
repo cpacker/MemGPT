@@ -415,7 +415,7 @@ def configure_archival_storage(config: MemGPTConfig):
 
 def configure_recall_storage(config: MemGPTConfig):
     # Configure recall storage backend
-    recall_storage_options = ["local", "postgres", "chroma"]
+    recall_storage_options = ["sqlite", "postgres", "chroma"]
     recall_storage_type = questionary.select(
         "Select storage backend for recall data:", recall_storage_options, default=config.recall_storage_type
     ).ask()
@@ -450,30 +450,18 @@ def configure():
 
     # Will pre-populate with defaults, or what the user previously set
     config = MemGPTConfig.load()
-    model_endpoint_type, model_endpoint = configure_llm_endpoint(config)
-    model, model_wrapper, context_window = configure_model(config, model_endpoint_type)
-    embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = configure_embedding_endpoint(config)
-    default_preset, default_persona, default_human, default_agent = configure_cli(config)
-    archival_storage_type, archival_storage_uri, archival_storage_path = configure_archival_storage(config)
-    recall_storage_type, recall_storage_uri, recall_storage_path = configure_recall_storage(config)
-
-    # check credentials
-    azure_key, azure_endpoint, azure_version, azure_deployment, azure_embedding_deployment = get_azure_credentials()
-    openai_key = get_openai_credentials()
-    if model_endpoint_type == "azure" or embedding_endpoint_type == "azure":
-        if all([azure_key, azure_endpoint, azure_version]):
-            print(f"Using Microsoft endpoint {azure_endpoint}.")
-            if all([azure_deployment, azure_embedding_deployment]):
-                print(f"Using deployment id {azure_deployment}")
-        else:
-            raise ValueError(
-                "Missing environment variables for Azure (see https://memgpt.readthedocs.io/en/latest/endpoints/#azure). Please set then run `memgpt configure` again."
-            )
-    if model_endpoint_type == "openai" or embedding_endpoint_type == "openai":
-        if not openai_key:
-            raise ValueError(
-                "Missing environment variables for OpenAI (see https://memgpt.readthedocs.io/en/latest/endpoints/#openai). Please set them and run `memgpt configure` again."
-            )
+    try:
+        model_endpoint_type, model_endpoint = configure_llm_endpoint(config)
+        model, model_wrapper, context_window = configure_model(
+            config=config, model_endpoint_type=model_endpoint_type, model_endpoint=model_endpoint
+        )
+        embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = configure_embedding_endpoint(config)
+        default_preset, default_persona, default_human, default_agent = configure_cli(config)
+        archival_storage_type, archival_storage_uri, archival_storage_path = configure_archival_storage(config)
+        recall_storage_type, recall_storage_uri, recall_storage_path = configure_recall_storage(config)
+    except ValueError as e:
+        typer.secho(str(e), fg=typer.colors.RED)
+        return
 
     config = MemGPTConfig(
         # model configs
