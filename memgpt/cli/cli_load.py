@@ -12,8 +12,13 @@ from typing import List
 from tqdm import tqdm
 import typer
 from memgpt.embeddings import embedding_model
-from memgpt.connectors.storage import StorageConnector, Passage
+from memgpt.connectors.storage import StorageConnector
 from memgpt.config import MemGPTConfig
+from memgpt.data_types import Source, Passage, Document
+from memgpt.utils import get_local_time
+from memgpt.connectors.storage import StorageConnector, TableType
+
+from datetime import datetime
 
 from llama_index import (
     VectorStoreIndex,
@@ -28,8 +33,19 @@ app = typer.Typer()
 def store_docs(name, docs, show_progress=True):
     """Common function for embedding and storing documents"""
 
-    storage = StorageConnector.get_archival_storage_connector(name=name)
     config = MemGPTConfig.load()
+
+    # record data source metadata
+    data_source = Source(user_id=config.anon_clientid, name=name, created_at=datetime.now())
+    metadata_conn = StorageConnector.get_metadata_storage_connector(TableType.DATA_SOURCES)
+    if len(metadata_conn.get_all({"name": name})) > 0:
+        print(f"Data source {name} already exists in metadata, skipping.")
+        # TODO: should this error, or just add more data to this source?
+    else:
+        metadata_conn.insert(data_source)
+
+    # compute and record passages
+    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, storage_type=config.archival_storage_type)
     embed_model = embedding_model()
 
     # use llama index to run embeddings code
@@ -37,6 +53,8 @@ def store_docs(name, docs, show_progress=True):
     index = VectorStoreIndex.from_documents(docs, service_context=service_context, show_progress=True)
     embed_dict = index._vector_store._data.embedding_dict
     node_dict = index._docstore.docs
+
+    # TODO: add document store
 
     # gather passages
     passages = []
@@ -47,7 +65,15 @@ def store_docs(name, docs, show_progress=True):
         assert (
             len(node.embedding) == config.embedding_dim
         ), f"Expected embedding dimension {config.embedding_dim}, got {len(node.embedding)}: {node.embedding}"
-        passages.append(Passage(text=text, embedding=vector))
+        passages.append(
+            Passage(
+                user_id=config.anon_clientid,
+                text=text,
+                data_source=name,
+                embedding=node.embedding,
+                metadata=None,
+            )
+        )
 
     # insert into storage
     storage.insert_many(passages)

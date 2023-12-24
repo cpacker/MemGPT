@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 
 from memgpt.config import AgentConfig, MemGPTConfig
-from memgpt.data_types import Record, Passage, Document, Message
+from memgpt.data_types import Record, Passage, Document, Message, Source
 from memgpt.utils import printd
 
 
@@ -30,10 +30,15 @@ class TableType:
 
 
 # table names used by MemGPT
+
+# agent tables
 RECALL_TABLE_NAME = "memgpt_recall_memory_agent"  # agent memory
 ARCHIVAL_TABLE_NAME = "memgpt_archival_memory_agent"  # agent memory
-PASSAGE_TABLE_NAME = "memgpt_passages"  # loads data sources
-DOCUMENT_TABLE_NAME = "memgpt_documents"
+
+# external data source tables
+SOURCE_TABLE_NAME = "memgpt_sources"  # metadata for loaded data source
+PASSAGE_TABLE_NAME = "memgpt_passages"  # chunked/embedded passages (from source)
+DOCUMENT_TABLE_NAME = "memgpt_documents"  # original documents (from source)
 
 
 class StorageConnector:
@@ -45,10 +50,12 @@ class StorageConnector:
         self.table_type = table_type
 
         # get object type
-        if table_type == TableType.ARCHIVAL_MEMORY:
+        if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
             self.type = Passage
         elif table_type == TableType.RECALL_MEMORY:
             self.type = Message
+        elif table_type == TableType.DATA_SOURCES:
+            self.type = Source
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 
@@ -60,10 +67,11 @@ class StorageConnector:
         if self.table_type == TableType.ARCHIVAL_MEMORY or self.table_type == TableType.RECALL_MEMORY:
             # agent-specific table
             self.filters = {"user_id": self.user_id, "agent_id": self.agent_config.name}
-
-        # setup base filters for user-specific tables
-        if self.table_type == TableType.PASSAGES or self.table_type == TableType.DOCUMENTS:
+        elif self.table_type == TableType.PASSAGES or self.table_type == TableType.DOCUMENTS or self.table_type == TableType.DATA_SOURCES:
+            # setup base filters for user-specific tables
             self.filters = {"user_id": self.user_id}
+        else:
+            self.filters = {}
 
     def get_filters(self, filters: Optional[Dict] = {}):
         # get all filters for query
@@ -71,7 +79,6 @@ class StorageConnector:
             filter_conditions = {**self.filters, **filters}
         else:
             filter_conditions = self.filters
-        print("FILTERS", filter_conditions)
         return filter_conditions
 
     def generate_table_name(self, agent_config: AgentConfig, table_type: TableType):
@@ -97,13 +104,13 @@ class StorageConnector:
                 return PASSAGE_TABLE_NAME
             elif table_type == TableType.DOCUMENTS:
                 return DOCUMENT_TABLE_NAME
+            elif table_type == TableType.DATA_SOURCES:
+                return SOURCE_TABLE_NAME
             else:
                 raise ValueError(f"Table type {table_type} not implemented")
 
     @staticmethod
     def get_storage_connector(table_type: TableType, storage_type: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
-
-        print("STORAGE", storage_type, table_type)
 
         # read from config if not provided
         if storage_type is None:
@@ -112,7 +119,6 @@ class StorageConnector:
             elif table_type == TableType.RECALL_MEMORY:
                 storage_type = MemGPTConfig.load().recall_storage_type
             # TODO: other tables
-            print("read storage from config")
 
         if storage_type == "postgres":
             from memgpt.connectors.db import PostgresStorageConnector
@@ -147,6 +153,11 @@ class StorageConnector:
     @staticmethod
     def get_recall_storage_connector(agent_config: Optional[AgentConfig] = None):
         return StorageConnector.get_storage_connector(TableType.RECALL_MEMORY, agent_config=agent_config)
+
+    @staticmethod
+    def get_metadata_storage_connector(table_type: TableType):
+        storage_type = MemGPTConfig.load().metadata_storage_type
+        return StorageConnector.get_storage_connector(table_type, storage_type=storage_type)
 
     @staticmethod
     def list_loaded_data(storage_type: Optional[str] = None):

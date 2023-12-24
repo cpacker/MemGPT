@@ -27,7 +27,7 @@ from memgpt.connectors.storage import StorageConnector, TableType
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.constants import MEMGPT_DIR
 from memgpt.utils import printd
-from memgpt.data_types import Record, Message, Passage
+from memgpt.data_types import Record, Message, Passage, Source
 
 from datetime import datetime
 
@@ -153,6 +153,30 @@ def get_db_model(table_name: str, table_type: TableType):
         class_name = f"{table_name.capitalize()}Model"
         Model = type(class_name, (MessageModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
         return Model
+    elif table_type == TableType.DATA_SOURCES:
+
+        class SourceModel(Base):
+            """Defines data model for storing Passages (consisting of text, embedding)"""
+
+            __abstract__ = True  # this line is necessary
+
+            # Assuming passage_id is the primary key
+            # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+            id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+            user_id = Column(String, nullable=False)
+            name = Column(String, nullable=False)
+            created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+            def __repr__(self):
+                return f"<Source(passage_id='{self.id}', name='{self.name}')>"
+
+            def to_record(self):
+                return Source(id=self.id, user_id=self.user_id, name=self.name, created_at=self.created_at)
+
+        """Create database model for table_name"""
+        class_name = f"{table_name.capitalize()}Model"
+        Model = type(class_name, (SourceModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
+        return Model
     else:
         raise ValueError(f"Table type {table_type} not implemented")
 
@@ -171,7 +195,7 @@ class SQLStorageConnector(StorageConnector):
 
         return [getattr(self.db_model, key) == value for key, value in filter_conditions.items()]
 
-    def get_all_paginated(self, page_size: int, filters: Optional[Dict] = {}) -> Iterator[List[Record]]:
+    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000) -> Iterator[List[Record]]:
         session = self.Session()
         offset = 0
         filters = self.get_filters(filters)
@@ -189,9 +213,10 @@ class SQLStorageConnector(StorageConnector):
             # Increment the offset to get the next chunk in the next iteration
             offset += page_size
 
-    def get_all(self, limit=10, filters: Optional[Dict] = {}) -> List[Record]:
+    def get_all(self, filters: Optional[Dict] = {}, limit=10) -> List[Record]:
         session = self.Session()
         filters = self.get_filters(filters)
+        print("LIMIT", limit)
         db_records = session.query(self.db_model).filter(*filters).limit(limit).all()
         return [record.to_record() for record in db_records]
 
@@ -287,14 +312,18 @@ class PostgresStorageConnector(SQLStorageConnector):
         super().__init__(table_type=table_type, agent_config=agent_config)
 
         # get storage URI
-        if table_type == TableType.ARCHIVAL_MEMORY:
+        if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
             self.uri = self.config.archival_storage_uri
             if self.config.archival_storage_uri is None:
-                raise ValueError(f"Must specifiy archival_storage_uri in config {config.config_path}")
+                raise ValueError(f"Must specifiy archival_storage_uri in config {self.config.config_path}")
         elif table_type == TableType.RECALL_MEMORY:
             self.uri = self.config.recall_storage_uri
             if self.config.recall_storage_uri is None:
-                raise ValueError(f"Must specifiy recall_storage_uri in config {config.config_path}")
+                raise ValueError(f"Must specifiy recall_storage_uri in config {self.config.config_path}")
+        elif table_type == TableType.DATA_SOURCES:
+            self.uri = self.config.metadata_storage_uri
+            if self.config.metadata_storage_uri is None:
+                raise ValueError(f"Must specifiy metadata_storage_uri in config {self.config.config_path}")
         else:
             raise ValueError(f"Table type {table_type} not implemented")
         # create table
@@ -348,13 +377,17 @@ class SQLLiteStorageConnector(SQLStorageConnector):
         super().__init__(table_type=table_type, agent_config=agent_config)
 
         # get storage URI
-        if table_type == TableType.ARCHIVAL_MEMORY:
+        if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
             raise ValueError(f"Table type {table_type} not implemented")
         elif table_type == TableType.RECALL_MEMORY:
             # TODO: eventually implement URI option
             self.path = self.config.recall_storage_path
             if self.path is None:
                 raise ValueError(f"Must specifiy recall_storage_path in config {self.config.recall_storage_path}")
+        elif table_type == TableType.DATA_SOURCES:
+            self.path = self.config.metadata_storage_path
+            if self.path is None:
+                raise ValueError(f"Must specifiy metadata_storage_path in config {self.config.metadata_storage_path}")
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 

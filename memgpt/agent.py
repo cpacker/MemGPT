@@ -185,12 +185,6 @@ class Agent(object):
             self.system,
             self.memory,
         )
-        # Keep track of the total number of messages throughout all time
-        self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
-        # self.messages_total_init = self.messages_total
-        self.messages_total_init = len(self._messages) - 1
-        printd(f"Agent initialized, self.messages_total={self.messages_total}")
-
         # Interface must implement:
         # - internal_monologue
         # - assistant_message
@@ -208,6 +202,12 @@ class Agent(object):
         if persistence_manager_init:
             # creates a new agent object in the database
             self.persistence_manager.init(self)
+
+        # Keep track of the total number of messages throughout all time
+        self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
+        # self.messages_total_init = self.messages_total
+        self.messages_total_init = len(self._messages) - 1
+        printd(f"Agent initialized, self.messages_total={self.messages_total}")
 
         # State needed for heartbeat pausing
         self.pause_heartbeats_start = None
