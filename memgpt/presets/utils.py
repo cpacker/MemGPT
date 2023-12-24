@@ -74,3 +74,11 @@ def load_all_presets():
         all_yaml_data[base_name] = data
 
     return all_yaml_data
+
+def load_preset(preset_name):
+    """Load a single preset"""
+    available_presets = load_all_presets()
+    if preset_name not in available_presets:
+        raise ValueError(f"Preset '{preset_name}.yaml' not found")
+
+    return available_presets[preset_name]

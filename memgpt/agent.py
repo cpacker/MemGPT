@@ -6,6 +6,7 @@ import traceback
 
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import AgentConfig, MemGPTConfig
+from memgpt.presets.utils import load_preset
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from memgpt.memory import CoreMemory as Memory, summarize_messages
 from memgpt.openai_tools import create, is_context_overflow_error
@@ -308,6 +309,12 @@ class Agent(object):
         # [{'name': ..., 'description': ...}, {...}]
         available_functions = load_all_function_sets()
         linked_function_set = {}
+
+        preset_functions = load_preset(agent_config.preset)["functions"]
+
+        # load from preset_functions rather than state["functions"], add logging if the list is not the same, 
+        # something like "loaded new function, agent might need additional instruction to use effectively"
+
         for f_schema in state["functions"]:
             # Attempt to find the function in the existing function library
             f_name = f_schema.get("name")
