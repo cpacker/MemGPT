@@ -114,10 +114,12 @@ class StorageConnector:
 
         # read from config if not provided
         if storage_type is None:
-            if table_type == TableType.ARCHIVAL_MEMORY:
+            if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
                 storage_type = MemGPTConfig.load().archival_storage_type
             elif table_type == TableType.RECALL_MEMORY:
                 storage_type = MemGPTConfig.load().recall_storage_type
+            elif table_type == TableType.DATA_SOURCES or table_type == TableType.USERS or table_type == TableType.AGENTS:
+                storage_type = MemGPTConfig.load().metadata_storage_type
             # TODO: other tables
 
         if storage_type == "postgres":
