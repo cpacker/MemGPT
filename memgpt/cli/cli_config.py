@@ -541,24 +541,18 @@ def list(option: str):
         print(table)
     elif option == "sources":
         """List all data sources"""
+        conn = StorageConnector.get_metadata_storage_connector(table_type=TableType.DATA_SOURCES)  # already filters by user
+
+        # create table
         table = PrettyTable()
-        table.field_names = ["Name", "Location", "Agents"]
-        config = MemGPTConfig.load()
+        table.field_names = ["Name", "Created At", "Agents"]
         # TODO: eventually look accross all storage connections
         # TODO: add data source stats
-        source_to_agents = {}
-        for agent_file in utils.list_agent_config_files():
-            agent_name = os.path.basename(agent_file).replace(".json", "")
-            agent_config = AgentConfig.load(agent_name)
-            for ds in agent_config.data_sources:
-                if ds in source_to_agents:
-                    source_to_agents[ds].append(agent_name)
-                else:
-                    source_to_agents[ds] = [agent_name]
-        for data_source in StorageConnector.list_loaded_data():
-            location = config.archival_storage_type
-            agents = ",".join(source_to_agents[data_source]) if data_source in source_to_agents else ""
-            table.add_row([data_source, location, agents])
+        # TODO: connect to agents
+
+        # get all sources
+        for data_source in conn.get_all():
+            table.add_row([data_source.name, data_source.created_at, ""])
         print(table)
     else:
         raise ValueError(f"Unknown option {option}")
