@@ -19,7 +19,7 @@ class ChromaStorageConnector(StorageConnector):
         super().__init__(table_type=table_type, agent_config=agent_config)
         config = MemGPTConfig.load()
 
-        assert table_type == TableType.ARCHIVAL_MEMORY, "Chroma only supports archival memory"
+        assert table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES, "Chroma only supports archival memory"
 
         # create chroma client
         if config.archival_storage_path:
@@ -51,7 +51,7 @@ class ChromaStorageConnector(StorageConnector):
             chroma_filters["$and"].append({key: {"$eq": value}})
         return ids, chroma_filters
 
-    def get_all_paginated(self, page_size: int, filters: Optional[Dict] = {}) -> Iterator[List[Record]]:
+    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000) -> Iterator[List[Record]]:
         offset = 0
         ids, filters = self.get_filters(filters)
         while True:
@@ -87,7 +87,7 @@ class ChromaStorageConnector(StorageConnector):
                 for (text, id, metadatas) in zip(results["documents"], results["ids"], results["metadatas"])
             ]
 
-    def get_all(self, limit=10, filters: Optional[Dict] = {}) -> List[Record]:
+    def get_all(self, filters: Optional[Dict] = {}, limit=10) -> List[Record]:
         ids, filters = self.get_filters(filters)
         if self.collection.count() == 0:
             return []
@@ -114,7 +114,7 @@ class ChromaStorageConnector(StorageConnector):
             metadata.pop("embedding")
             if "created_at" in metadata:
                 metadata["created_at"] = datetime_to_timestamp(metadata["created_at"])
-            if "metadata" in metadata:
+            if "metadata" in metadata and metadata["metadata"] is not None:
                 record_metadata = dict(metadata["metadata"])
                 metadata.pop("metadata")
             else:

@@ -15,21 +15,13 @@ class Record:
     Memory units are searched over by functions defined in the memory classes
     """
 
-    def __init__(self, user_id: str, agent_id: str, text: str, id: Optional[str] = None):
-        self.user_id = user_id
-        self.agent_id = agent_id
-        self.text = text
+    def __init__(self, id: Optional[str] = None):
         if id is None:
             self.id = uuid.uuid4()
         else:
             self.id = id
 
         assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
-        # todo: generate unique uuid
-        # todo: self.role = role (?)
-
-    # def __repr__(self):
-    #    pass
 
 
 class Message(Record):
@@ -50,7 +42,10 @@ class Message(Record):
         embedding: Optional[np.ndarray] = None,
         id: Optional[str] = None,
     ):
-        super().__init__(user_id, agent_id, text, id)
+        super().__init__(id)
+        self.user_id = user_id
+        self.agent_id = agent_id
+        self.text = text
         self.model = model  # model name (e.g. gpt-4)
         self.created_at = created_at
 
@@ -74,7 +69,8 @@ class Document(Record):
     """A document represent a document loaded into MemGPT, which is broken down into passages."""
 
     def __init__(self, user_id: str, text: str, data_source: str, document_id: Optional[str] = None):
-        super().__init__(user_id, agent_id, text, id)
+        super().__init__(id)
+        self.user_id = user_id
         self.text = text
         self.document_id = document_id
         self.data_source = data_source
@@ -101,8 +97,10 @@ class Passage(Record):
         id: Optional[str] = None,
         metadata: Optional[dict] = {},
     ):
-        super().__init__(user_id, agent_id, text, id)
-        print(self.text)
+        super().__init__(id)
+        self.user_id = user_id
+        self.agent_id = agent_id
+        self.text = text
         self.data_source = data_source
         self.embedding = embedding
         self.doc_id = doc_id
@@ -110,3 +108,17 @@ class Passage(Record):
 
     # def __repr__(self):
     #    pass
+
+
+class Source(Record):
+    def __init__(
+        self,
+        user_id: str,
+        name: str,
+        created_at: Optional[str] = None,
+        id: Optional[str] = None,
+    ):
+        super().__init__(id)
+        self.name = name
+        self.user_id = user_id
+        self.created_at = created_at
