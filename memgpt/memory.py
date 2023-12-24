@@ -343,6 +343,9 @@ class BaseRecallMemory(RecallMemory):
     def save(self):
         self.storage.save()
 
+    def size(self):
+        return self.storage.size()
+
 
 class EmbeddingArchivalMemory(ArchivalMemory):
     """Archival memory with embedding based search"""

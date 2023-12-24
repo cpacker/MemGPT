@@ -78,6 +78,11 @@ class MemGPTConfig:
     recall_storage_path: str = MEMGPT_DIR
     recall_storage_uri: str = None  # TODO: eventually allow external vector DB
 
+    # database configs: metadata storage (sources, agents, data sources)
+    metadata_storage_type: str = "sqlite"
+    metadata_storage_path: str = MEMGPT_DIR
+    metadata_storage_uri: str = None
+
     # database configs: agent state
     persistence_manager_type: str = None  # in-memory, db
     persistence_manager_save_file: str = None  # local file
@@ -136,6 +141,9 @@ class MemGPTConfig:
                 "recall_storage_type": get_field(config, "recall_storage", "type"),
                 "recall_storage_path": get_field(config, "recall_storage", "path"),
                 "recall_storage_uri": get_field(config, "recall_storage", "uri"),
+                "metadata_storage_type": get_field(config, "metadata_storage", "type"),
+                "metadata_storage_path": get_field(config, "metadata_storage", "path"),
+                "metadata_storage_uri": get_field(config, "metadata_storage", "uri"),
                 "anon_clientid": get_field(config, "client", "anon_clientid"),
                 "config_path": config_path,
                 "memgpt_version": get_field(config, "version", "memgpt_version"),
@@ -193,6 +201,11 @@ class MemGPTConfig:
         set_field(config, "recall_storage", "type", self.recall_storage_type)
         set_field(config, "recall_storage", "path", self.recall_storage_path)
         set_field(config, "recall_storage", "uri", self.recall_storage_uri)
+
+        # metadata storage
+        set_field(config, "metadata_storage", "type", self.metadata_storage_type)
+        set_field(config, "metadata_storage", "path", self.metadata_storage_path)
+        set_field(config, "metadata_storage", "uri", self.metadata_storage_uri)
 
         # set version
         set_field(config, "version", "memgpt_version", memgpt.__version__)
