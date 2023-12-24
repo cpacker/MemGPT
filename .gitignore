@@ -426,9 +426,6 @@ coverage.xml
 .pytest_cache/
 cover/
 
-# Temp directiories
-test_chroma
-
 # Translations
 *.mo
 *.pot
