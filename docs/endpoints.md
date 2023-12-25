@@ -1,3 +1,9 @@
+---
+title: Configuring LLM backends 
+excerpt: Connecting MemGPT to various LLM backends 
+category: 6580d34ee5e4d00068bf2a1d 
+---
+
 You can use MemGPT with various LLM backends, including the OpenAI API, Azure OpenAI, and various local (or self-hosted) LLM backends.
 
 ## OpenAI
@@ -72,4 +78,4 @@ $ memgpt configure
 Note: **your Azure endpoint must support functions** or you will get an error. See [this GitHub issue](https://github.com/cpacker/MemGPT/issues/91) for more information.
 
 ## Local Models & Custom Endpoints 
-MemGPT supports running open source models, both being run locally or as a hosted service. Setting up MemGPT to run with open models requires a bit more setup, follow [the instructions here](../local_llm).
+MemGPT supports running open source models, both being run locally or as a hosted service. Setting up MemGPT to run with open models requires a bit more setup, follow [the instructions here](local_llm).

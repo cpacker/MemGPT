@@ -44,10 +44,11 @@ def get_ollama_completion(endpoint, model, prompt, context_window, grammar=None)
         # "format": "json",  # TODO eventually support
         "stream": False,
         "options": settings,
-        "system": "",  # no prompt formatting
-        "template": "{{ .Prompt }}",  # no prompt formatting
         "raw": True,  # no prompt formatting
-        "context": None,  # no memory via prompt formatting
+        # "raw mode does not support template, system, or context"
+        # "system": "",  # no prompt formatting
+        # "template": "{{ .Prompt }}",  # no prompt formatting
+        # "context": None,  # no memory via prompt formatting
     }
 
     # Set grammar
