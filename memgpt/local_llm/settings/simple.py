@@ -24,5 +24,5 @@ settings = {
         "  }\n}\n",
     ],
     # most lm frontends default to 0.7-0.8 these days
-    "temperature": 0.8,
+    # "temperature": 0.8,
 }
