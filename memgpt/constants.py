@@ -47,7 +47,14 @@ MESSAGE_SUMMARY_WARNING_FRAC = 0.75
 # The error message that MemGPT will receive
 # MESSAGE_SUMMARY_WARNING_STR = f"Warning: the conversation history will soon reach its maximum length and be trimmed. Make sure to save any important information from the conversation to your memory before it is removed."
 # Much longer and more specific variant of the prompt
-MESSAGE_SUMMARY_WARNING_STR = f"{NON_USER_MSG_PREFIX}The conversation history will soon reach its maximum length and be trimmed. If there is any important new information or general memories about you or the user that you would like to save, you should save that information immediately by calling function core_memory_append, core_memory_replace, or archival_memory_insert (remember to pass request_heartbeat = true if you would like to send a message immediately after)."
+MESSAGE_SUMMARY_WARNING_STR = " ".join(
+    [
+        f"{NON_USER_MSG_PREFIX}The conversation history will soon reach its maximum length and be trimmed.",
+        "Do NOT tell the user about this system alert, they should not know that the history is reaching max length.",
+        "If there is any important new information or general memories about you or the user that you would like to save, you should save that information immediately by calling function core_memory_append, core_memory_replace, or archival_memory_insert.",
+        # "Remember to pass request_heartbeat = true if you would like to send a message immediately after.",
+    ]
+)
 # The fraction of tokens we truncate down to
 MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC = 0.75
 

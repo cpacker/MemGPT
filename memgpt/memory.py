@@ -386,6 +386,9 @@ class EmbeddingArchivalMemory(ArchivalMemory):
     def insert(self, memory_string):
         """Embed and save memory string"""
 
+        if not isinstance(memory_string, str):
+            return TypeError("memory must be a string")
+
         try:
             passages = []
 
@@ -416,10 +419,23 @@ class EmbeddingArchivalMemory(ArchivalMemory):
 
     def search(self, query_string, count=None, start=None):
         """Search query string"""
+        if not isinstance(query_string, str):
+            return TypeError("query must be a string")
+
         try:
             if query_string not in self.cache:
                 # self.cache[query_string] = self.retriever.retrieve(query_string)
                 query_vec = self.embed_model.get_text_embedding(query_string)
+                # fixing weird bug where type returned isn't a list, but instead is an object
+                # eg: embedding={'object': 'list', 'data': [{'object': 'embedding', 'embedding': [-0.0071973633, -0.07893023,
+                if isinstance(query_vec, dict):
+                    try:
+                        query_vec = query_vec["data"][0]["embedding"]
+                    except (KeyError, IndexError):
+                        # TODO as a fallback, see if we can find any lists in the payload
+                        raise TypeError(
+                            f"Got back an unexpected payload from text embedding function, type={type(query_vec)}, value={query_vec}"
+                        )
                 self.cache[query_string] = self.storage.query(query_string, query_vec, top_k=self.top_k)
 
             start = int(start if start else 0)
