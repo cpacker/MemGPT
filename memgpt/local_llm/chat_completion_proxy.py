@@ -37,6 +37,9 @@ def get_chat_completion(
     endpoint_type=None,
     # optional cleanup
     function_correction=True,
+    # extra hints to allow for additional prompt formatting hacks
+    # TODO this could alternatively be supported via passing function_call="send_message" into the wrapper
+    first_message=False,
 ):
     from memgpt.utils import printd
 
@@ -57,7 +60,7 @@ def get_chat_completion(
         # Warn the user that we're using the fallback
         if not has_shown_warning:
             print(
-                f"{CLI_WARNING_PREFIX}no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --wrapper)"
+                f"{CLI_WARNING_PREFIX}no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --model-wrapper)"
             )
             has_shown_warning = True
         if endpoint_type in ["koboldcpp", "llamacpp", "webui"]:
@@ -79,7 +82,10 @@ def get_chat_completion(
 
     # First step: turn the message sequence into a prompt that the model expects
     try:
-        prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
+        if hasattr(llm_wrapper, "supports_first_message") and llm_wrapper.supports_first_message:
+            prompt = llm_wrapper.chat_completion_to_prompt(messages, functions, first_message=first_message)
+        else:
+            prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
         printd(prompt)
     except Exception as e:
         raise LocalLLMError(
@@ -92,7 +98,9 @@ def get_chat_completion(
         elif endpoint_type == "webui-legacy":
             result, usage = get_webui_completion_legacy(endpoint, prompt, context_window, grammar=grammar_name)
         elif endpoint_type == "lmstudio":
-            result, usage = get_lmstudio_completion(endpoint, prompt, context_window)
+            result, usage = get_lmstudio_completion(endpoint, prompt, context_window, api="completions")
+        elif endpoint_type == "lmstudio-legacy":
+            result, usage = get_lmstudio_completion(endpoint, prompt, context_window, api="chat")
         elif endpoint_type == "llamacpp":
             result, usage = get_llamacpp_completion(endpoint, prompt, context_window, grammar=grammar_name)
         elif endpoint_type == "koboldcpp":
@@ -110,10 +118,13 @@ def get_chat_completion(
 
     if result is None or result == "":
         raise LocalLLMError(f"Got back an empty response string from {endpoint}")
-    printd(f"Raw LLM output:\n{result}")
+    printd(f"Raw LLM output:\n====\n{result}\n====")
 
     try:
-        chat_completion_result = llm_wrapper.output_to_chat_completion_response(result)
+        if hasattr(llm_wrapper, "supports_first_message") and llm_wrapper.supports_first_message:
+            chat_completion_result = llm_wrapper.output_to_chat_completion_response(result, first_message=first_message)
+        else:
+            chat_completion_result = llm_wrapper.output_to_chat_completion_response(result)
         printd(json.dumps(chat_completion_result, indent=2))
     except Exception as e:
         raise LocalLLMError(f"Failed to parse JSON from local LLM response - error: {str(e)}")

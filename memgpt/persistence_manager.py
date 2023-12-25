@@ -5,7 +5,7 @@ from memgpt.memory import (
     DummyRecallMemory,
     EmbeddingArchivalMemory,
 )
-from memgpt.utils import get_local_time, printd
+from memgpt.utils import get_local_time, printd, OpenAIBackcompatUnpickler
 
 
 class PersistenceManager(ABC):
@@ -48,8 +48,33 @@ class LocalStateManager(PersistenceManager):
     @classmethod
     def load(cls, filename, agent_config: AgentConfig):
         """ Load a LocalStateManager from a file. """ ""
-        with open(filename, "rb") as f:
-            data = pickle.load(f)
+        try:
+            with open(filename, "rb") as f:
+                data = pickle.load(f)
+        except ModuleNotFoundError as e:
+            # Patch for stripped openai package
+            # ModuleNotFoundError: No module named 'openai.openai_object'
+            with open(filename, "rb") as f:
+                unpickler = OpenAIBackcompatUnpickler(f)
+                data = unpickler.load()
+            # print(f"Unpickled data:\n{data.keys()}")
+
+            from memgpt.openai_backcompat.openai_object import OpenAIObject
+
+            def convert_openai_objects_to_dict(obj):
+                if isinstance(obj, OpenAIObject):
+                    # Convert to dict or handle as needed
+                    # print(f"detected OpenAIObject on {obj}")
+                    return obj.to_dict_recursive()
+                elif isinstance(obj, dict):
+                    return {k: convert_openai_objects_to_dict(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [convert_openai_objects_to_dict(v) for v in obj]
+                else:
+                    return obj
+
+            data = convert_openai_objects_to_dict(data)
+            # print(f"Converted data:\n{data.keys()}")
 
         manager = cls(agent_config)
         manager.all_messages = data["all_messages"]

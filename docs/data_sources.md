@@ -1,4 +1,9 @@
-## Loading External Data
+---
+title: Attaching data sources
+excerpt: Connecting external data to your MemGPT agent
+category: 6580d34ee5e4d00068bf2a1d 
+---
+
 MemGPT supports pre-loading data into archival memory. In order to made data accessible to your agent, you must load data in with `memgpt load`, then attach the data source to your agent. You can configure where archival memory is stored by configuring the [storage backend](storage.md).
 
 ### Viewing available data sources
@@ -34,11 +39,8 @@ memgpt attach --agent <AGENT-NAME> --data-source <DATA-SOURCE-NAME>
    memgpt-docs
 ```
 
-
-!!! tip "Hint"
-    To encourage your agent to reference its archival memory, we recommend adding phrases like "_search your archival memory..._" for the best results.
-
-
+> 👍 Hint
+> To encourage your agent to reference its archival memory, we recommend adding phrases like "_search your archival memory..._" for the best results.
 
 ### Loading a file or directory
 You can load a file, list of files, or directry into MemGPT with the following command:

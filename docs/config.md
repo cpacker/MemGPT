@@ -1,4 +1,9 @@
-### Configuring the agent
+---
+title: Configuration
+excerpt: Configuring your MemGPT agent
+category: 6580d34ee5e4d00068bf2a1d 
+---
+
 You can set agent defaults by running `memgpt configure`, which will store config information at `~/.memgpt/config` by default.
 
 The `memgpt run` command supports the following optional flags (if set, will override config defaults):
@@ -43,3 +48,4 @@ memgpt list [humans/personas]
 ```
 
 ### Custom Presets
+You can customize your MemGPT agent even further with [custom presets](presets) and [custom functions](functions).

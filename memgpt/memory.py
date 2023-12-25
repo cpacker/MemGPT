@@ -83,6 +83,9 @@ class CoreMemory(object):
             raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
 
     def edit_replace(self, field, old_content, new_content):
+        if len(old_content) == 0:
+            raise ValueError("old_content cannot be an empty string (must specify old_content to replace)")
+
         if field == "persona":
             if old_content in self.persona:
                 new_persona = self.persona.replace(old_content, new_content)
@@ -335,6 +338,16 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             # breakup string into passages
             for node in parser.get_nodes_from_documents([Document(text=memory_string)]):
                 embedding = self.embed_model.get_text_embedding(node.text)
+                # fixing weird bug where type returned isn't a list, but instead is an object
+                # eg: embedding={'object': 'list', 'data': [{'object': 'embedding', 'embedding': [-0.0071973633, -0.07893023,
+                if isinstance(embedding, dict):
+                    try:
+                        embedding = embedding["data"][0]["embedding"]
+                    except (KeyError, IndexError):
+                        # TODO as a fallback, see if we can find any lists in the payload
+                        raise TypeError(
+                            f"Got back an unexpected payload from text embedding function, type={type(embedding)}, value={embedding}"
+                        )
                 passages.append(Passage(text=node.text, embedding=embedding, doc_id=f"agent_{self.agent_config.name}_memory"))
 
             # insert passages

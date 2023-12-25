@@ -1,0 +1,12 @@
+{
+    "context_window": 8192,
+    "model": "gpt-4",
+    "model_endpoint_type": "openai",
+    "model_endpoint": "https://api.openai.com/v1",
+    "model_wrapper": null,
+    "embedding_endpoint_type": "openai",
+    "embedding_endpoint": "https://api.openai.com/v1",
+    "embedding_model": null,
+    "embedding_dim": 1536,
+    "embedding_chunk_size": 300
+}
