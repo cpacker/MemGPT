@@ -14,7 +14,13 @@ import pytz
 import tiktoken
 
 import memgpt
-from memgpt.constants import MEMGPT_DIR, FUNCTION_RETURN_CHAR_LIMIT, CLI_WARNING_PREFIX
+from memgpt.constants import (
+    MEMGPT_DIR,
+    FUNCTION_RETURN_CHAR_LIMIT,
+    CLI_WARNING_PREFIX,
+    CORE_MEMORY_HUMAN_CHAR_LIMIT,
+    CORE_MEMORY_PERSONA_CHAR_LIMIT,
+)
 
 from memgpt.openai_backcompat.openai_object import OpenAIObject
 
@@ -237,21 +243,30 @@ def list_persona_files():
     return memgpt_defaults + user_added
 
 
-def get_human_text(name: str):
+def get_human_text(name: str, enforce_limit=True):
     for file_path in list_human_files():
         file = os.path.basename(file_path)
         if f"{name}.txt" == file or name == file:
-            return open(file_path, "r").read().strip()
-    raise ValueError(f"Human {name} not found")
+            human_text = open(file_path, "r").read().strip()
+            if enforce_limit and len(human_text) > CORE_MEMORY_HUMAN_CHAR_LIMIT:
+                raise ValueError(f"Contents of {name}.txt is over the character limit ({len(human_text)} > {CORE_MEMORY_HUMAN_CHAR_LIMIT})")
+            return human_text
+
+    raise ValueError(f"Human {name}.txt not found")
 
 
-def get_persona_text(name: str):
+def get_persona_text(name: str, enforce_limit=True):
     for file_path in list_persona_files():
         file = os.path.basename(file_path)
         if f"{name}.txt" == file or name == file:
-            return open(file_path, "r").read().strip()
+            persona_text = open(file_path, "r").read().strip()
+            if enforce_limit and len(persona_text) > CORE_MEMORY_PERSONA_CHAR_LIMIT:
+                raise ValueError(
+                    f"Contents of {name}.txt is over the character limit ({len(persona_text)} > {CORE_MEMORY_PERSONA_CHAR_LIMIT})"
+                )
+            return persona_text
 
-    raise ValueError(f"Persona {name} not found")
+    raise ValueError(f"Persona {name}.txt not found")
 
 
 def get_human_text(name: str):
