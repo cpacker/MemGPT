@@ -255,10 +255,16 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         except Exception as e:
             raise Exception(f"Failed to decode JSON from LLM output:\n{raw_llm_output} - error\n{str(e)}")
         try:
+            # NOTE: weird bug can happen where 'function' gets nested if the prefix in the prompt isn't abided by
+            if isinstance(function_json_output["function"], dict):
+                function_json_output = function_json_output["function"]
+            # regular unpacking
             function_name = function_json_output["function"]
             function_parameters = function_json_output["params"]
         except KeyError as e:
-            raise LLMJSONParsingError(f"Received valid JSON from LLM, but JSON was missing fields: {str(e)}")
+            raise LLMJSONParsingError(
+                f"Received valid JSON from LLM, but JSON was missing fields: {str(e)}. JSON result was:\n{function_json_output}"
+            )
 
         if self.clean_func_args:
             (
@@ -366,6 +372,7 @@ class ChatMLOuterInnerMonologueWrapper(ChatMLInnerMonologueWrapper):
                 and function_json_output["function"] is not None
                 and function_json_output["function"].strip().lower() != "none"
             ):
+                # TODO apply lm studio nested bug patch?
                 function_name = function_json_output["function"]
                 function_parameters = function_json_output["params"]
             else:
