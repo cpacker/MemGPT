@@ -429,6 +429,11 @@ class Agent(object):
 
         function_call = response_message.get("function_call")
         function_name = function_call.get("name") if function_call is not None else ""
+
+        raw_function_args = function_call.get("arguments")
+        function_args = parse_json(raw_function_args)
+        message_content = function_args["message"]
+
         if require_send_message and function_name != "send_message" and function_name != "archival_memory_search":
             printd(f"First message function call wasn't send_message or archival_memory_search: {response_message}")
             return False
@@ -450,10 +455,17 @@ class Agent(object):
             if contains_special_characters(monologue):
                 printd(f"First message internal monologue contained special characters: {response_message}")
                 return False
+
             # if 'functions' in monologue or 'send_message' in monologue or 'inner thought' in monologue.lower():
             if "functions" in monologue or "send_message" in monologue:
                 # Sometimes the syntax won't be correct and internal syntax will leak into message.context
                 printd(f"First message internal monologue contained reserved words: {response_message}")
+                return False
+
+            # Don't allow the two to be identical
+
+            if str(monologue) == str(message_content):
+                printd(f"First message has identical inner monologue, {monologue} == {message_content}")
                 return False
 
         return True
