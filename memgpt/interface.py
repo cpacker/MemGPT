@@ -54,8 +54,7 @@ class CLIInterface(AgentInterface):
         fstr = f"{Fore.RED}{Style.BRIGHT}{{msg}}{Style.RESET_ALL}"
         if STRIP_UI:
             fstr = "{msg}"
-        else:
-            print(fstr.format(msg=msg))
+        print(fstr.format(msg=msg))
 
     @staticmethod
     def internal_monologue(msg):
@@ -81,7 +80,7 @@ class CLIInterface(AgentInterface):
 
     @staticmethod
     def system_message(msg):
-        fstr = f"{Fore.MAGENTA}{Style.BRIGHT}🖥️ [system] {Fore.MAGENTA}{msg}{Style.RESET_ALL}"
+        fstr = f"{Fore.MAGENTA}{Style.BRIGHT}🖥️ [system] {Fore.MAGENTA}{{msg}}{Style.RESET_ALL}"
         if STRIP_UI:
             fstr = "{msg}"
         print(fstr.format(msg=msg))
@@ -89,10 +88,10 @@ class CLIInterface(AgentInterface):
     @staticmethod
     def user_message(msg, raw=False, dump=False, debug=DEBUG):
         def print_user_message(icon, msg, printf=print):
+            fstr = f"{Fore.GREEN}{Style.BRIGHT}{icon} {Fore.GREEN}{{msg}}{Style.RESET_ALL}"
             if STRIP_UI:
-                printf(f"{icon} {msg}")
-            else:
-                printf(f"{Fore.GREEN}{Style.BRIGHT}{icon} {Fore.GREEN}{msg}{Style.RESET_ALL}")
+                fstr = f"{icon} {{msg}}"
+            printf(fstr.format(msg=msg)
 
         def printd_user_message(icon, msg):
             return print_user_message(icon, msg)
@@ -112,6 +111,7 @@ class CLIInterface(AgentInterface):
                     printd(f"{CLI_WARNING_PREFIX}failed to parse user message into json")
                     printd_user_message("🧑", msg)
                     return
+
         if msg_json["type"] == "user_message":
             if dump:
                 print_user_message("🧑", msg_json["message"])
@@ -135,10 +135,10 @@ class CLIInterface(AgentInterface):
     @staticmethod
     def function_message(msg, debug=DEBUG):
         def print_function_message(icon, msg, color=Fore.RED, printf=print):
+            fstr = f"{color}{Style.BRIGHT}⚡{icon} [function] {color}{{msg}}{Style.RESET_ALL}"
             if STRIP_UI:
-                printf(f"⚡{icon} [function] {msg}")
-            else:
-                printf(f"{color}{Style.BRIGHT}⚡{icon} [function] {color}{msg}{Style.RESET_ALL}")
+                fstr = f"⚡{icon} [function] {{msg}}"
+            printf(fstr.format(msg=msg))
 
         def printd_function_message(icon, msg, color=Fore.RED):
             return print_function_message(icon, msg, color, printf=(print if debug else printd))
