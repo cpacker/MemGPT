@@ -447,7 +447,6 @@ def run(
         agent_config.save()
         typer.secho(f"->  🤖 Using persona profile '{agent_config.persona}'", fg=typer.colors.WHITE)
         typer.secho(f"->  🧑 Using human profile '{agent_config.human}'", fg=typer.colors.WHITE)
-        typer.secho(f"🎉 Created new agent '{agent_config.name}'", fg=typer.colors.GREEN)
 
         # Supress llama-index noise
         with suppress_stdout():
@@ -455,15 +454,20 @@ def run(
             persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
 
         # create agent
-        memgpt_agent = presets.use_preset(
-            agent_config.preset,
-            agent_config,
-            agent_config.model,
-            utils.get_persona_text(agent_config.persona),
-            utils.get_human_text(agent_config.human),
-            interface,
-            persistence_manager,
-        )
+        try:
+            memgpt_agent = presets.use_preset(
+                agent_config.preset,
+                agent_config,
+                agent_config.model,
+                utils.get_persona_text(agent_config.persona),
+                utils.get_human_text(agent_config.human),
+                interface,
+                persistence_manager,
+            )
+        except ValueError as e:
+            typer.secho(f"Failed to create agent from provided information:\n{e}", fg=typer.colors.RED)
+            sys.exit(1)
+        typer.secho(f"🎉 Created new agent '{agent_config.name}'", fg=typer.colors.GREEN)
 
     # pretty print agent config
     printd(json.dumps(vars(agent_config), indent=4, sort_keys=True))
