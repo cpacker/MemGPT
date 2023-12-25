@@ -17,7 +17,7 @@ settings = {
         # '\n' +
         # '</s>',
         # '<|',
-        # '\n#',
+        "\n#",
         # "\n\n\n",
         # prevent chaining function calls / multi json objects / run-on generations
         # NOTE: this requires the ability to patch the extra '}}' back into the prompt
