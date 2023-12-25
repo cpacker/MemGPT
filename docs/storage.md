@@ -1,8 +1,12 @@
-# Configuring Storage Backends
+---
+title: Configuring storage backends 
+excerpt: Customizing the MemGPT storage backend
+category: 6580d34ee5e4d00068bf2a1d 
+---
 
-!!! warning "Switching storage backends"
-
-    MemGPT can only use one storage backend at a time. If you switch from local to database storage, you will need to re-load data and start agents from scratch. We currently do not support migrating between storage backends.
+> ⚠️ Switching storage backends
+>
+> MemGPT can only use one storage backend at a time. If you switch from local to database storage, you will need to re-load data and start agents from scratch. We currently do not support migrating between storage backends.
 
 MemGPT supports both local and database storage for archival memory. You can configure which storage backend to use via `memgpt configure`. For larger datasets, we recommend using a database backend.
 

@@ -1,4 +1,4 @@
-<a href="#user-content-memgpt"><img src="https://memgpt.ai/assets/img/memgpt_logo_circle.png" alt="MemGPT logo" width="75" align="right"></a>
+<a href="#user-content-memgpt"><img src="https://research.memgpt.ai/assets/img/memgpt_logo_circle.png" alt="MemGPT logo" width="75" align="right"></a>
 
 # [MemGPT](https://memgpt.ai)
 
@@ -6,12 +6,12 @@
 
  <strong>Try out our MemGPT chatbot on <a href="https://discord.gg/9GEQrxmVyE">Discord</a>!</strong>
 
- <strong>⭐ NEW: You can now run MemGPT with <a href="https://memgpt.readthedocs.io/en/latest/local_llm/">open/local LLMs</a> and <a href="https://memgpt.readthedocs.io/en/latest/autogen/">AutoGen</a>! ⭐ </strong>
+ <strong>⭐ NEW: You can now run MemGPT with <a href="https://memgpt.readme.io/docs/local_llm">open/local LLMs</a> and <a href="https://memgpt.readme.io/docs/autogen">AutoGen</a>! ⭐ </strong>
 
 
 [![Discord](https://img.shields.io/discord/1161736243340640419?label=Discord&logo=discord&logoColor=5865F2&style=flat-square&color=5865F2)](https://discord.gg/9GEQrxmVyE)
 [![arxiv 2310.08560](https://img.shields.io/badge/arXiv-2310.08560-B31B1B?logo=arxiv&style=flat-square)](https://arxiv.org/abs/2310.08560)
-[![Documentation](https://img.shields.io/github/v/release/cpacker/MemGPT?label=Documentation&logo=readthedocs&style=flat-square)](https://memgpt.readthedocs.io/en/latest/)
+[![Documentation](https://img.shields.io/github/v/release/cpacker/MemGPT?label=Documentation&logo=readthedocs&style=flat-square)](https://memgpt.readme.io/docs)
 
 </div>
 
@@ -19,19 +19,18 @@
   <summary><h2>🤖 Create perpetual chatbots with self-editing memory!</h2></summary>
   <div align="center">
     <br>
-    <img src="https://memgpt.ai/assets/img/demo.gif" alt="MemGPT demo video" width="800">
+    <img src="https://research.memgpt.ai/assets/img/demo.gif" alt="MemGPT demo video" width="800">
   </div>
 </details>
 
 <details>
  <summary><h2>🗃️ Chat with your data - talk to your local files or SQL database!</strong></h2></summary>
   <div align="center">
-    <img src="https://memgpt.ai/assets/img/doc.gif" alt="MemGPT demo video for sql search" width="800">
+    <img src="https://research.memgpt.ai/assets/img/doc.gif" alt="MemGPT demo video for sql search" width="800">
   </div>
 </details>
 
 ## Quick setup
-
 Join <a href="https://discord.gg/9GEQrxmVyE">Discord</a></strong> and message the MemGPT bot (in the `#memgpt` channel). Then run the following commands (messaged to "MemGPT Bot"):
 * `/profile` (to create your profile)
 * `/key` (to enter your OpenAI key)
@@ -40,44 +39,43 @@ Join <a href="https://discord.gg/9GEQrxmVyE">Discord</a></strong> and message th
 Make sure your privacy settings on this server are open so that MemGPT Bot can DM you: \
 MemGPT → Privacy Settings → Direct Messages set to ON
 <div align="center">
- <img src="https://memgpt.ai/assets/img/discord/dm_settings.png" alt="set DMs settings on MemGPT server to be open in MemGPT so that MemGPT Bot can message you" width="400">
+ <img src="https://research.memgpt.ai/assets/img/discord/dm_settings.png" alt="set DMs settings on MemGPT server to be open in MemGPT so that MemGPT Bot can message you" width="400">
 </div>
 
 You can see the full list of available commands when you enter `/` into the message box.
 <div align="center">
- <img src="https://memgpt.ai/assets/img/discord/slash_commands.png" alt="MemGPT Bot slash commands" width="400">
+ <img src="https://research.memgpt.ai/assets/img/discord/slash_commands.png" alt="MemGPT Bot slash commands" width="400">
 </div>
 
 ## What is MemGPT?
-
 Memory-GPT (or MemGPT in short) is a system that intelligently manages different memory tiers in LLMs in order to effectively provide extended context within the LLM's limited context window. For example, MemGPT knows when to push critical information to a vector database and when to retrieve it later in the chat, enabling perpetual conversations. Learn more about MemGPT in our [paper](https://arxiv.org/abs/2310.08560).
 
 ## Running MemGPT locally
-
 Install MemGPT:
-
 ```sh
-pip install pymemgpt
+pip install -U pymemgpt
 ```
 
-Add your OpenAI API key to your environment:
-
-```sh
-
-export OPENAI_API_KEY=YOUR_API_KEY # on Linux/Mac
-set OPENAI_API_KEY=YOUR_API_KEY # on Windows
-$Env:OPENAI_API_KEY = "YOUR_API_KEY" # on Windows (PowerShell)
-```
-Configure default setting for MemGPT by running:
-```
-memgpt configure
-```
-Now, you can run MemGPT with:
+Now, you can run MemGPT and start chatting with a MemGPT agent with:
 ```sh
 memgpt run
 ```
 
-You can run the following commands in the MemGPT CLI prompt:
+If you're running MemGPT for the first time, you'll see two quickstart options:
+
+1. **OpenAI**: select this if you'd like to run MemGPT with OpenAI models like GPT-4 (requires an OpenAI API key)
+2. **MemGPT Free Endpoint**: select this if you'd like to try MemGPT on a top open LLM for free (currently variants of Mixtral 8x7b!)
+
+Neither of these options require you to have an LLM running on your own machine. If you'd like to run MemGPT with your custom LLM setup (or on OpenAI Azure), select **Other** to proceed to the advanced setup.
+
+### Advanced setup 
+You can reconfigure MemGPT's default settings by running:
+```sh
+memgpt configure
+```
+
+### In-chat commands
+You can run the following commands in the MemGPT CLI prompt which chatting with an agent:
 * `/exit`: Exit the CLI
 * `/attach`: Attach a loaded data source to the agent
 * `/save`: Save a checkpoint of the current agent/conversation state
@@ -92,14 +90,12 @@ You can run the following commands in the MemGPT CLI prompt:
 * `/heartbeat`: Send a heartbeat system message to the agent
 * `/memorywarning`: Send a memory warning system message to the agent
 
-
 Once you exit the CLI with `/exit`, you can resume chatting with the same agent by specifying the agent name in `memgpt run --agent <NAME>`.
 
 ## Documentation
-See full documentation at: https://memgpt.readthedocs.io/
+See full documentation at: https://memgpt.readme.io
 
 ## Installing from source
-
 To install MemGPT from source, start by cloning the repo:
 ```sh
 git clone git@github.com:cpacker/MemGPT.git
@@ -130,7 +126,7 @@ poetry install
 </details>
 
 ## Support
-For issues and feature requests, please [open a GitHub issue](https://github.com/cpacker/MemGPT/issues) or message us on our `#support` channel on [Discord](https://discord.gg/9GEQrxmVyE)
+For issues and feature requests, please [open a GitHub issue](https://github.com/cpacker/MemGPT/issues) or message us on our `#support` channel on [Discord](https://discord.gg/9GEQrxmVyE).
 
 ## Datasets
 Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded at [Hugging Face](https://huggingface.co/MemGPT).

@@ -95,6 +95,12 @@ def conversation_search(self, query: str, page: Optional[int] = 0) -> Optional[s
     Returns:
         str: Query result string
     """
+    if page is None or (isinstance(page, str) and page.lower().strip() == "none"):
+        page = 0
+    try:
+        page = int(page)
+    except:
+        raise ValueError(f"'page' argument must be an integer")
     count = RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
     results, total = self.persistence_manager.recall_memory.text_search(query, count=count, start=page * count)
     num_pages = math.ceil(total / count) - 1  # 0 index
@@ -119,6 +125,12 @@ def conversation_search_date(self, start_date: str, end_date: str, page: Optiona
     Returns:
         str: Query result string
     """
+    if page is None or (isinstance(page, str) and page.lower().strip() == "none"):
+        page = 0
+    try:
+        page = int(page)
+    except:
+        raise ValueError(f"'page' argument must be an integer")
     count = RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
     results, total = self.persistence_manager.recall_memory.date_search(start_date, end_date, count=count, start=page * count)
     num_pages = math.ceil(total / count) - 1  # 0 index
@@ -156,6 +168,12 @@ def archival_memory_search(self, query: str, page: Optional[int] = 0) -> Optiona
     Returns:
         str: Query result string
     """
+    if page is None or (isinstance(page, str) and page.lower().strip() == "none"):
+        page = 0
+    try:
+        page = int(page)
+    except:
+        raise ValueError(f"'page' argument must be an integer")
     count = RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
     results, total = self.persistence_manager.archival_memory.search(query, count=count, start=page * count)
     num_pages = math.ceil(total / count) - 1  # 0 index

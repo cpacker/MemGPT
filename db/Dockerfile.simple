@@ -26,7 +26,7 @@
 # -v memgpt_db:/var/lib/postgresql/data: map the volume memgpt_db to /var/lib/postgresql/data in the container
 # memgpt-db:latest: use the image memgpt-db:latest
 #
-# After the first time, you dod not need the POSTGRES_PASSWORD.
+# After the first time, you do not need the POSTGRES_PASSWORD.
 # docker run -d --rm \
 #   --name memgpt-db \
 #   -p 5432:5432 \
