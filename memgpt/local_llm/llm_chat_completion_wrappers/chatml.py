@@ -17,8 +17,11 @@ PREFIX_HINT = """# Reminders:
 
 FIRST_PREFIX_HINT = """# Reminders:
 # This is your first interaction with the user!
+# Initial information about them is provided in the core memory user block
 # Make sure to introduce yourself to them
 # Your inner thoughts should be private, interesting, and creative
+# Do NOT use inner thoughts to communicate with the user
+# Use send_message to communicate with the user"""
 # Don't forget to use send_message, otherwise the user won't see your message"""
 
 
