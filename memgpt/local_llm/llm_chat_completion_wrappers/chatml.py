@@ -5,6 +5,26 @@ from ..json_parser import clean_json
 from ...errors import LLMJSONParsingError
 
 
+PREFIX_HINT = """# Reminders:
+# Important information about yourself and the user is stored in (limited) core memory
+# You can modify core memory with core_memory_replace
+# You can add to core memory with core_memory_append
+# Less important information is stored in (unlimited) archival memory
+# You can add to archival memory with archival_memory_insert
+# You can search archival memory with archival_memory_search
+# You will always see the statistics of archival memory, so you know if there is content inside it
+# If you receive new important information about the user (or yourself), you immediately update your memory with core_memory_replace, core_memory_append, or archival_memory_insert"""
+
+FIRST_PREFIX_HINT = """# Reminders:
+# This is your first interaction with the user!
+# Initial information about them is provided in the core memory user block
+# Make sure to introduce yourself to them
+# Your inner thoughts should be private, interesting, and creative
+# Do NOT use inner thoughts to communicate with the user
+# Use send_message to communicate with the user"""
+# Don't forget to use send_message, otherwise the user won't see your message"""
+
+
 class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
     """ChatML-style prompt formatter, tested for use with https://huggingface.co/ehartford/dolphin-2.5-mixtral-8x7b#training"""
 
@@ -24,12 +44,15 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         allow_function_role=False,  # use function role for function replies?
         no_function_role_role="assistant",  # if no function role, which role to use?
         no_function_role_prefix="FUNCTION RETURN:\n",  # if no function role, what prefix to use?
+        # add a guiding hint
+        assistant_prefix_hint=False,
     ):
         self.simplify_json_content = simplify_json_content
         self.clean_func_args = clean_function_args
         self.include_assistant_prefix = include_assistant_prefix
         self.assistant_prefix_extra = assistant_prefix_extra
         self.assistant_prefix_extra_first_message = assistant_prefix_extra_first_message
+        self.assistant_prefix_hint = assistant_prefix_hint
 
         # role-based
         self.allow_custom_roles = allow_custom_roles
@@ -202,7 +225,9 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
 
         if self.include_assistant_prefix:
             prompt += f"\n<|im_start|>assistant"
-            if first_message:
+            if self.assistant_prefix_hint:
+                prompt += f"\n{FIRST_PREFIX_HINT if first_message else PREFIX_HINT}"
+            if self.supports_first_message and first_message:
                 if self.assistant_prefix_extra_first_message:
                     prompt += self.assistant_prefix_extra_first_message
             else:
@@ -355,7 +380,9 @@ class ChatMLOuterInnerMonologueWrapper(ChatMLInnerMonologueWrapper):
         """
 
         # If we used a prefex to guide generation, we need to add it to the output as a preefix
-        assistant_prefix = self.assistant_prefix_extra_first_message if first_message else self.assistant_prefix_extra
+        assistant_prefix = (
+            self.assistant_prefix_extra_first_message if (self.supports_first_message and first_message) else self.assistant_prefix_extra
+        )
         if assistant_prefix and raw_llm_output[: len(assistant_prefix)] != assistant_prefix:
             raw_llm_output = assistant_prefix + raw_llm_output
 
