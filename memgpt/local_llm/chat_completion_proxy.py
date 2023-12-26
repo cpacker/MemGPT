@@ -16,6 +16,7 @@ from memgpt.local_llm.vllm.api import get_vllm_completion
 from memgpt.local_llm.llm_chat_completion_wrappers import simple_summary_wrapper
 from memgpt.local_llm.constants import DEFAULT_WRAPPER
 from memgpt.local_llm.utils import get_available_wrappers, count_tokens
+from memgpt.local_llm.function_parser import patch_function
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
 from memgpt.errors import LocalLLMConnectionError, LocalLLMError
 from memgpt.constants import CLI_WARNING_PREFIX
@@ -34,6 +35,8 @@ def get_chat_completion(
     wrapper=None,
     endpoint=None,
     endpoint_type=None,
+    # optional cleanup
+    function_correction=True,
     # extra hints to allow for additional prompt formatting hacks
     # TODO this could alternatively be supported via passing function_call="send_message" into the wrapper
     first_message=False,
@@ -79,7 +82,8 @@ def get_chat_completion(
 
     # First step: turn the message sequence into a prompt that the model expects
     try:
-        if hasattr(llm_wrapper, "supports_first_message") and llm_wrapper.supports_first_message:
+        # if hasattr(llm_wrapper, "supports_first_message") and llm_wrapper.supports_first_message:
+        if hasattr(llm_wrapper, "supports_first_message"):
             prompt = llm_wrapper.chat_completion_to_prompt(messages, functions, first_message=first_message)
         else:
             prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
@@ -125,6 +129,10 @@ def get_chat_completion(
         printd(json.dumps(chat_completion_result, indent=2))
     except Exception as e:
         raise LocalLLMError(f"Failed to parse JSON from local LLM response - error: {str(e)}")
+
+    # Run through some manual function correction (optional)
+    if function_correction:
+        chat_completion_result = patch_function(message_history=messages, new_message=chat_completion_result)
 
     # Fill in potential missing usage information (used for tracking token use)
     if not ("prompt_tokens" in usage and "completion_tokens" in usage and "total_tokens" in usage):
