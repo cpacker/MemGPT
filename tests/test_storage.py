@@ -35,7 +35,7 @@ def generate_passages(embed_model):
     """Generate list of 3 Passage objects"""
     # embeddings: use openai if env is set, otherwise local
     passages = []
-    for (text, _, _, agent_id, id) in zip(texts, dates, roles, agent_ids, ids):
+    for text, _, _, agent_id, id in zip(texts, dates, roles, agent_ids, ids):
         embedding = None
         if embed_model:
             embedding = embed_model.get_text_embedding(text)
@@ -47,7 +47,7 @@ def generate_passages(embed_model):
 def generate_messages():
     """Generate list of 3 Message objects"""
     messages = []
-    for (text, date, role, agent_id, id) in zip(texts, dates, roles, agent_ids, ids):
+    for text, date, role, agent_id, id in zip(texts, dates, roles, agent_ids, ids):
         messages.append(Message(user_id=user_id, text=text, agent_id=agent_id, role=role, created_at=date, id=id, model="gpt4"))
         print(messages[-1].text)
     return messages
@@ -56,7 +56,6 @@ def generate_messages():
 @pytest.mark.parametrize("storage_connector", ["postgres", "chroma", "sqlite"])
 @pytest.mark.parametrize("table_type", [TableType.RECALL_MEMORY, TableType.ARCHIVAL_MEMORY])
 def test_storage(storage_connector, table_type):
-
     # setup memgpt config
     # TODO: set env for different config path
     config = MemGPTConfig()

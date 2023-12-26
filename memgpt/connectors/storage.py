@@ -43,7 +43,6 @@ DOCUMENT_TABLE_NAME = "memgpt_documents"  # original documents (from source)
 
 class StorageConnector:
     def __init__(self, table_type: TableType, agent_config: Optional[AgentConfig] = None):
-
         config = MemGPTConfig.load()
         self.agent_config = agent_config
         self.user_id = config.anon_clientid
@@ -82,7 +81,6 @@ class StorageConnector:
         return filter_conditions
 
     def generate_table_name(self, agent_config: AgentConfig, table_type: TableType):
-
         if agent_config is not None:
             # Table names for agent-specific tables
             if table_type == TableType.ARCHIVAL_MEMORY:
@@ -104,7 +102,6 @@ class StorageConnector:
 
     @staticmethod
     def get_storage_connector(table_type: TableType, storage_type: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
-
         # read from config if not provided
         if storage_type is None:
             if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:

@@ -34,7 +34,6 @@ from datetime import datetime
 
 # Custom UUID type
 class CommonUUID(TypeDecorator):
-
     impl = CHAR
 
     def load_dialect_impl(self, dialect):
