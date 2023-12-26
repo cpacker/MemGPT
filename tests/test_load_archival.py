@@ -14,7 +14,6 @@ from memgpt.config import AgentConfig, MemGPTConfig
 @pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
 @pytest.mark.parametrize("passage_storage_connector", ["chroma", "postgres"])
 def test_load_directory(metadata_storage_connector, passage_storage_connector):
-
     # setup config
     config = MemGPTConfig()
     if metadata_storage_connector == "postgres":

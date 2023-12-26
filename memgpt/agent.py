@@ -25,7 +25,6 @@ from .functions.functions import load_all_function_sets
 
 
 def link_functions(function_schemas):
-
     """Link function definitions to list of function schemas"""
 
     # need to dynamically link the functions

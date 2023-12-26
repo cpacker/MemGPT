@@ -292,7 +292,6 @@ class BaseRecallMemory(RecallMemory):
     """Recall memory based on base functions implemented by storage connectors"""
 
     def __init__(self, agent_config, restrict_search_to_summaries=False):
-
         # If true, the pool of messages that can be queried are the automated summaries only
         # (generated when the conversation window needs to be shortened)
         self.restrict_search_to_summaries = restrict_search_to_summaries
