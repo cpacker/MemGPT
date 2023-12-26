@@ -70,7 +70,7 @@ class MemGPTConfig:
 
     # database configs: archival
     archival_storage_type: str = "chroma"  # local, db
-    archival_storage_path: str = MEMGPT_DIR  # TODO: set to memgpt dir
+    archival_storage_path: str = os.path.join(MEMGPT_DIR, "chroma")
     archival_storage_uri: str = None  # TODO: eventually allow external vector DB
 
     # database configs: recall
