@@ -380,11 +380,11 @@ def configure_cli(config: MemGPTConfig):
 
 def configure_archival_storage(config: MemGPTConfig):
     # Configure archival storage backend
-    archival_storage_options = ["local", "lancedb", "postgres", "chroma"]
+    archival_storage_options = ["postgres", "chroma"]
     archival_storage_type = questionary.select(
         "Select storage backend for archival data:", archival_storage_options, default=config.archival_storage_type
     ).ask()
-    archival_storage_uri, archival_storage_path = None, None
+    archival_storage_uri, archival_storage_path = config.archival_storage_uri, config.archival_storage_path
 
     # configure postgres
     if archival_storage_type == "postgres":
@@ -393,16 +393,17 @@ def configure_archival_storage(config: MemGPTConfig):
             default=config.archival_storage_uri if config.archival_storage_uri else "",
         ).ask()
 
-    # configure lancedb
-    if archival_storage_type == "lancedb":
-        archival_storage_uri = questionary.text(
-            "Enter lanncedb connection string (e.g. ./.lancedb",
-            default=config.archival_storage_uri if config.archival_storage_uri else "./.lancedb",
-        ).ask()
+    # TODO: add back
+    ## configure lancedb
+    # if archival_storage_type == "lancedb":
+    #    archival_storage_uri = questionary.text(
+    #        "Enter lanncedb connection string (e.g. ./.lancedb",
+    #        default=config.archival_storage_uri if config.archival_storage_uri else "./.lancedb",
+    #    ).ask()
 
     # configure chroma
     if archival_storage_type == "chroma":
-        chroma_type = questionary.select("Select chroma backend:", ["http", "persistent"], default="http").ask()
+        chroma_type = questionary.select("Select chroma backend:", ["http", "persistent"], default="persistent").ask()
         if chroma_type == "http":
             archival_storage_uri = questionary.text("Enter chroma ip (e.g. localhost:8000):", default="localhost:8000").ask()
         if chroma_type == "persistent":
@@ -415,25 +416,17 @@ def configure_archival_storage(config: MemGPTConfig):
 
 def configure_recall_storage(config: MemGPTConfig):
     # Configure recall storage backend
-    recall_storage_options = ["sqlite", "postgres", "chroma"]
+    recall_storage_options = ["sqlite", "postgres"]
     recall_storage_type = questionary.select(
         "Select storage backend for recall data:", recall_storage_options, default=config.recall_storage_type
     ).ask()
-    recall_storage_uri, recall_storage_path = None, None
+    recall_storage_uri, recall_storage_path = config.recall_storage_uri, config.recall_storage_path
     # configure postgres
     if recall_storage_type == "postgres":
         recall_storage_uri = questionary.text(
             "Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}):",
             default=config.recall_storage_uri if config.recall_storage_uri else "",
         ).ask()
-
-    # configure chroma
-    if recall_storage_type == "chroma":
-        chroma_type = questionary.select("Select chroma backend:", ["http", "persistent"], default="http").ask()
-        if chroma_type == "http":
-            recall_storage_uri = questionary.text("Enter chroma ip (e.g. localhost:8000):", default="localhost:8000").ask()
-        if chroma_type == "persistent":
-            recall_storage_path = os.path.join(MEMGPT_DIR, "chroma")
 
     return recall_storage_type, recall_storage_uri, recall_storage_path
 
@@ -495,6 +488,10 @@ def configure():
         recall_storage_type=recall_storage_type,
         recall_storage_uri=recall_storage_uri,
         recall_storage_path=recall_storage_path,
+        # metadata storage (currently forced to match recall storage)
+        metadata_storage_type=recall_storage_type,
+        metadata_storage_uri=recall_storage_uri,
+        metadata_storage_path=recall_storage_path,
     )
     typer.secho(f"📖 Saving config to {config.config_path}", fg=typer.colors.GREEN)
     config.save()

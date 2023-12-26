@@ -121,6 +121,7 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                     memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_archival_storage_connector(
                         agent_config=memgpt_agent.config
                     )
+                    # TODO: update metadata_db to record attached agents
                     continue
 
                 elif user_input.lower() == "/dump" or user_input.lower().startswith("/dump "):
