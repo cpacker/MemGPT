@@ -494,10 +494,10 @@ def attach(
         source_storage = StorageConnector.get_storage_connector(table_type=TableType.PASSAGES)
         dest_storage = StorageConnector.get_storage_connector(table_type=TableType.ARCHIVAL_MEMORY, agent_config=agent_config)
 
-        size = source_storage.size()
+        size = source_storage.size({"data_source": data_source})
         typer.secho(f"Ingesting {size} passages into {agent_config.name}", fg=typer.colors.GREEN)
         page_size = 100
-        generator = source_storage.get_all_paginated(page_size=page_size)  # yields List[Passage]
+        generator = source_storage.get_all_paginated(filters={"data_source": data_source}, page_size=page_size)  # yields List[Passage]
         passages = []
         for i in tqdm(range(0, size, page_size)):
             passages = next(generator)

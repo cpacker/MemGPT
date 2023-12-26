@@ -73,6 +73,8 @@ class StorageConnector:
         else:
             self.filters = {}
 
+        print("FILTERS", self.filters)
+
     def get_filters(self, filters: Optional[Dict] = {}):
         # get all filters for query
         if filters is not None:
