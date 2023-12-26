@@ -50,6 +50,9 @@ def get_available_wrappers() -> dict:
         # New chatml-based wrappers
         "chatml": chatml.ChatMLInnerMonologueWrapper(),
         "chatml-noforce": chatml.ChatMLOuterInnerMonologueWrapper(),
+        # With extra hints
+        "chatml-hints": chatml.ChatMLInnerMonologueWrapper(assistant_prefix_hint=True),
+        "chatml-noforce-hints": chatml.ChatMLOuterInnerMonologueWrapper(assistant_prefix_hint=True),
         # Legacy wrappers
         "airoboros-l2-70b-2.1": airoboros.Airoboros21InnerMonologueWrapper(),
         "airoboros-l2-70b-2.1-grammar": airoboros.Airoboros21InnerMonologueWrapper(assistant_prefix_extra=None),
