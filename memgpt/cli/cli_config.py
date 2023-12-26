@@ -586,28 +586,24 @@ def add(
 
 
 @app.command()
-def delete(
-    option: str,
-    name: str = typer.Option(help="Name of human/persona/agent/source to delete"),
-):
-    if option == "agent":
-        # delete state/config
-        # TODO: this will eventually need to go through the storage connector
-        agent_config = AgentConfig.load(name)
-        # remove directory
-        shutil.rmtree(agent_config.save_dir())
+def delete(option: str, name: str):
+    """Delete a source from the archival memory."""
 
-        # delete memory
-        recall_storage = StorageConnector.get_recall_storage_connector(agent_config)
-        recall_storage.delete()
-        archival_storage = StorageConnector.get_archival_storage_connector(agent_config)
-        archival_storage.delete()
+    # delete from metadata
+    if option == "source":
+        conn = StorageConnector.get_metadata_storage_connector(TableType.DATA_SOURCES)
+        conn.delete({"name": name})
 
-    elif option == "source":
-        # TODO: also delete document store
-        # TODO: remove data from any agents that have loaded it in (?)
-        storage = StorageConnector.get_storage_connector(table_type=TableType.PASSAGES)
-        storage.delete({"data_source": name})
+        assert conn.get_all({"name": name}) == [], f"Expected no sources named {name}, but got {conn.get_all({'name': name})}"
 
+        # delete from passages
+        conn = StorageConnector.get_storage_connector(TableType.PASSAGES)
+        conn.delete({"data_source": name})
+
+        assert (
+            conn.get_all({"data_source": name}) == []
+        ), f"Expected no passages with source {name}, but got {conn.get_all({'data_source': name})}"
+
+        # TODO: should we also delete from agents?
     else:
-        raise NotImplementedError
+        raise ValueError(f"Option {option} not implemented")
