@@ -6,7 +6,7 @@ import os
 import shutil
 
 # from global logging configuration
-from memgpt.memgptlog import logger
+from memgpt.log import logger
 
 # from memgpt.cli import app
 from memgpt import utils
