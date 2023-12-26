@@ -272,7 +272,7 @@ class MemGPTConfig:
             # logfile logging handler Rotating File Handler
             set_field(config, "handler_logfileHandler", "class", "handlers.RotatingFileHandler")
             set_field(config, "handler_logfileHandler", "level", self.logging_level)
-            fixed_logpathname = utils.fix_file_path(self.logging_logpathname)
+            fixed_logpathname = fix_file_path(self.logging_logpathname)
             set_field(
                 config,
                 "handler_logfileHandler",
