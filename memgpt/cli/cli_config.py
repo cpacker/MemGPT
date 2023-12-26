@@ -542,17 +542,19 @@ def list(option: str):
     elif option == "sources":
         """List all data sources"""
         conn = StorageConnector.get_metadata_storage_connector(table_type=TableType.DATA_SOURCES)  # already filters by user
+        passage_conn = StorageConnector.get_storage_connector(table_type=TableType.PASSAGES)
 
         # create table
         table = PrettyTable()
-        table.field_names = ["Name", "Created At", "Agents"]
+        table.field_names = ["Name", "Created At", "Number of Passages", "Agents"]
         # TODO: eventually look accross all storage connections
         # TODO: add data source stats
         # TODO: connect to agents
 
         # get all sources
         for data_source in conn.get_all():
-            table.add_row([data_source.name, data_source.created_at, ""])
+            num_passages = passage_conn.size({"data_source": data_source.name})
+            table.add_row([data_source.name, data_source.created_at, num_passages, ""])
         print(table)
     else:
         raise ValueError(f"Unknown option {option}")

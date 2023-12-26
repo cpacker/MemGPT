@@ -193,13 +193,3 @@ class ChromaStorageConnector(StorageConnector):
         # count = len(results) if count is None else count
         # results = results[start : start + count]
         # return self.results_to_records(results)
-
-    @staticmethod
-    def list_loaded_data(user_id: Optional[str] = None):
-        if user_id is None:
-            config = MemGPTConfig.load()
-            user_id = config.anon_clientid
-
-        # get all collections
-        # TODO: implement this
-        pass
