@@ -189,15 +189,23 @@ class StorageConnector:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")
 
     @abstractmethod
-    def get_all_paginated(self, page_size: int, filters: Optional[Dict] = {}) -> Iterator[List[Record]]:
+    def get_filters(self, filters: Optional[Dict] = {}):
         pass
 
     @abstractmethod
-    def get_all(self, limit: int, filters: Optional[Dict]) -> List[Record]:
+    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000) -> Iterator[List[Record]]:
         pass
 
     @abstractmethod
-    def get(self, id: str) -> Record:
+    def get_all(self, filters: Optional[Dict] = {}, limit=10) -> List[Record]:
+        pass
+
+    @abstractmethod
+    def get(self, id: str) -> Optional[Record]:
+        pass
+
+    @abstractmethod
+    def size(self, filters: Optional[Dict] = {}) -> int:
         pass
 
     @abstractmethod
@@ -205,7 +213,7 @@ class StorageConnector:
         pass
 
     @abstractmethod
-    def insert_many(self, records: List[Record]):
+    def insert_many(self, records: List[Record], show_progress=True):
         pass
 
     @abstractmethod
@@ -213,11 +221,21 @@ class StorageConnector:
         pass
 
     @abstractmethod
-    def save(self):
-        """Save state of storage connector"""
+    def query_date(self, start_date, end_date):
         pass
 
     @abstractmethod
-    def size(self, filters: Optional[Dict] = {}) -> int:
-        """Get number of passages (text/embedding pairs) in storage"""
+    def query_text(self, query):
+        pass
+
+    @abstractmethod
+    def delete_table(self):
+        pass
+
+    @abstractmethod
+    def delete(self, filters: Optional[Dict] = {}):
+        pass
+
+    @abstractmethod
+    def save(self):
         pass
