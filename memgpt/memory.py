@@ -167,10 +167,12 @@ class ArchivalMemory(ABC):
 class RecallMemory(ABC):
     @abstractmethod
     def text_search(self, query_string, count=None, start=None):
+        """Search messages that match query_string in recall memory"""
         pass
 
     @abstractmethod
-    def date_search(self, query_string, count=None, start=None):
+    def date_search(self, start_date, end_date, count=None, start=None):
+        """Search messages between start_date and end_date in recall memory"""
         pass
 
     @abstractmethod
@@ -179,6 +181,7 @@ class RecallMemory(ABC):
 
     @abstractmethod
     def insert(self, message: Message):
+        """Insert message into recall memory"""
         pass
 
 
@@ -396,6 +399,16 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             # breakup string into passages
             for node in parser.get_nodes_from_documents([Document(text=memory_string)]):
                 embedding = self.embed_model.get_text_embedding(node.text)
+                # fixing weird bug where type returned isn't a list, but instead is an object
+                # eg: embedding={'object': 'list', 'data': [{'object': 'embedding', 'embedding': [-0.0071973633, -0.07893023,
+                if isinstance(embedding, dict):
+                    try:
+                        embedding = embedding["data"][0]["embedding"]
+                    except (KeyError, IndexError):
+                        # TODO as a fallback, see if we can find any lists in the payload
+                        raise TypeError(
+                            f"Got back an unexpected payload from text embedding function, type={type(embedding)}, value={embedding}"
+                        )
                 passages.append(self.create_passage(node.text, embedding))
 
             # insert passages

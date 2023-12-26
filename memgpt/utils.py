@@ -1,5 +1,13 @@
 from datetime import datetime
 import re
+import json
+import os
+import pickle
+import platform
+import subprocess
+import sys
+import io
+from contextlib import contextmanager
 import difflib
 import demjson3 as demjson
 import pytz
@@ -135,8 +143,7 @@ def get_local_time(timezone=None):
         local_time = datetime.now().astimezone()
 
         # You may format it as you desire, including AM/PM
-        formatted_time = local_time.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
-        print("formatted_time", formatted_time)
+        time_str = local_time.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
 
     return time_str.strip()
 

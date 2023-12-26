@@ -73,8 +73,6 @@ class StorageConnector:
         else:
             self.filters = {}
 
-        print("FILTERS", self.filters)
-
     def get_filters(self, filters: Optional[Dict] = {}):
         # get all filters for query
         if filters is not None:
@@ -87,19 +85,12 @@ class StorageConnector:
 
         if agent_config is not None:
             # Table names for agent-specific tables
-            if agent_config.memgpt_version < "0.2.6":
-                # if agent is prior version, use old table name
-                if table_type == TableType.ARCHIVAL_MEMORY:
-                    return f"memgpt_agent_{self.sanitize_table_name(agent_config.name)}"
-                else:
-                    raise ValueError(f"Table type {table_type} not implemented")
+            if table_type == TableType.ARCHIVAL_MEMORY:
+                return ARCHIVAL_TABLE_NAME
+            elif table_type == TableType.RECALL_MEMORY:
+                return RECALL_TABLE_NAME
             else:
-                if table_type == TableType.ARCHIVAL_MEMORY:
-                    return ARCHIVAL_TABLE_NAME
-                elif table_type == TableType.RECALL_MEMORY:
-                    return RECALL_TABLE_NAME
-                else:
-                    raise ValueError(f"Table type {table_type} not implemented")
+                raise ValueError(f"Table type {table_type} not implemented")
         else:
             # table names for non-agent specific tables
             if table_type == TableType.PASSAGES:
@@ -132,10 +123,12 @@ class StorageConnector:
             from memgpt.connectors.chroma import ChromaStorageConnector
 
             return ChromaStorageConnector(agent_config=agent_config, table_type=table_type)
-        elif storage_type == "lancedb":
-            from memgpt.connectors.db import LanceDBConnector
 
-            return LanceDBConnector(agent_config=agent_config, table_type=table_type)
+        # TODO: add back
+        # elif storage_type == "lancedb":
+        #    from memgpt.connectors.db import LanceDBConnector
+
+        #    return LanceDBConnector(agent_config=agent_config, table_type=table_type)
 
         elif storage_type == "local":
             from memgpt.connectors.local import InMemoryStorageConnector

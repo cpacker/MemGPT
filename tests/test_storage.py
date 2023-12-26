@@ -9,10 +9,7 @@ import pytest
 # )  # , "psycopg_binary"])  # "psycopg", "libpq-dev"])
 #
 # subprocess.check_call([sys.executable, "-m", "pip", "install", "lancedb"])
-import pgvector  # Try to import again after installing
 from memgpt.connectors.storage import StorageConnector, TableType
-from memgpt.connectors.chroma import ChromaStorageConnector
-from memgpt.connectors.db import SQLStorageConnector, LanceDBConnector
 from memgpt.embeddings import embedding_model
 from memgpt.data_types import Message, Passage
 from memgpt.config import MemGPTConfig, AgentConfig
@@ -72,6 +69,7 @@ def test_storage(storage_connector, table_type):
         config.archival_storage_type = "postgres"
         config.recall_storage_type = "postgres"
     if storage_connector == "lancedb":
+        # TODO: complete lancedb implementation
         if not os.getenv("LANCEDB_TEST_URL"):
             print("Skipping test, missing LanceDB URI")
             return
