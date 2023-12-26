@@ -38,6 +38,14 @@ class AgentInterface(ABC):
         """MemGPT calls a function"""
         raise NotImplementedError
 
+    @abstractmethod
+    def step_yield(self):
+        """
+        TODO: may not be appropriate for this abstraction, but server calls this method
+        TODO  and will break unless an interface implements it.
+        """
+        raise NotImplementedError
+
 
 class CLIInterface(AgentInterface):
     """Basic interface for dumping agent events to the command-line"""
@@ -199,6 +207,10 @@ class CLIInterface(AgentInterface):
             except Exception:
                 print(f"{CLI_WARNING_PREFIX}did not recognize function message {type(msg)} {msg}")
                 printd_function_message("", msg)
+
+    @staticmethod
+    def step_yield():
+        pass
 
     @staticmethod
     def print_messages(message_sequence, dump=False):
