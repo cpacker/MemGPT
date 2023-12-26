@@ -12,7 +12,7 @@ import memgpt.presets.presets as presets
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.cli.cli import attach
 from memgpt.cli.cli_load import load_directory, load_webpage, load_index, load_database, load_vector_database
-from memgpt.connectors.storage import StorageConnector
+from memgpt.connectors.storage import StorageConnector, TableType
 
 
 def create_memgpt_autogen_agent_from_config(
@@ -240,7 +240,9 @@ class MemGPTAgent(ConversableAgent):
 
     def load_and_attach(self, name: str, type: str, force=False, **kwargs):
         # check if data source already exists
-        if name in StorageConnector.list_loaded_data() and not force:
+        data_sources = StorageConnector.get_metadata_storage_connector(TableType.DATA_SOURCES).get_all()
+        data_sources = [source.name for source in data_sources]
+        if name in data_sources and not force:
             print(f"Data source {name} already exists. Use force=True to overwrite.")
             self.attach(name)
         else:

@@ -24,7 +24,7 @@ import memgpt.constants as constants
 from memgpt.cli.cli import run, attach, version
 from memgpt.cli.cli_config import configure, list, add, delete
 from memgpt.cli.cli_load import app as load_app
-from memgpt.connectors.storage import StorageConnector
+from memgpt.connectors.storage import StorageConnector, TableType
 
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
@@ -61,6 +61,7 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
         print()
 
     multiline_input = False
+    metadata_db = StorageConnector.get_metadata_storage_connector(table_type=TableType.DATA_SOURCES)  # already filters by user
     while True:
         if not skip_next_user_input and (counter > 0 or USER_GOES_FIRST):
             # Ask for user input
@@ -98,7 +99,8 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                     continue
                 elif user_input.lower() == "/attach":
                     # TODO: check if agent already has it
-                    data_source_options = StorageConnector.list_loaded_data()
+
+                    data_source_options = [row.name for row in metadata_db.get_all()]
                     if len(data_source_options) == 0:
                         typer.secho(
                             'No sources available. You must load a souce with "memgpt load ..." before running /attach.',

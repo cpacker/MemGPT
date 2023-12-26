@@ -258,17 +258,6 @@ class SQLStorageConnector(StorageConnector):
         unique_data_sources = session.query(self.db_model.data_source).filter(*self.filters).distinct().all()
         return unique_data_sources
 
-    @staticmethod
-    def list_loaded_data():
-        config = MemGPTConfig.load()
-        engine = create_engine(config.archival_storage_uri)
-        inspector = inspect(engine)
-        tables = inspector.get_table_names()
-        tables = [table for table in tables if table.startswith("memgpt_") and not table.startswith("memgpt_agent_")]
-        start_chars = len("memgpt_")
-        tables = [table[start_chars:] for table in tables]
-        return tables
-
     def query_date(self, start_date, end_date):
         session = self.Session()
         filters = self.get_filters({})

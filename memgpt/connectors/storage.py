@@ -153,34 +153,6 @@ class StorageConnector:
         storage_type = MemGPTConfig.load().metadata_storage_type
         return StorageConnector.get_storage_connector(table_type, storage_type=storage_type)
 
-    @staticmethod
-    def list_loaded_data(storage_type: Optional[str] = None):
-        # TODO: modify this to simply list loaded data from a given user
-        if storage_type is None:
-            storage_type = MemGPTConfig.load().archival_storage_type
-
-            return
-
-        if storage_type == "local":
-            from memgpt.connectors.local import VectorIndexStorageConnector
-
-            # TODO: remove
-            return VectorIndexStorageConnector.list_loaded_data()
-        elif storage_type == "postgres":
-            from memgpt.connectors.db import PostgresStorageConnector
-
-            return PostgresStorageConnector.list_loaded_data()
-        elif storage_type == "chroma":
-            from memgpt.connectors.chroma import ChromaStorageConnector
-
-            return ChromaStorageConnector.list_loaded_data()
-        elif storage_type == "lancedb":
-            from memgpt.connectors.db import LanceDBConnector
-
-            return LanceDBConnector.list_loaded_data()
-        else:
-            raise NotImplementedError(f"Storage type {storage_type} not implemented")
-
     @abstractmethod
     def get_filters(self, filters: Optional[Dict] = {}):
         pass

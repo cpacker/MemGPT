@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 import datetime
-import re
 from typing import Optional, List, Tuple
 
 from memgpt.constants import MESSAGE_SUMMARY_WARNING_FRAC
@@ -8,8 +7,9 @@ from memgpt.utils import get_local_time, printd, count_tokens, validate_date_for
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
 from memgpt.openai_tools import create
 from memgpt.data_types import Message, Passage
+from memgpt.config import MemGPTConfig
+from memgpt.embeddings import embedding_model
 from llama_index import Document
-from llama_index.node_parser import SimpleNodeParser
 from llama_index.node_parser import SimpleNodeParser
 
 
