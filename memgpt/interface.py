@@ -91,7 +91,7 @@ class CLIInterface(AgentInterface):
             fstr = f"{Fore.GREEN}{Style.BRIGHT}{icon} {Fore.GREEN}{{msg}}{Style.RESET_ALL}"
             if STRIP_UI:
                 fstr = f"{icon} {{msg}}"
-            printf(fstr.format(msg=msg)
+            printf(fstr.format(msg=msg))
 
         def printd_user_message(icon, msg):
             return print_user_message(icon, msg)
