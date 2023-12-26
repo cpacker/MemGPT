@@ -139,7 +139,6 @@ class ChromaStorageConnector(StorageConnector):
 
     def insert_many(self, records: List[Record], show_progress=True):
         ids, documents, embeddings, metadatas = self.format_records(records)
-        print("Inserting", ids)
         if not any(embeddings):
             self.collection.add(documents=documents, ids=ids, metadatas=metadatas)
         else:

@@ -47,6 +47,7 @@ def store_docs(name, docs, show_progress=True):
     # compute and record passages
     storage = StorageConnector.get_storage_connector(TableType.PASSAGES, storage_type=config.archival_storage_type)
     embed_model = embedding_model()
+    orig_size = storage.size()
 
     # use llama index to run embeddings code
     service_context = ServiceContext.from_defaults(llm=None, embed_model=embed_model, chunk_size=config.embedding_chunk_size)
@@ -77,6 +78,7 @@ def store_docs(name, docs, show_progress=True):
 
     # insert into storage
     storage.insert_many(passages)
+    assert orig_size + len(passages) == storage.size(), f"Expected {orig_size + len(passages)} passages, got {storage.size()}"
     storage.save()
 
 
