@@ -13,7 +13,7 @@ from enum import Enum
 from llama_index import set_global_service_context
 from llama_index import ServiceContext
 
-from memgpt.memgptlog import logger
+from memgpt.log import logger
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.cli.cli_config import configure
 import memgpt.presets.presets as presets

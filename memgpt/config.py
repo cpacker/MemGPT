@@ -1,6 +1,6 @@
 import logging
 import logging.config
-from memgpt.memgptlog import logger, reload_logger
+from memgpt.log import logger, reload_logger, fix_file_path
 import inspect
 import json
 import os
