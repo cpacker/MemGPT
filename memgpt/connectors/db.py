@@ -191,7 +191,6 @@ class SQLStorageConnector(StorageConnector):
             filter_conditions = {**self.filters, **filters}
         else:
             filter_conditions = self.filters
-        print("SQL FILTERS", filter_conditions)
         return [getattr(self.db_model, key) == value for key, value in filter_conditions.items()]
 
     def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000) -> Iterator[List[Record]]:
@@ -232,7 +231,6 @@ class SQLStorageConnector(StorageConnector):
         # return size of table
         session = self.Session()
         filters = self.get_filters(filters)
-        print("ALL FILTERS", filters)
         return session.query(self.db_model).filter(*filters).count()
 
     def insert(self, record: Record):
@@ -332,33 +330,6 @@ class PostgresStorageConnector(SQLStorageConnector):
         self.engine = create_engine(self.uri)
         Base.metadata.create_all(self.engine)  # Create the table if it doesn't exist
         self.Session = sessionmaker(bind=self.engine)
-        self.Session().execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
-
-    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
-        session = self.Session()
-        filters = self.get_filters(filters)
-        results = session.scalars(
-            select(self.db_model).filter(*filters).order_by(self.db_model.embedding.l2_distance(query_vec)).limit(top_k)
-        ).all()
-
-        # Convert the results into Passage objects
-        records = [result.to_record() for result in results]
-        return records
-
-    def delete(self, filters: Optional[Dict] = {}):
-        session = self.Session()
-        filters = self.get_filters(filters)
-        session.query(self.db_model).filter(*filters).delete()
-        session.commit()
-
-
-class PostgresStorageConnector(SQLStorageConnector):
-    """Storage via Postgres"""
-
-    # TODO: this should probably eventually be moved into a parent DB class
-
-    def __init__(self, table_type: str, agent_config: Optional[AgentConfig] = None):
-        super().__init__(table_type=table_type, agent_config=agent_config)
         self.Session().execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:

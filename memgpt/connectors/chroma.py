@@ -93,11 +93,14 @@ class ChromaStorageConnector(StorageConnector):
                 for (text, id, metadatas) in zip(results["documents"], results["ids"], results["metadatas"])
             ]
 
-    def get_all(self, filters: Optional[Dict] = {}, limit=10) -> List[Record]:
+    def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[Record]:
         ids, filters = self.get_filters(filters)
         if self.collection.count() == 0:
             return []
-        results = self.collection.get(ids=ids, include=self.include, where=filters, limit=limit)
+        if limit:
+            results = self.collection.get(ids=ids, include=self.include, where=filters, limit=limit)
+        else:
+            results = self.collection.get(ids=ids, include=self.include, where=filters)
         return self.results_to_records(results)
 
     def get(self, id: str) -> Optional[Record]:
