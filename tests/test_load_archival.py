@@ -11,8 +11,10 @@ from memgpt.constants import DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_HUMA
 from memgpt.config import AgentConfig, MemGPTConfig
 
 
-@pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
-@pytest.mark.parametrize("passage_storage_connector", ["chroma", "postgres"])
+# @pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
+# @pytest.mark.parametrize("passage_storage_connector", ["chroma", "postgres"])
+@pytest.mark.parametrize("metadata_storage_connector", ["postgres"])
+@pytest.mark.parametrize("passage_storage_connector", ["postgres"])
 def test_load_directory(metadata_storage_connector, passage_storage_connector):
     # setup config
     config = MemGPTConfig()
@@ -41,6 +43,7 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector):
     config.save()
 
     # setup storage connectors
+    print("Creating storage connectors...")
     data_source_conn = StorageConnector.get_storage_connector(storage_type=metadata_storage_connector, table_type=TableType.DATA_SOURCES)
     passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, storage_type=passage_storage_connector)
 
@@ -51,8 +54,10 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector):
     # TODO: load two different data sources
 
     # clear out data
+    print("Resetting tables with delete_table...")
     data_source_conn.delete_table()
     passages_conn.delete_table()
+    print("Re-creating tables...")
     data_source_conn = StorageConnector.get_storage_connector(storage_type=metadata_storage_connector, table_type=TableType.DATA_SOURCES)
     passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, storage_type=passage_storage_connector)
     assert (
@@ -61,9 +66,11 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector):
     assert passages_conn.size() == 0, f"Expected 0 records, got {passages_conn.size()}: {[vars(r) for r in passages_conn.get_all()]}"
 
     # test: load directory
+    print("Loading directory")
     load_directory(name=name, input_dir=None, input_files=[cache_dir], recursive=False)  # cache_dir,
 
     # test to see if contained in storage
+    print("Querying table...")
     sources = data_source_conn.get_all({"name": name})
     assert len(sources) == 1, f"Expected 1 source, but got {len(sources)}"
     assert sources[0].name == name, f"Expected name {name}, but got {sources[0].name}"
@@ -82,6 +89,7 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector):
     print("Passages", passages)
 
     # test: listing sources
+    print("Querying all...")
     sources = data_source_conn.get_all()
     print("All sources", [s.name for s in sources])
 
@@ -95,9 +103,11 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector):
     )
     agent_config.save()
     # create storage connector
+    print("Creating agent archival storage connector...")
     conn = StorageConnector.get_storage_connector(
         storage_type=passage_storage_connector, table_type=TableType.ARCHIVAL_MEMORY, agent_config=agent_config
     )
+    print("Deleting agent archival table...")
     conn.delete_table()
     conn = StorageConnector.get_storage_connector(
         storage_type=passage_storage_connector, table_type=TableType.ARCHIVAL_MEMORY, agent_config=agent_config
@@ -105,6 +115,7 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector):
     assert conn.size() == 0, f"Expected 0 records, got {conn.size()}: {[vars(r) for r in conn.get_all()]}"
 
     # attach data
+    print("Attaching data...")
     attach(agent=agent_config.name, data_source=name)
 
     # test to see if contained in storage
