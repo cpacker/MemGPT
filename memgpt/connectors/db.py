@@ -11,7 +11,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 from sqlalchemy import Column, BIGINT, String, DateTime
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy_json import mutable_json_type
+from sqlalchemy_json import mutable_json_type, MutableJson
 from sqlalchemy import TypeDecorator, CHAR
 import uuid
 
@@ -78,7 +78,8 @@ def get_db_model(table_name: str, table_type: TableType):
             agent_id = Column(String)
             data_source = Column(String)  # agent_name if agent, data_source name if from data source
             embedding = mapped_column(Vector(config.embedding_dim))
-            metadata_ = Column(mutable_json_type(dbtype=JSONB, nested=True))
+            # metadata_ = Column(mutable_json_type(dbtype=JSONB, nested=True)) # more performance, but not supported for sqlite
+            metadata_ = Column(MutableJson)
 
             def __repr__(self):
                 return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
