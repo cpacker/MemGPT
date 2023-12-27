@@ -136,16 +136,14 @@ class ChromaStorageConnector(StorageConnector):
     def insert(self, record: Record):
         ids, documents, embeddings, metadatas = self.format_records([record])
         if not any(embeddings):
-            self.collection.add(documents=documents, ids=ids, metadatas=metadatas)
-        else:
-            self.collection.add(documents=documents, embeddings=embeddings, ids=ids, metadatas=metadatas)
+            raise ValueError("Embeddings must be provided to chroma")
+        self.collection.add(documents=documents, embeddings=embeddings, ids=ids, metadatas=metadatas)
 
     def insert_many(self, records: List[Record], show_progress=True):
         ids, documents, embeddings, metadatas = self.format_records(records)
         if not any(embeddings):
-            self.collection.add(documents=documents, ids=ids, metadatas=metadatas)
-        else:
-            self.collection.add(documents=documents, embeddings=embeddings, ids=ids, metadatas=metadatas)
+            raise ValueError("Embeddings must be provided to chroma")
+        self.collection.add(documents=documents, embeddings=embeddings, ids=ids, metadatas=metadatas)
 
     def delete(self, filters: Optional[Dict] = {}):
         ids, filters = self.get_filters(filters)
@@ -170,7 +168,17 @@ class ChromaStorageConnector(StorageConnector):
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
         ids, filters = self.get_filters(filters)
         results = self.collection.query(query_embeddings=[query_vec], n_results=top_k, include=self.include, where=filters)
-        return self.results_to_records(results)
+
+        # flatten, since we only have one query vector
+        flattened_results = {}
+        for key, value in results.items():
+            if value:
+                flattened_results[key] = value[0]
+                assert len(value) == 1, f"Value is size {len(value)}: {value}"
+            else:
+                flattened_results[key] = value
+
+        return self.results_to_records(flattened_results)
 
     def query_date(self, start_date, end_date, start=None, count=None):
         raise ValueError("Cannot run query_date with chroma")
