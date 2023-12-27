@@ -351,6 +351,8 @@ class EmbeddingArchivalMemory(ArchivalMemory):
                         raise TypeError(
                             f"Got back an unexpected payload from text embedding function, type={type(embedding)}, value={embedding}"
                         )
+                if not isinstance(embedding, list):
+                    raise TypeError(f"Embedding was not a list:\n{embedding}\n{type(embedding)}")
                 passages.append(Passage(text=node.text, embedding=embedding, doc_id=f"agent_{self.agent_config.name}_memory"))
 
             # insert passages
@@ -379,6 +381,8 @@ class EmbeddingArchivalMemory(ArchivalMemory):
                         raise TypeError(
                             f"Got back an unexpected payload from text embedding function, type={type(query_vec)}, value={query_vec}"
                         )
+                if not isinstance(query_vec, list):
+                    raise TypeError(f"Embedding was not a list:\n{query_vec}\n{type(query_vec)}")
                 self.cache[query_string] = self.storage.query(query_string, query_vec, top_k=self.top_k)
 
             start = int(start if start else 0)
