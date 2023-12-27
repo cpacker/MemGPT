@@ -21,16 +21,28 @@ class Client(object):
         self.interface.clear()
         return self.server.list_agents(user_id=self.user_id)
 
+    def agent_exists(self, agent_id: str) -> bool:
+        existing = self.list_agents()
+        return agent_id in existing["agent_names"]
+
     def create_agent(
         self,
         agent_config: Union[Dict, AgentConfig],
         persistence_manager: Union[PersistenceManager, None] = None,
+        throw_if_exists: bool = False
     ) -> str:
-        self.interface.clear()
-        return self.server.create_agent(
-            user_id=self.user_id,
-            agent_config=agent_config,
-            persistence_manager=persistence_manager)
+
+        if not self.agent_exists(agent_id=agent_config.name):
+            self.interface.clear()
+            return self.server.create_agent(
+                user_id=self.user_id,
+                agent_config=agent_config,
+                persistence_manager=persistence_manager)
+
+        if throw_if_exists:
+            raise ValueError(f"Agent {agent_config.name} already exists")
+
+        return agent_config.name
 
     def get_agent_config(self, agent_id: str) -> Dict:
         self.interface.clear()
@@ -56,7 +68,9 @@ class Client(object):
         return self.interface.to_list()
 
     def run_command(self, agent_id: str, command: str) -> Union[str, None]:
+        self.interface.clear()
         return self.server.run_command(user_id=self.user_id, agent_id=agent_id, command=command)
 
     def save(self):
+        self.interface.clear()
         self.server.save_agents()
