@@ -492,8 +492,8 @@ def attach(
 
         # get storage connectors
         with suppress_stdout():
-          source_storage = StorageConnector.get_storage_connector(table_type=TableType.PASSAGES)
-          dest_storage = StorageConnector.get_storage_connector(table_type=TableType.ARCHIVAL_MEMORY, agent_config=agent_config)
+            source_storage = StorageConnector.get_storage_connector(table_type=TableType.PASSAGES)
+            dest_storage = StorageConnector.get_storage_connector(table_type=TableType.ARCHIVAL_MEMORY, agent_config=agent_config)
 
         size = source_storage.size({"data_source": data_source})
         typer.secho(f"Ingesting {size} passages into {agent_config.name}", fg=typer.colors.GREEN)
