@@ -22,8 +22,10 @@ jobs:
     timeout-minutes: 5
 
     steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
     - name: Build and run container
-      uses: actions/checkout@v1
       run: bash db/run_postgres.sh
 
     - name: Set up Python
