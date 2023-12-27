@@ -1467,13 +1467,13 @@ tests = ["pandas (>=1.4)", "pytest", "pytest-asyncio", "pytest-mock", "requests"
 
 [[package]]
 name = "llama-index"
-version = "0.9.21"
+version = "0.9.22"
 description = "Interface between LLMs and your data"
 optional = false
 python-versions = ">=3.8.1,<4.0"
 files = [
-    {file = "llama_index-0.9.21-py3-none-any.whl", hash = "sha256:47ed058335d884a8df962ed5e6fb5e9dd2026cea5ae8bdec38018c5bb16a75f5"},
-    {file = "llama_index-0.9.21.tar.gz", hash = "sha256:1f35daac7a03db6e3c1131f701dd2c49747a6532a4c6fcbb517440d23644b228"},
+    {file = "llama_index-0.9.22-py3-none-any.whl", hash = "sha256:8731b2137decfae9f56a2837f3791d8e4ce434a9ec9d6d74d6dafb2d736f05f7"},
+    {file = "llama_index-0.9.22.tar.gz", hash = "sha256:7eecb62106398f9c5b1c04e79fee82a1004c26387055335c23a8f33833c8afff"},
 ]
 
 [package.dependencies]
@@ -4951,4 +4951,4 @@ server = ["fastapi", "uvicorn", "websockets"]
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.12,>=3.9"
-content-hash = "2954bd63d3c8ea9426851bcc58426eaf26a2969556496fe0001b8a1b2f4956f1"
+content-hash = "14572f88d6ea81f099fb1f09ae034c7691dbd53dd03dd67163cb45faa848cd54"
