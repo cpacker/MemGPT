@@ -125,6 +125,65 @@ poetry install
 ```
 </details>
 
+## Python Integration
+
+The fastest way to integrate MemGPT with your own projects is through the `Client` class. 
+
+1. Follow the instructions for **Running MemGPT locally** to ensure you have MemGPT installed and configured.
+2. Import `Client` class from `memgpt.client.client` and use it to manage agents and send messages.
+
+<details>
+ <summary>
+  <strong>Example of MemGPT Client</strong>
+ </summary>
+
+```python
+from memgpt.config import AgentConfig
+from memgpt.client.client import Client
+from memgpt import constants
+
+# Create an AgentConfig with default persona and human txt
+agent_config = AgentConfig(
+    name="GitCoder",
+    persona=constants.DEFAULT_PERSONA,
+    human=constants.DEFAULT_HUMAN,
+    preset="memgpt_chat",
+    model="gpt-4",
+    model_endpoint_type="openai",
+    model_endpoint="https://api.openai.com/v1",
+    context_window=8192,
+)
+
+# When auto_save is 'True' then the agent(s) will be saved after every
+# user message.  This may have performance implications, so you
+# can otherwise choose when to save explicitly using client.save().
+client = Client(auto_save=True)
+
+# Create the agent according to AgentConfig we set up. If an agent with
+# the same name already exists it will simply return, unless you set
+# throw_if_exists to 'True'
+agent_name = client.create_agent(agent_config=agent_config)
+
+
+# Create a helper that sends a message and prints the assistant response only
+def send_message(message: str):
+    """
+    sends a message and prints the assistant output only.
+    :param message: the message to send
+    """
+    response = client.user_message(agent_id=agent_name, message=message)
+    for r in response:
+        if "assistant_message" in r:
+            print("ASSISTANT:", r["assistant_message"])
+
+
+# Send a message and see the response
+send_message("Hello my name is GitCoder and I enjoy open source development!")
+```
+
+</details>
+
+
 ## Support
 For issues and feature requests, please [open a GitHub issue](https://github.com/cpacker/MemGPT/issues) or message us on our `#support` channel on [Discord](https://discord.gg/9GEQrxmVyE).
 
