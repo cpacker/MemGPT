@@ -457,7 +457,14 @@ class Agent(object):
             try:
                 function_args["self"] = self  # need to attach self to arg since it's dynamically linked
                 function_response = function_to_call(**function_args)
-                function_response_string = validate_function_response(function_response)
+                if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search"]:
+                    # with certain functions we rely on the paging mechanism to handle overflow
+                    truncate = False
+                else:
+                    # but by default, we add a truncation safeguard to prevent bad functions from
+                    # overflow the agent context window
+                    truncate = True
+                function_response_string = validate_function_response(function_response, truncate=truncate)
                 function_args.pop("self", None)
                 function_response = package_function_response(True, function_response_string)
                 function_failed = False
