@@ -100,6 +100,7 @@ def test_storage(storage_connector, table_type):
         config.embedding_endpoint = None
         config.embedding_dim = 384
     config.save()
+    embed_model = embedding_model()
 
     # create agent
     agent_config = AgentConfig(
@@ -168,11 +169,12 @@ def test_storage(storage_connector, table_type):
         assert conn.size(filters={"role": "user"}) == 1, f"Expected 1 record, got {conn.size(filters={'role': 'user'})}"
 
     # test: query (vector)
-    if embed_model:
+    if table_type == TableType.ARCHIVAL_MEMORY:
         query = "why was she crying"
         query_vec = embed_model.get_text_embedding(query)
         res = conn.query(None, query_vec, top_k=2)
         assert len(res) == 2, f"Expected 2 results, got {len(res)}"
+        print("Archival memory results", res)
         assert "wept" in res[0].text, f"Expected 'wept' in results, but got {res[0].text}"
 
     # test optional query functions for recall memory

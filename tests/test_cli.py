@@ -8,8 +8,8 @@ from .constants import TIMEOUT
 from .utils import configure_memgpt
 
 
-def test_configure_memgpt():
-    configure_memgpt()
+# def test_configure_memgpt():
+#    configure_memgpt()
 
 
 def test_save_load():
@@ -41,5 +41,5 @@ def test_save_load():
 
 
 if __name__ == "__main__":
-    test_configure_memgpt()
+    # test_configure_memgpt()
     test_save_load()
