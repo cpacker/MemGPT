@@ -22,7 +22,7 @@ import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.constants as constants
 import memgpt.errors as errors
-from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart
+from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, suppress_stdout
 from memgpt.cli.cli_config import configure, list, add
 from memgpt.cli.cli_load import app as load_app
 from memgpt.connectors.storage import StorageConnector
@@ -119,9 +119,10 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
 
                     # reload agent with new data source
                     # TODO: maybe make this less ugly...
-                    memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_storage_connector(
-                        agent_config=memgpt_agent.config
-                    )
+                    with suppress_stdout():
+                        memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_storage_connector(
+                            agent_config=memgpt_agent.config
+                        )
                     continue
 
                 elif user_input.lower() == "/dump" or user_input.lower().startswith("/dump "):
