@@ -19,7 +19,7 @@ jobs:
       PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
     - name: Checkout
