@@ -16,12 +16,15 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+      PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     timeout-minutes: 5
 
     steps:
+    - name: Build and run container
+      run: bash db/run_postgres.sh
+
     - uses: actions/checkout@v1
 
     - name: Set up Python
