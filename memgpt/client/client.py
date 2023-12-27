@@ -7,7 +7,6 @@ from memgpt.server.server import SyncServer
 
 
 class Client(object):
-
     def __init__(
         self,
         auto_save: bool = False,
@@ -29,15 +28,11 @@ class Client(object):
         self,
         agent_config: Union[Dict, AgentConfig],
         persistence_manager: Union[PersistenceManager, None] = None,
-        throw_if_exists: bool = False
+        throw_if_exists: bool = False,
     ) -> str:
-
         if not self.agent_exists(agent_id=agent_config.name):
             self.interface.clear()
-            return self.server.create_agent(
-                user_id=self.user_id,
-                agent_config=agent_config,
-                persistence_manager=persistence_manager)
+            return self.server.create_agent(user_id=self.user_id, agent_config=agent_config, persistence_manager=persistence_manager)
 
         if throw_if_exists:
             raise ValueError(f"Agent {agent_config.name} already exists")
@@ -54,11 +49,7 @@ class Client(object):
 
     def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Dict:
         self.interface.clear()
-        return self.server.update_agent_core_memory(
-            user_id=self.user_id,
-            agent_id=agent_id,
-            new_memory_contents=new_memory_contents
-        )
+        return self.server.update_agent_core_memory(user_id=self.user_id, agent_id=agent_id, new_memory_contents=new_memory_contents)
 
     def user_message(self, agent_id: str, message: str) -> List[Dict]:
         self.interface.clear()
