@@ -17,7 +17,7 @@ from memgpt.interface import CLIInterface as interface  # for printing to termin
 from memgpt.cli.cli_config import configure
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
-from memgpt.utils import printd, open_folder_in_explorer
+from memgpt.utils import printd, open_folder_in_explorer, suppress_stdout
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
@@ -73,6 +73,9 @@ def quickstart(
     logging.getLogger().setLevel(logging.CRITICAL)
     if debug:
         logging.getLogger().setLevel(logging.DEBUG)
+
+    # make sure everything is set up properly
+    MemGPTConfig.create_config_dir()
 
     config_was_modified = False
     if backend == QuickstartChoice.memgpt_hosted:
@@ -296,6 +299,7 @@ def run(
                 "openai": "Use OpenAI (requires an OpenAI API key)",
                 "other": "Other (OpenAI Azure, custom LLM endpoint, etc)",
             }
+            print()
             config_selection = questionary.select(
                 "How would you like to set up MemGPT?",
                 choices=list(config_choices.values()),
@@ -303,14 +307,12 @@ def run(
             ).ask()
 
             if config_selection == config_choices["memgpt"]:
-                MemGPTConfig.create_config_dir()
+                print()
                 quickstart(backend=QuickstartChoice.memgpt_hosted, debug=debug, terminal=False, latest=False)
             elif config_selection == config_choices["openai"]:
-                MemGPTConfig.create_config_dir()
+                print()
                 quickstart(backend=QuickstartChoice.openai, debug=debug, terminal=False, latest=False)
             elif config_selection == config_choices["other"]:
-                # create_config_dir() is run inside configure()
-                # MemGPTConfig.create_config_dir()
                 configure()
             else:
                 raise ValueError(config_selection)
@@ -337,6 +339,7 @@ def run(
         agents = [AgentConfig.load(f).name for f in agent_files]
 
         if len(agents) > 0 and not any([persona, human, model]):
+            print()
             select_agent = questionary.confirm("Would you like to select an existing agent?").ask()
             if select_agent:
                 agent = questionary.select("Select agent:", choices=agents).ask()
@@ -352,7 +355,7 @@ def run(
 
     # create agent config
     if agent and AgentConfig.exists(agent):  # use existing agent
-        typer.secho(f"Using existing agent {agent}", fg=typer.colors.GREEN)
+        typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
         agent_config = AgentConfig.load(agent)
         printd("State path:", agent_config.save_state_dir())
         printd("Persistent manager path:", agent_config.save_persistence_manager_dir())
@@ -400,11 +403,14 @@ def run(
         # Update the agent config with any overrides
         agent_config.save()
 
-        # load existing agent
-        memgpt_agent = Agent.load_agent(interface, agent_config)
+        # Supress llama-index noise
+        with suppress_stdout():
+            # load existing agent
+            memgpt_agent = Agent.load_agent(interface, agent_config)
+
     else:  # create new agent
         # create new agent config: override defaults with args if provided
-        typer.secho("Creating new agent...", fg=typer.colors.GREEN)
+        typer.secho("\n🧬 Creating new agent...", fg=typer.colors.WHITE)
         agent_config = AgentConfig(
             name=agent,
             persona=persona,
@@ -417,23 +423,31 @@ def run(
             context_window=context_window,
         )
 
-        # TODO: allow configrable state manager (only local is supported right now)
-        persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
-
         # save new agent config
         agent_config.save()
-        typer.secho(f"Created new agent {agent_config.name}.", fg=typer.colors.GREEN)
+        typer.secho(f"->  🤖 Using persona profile '{agent_config.persona}'", fg=typer.colors.WHITE)
+        typer.secho(f"->  🧑 Using human profile '{agent_config.human}'", fg=typer.colors.WHITE)
+
+        # Supress llama-index noise
+        with suppress_stdout():
+            # TODO: allow configrable state manager (only local is supported right now)
+            persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
 
         # create agent
-        memgpt_agent = presets.use_preset(
-            agent_config.preset,
-            agent_config,
-            agent_config.model,
-            utils.get_persona_text(agent_config.persona),
-            utils.get_human_text(agent_config.human),
-            interface,
-            persistence_manager,
-        )
+        try:
+            memgpt_agent = presets.use_preset(
+                agent_config.preset,
+                agent_config,
+                agent_config.model,
+                utils.get_persona_text(agent_config.persona),
+                utils.get_human_text(agent_config.human),
+                interface,
+                persistence_manager,
+            )
+        except ValueError as e:
+            typer.secho(f"Failed to create agent from provided information:\n{e}", fg=typer.colors.RED)
+            sys.exit(1)
+        typer.secho(f"🎉 Created new agent '{agent_config.name}'", fg=typer.colors.GREEN)
 
     # pretty print agent config
     printd(json.dumps(vars(agent_config), indent=4, sort_keys=True))
@@ -441,6 +455,7 @@ def run(
     # start event loop
     from memgpt.main import run_agent_loop
 
+    print()  # extra space
     run_agent_loop(memgpt_agent, first, no_verify, config)  # TODO: add back no_verify
 
 
@@ -456,8 +471,9 @@ def attach(
         agent_config = AgentConfig.load(agent)
 
         # get storage connectors
-        source_storage = StorageConnector.get_storage_connector(name=data_source)
-        dest_storage = StorageConnector.get_storage_connector(agent_config=agent_config)
+        with suppress_stdout():
+            source_storage = StorageConnector.get_storage_connector(name=data_source)
+            dest_storage = StorageConnector.get_storage_connector(agent_config=agent_config)
 
         size = source_storage.size()
         typer.secho(f"Ingesting {size} passages into {agent_config.name}", fg=typer.colors.GREEN)
@@ -478,7 +494,7 @@ def attach(
             fg=typer.colors.GREEN,
         )
     except KeyboardInterrupt:
-        typer.secho(" Operation interrupted by KeyboardInterrupt.", fg=typer.colors.YELLOW)
+        typer.secho("Operation interrupted by KeyboardInterrupt.", fg=typer.colors.YELLOW)
 
 
 def version():

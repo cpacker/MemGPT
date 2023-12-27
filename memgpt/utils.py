@@ -4,7 +4,9 @@ import os
 import pickle
 import platform
 import subprocess
-
+import sys
+import io
+from contextlib import contextmanager
 
 import difflib
 import demjson3 as demjson
@@ -12,13 +14,31 @@ import pytz
 import tiktoken
 
 import memgpt
-from memgpt.constants import MEMGPT_DIR, FUNCTION_RETURN_CHAR_LIMIT, CLI_WARNING_PREFIX
+from memgpt.constants import (
+    MEMGPT_DIR,
+    FUNCTION_RETURN_CHAR_LIMIT,
+    CLI_WARNING_PREFIX,
+    CORE_MEMORY_HUMAN_CHAR_LIMIT,
+    CORE_MEMORY_PERSONA_CHAR_LIMIT,
+)
 
 from memgpt.openai_backcompat.openai_object import OpenAIObject
 
 # TODO: what is this?
 # DEBUG = True
 DEBUG = False
+
+
+@contextmanager
+def suppress_stdout():
+    """Used to temporarily stop stdout (eg for the 'MockLLM' message)"""
+    new_stdout = io.StringIO()
+    old_stdout = sys.stdout
+    sys.stdout = new_stdout
+    try:
+        yield
+    finally:
+        sys.stdout = old_stdout
 
 
 def open_folder_in_explorer(folder_path):
@@ -130,7 +150,7 @@ def parse_json(string):
         raise e
 
 
-def validate_function_response(function_response_string: any, strict: bool = False) -> str:
+def validate_function_response(function_response_string: any, strict: bool = False, truncate: bool = True) -> str:
     """Check to make sure that a function used by MemGPT returned a valid response
 
     Responses need to be strings (or None) that fall under a certain text count limit.
@@ -167,7 +187,7 @@ def validate_function_response(function_response_string: any, strict: bool = Fal
 
     # Now check the length and make sure it doesn't go over the limit
     # TODO we should change this to a max token limit that's variable based on tokens remaining (or context-window)
-    if len(function_response_string) > FUNCTION_RETURN_CHAR_LIMIT:
+    if truncate and len(function_response_string) > FUNCTION_RETURN_CHAR_LIMIT:
         print(
             f"{CLI_WARNING_PREFIX}function return was over limit ({len(function_response_string)} > {FUNCTION_RETURN_CHAR_LIMIT}) and was truncated"
         )
@@ -223,21 +243,30 @@ def list_persona_files():
     return memgpt_defaults + user_added
 
 
-def get_human_text(name: str):
+def get_human_text(name: str, enforce_limit=True):
     for file_path in list_human_files():
         file = os.path.basename(file_path)
         if f"{name}.txt" == file or name == file:
-            return open(file_path, "r").read().strip()
-    raise ValueError(f"Human {name} not found")
+            human_text = open(file_path, "r").read().strip()
+            if enforce_limit and len(human_text) > CORE_MEMORY_HUMAN_CHAR_LIMIT:
+                raise ValueError(f"Contents of {name}.txt is over the character limit ({len(human_text)} > {CORE_MEMORY_HUMAN_CHAR_LIMIT})")
+            return human_text
+
+    raise ValueError(f"Human {name}.txt not found")
 
 
-def get_persona_text(name: str):
+def get_persona_text(name: str, enforce_limit=True):
     for file_path in list_persona_files():
         file = os.path.basename(file_path)
         if f"{name}.txt" == file or name == file:
-            return open(file_path, "r").read().strip()
+            persona_text = open(file_path, "r").read().strip()
+            if enforce_limit and len(persona_text) > CORE_MEMORY_PERSONA_CHAR_LIMIT:
+                raise ValueError(
+                    f"Contents of {name}.txt is over the character limit ({len(persona_text)} > {CORE_MEMORY_PERSONA_CHAR_LIMIT})"
+                )
+            return persona_text
 
-    raise ValueError(f"Persona {name} not found")
+    raise ValueError(f"Persona {name}.txt not found")
 
 
 def get_human_text(name: str):
