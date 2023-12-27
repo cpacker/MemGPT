@@ -21,7 +21,8 @@ from memgpt.interface import CLIInterface as interface  # for printing to termin
 import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.constants as constants
-from memgpt.cli.cli import run, attach, version
+import memgpt.errors as errors
+from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, suppress_stdout
 from memgpt.cli.cli_config import configure, list, add, delete
 from memgpt.cli.cli_load import app as load_app
 from memgpt.connectors.storage import StorageConnector, TableType
@@ -118,9 +119,10 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
 
                     # reload agent with new data source
                     # TODO: maybe make this less ugly...
-                    memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_archival_storage_connector(
-                        agent_config=memgpt_agent.config
-                    )
+                    with suppress_stdout():
+                        memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_archival_storage_connector(
+                            agent_config=memgpt_agent.config
+                        )
                     # TODO: update metadata_db to record attached agents
                     continue
 
