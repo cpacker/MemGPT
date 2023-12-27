@@ -63,5 +63,4 @@ class Client(object):
         return self.server.run_command(user_id=self.user_id, agent_id=agent_id, command=command)
 
     def save(self):
-        self.interface.clear()
         self.server.save_agents()

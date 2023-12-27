@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import Union, Callable
 import json
+import logging
 from threading import Lock
 from functools import wraps
 from fastapi import HTTPException
@@ -20,6 +21,8 @@ from memgpt.persistence_manager import PersistenceManager, LocalStateManager
 # TODO use custom interface
 from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.interface import AgentInterface  # abstract
+
+logger = logging.getLogger(__name__)
 
 
 class Server(object):
@@ -85,25 +88,25 @@ class LockingServer(Server):
     def agent_lock_decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(self, user_id: str, agent_id: str, *args, **kwargs):
-            # print("Locking check")
+            # logger.info("Locking check")
 
             # Initialize the lock for the agent_id if it doesn't exist
             if agent_id not in self._agent_locks:
-                # print(f"Creating lock for agent_id = {agent_id}")
+                # logger.info(f"Creating lock for agent_id = {agent_id}")
                 self._agent_locks[agent_id] = Lock()
 
             # Check if the agent is currently locked
             if not self._agent_locks[agent_id].acquire(blocking=False):
-                # print(f"agent_id = {agent_id} is busy")
+                # logger.info(f"agent_id = {agent_id} is busy")
                 raise HTTPException(status_code=423, detail=f"Agent '{agent_id}' is currently busy.")
 
             try:
                 # Execute the function
-                # print(f"running function on agent_id = {agent_id}")
+                # logger.info(f"running function on agent_id = {agent_id}")
                 return func(self, user_id, agent_id, *args, **kwargs)
             finally:
                 # Release the lock
-                # print(f"releasing lock on agent_id = {agent_id}")
+                # logger.info(f"releasing lock on agent_id = {agent_id}")
                 self._agent_locks[agent_id].release()
 
         return wrapper
@@ -152,9 +155,9 @@ class SyncServer(LockingServer):
         for agent_d in self.active_agents:
             try:
                 agent_d["agent"].save()
-                print(f"Saved agent {agent_d['agent_id']}")
+                logger.info(f"Saved agent {agent_d['agent_id']}")
             except Exception as e:
-                print(f"Error occured while trying to save agent {agent_d['agent_id']}:\n{e}")
+                logger.exception(f"Error occurred while trying to save agent {agent_d['agent_id']}")
 
     def _get_agent(self, user_id: str, agent_id: str) -> Union[Agent, None]:
         """Get the agent object from the in-memory object store"""
@@ -179,7 +182,6 @@ class SyncServer(LockingServer):
 
     def _load_agent(self, user_id: str, agent_id: str, interface: Union[AgentInterface, None] = None) -> Agent:
         """Loads a saved agent into memory (if it doesn't exist, throw an error)"""
-        from memgpt.utils import printd
 
         # If an interface isn't specified, use the default
         if interface is None:
@@ -187,7 +189,7 @@ class SyncServer(LockingServer):
 
         # If the agent isn't load it, load it and put it into memory
         if AgentConfig.exists(agent_id):
-            printd(f"(user={user_id}, agent={agent_id}) exists, loading into memory...")
+            logger.debug(f"(user={user_id}, agent={agent_id}) exists, loading into memory...")
             agent_config = AgentConfig.load(agent_id)
             memgpt_agent = Agent.load_agent(interface=interface, agent_config=agent_config)
             self._add_agent(user_id=user_id, agent_id=agent_id, agent_obj=memgpt_agent)
@@ -206,16 +208,15 @@ class SyncServer(LockingServer):
 
     def _step(self, user_id: str, agent_id: str, input_message: str) -> None:
         """Send the input message through the agent"""
-        from memgpt.utils import printd
 
-        printd(f"Got input message: {input_message}")
+        logger.debug(f"Got input message: {input_message}")
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
         if memgpt_agent is None:
             raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
 
-        printd(f"Starting agent step")
+        logger.debug(f"Starting agent step")
         no_verify = True
         next_input_message = input_message
         counter = 0
@@ -227,10 +228,10 @@ class SyncServer(LockingServer):
 
             # Chain stops
             if not self.chaining:
-                printd("No chaining, stopping after one step")
+                logger.debug("No chaining, stopping after one step")
                 break
             elif self.max_chaining_steps is not None and counter > self.max_chaining_steps:
-                printd(f"Hit max chaining steps, stopping after {counter} steps")
+                logger.debug(f"Hit max chaining steps, stopping after {counter} steps")
                 break
             # Chain handlers
             elif token_warning:
@@ -247,13 +248,12 @@ class SyncServer(LockingServer):
                 break
 
         memgpt_agent.interface.step_yield()
-        printd(f"Finished agent step")
+        logger.debug(f"Finished agent step")
 
     def _command(self, user_id: str, agent_id: str, command: str) -> Union[str, None]:
         """Process a CLI command"""
-        from memgpt.utils import printd
 
-        printd(f"Got command: {command}")
+        logger.debug(f"Got command: {command}")
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
@@ -320,17 +320,17 @@ class SyncServer(LockingServer):
             n_messages = len(memgpt_agent.messages)
             MIN_MESSAGES = 2
             if n_messages <= MIN_MESSAGES:
-                print(f"Agent only has {n_messages} messages in stack, none left to pop")
+                logger.info(f"Agent only has {n_messages} messages in stack, none left to pop")
             elif n_messages - pop_amount < MIN_MESSAGES:
-                print(f"Agent only has {n_messages} messages in stack, cannot pop more than {n_messages - MIN_MESSAGES}")
+                logger.info(f"Agent only has {n_messages} messages in stack, cannot pop more than {n_messages - MIN_MESSAGES}")
             else:
-                print(f"Popping last {pop_amount} messages from stack")
+                logger.info(f"Popping last {pop_amount} messages from stack")
                 for _ in range(min(pop_amount, len(memgpt_agent.messages))):
                     memgpt_agent.messages.pop()
 
         elif command.lower() == "retry":
             # TODO this needs to also modify the persistence manager
-            print(f"Retrying for another answer")
+            logger.info(f"Retrying for another answer")
             while len(memgpt_agent.messages) > 0:
                 if memgpt_agent.messages[-1].get("role") == "user":
                     # we want to pop up to the last user message and send it again
@@ -342,7 +342,7 @@ class SyncServer(LockingServer):
         elif command.lower() == "rethink" or command.lower().startswith("rethink "):
             # TODO this needs to also modify the persistence manager
             if len(command) < len("rethink "):
-                print("Missing text after the command")
+                logger.warning("Missing text after the command")
             else:
                 for x in range(len(memgpt_agent.messages) - 1, 0, -1):
                     if memgpt_agent.messages[x].get("role") == "assistant":
@@ -353,7 +353,7 @@ class SyncServer(LockingServer):
         elif command.lower() == "rewrite" or command.lower().startswith("rewrite "):
             # TODO this needs to also modify the persistence manager
             if len(command) < len("rewrite "):
-                print("Missing text after the command")
+                logger.warning("Missing text after the command")
             else:
                 for x in range(len(memgpt_agent.messages) - 1, 0, -1):
                     if memgpt_agent.messages[x].get("role") == "assistant":
@@ -379,7 +379,6 @@ class SyncServer(LockingServer):
     @LockingServer.agent_lock_decorator
     def user_message(self, user_id: str, agent_id: str, message: str) -> None:
         """Process an incoming user message and feed it through the MemGPT agent"""
-        from memgpt.utils import printd
 
         # Basic input sanitization
         if not isinstance(message, str) or len(message) == 0:
@@ -436,7 +435,7 @@ class SyncServer(LockingServer):
             persistence_manager,
         )
         agent.save()
-        print(f"Created new agent from config: {agent}")
+        logger.info(f"Created new agent from config: {agent}")
 
         return agent.config.name
 
