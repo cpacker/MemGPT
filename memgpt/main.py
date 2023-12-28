@@ -210,12 +210,26 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                     if user_input.lower() == "/reload functions":
                         memgpt_agent.reload_functions()
                         memgpt_agent.save()
+                        typer.secho(
+                            f"/reload functions succeeded",
+                            fg=typer.colors.GREEN,
+                            bold=True,
+                        )
                         
                     elif user_input.lower() == "/reload system_prompt":
                         memgpt_agent.reload_system_prompt()
                         memgpt_agent.save()
+                        typer.secho(
+                            f"/reload system_prompt succeeded",
+                            fg=typer.colors.GREEN,
+                            bold=True,
+                        )
                     else:
-                        print("Invalid reload command: Valid options are 'system_prompt' and 'functions'")
+                        typer.secho(
+                            "Invalid reload command: Valid options are 'system_prompt' and 'functions'",
+                            fg=typer.colors.RED,
+                            bold=True,
+                        )
 
                 elif user_input.lower() == "/summarize":
                     try:
