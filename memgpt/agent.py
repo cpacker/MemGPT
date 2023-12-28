@@ -311,9 +311,6 @@ class Agent(object):
         available_functions = load_all_function_sets()
         linked_function_set = {}
 
-        # load from preset_functions rather than state["functions"], add logging if the list is not the same, 
-        # something like "loaded new function, agent might need additional instruction to use effectively"
-
         for f_schema in state["functions"]:
             # Attempt to find the function in the existing function library
             f_name = f_schema.get("name")
@@ -780,7 +777,7 @@ class Agent(object):
         # Check if it's been more than pause_heartbeats_minutes since pause_heartbeats_start
         elapsed_time = datetime.datetime.now() - self.pause_heartbeats_start
         return elapsed_time.total_seconds() < self.pause_heartbeats_minutes * 60
-    
+
     def reload_functions(self):
         """Resets the functions functions available to the agent to those currently configured in the agent's preset"""
         preset_function_names = load_all_presets()[self.config.preset]['functions']
@@ -801,8 +798,7 @@ class Agent(object):
                 printd(f"Removing functions: {removed_functions}")
             if len(changed_schema_functions) > 0:
                 printd(f"Changing schema for functions: {changed_schema_functions}")
-                
-        
+
         self.functions = new_functions_schema
         self.functions_python = {f_name: f_dict["python_function"] for f_name, f_dict in new_functions.items()}
         
