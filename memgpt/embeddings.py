@@ -51,7 +51,22 @@ class EmbeddingEndpoint(BaseEmbedding):
                 timeout=self._timeout,
             )
 
-        return response.json()
+        response_json = response.json()
+
+        if isinstance(response_json, list):
+            # embedding directly in response
+            embedding = response_json
+        elif isinstance(response_json, dict):
+            # TEI embedding packaged inside openai-style response
+            try:
+                embedding = response_json["data"][0]["embedding"]
+            except (KeyError, IndexError):
+                raise TypeError(f"Got back an unexpected payload from text embedding function, response=\n{response_json}")
+        else:
+            # unknown response, can't parse
+            raise TypeError(f"Got back an unexpected payload from text embedding function, response=\n{response_json}")
+
+        return embedding
 
     async def _acall_api(self, text: str) -> List[float]:
         import httpx
@@ -66,8 +81,22 @@ class EmbeddingEndpoint(BaseEmbedding):
                 json=json_data,
                 timeout=self._timeout,
             )
+        response_json = response.json()
 
-        return response.json()
+        if isinstance(response_json, list):
+            # embedding directly in response
+            embedding = response_json
+        elif isinstance(response_json, dict):
+            # TEI embedding packaged inside openai-style response
+            try:
+                embedding = response_json["data"][0]["embedding"]
+            except (KeyError, IndexError):
+                raise TypeError(f"Got back an unexpected payload from text embedding function, response=\n{response_json}")
+        else:
+            # unknown response, can't parse
+            raise TypeError(f"Got back an unexpected payload from text embedding function, response=\n{response_json}")
+
+        return embedding
 
     def _get_query_embedding(self, query: str) -> list[float]:
         """get query embedding."""

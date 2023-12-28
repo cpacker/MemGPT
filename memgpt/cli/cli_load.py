@@ -45,18 +45,6 @@ def store_docs(name, docs, show_progress=True):
     passages = []
     for node_id, node in tqdm(node_dict.items()):
         vector = embed_dict[node_id]
-
-        # fixing weird bug where type returned isn't a list, but instead is an object
-        # eg: embedding={'object': 'list', 'data': [{'object': 'embedding', 'embedding': [-0.0071973633, -0.07893023,
-        if isinstance(vector, dict):
-            try:
-                vector = vector["data"][0]["embedding"]
-            except (KeyError, IndexError):
-                # TODO as a fallback, see if we can find any lists in the payload
-                raise TypeError(f"Got back an unexpected payload from text embedding function, type={type(vector)}, value={vector}")
-        if not isinstance(vector, list):
-            raise TypeError(f"Embedding was not a list:\n{vector}\n{type(vector)}")
-
         node.embedding = vector
         text = node.text.replace("\x00", "\uFFFD")  # hacky fix for error on null characters
         assert (
