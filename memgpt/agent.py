@@ -803,6 +803,7 @@ class Agent(object):
         self.functions_python = {f_name: f_dict["python_function"] for f_name, f_dict in new_functions.items()}
         
     def reload_system_prompt(self):
+        """Sets the system prompt to that currently configured in the agent's preset"""
         preset_system_prompt = load_all_presets()[self.config.preset]["system_prompt"]
         new_system = gpt_system.get_system_text(preset_system_prompt)
         
