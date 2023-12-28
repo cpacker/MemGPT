@@ -14,6 +14,7 @@ import typer
 from memgpt.embeddings import embedding_model
 from memgpt.connectors.storage import StorageConnector, Passage
 from memgpt.config import MemGPTConfig
+from memgpt.utils import suppress_stdout
 
 from llama_index import (
     VectorStoreIndex,
@@ -28,12 +29,14 @@ app = typer.Typer()
 def store_docs(name, docs, show_progress=True):
     """Common function for embedding and storing documents"""
 
-    storage = StorageConnector.get_storage_connector(name=name)
+    with suppress_stdout():
+        storage = StorageConnector.get_storage_connector(name=name)
     config = MemGPTConfig.load()
     embed_model = embedding_model()
 
     # use llama index to run embeddings code
-    service_context = ServiceContext.from_defaults(llm=None, embed_model=embed_model, chunk_size=config.embedding_chunk_size)
+    with suppress_stdout():
+        service_context = ServiceContext.from_defaults(llm=None, embed_model=embed_model, chunk_size=config.embedding_chunk_size)
     index = VectorStoreIndex.from_documents(docs, service_context=service_context, show_progress=True)
     embed_dict = index._vector_store._data.embedding_dict
     node_dict = index._docstore.docs
