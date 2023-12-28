@@ -6,7 +6,7 @@ import traceback
 
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import AgentConfig, MemGPTConfig
-from memgpt.presets.utils import load_preset
+from memgpt.presets.utils import load_all_presets
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from memgpt.memory import CoreMemory as Memory, summarize_messages
 from memgpt.openai_tools import create, is_context_overflow_error
@@ -23,6 +23,7 @@ from memgpt.constants import (
 )
 from .errors import LLMError
 from .functions.functions import load_all_function_sets
+from .prompts import gpt_system
 
 
 def initialize_memory(ai_notes, human_notes):
@@ -309,8 +310,6 @@ class Agent(object):
         # [{'name': ..., 'description': ...}, {...}]
         available_functions = load_all_function_sets()
         linked_function_set = {}
-
-        preset_functions = load_preset(agent_config.preset)["functions"]
 
         # load from preset_functions rather than state["functions"], add logging if the list is not the same, 
         # something like "loaded new function, agent might need additional instruction to use effectively"
@@ -781,7 +780,43 @@ class Agent(object):
         # Check if it's been more than pause_heartbeats_minutes since pause_heartbeats_start
         elapsed_time = datetime.datetime.now() - self.pause_heartbeats_start
         return elapsed_time.total_seconds() < self.pause_heartbeats_minutes * 60
-
+    
+    def reload_functions(self):
+        """Resets the functions functions available to the agent to those currently configured in the agent's preset"""
+        preset_function_names = load_all_presets()[self.config.preset]['functions']
+        new_functions = {f_name: f_dict for f_name, f_dict in load_all_function_sets().items() if f_name in preset_function_names}
+        new_functions_schema = [f_dict["json_schema"] for f_name, f_dict in new_functions.items()]
+        
+        # check to establish what has been changed
+        added_functions = set(new_functions.keys()) - set(self.functions_python.keys())
+        removed_functions = set(self.functions_python.keys()) - set(new_functions.keys())
+        changed_schema_functions = [f_dict['name'] for f_dict in self.functions if f_dict['json_schema'] != new_functions[f_dict['name']]["json_schema"]]
+        
+        if len(added_functions) + len(removed_functions) + len(changed_schema_functions) == 0:
+            printd("No functions added, removed, or have altered schemas. Source code of functions may have changed.")
+        else:
+            if len(added_functions > 0):
+                printd(f"Adding functions: {added_functions}")
+            if len(added_functions) > 0:
+                printd(f"Removing functions: {removed_functions}")
+            if len(changed_schema_functions) > 0:
+                printd(f"Changing schema for functions: {changed_schema_functions}")
+                
+        
+        self.functions = new_functions_schema
+        self.functions_python = {f_name: f_dict["python_function"] for f_name, f_dict in new_functions.items()}
+        
+    def reload_system_prompt(self):
+        preset_system_prompt = load_all_presets()[self.config.preset]["system_prompt"]
+        new_system = gpt_system.get_system_text(preset_system_prompt)
+        
+        if new_system == self.system:
+            printd(f"System prompt unchanged")
+        else:
+            printd(f"System prompt changed, reloading...")
+        
+        self.system = new_system
+        
     def get_ai_reply(
         self,
         message_sequence,
