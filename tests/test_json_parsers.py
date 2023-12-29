@@ -57,6 +57,15 @@ GARBAGEGARBAGEGARBAGEGARBAGE
 GARBAGEGARBAGEGARBAGEGARBAGE
 """
 
+EXAMPLE_ARCHIVAL_SEARCH = """
+
+{
+  "function": "archival_memory_search",
+  "params": {
+    "inner_thoughts": "Looking for WaitingForAction.",
+    "query": "WaitingForAction",
+"""
+
 
 def test_json_parsers():
     """Try various broken JSON and check that the parsers can fix it"""
@@ -67,6 +76,7 @@ def test_json_parsers():
         EXAMPLE_DOUBLE_JSON,
         EXAMPLE_HARD_LINE_FEEDS,
         EXAMPLE_SEND_MESSAGE_PREFIX_OK_REST_BAD,
+        EXAMPLE_ARCHIVAL_SEARCH,
     ]
 
     for string in test_strings:
