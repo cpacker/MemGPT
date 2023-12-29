@@ -1,5 +1,8 @@
+import os
 from typing import Dict, List, Union
 
+from memgpt.cli.cli import QuickstartChoice
+from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func
 from memgpt.config import AgentConfig
 from memgpt.persistence_manager import PersistenceManager
 from memgpt.server.rest_api.interface import QueuingInterface
@@ -9,19 +12,34 @@ from memgpt.server.server import SyncServer
 class Client(object):
     def __init__(
         self,
-        # Utility settings:
         auto_save: bool = False,
-        # Allow running quickstart on a client init
-        # If quickstart type is OpenAI, we should assert that OPENAI_API_KEY is set (or in the config)
-        quickstart: str = "memgpt",
-        # Also allow passing a Config setup that will override the current ~/.memgpt/config
-        # The config gets applied AFTER the quickstart (if quickstart is not None)
-        config: dict = {},
-        # Otherwise by default whatever was set by `mempgt configure` will apply
+        quickstart: Union[QuickstartChoice, None] = None,
+        config: dict = None,
+        debug: bool = False,
     ):
+        """
+        Initializes a new instance of Client class.
+        :param auto_save: indicates whether to automatically save after every message.
+        :param quickstart: allows running quickstart on client init.
+        :param config: optional config settings to apply after quickstart
+        :param debug: indicates whether to display debug messages.
+        """
         self.user_id = "null"
         self.auto_save = auto_save
-        self.interface = QueuingInterface(debug=False)
+        config = config or {}
+
+        if quickstart:
+            openai_key = os.environ.get("OPENAI_API_KEY", config.get("openai_key"))
+            if openai_key:
+                os.environ["OPENAI_API_KEY"] = openai_key
+            elif quickstart == QuickstartChoice.openai:
+                raise ValueError("Please set OPENAI_API_KEY or pass 'openai_key' in config dict")
+            quickstart_func(backend=quickstart, debug=debug)
+
+        if config:
+            set_config_with_dict(config)
+
+        self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface=self.interface)
 
     def list_agents(self):
