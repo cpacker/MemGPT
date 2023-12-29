@@ -800,16 +800,20 @@ class Agent(object):
         added_functions = set(new_functions.keys()) - set(self.functions_python.keys())
         removed_functions = set(self.functions_python.keys()) - set(new_functions.keys())
 
+        msgs = []
         if len(added_functions) + len(removed_functions) == 0:
-            printd("No functions added, removed, or have altered schemas. Source code of functions may have changed.")
+            msgs.append("No functions added, removed, or have altered schemas. Source code of functions may have changed.")
         else:
             if len(added_functions) > 0:
-                printd(f"Adding functions: {added_functions}")
+                msgs.append(f"Added functions: {added_functions}.")
             if len(removed_functions) > 0:
-                printd(f"Removing functions: {removed_functions}")
+                msgs.append(f"Removed functions: {removed_functions}.")
 
         self.functions = new_functions_schema
         self.functions_python = {f_name: f_dict["python_function"] for f_name, f_dict in new_functions.items()}
+        msg = " ".join(msgs)
+        printd(msg)
+        return f"Functions have been successfully reloaded: {msg}."
 
     def reload_system_prompt(self):
         """Sets the system prompt to that currently configured in the agent's preset"""
