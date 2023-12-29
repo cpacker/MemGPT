@@ -22,7 +22,7 @@ def test_create_agent():
 
 
 def test_user_message():
-    response = client.user_message(agent_id=agent_id, message="Hello I my name is Test, Client Test")
+    response = client.user_message(agent_id=agent_id, message="Hello my name is Test, Client Test")
     assert response is not None and len(response) > 0
 
 
