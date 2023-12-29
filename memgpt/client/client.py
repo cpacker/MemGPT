@@ -29,11 +29,11 @@ class Client(object):
         config = config or {}
 
         if quickstart:
-            openai_key = os.environ.get("OPENAI_API_KEY", config.get("openai_key"))
+            openai_key = os.environ.get("OPENAI_API_KEY", config.get("openai_api_key"))
             if openai_key:
                 os.environ["OPENAI_API_KEY"] = openai_key
             elif quickstart == QuickstartChoice.openai:
-                raise ValueError("Please set OPENAI_API_KEY or pass 'openai_key' in config dict")
+                raise ValueError("Please set OPENAI_API_KEY or pass 'openai_api_key' in config dict")
             quickstart_func(backend=quickstart, debug=debug)
 
         if config:
