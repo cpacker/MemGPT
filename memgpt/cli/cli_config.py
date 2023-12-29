@@ -525,6 +525,7 @@ def configure():
             model_endpoint_type=model_endpoint_type,
             model_wrapper=model_wrapper,
             context_window=context_window,
+            openai_key=openai_key,
         ),
         default_embedding_config=EmbeddingConfig(
             embedding_endpoint_type=embedding_endpoint_type,
