@@ -286,7 +286,8 @@ class Agent(object):
             raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {directory}")
 
         # Sort files based on modified timestamp, with the latest file being the first.
-        filename = max(json_files, key=os.path.getmtime)
+        filename = max(json_files)
+        printd(f"Loading agent state from {filename}")
         state = json.load(open(filename, "r"))
 
         # load persistence manager

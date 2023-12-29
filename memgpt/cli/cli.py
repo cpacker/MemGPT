@@ -424,9 +424,9 @@ def run(
         agent_config.save()
 
         # Supress llama-index noise
-        with suppress_stdout():
-            # load existing agent
-            memgpt_agent = Agent.load_agent(interface, agent_config)
+        # with suppress_stdout():
+        # load existing agent
+        memgpt_agent = Agent.load_agent(interface, agent_config)
 
     else:  # create new agent
         # create new agent config: override defaults with args if provided
