@@ -341,16 +341,6 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             # breakup string into passages
             for node in parser.get_nodes_from_documents([Document(text=memory_string)]):
                 embedding = self.embed_model.get_text_embedding(node.text)
-                # fixing weird bug where type returned isn't a list, but instead is an object
-                # eg: embedding={'object': 'list', 'data': [{'object': 'embedding', 'embedding': [-0.0071973633, -0.07893023,
-                if isinstance(embedding, dict):
-                    try:
-                        embedding = embedding["data"][0]["embedding"]
-                    except (KeyError, IndexError):
-                        # TODO as a fallback, see if we can find any lists in the payload
-                        raise TypeError(
-                            f"Got back an unexpected payload from text embedding function, type={type(embedding)}, value={embedding}"
-                        )
                 passages.append(Passage(text=node.text, embedding=embedding, doc_id=f"agent_{self.agent_config.name}_memory"))
 
             # insert passages
@@ -369,16 +359,6 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             if query_string not in self.cache:
                 # self.cache[query_string] = self.retriever.retrieve(query_string)
                 query_vec = self.embed_model.get_text_embedding(query_string)
-                # fixing weird bug where type returned isn't a list, but instead is an object
-                # eg: embedding={'object': 'list', 'data': [{'object': 'embedding', 'embedding': [-0.0071973633, -0.07893023,
-                if isinstance(query_vec, dict):
-                    try:
-                        query_vec = query_vec["data"][0]["embedding"]
-                    except (KeyError, IndexError):
-                        # TODO as a fallback, see if we can find any lists in the payload
-                        raise TypeError(
-                            f"Got back an unexpected payload from text embedding function, type={type(query_vec)}, value={query_vec}"
-                        )
                 self.cache[query_string] = self.storage.query(query_string, query_vec, top_k=self.top_k)
 
             start = int(start if start else 0)
