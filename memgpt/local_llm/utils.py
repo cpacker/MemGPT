@@ -50,6 +50,8 @@ def get_available_wrappers() -> dict:
         # New chatml-based wrappers
         "chatml": chatml.ChatMLInnerMonologueWrapper(),
         "chatml-noforce": chatml.ChatMLOuterInnerMonologueWrapper(),
+        # "chatml-noforce-sysm": chatml.ChatMLOuterInnerMonologueWrapper(use_system_role_in_user=True),
+        "chatml-noforce-roles": chatml.ChatMLOuterInnerMonologueWrapper(use_system_role_in_user=True, allow_function_role=True),
         # With extra hints
         "chatml-hints": chatml.ChatMLInnerMonologueWrapper(assistant_prefix_hint=True),
         "chatml-noforce-hints": chatml.ChatMLOuterInnerMonologueWrapper(assistant_prefix_hint=True),
