@@ -2,6 +2,7 @@ import typer
 import json
 import requests
 import sys
+import shutil
 import io
 import logging
 import questionary
@@ -466,6 +467,21 @@ def run(
             )
         except ValueError as e:
             typer.secho(f"Failed to create agent from provided information:\n{e}", fg=typer.colors.RED)
+            # Delete the directory of the failed agent
+            try:
+                # Path to the specific file
+                agent_config_file = agent_config.agent_config_path
+
+                # Check if the file exists
+                if os.path.isfile(agent_config_file):
+                    # Delete the file
+                    os.remove(agent_config_file)
+
+                # Now, delete the directory along with any remaining files in it
+                agent_save_dir = os.path.join(MEMGPT_DIR, "agents", agent_config.name)
+                shutil.rmtree(agent_save_dir)
+            except:
+                typer.secho(f"Failed to delete agent directory during cleanup:\n{e}", fg=typer.colors.RED)
             sys.exit(1)
         typer.secho(f"🎉 Created new agent '{agent_config.name}'", fg=typer.colors.GREEN)
 
