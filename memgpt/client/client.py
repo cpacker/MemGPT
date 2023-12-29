@@ -9,11 +9,19 @@ from memgpt.server.server import SyncServer
 class Client(object):
     def __init__(
         self,
+        # Utility settings:
         auto_save: bool = False,
+        # Allow running quickstart on a client init
+        # If quickstart type is OpenAI, we should assert that OPENAI_API_KEY is set (or in the config)
+        quickstart: str = "memgpt",
+        # Also allow passing a Config setup that will override the current ~/.memgpt/config
+        # The config gets applied AFTER the quickstart (if quickstart is not None)
+        config: dict = {},
+        # Otherwise by default whatever was set by `mempgt configure` will apply
     ):
         self.user_id = "null"
         self.auto_save = auto_save
-        self.interface = QueuingInterface()
+        self.interface = QueuingInterface(debug=False)
         self.server = SyncServer(default_interface=self.interface)
 
     def list_agents(self):
