@@ -14,7 +14,10 @@ def test_create_agent():
         persona=constants.DEFAULT_PERSONA,
         human=constants.DEFAULT_HUMAN,
         preset="memgpt_chat",
-        model="gpt-4",
+        model="ehartford/dolphin-2.5-mixtral-8x7b",
+        model_wrapper="chatml",
+        model_endpoint_type="vllm",
+        model_endpoint="https://api.memgpt.ai",
     )
 
     agent_name = client.create_agent(agent_config=agent_config)
