@@ -33,6 +33,14 @@ class QuickstartChoice(Enum):
     memgpt_hosted = "memgpt"
 
 
+def str_to_quickstart_choice(choice_str: str) -> QuickstartChoice:
+    try:
+        return QuickstartChoice[choice_str]
+    except KeyError:
+        valid_options = [choice.name for choice in QuickstartChoice]
+        raise ValueError(f"{choice_str} is not a valid QuickstartChoice. Valid options are: {valid_options}")
+
+
 def set_config_with_dict(new_config: dict) -> bool:
     """Set the base config using a dict"""
     from memgpt.utils import printd
