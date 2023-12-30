@@ -2,8 +2,8 @@ import os
 from typing import Dict, List, Union
 
 from memgpt.cli.cli import QuickstartChoice
-from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func
-from memgpt.config import AgentConfig
+from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func, str_to_quickstart_choice
+from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.persistence_manager import PersistenceManager
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -13,7 +13,7 @@ class Client(object):
     def __init__(
         self,
         auto_save: bool = False,
-        quickstart: Union[QuickstartChoice, None] = None,
+        quickstart: Union[QuickstartChoice, str, None] = None,
         config: dict = None,
         debug: bool = False,
     ):
@@ -26,17 +26,34 @@ class Client(object):
         """
         self.user_id = "null"
         self.auto_save = auto_save
-        config = config or {}
+
+        # make sure everything is set up properly
+        MemGPTConfig.create_config_dir()
+
+        # If this is the first ever start, do basic initialization
+        if not MemGPTConfig.exists() and config is None and quickstart is None:
+            # Default to openai
+            print("Detecting uninitialized MemGPT, defaulting to quickstart == openai")
+            quickstart = "openai"
 
         if quickstart:
-            openai_key = os.environ.get("OPENAI_API_KEY", config.get("openai_api_key"))
+            # api key passed in config has priority over env var
+            if isinstance(config, dict) and "openai_api_key" in config:
+                openai_key = config["openai_api_key"]
+            else:
+                openai_key = os.environ.get("OPENAI_API_KEY", None)
+
+            # throw an error if we can't resolve the key
             if openai_key:
                 os.environ["OPENAI_API_KEY"] = openai_key
-            elif quickstart == QuickstartChoice.openai:
+            elif quickstart == QuickstartChoice.openai or quickstart == "openai":
                 raise ValueError("Please set OPENAI_API_KEY or pass 'openai_api_key' in config dict")
+
+            if isinstance(quickstart, str):
+                quickstart = str_to_quickstart_choice(quickstart)
             quickstart_func(backend=quickstart, debug=debug)
 
-        if config:
+        if config is not None:
             set_config_with_dict(config)
 
         self.interface = QueuingInterface(debug=debug)
