@@ -127,11 +127,35 @@ poetry install
 
 ## Python Integration
 
-The fastest way to integrate MemGPT with your own projects is through the `MemGPT` client class.
+The fastest way to integrate MemGPT with your own projects is through the `MemGPT` client class:
+```python
+from memgpt import MemGPT
+
+# Create a MemGPT client object (sets up the persistent state)
+client = MemGPT(
+  quickstart="openai",
+  config={
+    "openai_api_key": "YOUR_API_KEY"
+  }
+)
+
+# You can set many more parameters, this is just a basic example
+agent_id = client.create_agent(
+  agent_config={
+    "persona": "sam_pov",
+    "user": "cs_phd",
+  }
+)
+
+# Now that we have an agent_name identifier, we can send it a message!
+# The response will have data from the MemGPT agent
+my_message = "Hi MemGPT! How's it going?"
+response = client.user_message(agent_id=agent_id, message=my_message)
+```
 
 <details>
  <summary>
-  <strong>Example of MemGPT Client</strong>
+  <strong>More in-depth example of using MemGPT Client</strong>
  </summary>
 
 ```python
@@ -140,14 +164,6 @@ from memgpt import MemGPT
 from memgpt import constants
 from memgpt.cli.cli import QuickstartChoice
 
-# Create an AgentConfig with default persona and human txt
-agent_config = AgentConfig(
-    name="GitCoder",
-    persona=constants.DEFAULT_PERSONA,
-    human=constants.DEFAULT_HUMAN,
-    preset="memgpt_chat",
-    model="gpt-4",
-)
 
 client = MemGPT(
     # When auto_save is 'True' then the agent(s) will be saved after every
@@ -163,11 +179,21 @@ client = MemGPT(
     config={}
 )
 
+# Create an AgentConfig with default persona and human txt
+# In this case, assume we wrote a custom persona file "my_persona.txt", located at ~/.memgpt/personas/my_persona.txt
+# Same for a custom user file "my_user.txt", located at ~/.memgpt/humans/my_user.txt
+agent_config = AgentConfig(
+    name="CustomAgent",
+    persona="my_persona",
+    human="my_user",
+    preset="memgpt_chat",
+    model="gpt-4",
+)
+
 # Create the agent according to AgentConfig we set up. If an agent with
 # the same name already exists it will simply return, unless you set
 # throw_if_exists to 'True'
-agent_name = client.create_agent(agent_config=agent_config)
-
+agent_id = client.create_agent(agent_config=agent_config)
 
 # Create a helper that sends a message and prints the assistant response only
 def send_message(message: str):
@@ -175,14 +201,16 @@ def send_message(message: str):
     sends a message and prints the assistant output only.
     :param message: the message to send
     """
-    response = client.user_message(agent_id=agent_name, message=message)
+    response = client.user_message(agent_id=agent_id, message=message)
     for r in response:
+        # Can also handle other types "function_call", "function_return", "function_message"
         if "assistant_message" in r:
             print("ASSISTANT:", r["assistant_message"])
-
+        elif "thoughts" in r:
+            print("THOUGHTS:", r["internal_monologue"])
 
 # Send a message and see the response
-send_message("Hello my name is GitCoder and I enjoy open source development!")
+send_message("Please introduce yourself and tell me about your abilities!")
 ```
 
 </details>
