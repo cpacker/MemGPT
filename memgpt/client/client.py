@@ -14,7 +14,7 @@ class Client(object):
         self,
         auto_save: bool = False,
         quickstart: Union[QuickstartChoice, str, None] = None,
-        config: Union[Dict, AgentConfig] = None,
+        config: Union[Dict, MemGPTConfig] = None,  # not the same thing as AgentConfig
         debug: bool = False,
     ):
         """
