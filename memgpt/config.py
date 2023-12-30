@@ -233,7 +233,7 @@ class AgentConfig:
         persona,
         human,
         # model info
-        model,
+        model=None,
         model_endpoint_type=None,
         model_endpoint=None,
         model_wrapper=None,

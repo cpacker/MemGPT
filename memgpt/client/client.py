@@ -73,7 +73,12 @@ class Client(object):
         persistence_manager: Union[PersistenceManager, None] = None,
         throw_if_exists: bool = False,
     ) -> str:
-        if not self.agent_exists(agent_id=agent_config.name):
+        if isinstance(agent_config, dict):
+            agent_name = agent_config.get("name")
+        else:
+            agent_name = agent_config.name
+
+        if not self.agent_exists(agent_id=agent_name):
             self.interface.clear()
             return self.server.create_agent(user_id=self.user_id, agent_config=agent_config, persistence_manager=persistence_manager)
 
