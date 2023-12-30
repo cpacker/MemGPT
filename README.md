@@ -161,7 +161,6 @@ response = client.user_message(agent_id=agent_id, message=my_message)
 ```python
 from memgpt.config import AgentConfig
 from memgpt import MemGPT
-from memgpt import constants
 from memgpt.cli.cli import QuickstartChoice
 
 
@@ -186,8 +185,6 @@ agent_config = AgentConfig(
     name="CustomAgent",
     persona="my_persona",
     human="my_user",
-    preset="memgpt_chat",
-    model="gpt-4",
 )
 
 # Create the agent according to AgentConfig we set up. If an agent with
