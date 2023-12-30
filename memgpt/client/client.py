@@ -14,7 +14,7 @@ class Client(object):
         self,
         auto_save: bool = False,
         quickstart: Union[QuickstartChoice, str, None] = None,
-        config: dict = None,
+        config: Union[Dict, AgentConfig] = None,
         debug: bool = False,
     ):
         """
