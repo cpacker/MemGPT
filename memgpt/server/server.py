@@ -191,7 +191,8 @@ class SyncServer(LockingServer):
         if AgentConfig.exists(agent_id):
             logger.debug(f"(user={user_id}, agent={agent_id}) exists, loading into memory...")
             agent_config = AgentConfig.load(agent_id)
-            memgpt_agent = Agent.load_agent(interface=interface, agent_config=agent_config)
+            with utils.suppress_stdout():
+                memgpt_agent = Agent.load_agent(interface=interface, agent_config=agent_config)
             self._add_agent(user_id=user_id, agent_id=agent_id, agent_obj=memgpt_agent)
             return memgpt_agent
 
