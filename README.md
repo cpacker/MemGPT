@@ -125,9 +125,9 @@ poetry install
 ```
 </details>
 
-## Python Integration
+## Python integration (for developers)
 
-The fastest way to integrate MemGPT with your own projects is through the `MemGPT` client class:
+The fastest way to integrate MemGPT with your own Python projects is through the `MemGPT` client class:
 ```python
 from memgpt import MemGPT
 
