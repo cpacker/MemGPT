@@ -1,11 +1,14 @@
 from memgpt import MemGPT
 from memgpt import constants
 
-test_agent_id = "test_client_agent"
-client = MemGPT(quickstart="memgpt_hosted")
+from .utils import wipe_config
 
 
 def test_create_agent():
+    wipe_config()
+    test_agent_id = "test_client_agent"
+    client = MemGPT(quickstart="memgpt_hosted")
+
     agent_id = client.create_agent(
         agent_config={
             "name": test_agent_id,
@@ -14,10 +17,12 @@ def test_create_agent():
         }
     )
     assert agent_id is not None
+    return client, agent_id
 
 
 def test_user_message():
-    response = client.user_message(agent_id=test_agent_id, message="Hello my name is Test, Client Test")
+    client, agent_id = test_create_agent()
+    response = client.user_message(agent_id=agent_id, message="Hello my name is Test, Client Test")
     assert response is not None and len(response) > 0
 
 
