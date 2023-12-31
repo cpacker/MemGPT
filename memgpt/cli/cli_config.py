@@ -4,6 +4,8 @@ from prettytable import PrettyTable
 import typer
 import os
 import shutil
+from typing import Annotated
+from enum import Enum
 
 # from memgpt.cli import app
 from memgpt import utils
@@ -475,9 +477,17 @@ def configure():
     config.save()
 
 
+class ListChoice(str, Enum):
+    agents = "agents"
+    humans = "humans"
+    personas = "personas"
+    sources = "sources"
+
+
 @app.command()
-def list(option: str):
-    if option == "agents":
+def list(arg: Annotated[ListChoice, typer.Argument]):
+    typer.echo(f"You chose {arg}")
+    if arg == ListChoice.agents:
         """List all agents"""
         table = PrettyTable()
         table.field_names = ["Name", "Model", "Persona", "Human", "Data Source", "Create Time"]
@@ -495,7 +505,7 @@ def list(option: str):
                 ]
             )
         print(table)
-    elif option == "humans":
+    elif arg == ListChoice.humans:
         """List all humans"""
         table = PrettyTable()
         table.field_names = ["Name", "Text"]
@@ -504,7 +514,7 @@ def list(option: str):
             name = os.path.basename(human_file).replace("txt", "")
             table.add_row([name, text])
         print(table)
-    elif option == "personas":
+    elif arg == ListChoice.personas:
         """List all personas"""
         table = PrettyTable()
         table.field_names = ["Name", "Text"]
@@ -514,7 +524,7 @@ def list(option: str):
             name = os.path.basename(persona_file).replace(".txt", "")
             table.add_row([name, text])
         print(table)
-    elif option == "sources":
+    elif arg == ListChoice.sources:
         """List all data sources"""
         table = PrettyTable()
         table.field_names = ["Name", "Location", "Agents"]
@@ -536,7 +546,7 @@ def list(option: str):
             table.add_row([data_source, location, agents])
         print(table)
     else:
-        raise ValueError(f"Unknown option {option}")
+        raise ValueError(f"Unknown argument {arg}")
 
 
 @app.command()
