@@ -486,7 +486,6 @@ class ListChoice(str, Enum):
 
 @app.command()
 def list(arg: Annotated[ListChoice, typer.Argument]):
-    typer.echo(f"You chose {arg}")
     if arg == ListChoice.agents:
         """List all agents"""
         table = PrettyTable()
