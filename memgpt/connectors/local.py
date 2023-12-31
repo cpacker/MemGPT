@@ -12,6 +12,7 @@ from typing import List, Optional, Dict
 from abc import abstractmethod
 
 from llama_index import VectorStoreIndex, ServiceContext, set_global_service_context
+from llama_index.indices.query.schema import QueryBundle
 from llama_index.indices.empty.base import EmptyIndex
 from llama_index.retrievers import VectorIndexRetriever
 from llama_index.schema import TextNode
