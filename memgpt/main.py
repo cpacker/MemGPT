@@ -22,7 +22,7 @@ import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.constants as constants
 import memgpt.errors as errors
-from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, suppress_stdout
+from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, suppress_stdout, describe_agent
 from memgpt.cli.cli_config import configure, list, add
 from memgpt.cli.cli_load import app as load_app
 from memgpt.connectors.storage import StorageConnector
@@ -37,6 +37,7 @@ app.command(name="add")(add)
 app.command(name="server")(server)
 app.command(name="folder")(open_folder)
 app.command(name="quickstart")(quickstart)
+app.command(name="describe")(describe_agent)
 # load data commands
 app.add_typer(load_app, name="load")
 
@@ -299,7 +300,6 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
 
     print("Finished.")
 
-
 USER_COMMANDS = [
     ("//", "toggle multiline input mode"),
     ("/exit", "exit the CLI"),
@@ -314,4 +314,5 @@ USER_COMMANDS = [
     ("/heartbeat", "send a heartbeat system message to the agent"),
     ("/memorywarning", "send a memory warning system message to the agent"),
     ("/attach", "attach data source to agent"),
+    ("/describe", "add a custom description for an existing agent"),
 ]
