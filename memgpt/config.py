@@ -346,7 +346,6 @@ class AgentConfig:
             # https://github.com/pytorch/pytorch/issues/15344
             class_args = inspect.getfullargspec(cls.__init__).args
         agent_fields = list(agent_config.keys())
-
         for key in agent_fields:
             if key not in class_args:
                 utils.printd(f"Removing missing argument {key} from agent config")

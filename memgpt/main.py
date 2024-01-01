@@ -300,6 +300,7 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
 
     print("Finished.")
 
+
 USER_COMMANDS = [
     ("//", "toggle multiline input mode"),
     ("/exit", "exit the CLI"),
