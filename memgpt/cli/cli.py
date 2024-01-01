@@ -369,7 +369,7 @@ def run(
 
         for f in agent_files:
             agent_config = AgentConfig.load(f)
-            agents[agent_config.name] = f"{agent_config.name} - 🤖 {agent_config.persona} | 🧑 {agent_config.human}"
+            agents[agent_config.name] = f"{agent_config.name}   [🤖 {agent_config.persona} | 🧑 {agent_config.human}]"
 
         if len(agents) > 0 and not any([persona, human, model]):
             print()
