@@ -10,8 +10,9 @@ from memgpt.interface import AgentInterface
 class QueuingInterface(AgentInterface):
     """Messages are queued inside an internal buffer and manually flushed"""
 
-    def __init__(self):
+    def __init__(self, debug=True):
         self.buffer = queue.Queue()
+        self.debug = debug
 
     def to_list(self):
         """Convert queue to a list (empties it out at the same time)"""
@@ -56,17 +57,20 @@ class QueuingInterface(AgentInterface):
 
     def internal_monologue(self, msg: str) -> None:
         """Handle the agent's internal monologue"""
-        print(msg)
+        if self.debug:
+            print(msg)
         self.buffer.put({"internal_monologue": msg})
 
     def assistant_message(self, msg: str) -> None:
         """Handle the agent sending a message"""
-        print(msg)
+        if self.debug:
+            print(msg)
         self.buffer.put({"assistant_message": msg})
 
     def function_message(self, msg: str) -> None:
         """Handle the agent calling a function"""
-        print(msg)
+        if self.debug:
+            print(msg)
 
         if msg.startswith("Running "):
             msg = msg.replace("Running ", "")

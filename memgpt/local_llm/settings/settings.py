@@ -50,7 +50,7 @@ def get_completions_settings(defaults="simple") -> dict:
                 printd(f"Updating base settings with the following user settings:\n{json.dumps(user_settings,indent=2)}")
                 settings.update(user_settings)
             else:
-                printd(f"'{settings_file}' was emtpy, ignoring...")
+                printd(f"'{settings_file}' was empty, ignoring...")
         except json.JSONDecodeError as e:
             print(f"Error: failed to load user settings file '{settings_file}', invalid json.\n{e}")
         except Exception as e:

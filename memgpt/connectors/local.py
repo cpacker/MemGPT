@@ -9,6 +9,7 @@ import os
 from typing import List, Optional
 
 from llama_index import VectorStoreIndex, ServiceContext, set_global_service_context
+from llama_index.indices.query.schema import QueryBundle
 from llama_index.indices.empty.base import EmptyIndex
 from llama_index.retrievers import VectorIndexRetriever
 from llama_index.schema import TextNode
@@ -117,7 +118,7 @@ class LocalStorageConnector(StorageConnector):
             index=self.index,  # does this get refreshed?
             similarity_top_k=top_k,
         )
-        nodes = retriever.retrieve(query)
+        nodes = retriever.retrieve(str_or_query_bundle=QueryBundle(query_str=query, embedding=query_vec))
         results = [Passage(embedding=node.embedding, text=node.text) for node in nodes]
         return results
 
