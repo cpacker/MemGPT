@@ -365,13 +365,26 @@ def run(
     # determine agent to use, if not provided
     if not yes and not agent:
         agent_files = utils.list_agent_config_files()
-        agents = [AgentConfig.load(f).name for f in agent_files]
+        agents = {}
+
+        for f in agent_files:
+            agent_config = AgentConfig.load(f)
+            agents[agent_config.name] = f"{agent_config.name} - 🤖 {agent_config.persona} | 🧑 {agent_config.human}"
 
         if len(agents) > 0 and not any([persona, human, model]):
             print()
             select_agent = questionary.confirm("Would you like to select an existing agent?").ask()
+
             if select_agent:
-                agent = questionary.select("Select agent:", choices=agents).ask()
+                selected_desc = questionary.select("Select agent:", choices=list(agents.values())).ask()
+
+                # Check, if a selection was made
+                if selected_desc:
+                    # Extract the agent name from the selected choice
+                    agent = [name for name, desc in agents.items() if desc == selected_desc][0]
+                else:
+                    # Handle the case where no selection is made (e.g., aborting via CTRL-C)
+                    sys.exit(0)
 
     # configure llama index
     config = MemGPTConfig.load()
