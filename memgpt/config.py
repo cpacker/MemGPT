@@ -297,6 +297,93 @@ class AgentConfig:
         agent_count = len(utils.list_agent_config_files())
         return str(agent_count + 1)
 
+    def generate_agent_id(self, length=6, method="folder"):  # method = folder, config or hybrid
+        ## random character based
+        # characters = string.ascii_lowercase + string.digits
+        # return ''.join(random.choices(characters, k=length))
+
+        # count based
+        # agent_count = len(utils.list_agent_config_files())
+        # return str(agent_count + 1)
+
+        # TODO: find out a better way to implement 'hybrid'
+
+        if method == "folder":
+            # folder name based
+            agent_folders = utils.list_agent_config_files()
+
+            # agent_numbers = [int(re.search(r'agent_(\d+)', folder).group(1)) for folder in agent_folders if re.search(r'agent_(\d+)', folder)] # using re
+            agent_numbers = [
+                int(folder.split("_")[1]) for folder in agent_folders if "_" in folder and folder.split("_")[1].isdigit()
+            ]  # slicing
+
+            if agent_numbers:
+                max_agent_number = max(agent_numbers)
+                return str(max_agent_number + 1)
+            else:
+                return "1"
+        elif method == "config":
+            # config based
+            agent_folders = utils.list_agent_config_files()
+
+            agent_numbers = []
+
+            for folder in agent_folders:
+                config_path = os.path.join(MEMGPT_DIR + "/agents/" + folder, "config.json")
+
+                if os.path.exists(config_path):
+                    with open(config_path, "r") as config_file:
+                        config_data = json.load(config_file)
+
+                        agent_name = config_data.get("name", "")
+                        # print(agent_name)
+
+                        ## using re
+                        # match = re.search(r'agent_(\d+)', agent_name)
+
+                        # if match:
+                        #     agent_numbers.append(int(match.group(1)))
+
+                        ## slicing
+                        match = agent_name.split("_")[1] if "_" in agent_name and agent_name.split("_")[1].isdigit() else None
+
+                        if match:
+                            agent_numbers.append(int(match))
+
+            # print(agent_numbers)
+            if agent_numbers:
+                max_agent_number = max(agent_numbers)
+                return str(max_agent_number + 1)
+            else:
+                return "1"
+        elif method == "hybrid":
+            # mashed potato
+            agent_folders = utils.list_agent_config_files()
+
+            agent_numbers = []
+
+            for folder in agent_folders:
+                config_path = os.path.join(folder, "config.json")
+
+                if os.path.exists(config_path):
+                    with open(config_path, "r") as config_file:
+                        config_data = json.load(config_file)
+
+                        agent_name = config_data.get("name", "")
+
+                        match = re.search(r"agent_(\d+)", agent_name)
+
+                        if match:
+                            agent_numbers.append(int(match.group(1)))
+
+            if agent_numbers:
+                max_agent_number = max(agent_numbers)
+                return str(max_agent_number + 1)
+            else:
+                return "1"
+        else:
+            raise ValueError("Invalid method has been provided.")
+
     def attach_data_source(self, data_source: str):
         # TODO: add warning that only once source can be attached
         # i.e. previous source will be overriden
