@@ -11,6 +11,11 @@ To install MemGPT, make sure you have Python installed on your computer, then ru
 pip install pymemgpt
 ```
 
+If you are running LLMs locally, you will want to install MemGPT with the local dependencies by running:
+```sh
+pip install pymemgpt[local]
+```
+
 If you already have MemGPT installed, you can update to the latest version with:
 ```sh
 pip install pymemgpt -U
