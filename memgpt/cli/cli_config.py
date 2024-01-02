@@ -602,21 +602,33 @@ def add(
 def delete(option: str, name: str):
     """Delete a source from the archival memory."""
 
-    # delete from metadata
-    if option == "source":
-        conn = StorageConnector.get_metadata_storage_connector(TableType.DATA_SOURCES)
-        conn.delete({"name": name})
+    try:
+        # delete from metadata
+        if option == "source":
+            conn = StorageConnector.get_metadata_storage_connector(TableType.DATA_SOURCES)
 
-        assert conn.get_all({"name": name}) == [], f"Expected no sources named {name}, but got {conn.get_all({'name': name})}"
+            # Check if the source exists
+            if conn.get_all({"name": name}) == []:
+                raise ValueError(f"No source named '{name}'")
 
-        # delete from passages
-        conn = StorageConnector.get_storage_connector(TableType.PASSAGES)
-        conn.delete({"data_source": name})
+            conn.delete({"name": name})
 
-        assert (
-            conn.get_all({"data_source": name}) == []
-        ), f"Expected no passages with source {name}, but got {conn.get_all({'data_source': name})}"
+            # It should now be deleted
+            assert conn.get_all({"name": name}) == [], f"Expected no sources named {name}, but got {conn.get_all({'name': name})}"
 
-        # TODO: should we also delete from agents?
-    else:
-        raise ValueError(f"Option {option} not implemented")
+            # delete from passages
+            conn = StorageConnector.get_storage_connector(TableType.PASSAGES)
+            conn.delete({"data_source": name})
+
+            assert (
+                conn.get_all({"data_source": name}) == []
+            ), f"Expected no passages with source {name}, but got {conn.get_all({'data_source': name})}"
+
+            # TODO: should we also delete from agents?
+        else:
+            raise ValueError(f"Option {option} not implemented")
+
+        typer.secho(f"Deleted source '{name}'", fg=typer.colors.GREEN)
+
+    except Exception as e:
+        typer.secho(f"Failed to deleted source '{name}'\n{e}", fg=typer.colors.RED)
