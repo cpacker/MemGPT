@@ -5,6 +5,9 @@ category: 6580d34ee5e4d00068bf2a1d
 ---
 
 ### Installation
+> 📘 Using Local LLMs?
+>
+> If you're using local LLMs refer to the MemGPT + open models page [here](local_llm) for additional installation requirements.
 
 To install MemGPT, make sure you have Python installed on your computer, then run:
 
