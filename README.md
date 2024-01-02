@@ -75,7 +75,7 @@ memgpt configure
 ```
 
 ### In-chat commands
-You can run the following commands in the MemGPT CLI prompt which chatting with an agent:
+You can run the following commands in the MemGPT CLI prompt while chatting with an agent:
 * `/exit`: Exit the CLI
 * `/attach`: Attach a loaded data source to the agent
 * `/save`: Save a checkpoint of the current agent/conversation state
