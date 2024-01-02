@@ -61,11 +61,11 @@ Let's try changing the temperature to `1.0`. In our `completions_api_settings.js
 
 ```json
 {
-    "temp": 1.0
+    "temperature": 1.0
 }
 ```
 
-Note how we're using the naming conventions from llama.cpp. In this case, using `"temperature"` instead of `"temp"` will also work.
+Note how we're using the naming conventions from llama.cpp. In this case, using `"temperature"` instead of `"temp"`.
 
 Now if we save the file and start a new agent chat with `memgpt run`, we'll notice that the LM Studio server logs now say `"temp": 1.0`:
 
@@ -96,7 +96,7 @@ If your parameters are getting picked up correctly, they will be output to the t
 Found completion settings file '/Users/user/.memgpt/settings/completions_api_settings.json', loading it...
 Updating base settings with the following user settings:
 {
-  "temp": 1.0
+  "temperature": 1.0
 }
 ...(truncated)...
 ```
@@ -143,7 +143,7 @@ Now copy the following to your `completions_api_settings.json` file:
 {
     "top_k": 1,
     "top_p": 0,
-    "temp": 0,
+    "temperature": 0,
     "repeat_penalty": 1.18,
     "seed": -1,
     "tfs_z": 1,
