@@ -40,7 +40,7 @@ There are three steps to adding more MemGPT functions:
 > ⚠️ Function requirements
 >
 > The functions you write MUST have proper docstrings and type hints - this is because MemGPT will use these docstrings and types to automatically create a JSON schema that is used in the LLM prompt. Use the docstrings and types annotations from the [example functions](https://github.com/cpacker/MemGPT/blob/main/memgpt/functions/function_sets/base.py) for guidance.
->
+
 > ⚠️ Function output length
 >
 > Your custom function should always return a string that is **capped in length**. If your string goes over the specified limit, it will be truncated internally. This is to prevent potential context overflows caused by uncapped string returns (for example, a rogue HTTP request that returns a string larger than the LLM context window).
