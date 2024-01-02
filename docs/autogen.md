@@ -1,7 +1,7 @@
 ---
-title: MemGPT + AutoGen 
+title: MemGPT + AutoGen
 excerpt: Creating AutoGen agents powered by MemGPT
-category: 6580dab16cade8003f996d17 
+category: 6580dab16cade8003f996d17
 ---
 
 > 📘 Need help?
@@ -21,6 +21,7 @@ category: 6580dab16cade8003f996d17
 MemGPT includes an AutoGen agent class ([MemGPTAgent](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/memgpt_agent.py)) that mimics the interface of AutoGen's [ConversableAgent](https://microsoft.github.io/autogen/docs/reference/agentchat/conversable_agent#conversableagent-objects), allowing you to plug MemGPT into the AutoGen framework.
 
 To create a MemGPT AutoGen agent for use in an AutoGen script, you can use the `create_memgpt_autogen_agent_from_config` constructor:
+
 ```python
 from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config
 
@@ -56,6 +57,7 @@ memgpt_autogen_agent = create_memgpt_autogen_agent_from_config(
 ```
 
 Now this `memgpt_autogen_agent` can be used in standard AutoGen scripts:
+
 ```python
 import autogen
 
@@ -97,6 +99,7 @@ Once you've confirmed that you're able to chat with a MemGPT agent using `memgpt
 > If you're using RunPod to run web UI, make sure that you set your endpoint to the RunPod IP address, **not the default localhost address**.
 >
 > For example, during `memgpt configure`:
+>
 > ```text
 > ? Enter default endpoint: https://yourpodaddresshere-5000.proxy.runpod.net
 > ```
@@ -106,6 +109,7 @@ Once you've confirmed that you're able to chat with a MemGPT agent using `memgpt
 Now we're going to integrate MemGPT and AutoGen by creating a special "MemGPT AutoGen agent" that wraps MemGPT in an AutoGen-style agent interface.
 
 First, make sure you have AutoGen installed:
+
 ```sh
 pip install pyautogen
 ```
@@ -117,7 +121,9 @@ In order to run this example on a local LLM, go to lines 46-66 in [examples/agen
 `config_list` is used by non-MemGPT AutoGen agents, which expect an OpenAI-compatible API. `config_list_memgpt` is used by MemGPT AutoGen agents, and requires additional settings specific to MemGPT (such as the `model_wrapper` and `context_window`. Depending on what LLM backend you want to use, you'll have to set up your `config_list` and `config_list_memgpt` differently:
 
 #### web UI example
+
 For example, if you are using web UI, it will look something like this:
+
 ```python
 # Non-MemGPT agents will still use local LLMs, but they will use the ChatCompletions endpoint
 config_list = [
@@ -132,7 +138,7 @@ config_list = [
 config_list_memgpt = [
     {
         "preset": DEFAULT_PRESET,
-        "model": None,  # not required for web UI, only required for Ollama, see: https://memgpt.readme.io/docs/ollama 
+        "model": None,  # not required for web UI, only required for Ollama, see: https://memgpt.readme.io/docs/ollama
         "model_wrapper": "airoboros-l2-70b-2.1",  # airoboros is the default wrapper and should work for most models
         "model_endpoint_type": "webui",
         "model_endpoint": "http://localhost:5000",  # notice port 5000 for web UI
@@ -142,7 +148,9 @@ config_list_memgpt = [
 ```
 
 #### LM Studio example
+
 If you are using LM Studio, then you'll need to change the `api_base` in `config_list`, and `model_endpoint_type` + `model_endpoint` in `config_list_memgpt`:
+
 ```python
 # Non-MemGPT agents will still use local LLMs, but they will use the ChatCompletions endpoint
 config_list = [
@@ -167,7 +175,9 @@ config_list_memgpt = [
 ```
 
 #### OpenAI example
+
 If you are using the OpenAI API (e.g. using `gpt-4-turbo` via your own OpenAI API account), then the `config_list` for the AutoGen agent and `config_list_memgpt` for the MemGPT AutoGen agent will look different (a lot simpler):
+
 ```python
 # This config is for autogen agents that are not powered by MemGPT
 config_list = [
@@ -192,7 +202,9 @@ config_list_memgpt = [
 ```
 
 #### Azure OpenAI example
+
 Azure OpenAI API setup will be similar to OpenAI API, but requires additional config variables. First, make sure that you've set all the related Azure variables referenced in [our MemGPT Azure setup page](https://memgpt.readme.io/docs/endpoints#azure-openai) (`AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_VERSION`, `AZURE_OPENAI_ENDPOINT`, etc). If you have all the variables set correctly, you should be able to create configs by pulling from the env variables:
+
 ```python
 # This config is for autogen agents that are not powered by MemGPT
 # See Auto
@@ -219,17 +231,17 @@ config_list_memgpt = [
         "azure_endpoint": os.getenv("AZURE_OPENAI_ENDPOINT"),
         "azure_version": os.getenv("AZURE_OPENAI_VERSION"),
         # if you are using Azure for embeddings too, include the following line:
-        "embedding_embedding_endpoint_type": "azure",        
+        "embedding_embedding_endpoint_type": "azure",
     },
 ]
 ```
-
 
 > 📘 Making internal monologue visible to AutoGen
 >
 > By default, MemGPT's inner monologue and function traces are hidden from other AutoGen agents.
 >
 > You can modify `interface_kwargs` to change the visibility of inner monologue and function calling:
+>
 > ```python
 > interface_kwargs = {
 >     "debug": False,  # this is the equivalent of the --debug flag in the MemGPT CLI
@@ -239,11 +251,13 @@ config_list_memgpt = [
 > ```
 
 The only parts of the `agent_groupchat.py` file you need to modify should be the `config_list` and `config_list_memgpt` (make sure to change `USE_OPENAI` to `True` or `False` depending on if you're trying to use a local LLM server like web UI, or OpenAI's API). Assuming you edited things correctly, you should now be able to run `agent_groupchat.py`:
+
 ```sh
 python memgpt/autogen/examples/agent_groupchat.py
 ```
 
 Your output should look something like this:
+
 ```text
 User_proxy (to chat_manager):
 
@@ -287,14 +301,14 @@ Remember, achieving one million dollars in revenue in such a short time frame wo
 --------------------------------------------------------------------------------
 MemGPT_coder (to chat_manager):
 
-Great goal! Generating a million dollars in one month with an app is ambitious, but definitely doable if you approach it the right way. Here are some tips and potential ideas that could help: 
+Great goal! Generating a million dollars in one month with an app is ambitious, but definitely doable if you approach it the right way. Here are some tips and potential ideas that could help:
 
-1. Identify a niche market or trend (for example, AI-powered fitness apps or FinTech solutions). 
-2. Solve a significant problem for many people (such as time management or financial literacy). 
-3. Choose an effective monetization strategy like subscriptions, in-app purchases, or advertising. 
+1. Identify a niche market or trend (for example, AI-powered fitness apps or FinTech solutions).
+2. Solve a significant problem for many people (such as time management or financial literacy).
+3. Choose an effective monetization strategy like subscriptions, in-app purchases, or advertising.
 4. Make sure your app is visually appealing and easy to use to keep users engaged.
 
-Some ideas that might work: 
+Some ideas that might work:
 - AI-powered personal finance management app
 - A virtual assistant app that helps people manage their daily tasks
 - A social networking platform for job seekers or freelancers
@@ -316,15 +330,18 @@ User_proxy (to chat_manager):
 First, follow the instructions in [Example - chat with your data - Creating an external data source](example_data/#creating-an-external-data-source):
 
 To download the MemGPT research paper we'll use `curl` (you can also just download the PDF from your browser):
+
 ```sh
 # we're saving the file as "memgpt_research_paper.pdf"
 curl -L -o memgpt_research_paper.pdf https://arxiv.org/pdf/2310.08560.pdf
 ```
 
 Now that we have the paper downloaded, we can create a MemGPT data source using `memgpt load`:
+
 ```sh
 memgpt load directory --name memgpt_research_paper --input-files=memgpt_research_paper.pdf
 ```
+
 ```text
 loading data
 done loading data
@@ -337,9 +354,11 @@ Generating embeddings: 100%|█████████████████�
 Note: you can ignore the "_LLM is explicitly disabled_" message.
 
 Now, you can run `agent_docs.py`, which asks `MemGPT_coder` what a virtual context is:
+
 ```sh
 python memgpt/autogen/examples/agent_docs.py
 ```
+
 ```text
 Ingesting 65 passages into MemGPT_agent
 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:01<00:00,  1.47s/it]

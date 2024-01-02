@@ -1,7 +1,7 @@
 ---
-title: Troubleshooting 
+title: Troubleshooting
 excerpt: FAQ for MemGPT + custom LLM backends
-category: 6580da9a40bb410016b8b0c3 
+category: 6580da9a40bb410016b8b0c3
 ---
 
 ## Problems getting MemGPT + local LLMs set up
@@ -11,6 +11,7 @@ category: 6580da9a40bb410016b8b0c3
 This error happens when MemGPT tries to run the LLM on the remote server you specified, but the server isn't working as expected.
 
 For example, this error can happen when you have a typo in your endpoint (notice the duplicate `/v1` in the URL):
+
 ```text
 Exception: API call got non-200 response code (code=400, msg={"error": {"message": "Missing required input", "code": 400, "type": "InvalidRequestError", "param": "context"}}) for address: http://localhost:5001/v1/api/v1/generate. Make sure that the web UI server is running and reachable at http://localhost:5001/v1/api/v1/generate.
 ```
@@ -36,6 +37,7 @@ This error occurs when the LLM you're using outputs a string that cannot be pars
 Many JSON-related output errors can be fixed by using a wrapper that uses grammars (required a grammar-enabled backend). See instructions about [grammars here](local_llm).
 
 For example, let's look at the following error:
+
 ```text
 Failed to parse JSON from local LLM response - error: Failed to decode JSON from LLM output:
 {
@@ -48,6 +50,7 @@ JSONDecodeError.init() missing 2 required positional arguments: 'doc' and 'pos'
 ```
 
 In this example, the error is saying that the local LLM output the following string:
+
 ```text
 {
   "function": "send_message",
@@ -58,6 +61,7 @@ In this example, the error is saying that the local LLM output the following str
 ```
 
 This string is not correct JSON - it is missing closing brackets and has a stray "<|>". Correct JSON would look like this:
+
 ```json
 {
   "function": "send_message",
