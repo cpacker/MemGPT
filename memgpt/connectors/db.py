@@ -116,7 +116,7 @@ def get_db_model(table_name: str, table_type: TableType):
 
             # openai info
             role = Column(String, nullable=False)
-            text = Column(String, nullable=False)
+            text = Column(String)  # optional: can be null if function call
             model = Column(String, nullable=False)
             user = Column(String)  # optional: multi-agent only
 
