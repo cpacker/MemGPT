@@ -116,7 +116,7 @@ In practice, there are many parameters you might want to set, since tuning these
 
 Now just for reference, let's record the set of parameters before any modifications (truncated to include the parameters we're changing only):
 
-```sh
+```text
 [INFO] Provided inference configuration: {
   ...(truncated)...
   "top_k": 40,
@@ -160,7 +160,7 @@ Now copy the following to your `completions_api_settings.json` file:
 
 When we run, our settings are updated:
 
-```sh
+```text
 [INFO] Provided inference configuration: {
   ...(truncated)...
   "top_k": 1,
