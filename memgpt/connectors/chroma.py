@@ -139,7 +139,7 @@ class ChromaStorageConnector(StorageConnector):
             raise ValueError("Embeddings must be provided to chroma")
         self.collection.add(documents=documents, embeddings=embeddings, ids=ids, metadatas=metadatas)
 
-    def insert_many(self, records: List[Record], show_progress=True):
+    def insert_many(self, records: List[Record], show_progress=False):
         ids, documents, embeddings, metadatas = self.format_records(records)
         if not any(embeddings):
             raise ValueError("Embeddings must be provided to chroma")

@@ -239,7 +239,7 @@ class SQLStorageConnector(StorageConnector):
         session.add(db_record)
         session.commit()
 
-    def insert_many(self, records: List[Record], show_progress=True):
+    def insert_many(self, records: List[Record], show_progress=False):
         session = self.Session()
         iterable = tqdm(records) if show_progress else records
         for record in iterable:
