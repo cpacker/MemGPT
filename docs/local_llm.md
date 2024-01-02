@@ -6,15 +6,15 @@ category: 6580da9a40bb410016b8b0c3
 
 > 📘 Need help?
 >
-> If you need help visit our [Discord server](https://discord.gg/9GEQrxmVyE) and post in the #support channel.
+> Visit our [Discord server](https://discord.gg/9GEQrxmVyE) and post in the #support channel. Make sure to check the [local LLM troubleshooting page](local_llm_faq) to see common issues before raising a new issue or posting on Discord.
+
+> 📘 Using Windows?
 >
-> You can also check the [GitHub discussion page](https://github.com/cpacker/MemGPT/discussions/67), but the Discord server is the official support channel and is monitored more actively.
+> If you're using Windows and are trying to get MemGPT with local LLMs setup, we recommend using Anaconda Shell, or WSL (for more advanced users). See more Windows installation tips [here](local_llm_faq).
 
 > ⚠️ MemGPT + open LLM failure cases
 >
-> When using open LLMs with MemGPT, **the main failure case will be your LLM outputting a string that cannot be understood by MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)` and interact with the user (`send_message(...)`), so your LLM needs generate outputs that can be parsed into MemGPT function calls.
->
-> Make sure to check the [local LLM troubleshooting page](local_llm_faq) to see common issues before raising a new issue or posting on Discord.
+> When using open LLMs with MemGPT, **the main failure case will be your LLM outputting a string that cannot be understood by MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)` and interact with the user (`send_message(...)`), so your LLM needs generate outputs that can be parsed into MemGPT function calls. See [the local LLM troubleshooting page](local_llm_faq) for more information.
 
 ### Installing dependencies
 To install dependencies required for running local models, run:
