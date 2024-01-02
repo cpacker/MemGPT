@@ -21,7 +21,7 @@ client = MemGPT(
 agent_id = client.create_agent(
     agent_config={
       "persona": "sam_pov",
-      "user": "cs_phd",
+      "human": "cs_phd",
     }
 )
 
