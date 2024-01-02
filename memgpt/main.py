@@ -35,6 +35,9 @@ app.command(name="configure")(configure)
 app.command(name="list")(list)
 app.command(name="add")(add)
 app.command(name="delete")(delete)
+app.command(name="server")(server)
+app.command(name="folder")(open_folder)
+app.command(name="quickstart")(quickstart)
 # load data commands
 app.add_typer(load_app, name="load")
 
