@@ -7,6 +7,7 @@ import platform
 import subprocess
 import sys
 import io
+from urllib.parse import urlparse
 from contextlib import contextmanager
 import difflib
 import demjson3 as demjson
@@ -27,6 +28,14 @@ from memgpt.openai_backcompat.openai_object import OpenAIObject
 # TODO: what is this?
 # DEBUG = True
 DEBUG = False
+
+
+def is_valid_url(url):
+    try:
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])
+    except ValueError:
+        return False
 
 
 @contextmanager
