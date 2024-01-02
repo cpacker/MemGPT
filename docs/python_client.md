@@ -11,18 +11,18 @@ from memgpt import MemGPT
 
 # Create a MemGPT client object (sets up the persistent state)
 client = MemGPT(
-  quickstart="openai",
-  config={
-    "openai_api_key": "YOUR_API_KEY"
-  }
+    quickstart="openai",
+    config={
+      "openai_api_key": "YOUR_API_KEY"
+    }
 )
 
 # You can set many more parameters, this is just a basic example
 agent_id = client.create_agent(
-  agent_config={
-    "persona": "sam_pov",
-    "user": "cs_phd",
-  }
+    agent_config={
+      "persona": "sam_pov",
+      "user": "cs_phd",
+    }
 )
 
 # Now that we have an agent_name identifier, we can send it a message!
