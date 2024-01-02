@@ -1,22 +1,22 @@
 ---
-title: Ollama 
-excerpt: Setting up MemGPT with Ollama 
-category: 6580da9a40bb410016b8b0c3 
+title: Ollama
+excerpt: Setting up MemGPT with Ollama
+category: 6580da9a40bb410016b8b0c3
 ---
 
 > ⚠️ Make sure to use tags when downloading Ollama models!
 >
-> Don't do **`ollama run dolphin2.2-mistral`**, instead do **`ollama run dolphin2.2-mistral:7b-q6_K`**.
+> Don't do **`ollama pull dolphin2.2-mistral`**, instead do **`ollama pull dolphin2.2-mistral:7b-q6_K`**.
 >
 > If you don't specify a tag, Ollama may default to using a highly compressed model variant (e.g. Q4). We highly recommend **NOT** using a compression level below Q5 when using GGUF (stick to Q6 or Q8 if possible). In our testing, certain models start to become extremely unstable (when used with MemGPT) below Q6.
 
 1. Download + install [Ollama](https://github.com/jmorganca/ollama) and the model you want to test with
-2. Download a model to test with by running `ollama run <MODEL_NAME>` in the terminal (check the [Ollama model library](https://ollama.ai/library) for available models)
+2. Download a model to test with by running `ollama pull <MODEL_NAME>` in the terminal (check the [Ollama model library](https://ollama.ai/library) for available models)
 
 For example, if we want to use Dolphin 2.2.1 Mistral, we can download it by running:
 ```sh
 # Let's use the q6_K variant
-ollama run dolphin2.2-mistral:7b-q6_K
+ollama pull dolphin2.2-mistral:7b-q6_K
 ```
 ```text
 pulling manifest
