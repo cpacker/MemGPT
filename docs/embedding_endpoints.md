@@ -8,7 +8,7 @@ MemGPT uses embedding models for retrieval search over archival memory. You can 
 
 ## OpenAI
 
-To use OpenAI, make sure your `OPENAI_API_KEY` enviornment variable is set.
+To use OpenAI, make sure your `OPENAI_API_KEY` environment variable is set.
 
 ```sh
 export OPENAI_API_KEY=YOUR_API_KEY # on Linux/Mac
@@ -39,7 +39,7 @@ export AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT = ...
 
 Then, configure MemGPT and select `azure` as the embedding provider:
 
-```sh
+```text
 > memgpt configure
 ...
 ? Select embedding provider: azure
@@ -76,8 +76,9 @@ pip install `pymemgpt[local]`
 
 Then, select the `local` option during configuration:
 
-```sh
-> memgpt configure
+```text
+memgpt configure
+
 ...
 ? Select embedding provider: local
 ...

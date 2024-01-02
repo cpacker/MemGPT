@@ -30,7 +30,7 @@ You will need to have a URI to a Postgres database which support [pgvector](http
 
 You can configure Chroma with both the HTTP and persistent storage client via `memgpt configure`. You will need to specify either a persistent storage path or host/port dependending on your client choice. The example below shows how to configure Chroma with local persistent storage:
 
-```sh
+```text
 ? Select LLM inference provider: openai
 ? Override default endpoint: https://api.openai.com/v1
 ? Select default model (recommended: gpt-4): gpt-4

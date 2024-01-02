@@ -18,7 +18,7 @@ vLLM will automatically download the model (if it's not already downloaded) and 
 
 In your terminal where you're running MemGPT, run `memgpt configure` to set the default backend for MemGPT to point at vLLM:
 
-```txt
+```text
 # if you are running vLLM locally, the default IP address + port will be http://localhost:8000
 ? Select LLM inference provider: local
 ? Select LLM backend (select 'openai' if you have an OpenAI compatible proxy): vllm

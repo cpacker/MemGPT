@@ -5,7 +5,7 @@ category: 6580da9a40bb410016b8b0c3
 ---
 
 > ⚠️ MemGPT + local LLM failure cases
->
+
 > When using open LLMs with MemGPT, **the main failure case will be your LLM outputting a string that cannot be understood by MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)` and interact with the user (`send_message(...)`), so your LLM needs generate outputs that can be parsed into MemGPT function calls.
 
 ### What is a "wrapper"?

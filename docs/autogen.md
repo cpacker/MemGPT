@@ -9,7 +9,7 @@ category: 6580dab16cade8003f996d17
 > If you need help visit our [Discord server](https://discord.gg/9GEQrxmVyE) and post in the #support channel.
 >
 > You can also check the [GitHub discussion page](https://github.com/cpacker/MemGPT/discussions/65), but the Discord server is the official support channel and is monitored more actively.
->
+
 > ⚠️ Tested with `pyautogen` v0.2.0
 >
 > The MemGPT+AutoGen integration was last tested using AutoGen version v0.2.0.

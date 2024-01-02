@@ -51,7 +51,7 @@ memgpt attach --agent <AGENT-NAME> --data-source <DATA-SOURCE-NAME>
 
 ### Loading a file or directory
 
-You can load a file, list of files, or directry into MemGPT with the following command:
+You can load a file, list of files, or directly into MemGPT with the following command:
 
 ```sh
 memgpt load directory --name <NAME> \
