@@ -1,7 +1,7 @@
 ---
-title: Introduction 
+title: Introduction
 excerpt: Welcome to the MemGPT documentation!
-category: 6580d34ee5e4d00068bf2a1d 
+category: 6580d34ee5e4d00068bf2a1d
 ---
 
 <style>

@@ -1,11 +1,11 @@
 ---
 title: Example - chat with your data
 excerpt: Using MemGPT to chat with your own data
-category: 6580d34ee5e4d00068bf2a1d 
+category: 6580d34ee5e4d00068bf2a1d
 ---
 
 > 📘 Confirm your installation
-> 
+>
 > Before starting this example, make sure that you've [properly installed MemGPT](quickstart)
 
 In this example, we're going to use MemGPT to chat with a custom data source. Specifically, we'll try loading in the MemGPT research paper and ask MemGPT questions about it.
@@ -15,15 +15,18 @@ In this example, we're going to use MemGPT to chat with a custom data source. Sp
 To feed external data into a MemGPT chatbot, we first need to create a data source.
 
 To download the MemGPT research paper we'll use `curl` (you can also just download the PDF from your browser):
+
 ```sh
 # we're saving the file as "memgpt_research_paper.pdf"
 curl -L -o memgpt_research_paper.pdf https://arxiv.org/pdf/2310.08560.pdf
 ```
 
 Now that we have the paper downloaded, we can create a MemGPT data source using `memgpt load`:
+
 ```sh
 memgpt load directory --name memgpt_research_paper --input-files=memgpt_research_paper.pdf
 ```
+
 ```text
 loading data
 done loading data
@@ -42,12 +45,14 @@ Note: you can ignore the "_LLM is explicitly disabled_" message.
 Now that we've created this data source, we can attach it to a MemGPT chatbot at any time.
 
 For the sake of this example, let's create a new chatbot using the `memgpt_doc` persona (but you can use any persona you want):
+
 ```sh
 # reminder: `memgpt run --persona memgpt_doc` will create a new MemGPT agent using the `memgpt_doc` persona
 memgpt run --persona memgpt_doc
 ```
 
 Once we're chatting with the agent, we can "attach" the data source to the agent's archival memory:
+
 ```text
 Creating new agent...
 Created new agent agent_2.
@@ -66,6 +71,7 @@ Attached data source memgpt_research_paper to agent agent_2, consisting of 130. 
 ### Testing out our new chatbot
 
 Now that the data has been loaded into the chatbot's memory, we can start to ask questions about it:
+
 ```text
 > Enter your message: The paper I loaded into your archival memory is called MemGPT. Can you tell me more about it?
 💭 The search results show that the MemGPT paper explores operating-system-inspired techniques to enable large language models (LLMs) to manage memory and achieve unbounded context. The paper evaluates MemGPT in domains where LLMs are typically limited by finite context windows. This includes document analysis, allowing these models to process lengthy texts beyond their context limits, and conversational agents, where MemGPT allows for maintaining long-term memory, consistency, and evolution over extended dialogues. Time to relay this to Bob.
