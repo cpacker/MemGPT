@@ -71,3 +71,20 @@ This string is not correct JSON - it is missing closing brackets and has a stray
 ### "Got back an empty response string from ..."
 
 MemGPT asked the server to run the LLM, but got back an empty response. Double-check that your server is running properly and has context length set correctly (it should be set to 8k if using Mistral 7B models).
+
+### "Unable to connect to endpoint" using Windows + WSL
+
+>⚠️ We recommend using Anaconda Shell, as WSL has been known to have issues passing network traffic between WSL and the Windows host.
+> Check the [WSL Issue Thread](https://github.com/microsoft/WSL/issues/5211) for more info.
+
+If you still would like to try WSL, you must be on WSL version 2.0.5 or above with the installation from the Microsoft Store app.
+You will need to verify your WSL network mode is set to "mirrored"
+
+You can do this by checking the `.wslconfig` file in `%USERPROFILE%'
+
+Add the following if the file does not contain:
+```
+[wsl2]
+networkingMode=mirrored # add this line if the wsl2 section already exists
+```
+
