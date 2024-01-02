@@ -74,7 +74,8 @@ MemGPT asked the server to run the LLM, but got back an empty response. Double-c
 
 ### "Unable to connect to endpoint" using Windows + WSL
 
->⚠️ We recommend using Anaconda Shell, as WSL has been known to have issues passing network traffic between WSL and the windows host.
+>⚠️ We recommend using Anaconda Shell, as WSL has been known to have issues passing network traffic between WSL and the Windows host.
+> Check the [WSL Issue Thread](https://github.com/microsoft/WSL/issues/5211) for more info.
 
 If you still would like to try WSL, you must be on WSL version 2.0.5 or above with the installation from the Microsoft Store app.
 You will need to verify your WSL network mode is set to "mirrored"
