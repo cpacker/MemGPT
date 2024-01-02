@@ -566,11 +566,10 @@ def describe_agent(
     agent: str = typer.Option(help="Specify agent to describe"),
     description: str = typer.Option(help="Description of the agent"),
 ):
-    """Add a description to an existing agent
-    """
+    """Add a description to an existing agent"""
 
     agent_config = AgentConfig.load(agent)
-    agent_config.description = description;
+    agent_config.description = description
     agent_config.save()
 
     print(f"Updated description of {agent}.")
