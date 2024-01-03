@@ -7,7 +7,7 @@ import pexpect
 
 from .constants import TIMEOUT
 from .utils import configure_memgpt
-from memgpt.config import MemGPTConfig
+from memgpt import MemGPT
 
 
 # def test_configure_memgpt():
@@ -16,14 +16,7 @@ from memgpt.config import MemGPTConfig
 
 def test_save_load():
     # configure_memgpt()  # rely on configure running first^
-    config = MemGPTConfig(
-        model="gpt-4",
-        model_endpoint="https://api.openai.com/v1",
-        model_endpoint_type="openai",
-        context_window=8192,
-        openai_key=os.getenv("OPENAI_API_KEY"),
-    )
-    config.save()
+    client = MemGPT(quickstart="openai")
 
     child = pexpect.spawn("memgpt run --agent test_save_load --first --strip-ui")
 
