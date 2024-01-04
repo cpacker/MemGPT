@@ -4,8 +4,10 @@ import glob
 import os
 import json
 import traceback
+from typing import List, Optional
 
-from memgpt.persistence_manager import LocalStateManager
+from memgpt.interface import AgentInterface
+from memgpt.persistence_manager import PersistenceManager, LocalStateManager
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from memgpt.memory import CoreMemory as InContextMemory, summarize_messages
@@ -146,18 +148,18 @@ def initialize_message_sequence(
 class Agent(object):
     def __init__(
         self,
-        config,
-        model,
-        system,
-        functions,  # list of [{'schema': 'x', 'python_function': function_pointer}, ...]
-        interface,
-        persistence_manager,
-        persona_notes,
-        human_notes,
-        in_context_messages=None,
-        messages_total=None,
-        persistence_manager_init=True,
-        first_message_verify_mono=True,
+        config: AgentConfig,
+        model: str,
+        system: str,
+        functions: List[dict],  # list of [{'schema': 'x', 'python_function': function_pointer}, ...]
+        interface: AgentInterface,
+        persistence_manager: PersistenceManager,
+        persona_notes: str,
+        human_notes: str,
+        in_context_messages: Optional[List[dict]] = None,
+        messages_total: Optional[int] = None,
+        persistence_manager_init: Optional[bool] = True,
+        first_message_verify_mono: Optional[bool] = True,
     ):
         # agent config
         self.config = config
