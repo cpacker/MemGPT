@@ -7,7 +7,7 @@ from memgpt.memory import (
     EmbeddingArchivalMemory,
 )
 from memgpt.utils import get_local_time, printd
-from memgpt.data_types import Message
+from memgpt.data_types import Message, ToolCall
 from memgpt.config import MemGPTConfig
 
 from datetime import datetime
@@ -116,6 +116,20 @@ class LocalStateManager(PersistenceManager):
         timestamp = message_json["timestamp"]
         message = message_json["message"]
 
+        # TODO: change this when we fully migrate to tool calls API
+        if "function_call" in message:
+            tool_calls = [
+                ToolCall(
+                    id=message["tool_call_id"],
+                    tool_call_type="function",
+                    function_name=message["function_call"]["name"],
+                    function_arguments=message["function_call"]["arguments"],
+                )
+            ]
+            printd(f"Saving tool calls {[vars(tc) for tc in tool_calls]}")
+        else:
+            tool_calls = None
+
         return Message(
             user_id=self.config.anon_clientid,
             agent_id=self.agent_config.name,
@@ -123,8 +137,7 @@ class LocalStateManager(PersistenceManager):
             text=message["content"],
             model=self.agent_config.model,
             created_at=parse_formatted_time(timestamp),
-            tool_name=message["function_name"] if "function_name" in message else None,
-            tool_args=message["function_args"] if "function_args" in message else None,
+            tool_calls=tool_calls,
             tool_call_id=message["tool_call_id"] if "tool_call_id" in message else None,
             id=message["id"] if "id" in message else None,
         )

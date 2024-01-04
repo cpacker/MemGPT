@@ -42,6 +42,9 @@ class ToolCall(object):
         self.function_name = function_name
         self.function_arguments = function_arguments
 
+    def __iter__(self):
+        return vars(self)
+
 
 class Message(Record):
     """Representation of a message sent.
