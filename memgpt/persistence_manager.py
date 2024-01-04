@@ -122,8 +122,10 @@ class LocalStateManager(PersistenceManager):
                 ToolCall(
                     id=message["tool_call_id"],
                     tool_call_type="function",
-                    function_name=message["function_call"]["name"],
-                    function_arguments=message["function_call"]["arguments"],
+                    function={
+                        "name": message["function_call"]["name"],
+                        "arguments": message["function_call"]["arguments"],
+                    },
                 )
             ]
             printd(f"Saving tool calls {[vars(tc) for tc in tool_calls]}")

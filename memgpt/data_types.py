@@ -1,7 +1,7 @@
 """ This module contains the data types used by MemGPT. Each data type must include a function to create a DB model. """
 import uuid
 from abc import abstractmethod
-from typing import Optional, List
+from typing import Optional, List, Dict
 import numpy as np
 
 
@@ -30,15 +30,12 @@ class ToolCall(object):
         id: str,
         # TODO should we include this? it's fixed to 'function' only (for now) in OAI schema
         tool_call_type: str,  # only 'function' is supported
-        # TODO in the OAI JSON schema, this is not flat, it's an obj
         # function: { 'name': ..., 'arguments': ...}
-        function_name: str,
-        function_arguments: str,
+        function: Dict[str, str],
     ):
         self.id = id
         self.tool_call_type = tool_call_type
-        self.function_name = function_name
-        self.function_arguments = function_arguments
+        self.function = function
 
 
 class Message(Record):
