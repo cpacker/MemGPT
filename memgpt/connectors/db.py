@@ -91,15 +91,15 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
             doc_id = Column(String)
             agent_id = Column(String)
             data_source = Column(String)  # agent_name if agent, data_source name if from data source
-            # embedding = mapped_column(CommonVector(config.embedding_dim))
 
-            if dialect == "postgresql":
+            # vector storage
+            if dialect == "sqlite":
+                embedding = Column(CommonVector)
+            else:
                 from pgvector.sqlalchemy import Vector
 
                 embedding = mapped_column(Vector(config.embedding_dim))
-            else:
-                embedding = Column(CommonVector)
-            # metadata_ = Column(mutable_json_type(dbtype=JSONB, nested=True)) # more performance, but not supported for sqlite
+
             metadata_ = Column(MutableJson)
 
             def __repr__(self):
@@ -148,14 +148,13 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
             # tool call response info
             tool_call_id = Column(String)
 
-            # embedding = mapped_column(CommonVector(config.embedding_dim))
-            # embedding= Column(CommonVector)
-            if dialect == "postgresql":
+            # vector storage
+            if dialect == "sqlite":
+                embedding = Column(CommonVector)
+            else:
                 from pgvector.sqlalchemy import Vector
 
                 embedding = mapped_column(Vector(config.embedding_dim))
-            else:
-                embedding = Column(CommonVector)
 
             # Add a datetime column, with default value as the current time
             created_at = Column(DateTime(timezone=True), server_default=func.now())
