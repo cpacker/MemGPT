@@ -120,10 +120,12 @@ def get_db_model(table_name: str, table_type: TableType):
             model = Column(String, nullable=False)
             user = Column(String)  # optional: multi-agent only
 
-            # function info
-            function_name = Column(String)
-            function_args = Column(String)
-            function_response = Column(String)
+            # tool call request info
+            tool_name = Column(String)
+            tool_args = Column(String)
+
+            # tool call response info
+            tool_call_id = Column(String)
 
             embedding = mapped_column(Vector(config.embedding_dim))
 
@@ -141,9 +143,9 @@ def get_db_model(table_name: str, table_type: TableType):
                     user=self.user,
                     text=self.text,
                     model=self.model,
-                    function_name=self.function_name,
-                    function_args=self.function_args,
-                    function_response=self.function_response,
+                    tool_name=self.tool_name,
+                    tool_args=self.tool_args,
+                    tool_call_id=self.tool_call_id,
                     embedding=self.embedding,
                     created_at=self.created_at,
                     id=self.id,
@@ -259,23 +261,42 @@ class SQLStorageConnector(StorageConnector):
         unique_data_sources = session.query(self.db_model.data_source).filter(*self.filters).distinct().all()
         return unique_data_sources
 
-    def query_date(self, start_date, end_date):
+    def query_date(self, start_date, end_date, offset=0, limit=None):
         session = self.Session()
         filters = self.get_filters({})
-        results = (
+        query = (
             session.query(self.db_model)
             .filter(*filters)
             .filter(self.db_model.created_at >= start_date)
             .filter(self.db_model.created_at <= end_date)
-            .all()
+            .offset(offset)
         )
+        if limit:
+            query = query.limit(limit)
+        results = query.all()
         return [result.to_record() for result in results]
 
-    def query_text(self, query):
+    def query_text(self, query, offset=0, limit=None):
         # todo: make fuzz https://stackoverflow.com/questions/42388956/create-a-full-text-search-index-with-sqlalchemy-on-postgresql/42390204#42390204
         session = self.Session()
         filters = self.get_filters({})
-        results = session.query(self.db_model).filter(*filters).filter(func.lower(self.db_model.text).contains(func.lower(query))).all()
+        if limit:
+            results = (
+                session.query(self.db_model)
+                .filter(*filters)
+                .filter(func.lower(self.db_model.text).contains(func.lower(query)))
+                .offset(offset)
+                .all()
+            )
+        else:
+            results = (
+                session.query(self.db_model)
+                .filter(*filters)
+                .filter(func.lower(self.db_model.text).contains(func.lower(query)))
+                .offset(offset)
+                .limit(limit)
+                .all()
+            )
         # return [self.type(**vars(result)) for result in results]
         return [result.to_record() for result in results]
 

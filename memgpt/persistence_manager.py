@@ -123,9 +123,9 @@ class LocalStateManager(PersistenceManager):
             text=message["content"],
             model=self.agent_config.model,
             created_at=parse_formatted_time(timestamp),
-            function_name=message["function_name"] if "function_name" in message else None,
-            function_args=message["function_args"] if "function_args" in message else None,
-            function_response=message["function_response"] if "function_response" in message else None,
+            tool_name=message["function_name"] if "function_name" in message else None,
+            tool_args=message["function_args"] if "function_args" in message else None,
+            tool_call_id=message["tool_call_id"] if "tool_call_id" in message else None,
             id=message["id"] if "id" in message else None,
         )
 
