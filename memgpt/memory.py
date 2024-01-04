@@ -310,10 +310,12 @@ class BaseRecallMemory(RecallMemory):
         self.cache = {}
 
     def text_search(self, query_string, count=None, start=None):
-        self.storage.query_text(query_string, count, start)
+        results = self.storage.query_text(query_string, count, start)
+        return results, len(results)
 
     def date_search(self, start_date, end_date, count=None, start=None):
-        self.storage.query_date(start_date, end_date, count, start)
+        results = self.storage.query_date(start_date, end_date, count, start)
+        return results, len(results)
 
     def __repr__(self) -> str:
         total = self.storage.size()
