@@ -26,7 +26,7 @@ from memgpt.connectors.storage import StorageConnector, TableType
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.constants import MEMGPT_DIR
 from memgpt.utils import printd
-from memgpt.data_types import Record, Message, Passage, Source
+from memgpt.data_types import Record, Message, Passage, Source, ToolCall
 
 from datetime import datetime
 
@@ -69,6 +69,26 @@ class CommonVector(TypeDecorator):
     def process_result_value(self, value, dialect):
         list_value = ast.literal_eval(value)
         return np.array(list_value)
+
+
+class ToolCalls(TypeDecorator):
+
+    """Custom type for storing List[ToolCall] as JSON"""
+
+    impl = JSON
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(JSON())
+
+    def process_bind_param(self, value, dialect):
+        if value:
+            return [vars(v) for v in value]
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value:
+            return [ToolCall(**v) for v in value]
+        return value
 
 
 Base = declarative_base()
@@ -155,8 +175,7 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
             # if role == "assistant", this MAY be specified
             # if role != "assistant", this must be null
             # TODO align with OpenAI spec of multiple tool calls
-            tool_name = Column(String)
-            tool_args = Column(String)
+            tool_calls = Column(ToolCalls)
 
             # tool call response info
             # if role == "tool", then this must be specified
@@ -185,8 +204,7 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
                     user=self.user,
                     text=self.text,
                     model=self.model,
-                    tool_name=self.tool_name,
-                    tool_args=self.tool_args,
+                    tool_calls=self.tool_calls,
                     tool_call_id=self.tool_call_id,
                     embedding=self.embedding,
                     created_at=self.created_at,

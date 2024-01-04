@@ -1,7 +1,7 @@
 """ This module contains the data types used by MemGPT. Each data type must include a function to create a DB model. """
 import uuid
 from abc import abstractmethod
-from typing import Optional
+from typing import Optional, List, Dict
 import numpy as np
 
 
@@ -24,8 +24,28 @@ class Record:
         assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
 
 
+class ToolCall(object):
+    def __init__(
+        self,
+        id: str,
+        # TODO should we include this? it's fixed to 'function' only (for now) in OAI schema
+        tool_call_type: str,  # only 'function' is supported
+        # function: { 'name': ..., 'arguments': ...}
+        function: Dict[str, str],
+    ):
+        self.id = id
+        self.tool_call_type = tool_call_type
+        self.function = function
+
+
 class Message(Record):
-    """Representation of a message sent from the agent -> user. Also includes function calls."""
+    """Representation of a message sent.
+
+    Messages can be:
+    - agent->user (role=='agent')
+    - user->agent and system->agent (role=='user')
+    - or function/tool call returns (role=='function'/'tool').
+    """
 
     def __init__(
         self,
@@ -36,9 +56,8 @@ class Message(Record):
         model: str,  # model used to make function call
         user: Optional[str] = None,  # optional participant name
         created_at: Optional[str] = None,
-        tool_name: Optional[str] = None,  # name of tool used
-        tool_args: Optional[str] = None,  # args of tool used
-        tool_call_id: Optional[str] = None,  # id of tool call
+        tool_calls: Optional[List[ToolCall]] = None,  # list of tool calls requested
+        tool_call_id: Optional[str] = None,
         embedding: Optional[np.ndarray] = None,
         id: Optional[str] = None,
     ):
@@ -54,8 +73,13 @@ class Message(Record):
         self.user = user
 
         # tool (i.e. function) call info (optional)
-        self.tool_name = tool_name
-        self.tool_args = tool_args
+
+        # if role == "assistant", this MAY be specified
+        # if role != "assistant", this must be null
+        self.tool_calls = tool_calls
+
+        # if role == "tool", then this must be specified
+        # if role != "tool", this must be null
         self.tool_call_id = tool_call_id
 
         # embedding (optional)
