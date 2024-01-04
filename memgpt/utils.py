@@ -30,6 +30,23 @@ from memgpt.openai_backcompat.openai_object import OpenAIObject
 DEBUG = False
 
 
+def version_less_than(version_a: str, version_b: str) -> bool:
+    """Compare versions to check if version_a is less than version_b."""
+    # Regular expression to match version strings of the format int.int.int
+    version_pattern = re.compile(r"^\d+\.\d+\.\d+$")
+
+    # Assert that version strings match the required format
+    if not version_pattern.match(version_a) or not version_pattern.match(version_b):
+        raise ValueError("Version strings must be in the format 'int.int.int'")
+
+    # Split the version strings into parts
+    parts_a = [int(part) for part in version_a.split(".")]
+    parts_b = [int(part) for part in version_b.split(".")]
+
+    # Compare version parts
+    return parts_a < parts_b
+
+
 def is_valid_url(url):
     try:
         result = urlparse(url)
