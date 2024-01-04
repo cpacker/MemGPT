@@ -343,7 +343,7 @@ class BaseRecallMemory(RecallMemory):
     def save(self):
         self.storage.save()
 
-    def size(self):
+    def __len__(self):
         return self.storage.size()
 
 

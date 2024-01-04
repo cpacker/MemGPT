@@ -178,7 +178,7 @@ class StorageConnector:
         pass
 
     @abstractmethod
-    def insert_many(self, records: List[Record], show_progress=True):
+    def insert_many(self, records: List[Record], show_progress=False):
         pass
 
     @abstractmethod

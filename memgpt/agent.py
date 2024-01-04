@@ -1,4 +1,5 @@
 import datetime
+import uuid
 import glob
 import os
 import json
@@ -291,7 +292,7 @@ class Agent(object):
             "model": self.model,
             "system": self.system,
             "functions": self.functions,
-            "messages": self.messages,
+            "messages": self.messages,  # TODO: convert to IDs
             "messages_total": self.messages_total,
             "memory": self.memory.to_dict(),
         }
@@ -338,7 +339,7 @@ class Agent(object):
         # load persistence manager
         persistence_manager = LocalStateManager.load(agent_config)
 
-        messages = state["messages"]
+        messages = state["messages"]  # TODO: reconstruct messages using recall memory + stored IDs
         agent = cls(
             config=agent_config,
             model=state["model"],
@@ -404,6 +405,11 @@ class Agent(object):
         if response_message.get("function_call"):
             # The content if then internal monologue, not chat
             self.interface.internal_monologue(response_message.content)
+
+            # generate UUID for tool call
+            tool_call_id = str(uuid.uuid4())  # needs to be a string for JSON
+            response_message["tool_call_id"] = tool_call_id
+            # role: assistant (requesting tool call, set tool call ID)
             messages.append(response_message)  # extend conversation with assistant's reply
 
             # Step 3: call the function
@@ -417,11 +423,7 @@ class Agent(object):
                 error_msg = f"No function named {function_name}"
                 function_response = package_function_response(False, error_msg)
                 messages.append(
-                    {
-                        "role": "function",
-                        "name": function_name,
-                        "content": function_response,
-                    }
+                    {"role": "function", "name": function_name, "content": function_response, "tool_call_id": tool_call_id}
                 )  # extend conversation with function response
                 self.interface.function_message(f"Error: {error_msg}")
                 return messages, None, True  # force a heartbeat to allow agent to handle error
@@ -477,11 +479,7 @@ class Agent(object):
                 printd(error_msg_user)
                 function_response = package_function_response(False, error_msg)
                 messages.append(
-                    {
-                        "role": "function",
-                        "name": function_name,
-                        "content": function_response,
-                    }
+                    {"role": "function", "name": function_name, "content": function_response, "tool_call_id": tool_call_id}
                 )  # extend conversation with function response
                 self.interface.function_message(f"Error: {error_msg}")
                 return messages, None, True  # force a heartbeat to allow agent to handle error
@@ -490,11 +488,7 @@ class Agent(object):
             # Step 4: send the info on the function call and function response to GPT
             self.interface.function_message(f"Success: {function_response_string}")
             messages.append(
-                {
-                    "role": "function",
-                    "name": function_name,
-                    "content": function_response,
-                }
+                {"role": "function", "name": function_name, "content": function_response, "tool_call_id": tool_call_id}
             )  # extend conversation with function response
 
         else:

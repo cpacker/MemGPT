@@ -36,9 +36,9 @@ class Message(Record):
         model: str,  # model used to make function call
         user: Optional[str] = None,  # optional participant name
         created_at: Optional[str] = None,
-        function_name: Optional[str] = None,  # name of function called
-        function_args: Optional[str] = None,  # args of function called
-        function_response: Optional[str] = None,  # response of function called
+        tool_name: Optional[str] = None,  # name of tool used
+        tool_args: Optional[str] = None,  # args of tool used
+        tool_call_id: Optional[str] = None,  # id of tool call
         embedding: Optional[np.ndarray] = None,
         id: Optional[str] = None,
     ):
@@ -53,10 +53,10 @@ class Message(Record):
         self.role = role  # role (agent/user/function)
         self.user = user
 
-        # function call info (optional)
-        self.function_name = function_name
-        self.function_args = function_args
-        self.function_response = function_response
+        # tool (i.e. function) call info (optional)
+        self.tool_name = tool_name
+        self.tool_args = tool_args
+        self.tool_call_id = tool_call_id
 
         # embedding (optional)
         self.embedding = embedding
