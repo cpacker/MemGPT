@@ -5,8 +5,8 @@ import psycopg
 
 from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY
 from sqlalchemy import func
-from sqlalchemy.orm import sessionmaker, mapped_column
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, mapped_column, declarative_base
+from sqlalchemy.orm.session import close_all_sessions
 from sqlalchemy.sql import func
 from sqlalchemy import Column, BIGINT, String, DateTime
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -334,7 +334,7 @@ class SQLStorageConnector(StorageConnector):
 
     def delete_table(self):
         session = self.Session()
-        session.close_all()
+        close_all_sessions()
         self.db_model.__table__.drop(session.bind)
         session.commit()
 
