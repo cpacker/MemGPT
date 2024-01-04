@@ -239,6 +239,12 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
         class_name = f"{table_name.capitalize()}Model" + dialect
         return create_or_get_model(class_name, SourceModel, table_name)
 
+    elif table_type == TableType.AGENTS:
+        # TODO
+        pass
+    elif table_type == TableType.USERS:
+        # TODO
+        pass
     else:
         raise ValueError(f"Table type {table_type} not implemented")
 

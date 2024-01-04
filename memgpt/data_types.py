@@ -146,3 +146,110 @@ class Source(Record):
         self.name = name
         self.user_id = user_id
         self.created_at = created_at
+
+
+class User:
+
+    """Defines user and default configurations"""
+
+    # TODO: make sure to encrypt/decrypt keys before storing in DB
+
+    def __init__(
+        self,
+        default_preset=DEFAULT_PRESET,
+        default_persona=DEFAULT_PERSONA,
+        default_human=DEFAULT_HUMAN,
+        default_agent=None,
+        # defaults: llm model
+        default_model=DEFAULT_MODEL,
+        default_model_endpoint_type=DEFAULT_MODEL_ENDPOINT_TYPE,
+        default_model_endpoint=DEFAULT_MODEL_ENDPOINT,
+        default_model_wrapper=DEFAULT_MODEL_WRAPPER,
+        default_context_window=DEFAULT_CONTEXT_WINDOW,
+        # defaults: embeddings
+        default_embedding_endpoint_type="memgpt_hosted",
+        default_embedding_endpoint=None,
+        default_embedding_model=None,
+        default_embedding_dim=DEFAULT_EMBEDDING_DIM,
+        default_embedding_chunk_size=DEFAULT_EMBEDDING_CHUNK_SIZE,
+        # storage: archival memory
+        default_archival_storage_type=DEFAULT_ARCHIVAL_STORAGE_TYPE,
+        default_archival_storage_path=DEFAULT_ARCHIVAL_STORAGE_PATH,
+        default_archival_storage_uri=DEFAULT_ARCHIVAL_STORAGE_URI,
+        # storage: recall memory
+        default_recall_storage_type=DEFAULT_RECALL_STORAGE_TYPE,
+        default_recall_storage_path=DEFAULT_RECALL_STORAGE_PATH,
+        default_recall_storage_uri=DEFAULT_RECALL_STORAGE_URI,
+        # storage: metadata
+        default_metadata_storage_type=DEFAULT_METADATA_STORAGE_TYPE,
+        default_metadata_storage_path=DEFAULT_METADATA_STORAGE_PATH,
+        default_metadata_storage_uri=DEFAULT_METADATA_STORAGE_URI,
+        # azure information
+        azure_key=None,
+        azure_endpoint=None,
+        azure_version=None,
+        azure_deployment=None,
+        anon_clientid=None,
+        # openai information
+        openai_key=None,
+        # other
+        memgpt_version=None,
+        policies_accepted=False,
+    ):
+        pass
+
+
+class AgentState(Record):
+    def __init__(
+        self,
+        name,
+        persona,
+        human,
+        # model info
+        model=None,
+        model_endpoint_type=None,
+        model_endpoint=None,
+        model_wrapper=None,
+        context_window=None,
+        # embedding info
+        embedding_endpoint_type=None,
+        embedding_endpoint=None,
+        embedding_model=None,
+        embedding_dim=None,
+        embedding_chunk_size=None,
+        # other
+        preset=None,
+        data_sources=None,
+        create_time=None,
+        memgpt_version=None,
+        # functions
+        functions=None,  # schema definitions ONLY (linked at runtime)
+        # state
+        state: Optional[Dict] = None,
+    ):
+        self.persona = persona
+        self.human = human
+
+        # model info
+        self.model = model
+        self.model_endpoint_type = model_endpoint_type
+        self.model_endpoint = model_endpoint
+        self.model_wrapper = model_wrapper
+        self.context_window = context_window
+
+        # embedding info
+        self.embedding_endpoint_type = embedding_endpoint_type
+        self.embedding_endpoint = embedding_endpoint
+        self.embedding_model = embedding_model
+        self.embedding_dim = embedding_dim
+        self.embedding_chunk_size = embedding_chunk_size
+
+        # other
+        self.preset = preset
+        self.data_sources = data_sources
+        self.create_time = create_time
+        self.memgpt_version = memgpt_version
+        self.functions = functions
+
+        # state
+        self.state = state
