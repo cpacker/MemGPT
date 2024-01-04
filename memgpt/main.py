@@ -22,7 +22,7 @@ import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.constants as constants
 import memgpt.errors as errors
-from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, suppress_stdout
+from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, suppress_stdout, migrate
 from memgpt.cli.cli_config import configure, list, add, delete
 from memgpt.cli.cli_load import app as load_app
 from memgpt.connectors.storage import StorageConnector, TableType
@@ -38,6 +38,7 @@ app.command(name="delete")(delete)
 app.command(name="server")(server)
 app.command(name="folder")(open_folder)
 app.command(name="quickstart")(quickstart)
+app.command(name="migrate")(migrate)
 # load data commands
 app.add_typer(load_app, name="load")
 
