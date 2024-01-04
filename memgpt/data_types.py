@@ -44,7 +44,13 @@ class ToolCall(object):
 
 
 class Message(Record):
-    """Representation of a message sent from the agent -> user. Also includes function calls."""
+    """Representation of a message sent.
+
+    Messages can be:
+    - agent->user (role=='agent')
+    - user->agent and system->agent (role=='user')
+    - or function/tool call returns (role=='function'/'tool').
+    """
 
     def __init__(
         self,
