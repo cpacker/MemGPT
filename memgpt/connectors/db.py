@@ -350,7 +350,6 @@ class PostgresStorageConnector(SQLStorageConnector):
     # TODO: this should probably eventually be moved into a parent DB class
 
     def __init__(self, table_type: str, agent_config: Optional[AgentConfig] = None):
-
         from pgvector.sqlalchemy import Vector
 
         super().__init__(table_type=table_type, agent_config=agent_config)
