@@ -4,11 +4,11 @@ import json
 
 from tqdm import tqdm
 
-from memgpt.cli.cli import load_agent, create_agent
 from memgpt.interface import CLIInterface
 from memgpt.agent import Agent
 from memgpt.constants import MEMGPT_DIR
 from memgpt.utils import version_less_than
+from memgpt.cli.cli import load_agent, create_agent
 
 # This is the version where the breaking change was made
 VERSION_CUTOFF = "0.2.12"
