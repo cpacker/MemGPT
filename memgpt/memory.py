@@ -1,16 +1,15 @@
 from abc import ABC, abstractmethod
 import datetime
-import re
 from typing import Optional, List, Tuple
 
 from memgpt.constants import MESSAGE_SUMMARY_WARNING_FRAC
-from memgpt.utils import get_local_time, printd, count_tokens
+from memgpt.utils import get_local_time, printd, count_tokens, validate_date_format, extract_date_from_timestamp
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
 from memgpt.openai_tools import create
+from memgpt.data_types import Message, Passage
 from memgpt.config import MemGPTConfig
 from memgpt.embeddings import embedding_model
 from llama_index import Document
-from llama_index.node_parser import SimpleNodeParser
 from llama_index.node_parser import SimpleNodeParser
 
 
@@ -137,7 +136,7 @@ def summarize_messages(
 
 class ArchivalMemory(ABC):
     @abstractmethod
-    def insert(self, memory_string):
+    def insert(self, memory_string: str):
         """Insert new archival memory
 
         :param memory_string: Memory string to insert
@@ -168,14 +167,21 @@ class ArchivalMemory(ABC):
 class RecallMemory(ABC):
     @abstractmethod
     def text_search(self, query_string, count=None, start=None):
+        """Search messages that match query_string in recall memory"""
         pass
 
     @abstractmethod
-    def date_search(self, query_string, count=None, start=None):
+    def date_search(self, start_date, end_date, count=None, start=None):
+        """Search messages between start_date and end_date in recall memory"""
         pass
 
     @abstractmethod
     def __repr__(self) -> str:
+        pass
+
+    @abstractmethod
+    def insert(self, message: Message):
+        """Insert message into recall memory"""
         pass
 
 
@@ -188,8 +194,6 @@ class DummyRecallMemory(RecallMemory):
     Recall Memory: The AI's capability to search through past interactions,
     effectively allowing it to 'remember' prior engagements with a user.
     """
-
-    # TODO: replace this with StorageConnector based implementation
 
     def __init__(self, message_database=None, restrict_search_to_summaries=False):
         self._message_logs = [] if message_database is None else message_database  # consists of full message dicts
@@ -252,25 +256,11 @@ class DummyRecallMemory(RecallMemory):
         else:
             return matches, len(matches)
 
-    def _validate_date_format(self, date_str):
-        """Validate the given date string in the format 'YYYY-MM-DD'."""
-        try:
-            datetime.datetime.strptime(date_str, "%Y-%m-%d")
-            return True
-        except (ValueError, TypeError):
-            return False
-
-    def _extract_date_from_timestamp(self, timestamp):
-        """Extracts and returns the date from the given timestamp."""
-        # Extracts the date (ignoring the time and timezone)
-        match = re.match(r"(\d{4}-\d{2}-\d{2})", timestamp)
-        return match.group(1) if match else None
-
     def date_search(self, start_date, end_date, count=None, start=None):
         message_pool = [d for d in self._message_logs if d["message"]["role"] not in ["system", "function"]]
 
         # First, validate the start_date and end_date format
-        if not self._validate_date_format(start_date) or not self._validate_date_format(end_date):
+        if not validate_date_format(start_date) or not validate_date_format(end_date):
             raise ValueError("Invalid date format. Expected format: YYYY-MM-DD")
 
         # Convert dates to datetime objects for comparison
@@ -281,7 +271,7 @@ class DummyRecallMemory(RecallMemory):
         matches = [
             d
             for d in message_pool
-            if start_date_dt <= datetime.datetime.strptime(self._extract_date_from_timestamp(d["timestamp"]), "%Y-%m-%d") <= end_date_dt
+            if start_date_dt <= datetime.datetime.strptime(extract_date_from_timestamp(d["timestamp"]), "%Y-%m-%d") <= end_date_dt
         ]
 
         # start/count support paging through results
@@ -297,6 +287,68 @@ class DummyRecallMemory(RecallMemory):
             return matches, len(matches)
 
 
+class BaseRecallMemory(RecallMemory):
+
+    """Recall memory based on base functions implemented by storage connectors"""
+
+    def __init__(self, agent_config, restrict_search_to_summaries=False):
+        # If true, the pool of messages that can be queried are the automated summaries only
+        # (generated when the conversation window needs to be shortened)
+        self.restrict_search_to_summaries = restrict_search_to_summaries
+        from memgpt.connectors.storage import StorageConnector
+
+        self.agent_config = agent_config
+        config = MemGPTConfig.load()
+
+        # create embedding model
+        self.embed_model = embedding_model()
+        self.embedding_chunk_size = config.embedding_chunk_size
+
+        # create storage backend
+        self.storage = StorageConnector.get_recall_storage_connector(agent_config=agent_config)
+        # TODO: have some mechanism for cleanup otherwise will lead to OOM
+        self.cache = {}
+
+    def text_search(self, query_string, count=None, start=None):
+        results = self.storage.query_text(query_string, count, start)
+        return results, len(results)
+
+    def date_search(self, start_date, end_date, count=None, start=None):
+        results = self.storage.query_date(start_date, end_date, count, start)
+        return results, len(results)
+
+    def __repr__(self) -> str:
+        total = self.storage.size()
+        system_count = self.storage.size(filters={"role": "system"})
+        user_count = self.storage.size(filters={"role": "user"})
+        assistant_count = self.storage.size(filters={"role": "assistant"})
+        function_count = self.storage.size(filters={"role": "function"})
+        other_count = total - (system_count + user_count + assistant_count + function_count)
+
+        memory_str = (
+            f"Statistics:"
+            + f"\n{total} total messages"
+            + f"\n{system_count} system"
+            + f"\n{user_count} user"
+            + f"\n{assistant_count} assistant"
+            + f"\n{function_count} function"
+            + f"\n{other_count} other"
+        )
+        return f"\n### RECALL MEMORY ###" + f"\n{memory_str}"
+
+    def insert(self, message: Message):
+        self.storage.insert(message)
+
+    def insert_many(self, messages: List[Message]):
+        self.storage.insert_many(messages)
+
+    def save(self):
+        self.storage.save()
+
+    def __len__(self):
+        return self.storage.size()
+
+
 class EmbeddingArchivalMemory(ArchivalMemory):
     """Archival memory with embedding based search"""
 
@@ -310,16 +362,24 @@ class EmbeddingArchivalMemory(ArchivalMemory):
 
         self.top_k = top_k
         self.agent_config = agent_config
-        config = MemGPTConfig.load()
+        self.config = MemGPTConfig.load()
 
         # create embedding model
         self.embed_model = embedding_model()
-        self.embedding_chunk_size = config.embedding_chunk_size
+        self.embedding_chunk_size = self.config.embedding_chunk_size
 
         # create storage backend
-        self.storage = StorageConnector.get_storage_connector(agent_config=agent_config)
+        self.storage = StorageConnector.get_archival_storage_connector(agent_config=agent_config)
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
+
+    def create_passage(self, text, embedding):
+        return Passage(
+            user_id=self.config.anon_clientid,
+            agent_id=self.agent_config.name,
+            text=text,
+            embedding=embedding,
+        )
 
     def save(self):
         """Save the index to disk"""
@@ -327,7 +387,6 @@ class EmbeddingArchivalMemory(ArchivalMemory):
 
     def insert(self, memory_string):
         """Embed and save memory string"""
-        from memgpt.connectors.storage import Passage
 
         if not isinstance(memory_string, str):
             return TypeError("memory must be a string")
@@ -341,7 +400,17 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             # breakup string into passages
             for node in parser.get_nodes_from_documents([Document(text=memory_string)]):
                 embedding = self.embed_model.get_text_embedding(node.text)
-                passages.append(Passage(text=node.text, embedding=embedding, doc_id=f"agent_{self.agent_config.name}_memory"))
+                # fixing weird bug where type returned isn't a list, but instead is an object
+                # eg: embedding={'object': 'list', 'data': [{'object': 'embedding', 'embedding': [-0.0071973633, -0.07893023,
+                if isinstance(embedding, dict):
+                    try:
+                        embedding = embedding["data"][0]["embedding"]
+                    except (KeyError, IndexError):
+                        # TODO as a fallback, see if we can find any lists in the payload
+                        raise TypeError(
+                            f"Got back an unexpected payload from text embedding function, type={type(embedding)}, value={embedding}"
+                        )
+                passages.append(self.create_passage(node.text, embedding))
 
             # insert passages
             self.storage.insert_many(passages)
@@ -375,7 +444,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
     def __repr__(self) -> str:
         limit = 10
         passages = []
-        for passage in list(self.storage.get_all(limit)):  # TODO: only get first 10
+        for passage in list(self.storage.get_all(limit=limit)):  # TODO: only get first 10
             passages.append(str(passage.text))
         memory_str = "\n".join(passages)
         return f"\n### ARCHIVAL MEMORY ###" + f"\n{memory_str}"

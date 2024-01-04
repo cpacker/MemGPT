@@ -1,6 +1,9 @@
 import typer
 from typing import Optional, List
 import os
+
+from memgpt.utils import is_valid_url
+
 from llama_index.embeddings import OpenAIEmbedding, AzureOpenAIEmbedding
 from llama_index.embeddings import TextEmbeddingsInference
 from llama_index.bridge.pydantic import PrivateAttr
@@ -26,6 +29,10 @@ class EmbeddingEndpoint(BaseEmbedding):
         user: str,
         timeout: float = 60.0,
     ):
+        if not is_valid_url(base_url):
+            raise ValueError(
+                f"Embeddings endpoint was provided an invalid URL (set to: '{base_url}'). Make sure embedding_endpoint is set correctly in your MemGPT config."
+            )
         self._user = user
         self._base_url = base_url
         self._timeout = timeout
@@ -38,6 +45,10 @@ class EmbeddingEndpoint(BaseEmbedding):
         return "EmbeddingEndpoint"
 
     def _call_api(self, text: str) -> List[float]:
+        if not is_valid_url(self._base_url):
+            raise ValueError(
+                f"Embeddings endpoint does not have a valid URL (set to: '{self._base_url}'). Make sure embedding_endpoint is set correctly in your MemGPT config."
+            )
         import httpx
 
         headers = {"Content-Type": "application/json"}
@@ -69,6 +80,10 @@ class EmbeddingEndpoint(BaseEmbedding):
         return embedding
 
     async def _acall_api(self, text: str) -> List[float]:
+        if not is_valid_url(self._base_url):
+            raise ValueError(
+                f"Embeddings endpoint does not have a valid URL (set to: '{self._base_url}'). Make sure embedding_endpoint is set correctly in your MemGPT config."
+            )
         import httpx
 
         headers = {"Content-Type": "application/json"}
@@ -126,14 +141,14 @@ def embedding_model():
 
     # load config
     config = MemGPTConfig.load()
+    endpoint_type = config.embedding_endpoint_type
 
-    endpoint = config.embedding_endpoint_type
-    if endpoint == "openai":
+    if endpoint_type == "openai":
         model = OpenAIEmbedding(
             api_base=config.embedding_endpoint, api_key=config.openai_key, additional_kwargs={"user": config.anon_clientid}
         )
         return model
-    elif endpoint == "azure":
+    elif endpoint_type == "azure":
         # https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings
         model = "text-embedding-ada-002"
         deployment = config.azure_embedding_deployment if config.azure_embedding_deployment is not None else model
@@ -144,7 +159,7 @@ def embedding_model():
             azure_endpoint=config.azure_endpoint,
             api_version=config.azure_version,
         )
-    elif endpoint == "hugging-face":
+    elif endpoint_type == "hugging-face":
         embed_model = EmbeddingEndpoint(model=config.embedding_model, base_url=config.embedding_endpoint, user=config.anon_clientid)
         return embed_model
     else:

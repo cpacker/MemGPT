@@ -509,23 +509,30 @@ def attach(
 ):
     try:
         # loads the data contained in data source into the agent's memory
-        from memgpt.connectors.storage import StorageConnector
+        from memgpt.connectors.storage import StorageConnector, TableType
         from tqdm import tqdm
 
         agent_config = AgentConfig.load(agent)
 
         # get storage connectors
         with suppress_stdout():
-            source_storage = StorageConnector.get_storage_connector(name=data_source)
-            dest_storage = StorageConnector.get_storage_connector(agent_config=agent_config)
+            source_storage = StorageConnector.get_storage_connector(table_type=TableType.PASSAGES)
+            dest_storage = StorageConnector.get_storage_connector(table_type=TableType.ARCHIVAL_MEMORY, agent_config=agent_config)
 
-        size = source_storage.size()
+        size = source_storage.size({"data_source": data_source})
         typer.secho(f"Ingesting {size} passages into {agent_config.name}", fg=typer.colors.GREEN)
         page_size = 100
-        generator = source_storage.get_all_paginated(page_size=page_size)  # yields List[Passage]
+        generator = source_storage.get_all_paginated(filters={"data_source": data_source}, page_size=page_size)  # yields List[Passage]
         passages = []
         for i in tqdm(range(0, size, page_size)):
             passages = next(generator)
+            print("inserting", passages)
+
+            # need to associated passage with agent (for filtering)
+            for passage in passages:
+                passage.agent_id = agent_config.name
+
+            # insert into agent archival memory
             dest_storage.insert_many(passages)
 
         # save destination storage

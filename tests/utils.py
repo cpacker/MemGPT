@@ -1,5 +1,4 @@
 import os
-import pexpect
 
 from memgpt.config import MemGPTConfig
 
@@ -18,6 +17,8 @@ def wipe_config():
 
 
 def configure_memgpt_localllm():
+    import pexpect
+
     wipe_config()
     child = pexpect.spawn("memgpt configure")
 

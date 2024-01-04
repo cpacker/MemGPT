@@ -19,7 +19,7 @@ jobs:
       PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
-    timeout-minutes: 5
+    timeout-minutes: 15
 
     steps:
     - name: Checkout
@@ -47,7 +47,7 @@ jobs:
 
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry install -E dev -E postgres -E local -E server
+        poetry install --all-extras
 
     - name: Set Poetry config
       env:
