@@ -23,9 +23,9 @@ import memgpt.system as system
 import memgpt.constants as constants
 import memgpt.errors as errors
 from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, suppress_stdout
-from memgpt.cli.cli_config import configure, list, add
+from memgpt.cli.cli_config import configure, list, add, delete
 from memgpt.cli.cli_load import app as load_app
-from memgpt.connectors.storage import StorageConnector
+from memgpt.connectors.storage import StorageConnector, TableType
 
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
@@ -34,6 +34,7 @@ app.command(name="attach")(attach)
 app.command(name="configure")(configure)
 app.command(name="list")(list)
 app.command(name="add")(add)
+app.command(name="delete")(delete)
 app.command(name="server")(server)
 app.command(name="folder")(open_folder)
 app.command(name="quickstart")(quickstart)
@@ -64,6 +65,7 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
         print()
 
     multiline_input = False
+    metadata_db = StorageConnector.get_metadata_storage_connector(table_type=TableType.DATA_SOURCES)  # already filters by user
     while True:
         if not skip_next_user_input and (counter > 0 or USER_GOES_FIRST):
             # Ask for user input
@@ -101,7 +103,8 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                     continue
                 elif user_input.lower() == "/attach":
                     # TODO: check if agent already has it
-                    data_source_options = StorageConnector.list_loaded_data()
+
+                    data_source_options = [row.name for row in metadata_db.get_all()]
                     if len(data_source_options) == 0:
                         typer.secho(
                             'No sources available. You must load a souce with "memgpt load ..." before running /attach.',
@@ -120,9 +123,10 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                     # reload agent with new data source
                     # TODO: maybe make this less ugly...
                     with suppress_stdout():
-                        memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_storage_connector(
+                        memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_archival_storage_connector(
                             agent_config=memgpt_agent.config
                         )
+                    # TODO: update metadata_db to record attached agents
                     continue
 
                 elif user_input.lower() == "/dump" or user_input.lower().startswith("/dump "):

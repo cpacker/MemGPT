@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 import json
 import os
 import pickle
@@ -6,8 +7,8 @@ import platform
 import subprocess
 import sys
 import io
+from urllib.parse import urlparse
 from contextlib import contextmanager
-
 import difflib
 import demjson3 as demjson
 import pytz
@@ -27,6 +28,14 @@ from memgpt.openai_backcompat.openai_object import OpenAIObject
 # TODO: what is this?
 # DEBUG = True
 DEBUG = False
+
+
+def is_valid_url(url):
+    try:
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])
+    except ValueError:
+        return False
 
 
 @contextmanager
@@ -92,6 +101,21 @@ def united_diff(str1, str2):
     return "".join(diff)
 
 
+def parse_formatted_time(formatted_time):
+    # parse times returned by memgpt.utils.get_formatted_time()
+    return datetime.strptime(formatted_time, "%Y-%m-%d %I:%M:%S %p %Z%z")
+
+
+def datetime_to_timestamp(dt):
+    # convert datetime object to integer timestamp
+    return int(dt.timestamp())
+
+
+def timestamp_to_datetime(ts):
+    # convert integer timestamp to datetime object
+    return datetime.fromtimestamp(ts)
+
+
 def get_local_time_military():
     # Get the current time in UTC
     current_time_utc = datetime.now(pytz.utc)
@@ -125,7 +149,7 @@ def get_local_time(timezone=None):
         time_str = get_local_time_timezone(timezone)
     else:
         # Get the current time, which will be in the local timezone of the computer
-        local_time = datetime.now()
+        local_time = datetime.now().astimezone()
 
         # You may format it as you desire, including AM/PM
         time_str = local_time.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
@@ -288,3 +312,20 @@ def get_schema_diff(schema_a, schema_b):
     difference = [line for line in difference if line.startswith("+ ") or line.startswith("- ")]
 
     return "".join(difference)
+
+
+# datetime related
+def validate_date_format(date_str):
+    """Validate the given date string in the format 'YYYY-MM-DD'."""
+    try:
+        datetime.datetime.strptime(date_str, "%Y-%m-%d")
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
+def extract_date_from_timestamp(timestamp):
+    """Extracts and returns the date from the given timestamp."""
+    # Extracts the date (ignoring the time and timezone)
+    match = re.match(r"(\d{4}-\d{2}-\d{2})", timestamp)
+    return match.group(1) if match else None

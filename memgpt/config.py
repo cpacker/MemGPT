@@ -7,6 +7,8 @@ import configparser
 
 import memgpt
 import memgpt.utils as utils
+from memgpt.utils import printd, get_schema_diff
+from memgpt.functions.functions import load_all_function_sets
 from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS, DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.presets.presets import DEFAULT_PRESET
 
@@ -67,14 +69,19 @@ class MemGPTConfig:
     embedding_chunk_size: int = 300  # number of tokens
 
     # database configs: archival
-    archival_storage_type: str = "local"  # local, db
-    archival_storage_path: str = None  # TODO: set to memgpt dir
+    archival_storage_type: str = "chroma"  # local, db
+    archival_storage_path: str = os.path.join(MEMGPT_DIR, "chroma")
     archival_storage_uri: str = None  # TODO: eventually allow external vector DB
 
     # database configs: recall
-    recall_storage_type: str = "local"  # local, db
-    recall_storage_path: str = None  # TODO: set to memgpt dir
+    recall_storage_type: str = "sqlite"  # local, db
+    recall_storage_path: str = MEMGPT_DIR
     recall_storage_uri: str = None  # TODO: eventually allow external vector DB
+
+    # database configs: metadata storage (sources, agents, data sources)
+    metadata_storage_type: str = "sqlite"
+    metadata_storage_path: str = MEMGPT_DIR
+    metadata_storage_uri: str = None
 
     # database configs: agent state
     persistence_manager_type: str = None  # in-memory, db
@@ -134,6 +141,12 @@ class MemGPTConfig:
                 "archival_storage_type": get_field(config, "archival_storage", "type"),
                 "archival_storage_path": get_field(config, "archival_storage", "path"),
                 "archival_storage_uri": get_field(config, "archival_storage", "uri"),
+                "recall_storage_type": get_field(config, "recall_storage", "type"),
+                "recall_storage_path": get_field(config, "recall_storage", "path"),
+                "recall_storage_uri": get_field(config, "recall_storage", "uri"),
+                "metadata_storage_type": get_field(config, "metadata_storage", "type"),
+                "metadata_storage_path": get_field(config, "metadata_storage", "path"),
+                "metadata_storage_uri": get_field(config, "metadata_storage", "uri"),
                 "anon_clientid": get_field(config, "client", "anon_clientid"),
                 "config_path": config_path,
                 "memgpt_version": get_field(config, "version", "memgpt_version"),
@@ -186,6 +199,16 @@ class MemGPTConfig:
         set_field(config, "archival_storage", "type", self.archival_storage_type)
         set_field(config, "archival_storage", "path", self.archival_storage_path)
         set_field(config, "archival_storage", "uri", self.archival_storage_uri)
+
+        # recall storage
+        set_field(config, "recall_storage", "type", self.recall_storage_type)
+        set_field(config, "recall_storage", "path", self.recall_storage_path)
+        set_field(config, "recall_storage", "uri", self.recall_storage_uri)
+
+        # metadata storage
+        set_field(config, "metadata_storage", "type", self.metadata_storage_type)
+        set_field(config, "metadata_storage", "path", self.metadata_storage_path)
+        set_field(config, "metadata_storage", "uri", self.metadata_storage_uri)
 
         # set version
         set_field(config, "version", "memgpt_version", memgpt.__version__)
@@ -252,6 +275,8 @@ class AgentConfig:
         name=None,
         create_time=None,
         memgpt_version=None,
+        # functions
+        functions=None,  # schema definitions ONLY (linked at runtime)
     ):
         if name is None:
             self.name = f"agent_{self.generate_agent_id()}"
@@ -283,6 +308,9 @@ class AgentConfig:
         else:
             self.memgpt_version = memgpt_version
 
+        # functions
+        self.functions = functions
+
         # save agent config
         self.agent_config_path = (
             os.path.join(MEMGPT_DIR, "agents", self.name, "config.json") if agent_config_path is None else agent_config_path
@@ -302,6 +330,9 @@ class AgentConfig:
         # i.e. previous source will be overriden
         self.data_sources.append(data_source)
         self.save()
+
+    def save_dir(self):
+        return os.path.join(MEMGPT_DIR, "agents", self.name)
 
     def save_state_dir(self):
         # directory to save agent state
