@@ -26,6 +26,7 @@ from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart
 from memgpt.cli.cli_config import configure, list, add
 from memgpt.cli.cli_load import app as load_app
 from memgpt.connectors.storage import StorageConnector
+import memgpt.functions.function_sets.base as base_functions
 
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
@@ -218,6 +219,38 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                     except errors.LLMError as e:
                         typer.secho(
                             f"/summarize failed:\n{e}",
+                            fg=typer.colors.RED,
+                            bold=True,
+                        )
+                    continue
+
+                elif user_input.lower() == "/archive" or user_input.lower().startswith("/archive "):
+                    # Split the user input on space and take everything after "/archive"
+                    content = " ".join(user_input.split(" ")[1:])
+
+                    # Remove the leading and trailing quotes if they exist
+                    if content.startswith('"') and content.endswith('"'):
+                        content = content[1:-1]
+                    else:
+                        typer.secho(
+                            f'Format of command is `/archive "YOUR STRING TO STORE"`',
+                            fg=typer.colors.RED,
+                            bold=True,
+                        )
+                        continue
+
+                    # Allow inserting to archive memory directly
+                    try:
+                        base_functions.archival_memory_insert(memgpt_agent, content)
+                    except AttributeError:
+                        typer.secho(
+                            f"Agent does not have access to archival_memory_insert",
+                            fg=typer.colors.RED,
+                            bold=True,
+                        )
+                    except Exception as e:
+                        typer.secho(
+                            f"/archive failed:\n{e}",
                             fg=typer.colors.RED,
                             bold=True,
                         )
