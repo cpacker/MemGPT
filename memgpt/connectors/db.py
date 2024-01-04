@@ -68,7 +68,6 @@ class CommonVector(TypeDecorator):
 
     def process_result_value(self, value, dialect):
         list_value = ast.literal_eval(value)
-        print("LIST VALUE", list_value)
         return np.array(list_value)
 
 
@@ -81,7 +80,6 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
     # Define a helper function to create or get the model class
     def create_or_get_model(class_name, base_model, table_name):
         if class_name in globals():
-            print(f"ALREADY EXISTS {class_name}")
             return globals()[class_name]
         Model = type(class_name, (base_model,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
         globals()[class_name] = Model
@@ -106,12 +104,10 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
 
             # vector storage
             if dialect == "sqlite":
-                print("DIALECT", dialect, "using BLOB")
                 embedding = Column(CommonVector)
             else:
                 from pgvector.sqlalchemy import Vector
 
-                print("DIALECT", dialect, "using VECTOR")
                 embedding = mapped_column(Vector(config.embedding_dim))
 
             metadata_ = Column(MutableJson)
@@ -169,10 +165,8 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
 
             # vector storage
             if dialect == "sqlite":
-                print("DIALECT", dialect, "using BLOB")
                 embedding = Column(CommonVector)
             else:
-                print("DIALECT", dialect, "using VECTOR")
                 from pgvector.sqlalchemy import Vector
 
                 embedding = mapped_column(Vector(config.embedding_dim))
@@ -356,6 +350,7 @@ class PostgresStorageConnector(SQLStorageConnector):
     # TODO: this should probably eventually be moved into a parent DB class
 
     def __init__(self, table_type: str, agent_config: Optional[AgentConfig] = None):
+
         from pgvector.sqlalchemy import Vector
 
         super().__init__(table_type=table_type, agent_config=agent_config)
@@ -379,7 +374,6 @@ class PostgresStorageConnector(SQLStorageConnector):
         self.db_model = get_db_model(self.table_name, table_type)
         self.engine = create_engine(self.uri)
         for c in self.db_model.__table__.columns:
-            print(c.name, c.type)
             if c.name == "embedding":
                 assert isinstance(c.type, Vector), f"Embedding column must be of type Vector, got {c.type}"
         Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
