@@ -61,6 +61,14 @@ Base = declarative_base()
 def get_db_model(table_name: str, table_type: TableType):
     config = MemGPTConfig.load()
 
+    # Define a helper function to create or get the model class
+    def create_or_get_model(class_name, base_model, table_name):
+        if class_name in globals():
+            return globals()[class_name]
+        Model = type(class_name, (base_model,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
+        globals()[class_name] = Model
+        return Model
+
     if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
         # create schema for archival memory
         class PassageModel(Base):
@@ -98,8 +106,8 @@ def get_db_model(table_name: str, table_type: TableType):
 
         """Create database model for table_name"""
         class_name = f"{table_name.capitalize()}Model"
-        Model = type(class_name, (PassageModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
-        return Model
+        return create_or_get_model(class_name, PassageModel, table_name)
+
     elif table_type == TableType.RECALL_MEMORY:
 
         class MessageModel(Base):
@@ -153,8 +161,8 @@ def get_db_model(table_name: str, table_type: TableType):
 
         """Create database model for table_name"""
         class_name = f"{table_name.capitalize()}Model"
-        Model = type(class_name, (MessageModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
-        return Model
+        return create_or_get_model(class_name, MessageModel, table_name)
+
     elif table_type == TableType.DATA_SOURCES:
 
         class SourceModel(Base):
@@ -177,8 +185,8 @@ def get_db_model(table_name: str, table_type: TableType):
 
         """Create database model for table_name"""
         class_name = f"{table_name.capitalize()}Model"
-        Model = type(class_name, (SourceModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
-        return Model
+        return create_or_get_model(class_name, SourceModel, table_name)
+
     else:
         raise ValueError(f"Table type {table_type} not implemented")
 
