@@ -1,10 +1,13 @@
 # import tempfile
 # import asyncio
 import os
+
 import pytest
-from memgpt.connectors.storage import StorageConnector, TableType
+from sqlalchemy.ext.declarative import declarative_base
+
 
 # import memgpt
+from memgpt.connectors.storage import StorageConnector, TableType
 from memgpt.cli.cli_load import load_directory, load_database, load_webpage
 from memgpt.cli.cli import attach
 from memgpt.constants import DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_HUMAN
@@ -20,9 +23,18 @@ def clear_dynamically_created_models():
             del globals()[key]
 
 
+@pytest.fixture(autouse=True)
+def recreate_declarative_base():
+    """Recreate the declarative base before each test"""
+    global Base
+    Base = declarative_base()
+    yield
+    Base.metadata.clear()
+
+
 @pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
 @pytest.mark.parametrize("passage_storage_connector", ["chroma", "postgres"])
-def test_load_directory(metadata_storage_connector, passage_storage_connector, clear_dynamically_created_models):
+def test_load_directory(metadata_storage_connector, passage_storage_connector, clear_dynamically_created_models, recreate_declarative_base):
     # setup config
     config = MemGPTConfig()
     if metadata_storage_connector == "postgres":
