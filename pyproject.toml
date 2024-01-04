@@ -25,7 +25,7 @@ questionary = "^2.0.1"
 pytz = "^2023.3.post1"
 tqdm = "^4.66.1"
 black = { version = "^23.10.1", optional = true }
-pytest = { version = "^7.4.3", optional = true }
+pytest = { version = "^7.4.4", optional = true }
 llama-index = "^0.9.13"
 setuptools = "^68.2.2"
 datasets = { version = "^2.14.6", optional = true}
