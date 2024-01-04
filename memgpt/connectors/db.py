@@ -156,10 +156,15 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
             user = Column(String)  # optional: multi-agent only
 
             # tool call request info
+            # if role == "assistant", this MAY be specified
+            # if role != "assistant", this must be null
+            # TODO align with OpenAI spec of multiple tool calls
             tool_name = Column(String)
             tool_args = Column(String)
 
             # tool call response info
+            # if role == "tool", then this must be specified
+            # if role != "tool", this must be null
             tool_call_id = Column(String)
 
             # vector storage
