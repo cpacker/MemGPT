@@ -1,10 +1,8 @@
-from pgvector.psycopg import register_vector
 import os
-from pgvector.sqlalchemy import Vector
 import psycopg
 
 
-from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON
+from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB
 from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker, mapped_column
 from sqlalchemy.ext.declarative import declarative_base
@@ -55,10 +53,26 @@ class CommonUUID(TypeDecorator):
             return uuid.UUID(value)
 
 
+class CommonVector(TypeDecorator):
+
+    """Common type for representing vectors in SQLite"""
+
+    impl = BLOB
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(BLOB())
+
+    def process_bind_param(self, value, dialect):
+        return np.array(value).tobytes()
+
+    def process_result_value(self, value, dialect):
+        return np.frombuffer(value, dtype=np.float32)
+
+
 Base = declarative_base()
 
 
-def get_db_model(table_name: str, table_type: TableType):
+def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
     config = MemGPTConfig.load()
 
     if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
@@ -77,7 +91,14 @@ def get_db_model(table_name: str, table_type: TableType):
             doc_id = Column(String)
             agent_id = Column(String)
             data_source = Column(String)  # agent_name if agent, data_source name if from data source
-            embedding = mapped_column(Vector(config.embedding_dim))
+            # embedding = mapped_column(CommonVector(config.embedding_dim))
+
+            if dialect == "postgresql":
+                from pgvector.sqlalchemy import Vector
+
+                embedding = mapped_column(Vector(config.embedding_dim))
+            else:
+                embedding = Column(CommonVector)
             # metadata_ = Column(mutable_json_type(dbtype=JSONB, nested=True)) # more performance, but not supported for sqlite
             metadata_ = Column(MutableJson)
 
@@ -127,7 +148,14 @@ def get_db_model(table_name: str, table_type: TableType):
             # tool call response info
             tool_call_id = Column(String)
 
-            embedding = mapped_column(Vector(config.embedding_dim))
+            # embedding = mapped_column(CommonVector(config.embedding_dim))
+            # embedding= Column(CommonVector)
+            if dialect == "postgresql":
+                from pgvector.sqlalchemy import Vector
+
+                embedding = mapped_column(Vector(config.embedding_dim))
+            else:
+                embedding = Column(CommonVector)
 
             # Add a datetime column, with default value as the current time
             created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -366,7 +394,7 @@ class SQLLiteStorageConnector(SQLStorageConnector):
         self.db_model = get_db_model(self.table_name, table_type)
 
         # Create the SQLAlchemy engine
-        self.db_model = get_db_model(self.table_name, table_type)
+        self.db_model = get_db_model(self.table_name, table_type, dialect="sqlite")
         self.engine = create_engine(f"sqlite:///{self.path}")
         Base.metadata.create_all(self.engine)  # Create the table if it doesn't exist
         self.Session = sessionmaker(bind=self.engine)

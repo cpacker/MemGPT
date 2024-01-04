@@ -44,11 +44,16 @@ def generate_passages(embed_model):
 
 
 # Data generation functions: Messages
-def generate_messages():
+def generate_messages(embed_model):
     """Generate list of 3 Message objects"""
     messages = []
     for text, date, role, agent_id, id in zip(texts, dates, roles, agent_ids, ids):
-        messages.append(Message(user_id=user_id, text=text, agent_id=agent_id, role=role, created_at=date, id=id, model="gpt4"))
+        embedding = None
+        if embed_model:
+            embedding = embed_model.get_text_embedding(text)
+        messages.append(
+            Message(user_id=user_id, text=text, agent_id=agent_id, role=role, created_at=date, id=id, model="gpt4", embedding=embedding)
+        )
         print(messages[-1].text)
     return messages
 
@@ -124,7 +129,7 @@ def test_storage(storage_connector, table_type):
     if table_type == TableType.ARCHIVAL_MEMORY:
         records = generate_passages(embed_model)
     elif table_type == TableType.RECALL_MEMORY:
-        records = generate_messages()
+        records = generate_messages(embed_model)
     else:
         raise NotImplementedError(f"Table type {table_type} not implemented")
 
