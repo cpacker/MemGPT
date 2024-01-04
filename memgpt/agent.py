@@ -411,12 +411,14 @@ class Agent(object):
             response_message["tool_call_id"] = tool_call_id
             # role: assistant (requesting tool call, set tool call ID)
             messages.append(response_message)  # extend conversation with assistant's reply
+            printd(f"Function call message: {messages[-1]}")
 
             # Step 3: call the function
             # Note: the JSON response may not always be valid; be sure to handle errors
 
             # Failure case 1: function name is wrong
             function_name = response_message["function_call"]["name"]
+            printd(f"Request to call function {function_name} with tool_call_id: {tool_call_id}")
             try:
                 function_to_call = self.functions_python[function_name]
             except KeyError as e:
