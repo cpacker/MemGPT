@@ -365,13 +365,27 @@ def run(
     # determine agent to use, if not provided
     if not yes and not agent:
         agent_files = utils.list_agent_config_files()
-        agents = [AgentConfig.load(f).name for f in agent_files]
+        agents = {}
+
+        for f in agent_files:
+            agent_config = AgentConfig.load(f)
+            agent_info = f" | 👉 {agent_config.description}" if agent_config.description != "" else ""
+            agents[agent_config.name] = f"{agent_config.name}    🤖 {agent_config.persona} | 🧑 {agent_config.human}{agent_info}"
 
         if len(agents) > 0 and not any([persona, human, model]):
             print()
             select_agent = questionary.confirm("Would you like to select an existing agent?").ask()
+
             if select_agent:
-                agent = questionary.select("Select agent:", choices=agents).ask()
+                selected_desc = questionary.select("Select agent:", choices=list(agents.values())).ask()
+
+                # check, if an agent was selected
+                if selected_desc:
+                    # extract the agent name from the selected choice
+                    agent = [name for name, desc in agents.items() if desc == selected_desc][0]
+                else:
+                    # handle the case where no selection is made (e.g., aborting via CTRL-C)
+                    sys.exit(0)
 
     # configure llama index
     config = MemGPTConfig.load()
@@ -546,3 +560,16 @@ def version():
 
     print(memgpt.__version__)
     return memgpt.__version__
+
+
+def describe_agent(
+    agent: str = typer.Option(help="Specify agent to describe"),
+    description: str = typer.Option(help="Description of the agent"),
+):
+    """Add a description to an existing agent"""
+
+    agent_config = AgentConfig.load(agent)
+    agent_config.description = description
+    agent_config.save()
+
+    print(f"Updated description of {agent}.")
