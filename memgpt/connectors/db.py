@@ -394,7 +394,6 @@ class SQLLiteStorageConnector(SQLStorageConnector):
             raise ValueError(f"Table type {table_type} not implemented")
 
         self.path = os.path.join(self.path, f"{self.table_name}.db")
-        self.db_model = get_db_model(self.table_name, table_type)
 
         # Create the SQLAlchemy engine
         self.db_model = get_db_model(self.table_name, table_type, dialect="sqlite")
