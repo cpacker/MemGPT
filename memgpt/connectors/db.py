@@ -94,10 +94,12 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
 
             # vector storage
             if dialect == "sqlite":
+                print("DIALECT", dialect, "using BLOB")
                 embedding = Column(CommonVector)
             else:
                 from pgvector.sqlalchemy import Vector
 
+                print("DIALECT", dialect, "using VECTOR")
                 embedding = mapped_column(Vector(config.embedding_dim))
 
             metadata_ = Column(MutableJson)
@@ -150,8 +152,10 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
 
             # vector storage
             if dialect == "sqlite":
+                print("DIALECT", dialect, "using BLOB")
                 embedding = Column(CommonVector)
             else:
+                print("DIALECT", dialect, "using VECTOR")
                 from pgvector.sqlalchemy import Vector
 
                 embedding = mapped_column(Vector(config.embedding_dim))
