@@ -154,6 +154,7 @@ class Agent(object):
         persistence_manager,
         persona_notes,
         human_notes,
+        in_context_messages=None,
         messages_total=None,
         persistence_manager_init=True,
         first_message_verify_mono=True,
@@ -179,12 +180,24 @@ class Agent(object):
 
         # Initialize the memory object
         self.memory = initialize_memory(persona_notes, human_notes)
-        # Once the memory object is initialize, use it to "bake" the system message
-        self._messages = initialize_message_sequence(
-            self.model,
-            self.system,
-            self.memory,
-        )
+        if in_context_messages is None:
+            # Once the memory object is initialized, use it to "bake" the system message
+            self._messages = initialize_message_sequence(
+                self.model,
+                self.system,
+                self.memory,
+            )
+        else:
+            # Alternatively allow passing a message list directly
+            if (
+                isinstance(in_context_messages, list)
+                and len(in_context_messages) > 0
+                and "role" in in_context_messages[0]
+                and in_context_messages[0]["role"] == "system"
+            ):
+                self._messages = in_context_messages
+            else:
+                raise ValueError(f"Bad values provided in in_context_messages:\n{in_context_messages}")
         # Interface must implement:
         # - internal_monologue
         # - assistant_message
