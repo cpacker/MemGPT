@@ -280,23 +280,12 @@ class SQLStorageConnector(StorageConnector):
         # todo: make fuzz https://stackoverflow.com/questions/42388956/create-a-full-text-search-index-with-sqlalchemy-on-postgresql/42390204#42390204
         session = self.Session()
         filters = self.get_filters({})
+        query = (
+            session.query(self.db_model).filter(*filters).filter(func.lower(self.db_model.text).contains(func.lower(query))).offset(offset)
+        )
         if limit:
-            results = (
-                session.query(self.db_model)
-                .filter(*filters)
-                .filter(func.lower(self.db_model.text).contains(func.lower(query)))
-                .offset(offset)
-                .all()
-            )
-        else:
-            results = (
-                session.query(self.db_model)
-                .filter(*filters)
-                .filter(func.lower(self.db_model.text).contains(func.lower(query)))
-                .offset(offset)
-                .limit(limit)
-                .all()
-            )
+            query = query.limit(limit)
+        results = query.all()
         # return [self.type(**vars(result)) for result in results]
         return [result.to_record() for result in results]
 
