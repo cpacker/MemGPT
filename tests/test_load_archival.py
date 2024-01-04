@@ -11,10 +11,8 @@ from memgpt.constants import DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_HUMA
 from memgpt.config import AgentConfig, MemGPTConfig
 
 
-# @pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
-# @pytest.mark.parametrize("passage_storage_connector", ["chroma", "postgres"])
-@pytest.mark.parametrize("metadata_storage_connector", ["postgres"])
-@pytest.mark.parametrize("passage_storage_connector", ["postgres"])
+@pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
+@pytest.mark.parametrize("passage_storage_connector", ["chroma", "postgres"])
 def test_load_directory(metadata_storage_connector, passage_storage_connector):
     # setup config
     config = MemGPTConfig()
