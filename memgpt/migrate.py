@@ -6,13 +6,68 @@ from tqdm import tqdm
 
 from memgpt.interface import CLIInterface
 from memgpt.agent import Agent
+from memgpt.config import AgentConfig
 from memgpt.constants import MEMGPT_DIR
-from memgpt.utils import version_less_than
+from memgpt.utils import version_less_than, suppress_stdout
 from memgpt.cli.cli import load_agent, create_agent
 
 # This is the version where the breaking change was made
 VERSION_CUTOFF = "0.2.12"
 MIGRATION_FILE_NAME = f"{VERSION_CUTOFF}_migration.json"
+
+
+def create_new_agent_from_state(agent_state):
+    agent_config = AgentConfig(
+        name=agent,
+        persona=persona,
+        human=human,
+        preset=preset,
+        model=model,
+        model_wrapper=model_wrapper,
+        model_endpoint_type=model_endpoint_type,
+        model_endpoint=model_endpoint,
+        context_window=context_window,
+    )
+
+    # save new agent config
+    agent_config.save()
+
+    # Supress llama-index noise
+    with suppress_stdout():
+        # TODO: allow configrable state manager (only local is supported right now)
+        persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
+
+    # create agent
+    try:
+        memgpt_agent = use_preset(
+            agent_config.preset,
+            agent_config,
+            agent_config.model,
+            get_persona_text(agent_config.persona),
+            get_human_text(agent_config.human),
+            interface,
+            persistence_manager,
+        )
+    except ValueError as e:
+        # Delete the directory of the failed agent
+        try:
+            # Path to the specific file
+            agent_config_file = agent_config.agent_config_path
+
+            # Check if the file exists
+            if os.path.isfile(agent_config_file):
+                # Delete the file
+                os.remove(agent_config_file)
+
+            # Now, delete the directory along with any remaining files in it
+            agent_save_dir = os.path.join(MEMGPT_DIR, "agents", agent_config.name)
+            shutil.rmtree(agent_save_dir)
+        except:
+            typer.secho(f"Failed to delete agent directory during cleanup:\n{e}", fg=typer.colors.RED)
+            raise
+        raise ValueError(f"Failed to create agent from provided information:\n{e}")
+
+    return memgpt_agent
 
 
 def agent_is_migrateable(agent_name: str):
