@@ -351,6 +351,9 @@ class PostgresStorageConnector(SQLStorageConnector):
     # TODO: this should probably eventually be moved into a parent DB class
 
     def __init__(self, table_type: str, agent_config: Optional[AgentConfig] = None):
+
+        from pgvector.sqlalchemy import Vector
+
         super().__init__(table_type=table_type, agent_config=agent_config)
 
         # get storage URI
@@ -371,6 +374,10 @@ class PostgresStorageConnector(SQLStorageConnector):
         # create table
         self.db_model = get_db_model(self.table_name, table_type)
         self.engine = create_engine(self.uri)
+        for c in self.db_model.__table__.columns:
+            print(c.name, c.type)
+            if c.name == "embedding":
+                assert isinstance(c.type, Vector), f"Embedding column must be of type Vector, got {c.type}"
         Base.metadata.create_all(self.engine)  # Create the table if it doesn't exist
         self.Session = sessionmaker(bind=self.engine)
         self.Session().execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
