@@ -83,7 +83,7 @@ class Client(object):
             return self.server.create_agent(user_id=self.user_id, agent_config=agent_config, persistence_manager=persistence_manager)
 
         if throw_if_exists:
-            raise ValueError(f"Agent {agent_config.name} already exists")
+            raise ValueError(f"Agent {agent_name} already exists")
 
         return agent_name
 

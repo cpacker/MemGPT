@@ -21,7 +21,7 @@ client = MemGPT(
 agent_id = client.create_agent(
     agent_config={
       "persona": "sam_pov",
-      "user": "cs_phd",
+      "human": "cs_phd",
     }
 )
 
@@ -81,7 +81,7 @@ def send_message(message: str):
         # Can also handle other types "function_call", "function_return", "function_message"
         if "assistant_message" in r:
             print("ASSISTANT:", r["assistant_message"])
-        elif "thoughts" in r:
+        elif "internal_monologue" in r:
             print("THOUGHTS:", r["internal_monologue"])
 
 # Send a message and see the response
