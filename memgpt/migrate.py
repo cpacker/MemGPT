@@ -1,8 +1,12 @@
 import os
+import glob
 import json
 
 from tqdm import tqdm
 
+from memgpt.cli.cli import load_agent, create_agent
+from memgpt.interface import CLIInterface
+from memgpt.agent import Agent
 from memgpt.constants import MEMGPT_DIR
 from memgpt.utils import version_less_than
 
@@ -28,7 +32,7 @@ def agent_is_migrateable(agent_name: str):
     except Exception as e:
         raise ValueError(f"Failed to load agent config file ({agent_config_file}), error = {e}")
 
-    if "memgpt_version" not in vars(agent_config) or version_less_than(agent_config.memgpt_version, VERSION_CUTOFF):
+    if not hasattr(agent_config, "memgpt_version") or version_less_than(agent_config.memgpt_version, VERSION_CUTOFF):
         return True
     else:
         return False
@@ -50,7 +54,18 @@ def write_old_agent_to_migration_json(agent_name: str, overwrite: bool = False) 
         else:
             pass
 
-    # TODO
+    # load state from old checkpoint file
+    agent_ckpt_directory = os.path.join(agent_folder, "agent_state")
+    json_files = glob.glob(os.path.join(agent_ckpt_directory, "*.json"))  # This will list all .json files in the current directory.
+    if not json_files:
+        raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {agent_ckpt_directory}")
+
+    # Sort files based on modified timestamp, with the latest file being the first.
+    filename = max(json_files, key=os.path.getmtime)
+    state_dict = json.load(open(filename, "r"))
+
+    print(state_dict.keys())
+    memgpt_agent = create_agent()
 
 
 def create_new_agent_from_migration_json(migration_json_file: str) -> str:
@@ -79,7 +94,7 @@ def migrate_agent(agent_name: str):
         # The agent name may already exist
         return
 
-    print(f"Successfully migrated agent {new_agent}")
+    print(f"Successfully migrated agent {agent_name} to {new_agent}")
 
 
 def migrate_all_agents():
