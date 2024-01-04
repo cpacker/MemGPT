@@ -85,7 +85,7 @@ class Client(object):
         if throw_if_exists:
             raise ValueError(f"Agent {agent_config.name} already exists")
 
-        return agent_config.name
+        return agent_name
 
     def get_agent_config(self, agent_id: str) -> Dict:
         self.interface.clear()

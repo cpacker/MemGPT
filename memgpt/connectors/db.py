@@ -1,8 +1,9 @@
 import os
+import ast
 import psycopg
 
 
-from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB
+from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY
 from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker, mapped_column
 from sqlalchemy.ext.declarative import declarative_base
@@ -57,16 +58,18 @@ class CommonVector(TypeDecorator):
 
     """Common type for representing vectors in SQLite"""
 
-    impl = BLOB
+    impl = BINARY
 
     def load_dialect_impl(self, dialect):
-        return dialect.type_descriptor(BLOB())
+        return dialect.type_descriptor(BINARY())
 
     def process_bind_param(self, value, dialect):
         return np.array(value).tobytes()
 
     def process_result_value(self, value, dialect):
-        return np.frombuffer(value, dtype=np.float32)
+        list_value = ast.literal_eval(value)
+        print("LIST VALUE", list_value)
+        return np.array(list_value)
 
 
 Base = declarative_base()
@@ -78,6 +81,7 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
     # Define a helper function to create or get the model class
     def create_or_get_model(class_name, base_model, table_name):
         if class_name in globals():
+            print(f"ALREADY EXISTS {class_name}")
             return globals()[class_name]
         Model = type(class_name, (base_model,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
         globals()[class_name] = Model
@@ -128,7 +132,7 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
                 )
 
         """Create database model for table_name"""
-        class_name = f"{table_name.capitalize()}Model"
+        class_name = f"{table_name.capitalize()}Model" + dialect
         return create_or_get_model(class_name, PassageModel, table_name)
 
     elif table_type == TableType.RECALL_MEMORY:
@@ -191,7 +195,7 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
                 )
 
         """Create database model for table_name"""
-        class_name = f"{table_name.capitalize()}Model"
+        class_name = f"{table_name.capitalize()}Model" + dialect
         return create_or_get_model(class_name, MessageModel, table_name)
 
     elif table_type == TableType.DATA_SOURCES:
@@ -215,7 +219,7 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
                 return Source(id=self.id, user_id=self.user_id, name=self.name, created_at=self.created_at)
 
         """Create database model for table_name"""
-        class_name = f"{table_name.capitalize()}Model"
+        class_name = f"{table_name.capitalize()}Model" + dialect
         return create_or_get_model(class_name, SourceModel, table_name)
 
     else:
@@ -330,6 +334,7 @@ class SQLStorageConnector(StorageConnector):
 
     def delete_table(self):
         session = self.Session()
+        session.close_all()
         self.db_model.__table__.drop(session.bind)
         session.commit()
 
