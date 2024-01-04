@@ -25,8 +25,6 @@ class Record:
 
 
 class ToolCall(object):
-    """TODO not sure if this really deserves its own record?"""
-
     def __init__(
         self,
         id: str,
@@ -41,9 +39,6 @@ class ToolCall(object):
         self.tool_call_type = tool_call_type
         self.function_name = function_name
         self.function_arguments = function_arguments
-
-    def __iter__(self):
-        return vars(self)
 
 
 class Message(Record):
