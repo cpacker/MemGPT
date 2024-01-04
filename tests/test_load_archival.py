@@ -11,9 +11,18 @@ from memgpt.constants import DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_HUMA
 from memgpt.config import AgentConfig, MemGPTConfig
 
 
+@pytest.fixture(autouse=True)
+def clear_dynamically_created_models():
+    """Wipe globals for SQLAlchemy"""
+    yield
+    for key in list(globals().keys()):
+        if key.endswith("Model"):
+            del globals()[key]
+
+
 @pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
 @pytest.mark.parametrize("passage_storage_connector", ["chroma", "postgres"])
-def test_load_directory(metadata_storage_connector, passage_storage_connector):
+def test_load_directory(metadata_storage_connector, passage_storage_connector, clear_dynamically_created_models):
     # setup config
     config = MemGPTConfig()
     if metadata_storage_connector == "postgres":
