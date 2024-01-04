@@ -1,7 +1,9 @@
 import datetime
 import glob
+import inspect
 import os
 import json
+from pathlib import Path
 import traceback
 
 from memgpt.persistence_manager import LocalStateManager
@@ -21,7 +23,7 @@ from memgpt.constants import (
     CLI_WARNING_PREFIX,
 )
 from .errors import LLMError
-from .functions.functions import load_all_function_sets
+from .functions.functions import USER_FUNCTIONS_DIR, load_all_function_sets
 
 
 def initialize_memory(ai_notes, human_notes):
@@ -271,6 +273,46 @@ class Agent(object):
         filename = f"{timestamp}.persistence.pickle"
         os.makedirs(self.config.save_persistence_manager_dir(), exist_ok=True)
         self.persistence_manager.save(os.path.join(self.config.save_persistence_manager_dir(), filename))
+
+    def add_function(self, function_name: str) -> str:
+        if function_name in self.functions_python.keys():
+            msg = f"Function {function_name} already loaded"
+            printd(msg)
+            return msg
+
+        available_functions = load_all_function_sets()
+        if function_name not in available_functions.keys():
+            raise ValueError(f"Function {function_name} not found in function library")
+
+        self.functions.append(available_functions[function_name]["json_schema"])
+        self.functions_python[function_name] = available_functions[function_name]["python_function"]
+
+        msg = f"Added function {function_name}"
+        self.save()
+        printd(msg)
+        return msg
+
+    def remove_function(self, function_name: str) -> str:
+        if function_name not in self.functions_python.keys():
+            msg = f"Function {function_name} not loaded, ignoring"
+            printd(msg)
+            return msg
+
+        # only allow removal of user defined functions
+        user_func_path = Path(USER_FUNCTIONS_DIR)
+        func_path = Path(inspect.getfile(self.functions_python[function_name]))
+        is_subpath = func_path.resolve().parts[: len(user_func_path.resolve().parts)] == user_func_path.resolve().parts
+
+        if not is_subpath:
+            raise ValueError(f"Function {function_name} is not user defined and cannot be removed")
+
+        self.functions = [f_schema for f_schema in self.functions if f_schema["name"] != function_name]
+        self.functions_python.pop(function_name)
+
+        msg = f"Removed function {function_name}"
+        self.save()
+        printd(msg)
+        return msg
 
     @classmethod
     def load_agent(cls, interface, agent_config: AgentConfig):
