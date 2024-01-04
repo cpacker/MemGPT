@@ -11,7 +11,7 @@ client = None
 def test_create_agent():
     wipe_config()
     global client
-    client = MemGPT(quickstart="memgpt_hosted")
+    client = MemGPT(quickstart="openai")
 
     agent_id = client.create_agent(
         agent_config={

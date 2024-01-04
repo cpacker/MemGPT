@@ -14,7 +14,7 @@ def create_test_agent():
     """Create a test agent that we can call functions on"""
     wipe_config()
     global client
-    client = MemGPT(quickstart="memgpt_hosted")
+    client = MemGPT(quickstart="openai")
 
     agent_id = client.create_agent(
         agent_config={
