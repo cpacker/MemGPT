@@ -29,7 +29,7 @@ class ToolCall(object):
 
     def __init__(
         self,
-        tool_call_id: str,
+        id: str,
         # TODO should we include this? it's fixed to 'function' only (for now) in OAI schema
         tool_call_type: str,  # only 'function' is supported
         # TODO in the OAI JSON schema, this is not flat, it's an obj
@@ -37,7 +37,7 @@ class ToolCall(object):
         function_name: str,
         function_arguments: str,
     ):
-        self.tool_call_id = tool_call_id
+        self.id = id
         self.tool_call_type = tool_call_type
         self.function_name = function_name
         self.function_arguments = function_arguments
