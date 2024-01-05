@@ -2,6 +2,7 @@ import typer
 import json
 import requests
 import sys
+import shutil
 import io
 import logging
 import questionary
@@ -31,6 +32,14 @@ class QuickstartChoice(Enum):
     openai = "openai"
     # azure = "azure"
     memgpt_hosted = "memgpt"
+
+
+def str_to_quickstart_choice(choice_str: str) -> QuickstartChoice:
+    try:
+        return QuickstartChoice[choice_str]
+    except KeyError:
+        valid_options = [choice.name for choice in QuickstartChoice]
+        raise ValueError(f"{choice_str} is not a valid QuickstartChoice. Valid options are: {valid_options}")
 
 
 def set_config_with_dict(new_config: dict) -> bool:
@@ -470,6 +479,21 @@ def run(
             )
         except ValueError as e:
             typer.secho(f"Failed to create agent from provided information:\n{e}", fg=typer.colors.RED)
+            # Delete the directory of the failed agent
+            try:
+                # Path to the specific file
+                agent_config_file = agent_config.agent_config_path
+
+                # Check if the file exists
+                if os.path.isfile(agent_config_file):
+                    # Delete the file
+                    os.remove(agent_config_file)
+
+                # Now, delete the directory along with any remaining files in it
+                agent_save_dir = os.path.join(MEMGPT_DIR, "agents", agent_config.name)
+                shutil.rmtree(agent_save_dir)
+            except:
+                typer.secho(f"Failed to delete agent directory during cleanup:\n{e}", fg=typer.colors.RED)
             sys.exit(1)
         typer.secho(f"🎉 Created new agent '{agent_config.name}'", fg=typer.colors.GREEN)
 
@@ -489,22 +513,30 @@ def attach(
 ):
     try:
         # loads the data contained in data source into the agent's memory
-        from memgpt.connectors.storage import StorageConnector
+        from memgpt.connectors.storage import StorageConnector, TableType
         from tqdm import tqdm
 
         agent_config = AgentConfig.load(agent)
 
         # get storage connectors
-        source_storage = StorageConnector.get_storage_connector(name=data_source)
-        dest_storage = StorageConnector.get_storage_connector(agent_config=agent_config)
+        with suppress_stdout():
+            source_storage = StorageConnector.get_storage_connector(table_type=TableType.PASSAGES)
+            dest_storage = StorageConnector.get_storage_connector(table_type=TableType.ARCHIVAL_MEMORY, agent_config=agent_config)
 
-        size = source_storage.size()
+        size = source_storage.size({"data_source": data_source})
         typer.secho(f"Ingesting {size} passages into {agent_config.name}", fg=typer.colors.GREEN)
         page_size = 100
-        generator = source_storage.get_all_paginated(page_size=page_size)  # yields List[Passage]
+        generator = source_storage.get_all_paginated(filters={"data_source": data_source}, page_size=page_size)  # yields List[Passage]
         passages = []
         for i in tqdm(range(0, size, page_size)):
             passages = next(generator)
+            print("inserting", passages)
+
+            # need to associated passage with agent (for filtering)
+            for passage in passages:
+                passage.agent_id = agent_config.name
+
+            # insert into agent archival memory
             dest_storage.insert_many(passages)
 
         # save destination storage
@@ -517,7 +549,7 @@ def attach(
             fg=typer.colors.GREEN,
         )
     except KeyboardInterrupt:
-        typer.secho(" Operation interrupted by KeyboardInterrupt.", fg=typer.colors.YELLOW)
+        typer.secho("Operation interrupted by KeyboardInterrupt.", fg=typer.colors.YELLOW)
 
 
 def version():

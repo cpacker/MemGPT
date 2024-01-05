@@ -1,6 +1,4 @@
-import logging
-import logging.config
-from memgpt.log import logger, reload_logger, fix_file_path
+from log import logger
 import inspect
 import json
 import os
@@ -10,7 +8,10 @@ import configparser
 
 import memgpt
 import memgpt.utils as utils
-from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS, DEFAULT_HUMAN, DEFAULT_PERSONA, LOGGER_NAME
+from memgpt.utils import printd, get_schema_diff
+from memgpt.functions.functions import load_all_function_sets
+from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS, DEFAULT_HUMAN, DEFAULT_PERSONA
+
 from memgpt.presets.presets import DEFAULT_PRESET
 
 
@@ -70,14 +71,19 @@ class MemGPTConfig:
     embedding_chunk_size: int = 300  # number of tokens
 
     # database configs: archival
-    archival_storage_type: str = "local"  # local, db
-    archival_storage_path: str = None  # TODO: set to memgpt dir
+    archival_storage_type: str = "chroma"  # local, db
+    archival_storage_path: str = os.path.join(MEMGPT_DIR, "chroma")
     archival_storage_uri: str = None  # TODO: eventually allow external vector DB
 
     # database configs: recall
-    recall_storage_type: str = "local"  # local, db
-    recall_storage_path: str = None  # TODO: set to memgpt dir
+    recall_storage_type: str = "sqlite"  # local, db
+    recall_storage_path: str = MEMGPT_DIR
     recall_storage_uri: str = None  # TODO: eventually allow external vector DB
+
+    # database configs: metadata storage (sources, agents, data sources)
+    metadata_storage_type: str = "sqlite"
+    metadata_storage_path: str = MEMGPT_DIR
+    metadata_storage_uri: str = None
 
     # database configs: agent state
     persistence_manager_type: str = None  # in-memory, db
@@ -86,14 +92,6 @@ class MemGPTConfig:
 
     # version (for backcompat)
     memgpt_version: str = None
-
-    # logging (for logger)
-    logging_level: str = "CRITICAL"  # default log level
-    logging_enable_logfile: bool = True
-    logging_backup_count: int = 3
-    logging_max_file_bytes: int = 10 * 1024 * 1024  # 10 MB in bytes
-    logging_logdir: str = os.path.join(MEMGPT_DIR, "logs")
-    logging_logpathname: str = os.path.join(logging_logdir, "memgpt.log")
 
     # user info
     policies_accepted: bool = False
@@ -147,42 +145,17 @@ class MemGPTConfig:
                 "archival_storage_type": get_field(config, "archival_storage", "type"),
                 "archival_storage_path": get_field(config, "archival_storage", "path"),
                 "archival_storage_uri": get_field(config, "archival_storage", "uri"),
+                "recall_storage_type": get_field(config, "recall_storage", "type"),
+                "recall_storage_path": get_field(config, "recall_storage", "path"),
+                "recall_storage_uri": get_field(config, "recall_storage", "uri"),
+                "metadata_storage_type": get_field(config, "metadata_storage", "type"),
+                "metadata_storage_path": get_field(config, "metadata_storage", "path"),
+                "metadata_storage_uri": get_field(config, "metadata_storage", "uri"),
                 "anon_clientid": get_field(config, "client", "anon_clientid"),
                 "config_path": config_path,
                 "memgpt_version": get_field(config, "version", "memgpt_version"),
-                "logging_level": get_field(config, "logger_MemGPT", "level"),
-                "logging_enable_logfile": True
-                if "consoleHandler,logfileHandler" == get_field(config, "logger_MemGPT", "handlers")
-                else False,
-                "logging_backup_count": get_field(config, "handler_logfileHandler", "backupcount"),
-                "logging_max_file_bytes": get_field(config, "handler_logfileHandler", "maxBytes"),
-                "logging_logdir": get_field(config, "logging_paths", "logdir"),
-                "logging_logpathname": get_field(config, "logging_paths", "logpathname"),
             }
-            # ensure logging is config is set correctly support for upgrades
-            force_save = False
-            if (
-                config_dict["logging_level"] is None
-                or config_dict["logging_backup_count"] is None
-                or config_dict["logging_max_file_bytes"] is None
-                or config_dict["logging_logdir"] is None
-                or config_dict["logging_logpathname"] is None
-            ):
-                # load loggind defaults if none
-                config_dict["logging_enable_logfile"] = MemGPTConfig.logging_enable_logfile
-                config_dict["logging_level"] = MemGPTConfig.logging_level
-                config_dict["logging_backup_count"] = MemGPTConfig.logging_backup_count
-                config_dict["logging_max_file_bytes"] = MemGPTConfig.logging_max_file_bytes
-                config_dict["logging_logdir"] = MemGPTConfig.logging_logdir
-                config_dict["logging_logpathname"] = MemGPTConfig.logging_logpathname
-                force_save = True
             config_dict = {k: v for k, v in config_dict.items() if v is not None}
-
-            if force_save:
-                temp_config = cls(**config_dict)
-                temp_config.save()
-                logger = logging.getLogger(LOGGER_NAME)
-                logger.debug(f"Updated Missing Logging Configuration: {config_path}")
 
             return cls(**config_dict)
 
@@ -191,8 +164,6 @@ class MemGPTConfig:
         config = cls(anon_clientid=anon_clientid, config_path=config_path)
         config.create_config_dir()  # create dirs
         config.save()  # save updated config
-        logger = logging.getLogger(LOGGER_NAME)
-        logger.debug(f"Created New Configuration: {config_path}")
         return config
 
     def save(self):
@@ -235,6 +206,16 @@ class MemGPTConfig:
         set_field(config, "archival_storage", "path", self.archival_storage_path)
         set_field(config, "archival_storage", "uri", self.archival_storage_uri)
 
+        # recall storage
+        set_field(config, "recall_storage", "type", self.recall_storage_type)
+        set_field(config, "recall_storage", "path", self.recall_storage_path)
+        set_field(config, "recall_storage", "uri", self.recall_storage_uri)
+
+        # metadata storage
+        set_field(config, "metadata_storage", "type", self.metadata_storage_type)
+        set_field(config, "metadata_storage", "path", self.metadata_storage_path)
+        set_field(config, "metadata_storage", "uri", self.metadata_storage_uri)
+
         # set version
         set_field(config, "version", "memgpt_version", memgpt.__version__)
 
@@ -243,56 +224,11 @@ class MemGPTConfig:
             self.anon_clientid = self.generate_uuid()
         set_field(config, "client", "anon_clientid", self.anon_clientid)
 
-        # logging
-        set_field(config, "loggers", "keys", "root,MemGPT")
-        set_field(config, "handlers", "keys", "consoleHandler,logfileHandler")
-        set_field(config, "formatters", "keys", "consoleFormatter,logfileFormatter")
-        # logging root possibly used by other modules not using MemGPT logger
-        set_field(config, "logger_root", "level", "CRITICAL")
-        set_field(config, "logger_root", "handlers", "consoleHandler")
-        # logging MemGPT
-        set_field(config, "logger_MemGPT", "level", self.logging_level)
-        if self.logging_enable_logfile:
-            # this will enable logging to file
-            set_field(config, "logger_MemGPT", "handlers", "consoleHandler,logfileHandler")
-        else:
-            # this removes file logging if not enabled
-            set_field(config, "logger_MemGPT", "handlers", "consoleHandler")
-        set_field(config, "logger_MemGPT", "qualname", "MemGPT")
-        set_field(config, "logger_MemGPT", "propagate", "0")  # do not propigate to root
-        # console logging handler
-        set_field(config, "handler_consoleHandler", "class", "StreamHandler")
-        set_field(config, "handler_consoleHandler", "level", self.logging_level)
-        set_field(config, "handler_consoleHandler", "formatter", "consoleFormatter")
-        set_field(config, "handler_consoleHandler", "args", "(sys.stdout,)")
-        # console logging formatter
-        set_field(config, "formatter_consoleFormatter", "format", "%(name)s - %(levelname)s - %(message)s")
-        if self.logging_enable_logfile:
-            set_field(config, "formatter_logfileFormatter", "format", "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-            # logfile logging handler Rotating File Handler
-            set_field(config, "handler_logfileHandler", "class", "handlers.RotatingFileHandler")
-            set_field(config, "handler_logfileHandler", "level", self.logging_level)
-            fixed_logpathname = fix_file_path(self.logging_logpathname)
-            set_field(
-                config,
-                "handler_logfileHandler",
-                "args",
-                f"('{fixed_logpathname}', {self.logging_max_file_bytes}, {self.logging_backup_count})",
-            )
-            set_field(config, "handler_logfileHandler", "formatter", "logfileFormatter")
-        # logging paths
-        set_field(config, "logging_paths", "logdir", self.logging_logdir)
-        set_field(config, "logging_paths", "logpathname", self.logging_logpathname)
-
         # always make sure all directories are present
         self.create_config_dir()
 
         with open(self.config_path, "w") as f:
             config.write(f)
-        # reload logging config after write.
-        logging.config.fileConfig(self.config_path, disable_existing_loggers=False)
-        # reset the logger (global) logger is defined as global
-        reload_logger()
         logger.debug(f"Saved Config:  {self.config_path}")
 
     @staticmethod
@@ -311,7 +247,7 @@ class MemGPTConfig:
         if not os.path.exists(MEMGPT_DIR):
             os.makedirs(MEMGPT_DIR, exist_ok=True)
 
-        folders = ["personas", "humans", "archival", "agents", "functions", "system_prompts", "presets", "settings", "logs"]
+        folders = ["personas", "humans", "archival", "agents", "functions", "system_prompts", "presets", "settings"]
 
         for folder in folders:
             if not os.path.exists(os.path.join(MEMGPT_DIR, folder)):
@@ -329,7 +265,7 @@ class AgentConfig:
         persona,
         human,
         # model info
-        model,
+        model=None,
         model_endpoint_type=None,
         model_endpoint=None,
         model_wrapper=None,
@@ -348,6 +284,8 @@ class AgentConfig:
         name=None,
         create_time=None,
         memgpt_version=None,
+        # functions
+        functions=None,  # schema definitions ONLY (linked at runtime)
     ):
         if name is None:
             self.name = f"agent_{self.generate_agent_id()}"
@@ -379,6 +317,9 @@ class AgentConfig:
         else:
             self.memgpt_version = memgpt_version
 
+        # functions
+        self.functions = functions
+
         # save agent config
         self.agent_config_path = (
             os.path.join(MEMGPT_DIR, "agents", self.name, "config.json") if agent_config_path is None else agent_config_path
@@ -398,6 +339,9 @@ class AgentConfig:
         # i.e. previous source will be overriden
         self.data_sources.append(data_source)
         self.save()
+
+    def save_dir(self):
+        return os.path.join(MEMGPT_DIR, "agents", self.name)
 
     def save_state_dir(self):
         # directory to save agent state

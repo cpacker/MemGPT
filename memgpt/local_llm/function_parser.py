@@ -2,7 +2,7 @@ import copy
 import json
 
 
-NO_HEARTBEAT_FUNCS = ["send_message"]
+NO_HEARTBEAT_FUNCS = ["send_message", "pause_heartbeats"]
 
 
 def insert_heartbeat(message):

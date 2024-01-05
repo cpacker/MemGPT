@@ -1,125 +1,203 @@
 import chromadb
+import uuid
 import json
 import re
-from typing import Optional, List, Iterator
-from memgpt.connectors.storage import StorageConnector, Passage
-from memgpt.utils import printd
+from typing import Optional, List, Iterator, Dict
+from memgpt.connectors.storage import StorageConnector, TableType
+from memgpt.utils import printd, datetime_to_timestamp, timestamp_to_datetime
 from memgpt.config import AgentConfig, MemGPTConfig
-
-
-def create_chroma_client():
-    config = MemGPTConfig.load()
-    # create chroma client
-    if config.archival_storage_path:
-        client = chromadb.PersistentClient(config.archival_storage_path)
-    else:
-        # assume uri={ip}:{port}
-        ip = config.archival_storage_uri.split(":")[0]
-        port = config.archival_storage_uri.split(":")[1]
-        client = chromadb.HttpClient(host=ip, port=port)
-    return client
+from memgpt.data_types import Record, Message, Passage
 
 
 class ChromaStorageConnector(StorageConnector):
     """Storage via Chroma"""
 
     # WARNING: This is not thread safe. Do NOT do concurrent access to the same collection.
+    # Timestamps are converted to integer timestamps for chroma (datetime not supported)
 
-    def __init__(self, name: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
-        # determine table name
-        if agent_config:
-            assert name is None, f"Cannot specify both agent config and name {name}"
-            self.table_name = self.generate_table_name_agent(agent_config)
-        elif name:
-            assert agent_config is None, f"Cannot specify both agent config and name {name}"
-            self.table_name = self.generate_table_name(name)
+    def __init__(self, table_type: str, agent_config: Optional[AgentConfig] = None):
+        super().__init__(table_type=table_type, agent_config=agent_config)
+        config = MemGPTConfig.load()
+
+        assert table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES, "Chroma only supports archival memory"
+
+        # create chroma client
+        if config.archival_storage_path:
+            self.client = chromadb.PersistentClient(config.archival_storage_path)
         else:
-            raise ValueError("Must specify either agent config or name")
-
-        printd(f"Using table name {self.table_name}")
-
-        # create client
-        self.client = create_chroma_client()
+            # assume uri={ip}:{port}
+            ip = config.archival_storage_uri.split(":")[0]
+            port = config.archival_storage_uri.split(":")[1]
+            self.client = chromadb.HttpClient(host=ip, port=port)
 
         # get a collection or create if it doesn't exist already
         self.collection = self.client.get_or_create_collection(self.table_name)
+        self.include = ["documents", "embeddings", "metadatas"]
 
-    def get_all_paginated(self, page_size: int) -> Iterator[List[Passage]]:
+    def get_filters(self, filters: Optional[Dict] = {}):
+        # get all filters for query
+        if filters is not None:
+            filter_conditions = {**self.filters, **filters}
+        else:
+            filter_conditions = self.filters
+
+        # convert to chroma format
+        chroma_filters = []
+        ids = []
+        for key, value in filter_conditions.items():
+            if key == "id":
+                ids = [str(value)]
+                continue
+            chroma_filters.append({key: {"$eq": value}})
+
+        if len(chroma_filters) > 1:
+            chroma_filters = {"$and": chroma_filters}
+        else:
+            chroma_filters = chroma_filters[0]
+
+        return ids, chroma_filters
+
+    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000) -> Iterator[List[Record]]:
         offset = 0
+        ids, filters = self.get_filters(filters)
         while True:
             # Retrieve a chunk of records with the given page_size
-            db_passages_chunk = self.collection.get(offset=offset, limit=page_size, include=["embeddings", "documents"])
+            results = self.collection.get(ids=ids, offset=offset, limit=page_size, include=self.include, where=filters)
 
             # If the chunk is empty, we've retrieved all records
-            if not db_passages_chunk:
+            if len(results["embeddings"]) == 0:
                 break
 
-            # Yield a list of Passage objects converted from the chunk
-            yield [Passage(text=p.text, embedding=p.embedding, doc_id=p.doc_id, passage_id=p.id) for p in db_passages_chunk]
+            # Yield a list of Record objects converted from the chunk
+            yield self.results_to_records(results)
 
             # Increment the offset to get the next chunk in the next iteration
             offset += page_size
 
-    def get_all(self) -> List[Passage]:
-        results = self.collection.get(include=["embeddings", "documents"])
-        return [Passage(text=text, embedding=embedding) for (text, embedding) in zip(results["documents"], results["embeddings"])]
+    def results_to_records(self, results):
+        # convert timestamps to datetime
+        for metadata in results["metadatas"]:
+            if "created_at" in metadata:
+                metadata["created_at"] = timestamp_to_datetime(metadata["created_at"])
+        if results["embeddings"]:  # may not be returned, depending on table type
+            return [
+                self.type(text=text, embedding=embedding, id=uuid.UUID(record_id), **metadatas)
+                for (text, record_id, embedding, metadatas) in zip(
+                    results["documents"], results["ids"], results["embeddings"], results["metadatas"]
+                )
+            ]
+        else:
+            # no embeddings
+            return [
+                self.type(text=text, id=uuid.UUID(id), **metadatas)
+                for (text, id, metadatas) in zip(results["documents"], results["ids"], results["metadatas"])
+            ]
 
-    def get(self, id: str) -> Optional[Passage]:
-        results = self.collection.get(ids=[id])
-        return [Passage(text=text, embedding=embedding) for (text, embedding) in zip(results["documents"], results["embeddings"])]
+    def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[Record]:
+        ids, filters = self.get_filters(filters)
+        if self.collection.count() == 0:
+            return []
+        if limit:
+            results = self.collection.get(ids=ids, include=self.include, where=filters, limit=limit)
+        else:
+            results = self.collection.get(ids=ids, include=self.include, where=filters)
+        return self.results_to_records(results)
 
-    def insert(self, passage: Passage):
-        self.collection.add(documents=[passage.text], embeddings=[passage.embedding], ids=[str(self.collection.count())])
+    def get(self, id: str) -> Optional[Record]:
+        results = self.collection.get(ids=[str(id)])
+        if len(results["ids"]) == 0:
+            return None
+        return self.results_to_records(results)[0]
 
-    def insert_many(self, passages: List[Passage], show_progress=True):
-        count = self.collection.count()
-        ids = [str(count + i) for i in range(len(passages))]
-        self.collection.add(
-            documents=[passage.text for passage in passages], embeddings=[passage.embedding for passage in passages], ids=ids
-        )
+    def format_records(self, records: List[Record]):
+        metadatas = []
+        ids = [str(record.id) for record in records]
+        documents = [record.text for record in records]
+        embeddings = [record.embedding for record in records]
 
-    def query(self, query: str, query_vec: List[float], top_k: int = 10) -> List[Passage]:
-        results = self.collection.query(query_embeddings=[query_vec], n_results=top_k, include=["embeddings", "documents"])
-        # get index [0] since query is passed as list
-        return [Passage(text=text, embedding=embedding) for (text, embedding) in zip(results["documents"][0], results["embeddings"][0])]
+        # collect/format record metadata
+        for record in records:
+            metadata = vars(record)
+            metadata.pop("id")
+            metadata.pop("text")
+            metadata.pop("embedding")
+            if "created_at" in metadata:
+                metadata["created_at"] = datetime_to_timestamp(metadata["created_at"])
+            if "metadata" in metadata and metadata["metadata"] is not None:
+                record_metadata = dict(metadata["metadata"])
+                metadata.pop("metadata")
+            else:
+                record_metadata = {}
+            metadata = {key: value for key, value in metadata.items() if value is not None}  # null values not allowed
+            metadata = {**metadata, **record_metadata}  # merge with metadata
+            metadatas.append(metadata)
+        return ids, documents, embeddings, metadatas
 
-    def delete(self):
-        self.client.delete_collection(name=self.table_name)
+    def insert(self, record: Record):
+        ids, documents, embeddings, metadatas = self.format_records([record])
+        if not any(embeddings):
+            raise ValueError("Embeddings must be provided to chroma")
+        self.collection.add(documents=documents, embeddings=embeddings, ids=ids, metadatas=metadatas)
+
+    def insert_many(self, records: List[Record], show_progress=False):
+        ids, documents, embeddings, metadatas = self.format_records(records)
+        if not any(embeddings):
+            raise ValueError("Embeddings must be provided to chroma")
+        self.collection.add(documents=documents, embeddings=embeddings, ids=ids, metadatas=metadatas)
+
+    def delete(self, filters: Optional[Dict] = {}):
+        ids, filters = self.get_filters(filters)
+        self.collection.delete(ids=ids, where=filters)
+
+    def delete_table(self):
+        # drop collection
+        self.client.delete_collection(self.collection.name)
 
     def save(self):
         # save to persistence file (nothing needs to be done)
         printd("Saving chroma")
-        pass
 
-    @staticmethod
-    def list_loaded_data():
-        client = create_chroma_client()
-        collections = client.list_collections()
-        collections = [c.name for c in collections if c.name.startswith("memgpt_") and not c.name.startswith("memgpt_agent_")]
-        return collections
+    def size(self, filters: Optional[Dict] = {}) -> int:
+        # unfortuantely, need to use pagination to get filtering
+        # warning: poor performance for large datasets
+        return len(self.get_all(filters=filters))
 
-    def sanitize_table_name(self, name: str) -> str:
-        # Remove leading and trailing whitespace
-        name = name.strip()
+    def list_data_sources(self):
+        raise NotImplementedError
 
-        # Replace spaces and invalid characters with underscores
-        name = re.sub(r"\s+|\W+", "_", name)
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
+        ids, filters = self.get_filters(filters)
+        results = self.collection.query(query_embeddings=[query_vec], n_results=top_k, include=self.include, where=filters)
 
-        # Truncate to the maximum identifier length (e.g., 63 for PostgreSQL)
-        max_length = 63
-        if len(name) > max_length:
-            name = name[:max_length].rstrip("_")
+        # flatten, since we only have one query vector
+        flattened_results = {}
+        for key, value in results.items():
+            if value:
+                flattened_results[key] = value[0]
+                assert len(value) == 1, f"Value is size {len(value)}: {value}"
+            else:
+                flattened_results[key] = value
 
-        # Convert to lowercase
-        name = name.lower()
+        return self.results_to_records(flattened_results)
 
-        return name
+    def query_date(self, start_date, end_date, start=None, count=None):
+        raise ValueError("Cannot run query_date with chroma")
+        # filters = self.get_filters(filters)
+        # filters["created_at"] = {
+        #    "$gte": start_date,
+        #    "$lte": end_date,
+        # }
+        # results = self.collection.query(where=filters)
+        # start = 0 if start is None else start
+        # count = len(results) if count is None else count
+        # results = results[start : start + count]
+        # return self.results_to_records(results)
 
-    def generate_table_name_agent(self, agent_config: AgentConfig):
-        return f"memgpt_agent_{self.sanitize_table_name(agent_config.name)}"
-
-    def generate_table_name(self, name: str):
-        return f"memgpt_{self.sanitize_table_name(name)}"
-
-    def size(self) -> int:
-        return self.collection.count()
+    def query_text(self, query, count=None, start=None, filters: Optional[Dict] = {}):
+        raise ValueError("Cannot run query_text with chroma")
+        # filters = self.get_filters(filters)
+        # results = self.collection.query(where_document={"$contains": {"text": query}}, where=filters)
+        # start = 0 if start is None else start
+        # count = len(results) if count is None else count
+        # results = results[start : start + count]
+        # return self.results_to_records(results)
