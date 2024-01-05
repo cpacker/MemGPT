@@ -21,7 +21,7 @@ def create_agent_from_preset(agent_state: AgentState, interface: AgentInterface)
         raise ValueError(f"'human_file' not specified in AgentState (required)")
     if agent_state.preset is None:
         raise ValueError(f"'preset' not specified in AgentState (required)")
-    if agent_state.state != {}:
+    if not (agent_state.state == {} or agent_state.state is None):
         raise ValueError(f"'state' must be uninitialized (empty)")
 
     preset_name = agent_state.preset

@@ -466,11 +466,11 @@ def run(
             model_endpoint_type=model_endpoint_type,
             model_endpoint=model_endpoint,
             context_window=context_window,
-            # TODO add embedding data
+            # TODO(swooders) add embedding data
         )
 
-        typer.secho(f"->  🤖 Using persona profile '{persona}'", fg=typer.colors.WHITE)
-        typer.secho(f"->  🧑 Using human profile '{human}'", fg=typer.colors.WHITE)
+        typer.secho(f"->  🤖 Using persona profile '{agent_init_state.persona_file}'", fg=typer.colors.WHITE)
+        typer.secho(f"->  🧑 Using human profile '{agent_init_state.human_file}'", fg=typer.colors.WHITE)
 
         # Supress llama-index noise
         # TODO(swooders) add persistence manager code? or comment out?

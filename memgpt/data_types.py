@@ -168,11 +168,11 @@ class User:
         default_model_wrapper=None,
         default_context_window=None,
         # defaults: embeddings
-        default_embedding_endpoint_type="memgpt_hosted",
+        default_embedding_endpoint_type="openai",
         default_embedding_endpoint=None,
         default_embedding_model=None,
-        default_embedding_dim=1536,
-        default_embedding_chunk_size=300,
+        default_embedding_dim=None,
+        default_embedding_chunk_size=None,
         # azure information
         azure_key=None,
         azure_endpoint=None,
@@ -218,6 +218,9 @@ class User:
         # openai information
         self.openai_key = openai_key
 
+        # misc
+        self.memgpt_version = memgpt_version
+
         # TODO: generate
         self.anon_clientid = anon_clientid
         self.policies_accepted = policies_accepted
@@ -241,12 +244,12 @@ class AgentState(Record):
         model_endpoint_type: Optional[str] = None,
         model_endpoint: Optional[str] = None,
         model_wrapper: Optional[str] = None,
-        context_window: Optional[int] = None,
+        context_window: Optional[int] = None,  # TODO(swooders) I don't think this should be optional
         # embedding info
         embedding_endpoint_type: Optional[str] = None,
         embedding_endpoint: Optional[str] = None,
         embedding_model: Optional[str] = None,
-        embedding_dim: Optional[int] = None,
+        embedding_dim: Optional[int] = None,  # TODO(swooders) similarly these probably should not be optional
         embedding_chunk_size: Optional[int] = None,
         # other
         preset: Optional[str] = None,
@@ -254,9 +257,13 @@ class AgentState(Record):
         create_time: Optional[str] = None,
         memgpt_version: Optional[str] = None,
     ):
+        # TODO(swooders) we need to handle the case where name is None here
+        # in AgentConfig we autogenerate a name, not sure what the correct thing w/ DBs is, what about NounAdjective combos? Like giphy does? BoredGiraffe etc
         self.name = name
-        self.persona_file = persona_file
-        self.human_file = human_file
+        self.persona_file = DEFAULT_PERSONA if persona_file is None else persona_file
+        self.human_file = DEFAULT_HUMAN if persona_file is None else human_file
+
+        assert context_window is not None
 
         # model info
         self.model = model
@@ -274,7 +281,9 @@ class AgentState(Record):
 
         # other
         # NOTE: preset is only used to determine an initial combination of system message + functions (can be None)
-        self.preset = preset
+        self.preset = (
+            DEFAULT_PRESET if preset is None else preset
+        )  # TODO(swooders) we should probably allow this to be None? what if someone wants to create w/o a preset?
         self.data_sources = data_sources
         self.create_time = create_time
         self.memgpt_version = memgpt_version
