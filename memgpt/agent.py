@@ -203,6 +203,10 @@ class Agent(object):
         # e.g., print in CLI vs send a discord message with a discord bot
         self.interface = interface
 
+        # Create the persistence manager object based on the AgentState info
+        # TODO
+        self.persistence_managager = None
+
         # Keep track of the total number of messages throughout all time
         self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
         # self.messages_total_init = self.messages_total
@@ -230,17 +234,23 @@ class Agent(object):
 
     def _trim_messages(self, num):
         """Trim messages from the front, not including the system message"""
+        self.persistence_manager.trim_messages(num)
+
         new_messages = [self.messages[0]] + self.messages[num:]
         self._messages = new_messages
 
     def _prepend_to_messages(self, added_messages):
         """Wrapper around self.messages.prepend to allow additional calls to a state/persistence manager"""
+        self.persistence_manager.prepend_to_messages(added_messages)
+
         new_messages = [self.messages[0]] + added_messages + self.messages[1:]  # prepend (no system)
         self._messages = new_messages
         self.messages_total += len(added_messages)  # still should increment the message counter (summaries are additions too)
 
     def _append_to_messages(self, added_messages):
         """Wrapper around self.messages.append to allow additional calls to a state/persistence manager"""
+        self.persistence_manager.append_to_messages(added_messages)
+
         # strip extra metadata if it exists
         for msg in added_messages:
             msg.pop("api_response", None)
@@ -253,6 +263,7 @@ class Agent(object):
     def _swap_system_message(self, new_system_message):
         assert new_system_message["role"] == "system", new_system_message
         assert self.messages[0]["role"] == "system", self.messages
+        self.persistence_manager.swap_system_message(new_system_message)
 
         new_messages = [new_system_message] + self.messages[1:]  # swap index 0 (system)
         self._messages = new_messages
@@ -622,23 +633,6 @@ class Agent(object):
         # Swap the system message out
         self._swap_system_message(new_system_message)
 
-    ### Local state management
-    def to_dict(self):
-        # TODO: select specific variables for the saves state (to eventually move to a DB) rather than checkpointing everything in the class
-        return {
-            "model": self.model,
-            "system": self.system,
-            "functions": self.functions,
-            "messages": self.messages,  # TODO: convert to IDs
-            "messages_total": self.messages_total,
-            "memory": self.memory.to_dict(),
-        }
-
-    def save_agent_state_json(self, filename):
-        """Save agent state to JSON"""
-        with open(filename, "w") as file:
-            json.dump(self.to_dict(), file)
-
     def save(self):
         """Save agent state locally"""
 
@@ -656,6 +650,23 @@ class Agent(object):
 
         # # save the persistence manager too (recall/archival memory)
         # self.persistence_manager.save()
+
+    ### Local state management
+    # def to_dict(self):
+    #     # TODO: select specific variables for the saves state (to eventually move to a DB) rather than checkpointing everything in the class
+    #     return {
+    #         "model": self.model,
+    #         "system": self.system,
+    #         "functions": self.functions,
+    #         "messages": self.messages,  # TODO: convert to IDs
+    #         "messages_total": self.messages_total,
+    #         "memory": self.memory.to_dict(),
+    #     }
+
+    # def save_agent_state_json(self, filename):
+    #     """Save agent state to JSON"""
+    #     with open(filename, "w") as file:
+    #         json.dump(self.to_dict(), file)
 
     # @classmethod
     # def load_agent(cls, interface, agent_config: AgentConfig):
