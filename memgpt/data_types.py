@@ -227,33 +227,37 @@ class User:
 class AgentState(Record):
     def __init__(
         self,
-        name,
-        persona,
-        human,
+        name: str,
+        persona_file: str,  # the filename where the persona was originally sourced from
+        human_file: str,  # the filename where the human was originally sourced from
+        # (in-context) state contains:
+        # persona: str  # the current persona text
+        # human: str  # the current human text
+        # system: str,  # system prompt (not required if initializing with a preset)
+        # functions: dict,  # schema definitions ONLY (function code linked at runtime)
+        # messages: List[dict],  # in-context messages
+        state: Optional[dict] = None,
         # model info
-        model=None,
-        model_endpoint_type=None,
-        model_endpoint=None,
-        model_wrapper=None,
-        context_window=None,
+        model: Optional[str] = None,
+        model_endpoint_type: Optional[str] = None,
+        model_endpoint: Optional[str] = None,
+        model_wrapper: Optional[str] = None,
+        context_window: Optional[int] = None,
         # embedding info
-        embedding_endpoint_type=None,
-        embedding_endpoint=None,
-        embedding_model=None,
-        embedding_dim=None,
-        embedding_chunk_size=None,
+        embedding_endpoint_type: Optional[str] = None,
+        embedding_endpoint: Optional[str] = None,
+        embedding_model: Optional[str] = None,
+        embedding_dim: Optional[int] = None,
+        embedding_chunk_size: Optional[int] = None,
         # other
-        preset=None,
-        data_sources=None,
-        create_time=None,
-        memgpt_version=None,
-        # functions
-        functions=None,  # schema definitions ONLY (linked at runtime)
-        # state
-        state: Optional[Dict] = None,
+        preset: Optional[str] = None,
+        data_sources: Optional[list] = None,
+        create_time: Optional[str] = None,
+        memgpt_version: Optional[str] = None,
     ):
-        self.persona = persona
-        self.human = human
+        self.name = name
+        self.persona_file = persona_file
+        self.human_file = human_file
 
         # model info
         self.model = model
@@ -270,11 +274,11 @@ class AgentState(Record):
         self.embedding_chunk_size = embedding_chunk_size
 
         # other
+        # NOTE: preset is only used to determine an initial combination of system message + functions (can be None)
         self.preset = preset
         self.data_sources = data_sources
         self.create_time = create_time
         self.memgpt_version = memgpt_version
-        self.functions = functions
 
         # state
         self.state = state

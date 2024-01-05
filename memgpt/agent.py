@@ -5,7 +5,9 @@ import os
 import json
 import traceback
 
-from memgpt.persistence_manager import LocalStateManager
+from memgpt.data_types import AgentState
+from memgpt.interface import AgentInterface
+from memgpt.persistence_manager import PersistenceManager, LocalStateManager
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from memgpt.memory import CoreMemory as InContextMemory, summarize_messages
@@ -146,45 +148,43 @@ def initialize_message_sequence(
 class Agent(object):
     def __init__(
         self,
-        config,
-        model,
-        system,
-        functions,  # list of [{'schema': 'x', 'python_function': function_pointer}, ...]
-        interface,
-        persistence_manager,
-        persona_notes,
-        human_notes,
-        messages_total=None,
-        persistence_manager_init=True,
-        first_message_verify_mono=True,
+        agent_state: AgentState,
+        interface: AgentInterface,
+        # extras
+        messages_total=None,  # TODO remove?
+        first_message_verify_mono=True,  # TODO move to config?
     ):
-        # agent config
-        self.config = config
+        # Hold a copy of the state that was used to init the agent
+        self.init_agent_state = agent_state
 
-        # gpt-4, gpt-3.5-turbo
-        self.model = model
+        # gpt-4, gpt-3.5-turbo, ...
+        self.model = agent_state.model
+
         # Store the system instructions (used to rebuild memory)
-        self.system = system
+        if "system" not in agent_state.state:
+            raise ValueError(f"'system' not found in provided AgentState")
+        self.system = agent_state.state["system"]
 
-        # Available functions is a mapping from:
-        # function_name -> {
-        #   json_schema: schema
-        #   python_function: function
-        # }
+        if "functions" not in agent_state.state:
+            raise ValueError(f"'functions' not found in provided AgentState")
         # Store the functions schemas (this is passed as an argument to ChatCompletion)
-        functions_schema = [f_dict["json_schema"] for f_name, f_dict in functions.items()]
-        self.functions = functions_schema
-        # Store references to the python objects
-        self.functions_python = {f_name: f_dict["python_function"] for f_name, f_dict in functions.items()}
+        self.functions = agent_state.state["functions"]  # these are the schema
+        # Link the actual python functions corresponding to the schemas
+        self.functions_python = link_functions(function_schemas=self.functions)
 
         # Initialize the memory object
-        self.memory = initialize_memory(persona_notes, human_notes)
+        if "persona" not in agent_state.state:
+            raise ValueError(f"'persona' not found in provided AgentState")
+        if "human" not in agent_state.state:
+            raise ValueError(f"'human' not found in provided AgentState")
+        self.memory = initialize_memory(ai_notes=agent_state.state["persona"], human_notes=agent_state.state["human"])
         # Once the memory object is initialize, use it to "bake" the system message
         self._messages = initialize_message_sequence(
             self.model,
             self.system,
             self.memory,
         )
+
         # Interface must implement:
         # - internal_monologue
         # - assistant_message
@@ -193,15 +193,6 @@ class Agent(object):
         # Different interfaces can handle events differently
         # e.g., print in CLI vs send a discord message with a discord bot
         self.interface = interface
-
-        # Persistence manager must implement:
-        # - set_messages
-        # - get_messages
-        # - append_to_messages
-        self.persistence_manager = persistence_manager
-        if persistence_manager_init:
-            # creates a new agent object in the database
-            self.persistence_manager.init(self)
 
         # Keep track of the total number of messages throughout all time
         self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
@@ -230,23 +221,17 @@ class Agent(object):
 
     def trim_messages(self, num):
         """Trim messages from the front, not including the system message"""
-        self.persistence_manager.trim_messages(num)
-
         new_messages = [self.messages[0]] + self.messages[num:]
         self._messages = new_messages
 
     def prepend_to_messages(self, added_messages):
         """Wrapper around self.messages.prepend to allow additional calls to a state/persistence manager"""
-        self.persistence_manager.prepend_to_messages(added_messages)
-
         new_messages = [self.messages[0]] + added_messages + self.messages[1:]  # prepend (no system)
         self._messages = new_messages
         self.messages_total += len(added_messages)  # still should increment the message counter (summaries are additions too)
 
     def append_to_messages(self, added_messages):
         """Wrapper around self.messages.append to allow additional calls to a state/persistence manager"""
-        self.persistence_manager.append_to_messages(added_messages)
-
         # strip extra metadata if it exists
         for msg in added_messages:
             msg.pop("api_response", None)
@@ -259,8 +244,6 @@ class Agent(object):
     def swap_system_message(self, new_system_message):
         assert new_system_message["role"] == "system", new_system_message
         assert self.messages[0]["role"] == "system", self.messages
-
-        self.persistence_manager.swap_system_message(new_system_message)
 
         new_messages = [new_system_message] + self.messages[1:]  # swap index 0 (system)
         self._messages = new_messages
@@ -278,9 +261,6 @@ class Agent(object):
 
         diff = united_diff(curr_system_message["content"], new_system_message["content"])
         printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
-
-        # Store the memory change (if stateful)
-        self.persistence_manager.update_memory(self.memory)
 
         # Swap the system message out
         self.swap_system_message(new_system_message)
@@ -304,6 +284,8 @@ class Agent(object):
 
     def save(self):
         """Save agent state locally"""
+
+        # TODO SAVE
 
         # save config
         self.config.save()
