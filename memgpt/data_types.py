@@ -4,8 +4,7 @@ from abc import abstractmethod
 from typing import Optional, List, Dict
 import numpy as np
 
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, LLM_MAX_TOKENS
-from memgpt.presets.presets import DEFAULT_PRESET
+from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
 
 # Defining schema objects:
 # Note: user/agent can borrow from MemGPTConfig/AgentConfig classes

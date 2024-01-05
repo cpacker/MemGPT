@@ -9,8 +9,7 @@ import memgpt
 import memgpt.utils as utils
 from memgpt.utils import printd, get_schema_diff
 from memgpt.functions.functions import load_all_function_sets
-from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS, DEFAULT_HUMAN, DEFAULT_PERSONA
-from memgpt.presets.presets import DEFAULT_PRESET
+from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS, DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
 
 
 # helper functions for writing to configs

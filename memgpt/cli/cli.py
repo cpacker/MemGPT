@@ -25,6 +25,7 @@ from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
 from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
+from memgpt.data_types import AgentState
 
 
 class QuickstartChoice(Enum):
@@ -440,61 +441,73 @@ def run(
     else:  # create new agent
         # create new agent config: override defaults with args if provided
         typer.secho("\n🧬 Creating new agent...", fg=typer.colors.WHITE)
-        agent_config = AgentConfig(
+
+        # agent_config = AgentConfig(
+        #     name=agent,
+        #     persona=persona,
+        #     human=human,
+        #     preset=preset,
+        #     model=model,
+        #     model_wrapper=model_wrapper,
+        #     model_endpoint_type=model_endpoint_type,
+        #     model_endpoint=model_endpoint,
+        #     context_window=context_window,
+        # )
+        # save new agent config
+        # agent_config.save()
+
+        agent_init_state = AgentState(
             name=agent,
-            persona=persona,
-            human=human,
+            persona_file=persona,
+            human_file=human,
             preset=preset,
             model=model,
             model_wrapper=model_wrapper,
             model_endpoint_type=model_endpoint_type,
             model_endpoint=model_endpoint,
             context_window=context_window,
+            # TODO add embedding data
         )
 
-        # save new agent config
-        agent_config.save()
-        typer.secho(f"->  🤖 Using persona profile '{agent_config.persona}'", fg=typer.colors.WHITE)
-        typer.secho(f"->  🧑 Using human profile '{agent_config.human}'", fg=typer.colors.WHITE)
+        typer.secho(f"->  🤖 Using persona profile '{persona}'", fg=typer.colors.WHITE)
+        typer.secho(f"->  🧑 Using human profile '{human}'", fg=typer.colors.WHITE)
 
         # Supress llama-index noise
-        with suppress_stdout():
-            # TODO: allow configrable state manager (only local is supported right now)
-            persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
+        # TODO(swooders) add persistence manager code? or comment out?
+        # with suppress_stdout():
+        # TODO: allow configrable state manager (only local is supported right now)
+        # persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
 
         # create agent
         try:
             memgpt_agent = presets.create_agent_from_preset(
-                agent_config.preset,
-                agent_config,
-                agent_config.model,
-                utils.get_persona_text(agent_config.persona),
-                utils.get_human_text(agent_config.human),
-                interface,
-                persistence_manager,
+                agent_state=agent_init_state,
+                interface=interface,
             )
         except ValueError as e:
+            # TODO(swooders) what's the equivalent cleanup code for the new DB refactor?
             typer.secho(f"Failed to create agent from provided information:\n{e}", fg=typer.colors.RED)
-            # Delete the directory of the failed agent
-            try:
-                # Path to the specific file
-                agent_config_file = agent_config.agent_config_path
+            # # Delete the directory of the failed agent
+            # try:
+            #     # Path to the specific file
+            #     agent_config_file = agent_config.agent_config_path
 
-                # Check if the file exists
-                if os.path.isfile(agent_config_file):
-                    # Delete the file
-                    os.remove(agent_config_file)
+            #     # Check if the file exists
+            #     if os.path.isfile(agent_config_file):
+            #         # Delete the file
+            #         os.remove(agent_config_file)
 
-                # Now, delete the directory along with any remaining files in it
-                agent_save_dir = os.path.join(MEMGPT_DIR, "agents", agent_config.name)
-                shutil.rmtree(agent_save_dir)
-            except:
-                typer.secho(f"Failed to delete agent directory during cleanup:\n{e}", fg=typer.colors.RED)
+            #     # Now, delete the directory along with any remaining files in it
+            #     agent_save_dir = os.path.join(MEMGPT_DIR, "agents", agent_config.name)
+            #     shutil.rmtree(agent_save_dir)
+            # except:
+            #     typer.secho(f"Failed to delete agent directory during cleanup:\n{e}", fg=typer.colors.RED)
             sys.exit(1)
-        typer.secho(f"🎉 Created new agent '{agent_config.name}'", fg=typer.colors.GREEN)
+        typer.secho(f"🎉 Created new agent '{agent}'", fg=typer.colors.GREEN)
 
     # pretty print agent config
-    printd(json.dumps(vars(agent_config), indent=4, sort_keys=True))
+    # printd(json.dumps(vars(agent_config), indent=4, sort_keys=True))
+    printd(json.dumps(vars(agent_init_state), indent=4, sort_keys=True))
 
     # start event loop
     from memgpt.main import run_agent_loop

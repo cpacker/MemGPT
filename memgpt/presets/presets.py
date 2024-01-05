@@ -5,7 +5,6 @@ from memgpt.utils import get_human_text, get_persona_text
 from memgpt.prompts import gpt_system
 from memgpt.functions.functions import load_all_function_sets
 
-DEFAULT_PRESET = "memgpt_chat"
 
 available_presets = load_all_presets()
 preset_options = list(available_presets.keys())
