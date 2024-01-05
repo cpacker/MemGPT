@@ -442,31 +442,41 @@ def run(
         # create new agent config: override defaults with args if provided
         typer.secho("\n🧬 Creating new agent...", fg=typer.colors.WHITE)
 
-        # agent_config = AgentConfig(
-        #     name=agent,
-        #     persona=persona,
-        #     human=human,
-        #     preset=preset,
-        #     model=model,
-        #     model_wrapper=model_wrapper,
-        #     model_endpoint_type=model_endpoint_type,
-        #     model_endpoint=model_endpoint,
-        #     context_window=context_window,
-        # )
-        # save new agent config
-        # agent_config.save()
-
-        agent_init_state = AgentState(
+        # TODO(swooders) complete hack to get the defaults loaded into AgentState properly
+        # If we don't do this, AgentState will have a ton of null values
+        agent_config = AgentConfig(
             name=agent,
-            persona_file=persona,
-            human_file=human,
+            persona=persona,
+            human=human,
             preset=preset,
             model=model,
             model_wrapper=model_wrapper,
             model_endpoint_type=model_endpoint_type,
             model_endpoint=model_endpoint,
             context_window=context_window,
-            # TODO(swooders) add embedding data
+        )
+        # save new agent config
+        # agent_config.save()
+
+        agent_init_state = AgentState(
+            name=agent_config.name,
+            persona_file=agent_config.persona,
+            human_file=agent_config.human,
+            preset=agent_config.preset,
+            model=agent_config.model,
+            model_wrapper=agent_config.model_wrapper,
+            model_endpoint_type=agent_config.model_endpoint_type,
+            model_endpoint=agent_config.model_endpoint,
+            context_window=agent_config.context_window,
+            # TODO(swooders) add embedding data properly
+            embedding_endpoint_type=config.embedding_endpoint_type,
+            embedding_endpoint=config.embedding_endpoint,
+            embedding_model=config.embedding_model,
+            embedding_dim=config.embedding_dim,
+            embedding_chunk_size=config.embedding_chunk_size,
+            # data_sources=???
+            create_time=agent_config.create_time,
+            memgpt_version=agent_config.memgpt_version,
         )
 
         typer.secho(f"->  🤖 Using persona profile '{agent_init_state.persona_file}'", fg=typer.colors.WHITE)
@@ -503,7 +513,7 @@ def run(
             # except:
             #     typer.secho(f"Failed to delete agent directory during cleanup:\n{e}", fg=typer.colors.RED)
             sys.exit(1)
-        typer.secho(f"🎉 Created new agent '{agent}'", fg=typer.colors.GREEN)
+        typer.secho(f"🎉 Created new agent '{agent_init_state.name}'", fg=typer.colors.GREEN)
 
     # pretty print agent config
     # printd(json.dumps(vars(agent_config), indent=4, sort_keys=True))
