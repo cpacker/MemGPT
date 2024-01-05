@@ -271,7 +271,7 @@ def azure_openai_get_model_list(url: str, api_key: Union[str, None], api_version
         raise e
 
 
-def openai_chat_completions_request(url, api_key, data, use_tool_naming=False):
+def openai_chat_completions_request(url, api_key, data, use_tool_naming=True):
     """https://platform.openai.com/docs/guides/text-generation?lang=curl"""
     from memgpt.utils import printd
 
@@ -349,7 +349,7 @@ def openai_embeddings_request(url, api_key, data):
         raise e
 
 
-def azure_openai_chat_completions_request(resource_name, deployment_id, api_version, api_key, data, use_tool_naming=False):
+def azure_openai_chat_completions_request(resource_name, deployment_id, api_version, api_key, data, use_tool_naming=True):
     """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#chat-completions"""
     from memgpt.utils import printd
 
