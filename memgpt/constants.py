@@ -1,4 +1,5 @@
 import os
+from logging import CRITICAL, ERROR, WARN, WARNING, INFO, DEBUG, NOTSET
 
 MEMGPT_DIR = os.path.join(os.path.expanduser("~"), ".memgpt")
 
@@ -6,7 +7,19 @@ DEFAULT_MEMGPT_MODEL = "gpt-4"
 DEFAULT_PERSONA = "sam_pov"
 DEFAULT_HUMAN = "basic"
 
+# Used to isolate MemGPT logger instance from Dependant Libraries logging
 LOGGER_NAME = "MemGPT"
+LOGGER_DEFAULT_LEVEL = CRITICAL
+# Where to store the logs
+LOGGER_DIR = os.path.join(MEMGPT_DIR, "logs")
+# filename of the log
+LOGGER_FILENAME = "MemGPT.log"
+# Number of log files to rotate
+LOGGER_FILE_BACKUP_COUNT = 3
+# Max Log file size in bytes
+LOGGER_MAX_FILE_SIZE = 10485760
+# LOGGER_LOG_LEVEL is use to convert Text to Logging level value for logging mostly for Cli input to setting level
+LOGGER_LOG_LEVELS = {"CRITICAL": CRITICAL, "ERROR": ERROR, "WARN": WARN, "WARNING": WARNING, "INFO": INFO, "DEBUG": DEBUG, "NOTSET": NOTSET}
 
 FIRST_MESSAGE_ATTEMPTS = 10
 
@@ -69,7 +82,7 @@ CORE_MEMORY_PERSONA_CHAR_LIMIT = 2000
 CORE_MEMORY_HUMAN_CHAR_LIMIT = 2000
 
 # Function return limits
-FUNCTION_RETURN_CHAR_LIMIT = 2000
+FUNCTION_RETURN_CHAR_LIMIT = 3000  # ~300 words
 
 MAX_PAUSE_HEARTBEATS = 360  # in min
 

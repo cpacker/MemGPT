@@ -1,9 +1,25 @@
-import pexpect
+import os
+
+from memgpt.config import MemGPTConfig
 
 from .constants import TIMEOUT
 
 
+def wipe_config():
+    if MemGPTConfig.exists():
+        # delete
+        if os.getenv("MEMGPT_CONFIG_PATH"):
+            config_path = os.getenv("MEMGPT_CONFIG_PATH")
+        else:
+            config_path = MemGPTConfig.config_path
+        # TODO delete file config_path
+        os.remove(config_path)
+
+
 def configure_memgpt_localllm():
+    import pexpect
+
+    wipe_config()
     child = pexpect.spawn("memgpt configure")
 
     child.expect("Select LLM inference provider", timeout=TIMEOUT)

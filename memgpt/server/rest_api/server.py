@@ -81,7 +81,7 @@ def get_agent_memory(user_id: str, agent_id: str):
 
 
 @app.put("/agents/memory")
-def get_agent_memory(body: CoreMemory):
+def put_agent_memory(body: CoreMemory):
     interface.clear()
     new_memory_contents = {"persona": body.persona, "human": body.human}
     return server.update_agent_core_memory(user_id=body.user_id, agent_id=body.agent_id, new_memory_contents=new_memory_contents)

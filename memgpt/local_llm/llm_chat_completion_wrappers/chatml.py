@@ -40,6 +40,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         assistant_prefix_extra='\n{\n  "function":',
         assistant_prefix_extra_first_message='\n{\n  "function": "send_message",',
         allow_custom_roles=True,  # allow roles outside user/assistant
+        use_system_role_in_user=False,  # use the system role on user messages that don't use "type: user_message"
         # allow_function_role=True,  # use function role for function replies?
         allow_function_role=False,  # use function role for function replies?
         no_function_role_role="assistant",  # if no function role, which role to use?
@@ -56,6 +57,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
 
         # role-based
         self.allow_custom_roles = allow_custom_roles
+        self.use_system_role_in_user = use_system_role_in_user
         self.allow_function_role = allow_function_role
         # extras for when the function role is disallowed
         self.no_function_role_role = no_function_role_role
@@ -198,6 +200,13 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
                 role_str = message["name"].strip().lower() if (self.allow_custom_roles and "name" in message) else message["role"]
                 msg_str = self._compile_user_message(message)
 
+                if self.use_system_role_in_user:
+                    try:
+                        msg_json = json.loads(message["content"])
+                        if msg_json["type"] != "user_message":
+                            role_str = "system"
+                    except:
+                        pass
                 prompt += f"\n<|im_start|>{role_str}\n{msg_str.strip()}<|im_end|>"
 
             elif message["role"] == "assistant":

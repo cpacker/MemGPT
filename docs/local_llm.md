@@ -1,33 +1,37 @@
 ---
 title: MemGPT + open models
 excerpt: Set up MemGPT to run with open LLMs
-category: 6580da9a40bb410016b8b0c3 
+category: 6580da9a40bb410016b8b0c3
 ---
 
 > 📘 Need help?
 >
-> If you need help visit our [Discord server](https://discord.gg/9GEQrxmVyE) and post in the #support channel.
+> Visit our [Discord server](https://discord.gg/9GEQrxmVyE) and post in the #support channel. Make sure to check the [local LLM troubleshooting page](local_llm_faq) to see common issues before raising a new issue or posting on Discord.
+
+> 📘 Using Windows?
 >
-> You can also check the [GitHub discussion page](https://github.com/cpacker/MemGPT/discussions/67), but the Discord server is the official support channel and is monitored more actively.
+> If you're using Windows and are trying to get MemGPT with local LLMs setup, we recommend using Anaconda Shell, or WSL (for more advanced users). See more Windows installation tips [here](local_llm_faq).
 
 > ⚠️ MemGPT + open LLM failure cases
 >
-> When using open LLMs with MemGPT, **the main failure case will be your LLM outputting a string that cannot be understood by MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)` and interact with the user (`send_message(...)`), so your LLM needs generate outputs that can be parsed into MemGPT function calls.
->
-> Make sure to check the [local LLM troubleshooting page](local_llm_faq) to see common issues before raising a new issue or posting on Discord.
+> When using open LLMs with MemGPT, **the main failure case will be your LLM outputting a string that cannot be understood by MemGPT**. MemGPT uses function calling to manage memory (eg `edit_core_memory(...)` and interact with the user (`send_message(...)`), so your LLM needs generate outputs that can be parsed into MemGPT function calls. See [the local LLM troubleshooting page](local_llm_faq) for more information.
 
 ### Installing dependencies
+
 To install dependencies required for running local models, run:
+
 ```sh
 pip install 'pymemgpt[local]'
 ```
 
 If you installed from source (`git clone` then `pip install -e .`), do:
+
 ```sh
 pip install -e '.[local]'
 ```
 
 If you installed from source using Poetry, do:
+
 ```sh
 poetry install -E local
 ```
@@ -38,7 +42,8 @@ poetry install -E local
 2. Run `memgpt configure` and when prompted select your backend/endpoint type and endpoint address (a default will be provided but you may have to override it)
 
 For example, if we are running web UI (which defaults to port 5000) on the same computer as MemGPT, running `memgpt configure` would look like this:
-```
+
+```text
 ? Select LLM inference provider: local
 ? Select LLM backend (select 'openai' if you have an OpenAI compatible proxy): webui
 ? Enter default endpoint: http://localhost:5000
@@ -55,6 +60,7 @@ Saving config to /home/user/.memgpt/config
 Now when we do `memgpt run`, it will use the LLM running on the local web server.
 
 If you want to change the local LLM settings of an existing agent, you can pass flags to `memgpt run`:
+
 ```sh
 # --model-wrapper will override the wrapper
 # --model-endpoint will override the endpoint address
@@ -66,15 +72,17 @@ memgpt run --agent agent_11 --model-endpoint http://localhost:1234 --model-endpo
 
 ### Selecting a model wrapper
 
-When you use local LLMs, you can specify a **model wrapper** that changes how the LLM input text is formatted before it is passed to your LLM. 
+When you use local LLMs, you can specify a **model wrapper** that changes how the LLM input text is formatted before it is passed to your LLM.
 
 You can change the wrapper used with the `--model-wrapper` flag:
+
 ```sh
 memgpt run --model-wrapper airoboros-l2-70b-2.1
 ```
 
 You can see the full selection of model wrappers by running `memgpt configure`:
-```
+
+```text
 ? Select LLM inference provider: local
 ? Select LLM backend (select 'openai' if you have an OpenAI compatible proxy): webui
 ? Enter default endpoint: http://localhost:5000

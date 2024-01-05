@@ -1,4 +1,5 @@
 import subprocess
+import os
 import sys
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "pexpect"])
@@ -6,14 +7,17 @@ import pexpect
 
 from .constants import TIMEOUT
 from .utils import configure_memgpt
+from memgpt import MemGPT
 
 
-def test_configure_memgpt():
-    configure_memgpt()
+# def test_configure_memgpt():
+#    configure_memgpt()
 
 
 def test_save_load():
     # configure_memgpt()  # rely on configure running first^
+    client = MemGPT(quickstart="openai")
+
     child = pexpect.spawn("memgpt run --agent test_save_load --first --strip-ui")
 
     child.expect("Enter your message:", timeout=TIMEOUT)
@@ -41,5 +45,5 @@ def test_save_load():
 
 
 if __name__ == "__main__":
-    test_configure_memgpt()
+    # test_configure_memgpt()
     test_save_load()

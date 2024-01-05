@@ -1,329 +1,443 @@
-from pgvector.psycopg import register_vector
-from pgvector.sqlalchemy import Vector
+import os
+import ast
 import psycopg
 
 
-from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text
-from sqlalchemy.orm import sessionmaker, mapped_column
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY
+from sqlalchemy import func
+from sqlalchemy.orm import sessionmaker, mapped_column, declarative_base
+from sqlalchemy.orm.session import close_all_sessions
 from sqlalchemy.sql import func
+from sqlalchemy import Column, BIGINT, String, DateTime
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy_json import mutable_json_type, MutableJson
+from sqlalchemy import TypeDecorator, CHAR
+import uuid
 
 import re
 from tqdm import tqdm
-from typing import Optional, List, Iterator
+from typing import Optional, List, Iterator, Dict
 import numpy as np
 from tqdm import tqdm
 import pandas as pd
 
 from memgpt.config import MemGPTConfig
-from memgpt.connectors.storage import StorageConnector, Passage
+from memgpt.connectors.storage import StorageConnector, TableType
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.constants import MEMGPT_DIR
 from memgpt.utils import printd
+from memgpt.data_types import Record, Message, Passage, Source, ToolCall
+
+from datetime import datetime
+
+
+# Custom UUID type
+class CommonUUID(TypeDecorator):
+    impl = CHAR
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(UUID(as_uuid=True))
+        else:
+            return dialect.type_descriptor(CHAR())
+
+    def process_bind_param(self, value, dialect):
+        if dialect.name == "postgresql" or value is None:
+            return value
+        else:
+            return str(value)  # Convert UUID to string for SQLite
+
+    def process_result_value(self, value, dialect):
+        if dialect.name == "postgresql" or value is None:
+            return value
+        else:
+            return uuid.UUID(value)
+
+
+class CommonVector(TypeDecorator):
+
+    """Common type for representing vectors in SQLite"""
+
+    impl = BINARY
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(BINARY())
+
+    def process_bind_param(self, value, dialect):
+        return np.array(value).tobytes()
+
+    def process_result_value(self, value, dialect):
+        list_value = ast.literal_eval(value)
+        return np.array(list_value)
+
+
+class ToolCalls(TypeDecorator):
+
+    """Custom type for storing List[ToolCall] as JSON"""
+
+    impl = JSON
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(JSON())
+
+    def process_bind_param(self, value, dialect):
+        if value:
+            return [vars(v) for v in value]
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value:
+            return [ToolCall(**v) for v in value]
+        return value
+
 
 Base = declarative_base()
 
 
-def get_db_model(table_name: str):
+def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
     config = MemGPTConfig.load()
 
-    class PassageModel(Base):
-        """Defines data model for storing Passages (consisting of text, embedding)"""
+    # Define a helper function to create or get the model class
+    def create_or_get_model(class_name, base_model, table_name):
+        if class_name in globals():
+            return globals()[class_name]
+        Model = type(class_name, (base_model,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
+        globals()[class_name] = Model
+        return Model
 
-        __abstract__ = True  # this line is necessary
+    if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
+        # create schema for archival memory
+        class PassageModel(Base):
+            """Defines data model for storing Passages (consisting of text, embedding)"""
 
-        # Assuming passage_id is the primary key
-        id = Column(BIGINT, primary_key=True, nullable=False, autoincrement=True)
-        doc_id = Column(String)
-        text = Column(String, nullable=False)
-        embedding = mapped_column(Vector(config.embedding_dim))
-        # metadata_ = Column(JSON(astext_type=Text()))
+            __abstract__ = True  # this line is necessary
 
-        def __repr__(self):
-            return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
+            # Assuming passage_id is the primary key
+            # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+            id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+            # id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+            user_id = Column(String, nullable=False)
+            text = Column(String, nullable=False)
+            doc_id = Column(String)
+            agent_id = Column(String)
+            data_source = Column(String)  # agent_name if agent, data_source name if from data source
 
-    """Create database model for table_name"""
-    class_name = f"{table_name.capitalize()}Model"
-    Model = type(class_name, (PassageModel,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
-    return Model
+            # vector storage
+            if dialect == "sqlite":
+                embedding = Column(CommonVector)
+            else:
+                from pgvector.sqlalchemy import Vector
+
+                embedding = mapped_column(Vector(config.embedding_dim))
+
+            metadata_ = Column(MutableJson)
+
+            def __repr__(self):
+                return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
+
+            def to_record(self):
+                return Passage(
+                    text=self.text,
+                    embedding=self.embedding,
+                    doc_id=self.doc_id,
+                    user_id=self.user_id,
+                    id=self.id,
+                    data_source=self.data_source,
+                    agent_id=self.agent_id,
+                    metadata=self.metadata_,
+                )
+
+        """Create database model for table_name"""
+        class_name = f"{table_name.capitalize()}Model" + dialect
+        return create_or_get_model(class_name, PassageModel, table_name)
+
+    elif table_type == TableType.RECALL_MEMORY:
+
+        class MessageModel(Base):
+            """Defines data model for storing Message objects"""
+
+            __abstract__ = True  # this line is necessary
+
+            # Assuming message_id is the primary key
+            # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+            id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+            # id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+            user_id = Column(String, nullable=False)
+            agent_id = Column(String, nullable=False)
+
+            # openai info
+            role = Column(String, nullable=False)
+            text = Column(String)  # optional: can be null if function call
+            model = Column(String, nullable=False)
+            user = Column(String)  # optional: multi-agent only
+
+            # tool call request info
+            # if role == "assistant", this MAY be specified
+            # if role != "assistant", this must be null
+            # TODO align with OpenAI spec of multiple tool calls
+            tool_calls = Column(ToolCalls)
+
+            # tool call response info
+            # if role == "tool", then this must be specified
+            # if role != "tool", this must be null
+            tool_call_id = Column(String)
+
+            # vector storage
+            if dialect == "sqlite":
+                embedding = Column(CommonVector)
+            else:
+                from pgvector.sqlalchemy import Vector
+
+                embedding = mapped_column(Vector(config.embedding_dim))
+
+            # Add a datetime column, with default value as the current time
+            created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+            def __repr__(self):
+                return f"<Message(message_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
+
+            def to_record(self):
+                return Message(
+                    user_id=self.user_id,
+                    agent_id=self.agent_id,
+                    role=self.role,
+                    user=self.user,
+                    text=self.text,
+                    model=self.model,
+                    tool_calls=self.tool_calls,
+                    tool_call_id=self.tool_call_id,
+                    embedding=self.embedding,
+                    created_at=self.created_at,
+                    id=self.id,
+                )
+
+        """Create database model for table_name"""
+        class_name = f"{table_name.capitalize()}Model" + dialect
+        return create_or_get_model(class_name, MessageModel, table_name)
+
+    elif table_type == TableType.DATA_SOURCES:
+
+        class SourceModel(Base):
+            """Defines data model for storing Passages (consisting of text, embedding)"""
+
+            __abstract__ = True  # this line is necessary
+
+            # Assuming passage_id is the primary key
+            # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+            id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+            user_id = Column(String, nullable=False)
+            name = Column(String, nullable=False)
+            created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+            def __repr__(self):
+                return f"<Source(passage_id='{self.id}', name='{self.name}')>"
+
+            def to_record(self):
+                return Source(id=self.id, user_id=self.user_id, name=self.name, created_at=self.created_at)
+
+        """Create database model for table_name"""
+        class_name = f"{table_name.capitalize()}Model" + dialect
+        return create_or_get_model(class_name, SourceModel, table_name)
+
+    else:
+        raise ValueError(f"Table type {table_type} not implemented")
 
 
-class PostgresStorageConnector(StorageConnector):
+class SQLStorageConnector(StorageConnector):
+    def __init__(self, table_type: str, agent_config: Optional[AgentConfig] = None):
+        super().__init__(table_type=table_type, agent_config=agent_config)
+        self.config = MemGPTConfig.load()
+
+    def get_filters(self, filters: Optional[Dict] = {}):
+        if filters is not None:
+            filter_conditions = {**self.filters, **filters}
+        else:
+            filter_conditions = self.filters
+        return [getattr(self.db_model, key) == value for key, value in filter_conditions.items()]
+
+    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000) -> Iterator[List[Record]]:
+        session = self.Session()
+        offset = 0
+        filters = self.get_filters(filters)
+        while True:
+            # Retrieve a chunk of records with the given page_size
+            db_record_chunk = session.query(self.db_model).filter(*filters).offset(offset).limit(page_size).all()
+
+            # If the chunk is empty, we've retrieved all records
+            if not db_record_chunk:
+                break
+
+            # Yield a list of Record objects converted from the chunk
+            yield [record.to_record() for record in db_record_chunk]
+
+            # Increment the offset to get the next chunk in the next iteration
+            offset += page_size
+
+    def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[Record]:
+        session = self.Session()
+        filters = self.get_filters(filters)
+        if limit:
+            db_records = session.query(self.db_model).filter(*filters).limit(limit).all()
+        else:
+            db_records = session.query(self.db_model).filter(*filters).all()
+        return [record.to_record() for record in db_records]
+
+    def get(self, id: str) -> Optional[Record]:
+        session = self.Session()
+        db_record = session.query(self.db_model).get(id)
+        if db_record is None:
+            return None
+        return db_record.to_record()
+
+    def size(self, filters: Optional[Dict] = {}) -> int:
+        # return size of table
+        session = self.Session()
+        filters = self.get_filters(filters)
+        return session.query(self.db_model).filter(*filters).count()
+
+    def insert(self, record: Record):
+        session = self.Session()
+        db_record = self.db_model(**vars(record))
+        session.add(db_record)
+        session.commit()
+
+    def insert_many(self, records: List[Record], show_progress=False):
+        session = self.Session()
+        iterable = tqdm(records) if show_progress else records
+        for record in iterable:
+            db_record = self.db_model(**vars(record))
+            session.add(db_record)
+        session.commit()
+
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
+        raise NotImplementedError("Vector query not implemented for SQLStorageConnector")
+
+    def save(self):
+        return
+
+    def list_data_sources(self):
+        assert self.table_type == TableType.ARCHIVAL_MEMORY, f"list_data_sources only implemented for ARCHIVAL_MEMORY"
+        session = self.Session()
+        unique_data_sources = session.query(self.db_model.data_source).filter(*self.filters).distinct().all()
+        return unique_data_sources
+
+    def query_date(self, start_date, end_date, offset=0, limit=None):
+        session = self.Session()
+        filters = self.get_filters({})
+        query = (
+            session.query(self.db_model)
+            .filter(*filters)
+            .filter(self.db_model.created_at >= start_date)
+            .filter(self.db_model.created_at <= end_date)
+            .offset(offset)
+        )
+        if limit:
+            query = query.limit(limit)
+        results = query.all()
+        return [result.to_record() for result in results]
+
+    def query_text(self, query, offset=0, limit=None):
+        # todo: make fuzz https://stackoverflow.com/questions/42388956/create-a-full-text-search-index-with-sqlalchemy-on-postgresql/42390204#42390204
+        session = self.Session()
+        filters = self.get_filters({})
+        query = (
+            session.query(self.db_model).filter(*filters).filter(func.lower(self.db_model.text).contains(func.lower(query))).offset(offset)
+        )
+        if limit:
+            query = query.limit(limit)
+        results = query.all()
+        # return [self.type(**vars(result)) for result in results]
+        return [result.to_record() for result in results]
+
+    def delete_table(self):
+        session = self.Session()
+        close_all_sessions()
+        self.db_model.__table__.drop(session.bind)
+        session.commit()
+
+    def delete(self, filters: Optional[Dict] = {}):
+        session = self.Session()
+        filters = self.get_filters(filters)
+        session.query(self.db_model).filter(*filters).delete()
+        session.commit()
+
+
+class PostgresStorageConnector(SQLStorageConnector):
     """Storage via Postgres"""
 
     # TODO: this should probably eventually be moved into a parent DB class
 
-    def __init__(self, name: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
-        config = MemGPTConfig.load()
+    def __init__(self, table_type: str, agent_config: Optional[AgentConfig] = None):
+        from pgvector.sqlalchemy import Vector
 
-        # determine table name
-        if agent_config:
-            assert name is None, f"Cannot specify both agent config and name {name}"
-            self.table_name = self.generate_table_name_agent(agent_config)
-        elif name:
-            assert agent_config is None, f"Cannot specify both agent config and name {name}"
-            self.table_name = self.generate_table_name(name)
+        super().__init__(table_type=table_type, agent_config=agent_config)
+
+        # get storage URI
+        if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
+            self.uri = self.config.archival_storage_uri
+            if self.config.archival_storage_uri is None:
+                raise ValueError(f"Must specifiy archival_storage_uri in config {self.config.config_path}")
+        elif table_type == TableType.RECALL_MEMORY:
+            self.uri = self.config.recall_storage_uri
+            if self.config.recall_storage_uri is None:
+                raise ValueError(f"Must specifiy recall_storage_uri in config {self.config.config_path}")
+        elif table_type == TableType.DATA_SOURCES:
+            self.uri = self.config.metadata_storage_uri
+            if self.config.metadata_storage_uri is None:
+                raise ValueError(f"Must specifiy metadata_storage_uri in config {self.config.config_path}")
         else:
-            raise ValueError("Must specify either agent config or name")
-
-        printd(f"Using table name {self.table_name}")
-
+            raise ValueError(f"Table type {table_type} not implemented")
         # create table
-        self.uri = config.archival_storage_uri
-        if config.archival_storage_uri is None:
-            raise ValueError(f"Must specifiy archival_storage_uri in config {config.config_path}")
-        self.db_model = get_db_model(self.table_name)
+        self.db_model = get_db_model(self.table_name, table_type)
         self.engine = create_engine(self.uri)
-        Base.metadata.create_all(self.engine)  # Create the table if it doesn't exist
+        for c in self.db_model.__table__.columns:
+            if c.name == "embedding":
+                assert isinstance(c.type, Vector), f"Embedding column must be of type Vector, got {c.type}"
+        Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
+
         self.Session = sessionmaker(bind=self.engine)
         self.Session().execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
 
-    def get_all_paginated(self, page_size: int) -> Iterator[List[Passage]]:
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
         session = self.Session()
-        offset = 0
-        while True:
-            # Retrieve a chunk of records with the given page_size
-            db_passages_chunk = session.query(self.db_model).offset(offset).limit(page_size).all()
-
-            # If the chunk is empty, we've retrieved all records
-            if not db_passages_chunk:
-                break
-
-            # Yield a list of Passage objects converted from the chunk
-            yield [Passage(text=p.text, embedding=p.embedding, doc_id=p.doc_id, passage_id=p.id) for p in db_passages_chunk]
-
-            # Increment the offset to get the next chunk in the next iteration
-            offset += page_size
-
-    def get_all(self, limit=10) -> List[Passage]:
-        session = self.Session()
-        db_passages = session.query(self.db_model).limit(limit).all()
-        return [Passage(text=p.text, embedding=p.embedding, doc_id=p.doc_id, passage_id=p.id) for p in db_passages]
-
-    def get(self, id: str) -> Optional[Passage]:
-        session = self.Session()
-        db_passage = session.query(self.db_model).get(id)
-        if db_passage is None:
-            return None
-        return Passage(text=db_passage.text, embedding=db_passage.embedding, doc_id=db_passage.doc_id, passage_id=db_passage.passage_id)
-
-    def size(self) -> int:
-        # return size of table
-        session = self.Session()
-        return session.query(self.db_model).count()
-
-    def insert(self, passage: Passage):
-        session = self.Session()
-        db_passage = self.db_model(doc_id=passage.doc_id, text=passage.text, embedding=passage.embedding)
-        session.add(db_passage)
-        session.commit()
-
-    def insert_many(self, passages: List[Passage], show_progress=True):
-        session = self.Session()
-        iterable = tqdm(passages) if show_progress else passages
-        for passage in iterable:
-            db_passage = self.db_model(doc_id=passage.doc_id, text=passage.text, embedding=passage.embedding)
-            session.add(db_passage)
-        session.commit()
-
-    def query(self, query: str, query_vec: List[float], top_k: int = 10) -> List[Passage]:
-        session = self.Session()
-        # Assuming PassageModel.embedding has the capability of computing l2_distance
-        results = session.scalars(select(self.db_model).order_by(self.db_model.embedding.l2_distance(query_vec)).limit(top_k)).all()
+        filters = self.get_filters(filters)
+        results = session.scalars(
+            select(self.db_model).filter(*filters).order_by(self.db_model.embedding.l2_distance(query_vec)).limit(top_k)
+        ).all()
 
         # Convert the results into Passage objects
-        passages = [
-            Passage(text=result.text, embedding=np.frombuffer(result.embedding), doc_id=result.doc_id, passage_id=result.id)
-            for result in results
-        ]
-        return passages
-
-    def delete(self):
-        """Drop the passage table from the database."""
-        # Bind the engine to the metadata of the base class so that the
-        # declaratives can be accessed through a DBSession instance
-        Base.metadata.bind = self.engine
-
-        # Drop the table specified by the PassageModel class
-        self.db_model.__table__.drop(self.engine)
-
-    def save(self):
-        return
-
-    @staticmethod
-    def list_loaded_data():
-        config = MemGPTConfig.load()
-        engine = create_engine(config.archival_storage_uri)
-        inspector = inspect(engine)
-        tables = inspector.get_table_names()
-        tables = [table for table in tables if table.startswith("memgpt_") and not table.startswith("memgpt_agent_")]
-        start_chars = len("memgpt_")
-        tables = [table[start_chars:] for table in tables]
-        return tables
-
-    def sanitize_table_name(self, name: str) -> str:
-        # Remove leading and trailing whitespace
-        name = name.strip()
-
-        # Replace spaces and invalid characters with underscores
-        name = re.sub(r"\s+|\W+", "_", name)
-
-        # Truncate to the maximum identifier length (e.g., 63 for PostgreSQL)
-        max_length = 63
-        if len(name) > max_length:
-            name = name[:max_length].rstrip("_")
-
-        # Convert to lowercase
-        name = name.lower()
-
-        return name
-
-    def generate_table_name_agent(self, agent_config: AgentConfig):
-        return f"memgpt_agent_{self.sanitize_table_name(agent_config.name)}"
-
-    def generate_table_name(self, name: str):
-        return f"memgpt_{self.sanitize_table_name(name)}"
+        records = [result.to_record() for result in results]
+        return records
 
 
-class LanceDBConnector(StorageConnector):
-    """Storage via LanceDB"""
+class SQLLiteStorageConnector(SQLStorageConnector):
+    def __init__(self, table_type: str, agent_config: Optional[AgentConfig] = None):
+        super().__init__(table_type=table_type, agent_config=agent_config)
 
-    # TODO: this should probably eventually be moved into a parent DB class
-
-    def __init__(self, name: Optional[str] = None, agent_config: Optional[AgentConfig] = None):
-        config = MemGPTConfig.load()
-        # determine table name
-        if agent_config:
-            assert name is None, f"Cannot specify both agent config and name {name}"
-            self.table_name = self.generate_table_name_agent(agent_config)
-        elif name:
-            assert agent_config is None, f"Cannot specify both agent config and name {name}"
-            self.table_name = self.generate_table_name(name)
+        # get storage URI
+        if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
+            raise ValueError(f"Table type {table_type} not implemented")
+        elif table_type == TableType.RECALL_MEMORY:
+            # TODO: eventually implement URI option
+            self.path = self.config.recall_storage_path
+            if self.path is None:
+                raise ValueError(f"Must specifiy recall_storage_path in config {self.config.recall_storage_path}")
+        elif table_type == TableType.DATA_SOURCES:
+            self.path = self.config.metadata_storage_path
+            if self.path is None:
+                raise ValueError(f"Must specifiy metadata_storage_path in config {self.config.metadata_storage_path}")
         else:
-            raise ValueError("Must specify either agent config or name")
+            raise ValueError(f"Table type {table_type} not implemented")
 
-        printd(f"Using table name {self.table_name}")
+        self.path = os.path.join(self.path, f"{self.table_name}.db")
 
-        # create table
-        self.uri = config.archival_storage_uri
-        if config.archival_storage_uri is None:
-            raise ValueError(f"Must specifiy archival_storage_uri in config {config.config_path}")
-        import lancedb
+        # Create the SQLAlchemy engine
+        self.db_model = get_db_model(self.table_name, table_type, dialect="sqlite")
+        self.engine = create_engine(f"sqlite:///{self.path}")
+        Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
+        self.Session = sessionmaker(bind=self.engine)
 
-        self.db = lancedb.connect(self.uri)
-        if self.table_name in self.db.table_names():
-            self.table = self.db[self.table_name]
-        else:
-            self.table = None
+        import sqlite3
 
-    def get_all_paginated(self, page_size: int) -> Iterator[List[Passage]]:
-        ds = self.table.to_lance()
-        offset = 0
-        while True:
-            # Retrieve a chunk of records with the given page_size
-            db_passages_chunk = ds.to_table(offset=offset, limit=page_size).to_pylist()
-            # If the chunk is empty, we've retrieved all records
-            if not db_passages_chunk:
-                break
-
-            # Yield a list of Passage objects converted from the chunk
-            yield [
-                Passage(text=p["text"], embedding=p["vector"], doc_id=p["doc_id"], passage_id=p["passage_id"]) for p in db_passages_chunk
-            ]
-
-            # Increment the offset to get the next chunk in the next iteration
-            offset += page_size
-
-    def get_all(self, limit=10) -> List[Passage]:
-        db_passages = self.table.to_lance().to_table(limit=limit).to_pylist()
-        return [Passage(text=p["text"], embedding=p["vector"], doc_id=p["doc_id"], passage_id=p["passage_id"]) for p in db_passages]
-
-    def get(self, id: str) -> Optional[Passage]:
-        db_passage = self.table.where(f"passage_id={id}").to_list()
-        if len(db_passage) == 0:
-            return None
-        return Passage(
-            text=db_passage["text"], embedding=db_passage["embedding"], doc_id=db_passage["doc_id"], passage_id=db_passage["passage_id"]
-        )
-
-    def size(self) -> int:
-        # return size of table
-        if self.table:
-            return len(self.table)
-        else:
-            print(f"Table with name {self.table_name} not present")
-            return 0
-
-    def insert(self, passage: Passage):
-        data = [{"doc_id": passage.doc_id, "text": passage.text, "passage_id": passage.passage_id, "vector": passage.embedding}]
-
-        if self.table is not None:
-            self.table.add(data)
-        else:
-            self.table = self.db.create_table(self.table_name, data=data, mode="overwrite")
-
-    def insert_many(self, passages: List[Passage], show_progress=True):
-        data = []
-        iterable = tqdm(passages) if show_progress else passages
-        for passage in iterable:
-            temp_dict = {"doc_id": passage.doc_id, "text": passage.text, "passage_id": passage.passage_id, "vector": passage.embedding}
-            data.append(temp_dict)
-
-        if self.table is not None:
-            self.table.add(data)
-        else:
-            self.table = self.db.create_table(self.table_name, data=data, mode="overwrite")
-
-    def query(self, query: str, query_vec: List[float], top_k: int = 10) -> List[Passage]:
-        # Assuming query_vec is of same length as embeddings inside table
-        results = self.table.search(query_vec).limit(top_k).to_list()
-        # Convert the results into Passage objects
-        passages = [
-            Passage(text=result["text"], embedding=result["vector"], doc_id=result["doc_id"], passage_id=result["passage_id"])
-            for result in results
-        ]
-        return passages
-
-    def delete(self):
-        """Drop the passage table from the database."""
-        # Drop the table specified by the PassageModel class
-        self.db.drop_table(self.table_name)
-
-    def save(self):
-        return
-
-    @staticmethod
-    def list_loaded_data():
-        config = MemGPTConfig.load()
-        import lancedb
-
-        db = lancedb.connect(config.archival_storage_uri)
-
-        tables = db.table_names()
-        tables = [table for table in tables if table.startswith("memgpt_")]
-        start_chars = len("memgpt_")
-        tables = [table[start_chars:] for table in tables]
-        return tables
-
-    def sanitize_table_name(self, name: str) -> str:
-        # Remove leading and trailing whitespace
-        name = name.strip()
-
-        # Replace spaces and invalid characters with underscores
-        name = re.sub(r"\s+|\W+", "_", name)
-
-        # Truncate to the maximum identifier length
-        max_length = 63
-        if len(name) > max_length:
-            name = name[:max_length].rstrip("_")
-
-        # Convert to lowercase
-        name = name.lower()
-
-        return name
-
-    def generate_table_name_agent(self, agent_config: AgentConfig):
-        return f"memgpt_agent_{self.sanitize_table_name(agent_config.name)}"
-
-    def generate_table_name(self, name: str):
-        return f"memgpt_{self.sanitize_table_name(name)}"
+        sqlite3.register_adapter(uuid.UUID, lambda u: u.bytes_le)
+        sqlite3.register_converter("UUID", lambda b: uuid.UUID(bytes_le=b))

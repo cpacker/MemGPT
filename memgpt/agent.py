@@ -1,4 +1,5 @@
 import datetime
+import uuid
 import glob
 import os
 import json
@@ -7,7 +8,7 @@ import traceback
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
-from memgpt.memory import CoreMemory as Memory, summarize_messages
+from memgpt.memory import CoreMemory as InContextMemory, summarize_messages
 from memgpt.openai_tools import create, is_context_overflow_error
 from memgpt.utils import get_local_time, parse_json, united_diff, printd, count_tokens, get_schema_diff, validate_function_response
 from memgpt.constants import (
@@ -24,12 +25,58 @@ from .errors import LLMError
 from .functions.functions import load_all_function_sets
 
 
+def link_functions(function_schemas):
+    """Link function definitions to list of function schemas"""
+
+    # need to dynamically link the functions
+    # the saved agent.functions will just have the schemas, but we need to
+    # go through the functions library and pull the respective python functions
+
+    # Available functions is a mapping from:
+    # function_name -> {
+    #   json_schema: schema
+    #   python_function: function
+    # }
+    # agent.functions is a list of schemas (OpenAI kwarg functions style, see: https://platform.openai.com/docs/api-reference/chat/create)
+    # [{'name': ..., 'description': ...}, {...}]
+    available_functions = load_all_function_sets()
+    linked_function_set = {}
+    for f_schema in function_schemas:
+        # Attempt to find the function in the existing function library
+        f_name = f_schema.get("name")
+        if f_name is None:
+            raise ValueError(f"While loading agent.state.functions encountered a bad function schema object with no name:\n{f_schema}")
+        linked_function = available_functions.get(f_name)
+        if linked_function is None:
+            raise ValueError(
+                f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
+            )
+        # Once we find a matching function, make sure the schema is identical
+        if json.dumps(f_schema) != json.dumps(linked_function["json_schema"]):
+            # error_message = (
+            #     f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different."
+            #     + f"\n>>>agent.state.functions\n{json.dumps(f_schema, indent=2)}"
+            #     + f"\n>>>function library\n{json.dumps(linked_function['json_schema'], indent=2)}"
+            # )
+            schema_diff = get_schema_diff(f_schema, linked_function["json_schema"])
+            error_message = (
+                f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different.\n"
+                + "".join(schema_diff)
+            )
+
+            # NOTE to handle old configs, instead of erroring here let's just warn
+            # raise ValueError(error_message)
+            printd(error_message)
+        linked_function_set[f_name] = linked_function
+    return linked_function_set
+
+
 def initialize_memory(ai_notes, human_notes):
     if ai_notes is None:
         raise ValueError(ai_notes)
     if human_notes is None:
         raise ValueError(human_notes)
-    memory = Memory(human_char_limit=CORE_MEMORY_HUMAN_CHAR_LIMIT, persona_char_limit=CORE_MEMORY_PERSONA_CHAR_LIMIT)
+    memory = InContextMemory(human_char_limit=CORE_MEMORY_HUMAN_CHAR_LIMIT, persona_char_limit=CORE_MEMORY_PERSONA_CHAR_LIMIT)
     memory.edit_persona(ai_notes)
     memory.edit_human(human_notes)
     return memory
@@ -138,12 +185,6 @@ class Agent(object):
             self.system,
             self.memory,
         )
-        # Keep track of the total number of messages throughout all time
-        self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
-        # self.messages_total_init = self.messages_total
-        self.messages_total_init = len(self._messages) - 1
-        printd(f"Agent initialized, self.messages_total={self.messages_total}")
-
         # Interface must implement:
         # - internal_monologue
         # - assistant_message
@@ -161,6 +202,12 @@ class Agent(object):
         if persistence_manager_init:
             # creates a new agent object in the database
             self.persistence_manager.init(self)
+
+        # Keep track of the total number of messages throughout all time
+        self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
+        # self.messages_total_init = self.messages_total
+        self.messages_total_init = len(self._messages) - 1
+        printd(f"Agent initialized, self.messages_total={self.messages_total}")
 
         # State needed for heartbeat pausing
         self.pause_heartbeats_start = None
@@ -240,43 +287,43 @@ class Agent(object):
 
     ### Local state management
     def to_dict(self):
+        # TODO: select specific variables for the saves state (to eventually move to a DB) rather than checkpointing everything in the class
         return {
             "model": self.model,
             "system": self.system,
             "functions": self.functions,
-            "messages": self.messages,
+            "messages": self.messages,  # TODO: convert to IDs
             "messages_total": self.messages_total,
             "memory": self.memory.to_dict(),
         }
 
-    def save_to_json_file(self, filename):
+    def save_agent_state_json(self, filename):
+        """Save agent state to JSON"""
         with open(filename, "w") as file:
             json.dump(self.to_dict(), file)
 
     def save(self):
         """Save agent state locally"""
 
-        timestamp = get_local_time().replace(" ", "_").replace(":", "_")
-        agent_name = self.config.name  # TODO: fix
-
         # save config
         self.config.save()
 
-        # save agent state
+        # save agent state to timestamped file
+        timestamp = get_local_time().replace(" ", "_").replace(":", "_")
         filename = f"{timestamp}.json"
         os.makedirs(self.config.save_state_dir(), exist_ok=True)
-        self.save_to_json_file(os.path.join(self.config.save_state_dir(), filename))
+        self.save_agent_state_json(os.path.join(self.config.save_state_dir(), filename))
 
-        # save the persistence manager too
-        filename = f"{timestamp}.persistence.pickle"
-        os.makedirs(self.config.save_persistence_manager_dir(), exist_ok=True)
-        self.persistence_manager.save(os.path.join(self.config.save_persistence_manager_dir(), filename))
+        # save the persistence manager too (recall/archival memory)
+        self.persistence_manager.save()
 
     @classmethod
     def load_agent(cls, interface, agent_config: AgentConfig):
-        """Load saved agent state"""
+        """Load saved agent state based on agent_config"""
         # TODO: support loading from specific file
         agent_name = agent_config.name
+
+        # TODO: update this for metadata database
 
         # load state
         directory = agent_config.save_state_dir()
@@ -290,59 +337,14 @@ class Agent(object):
         state = json.load(open(filename, "r"))
 
         # load persistence manager
-        filename = os.path.basename(filename).replace(".json", ".persistence.pickle")
-        directory = agent_config.save_persistence_manager_dir()
-        printd(f"Loading persistence manager from {os.path.join(directory, filename)}")
-        persistence_manager = LocalStateManager.load(os.path.join(directory, filename), agent_config)
+        persistence_manager = LocalStateManager.load(agent_config)
 
-        # need to dynamically link the functions
-        # the saved agent.functions will just have the schemas, but we need to
-        # go through the functions library and pull the respective python functions
-
-        # Available functions is a mapping from:
-        # function_name -> {
-        #   json_schema: schema
-        #   python_function: function
-        # }
-        # agent.functions is a list of schemas (OpenAI kwarg functions style, see: https://platform.openai.com/docs/api-reference/chat/create)
-        # [{'name': ..., 'description': ...}, {...}]
-        available_functions = load_all_function_sets()
-        linked_function_set = {}
-        for f_schema in state["functions"]:
-            # Attempt to find the function in the existing function library
-            f_name = f_schema.get("name")
-            if f_name is None:
-                raise ValueError(f"While loading agent.state.functions encountered a bad function schema object with no name:\n{f_schema}")
-            linked_function = available_functions.get(f_name)
-            if linked_function is None:
-                raise ValueError(
-                    f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
-                )
-            # Once we find a matching function, make sure the schema is identical
-            if json.dumps(f_schema) != json.dumps(linked_function["json_schema"]):
-                # error_message = (
-                #     f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different."
-                #     + f"\n>>>agent.state.functions\n{json.dumps(f_schema, indent=2)}"
-                #     + f"\n>>>function library\n{json.dumps(linked_function['json_schema'], indent=2)}"
-                # )
-                schema_diff = get_schema_diff(f_schema, linked_function["json_schema"])
-                error_message = (
-                    f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different.\n"
-                    + "".join(schema_diff)
-                )
-
-                # NOTE to handle old configs, instead of erroring here let's just warn
-                # raise ValueError(error_message)
-                printd(error_message)
-            linked_function_set[f_name] = linked_function
-
-        messages = state["messages"]
+        messages = state["messages"]  # TODO: reconstruct messages using recall memory + stored IDs
         agent = cls(
             config=agent_config,
             model=state["model"],
             system=state["system"],
-            # functions=state["functions"],
-            functions=linked_function_set,
+            functions=link_functions(state["functions"]),
             interface=interface,
             persistence_manager=persistence_manager,
             persistence_manager_init=False,
@@ -352,71 +354,8 @@ class Agent(object):
         )
         agent._messages = messages
         agent.memory = initialize_memory(state["memory"]["persona"], state["memory"]["human"])
+
         return agent
-
-    @classmethod
-    def load(cls, state, interface, persistence_manager):
-        model = state["model"]
-        system = state["system"]
-        functions = state["functions"]
-        messages = state["messages"]
-        try:
-            messages_total = state["messages_total"]
-        except KeyError:
-            messages_total = len(messages) - 1
-        # memory requires a nested load
-        memory_dict = state["memory"]
-        persona_notes = memory_dict["persona"]
-        human_notes = memory_dict["human"]
-
-        # Two-part load
-        new_agent = cls(
-            model=model,
-            system=system,
-            functions=functions,
-            interface=interface,
-            persistence_manager=persistence_manager,
-            persistence_manager_init=False,
-            persona_notes=persona_notes,
-            human_notes=human_notes,
-            messages_total=messages_total,
-        )
-        new_agent._messages = messages
-        return new_agent
-
-    def load_inplace(self, state):
-        self.model = state["model"]
-        self.system = state["system"]
-        self.functions = state["functions"]
-        # memory requires a nested load
-        memory_dict = state["memory"]
-        persona_notes = memory_dict["persona"]
-        human_notes = memory_dict["human"]
-        self.memory = initialize_memory(persona_notes, human_notes)
-        # messages also
-        self._messages = state["messages"]
-        try:
-            self.messages_total = state["messages_total"]
-        except KeyError:
-            self.messages_total = len(self.messages) - 1  # -system
-
-    @classmethod
-    def load_from_json(cls, json_state, interface, persistence_manager):
-        state = json.loads(json_state)
-        return cls.load(state, interface, persistence_manager)
-
-    @classmethod
-    def load_from_json_file(cls, json_file, interface, persistence_manager):
-        with open(json_file, "r") as file:
-            state = json.load(file)
-        return cls.load(state, interface, persistence_manager)
-
-    def load_from_json_file_inplace(self, json_file):
-        # Load in-place
-        # No interface arg needed, we can use the current one
-        with open(json_file, "r") as file:
-            state = json.load(file)
-        self.load_inplace(state)
 
     def verify_first_message_correctness(self, response, require_send_message=True, require_monologue=False):
         """Can be used to enforce that the first message always uses send_message"""
@@ -466,24 +405,27 @@ class Agent(object):
         if response_message.get("function_call"):
             # The content if then internal monologue, not chat
             self.interface.internal_monologue(response_message.content)
+
+            # generate UUID for tool call
+            tool_call_id = str(uuid.uuid4())  # needs to be a string for JSON
+            response_message["tool_call_id"] = tool_call_id
+            # role: assistant (requesting tool call, set tool call ID)
             messages.append(response_message)  # extend conversation with assistant's reply
+            printd(f"Function call message: {messages[-1]}")
 
             # Step 3: call the function
             # Note: the JSON response may not always be valid; be sure to handle errors
 
             # Failure case 1: function name is wrong
             function_name = response_message["function_call"]["name"]
+            printd(f"Request to call function {function_name} with tool_call_id: {tool_call_id}")
             try:
                 function_to_call = self.functions_python[function_name]
             except KeyError as e:
                 error_msg = f"No function named {function_name}"
                 function_response = package_function_response(False, error_msg)
                 messages.append(
-                    {
-                        "role": "function",
-                        "name": function_name,
-                        "content": function_response,
-                    }
+                    {"role": "function", "name": function_name, "content": function_response, "tool_call_id": tool_call_id}
                 )  # extend conversation with function response
                 self.interface.function_message(f"Error: {error_msg}")
                 return messages, None, True  # force a heartbeat to allow agent to handle error
@@ -519,7 +461,14 @@ class Agent(object):
             try:
                 function_args["self"] = self  # need to attach self to arg since it's dynamically linked
                 function_response = function_to_call(**function_args)
-                function_response_string = validate_function_response(function_response)
+                if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search"]:
+                    # with certain functions we rely on the paging mechanism to handle overflow
+                    truncate = False
+                else:
+                    # but by default, we add a truncation safeguard to prevent bad functions from
+                    # overflow the agent context window
+                    truncate = True
+                function_response_string = validate_function_response(function_response, truncate=truncate)
                 function_args.pop("self", None)
                 function_response = package_function_response(True, function_response_string)
                 function_failed = False
@@ -532,11 +481,7 @@ class Agent(object):
                 printd(error_msg_user)
                 function_response = package_function_response(False, error_msg)
                 messages.append(
-                    {
-                        "role": "function",
-                        "name": function_name,
-                        "content": function_response,
-                    }
+                    {"role": "function", "name": function_name, "content": function_response, "tool_call_id": tool_call_id}
                 )  # extend conversation with function response
                 self.interface.function_message(f"Error: {error_msg}")
                 return messages, None, True  # force a heartbeat to allow agent to handle error
@@ -545,11 +490,7 @@ class Agent(object):
             # Step 4: send the info on the function call and function response to GPT
             self.interface.function_message(f"Success: {function_response_string}")
             messages.append(
-                {
-                    "role": "function",
-                    "name": function_name,
-                    "content": function_response,
-                }
+                {"role": "function", "name": function_name, "content": function_response, "tool_call_id": tool_call_id}
             )  # extend conversation with function response
 
         else:
