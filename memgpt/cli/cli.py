@@ -464,7 +464,7 @@ def run(
 
         # create agent
         try:
-            memgpt_agent = presets.use_preset(
+            memgpt_agent = presets.create_agent_from_preset(
                 agent_config.preset,
                 agent_config,
                 agent_config.model,

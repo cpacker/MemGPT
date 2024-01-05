@@ -426,7 +426,7 @@ class SyncServer(LockingServer):
             persistence_manager = self.default_persistence_manager_cls(agent_config=agent_config)
 
         # Create agent via preset from config
-        agent = presets.use_preset(
+        agent = presets.create_agent_from_preset(
             agent_config.preset,
             agent_config,
             agent_config.model,

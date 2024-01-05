@@ -11,8 +11,8 @@ available_presets = load_all_presets()
 preset_options = list(available_presets.keys())
 
 
-# def use_preset(preset_name, agent_config, model, persona, human, interface, persistence_manager):
-def use_preset(agent_state: AgentState, interface: AgentInterface):
+# def create_agent_from_preset(preset_name, agent_config, model, persona, human, interface, persistence_manager):
+def create_agent_from_preset(agent_state: AgentState, interface: AgentInterface):
     """Initialize a new agent from a preset (combination of system + function)"""
 
     # Input validation
