@@ -30,6 +30,47 @@ from memgpt.openai_backcompat.openai_object import OpenAIObject
 DEBUG = False
 
 
+def verify_first_message_correctness(response, require_send_message=True, require_monologue=False):
+    """Can be used to enforce that the first message always uses send_message"""
+    response_message = response.choices[0].message
+
+    # First message should be a call to send_message with a non-empty content
+    if require_send_message and not response_message.get("function_call"):
+        printd(f"First message didn't include function call: {response_message}")
+        return False
+
+    function_call = response_message.get("function_call")
+    function_name = function_call.get("name") if function_call is not None else ""
+    if require_send_message and function_name != "send_message" and function_name != "archival_memory_search":
+        printd(f"First message function call wasn't send_message or archival_memory_search: {response_message}")
+        return False
+
+    if require_monologue and (
+        not response_message.get("content") or response_message["content"] is None or response_message["content"] == ""
+    ):
+        printd(f"First message missing internal monologue: {response_message}")
+        return False
+
+    if response_message.get("content"):
+        ### Extras
+        monologue = response_message.get("content")
+
+        def contains_special_characters(s):
+            special_characters = '(){}[]"'
+            return any(char in s for char in special_characters)
+
+        if contains_special_characters(monologue):
+            printd(f"First message internal monologue contained special characters: {response_message}")
+            return False
+        # if 'functions' in monologue or 'send_message' in monologue or 'inner thought' in monologue.lower():
+        if "functions" in monologue or "send_message" in monologue:
+            # Sometimes the syntax won't be correct and internal syntax will leak into message.context
+            printd(f"First message internal monologue contained reserved words: {response_message}")
+            return False
+
+    return True
+
+
 def is_valid_url(url):
     try:
         result = urlparse(url)

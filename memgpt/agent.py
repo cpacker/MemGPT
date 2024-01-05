@@ -12,7 +12,16 @@ from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from memgpt.memory import CoreMemory as InContextMemory, summarize_messages
 from memgpt.openai_tools import create, is_context_overflow_error
-from memgpt.utils import get_local_time, parse_json, united_diff, printd, count_tokens, get_schema_diff, validate_function_response
+from memgpt.utils import (
+    get_local_time,
+    parse_json,
+    united_diff,
+    printd,
+    count_tokens,
+    get_schema_diff,
+    validate_function_response,
+    verify_first_message_correctness,
+)
 from memgpt.constants import (
     FIRST_MESSAGE_ATTEMPTS,
     MESSAGE_SUMMARY_WARNING_FRAC,
@@ -219,18 +228,18 @@ class Agent(object):
     def messages(self, value):
         raise Exception("Modifying message list directly not allowed")
 
-    def trim_messages(self, num):
+    def _trim_messages(self, num):
         """Trim messages from the front, not including the system message"""
         new_messages = [self.messages[0]] + self.messages[num:]
         self._messages = new_messages
 
-    def prepend_to_messages(self, added_messages):
+    def _prepend_to_messages(self, added_messages):
         """Wrapper around self.messages.prepend to allow additional calls to a state/persistence manager"""
         new_messages = [self.messages[0]] + added_messages + self.messages[1:]  # prepend (no system)
         self._messages = new_messages
         self.messages_total += len(added_messages)  # still should increment the message counter (summaries are additions too)
 
-    def append_to_messages(self, added_messages):
+    def _append_to_messages(self, added_messages):
         """Wrapper around self.messages.append to allow additional calls to a state/persistence manager"""
         # strip extra metadata if it exists
         for msg in added_messages:
@@ -241,145 +250,43 @@ class Agent(object):
         self._messages = new_messages
         self.messages_total += len(added_messages)
 
-    def swap_system_message(self, new_system_message):
+    def _swap_system_message(self, new_system_message):
         assert new_system_message["role"] == "system", new_system_message
         assert self.messages[0]["role"] == "system", self.messages
 
         new_messages = [new_system_message] + self.messages[1:]  # swap index 0 (system)
         self._messages = new_messages
 
-    def rebuild_memory(self):
-        """Rebuilds the system message with the latest memory object"""
-        curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
-        new_system_message = initialize_message_sequence(
-            self.model,
-            self.system,
-            self.memory,
-            archival_memory=self.persistence_manager.archival_memory,
-            recall_memory=self.persistence_manager.recall_memory,
-        )[0]
+    def _get_ai_reply(
+        self,
+        message_sequence,
+        function_call="auto",
+        first_message=False,  # hint
+    ):
+        """Get response from LLM API"""
+        try:
+            response = create(
+                agent_config=self.config,
+                messages=message_sequence,
+                functions=self.functions,
+                function_call=function_call,
+                # hint
+                first_message=first_message,
+            )
+            # special case for 'length'
+            if response.choices[0].finish_reason == "length":
+                raise Exception("Finish reason was length (maximum context length)")
 
-        diff = united_diff(curr_system_message["content"], new_system_message["content"])
-        printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
+            # catches for soft errors
+            if response.choices[0].finish_reason not in ["stop", "function_call"]:
+                raise Exception(f"API call finish with bad finish reason: {response}")
 
-        # Swap the system message out
-        self.swap_system_message(new_system_message)
+            # unpack with response.choices[0].message.content
+            return response
+        except Exception as e:
+            raise e
 
-    ### Local state management
-    def to_dict(self):
-        # TODO: select specific variables for the saves state (to eventually move to a DB) rather than checkpointing everything in the class
-        return {
-            "model": self.model,
-            "system": self.system,
-            "functions": self.functions,
-            "messages": self.messages,  # TODO: convert to IDs
-            "messages_total": self.messages_total,
-            "memory": self.memory.to_dict(),
-        }
-
-    def save_agent_state_json(self, filename):
-        """Save agent state to JSON"""
-        with open(filename, "w") as file:
-            json.dump(self.to_dict(), file)
-
-    def save(self):
-        """Save agent state locally"""
-
-        # TODO SAVE
-
-        # save config
-        self.config.save()
-
-        # save agent state to timestamped file
-        timestamp = get_local_time().replace(" ", "_").replace(":", "_")
-        filename = f"{timestamp}.json"
-        os.makedirs(self.config.save_state_dir(), exist_ok=True)
-        self.save_agent_state_json(os.path.join(self.config.save_state_dir(), filename))
-
-        # save the persistence manager too (recall/archival memory)
-        self.persistence_manager.save()
-
-    @classmethod
-    def load_agent(cls, interface, agent_config: AgentConfig):
-        """Load saved agent state based on agent_config"""
-        # TODO: support loading from specific file
-        agent_name = agent_config.name
-
-        # TODO: update this for metadata database
-
-        # load state
-        directory = agent_config.save_state_dir()
-        json_files = glob.glob(os.path.join(directory, "*.json"))  # This will list all .json files in the current directory.
-        if not json_files:
-            print(f"/load error: no .json checkpoint files found")
-            raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {directory}")
-
-        # Sort files based on modified timestamp, with the latest file being the first.
-        filename = max(json_files, key=os.path.getmtime)
-        state = json.load(open(filename, "r"))
-
-        # load persistence manager
-        persistence_manager = LocalStateManager.load(agent_config)
-
-        messages = state["messages"]  # TODO: reconstruct messages using recall memory + stored IDs
-        agent = cls(
-            config=agent_config,
-            model=state["model"],
-            system=state["system"],
-            functions=link_functions(state["functions"]),
-            interface=interface,
-            persistence_manager=persistence_manager,
-            persistence_manager_init=False,
-            persona_notes=state["memory"]["persona"],
-            human_notes=state["memory"]["human"],
-            messages_total=state["messages_total"] if "messages_total" in state else len(messages) - 1,
-        )
-        agent._messages = messages
-        agent.memory = initialize_memory(state["memory"]["persona"], state["memory"]["human"])
-
-        return agent
-
-    def verify_first_message_correctness(self, response, require_send_message=True, require_monologue=False):
-        """Can be used to enforce that the first message always uses send_message"""
-        response_message = response.choices[0].message
-
-        # First message should be a call to send_message with a non-empty content
-        if require_send_message and not response_message.get("function_call"):
-            printd(f"First message didn't include function call: {response_message}")
-            return False
-
-        function_call = response_message.get("function_call")
-        function_name = function_call.get("name") if function_call is not None else ""
-        if require_send_message and function_name != "send_message" and function_name != "archival_memory_search":
-            printd(f"First message function call wasn't send_message or archival_memory_search: {response_message}")
-            return False
-
-        if require_monologue and (
-            not response_message.get("content") or response_message["content"] is None or response_message["content"] == ""
-        ):
-            printd(f"First message missing internal monologue: {response_message}")
-            return False
-
-        if response_message.get("content"):
-            ### Extras
-            monologue = response_message.get("content")
-
-            def contains_special_characters(s):
-                special_characters = '(){}[]"'
-                return any(char in s for char in special_characters)
-
-            if contains_special_characters(monologue):
-                printd(f"First message internal monologue contained special characters: {response_message}")
-                return False
-            # if 'functions' in monologue or 'send_message' in monologue or 'inner thought' in monologue.lower():
-            if "functions" in monologue or "send_message" in monologue:
-                # Sometimes the syntax won't be correct and internal syntax will leak into message.context
-                printd(f"First message internal monologue contained reserved words: {response_message}")
-                return False
-
-        return True
-
-    def handle_ai_response(self, response_message):
+    def _handle_ai_response(self, response_message):
         """Handles parsing and function execution"""
         messages = []  # append these to the history when done
 
@@ -515,11 +422,11 @@ class Agent(object):
                 printd(f"This is the first message. Running extra verifier on AI response.")
                 counter = 0
                 while True:
-                    response = self.get_ai_reply(
+                    response = self._get_ai_reply(
                         message_sequence=input_message_sequence,
                         first_message=True,  # passed through to the prompt formatter
                     )
-                    if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
+                    if verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
 
                     counter += 1
@@ -527,7 +434,7 @@ class Agent(object):
                         raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
 
             else:
-                response = self.get_ai_reply(
+                response = self._get_ai_reply(
                     message_sequence=input_message_sequence,
                 )
 
@@ -536,7 +443,7 @@ class Agent(object):
             # (if yes) Step 4: send the info on the function call and function response to LLM
             response_message = response.choices[0].message
             response_message_copy = response_message.copy()
-            all_response_messages, heartbeat_request, function_failed = self.handle_ai_response(response_message)
+            all_response_messages, heartbeat_request, function_failed = self._handle_ai_response(response_message)
 
             # Add the extra metadata to the assistant response
             # (e.g. enough metadata to enable recreating the API call)
@@ -581,7 +488,7 @@ class Agent(object):
                     f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window)}"
                 )
 
-            self.append_to_messages(all_new_messages)
+            self._append_to_messages(all_new_messages)
             return all_new_messages, heartbeat_request, function_failed, active_memory_warning
 
         except Exception as e:
@@ -678,9 +585,9 @@ class Agent(object):
         printd(f"Packaged into message: {summary_message}")
 
         prior_len = len(self.messages)
-        self.trim_messages(cutoff)
+        self._trim_messages(cutoff)
         packed_summary_message = {"role": "user", "content": summary_message}
-        self.prepend_to_messages([packed_summary_message])
+        self._prepend_to_messages([packed_summary_message])
 
         # reset alert
         self.agent_alerted_about_memory_pressure = False
@@ -698,31 +605,94 @@ class Agent(object):
         elapsed_time = datetime.datetime.now() - self.pause_heartbeats_start
         return elapsed_time.total_seconds() < self.pause_heartbeats_minutes * 60
 
-    def get_ai_reply(
-        self,
-        message_sequence,
-        function_call="auto",
-        first_message=False,  # hint
-    ):
-        """Get response from LLM API"""
-        try:
-            response = create(
-                agent_config=self.config,
-                messages=message_sequence,
-                functions=self.functions,
-                function_call=function_call,
-                # hint
-                first_message=first_message,
-            )
-            # special case for 'length'
-            if response.choices[0].finish_reason == "length":
-                raise Exception("Finish reason was length (maximum context length)")
+    def rebuild_memory(self):
+        """Rebuilds the system message with the latest memory object"""
+        curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
+        new_system_message = initialize_message_sequence(
+            self.model,
+            self.system,
+            self.memory,
+            archival_memory=self.persistence_manager.archival_memory,
+            recall_memory=self.persistence_manager.recall_memory,
+        )[0]
 
-            # catches for soft errors
-            if response.choices[0].finish_reason not in ["stop", "function_call"]:
-                raise Exception(f"API call finish with bad finish reason: {response}")
+        diff = united_diff(curr_system_message["content"], new_system_message["content"])
+        printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
 
-            # unpack with response.choices[0].message.content
-            return response
-        except Exception as e:
-            raise e
+        # Swap the system message out
+        self._swap_system_message(new_system_message)
+
+    ### Local state management
+    def to_dict(self):
+        # TODO: select specific variables for the saves state (to eventually move to a DB) rather than checkpointing everything in the class
+        return {
+            "model": self.model,
+            "system": self.system,
+            "functions": self.functions,
+            "messages": self.messages,  # TODO: convert to IDs
+            "messages_total": self.messages_total,
+            "memory": self.memory.to_dict(),
+        }
+
+    def save_agent_state_json(self, filename):
+        """Save agent state to JSON"""
+        with open(filename, "w") as file:
+            json.dump(self.to_dict(), file)
+
+    def save(self):
+        """Save agent state locally"""
+
+        # TODO SAVE
+        AgentState.save()
+
+        # # save config
+        # self.config.save()
+
+        # # save agent state to timestamped file
+        # timestamp = get_local_time().replace(" ", "_").replace(":", "_")
+        # filename = f"{timestamp}.json"
+        # os.makedirs(self.config.save_state_dir(), exist_ok=True)
+        # self.save_agent_state_json(os.path.join(self.config.save_state_dir(), filename))
+
+        # # save the persistence manager too (recall/archival memory)
+        # self.persistence_manager.save()
+
+    # @classmethod
+    # def load_agent(cls, interface, agent_config: AgentConfig):
+    #     """Load saved agent state based on agent_config"""
+    #     # TODO: support loading from specific file
+    #     agent_name = agent_config.name
+
+    #     # TODO: update this for metadata database
+
+    #     # load state
+    #     directory = agent_config.save_state_dir()
+    #     json_files = glob.glob(os.path.join(directory, "*.json"))  # This will list all .json files in the current directory.
+    #     if not json_files:
+    #         print(f"/load error: no .json checkpoint files found")
+    #         raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {directory}")
+
+    #     # Sort files based on modified timestamp, with the latest file being the first.
+    #     filename = max(json_files, key=os.path.getmtime)
+    #     state = json.load(open(filename, "r"))
+
+    #     # load persistence manager
+    #     persistence_manager = LocalStateManager.load(agent_config)
+
+    #     messages = state["messages"]  # TODO: reconstruct messages using recall memory + stored IDs
+    #     agent = cls(
+    #         config=agent_config,
+    #         model=state["model"],
+    #         system=state["system"],
+    #         functions=link_functions(state["functions"]),
+    #         interface=interface,
+    #         persistence_manager=persistence_manager,
+    #         persistence_manager_init=False,
+    #         persona_notes=state["memory"]["persona"],
+    #         human_notes=state["memory"]["human"],
+    #         messages_total=state["messages_total"] if "messages_total" in state else len(messages) - 1,
+    #     )
+    #     agent._messages = messages
+    #     agent.memory = initialize_memory(state["memory"]["persona"], state["memory"]["human"])
+
+    #     return agent
