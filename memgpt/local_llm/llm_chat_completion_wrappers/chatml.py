@@ -66,7 +66,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         # how to set json in prompt
         self.json_indent = json_indent
 
-    def _compile_function_description(self, schema, add_inner_thoughts=True) -> str:
+    def _compile_function_description(self, schema, add_inner_thoughts=True, add_type=False, add_required=False) -> str:
         """Go from a JSON schema to a string description for a prompt"""
         # airorobos style
         func_str = ""
@@ -76,9 +76,13 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         if add_inner_thoughts:
             func_str += f"\n    inner_thoughts: Deep inner monologue private to you only."
         for param_k, param_v in schema["parameters"]["properties"].items():
-            # TODO we're ignoring type
             func_str += f"\n    {param_k}: {param_v['description']}"
-        # TODO we're ignoring schema['parameters']['required']
+            if add_type:
+                # TODO we're ignoring type
+                func_str += f", type={param_v['type']}"
+            if add_required and "required" in param_v:
+                # TODO we're ignoring schema['parameters']['required']
+                func_str += f", required={param_v['required']}"
         return func_str
 
     def _compile_function_block(self, functions) -> str:
