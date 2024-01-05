@@ -37,21 +37,21 @@ class AsyncWebSocketInterface(BaseWebSocketInterface):
         print(msg)
         # Send the internal monologue to all clients
         if self.clients:  # Check if there are any clients connected
-            await asyncio.gather(*[client.send(protocol.server_agent_internal_monologue(msg)) for client in self.clients])
+            await asyncio.gather(*[client.send_text(protocol.server_agent_internal_monologue(msg)) for client in self.clients])
 
     async def assistant_message(self, msg):
         """Handle the agent sending a message"""
         print(msg)
         # Send the assistant's message to all clients
         if self.clients:
-            await asyncio.gather(*[client.send(protocol.server_agent_assistant_message(msg)) for client in self.clients])
+            await asyncio.gather(*[client.send_text(protocol.server_agent_assistant_message(msg)) for client in self.clients])
 
     async def function_message(self, msg):
         """Handle the agent calling a function"""
         print(msg)
         # Send the function call message to all clients
         if self.clients:
-            await asyncio.gather(*[client.send(protocol.server_agent_function_message(msg)) for client in self.clients])
+            await asyncio.gather(*[client.send_text(protocol.server_agent_function_message(msg)) for client in self.clients])
 
 
 class SyncWebSocketInterface(BaseWebSocketInterface):
@@ -80,7 +80,7 @@ class SyncWebSocketInterface(BaseWebSocketInterface):
     async def _send_to_all_clients(self, clients, msg):
         """Asynchronously sends a message to all clients."""
         if clients:
-            await asyncio.gather(*(client.send(msg) for client in clients))
+            await asyncio.gather(*(client.send_text(msg) for client in clients))
 
     def user_message(self, msg):
         """Handle reception of a user message"""
