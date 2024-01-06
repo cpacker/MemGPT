@@ -12,11 +12,11 @@ from typing import List
 from tqdm import tqdm
 import typer
 from memgpt.embeddings import embedding_model
-from memgpt.connectors.storage import StorageConnector
+from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
 from memgpt.data_types import Source, Passage, Document
 from memgpt.utils import get_local_time, suppress_stdout
-from memgpt.connectors.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector, TableType
 
 from datetime import datetime
 

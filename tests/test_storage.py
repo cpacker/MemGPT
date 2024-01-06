@@ -9,12 +9,12 @@ import pytest
 # )  # , "psycopg_binary"])  # "psycopg", "libpq-dev"])
 #
 # subprocess.check_call([sys.executable, "-m", "pip", "install", "lancedb"])
-from memgpt.connectors.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.embeddings import embedding_model
 from memgpt.data_types import Message, Passage
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.utils import get_local_time
-from memgpt.connectors.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.constants import DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_HUMAN
 
 import argparse

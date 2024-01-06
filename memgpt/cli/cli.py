@@ -475,7 +475,7 @@ def run(
             embedding_dim=config.embedding_dim,
             embedding_chunk_size=config.embedding_chunk_size,
             # data_sources=???
-            create_time=agent_config.create_time,
+            created_at=agent_config.create_time,
             memgpt_version=agent_config.memgpt_version,
         )
 
@@ -532,7 +532,7 @@ def attach(
 ):
     try:
         # loads the data contained in data source into the agent's memory
-        from memgpt.connectors.storage import StorageConnector, TableType
+        from memgpt.agent_store.storage import StorageConnector, TableType
         from tqdm import tqdm
 
         agent_config = AgentConfig.load(agent)

@@ -295,7 +295,7 @@ class BaseRecallMemory(RecallMemory):
         # If true, the pool of messages that can be queried are the automated summaries only
         # (generated when the conversation window needs to be shortened)
         self.restrict_search_to_summaries = restrict_search_to_summaries
-        from memgpt.connectors.storage import StorageConnector
+        from memgpt.agent_store.storage import StorageConnector
 
         self.agent_config = agent_config
         config = MemGPTConfig.load()
@@ -358,7 +358,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         :param archival_memory_database: name of dataset to pre-fill archival with
         :type archival_memory_database: str
         """
-        from memgpt.connectors.storage import StorageConnector
+        from memgpt.agent_store.storage import StorageConnector
 
         self.top_k = top_k
         self.agent_config = agent_config

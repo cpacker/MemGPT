@@ -12,7 +12,7 @@ from memgpt.agent import Agent
 import memgpt.system as system
 import memgpt.constants as constants
 from memgpt.cli.cli import attach
-from memgpt.connectors.storage import StorageConnector
+from memgpt.agent_store.storage import StorageConnector
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
 import memgpt.server.utils as server_utils

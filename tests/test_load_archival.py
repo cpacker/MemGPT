@@ -7,7 +7,7 @@ from sqlalchemy.ext.declarative import declarative_base
 
 
 # import memgpt
-from memgpt.connectors.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.cli.cli_load import load_directory, load_database, load_webpage
 from memgpt.cli.cli import attach
 from memgpt.constants import DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_HUMAN

@@ -5,6 +5,7 @@ from typing import Optional, List, Dict
 import numpy as np
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
+from memgpt.utils import get_local_time
 
 # Defining schema objects:
 # Note: user/agent can borrow from MemGPTConfig/AgentConfig classes
@@ -135,7 +136,7 @@ class Passage(Record):
     #    pass
 
 
-class Source(Record):
+class Source:
     def __init__(
         self,
         user_id: str,
@@ -147,6 +148,43 @@ class Source(Record):
         self.name = name
         self.user_id = user_id
         self.created_at = created_at
+
+
+class LLMConfig:
+    def __init__(
+        self,
+        model: Optional[str] = None,
+        model_endpoint_type: Optional[str] = None,
+        model_endpoint: Optional[str] = None,
+        model_wrapper: Optional[str] = None,
+        context_window: Optional[int] = None,  # TODO(swooders) I don't think this should be optional
+    ):
+        self.model = model
+        self.model_endpoint_type = model_endpoint_type
+        self.model_endpoint = model_endpoint
+        self.model_wrapper = model_wrapper
+        self.context_window = context_window
+
+        if context_window is None:
+            self.context_window = LLM_MAX_TOKENS[self.default_model] if self.default_model in LLM_MAX_TOKENS else LLM_MAX_TOKENS["DEFAULT"]
+        else:
+            self.context_window = context_window
+
+
+class EmbeddingConfig:
+    def __init__(
+        self,
+        embedding_endpoint_type: Optional[str] = None,
+        embedding_endpoint: Optional[str] = None,
+        embedding_model: Optional[str] = None,
+        embedding_dim: Optional[int] = None,  # TODO(swooders) similarly these probably should not be optional
+        embedding_chunk_size: Optional[int] = None,
+    ):
+        self.embedding_endpoint_type = embedding_endpoint_type
+        self.embedding_endpoint = embedding_endpoint
+        self.embedding_model = embedding_model
+        self.embedding_dim = embedding_dim
+        self.embedding_chunk_size = embedding_chunk_size
 
 
 class User:
@@ -161,24 +199,13 @@ class User:
         default_persona=DEFAULT_PERSONA,
         default_human=DEFAULT_HUMAN,
         default_agent=None,
-        # defaults: llm model
-        default_model=DEFAULT_MEMGPT_MODEL,
-        default_model_endpoint_type="openai",
-        default_model_endpoint="https://api.openai.com/v1",
-        default_model_wrapper=None,
-        default_context_window=None,
-        # defaults: embeddings
-        default_embedding_endpoint_type="openai",
-        default_embedding_endpoint=None,
-        default_embedding_model=None,
-        default_embedding_dim=None,
-        default_embedding_chunk_size=None,
+        default_llm_config: Optional[LLMConfig] = None,  # defaults: llm model
+        default_embedding_config: Optional[EmbeddingConfig] = None,  # defaults: embeddings
         # azure information
         azure_key=None,
         azure_endpoint=None,
         azure_version=None,
         azure_deployment=None,
-        anon_clientid=None,
         # openai information
         openai_key=None,
         # other
@@ -190,26 +217,12 @@ class User:
         self.default_human = default_human
         self.default_agent = default_agent
 
-        # defaults: llm model
-        self.default_model = default_model
-        self.default_model_endpoint_type = default_model_endpoint_type
-        self.default_model_endpoint = default_model_endpoint
-        self.default_model_wrapper = default_model_wrapper
-        if default_context_window is None:
-            self.default_context_window = (
-                LLM_MAX_TOKENS[self.default_model] if self.default_model in LLM_MAX_TOKENS else LLM_MAX_TOKENS["DEFAULT"]
-            )
-        else:
-            self.default_context_window = default_context_window
-
-        # defaults: embeddings
-        self.default_embedding_endpoint_type = default_embedding_endpoint_type
-        self.default_embedding_endpoint = default_embedding_endpoint
-        self.default_embedding_model = default_embedding_model
-        self.default_embedding_dim = default_embedding_dim
-        self.default_embedding_chunk_size = default_embedding_chunk_size
+        # model defaults
+        self.default_llm_config = default_llm_config if default_llm_config is not None else LLMConfig()
+        self.default_embedding_config = default_embedding_config if default_embedding_config is not None else EmbeddingConfig()
 
         # azure information
+        # TODO: split this up accross model config and embedding config?
         self.azure_key = azure_key
         self.azure_endpoint = azure_endpoint
         self.azure_version = azure_version
@@ -220,18 +233,19 @@ class User:
 
         # misc
         self.memgpt_version = memgpt_version
-
-        # TODO: generate
-        self.anon_clientid = anon_clientid
         self.policies_accepted = policies_accepted
 
 
-class AgentState(Record):
+class AgentState:
     def __init__(
         self,
         name: str,
+        user_id: str,
         persona_file: str,  # the filename where the persona was originally sourced from
         human_file: str,  # the filename where the human was originally sourced from
+        llm_config: str,
+        embedding_config: str,
+        preset: str,
         # (in-context) state contains:
         # persona: str  # the current persona text
         # human: str  # the current human text
@@ -239,54 +253,24 @@ class AgentState(Record):
         # functions: dict,  # schema definitions ONLY (function code linked at runtime)
         # messages: List[dict],  # in-context messages
         state: Optional[dict] = None,
-        # model info
-        model: Optional[str] = None,
-        model_endpoint_type: Optional[str] = None,
-        model_endpoint: Optional[str] = None,
-        model_wrapper: Optional[str] = None,
-        context_window: Optional[int] = None,  # TODO(swooders) I don't think this should be optional
-        # embedding info
-        embedding_endpoint_type: Optional[str] = None,
-        embedding_endpoint: Optional[str] = None,
-        embedding_model: Optional[str] = None,
-        embedding_dim: Optional[int] = None,  # TODO(swooders) similarly these probably should not be optional
-        embedding_chunk_size: Optional[int] = None,
-        # other
-        preset: Optional[str] = None,
-        data_sources: Optional[list] = None,
-        create_time: Optional[str] = None,
+        attached_source_ids: Optional[list] = None,  # list of ids for attached data sources
+        created_at: Optional[str] = None,
         memgpt_version: Optional[str] = None,
     ):
         # TODO(swooders) we need to handle the case where name is None here
         # in AgentConfig we autogenerate a name, not sure what the correct thing w/ DBs is, what about NounAdjective combos? Like giphy does? BoredGiraffe etc
         self.name = name
-        self.persona_file = DEFAULT_PERSONA if persona_file is None else persona_file
-        self.human_file = DEFAULT_HUMAN if persona_file is None else human_file
-
-        assert context_window is not None
-
-        # model info
-        self.model = model
-        self.model_endpoint_type = model_endpoint_type
-        self.model_endpoint = model_endpoint
-        self.model_wrapper = model_wrapper
-        self.context_window = context_window
-
-        # embedding info
-        self.embedding_endpoint_type = embedding_endpoint_type
-        self.embedding_endpoint = embedding_endpoint
-        self.embedding_model = embedding_model
-        self.embedding_dim = embedding_dim
-        self.embedding_chunk_size = embedding_chunk_size
-
-        # other
-        # NOTE: preset is only used to determine an initial combination of system message + functions (can be None)
-        self.preset = (
-            DEFAULT_PRESET if preset is None else preset
-        )  # TODO(swooders) we should probably allow this to be None? what if someone wants to create w/o a preset?
-        self.data_sources = data_sources
-        self.create_time = create_time
+        self.user_id = user_id
+        self.llm_config = llm_config
+        self.embedding_config = embedding_config
+        self.preset = preset
+        self.data_sources_ids = attached_source_ids
+        self.create_time = created_at if created_at is not None else get_local_time()
         self.memgpt_version = memgpt_version
+
+        # files
+        self.persona_file = persona_file
+        self.human_file = human_file
 
         # state
         self.state = state

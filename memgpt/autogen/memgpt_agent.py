@@ -12,7 +12,7 @@ import memgpt.presets.presets as presets
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.cli.cli import attach
 from memgpt.cli.cli_load import load_directory, load_webpage, load_index, load_database, load_vector_database
-from memgpt.connectors.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector, TableType
 
 
 def create_memgpt_autogen_agent_from_config(
