@@ -28,6 +28,7 @@ class CommonUUID(TypeDecorator):
     impl = CHAR
 
     def load_dialect_impl(self, dialect):
+        print("DIALECT", dialect.name)
         if dialect.name == "postgresql":
             return dialect.type_descriptor(UUID(as_uuid=True))
         else:
@@ -88,7 +89,8 @@ class EmbeddingConfigColumn(TypeDecorator):
 
 class UserModel(Base):
 
-    __abstract__ = True
+    __tablename__ = "users"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
     default_preset = Column(String)
@@ -131,16 +133,16 @@ class UserModel(Base):
 class AgentModel(Base):
     """Defines data model for storing Passages (consisting of text, embedding)"""
 
-    __abstract__ = True
+    __tablename__ = "agents"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-    user_id = Column(String, nullable=False)
+    user_id = Column(CommonUUID, nullable=False)
     name = Column(String, nullable=False)
-    persona_file = Column(String)
-    human_file = Column(String)
+    persona = Column(String)
+    human = Column(String)
     preset = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    memgpt_version = Column(String)
 
     # configs
     llm_config = Column(LLMConfigColumn)
@@ -148,7 +150,6 @@ class AgentModel(Base):
 
     # state
     state = Column(JSON)
-    attached_source_ids = Column(ARRAY(CommonUUID))
 
     def __repr__(self):
         return f"<Agent(id='{self.id}', name='{self.name}')>"
@@ -158,27 +159,26 @@ class AgentModel(Base):
             id=self.id,
             user_id=self.user_id,
             name=self.name,
-            persona_file=self.persona_file,
-            human_file=self.human_file,
+            persona=self.persona,
+            human=self.human,
             preset=self.preset,
             created_at=self.created_at,
-            memgpt_version=self.memgpt_version,
             llm_config=self.llm_config,
             embedding_config=self.embedding_config,
             state=self.state,
-            attached_source_ids=self.attached_source_ids,
         )
 
 
 class SourceModel(Base):
     """Defines data model for storing Passages (consisting of text, embedding)"""
 
-    __abstract__ = True  # this line is necessary
+    __tablename__ = "sources"
+    __table_args__ = {"extend_existing": True}
 
     # Assuming passage_id is the primary key
     # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-    user_id = Column(String, nullable=False)
+    user_id = Column(CommonUUID, nullable=False)
     name = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -187,6 +187,21 @@ class SourceModel(Base):
 
     def to_record(self):
         return Source(id=self.id, user_id=self.user_id, name=self.name, created_at=self.created_at)
+
+
+class AgentSourceMappingModel(Base):
+
+    """Stores mapping between agent -> source"""
+
+    __tablename__ = "agent_source_mapping"
+
+    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+    user_id = Column(CommonUUID, nullable=False)
+    agent_id = Column(CommonUUID, nullable=False)
+    source_id = Column(CommonUUID, nullable=False)
+
+    def __repr__(self):
+        return f"<AgentSourceMapping(user_id='{self.user_id}', agent_id='{self.agent_id}', source_id='{self.source_id}')>"
 
 
 class MetadataStore:
@@ -266,3 +281,14 @@ class MetadataStore:
 
     def get_source(self, source_id):
         pass
+
+    # agent source metadata
+    def add_source(self, user_id, agent_id, source_id):
+        session = self.Session()
+        session.add(AgentSourceMappingModel(user_id=user_id, agent_id=agent_id, source_id=source_id))
+        session.commit()
+
+    def get_sources(self, agent_id):
+        session = self.Session()
+        results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
+        return [r.source_id for r in results]

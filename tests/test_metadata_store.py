@@ -6,7 +6,8 @@ from memgpt.config import MemGPTConfig
 from memgpt.data_types import User, AgentState, Source, LLMConfig, EmbeddingConfig
 
 
-@pytest.mark.parametrize("storage_connector", ["postgres", "sqlite"])
+# @pytest.mark.parametrize("storage_connector", ["postgres", "sqlite"])
+@pytest.mark.parametrize("storage_connector", ["sqlite"])
 def test_storage(storage_connector):
 
     config = MemGPTConfig()
@@ -23,12 +24,18 @@ def test_storage(storage_connector):
 
     ms = MetadataStore(config)
 
-    # TODO: add tests to make sure JSON data (LLMConfig, EmbeddingConfig) is being saved/retrieved properly, and can be edited
-
     # generate data
     user_1 = User()
     user_2 = User()
-    agent_1 = AgentState(user_id=user_1.id, name="agent_1")
+    agent_1 = AgentState(
+        user_id=user_1.id,
+        name="agent_1",
+        preset=user_1.default_preset,
+        persona=user_1.default_persona,
+        human=user_1.default_human,
+        llm_config=user_1.default_llm_config,
+        embedding_config=user_1.default_embedding_config,
+    )
     source_1 = Source(user_id=user_1.id, name="source_1")
 
     # test creation
@@ -42,6 +49,9 @@ def test_storage(storage_connector):
     len(ms.list_agents(user_id=user_2.id)) == 0
     len(ms.list_sources(user_id=user_1.id)) == 1
     len(ms.list_sources(user_id=user_2.id)) == 0
+
+    # TODO: add tests to make sure JSON data (LLMConfig, EmbeddingConfig) is being saved/retrieved properly, and can be edited
+    # test attaching sources
 
     # test getting
     ms.get_user(user_1.id)

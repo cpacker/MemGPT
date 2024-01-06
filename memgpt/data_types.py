@@ -1,5 +1,6 @@
 """ This module contains the data types used by MemGPT. Each data type must include a function to create a DB model. """
 import uuid
+from datetime import datetime
 from abc import abstractmethod
 from typing import Optional, List, Dict
 import numpy as np
@@ -196,7 +197,6 @@ class User:
         # openai information
         openai_key=None,
         # other
-        memgpt_version=None,
         policies_accepted=False,
     ):
 
@@ -225,7 +225,6 @@ class User:
         self.openai_key = openai_key
 
         # misc
-        self.memgpt_version = memgpt_version
         self.policies_accepted = policies_accepted
 
 
@@ -234,8 +233,8 @@ class AgentState:
         self,
         name: str,
         user_id: str,
-        persona_file: str,  # the filename where the persona was originally sourced from
-        human_file: str,  # the filename where the human was originally sourced from
+        persona: str,  # the filename where the persona was originally sourced from
+        human: str,  # the filename where the human was originally sourced from
         llm_config: str,
         embedding_config: str,
         preset: str,
@@ -247,9 +246,7 @@ class AgentState:
         # messages: List[dict],  # in-context messages
         id: Optional[uuid.UUID] = None,
         state: Optional[dict] = None,
-        attached_source_ids: Optional[list] = None,  # list of ids for attached data sources
         created_at: Optional[str] = None,
-        memgpt_version: Optional[str] = None,
     ):
         if id is None:
             self.id = uuid.uuid4()
@@ -260,16 +257,14 @@ class AgentState:
         # in AgentConfig we autogenerate a name, not sure what the correct thing w/ DBs is, what about NounAdjective combos? Like giphy does? BoredGiraffe etc
         self.name = name
         self.user_id = user_id
+        self.preset = preset
+        self.persona = persona
+        self.human = human
+
         self.llm_config = llm_config
         self.embedding_config = embedding_config
-        self.preset = preset
-        self.data_sources_ids = attached_source_ids
-        self.create_time = created_at if created_at is not None else get_local_time()
-        self.memgpt_version = memgpt_version
 
-        # files
-        self.persona_file = persona_file
-        self.human_file = human_file
+        self.created_at = created_at if created_at is not None else datetime.now()
 
         # state
         self.state = state
