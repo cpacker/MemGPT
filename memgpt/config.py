@@ -1,3 +1,4 @@
+from log import logger
 import inspect
 import json
 import os
@@ -10,6 +11,7 @@ import memgpt.utils as utils
 from memgpt.utils import printd, get_schema_diff
 from memgpt.functions.functions import load_all_function_sets
 from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS, DEFAULT_HUMAN, DEFAULT_PERSONA
+
 from memgpt.presets.presets import DEFAULT_PRESET
 
 
@@ -114,6 +116,8 @@ class MemGPTConfig:
         else:
             config_path = MemGPTConfig.config_path
 
+        # insure all configuration directories exist
+        cls.create_config_dir()
         if os.path.exists(config_path):
             # read existing config
             config.read(config_path)
@@ -152,11 +156,13 @@ class MemGPTConfig:
                 "memgpt_version": get_field(config, "version", "memgpt_version"),
             }
             config_dict = {k: v for k, v in config_dict.items() if v is not None}
+
             return cls(**config_dict)
 
         # create new config
         anon_clientid = MemGPTConfig.generate_uuid()
         config = cls(anon_clientid=anon_clientid, config_path=config_path)
+        config.create_config_dir()  # create dirs
         config.save()  # save updated config
         return config
 
@@ -218,10 +224,12 @@ class MemGPTConfig:
             self.anon_clientid = self.generate_uuid()
         set_field(config, "client", "anon_clientid", self.anon_clientid)
 
-        if not os.path.exists(MEMGPT_DIR):
-            os.makedirs(MEMGPT_DIR, exist_ok=True)
+        # always make sure all directories are present
+        self.create_config_dir()
+
         with open(self.config_path, "w") as f:
             config.write(f)
+        logger.debug(f"Saved Config:  {self.config_path}")
 
     @staticmethod
     def exists():
@@ -240,6 +248,7 @@ class MemGPTConfig:
             os.makedirs(MEMGPT_DIR, exist_ok=True)
 
         folders = ["personas", "humans", "archival", "agents", "functions", "system_prompts", "presets", "settings"]
+
         for folder in folders:
             if not os.path.exists(os.path.join(MEMGPT_DIR, folder)):
                 os.makedirs(os.path.join(MEMGPT_DIR, folder))
