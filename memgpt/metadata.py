@@ -28,7 +28,6 @@ class CommonUUID(TypeDecorator):
     impl = CHAR
 
     def load_dialect_impl(self, dialect):
-        print("DIALECT", dialect.name)
         if dialect.name == "postgresql":
             return dialect.type_descriptor(UUID(as_uuid=True))
         else:

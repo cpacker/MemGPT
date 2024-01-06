@@ -18,6 +18,7 @@ from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, 
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.openai_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.server.utils import shorten_key_middle
+from memgpt.data_types import User, LLMConfig, EmbeddingConfig
 
 app = typer.Typer()
 
