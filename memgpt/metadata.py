@@ -258,10 +258,32 @@ class MetadataStore:
         session.query(AgentModel).filter(AgentModel.id == agent_id).delete()
 
     def delete_source(self, source_id: str):
-        pass
+        session = self.Session()
+
+        # delete from sources table
+        session.query(SourceModel).filter(SourceModel.id == source_id).delete()
+
+        # delete any mappings
+        session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).delete()
+
+        session.commit()
 
     def delete_user(self, user_id: str):
-        pass
+        session = self.Session()
+
+        # delete from users table
+        session.query(UserModel).filter(UserModel.id == user_id).delete()
+
+        # delete associated agents
+        session.query(AgentModel).filter(AgentModel.user_id == user_id).delete()
+
+        # delete associated sources
+        session.query(SourceModel).filter(SourceModel.user_id == user_id).delete()
+
+        # delete associated mappings
+        session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.user_id == user_id).delete()
+
+        session.commit()
 
     def list_agents(self, user_id):
         session = self.Session()
@@ -274,21 +296,43 @@ class MetadataStore:
         return [r.to_record() for r in results]
 
     def get_agent(self, agent_id):
-        pass
+        session = self.Session()
+        results = session.query(AgentModel).filter(AgentModel.id == agent_id).all()
+        if len(results) == 0:
+            return None
+        assert len(results) == 1, f"Expected 1 result, got {len(results)}"  # should only be one result
+        return results[0].to_record()
 
     def get_user(self, user_id):
-        pass
+        session = self.Session()
+        results = session.query(UserModel).filter(UserModel.id == user_id).all()
+        if len(results) == 0:
+            return None
+        assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+        return results[0].to_record()
 
     def get_source(self, source_id):
-        pass
+        session = self.Session()
+        results = session.query(SourceModel).filter(SourceModel.id == source_id).all()
+        if len(results) == 0:
+            return None
+        assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+        return results[0].to_record()
 
     # agent source metadata
-    def add_source(self, user_id, agent_id, source_id):
+    def attach_source(self, user_id, agent_id, source_id):
         session = self.Session()
         session.add(AgentSourceMappingModel(user_id=user_id, agent_id=agent_id, source_id=source_id))
         session.commit()
 
-    def get_sources(self, agent_id):
+    def list_attached_sources(self, agent_id):
         session = self.Session()
         results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
         return [r.source_id for r in results]
+
+    def detach_source(self, agent_id, source_id):
+        session = self.Session()
+        session.query(AgentSourceMappingModel).filter(
+            AgentSourceMappingModel.agent_id == agent_id, AgentSourceMappingModel.source_id == source_id
+        ).delete()
+        session.commit()
