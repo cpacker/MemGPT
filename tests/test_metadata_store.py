@@ -1,3 +1,6 @@
+import os
+import pytest
+
 from memgpt.metadata import MetadataStore
 from memgpt.config import MemGPTConfig
 from memgpt.data_types import User, AgentState, Source, LLMConfig, EmbeddingConfig
@@ -18,7 +21,9 @@ def test_storage(storage_connector):
     if storage_connector == "sqlite":
         config.recall_storage_type = "local"
 
-    ms = MetadataStore()
+    ms = MetadataStore(config)
+
+    # TODO: add tests to make sure JSON data (LLMConfig, EmbeddingConfig) is being saved/retrieved properly, and can be edited
 
     # generate data
     user_1 = User()
@@ -33,7 +38,10 @@ def test_storage(storage_connector):
     ms.create_source(source_1)
 
     # test listing
-    len(ms.list_users()) == 2
+    len(ms.list_agents(user_id=user_1.id)) == 1
+    len(ms.list_agents(user_id=user_2.id)) == 0
+    len(ms.list_sources(user_id=user_1.id)) == 1
+    len(ms.list_sources(user_id=user_2.id)) == 0
 
     # test getting
     ms.get_user(user_1.id)

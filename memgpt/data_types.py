@@ -136,20 +136,6 @@ class Passage(Record):
     #    pass
 
 
-class Source:
-    def __init__(
-        self,
-        user_id: str,
-        name: str,
-        created_at: Optional[str] = None,
-        id: Optional[str] = None,
-    ):
-        super().__init__(id)
-        self.name = name
-        self.user_id = user_id
-        self.created_at = created_at
-
-
 class LLMConfig:
     def __init__(
         self,
@@ -166,7 +152,7 @@ class LLMConfig:
         self.context_window = context_window
 
         if context_window is None:
-            self.context_window = LLM_MAX_TOKENS[self.default_model] if self.default_model in LLM_MAX_TOKENS else LLM_MAX_TOKENS["DEFAULT"]
+            self.context_window = LLM_MAX_TOKENS[self.model] if self.model in LLM_MAX_TOKENS else LLM_MAX_TOKENS["DEFAULT"]
         else:
             self.context_window = context_window
 
@@ -195,6 +181,7 @@ class User:
 
     def __init__(
         self,
+        id: Optional[uuid.UUID] = None,
         default_preset=DEFAULT_PRESET,
         default_persona=DEFAULT_PERSONA,
         default_human=DEFAULT_HUMAN,
@@ -212,6 +199,12 @@ class User:
         memgpt_version=None,
         policies_accepted=False,
     ):
+
+        if id is None:
+            self.id = uuid.uuid4()
+        else:
+            self.id = id
+
         self.default_preset = default_preset
         self.default_persona = default_persona
         self.default_human = default_human
@@ -252,11 +245,17 @@ class AgentState:
         # system: str,  # system prompt (not required if initializing with a preset)
         # functions: dict,  # schema definitions ONLY (function code linked at runtime)
         # messages: List[dict],  # in-context messages
+        id: Optional[uuid.UUID] = None,
         state: Optional[dict] = None,
         attached_source_ids: Optional[list] = None,  # list of ids for attached data sources
         created_at: Optional[str] = None,
         memgpt_version: Optional[str] = None,
     ):
+        if id is None:
+            self.id = uuid.uuid4()
+        else:
+            self.id = id
+
         # TODO(swooders) we need to handle the case where name is None here
         # in AgentConfig we autogenerate a name, not sure what the correct thing w/ DBs is, what about NounAdjective combos? Like giphy does? BoredGiraffe etc
         self.name = name
@@ -274,3 +273,21 @@ class AgentState:
 
         # state
         self.state = state
+
+
+class Source:
+    def __init__(
+        self,
+        user_id: str,
+        name: str,
+        created_at: Optional[str] = None,
+        id: Optional[uuid.UUID] = None,
+    ):
+        if id is None:
+            self.id = uuid.uuid4()
+        else:
+            self.id = id
+
+        self.name = name
+        self.user_id = user_id
+        self.created_at = created_at

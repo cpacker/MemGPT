@@ -1,8 +1,10 @@
 """ Metadata store for user/agent/data_source information"""
+import os
 from typing import Optional, List, Dict
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
 from memgpt.utils import get_local_time
 from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig
+from memgpt.config import MemGPTConfig
 
 from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, Boolean
 from sqlalchemy import func
@@ -188,10 +190,16 @@ class SourceModel(Base):
 
 
 class MetadataStore:
-    def __init__(self):
+    def __init__(self, config: MemGPTConfig):
 
         # TODO: get DB URI or path
-        self.uri = None
+        if config.metadata_storage_type == "postgres":
+            self.uri = config.metadata_storage_uri
+        elif config.metadata_storage_type == "sqlite":
+            path = os.path.join(config.metadata_storage_path, "sqlite.db")
+            self.uri = f"sqlite:///{path}"
+        else:
+            raise ValueError(f"Invalid metadata storage type: {config.metadata_storage_type}")
 
         # TODO: check to see if table(s) need to be greated or not
 
@@ -205,11 +213,30 @@ class MetadataStore:
         session.add(AgentModel(**vars(agent)))
         session.commit()
 
-    def create_source(self):
-        pass
+    def create_source(self, source: Source):
+        session = self.Session()
+        session.add(SourceModel(**vars(source)))
+        session.commit()
 
-    def create_user(self):
-        pass
+    def create_user(self, user: User):
+        session = self.Session()
+        session.add(UserModel(**vars(user)))
+        session.commit()
+
+    def update_agent(self, agent: AgentState):
+        session = self.Session()
+        session.query(AgentModel).filter(AgentModel.id == agent.id).update(vars(agent))
+        session.commit()
+
+    def update_user(self, user: User):
+        session = self.Session()
+        session.query(UserModel).filter(UserModel.id == user.id).update(vars(user))
+        session.commit()
+
+    def update_source(self, source: Source):
+        session = self.Session()
+        session.query(SourceModel).filter(SourceModel.id == source.id).update(vars(source))
+        session.commit()
 
     def delete_agent(self, agent_id: str):
         session = self.Session()
@@ -222,10 +249,14 @@ class MetadataStore:
         pass
 
     def list_agents(self, user_id):
-        pass
+        session = self.Session()
+        results = session.query(AgentModel).filter(AgentModel.user_id == user_id).all()
+        return [r.to_record() for r in results]
 
     def list_sources(self, user_id):
-        pass
+        session = self.Session()
+        results = session.query(SourceModel).filter(SourceModel.user_id == user_id).all()
+        return [r.to_record() for r in results]
 
     def get_agent(self, agent_id):
         pass
