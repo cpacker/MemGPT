@@ -140,11 +140,11 @@ class Passage(Record):
 class LLMConfig:
     def __init__(
         self,
-        model: Optional[str] = None,
-        model_endpoint_type: Optional[str] = None,
-        model_endpoint: Optional[str] = None,
+        model: Optional[str] = "gpt4",
+        model_endpoint_type: Optional[str] = "openai",
+        model_endpoint: Optional[str] = "https://api.openai.com/v1",
         model_wrapper: Optional[str] = None,
-        context_window: Optional[int] = None,  # TODO(swooders) I don't think this should be optional
+        context_window: Optional[int] = None,
     ):
         self.model = model
         self.model_endpoint_type = model_endpoint_type
@@ -161,11 +161,11 @@ class LLMConfig:
 class EmbeddingConfig:
     def __init__(
         self,
-        embedding_endpoint_type: Optional[str] = None,
-        embedding_endpoint: Optional[str] = None,
+        embedding_endpoint_type: Optional[str] = "openai",
+        embedding_endpoint: Optional[str] = "https://api.openai.com/v1",
         embedding_model: Optional[str] = None,
-        embedding_dim: Optional[int] = None,  # TODO(swooders) similarly these probably should not be optional
-        embedding_chunk_size: Optional[int] = None,
+        embedding_dim: Optional[int] = 1536,
+        embedding_chunk_size: Optional[int] = 300,
     ):
         self.embedding_endpoint_type = embedding_endpoint_type
         self.embedding_endpoint = embedding_endpoint
@@ -235,8 +235,8 @@ class AgentState:
         user_id: str,
         persona: str,  # the filename where the persona was originally sourced from
         human: str,  # the filename where the human was originally sourced from
-        llm_config: str,
-        embedding_config: str,
+        llm_config: LLMConfig,
+        embedding_config: EmbeddingConfig,
         preset: str,
         # (in-context) state contains:
         # persona: str  # the current persona text

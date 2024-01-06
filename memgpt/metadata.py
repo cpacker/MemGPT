@@ -256,6 +256,7 @@ class MetadataStore:
     def delete_agent(self, agent_id: str):
         session = self.Session()
         session.query(AgentModel).filter(AgentModel.id == agent_id).delete()
+        session.commit()
 
     def delete_source(self, source_id: str):
         session = self.Session()

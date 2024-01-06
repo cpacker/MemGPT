@@ -50,8 +50,26 @@ def test_storage(storage_connector):
     len(ms.list_sources(user_id=user_1.id)) == 1
     len(ms.list_sources(user_id=user_2.id)) == 0
 
-    # TODO: add tests to make sure JSON data (LLMConfig, EmbeddingConfig) is being saved/retrieved properly, and can be edited
+    # test: updating
+
+    # test: update JSON-stored LLMConfig class
+    print(agent_1.llm_config, user_1.default_llm_config)
+    llm_config = ms.get_agent(agent_1.id).llm_config
+    assert isinstance(llm_config, LLMConfig), f"LLMConfig is {type(llm_config)}"
+    assert llm_config.model == "gpt4", f"LLMConfig model is {llm_config.model}"
+    llm_config.model = "gpt3.5-turbo"
+    agent_1.llm_config = llm_config
+    ms.update_agent(agent_1)
+    assert ms.get_agent(agent_1.id).llm_config.model == "gpt3.5-turbo", f"Updated LLMConfig to {ms.get_agent(agent_1.id).llm_config.model}"
+
     # test attaching sources
+    len(ms.list_attached_sources(agent_id=agent_1.id)) == 0
+    ms.attach_source(user_1.id, agent_1.id, source_1.id)
+    len(ms.list_attached_sources(agent_id=agent_1.id)) == 1
+
+    # test: detaching sources
+    ms.detach_source(agent_1.id, source_1.id)
+    len(ms.list_attached_sources(agent_id=agent_1.id)) == 0
 
     # test getting
     ms.get_user(user_1.id)

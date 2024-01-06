@@ -10,6 +10,7 @@ import memgpt.utils as utils
 from memgpt.utils import printd, get_schema_diff
 from memgpt.functions.functions import load_all_function_sets
 from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS, DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
+from memgpt.data_types import AgentState, User
 
 
 # helper functions for writing to configs
@@ -352,6 +353,18 @@ class AgentConfig:
         self.memgpt_version = memgpt.__version__
         with open(self.agent_config_path, "w") as f:
             json.dump(vars(self), f, indent=4)
+
+    def to_agent_state(self):
+        return AgentState(
+            name=self.name,
+            preset=self.preset,
+            persona=self.persona,
+            human=self.human,
+            llm_config=self.llm_config,
+            embedding_config=self.embedding_config,
+            create_time=self.create_time,
+            memgpt_version=self.memgpt_version,
+        )
 
     @staticmethod
     def exists(name: str):
