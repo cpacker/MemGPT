@@ -1,7 +1,7 @@
 # import tempfile
 # import asyncio
 import os
-
+import uuid
 import pytest
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -12,6 +12,8 @@ from memgpt.cli.cli_load import load_directory, load_database, load_webpage
 from memgpt.cli.cli import attach
 from memgpt.constants import DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_HUMAN
 from memgpt.config import AgentConfig, MemGPTConfig
+from memgpt.metadata import MetadataStore
+from memgpt.data_types import Source, Passage, Document, User, AgentState
 
 
 @pytest.fixture(autouse=True)
@@ -61,10 +63,27 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
         raise NotImplementedError(f"Storage type {passage_storage_connector} not implemented")
     config.save()
 
+    # create metadata store
+    ms = MetadataStore(config)
+
+    # create user and agent
+    user = User()
+    agent = AgentState(
+        user_id=user.id,
+        name="test_agent",
+        preset=user.default_preset,
+        persona=user.default_persona,
+        human=user.default_human,
+        llm_config=user.default_llm_config,
+        embedding_config=user.default_embedding_config,
+    )
+    ms.create_user(user)
+    ms.create_agent(agent)
+
     # setup storage connectors
     print("Creating storage connectors...")
-    data_source_conn = StorageConnector.get_storage_connector(storage_type=metadata_storage_connector, table_type=TableType.DATA_SOURCES)
-    passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, storage_type=passage_storage_connector)
+    user_id = config.anon_clientid
+    passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, user_id)
 
     # load data
     name = "test_dataset"
@@ -74,23 +93,18 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
 
     # clear out data
     print("Resetting tables with delete_table...")
-    data_source_conn.delete_table()
     passages_conn.delete_table()
     print("Re-creating tables...")
-    data_source_conn = StorageConnector.get_storage_connector(storage_type=metadata_storage_connector, table_type=TableType.DATA_SOURCES)
-    passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, storage_type=passage_storage_connector)
-    assert (
-        data_source_conn.size() == 0
-    ), f"Expected 0 records, got {data_source_conn.size()}: {[vars(r) for r in data_source_conn.get_all()]}"
+    passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, user_id)
     assert passages_conn.size() == 0, f"Expected 0 records, got {passages_conn.size()}: {[vars(r) for r in passages_conn.get_all()]}"
 
     # test: load directory
     print("Loading directory")
-    load_directory(name=name, input_dir=None, input_files=[cache_dir], recursive=False)  # cache_dir,
+    load_directory(name=name, input_dir=None, input_files=[cache_dir], recursive=False, user_id=user_id)  # cache_dir,
 
     # test to see if contained in storage
     print("Querying table...")
-    sources = data_source_conn.get_all({"name": name})
+    sources = ms.list_sources(user_id=user_id)
     assert len(sources) == 1, f"Expected 1 source, but got {len(sources)}"
     assert sources[0].name == name, f"Expected name {name}, but got {sources[0].name}"
     print("Source", sources)
@@ -109,33 +123,23 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
 
     # test: listing sources
     print("Querying all...")
-    sources = data_source_conn.get_all()
+    sources = ms.list_sources(user_id=user_id)
     print("All sources", [s.name for s in sources])
 
     # test loading into an agent
     # create agent
-    agent_config = AgentConfig(
-        name="memgpt_test_agent",
-        persona=DEFAULT_PERSONA,
-        human=DEFAULT_HUMAN,
-        model=DEFAULT_MEMGPT_MODEL,
-    )
-    agent_config.save()
+    agent_id = uuid.uuid4()
     # create storage connector
     print("Creating agent archival storage connector...")
-    conn = StorageConnector.get_storage_connector(
-        storage_type=passage_storage_connector, table_type=TableType.ARCHIVAL_MEMORY, agent_config=agent_config
-    )
+    conn = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config=config, user_id=user_id, agent_id=agent_id)
     print("Deleting agent archival table...")
     conn.delete_table()
-    conn = StorageConnector.get_storage_connector(
-        storage_type=passage_storage_connector, table_type=TableType.ARCHIVAL_MEMORY, agent_config=agent_config
-    )
+    conn = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config=config, user_id=user_id, agent_id=agent_id)
     assert conn.size() == 0, f"Expected 0 records, got {conn.size()}: {[vars(r) for r in conn.get_all()]}"
 
     # attach data
     print("Attaching data...")
-    attach(agent=agent_config.name, data_source=name)
+    attach(agent=agent_name, data_source=name)
 
     # test to see if contained in storage
     assert len(passages) == conn.size()
@@ -146,3 +150,7 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
     passages_conn.delete({"data_source": name})
     assert len(data_source_conn.get_all({"name": name})) == 0
     assert len(passages_conn.get_all({"data_source": name})) == 0
+
+    ms.delete_user(user.id)
+    ms.delete_agent(agent.id)
+    ms.delete_source(source.id)

@@ -224,11 +224,17 @@ class MetadataStore:
     def create_agent(self, agent: AgentState):
         # insert into agent table
         session = self.Session()
+        # make sure agent.name does not already exist for user user_id
+        if session.query(AgentModel).filter(AgentModel.name == agent.name).filter(AgentModel.user_id == agent.user_id).count() > 0:
+            raise ValueError(f"Agent with name {agent.name} already exists")
         session.add(AgentModel(**vars(agent)))
         session.commit()
 
     def create_source(self, source: Source):
         session = self.Session()
+        # make sure source.name does not already exist for user
+        if session.query(SourceModel).filter(SourceModel.name == source.name).filter(SourceModel.user_id == source.user_id).count() > 0:
+            raise ValueError(f"Source with name {source.name} already exists")
         session.add(SourceModel(**vars(source)))
         session.commit()
 
@@ -295,9 +301,14 @@ class MetadataStore:
         results = session.query(SourceModel).filter(SourceModel.user_id == user_id).all()
         return [r.to_record() for r in results]
 
-    def get_agent(self, agent_id):
+    def get_agent(self, agent_id=None, agent_name=None, user_id=None):
         session = self.Session()
-        results = session.query(AgentModel).filter(AgentModel.id == agent_id).all()
+        if agent_id:
+            results = session.query(AgentModel).filter(AgentModel.id == agent_id).all()
+        else:
+            assert agent_name is not None and user_id is not None, "Must provide either agent_id or agent_name"
+            results = session.query(AgentModel).filter(AgentModel.name == agent_name).filter(AgentModel.user_id == user_id).all()
+
         if len(results) == 0:
             return None
         assert len(results) == 1, f"Expected 1 result, got {len(results)}"  # should only be one result
@@ -311,9 +322,13 @@ class MetadataStore:
         assert len(results) == 1, f"Expected 1 result, got {len(results)}"
         return results[0].to_record()
 
-    def get_source(self, source_id):
+    def get_source(self, source_id=None, user_id=None, source_name=None):
         session = self.Session()
-        results = session.query(SourceModel).filter(SourceModel.id == source_id).all()
+        if source_id:
+            results = session.query(SourceModel).filter(SourceModel.id == source_id).all()
+        else:
+            assert user_id is not None and source_name is not None
+            results = session.query(SourceModel).filter(SourceModel.name == source_name).filter(SourceModel.user_id == user_id).all()
         if len(results) == 0:
             return None
         assert len(results) == 1, f"Expected 1 result, got {len(results)}"

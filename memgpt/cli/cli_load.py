@@ -14,7 +14,8 @@ import typer
 from memgpt.embeddings import embedding_model
 from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
-from memgpt.data_types import Source, Passage, Document
+from memgpt.metadata import MetadataStore
+from memgpt.data_types import Source, Passage, Document, User
 from memgpt.utils import get_local_time, suppress_stdout
 from memgpt.agent_store.storage import StorageConnector, TableType
 
@@ -30,23 +31,22 @@ from llama_index import (
 app = typer.Typer()
 
 
-def store_docs(name, docs, show_progress=True):
+def store_docs(name, docs, user_id=None, show_progress=True):
     """Common function for embedding and storing documents"""
 
     config = MemGPTConfig.load()
+    if user_id is None:  # assume running local with single user
+        user_id = config.anon_clientid
 
     # record data source metadata
-    data_source = Source(user_id=config.anon_clientid, name=name, created_at=datetime.now())
-    metadata_conn = StorageConnector.get_metadata_storage_connector(TableType.DATA_SOURCES)
-    if len(metadata_conn.get_all({"name": name})) > 0:
-        print(f"Data source {name} already exists in metadata, skipping.")
-        # TODO: should this error, or just add more data to this source?
-    else:
-        metadata_conn.insert(data_source)
+    ms = MetadataStore(config)
+    user = ms.get_user(user_id)
+    data_source = Source(user_id=user.id, name=name, created_at=datetime.now())
+    ms.add_source(data_source)
 
     # compute and record passages
-    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, storage_type=config.archival_storage_type)
-    embed_model = embedding_model()
+    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user.id)
+    embed_model = embedding_model(user.default_embedding_config)
     orig_size = storage.size()
 
     # use llama index to run embeddings code
@@ -119,6 +119,7 @@ def load_directory(
     input_dir: str = typer.Option(None, help="Path to directory containing dataset."),
     input_files: List[str] = typer.Option(None, help="List of paths to files containing dataset."),
     recursive: bool = typer.Option(False, help="Recursively search for files in directory."),
+    user_id: str = typer.Option(None, help="User ID to associate with dataset."),
 ):
     try:
         from llama_index import SimpleDirectoryReader
@@ -136,7 +137,7 @@ def load_directory(
 
         # load docs
         docs = reader.load_data()
-        store_docs(name, docs)
+        store_docs(name, docs, user_id)
 
     except ValueError as e:
         typer.secho(f"Failed to load directory from provided information.\n{e}", fg=typer.colors.RED)
