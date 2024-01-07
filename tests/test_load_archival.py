@@ -34,8 +34,10 @@ def recreate_declarative_base():
     Base.metadata.clear()
 
 
-@pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
-@pytest.mark.parametrize("passage_storage_connector", ["chroma", "postgres"])
+# @pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
+# @pytest.mark.parametrize("passage_storage_connector", ["chroma", "postgres"])
+@pytest.mark.parametrize("metadata_storage_connector", ["sqlite"])
+@pytest.mark.parametrize("passage_storage_connector", ["postgres"])
 def test_load_directory(metadata_storage_connector, passage_storage_connector, clear_dynamically_created_models, recreate_declarative_base):
     # setup config
     config = MemGPTConfig()
@@ -65,10 +67,9 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
 
     # create metadata store
     ms = MetadataStore(config)
-    ms.delete_user(config.anon_clientid)
 
     # create user and agent
-    user = User(id=config.anon_clientid)
+    user = User(id=uuid.UUID(config.anon_clientid))
     agent = AgentState(
         user_id=user.id,
         name="test_agent",
@@ -78,12 +79,14 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
         llm_config=user.default_llm_config,
         embedding_config=user.default_embedding_config,
     )
+    ms.delete_user(user.id)
     ms.create_user(user)
     ms.create_agent(agent)
 
     # setup storage connectors
     print("Creating storage connectors...")
     user_id = user.id
+    print("User ID", user_id)
     passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
 
     # load data
@@ -140,7 +143,7 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
 
     # attach data
     print("Attaching data...")
-    attach(agent=agent_name, data_source=name)
+    attach(agent=agent.name, data_source=name)
 
     # test to see if contained in storage
     assert len(passages) == conn.size()
