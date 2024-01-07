@@ -292,6 +292,7 @@ class User:
                 self.default_embedding_config = EmbeddingConfig(
                     embedding_endpoint_type="hugging-face",
                     embedding_endpoint="https://embeddings.memgpt.ai",
+                    embedding_model="BAAI/bge-large-en-v1.5",
                     embedding_dim=1024,
                     embedding_chunk_size=300,
                 )
