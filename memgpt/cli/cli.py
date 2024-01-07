@@ -532,7 +532,6 @@ def attach(
     data_source: str = typer.Option(help="Data source to attach to avent"),
     user_id: str = typer.Option(None, help="User ID to associate with dataset."),
 ):
-
     # use client ID is no user_id provided
     config = MemGPTConfig.load()
     if user_id is None:

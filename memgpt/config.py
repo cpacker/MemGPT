@@ -33,7 +33,6 @@ def set_field(config, section, field, value):
 
 @dataclass
 class Config:
-
     # system config for MemGPT
     config_path = os.path.join(MEMGPT_DIR, "config")
     anon_clientid = None

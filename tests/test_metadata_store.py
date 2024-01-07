@@ -9,7 +9,6 @@ from memgpt.data_types import User, AgentState, Source, LLMConfig, EmbeddingConf
 # @pytest.mark.parametrize("storage_connector", ["postgres", "sqlite"])
 @pytest.mark.parametrize("storage_connector", ["sqlite"])
 def test_storage(storage_connector):
-
     config = MemGPTConfig()
     if storage_connector == "postgres":
         if not os.getenv("PGVECTOR_TEST_DB_URL"):

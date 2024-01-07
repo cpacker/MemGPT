@@ -243,7 +243,6 @@ class User:
         # other
         policies_accepted=False,
     ):
-
         if id is None:
             self.id = uuid.uuid4()
         else:
