@@ -23,6 +23,7 @@ from sqlalchemy.orm import sessionmaker, mapped_column, declarative_base
 
 Base = declarative_base()
 
+
 # Custom UUID type
 class CommonUUID(TypeDecorator):
     impl = CHAR
@@ -87,7 +88,6 @@ class EmbeddingConfigColumn(TypeDecorator):
 
 
 class UserModel(Base):
-
     __tablename__ = "users"
     __table_args__ = {"extend_existing": True}
 
@@ -108,10 +108,10 @@ class UserModel(Base):
     openai_key = Column(String, nullable=True)
     policies_accepted = Column(Boolean, nullable=False, default=False)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<User(id='{self.id}')>"
 
-    def to_record(self):
+    def to_record(self) -> User:
         return User(
             id=self.id,
             default_preset=self.default_preset,
@@ -150,10 +150,10 @@ class AgentModel(Base):
     # state
     state = Column(JSON)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Agent(id='{self.id}', name='{self.name}')>"
 
-    def to_record(self):
+    def to_record(self) -> AgentState:
         return AgentState(
             id=self.id,
             user_id=self.user_id,
@@ -181,10 +181,10 @@ class SourceModel(Base):
     name = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Source(passage_id='{self.id}', name='{self.name}')>"
 
-    def to_record(self):
+    def to_record(self) -> Source:
         return Source(id=self.id, user_id=self.user_id, name=self.name, created_at=self.created_at)
 
 
@@ -199,13 +199,12 @@ class AgentSourceMappingModel(Base):
     agent_id = Column(CommonUUID, nullable=False)
     source_id = Column(CommonUUID, nullable=False)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<AgentSourceMapping(user_id='{self.user_id}', agent_id='{self.agent_id}', source_id='{self.source_id}')>"
 
 
 class MetadataStore:
     def __init__(self, config: MemGPTConfig):
-
         # TODO: get DB URI or path
         if config.metadata_storage_type == "postgres":
             self.uri = config.metadata_storage_uri
@@ -291,17 +290,17 @@ class MetadataStore:
 
         session.commit()
 
-    def list_agents(self, user_id):
+    def list_agents(self, user_id: str) -> AgentState:
         session = self.Session()
         results = session.query(AgentModel).filter(AgentModel.user_id == user_id).all()
         return [r.to_record() for r in results]
 
-    def list_sources(self, user_id):
+    def list_sources(self, user_id: str) -> Source:
         session = self.Session()
         results = session.query(SourceModel).filter(SourceModel.user_id == user_id).all()
         return [r.to_record() for r in results]
 
-    def get_agent(self, agent_id=None, agent_name=None, user_id=None):
+    def get_agent(self, agent_id: str = None, agent_name: str = None, user_id: str = None) -> AgentState:
         session = self.Session()
         if agent_id:
             results = session.query(AgentModel).filter(AgentModel.id == agent_id).all()
@@ -314,7 +313,7 @@ class MetadataStore:
         assert len(results) == 1, f"Expected 1 result, got {len(results)}"  # should only be one result
         return results[0].to_record()
 
-    def get_user(self, user_id):
+    def get_user(self, user_id: str) -> User:
         session = self.Session()
         results = session.query(UserModel).filter(UserModel.id == user_id).all()
         if len(results) == 0:
@@ -322,7 +321,7 @@ class MetadataStore:
         assert len(results) == 1, f"Expected 1 result, got {len(results)}"
         return results[0].to_record()
 
-    def get_source(self, source_id=None, user_id=None, source_name=None):
+    def get_source(self, source_id: str = None, user_id: str = None, source_name: str = None) -> Source:
         session = self.Session()
         if source_id:
             results = session.query(SourceModel).filter(SourceModel.id == source_id).all()
@@ -335,17 +334,17 @@ class MetadataStore:
         return results[0].to_record()
 
     # agent source metadata
-    def attach_source(self, user_id, agent_id, source_id):
+    def attach_source(self, user_id: str, agent_id: str, source_id: str):
         session = self.Session()
         session.add(AgentSourceMappingModel(user_id=user_id, agent_id=agent_id, source_id=source_id))
         session.commit()
 
-    def list_attached_sources(self, agent_id):
+    def list_attached_sources(self, agent_id: str) -> List[Column]:
         session = self.Session()
         results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
         return [r.source_id for r in results]
 
-    def detach_source(self, agent_id, source_id):
+    def detach_source(self, agent_id: str, source_id: str):
         session = self.Session()
         session.query(AgentSourceMappingModel).filter(
             AgentSourceMappingModel.agent_id == agent_id, AgentSourceMappingModel.source_id == source_id
