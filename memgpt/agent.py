@@ -6,6 +6,7 @@ import json
 import traceback
 
 from memgpt.data_types import AgentState
+from memgpt.metadata import MetadataStore
 from memgpt.interface import AgentInterface
 from memgpt.persistence_manager import PersistenceManager, LocalStateManager
 from memgpt.config import AgentConfig, MemGPTConfig
@@ -167,7 +168,7 @@ class Agent(object):
         self.config = agent_state
 
         # gpt-4, gpt-3.5-turbo, ...
-        self.model = agent_state.model
+        self.model = agent_state.llm_config.model
 
         # Store the system instructions (used to rebuild memory)
         if "system" not in agent_state.state:
@@ -205,7 +206,7 @@ class Agent(object):
 
         # Create the persistence manager object based on the AgentState info
         # TODO
-        self.persistence_managager = PersistenceManager(agent_state=agent_state)
+        self.persistence_managager = LocalStateManager(agent_state=agent_state)
 
         # Keep track of the total number of messages throughout all time
         self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
@@ -223,6 +224,13 @@ class Agent(object):
         # When an alert is sent in the message queue, set this to True (to avoid repeat alerts)
         # When the summarizer is run, set this back to False (to reset)
         self.agent_alerted_about_memory_pressure = False
+
+        # Initialize the connection to the DB
+        self.config = MemGPTConfig()
+        self.ms = MetadataStore(self.config)
+
+        # Create the agent in the DB
+        self.save()
 
     @property
     def messages(self):
@@ -633,11 +641,31 @@ class Agent(object):
         # Swap the system message out
         self._swap_system_message(new_system_message)
 
+    def to_agent_state(self):
+        agent_state = self.config
+
+        # The state may have change since the last time we wrote it
+        agent_state["state"] = {
+            "persona": self.memory.persona,
+            "human": self.memory.human,
+            "system": self.system,
+            "functions": self.functions,
+            "messages": self.messages,
+        }
+
+        return agent_state
+
     def save(self):
         """Save agent state locally"""
 
-        # TODO SAVE
-        AgentState.save()
+        agent_state = self.to_agent_state()
+
+        # Check if we need to create the agent
+        if not self.ms.get_agent(agent_id=agent_state.id, user_id=agent_state.user_id, agent_name=agent_state.name):
+            self.ms.create_agent(agent=agent_state)
+        else:
+            # Otherwise, we should update the agent
+            self.ms.update_agent(agent=agent_state)
 
         # # save config
         # self.config.save()
