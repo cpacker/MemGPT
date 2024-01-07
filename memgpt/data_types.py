@@ -158,13 +158,35 @@ class LLMConfig:
             self.context_window = context_window
 
 
+class OpenAILLMConfig(LLMConfig):
+    def __init__(self, openai_key, **kwargs):
+        super().__init__(**kwargs)
+        self.openai_key = openai_key
+
+
+class AzureLLMConfig(LLMConfig):
+    def __init__(
+        self,
+        azure_key: Optional[str] = None,
+        azure_endpoint: Optional[str] = None,
+        azure_version: Optional[str] = None,
+        azure_deployment: Optional[str] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.azure_key = azure_key
+        self.azure_endpoint = azure_endpoint
+        self.azure_version = azure_version
+        self.azure_deployment = azure_deployment
+
+
 class EmbeddingConfig:
     def __init__(
         self,
-        embedding_endpoint_type: Optional[str] = "openai",
-        embedding_endpoint: Optional[str] = "https://api.openai.com/v1",
+        embedding_endpoint_type: Optional[str] = "local",
+        embedding_endpoint: Optional[str] = None,
         embedding_model: Optional[str] = None,
-        embedding_dim: Optional[int] = 1536,
+        embedding_dim: Optional[int] = 384,
         embedding_chunk_size: Optional[int] = 300,
     ):
         self.embedding_endpoint_type = embedding_endpoint_type
@@ -172,6 +194,28 @@ class EmbeddingConfig:
         self.embedding_model = embedding_model
         self.embedding_dim = embedding_dim
         self.embedding_chunk_size = embedding_chunk_size
+
+
+class OpenAIEmbeddingConfig(EmbeddingConfig):
+    def __init__(self, openai_key: Optional[str] = None, **kwargs):
+        super().__init__(**kwargs)
+        self.openai_key = openai_key
+
+
+class AzureEmbeddingConfig(EmbeddingConfig):
+    def __init__(
+        self,
+        azure_key: Optional[str] = None,
+        azure_endpoint: Optional[str] = None,
+        azure_version: Optional[str] = None,
+        azure_deployment: Optional[str] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.azure_key = azure_key
+        self.azure_endpoint = azure_endpoint
+        self.azure_version = azure_version
+        self.azure_deployment = azure_deployment
 
 
 class User:
@@ -223,6 +267,67 @@ class User:
 
         # openai information
         self.openai_key = openai_key
+
+        # set default embedding config
+        if default_embedding_config is None:
+            if self.openai_key:
+                self.default_embedding_config = OpenAIEmbeddingConfig(
+                    openai_key=self.openai_key,
+                    embedding_endpoint_type="openai",
+                    embedding_endpoint="https://api.openai.com/v1",
+                    embedding_dim=1536,
+                )
+            elif self.azure_key:
+                self.default_embedding_config = AzureEmbeddingConfig(
+                    azure_key=self.azure_key,
+                    azure_endpoint=self.azure_endpoint,
+                    azure_version=self.azure_version,
+                    azure_deployment=self.azure_deployment,
+                    embedding_endpoint_type="azure",
+                    embedding_endpoint="https://api.openai.com/v1",
+                    embedding_dim=1536,
+                )
+            else:
+                # memgpt hosted
+                self.default_embedding_config = EmbeddingConfig(
+                    embedding_endpoint_type="hugging-face",
+                    embedding_endpoint="https://embeddings.memgpt.ai",
+                    embedding_dim=1024,
+                    embedding_chunk_size=300,
+                )
+
+        # set default LLM config
+        if default_llm_config is None:
+            if self.openai_key:
+                self.default_llm_config = OpenAILLMConfig(
+                    openai_key=self.openai_key,
+                    model="gpt4",
+                    model_endpoint_type="openai",
+                    model_endpoint="https://api.openai.com/v1",
+                    model_wrapper=None,
+                    context_window=LLM_MAX_TOKENS["gpt4"],
+                )
+            elif self.azure_key:
+                self.default_llm_config = AzureLLMConfig(
+                    azure_key=self.azure_key,
+                    azure_endpoint=self.azure_endpoint,
+                    azure_version=self.azure_version,
+                    azure_deployment=self.azure_deployment,
+                    model="gpt4",
+                    model_endpoint_type="azure",
+                    model_endpoint="https://api.openai.com/v1",
+                    model_wrapper=None,
+                    context_window=LLM_MAX_TOKENS["gpt4"],
+                )
+            else:
+                # memgpt hosted
+                self.default_llm_config = LLMConfig(
+                    model="ehartford/dolphin-2.5-mixtral-8x7b",
+                    model_endpoint_type="vllm",
+                    model_endpoint="https://api.memgpt.ai",
+                    model_wrapper="chatml",
+                    context_window=16384,
+                )
 
         # misc
         self.policies_accepted = policies_accepted

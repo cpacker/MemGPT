@@ -11,7 +11,7 @@ import pytest
 # subprocess.check_call([sys.executable, "-m", "pip", "install", "lancedb"])
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.embeddings import embedding_model
-from memgpt.data_types import Message, Passage
+from memgpt.data_types import Message, Passage, EmbeddingConfig, AgentState, OpenAIEmbeddingConfig
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.utils import get_local_time
 from memgpt.agent_store.storage import StorageConnector, TableType
@@ -91,39 +91,26 @@ def test_storage(storage_connector, table_type):
         if table_type == TableType.ARCHIVAL_MEMORY:
             print("Skipping test, sqlite only supported for recall memory")
             return
-        config.recall_storage_type = "local"
+        config.recall_storage_type = "sqlite"
 
     # get embedding model
     embed_model = None
     if os.getenv("OPENAI_API_KEY"):
-        config.embedding_endpoint_type = "openai"
-        config.embedding_endpoint = "https://api.openai.com/v1"
-        config.embedding_dim = 1536
-        config.openai_key = os.getenv("OPENAI_API_KEY")
+        embedding_config = OpenAIEmbeddingConfig(
+            embedding_endpoint_type="openai",
+            embedding_endpoint="https://api.openai.com/v1",
+            embedding_dim=1536,
+            openai_key=os.getenv("OPENAI_API_KEY"),
+        )
     else:
-        config.embedding_endpoint_type = "local"
-        config.embedding_endpoint = None
-        config.embedding_dim = 384
-    config.save()
-    embed_model = embedding_model()
-
-    # create agent
-    agent_config = AgentConfig(
-        name="agent1",
-        persona=DEFAULT_PERSONA,
-        human=DEFAULT_HUMAN,
-        model=DEFAULT_MEMGPT_MODEL,
-    )
+        embedding_config = EmbeddingConfig(embedding_endpoint_type="local", embedding_endpoint=None, embedding_dim=384)
+    embed_model = embedding_model(embedding_config)
 
     # create storage connector
-    conn = StorageConnector.get_storage_connector(storage_type=storage_connector, table_type=table_type, agent_config=agent_config)
+    conn = StorageConnector.get_storage_connector(table_type, config=config, user_id=user_id, agent_id="agent1")
     # conn.client.delete_collection(conn.collection.name)  # clear out data
     conn.delete_table()
-    conn = StorageConnector.get_storage_connector(storage_type=storage_connector, table_type=table_type, agent_config=agent_config)
-
-    # override filters
-    conn.user_id = user_id
-    conn.filters = {"user_id": user_id, "agent_id": "agent1"}
+    conn = StorageConnector.get_storage_connector(table_type, config=config, user_id=user_id, agent_id="agent1")
 
     # generate data
     if table_type == TableType.ARCHIVAL_MEMORY:

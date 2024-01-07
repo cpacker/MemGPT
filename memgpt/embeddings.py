@@ -1,4 +1,5 @@
 import typer
+import uuid
 from typing import Optional, List
 import os
 
@@ -135,15 +136,14 @@ class EmbeddingEndpoint(BaseEmbedding):
         return self._get_text_embedding(text)
 
 
-def embedding_model(config: EmbeddingConfig):
+def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None):
     """Return LlamaIndex embedding model to use for embeddings"""
 
     endpoint_type = config.embedding_endpoint_type
 
     if endpoint_type == "openai":
-        model = OpenAIEmbedding(
-            api_base=config.embedding_endpoint, api_key=config.openai_key, additional_kwargs={"user": config.anon_clientid}
-        )
+        additional_kwargs = {"user_id": user_id} if user_id else {}
+        model = OpenAIEmbedding(api_base=config.embedding_endpoint, api_key=config.openai_key, additional_kwargs=additional_kwargs)
         return model
     elif endpoint_type == "azure":
         # https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings
@@ -157,7 +157,7 @@ def embedding_model(config: EmbeddingConfig):
             api_version=config.azure_version,
         )
     elif endpoint_type == "hugging-face":
-        embed_model = EmbeddingEndpoint(model=config.embedding_model, base_url=config.embedding_endpoint, user=config.anon_clientid)
+        embed_model = EmbeddingEndpoint(model=config.embedding_model, base_url=config.embedding_endpoint, user=user_id)
         return embed_model
     else:
         # default to hugging face model running local
