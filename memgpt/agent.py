@@ -205,7 +205,7 @@ class Agent(object):
 
         # Create the persistence manager object based on the AgentState info
         # TODO
-        self.persistence_managager = None
+        self.persistence_managager = PersistenceManager(agent_state=agent_state)
 
         # Keep track of the total number of messages throughout all time
         self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)

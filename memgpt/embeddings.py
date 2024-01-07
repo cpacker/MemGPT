@@ -3,6 +3,7 @@ from typing import Optional, List
 import os
 
 from memgpt.utils import is_valid_url
+from memgpt.data_types import EmbeddingConfig
 
 from llama_index.embeddings import OpenAIEmbedding, AzureOpenAIEmbedding
 from llama_index.embeddings import TextEmbeddingsInference
@@ -134,13 +135,9 @@ class EmbeddingEndpoint(BaseEmbedding):
         return self._get_text_embedding(text)
 
 
-def embedding_model():
+def embedding_model(config: EmbeddingConfig):
     """Return LlamaIndex embedding model to use for embeddings"""
 
-    from memgpt.config import MemGPTConfig
-
-    # load config
-    config = MemGPTConfig.load()
     endpoint_type = config.embedding_endpoint_type
 
     if endpoint_type == "openai":
