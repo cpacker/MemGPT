@@ -206,7 +206,7 @@ class Agent(object):
 
         # Create the persistence manager object based on the AgentState info
         # TODO
-        self.persistence_managager = LocalStateManager(agent_state=agent_state)
+        self.persistence_manager = LocalStateManager(agent_state=agent_state)
 
         # Keep track of the total number of messages throughout all time
         self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
@@ -226,8 +226,8 @@ class Agent(object):
         self.agent_alerted_about_memory_pressure = False
 
         # Initialize the connection to the DB
-        self.config = MemGPTConfig()
-        self.ms = MetadataStore(self.config)
+        self.memgpt_config = MemGPTConfig()
+        self.ms = MetadataStore(self.memgpt_config)
 
         # Create the agent in the DB
         self.save()
@@ -642,16 +642,27 @@ class Agent(object):
         self._swap_system_message(new_system_message)
 
     def to_agent_state(self):
-        agent_state = self.config
-
         # The state may have change since the last time we wrote it
-        agent_state["state"] = {
+        updated_state = {
             "persona": self.memory.persona,
             "human": self.memory.human,
             "system": self.system,
             "functions": self.functions,
             "messages": self.messages,
         }
+
+        agent_state = AgentState(
+            name=self.config.name,
+            user_id=self.config.user_id,
+            persona=self.config.persona,
+            human=self.config.human,
+            llm_config=self.config.llm_config,
+            embedding_config=self.config.embedding_config,
+            preset=self.config.preset,
+            id=self.config.id,
+            created_at=self.config.created_at,
+            state=updated_state,
+        )
 
         return agent_state
 

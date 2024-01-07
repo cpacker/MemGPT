@@ -27,7 +27,15 @@ def test_server():
         ),
     )
     print(f"Created agent\n{agent_state}")
-    server.user_message(user_id=user_id, agent_id=agent_state.id, message="/memory")
+
+    try:
+        server.user_message(user_id=user_id, agent_id=agent_state.id, message="/memory")
+        raise Exception("user_message call should have failed")
+    except ValueError as e:
+        # Error is expected
+        print(e)
+    except:
+        raise
 
     print(server.run_command(user_id=user_id, agent_id=agent_state.id, command="/memory"))
 
