@@ -239,6 +239,8 @@ class MetadataStore:
 
     def create_user(self, user: User):
         session = self.Session()
+        if session.query(UserModel).filter(UserModel.id == user.id).count() > 0:
+            raise ValueError(f"User with id {user.id} already exists")
         session.add(UserModel(**vars(user)))
         session.commit()
 
