@@ -15,19 +15,19 @@ def create_agent_from_preset(agent_state: AgentState, interface: AgentInterface)
     """Initialize a new agent from a preset (combination of system + function)"""
 
     # Input validation
-    if agent_state.persona_file is None:
-        raise ValueError(f"'persona_file' not specified in AgentState (required)")
-    if agent_state.human_file is None:
-        raise ValueError(f"'human_file' not specified in AgentState (required)")
+    if agent_state.persona is None:
+        raise ValueError(f"'persona' not specified in AgentState (required)")
+    if agent_state.human is None:
+        raise ValueError(f"'human' not specified in AgentState (required)")
     if agent_state.preset is None:
         raise ValueError(f"'preset' not specified in AgentState (required)")
     if not (agent_state.state == {} or agent_state.state is None):
         raise ValueError(f"'state' must be uninitialized (empty)")
 
     preset_name = agent_state.preset
-    persona_file = agent_state.persona_file
-    human_file = agent_state.human_file
-    model = agent_state.model
+    persona_file = agent_state.persona
+    human_file = agent_state.human
+    model = agent_state.llm_config.model
 
     from memgpt.agent import Agent
     from memgpt.utils import printd

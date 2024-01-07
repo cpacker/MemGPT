@@ -12,7 +12,8 @@ from memgpt import utils
 
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
-from memgpt.agent_store.storage import StorageConnector, TableType
+
+# from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.constants import LLM_MAX_TOKENS
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
