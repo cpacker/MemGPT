@@ -11,6 +11,7 @@ memgpt load <data-connector-type> --name <dataset-name> [ADDITIONAL ARGS]
 from typing import List
 from tqdm import tqdm
 import typer
+import uuid
 from memgpt.embeddings import embedding_model
 from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
@@ -36,15 +37,22 @@ def store_docs(name, docs, user_id=None, show_progress=True):
 
     config = MemGPTConfig.load()
     if user_id is None:  # assume running local with single user
-        user_id = config.anon_clientid
+        user_id = uuid.UUID(config.anon_clientid)
 
     # record data source metadata
     ms = MetadataStore(config)
     user = ms.get_user(user_id)
+    print("USER", user)
     data_source = Source(user_id=user.id, name=name, created_at=datetime.now())
-    ms.create_source(data_source)
+    if not ms.get_source(user_id=user.id, source_name=name):
+        print("Trying to add...")
+        ms.create_source(data_source)
+        print("Created source", data_source)
+    else:
+        print(f"Source {name} for user {user.id} already exists")
 
     # compute and record passages
+    print("USER ID", user.id)
     storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user.id)
     embed_model = embedding_model(user.default_embedding_config)
     orig_size = storage.size()
