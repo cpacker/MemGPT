@@ -65,9 +65,10 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
 
     # create metadata store
     ms = MetadataStore(config)
+    ms.delete_user(config.anon_clientid)
 
     # create user and agent
-    user = User()
+    user = User(id=config.anon_clientid)
     agent = AgentState(
         user_id=user.id,
         name="test_agent",
@@ -82,8 +83,8 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
 
     # setup storage connectors
     print("Creating storage connectors...")
-    user_id = config.anon_clientid
-    passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, user_id)
+    user_id = user.id
+    passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
 
     # load data
     name = "test_dataset"
@@ -95,7 +96,7 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
     print("Resetting tables with delete_table...")
     passages_conn.delete_table()
     print("Re-creating tables...")
-    passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, user_id)
+    passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
     assert passages_conn.size() == 0, f"Expected 0 records, got {passages_conn.size()}: {[vars(r) for r in passages_conn.get_all()]}"
 
     # test: load directory

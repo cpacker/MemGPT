@@ -42,7 +42,7 @@ def store_docs(name, docs, user_id=None, show_progress=True):
     ms = MetadataStore(config)
     user = ms.get_user(user_id)
     data_source = Source(user_id=user.id, name=name, created_at=datetime.now())
-    ms.add_source(data_source)
+    ms.create_source(data_source)
 
     # compute and record passages
     storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user.id)
