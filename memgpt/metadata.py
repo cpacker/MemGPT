@@ -290,17 +290,17 @@ class MetadataStore:
 
         session.commit()
 
-    def list_agents(self, user_id: str) -> AgentState:
+    def list_agents(self, user_id: str) -> List[AgentState]:
         session = self.Session()
         results = session.query(AgentModel).filter(AgentModel.user_id == user_id).all()
         return [r.to_record() for r in results]
 
-    def list_sources(self, user_id: str) -> Source:
+    def list_sources(self, user_id: str) -> List[Source]:
         session = self.Session()
         results = session.query(SourceModel).filter(SourceModel.user_id == user_id).all()
         return [r.to_record() for r in results]
 
-    def get_agent(self, agent_id: str = None, agent_name: str = None, user_id: str = None) -> AgentState:
+    def get_agent(self, agent_id: str = None, agent_name: str = None, user_id: str = None) -> Optional[AgentState]:
         session = self.Session()
         if agent_id:
             results = session.query(AgentModel).filter(AgentModel.id == agent_id).all()
@@ -313,7 +313,7 @@ class MetadataStore:
         assert len(results) == 1, f"Expected 1 result, got {len(results)}"  # should only be one result
         return results[0].to_record()
 
-    def get_user(self, user_id: str) -> User:
+    def get_user(self, user_id: str) -> Optional[User]:
         session = self.Session()
         results = session.query(UserModel).filter(UserModel.id == user_id).all()
         if len(results) == 0:
@@ -321,7 +321,7 @@ class MetadataStore:
         assert len(results) == 1, f"Expected 1 result, got {len(results)}"
         return results[0].to_record()
 
-    def get_source(self, source_id: str = None, user_id: str = None, source_name: str = None) -> Source:
+    def get_source(self, source_id: str = None, user_id: str = None, source_name: str = None) -> Optional[Source]:
         session = self.Session()
         if source_id:
             results = session.query(SourceModel).filter(SourceModel.id == source_id).all()
