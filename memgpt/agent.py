@@ -180,7 +180,8 @@ class Agent(object):
         # Store the functions schemas (this is passed as an argument to ChatCompletion)
         self.functions = agent_state.state["functions"]  # these are the schema
         # Link the actual python functions corresponding to the schemas
-        self.functions_python = link_functions(function_schemas=self.functions)
+        self.functions_python = {k: v["python_function"] for k, v in link_functions(function_schemas=self.functions).items()}
+        assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
 
         # Initialize the memory object
         if "persona" not in agent_state.state:
@@ -485,18 +486,18 @@ class Agent(object):
             current_total_tokens = response["usage"]["total_tokens"]
             active_memory_warning = False
             # We can't do summarize logic properly if context_window is undefined
-            if self.config.context_window is None:
+            if self.config.llm_config.context_window is None:
                 # Fallback if for some reason context_window is missing, just set to the default
                 print(f"{CLI_WARNING_PREFIX}could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
                 print(f"{self.config}")
-                self.config.context_window = (
+                self.config.llm_config.context_window = (
                     str(LLM_MAX_TOKENS[self.model])
                     if (self.model is not None and self.model in LLM_MAX_TOKENS)
                     else str(LLM_MAX_TOKENS["DEFAULT"])
                 )
-            if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window):
+            if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.llm_config.context_window):
                 printd(
-                    f"{CLI_WARNING_PREFIX}last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window)}"
+                    f"{CLI_WARNING_PREFIX}last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.llm_config.context_window)}"
                 )
                 # Only deliver the alert if we haven't already (this period)
                 if not self.agent_alerted_about_memory_pressure:
@@ -504,9 +505,10 @@ class Agent(object):
                     self.agent_alerted_about_memory_pressure = True  # it's up to the outer loop to handle this
             else:
                 printd(
-                    f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window)}"
+                    f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.llm_config.context_window)}"
                 )
 
+            print(f"FDASJFKLASDJFKLDASJ \n\n\n\nAPPENDING MESSAGES:\n{all_new_messages}")
             self._append_to_messages(all_new_messages)
             return all_new_messages, heartbeat_request, function_failed, active_memory_warning
 
@@ -583,11 +585,11 @@ class Agent(object):
             printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
 
         # We can't do summarize logic properly if context_window is undefined
-        if self.config.context_window is None:
+        if self.config.llm_config.context_window is None:
             # Fallback if for some reason context_window is missing, just set to the default
             print(f"{CLI_WARNING_PREFIX}could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
             print(f"{self.config}")
-            self.config.context_window = (
+            self.config.llm_config.context_window = (
                 str(LLM_MAX_TOKENS[self.model])
                 if (self.model is not None and self.model in LLM_MAX_TOKENS)
                 else str(LLM_MAX_TOKENS["DEFAULT"])
