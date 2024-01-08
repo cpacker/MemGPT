@@ -5,12 +5,24 @@ import os
 import json
 import traceback
 
-from memgpt.persistence_manager import LocalStateManager
-from memgpt.config import AgentConfig, MemGPTConfig
+from memgpt.data_types import AgentState
+from memgpt.metadata import MetadataStore
+from memgpt.interface import AgentInterface
+from memgpt.persistence_manager import PersistenceManager, LocalStateManager
+from memgpt.config import MemGPTConfig
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from memgpt.memory import CoreMemory as InContextMemory, summarize_messages
 from memgpt.openai_tools import create, is_context_overflow_error
-from memgpt.utils import get_local_time, parse_json, united_diff, printd, count_tokens, get_schema_diff, validate_function_response
+from memgpt.utils import (
+    get_local_time,
+    parse_json,
+    united_diff,
+    printd,
+    count_tokens,
+    get_schema_diff,
+    validate_function_response,
+    verify_first_message_correctness,
+)
 from memgpt.constants import (
     FIRST_MESSAGE_ATTEMPTS,
     MESSAGE_SUMMARY_WARNING_FRAC,
@@ -146,45 +158,50 @@ def initialize_message_sequence(
 class Agent(object):
     def __init__(
         self,
-        config,
-        model,
-        system,
-        functions,  # list of [{'schema': 'x', 'python_function': function_pointer}, ...]
-        interface,
-        persistence_manager,
-        persona_notes,
-        human_notes,
-        messages_total=None,
-        persistence_manager_init=True,
-        first_message_verify_mono=True,
+        agent_state: AgentState,
+        interface: AgentInterface,
+        # extras
+        messages_total=None,  # TODO remove?
+        first_message_verify_mono=True,  # TODO move to config?
     ):
-        # agent config
-        self.config = config
+        # Hold a copy of the state that was used to init the agent
+        self.config = agent_state  # TODO: remove
+        self.agent_state = agent_state
 
-        # gpt-4, gpt-3.5-turbo
-        self.model = model
+        # gpt-4, gpt-3.5-turbo, ...
+        self.model = agent_state.llm_config.model
+
         # Store the system instructions (used to rebuild memory)
-        self.system = system
+        if "system" not in agent_state.state:
+            raise ValueError(f"'system' not found in provided AgentState")
+        self.system = agent_state.state["system"]
 
-        # Available functions is a mapping from:
-        # function_name -> {
-        #   json_schema: schema
-        #   python_function: function
-        # }
+        if "functions" not in agent_state.state:
+            raise ValueError(f"'functions' not found in provided AgentState")
         # Store the functions schemas (this is passed as an argument to ChatCompletion)
-        functions_schema = [f_dict["json_schema"] for f_name, f_dict in functions.items()]
-        self.functions = functions_schema
-        # Store references to the python objects
-        self.functions_python = {f_name: f_dict["python_function"] for f_name, f_dict in functions.items()}
+        self.functions = agent_state.state["functions"]  # these are the schema
+        # Link the actual python functions corresponding to the schemas
+        self.functions_python = {k: v["python_function"] for k, v in link_functions(function_schemas=self.functions).items()}
+        assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
 
         # Initialize the memory object
-        self.memory = initialize_memory(persona_notes, human_notes)
+        if "persona" not in agent_state.state:
+            raise ValueError(f"'persona' not found in provided AgentState")
+        if "human" not in agent_state.state:
+            raise ValueError(f"'human' not found in provided AgentState")
+        self.memory = initialize_memory(ai_notes=agent_state.state["persona"], human_notes=agent_state.state["human"])
         # Once the memory object is initialize, use it to "bake" the system message
-        self._messages = initialize_message_sequence(
-            self.model,
-            self.system,
-            self.memory,
-        )
+        if "messages" in agent_state.state and agent_state.state["messages"] is not None:
+            if not isinstance(agent_state.state["messages"], list):
+                raise ValueError(f"'messages' in AgentState was bad type: {type(agent_state.state['messages'])}")
+            self._messages = agent_state.state["messages"]
+        else:
+            self._messages = initialize_message_sequence(
+                self.model,
+                self.system,
+                self.memory,
+            )
+
         # Interface must implement:
         # - internal_monologue
         # - assistant_message
@@ -194,14 +211,9 @@ class Agent(object):
         # e.g., print in CLI vs send a discord message with a discord bot
         self.interface = interface
 
-        # Persistence manager must implement:
-        # - set_messages
-        # - get_messages
-        # - append_to_messages
-        self.persistence_manager = persistence_manager
-        if persistence_manager_init:
-            # creates a new agent object in the database
-            self.persistence_manager.init(self)
+        # Create the persistence manager object based on the AgentState info
+        # TODO
+        self.persistence_manager = LocalStateManager(agent_state=agent_state)
 
         # Keep track of the total number of messages throughout all time
         self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
@@ -220,6 +232,13 @@ class Agent(object):
         # When the summarizer is run, set this back to False (to reset)
         self.agent_alerted_about_memory_pressure = False
 
+        # Initialize the connection to the DB
+        self.memgpt_config = MemGPTConfig()
+        self.ms = MetadataStore(self.memgpt_config)
+
+        # Create the agent in the DB
+        self.save()
+
     @property
     def messages(self):
         return self._messages
@@ -228,14 +247,14 @@ class Agent(object):
     def messages(self, value):
         raise Exception("Modifying message list directly not allowed")
 
-    def trim_messages(self, num):
+    def _trim_messages(self, num):
         """Trim messages from the front, not including the system message"""
         self.persistence_manager.trim_messages(num)
 
         new_messages = [self.messages[0]] + self.messages[num:]
         self._messages = new_messages
 
-    def prepend_to_messages(self, added_messages):
+    def _prepend_to_messages(self, added_messages):
         """Wrapper around self.messages.prepend to allow additional calls to a state/persistence manager"""
         self.persistence_manager.prepend_to_messages(added_messages)
 
@@ -243,7 +262,7 @@ class Agent(object):
         self._messages = new_messages
         self.messages_total += len(added_messages)  # still should increment the message counter (summaries are additions too)
 
-    def append_to_messages(self, added_messages):
+    def _append_to_messages(self, added_messages):
         """Wrapper around self.messages.append to allow additional calls to a state/persistence manager"""
         self.persistence_manager.append_to_messages(added_messages)
 
@@ -256,148 +275,44 @@ class Agent(object):
         self._messages = new_messages
         self.messages_total += len(added_messages)
 
-    def swap_system_message(self, new_system_message):
+    def _swap_system_message(self, new_system_message):
         assert new_system_message["role"] == "system", new_system_message
         assert self.messages[0]["role"] == "system", self.messages
-
         self.persistence_manager.swap_system_message(new_system_message)
 
         new_messages = [new_system_message] + self.messages[1:]  # swap index 0 (system)
         self._messages = new_messages
 
-    def rebuild_memory(self):
-        """Rebuilds the system message with the latest memory object"""
-        curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
-        new_system_message = initialize_message_sequence(
-            self.model,
-            self.system,
-            self.memory,
-            archival_memory=self.persistence_manager.archival_memory,
-            recall_memory=self.persistence_manager.recall_memory,
-        )[0]
+    def _get_ai_reply(
+        self,
+        message_sequence,
+        function_call="auto",
+        first_message=False,  # hint
+    ):
+        """Get response from LLM API"""
+        try:
+            response = create(
+                agent_config=self.config,
+                messages=message_sequence,
+                functions=self.functions,
+                function_call=function_call,
+                # hint
+                first_message=first_message,
+            )
+            # special case for 'length'
+            if response.choices[0].finish_reason == "length":
+                raise Exception("Finish reason was length (maximum context length)")
 
-        diff = united_diff(curr_system_message["content"], new_system_message["content"])
-        printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
+            # catches for soft errors
+            if response.choices[0].finish_reason not in ["stop", "function_call"]:
+                raise Exception(f"API call finish with bad finish reason: {response}")
 
-        # Store the memory change (if stateful)
-        self.persistence_manager.update_memory(self.memory)
+            # unpack with response.choices[0].message.content
+            return response
+        except Exception as e:
+            raise e
 
-        # Swap the system message out
-        self.swap_system_message(new_system_message)
-
-    ### Local state management
-    def to_dict(self):
-        # TODO: select specific variables for the saves state (to eventually move to a DB) rather than checkpointing everything in the class
-        return {
-            "model": self.model,
-            "system": self.system,
-            "functions": self.functions,
-            "messages": self.messages,  # TODO: convert to IDs
-            "messages_total": self.messages_total,
-            "memory": self.memory.to_dict(),
-        }
-
-    def save_agent_state_json(self, filename):
-        """Save agent state to JSON"""
-        with open(filename, "w") as file:
-            json.dump(self.to_dict(), file)
-
-    def save(self):
-        """Save agent state locally"""
-
-        # save config
-        self.config.save()
-
-        # save agent state to timestamped file
-        timestamp = get_local_time().replace(" ", "_").replace(":", "_")
-        filename = f"{timestamp}.json"
-        os.makedirs(self.config.save_state_dir(), exist_ok=True)
-        self.save_agent_state_json(os.path.join(self.config.save_state_dir(), filename))
-
-        # save the persistence manager too (recall/archival memory)
-        self.persistence_manager.save()
-
-    @classmethod
-    def load_agent(cls, interface, agent_config: AgentConfig):
-        """Load saved agent state based on agent_config"""
-        # TODO: support loading from specific file
-        agent_name = agent_config.name
-
-        # TODO: update this for metadata database
-
-        # load state
-        directory = agent_config.save_state_dir()
-        json_files = glob.glob(os.path.join(directory, "*.json"))  # This will list all .json files in the current directory.
-        if not json_files:
-            print(f"/load error: no .json checkpoint files found")
-            raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {directory}")
-
-        # Sort files based on modified timestamp, with the latest file being the first.
-        filename = max(json_files, key=os.path.getmtime)
-        state = json.load(open(filename, "r"))
-
-        # load persistence manager
-        persistence_manager = LocalStateManager.load(agent_config)
-
-        messages = state["messages"]  # TODO: reconstruct messages using recall memory + stored IDs
-        agent = cls(
-            config=agent_config,
-            model=state["model"],
-            system=state["system"],
-            functions=link_functions(state["functions"]),
-            interface=interface,
-            persistence_manager=persistence_manager,
-            persistence_manager_init=False,
-            persona_notes=state["memory"]["persona"],
-            human_notes=state["memory"]["human"],
-            messages_total=state["messages_total"] if "messages_total" in state else len(messages) - 1,
-        )
-        agent._messages = messages
-        agent.memory = initialize_memory(state["memory"]["persona"], state["memory"]["human"])
-
-        return agent
-
-    def verify_first_message_correctness(self, response, require_send_message=True, require_monologue=False):
-        """Can be used to enforce that the first message always uses send_message"""
-        response_message = response.choices[0].message
-
-        # First message should be a call to send_message with a non-empty content
-        if require_send_message and not response_message.get("function_call"):
-            printd(f"First message didn't include function call: {response_message}")
-            return False
-
-        function_call = response_message.get("function_call")
-        function_name = function_call.get("name") if function_call is not None else ""
-        if require_send_message and function_name != "send_message" and function_name != "archival_memory_search":
-            printd(f"First message function call wasn't send_message or archival_memory_search: {response_message}")
-            return False
-
-        if require_monologue and (
-            not response_message.get("content") or response_message["content"] is None or response_message["content"] == ""
-        ):
-            printd(f"First message missing internal monologue: {response_message}")
-            return False
-
-        if response_message.get("content"):
-            ### Extras
-            monologue = response_message.get("content")
-
-            def contains_special_characters(s):
-                special_characters = '(){}[]"'
-                return any(char in s for char in special_characters)
-
-            if contains_special_characters(monologue):
-                printd(f"First message internal monologue contained special characters: {response_message}")
-                return False
-            # if 'functions' in monologue or 'send_message' in monologue or 'inner thought' in monologue.lower():
-            if "functions" in monologue or "send_message" in monologue:
-                # Sometimes the syntax won't be correct and internal syntax will leak into message.context
-                printd(f"First message internal monologue contained reserved words: {response_message}")
-                return False
-
-        return True
-
-    def handle_ai_response(self, response_message):
+    def _handle_ai_response(self, response_message):
         """Handles parsing and function execution"""
         messages = []  # append these to the history when done
 
@@ -533,11 +448,11 @@ class Agent(object):
                 printd(f"This is the first message. Running extra verifier on AI response.")
                 counter = 0
                 while True:
-                    response = self.get_ai_reply(
+                    response = self._get_ai_reply(
                         message_sequence=input_message_sequence,
                         first_message=True,  # passed through to the prompt formatter
                     )
-                    if self.verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
+                    if verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
 
                     counter += 1
@@ -545,7 +460,7 @@ class Agent(object):
                         raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
 
             else:
-                response = self.get_ai_reply(
+                response = self._get_ai_reply(
                     message_sequence=input_message_sequence,
                 )
 
@@ -554,7 +469,7 @@ class Agent(object):
             # (if yes) Step 4: send the info on the function call and function response to LLM
             response_message = response.choices[0].message
             response_message_copy = response_message.copy()
-            all_response_messages, heartbeat_request, function_failed = self.handle_ai_response(response_message)
+            all_response_messages, heartbeat_request, function_failed = self._handle_ai_response(response_message)
 
             # Add the extra metadata to the assistant response
             # (e.g. enough metadata to enable recreating the API call)
@@ -577,18 +492,18 @@ class Agent(object):
             current_total_tokens = response["usage"]["total_tokens"]
             active_memory_warning = False
             # We can't do summarize logic properly if context_window is undefined
-            if self.config.context_window is None:
+            if self.config.llm_config.context_window is None:
                 # Fallback if for some reason context_window is missing, just set to the default
                 print(f"{CLI_WARNING_PREFIX}could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
                 print(f"{self.config}")
-                self.config.context_window = (
+                self.config.llm_config.context_window = (
                     str(LLM_MAX_TOKENS[self.model])
                     if (self.model is not None and self.model in LLM_MAX_TOKENS)
                     else str(LLM_MAX_TOKENS["DEFAULT"])
                 )
-            if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window):
+            if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.llm_config.context_window):
                 printd(
-                    f"{CLI_WARNING_PREFIX}last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window)}"
+                    f"{CLI_WARNING_PREFIX}last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.llm_config.context_window)}"
                 )
                 # Only deliver the alert if we haven't already (this period)
                 if not self.agent_alerted_about_memory_pressure:
@@ -596,10 +511,10 @@ class Agent(object):
                     self.agent_alerted_about_memory_pressure = True  # it's up to the outer loop to handle this
             else:
                 printd(
-                    f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.context_window)}"
+                    f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.llm_config.context_window)}"
                 )
 
-            self.append_to_messages(all_new_messages)
+            self._append_to_messages(all_new_messages)
             return all_new_messages, heartbeat_request, function_failed, active_memory_warning
 
         except Exception as e:
@@ -675,11 +590,11 @@ class Agent(object):
             printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
 
         # We can't do summarize logic properly if context_window is undefined
-        if self.config.context_window is None:
+        if self.config.llm_config.context_window is None:
             # Fallback if for some reason context_window is missing, just set to the default
             print(f"{CLI_WARNING_PREFIX}could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
             print(f"{self.config}")
-            self.config.context_window = (
+            self.config.llm_config.context_window = (
                 str(LLM_MAX_TOKENS[self.model])
                 if (self.model is not None and self.model in LLM_MAX_TOKENS)
                 else str(LLM_MAX_TOKENS["DEFAULT"])
@@ -696,9 +611,9 @@ class Agent(object):
         printd(f"Packaged into message: {summary_message}")
 
         prior_len = len(self.messages)
-        self.trim_messages(cutoff)
+        self._trim_messages(cutoff)
         packed_summary_message = {"role": "user", "content": summary_message}
-        self.prepend_to_messages([packed_summary_message])
+        self._prepend_to_messages([packed_summary_message])
 
         # reset alert
         self.agent_alerted_about_memory_pressure = False
@@ -716,31 +631,128 @@ class Agent(object):
         elapsed_time = datetime.datetime.now() - self.pause_heartbeats_start
         return elapsed_time.total_seconds() < self.pause_heartbeats_minutes * 60
 
-    def get_ai_reply(
-        self,
-        message_sequence,
-        function_call="auto",
-        first_message=False,  # hint
-    ):
-        """Get response from LLM API"""
-        try:
-            response = create(
-                agent_config=self.config,
-                messages=message_sequence,
-                functions=self.functions,
-                function_call=function_call,
-                # hint
-                first_message=first_message,
-            )
-            # special case for 'length'
-            if response.choices[0].finish_reason == "length":
-                raise Exception("Finish reason was length (maximum context length)")
+    def rebuild_memory(self):
+        """Rebuilds the system message with the latest memory object"""
+        curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
+        new_system_message = initialize_message_sequence(
+            self.model,
+            self.system,
+            self.memory,
+            archival_memory=self.persistence_manager.archival_memory,
+            recall_memory=self.persistence_manager.recall_memory,
+        )[0]
 
-            # catches for soft errors
-            if response.choices[0].finish_reason not in ["stop", "function_call"]:
-                raise Exception(f"API call finish with bad finish reason: {response}")
+        diff = united_diff(curr_system_message["content"], new_system_message["content"])
+        printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
 
-            # unpack with response.choices[0].message.content
-            return response
-        except Exception as e:
-            raise e
+        # Swap the system message out
+        self._swap_system_message(new_system_message)
+
+    def to_agent_state(self):
+        # The state may have change since the last time we wrote it
+        updated_state = {
+            "persona": self.memory.persona,
+            "human": self.memory.human,
+            "system": self.system,
+            "functions": self.functions,
+            "messages": self.messages,
+        }
+
+        agent_state = AgentState(
+            name=self.config.name,
+            user_id=self.config.user_id,
+            persona=self.config.persona,
+            human=self.config.human,
+            llm_config=self.config.llm_config,
+            embedding_config=self.config.embedding_config,
+            preset=self.config.preset,
+            id=self.config.id,
+            created_at=self.config.created_at,
+            state=updated_state,
+        )
+
+        return agent_state
+
+    def save(self):
+        """Save agent state locally"""
+
+        agent_state = self.to_agent_state()
+        # TODO(swooders) does this make sense?
+        # without this, even after Agent.__init__, agent.config.state["messages"] will be None
+        self.config = agent_state
+
+        # Check if we need to create the agent
+        if not self.ms.get_agent(agent_id=agent_state.id, user_id=agent_state.user_id, agent_name=agent_state.name):
+            self.ms.create_agent(agent=agent_state)
+        else:
+            # Otherwise, we should update the agent
+            self.ms.update_agent(agent=agent_state)
+
+        # # save config
+        # self.config.save()
+
+        # # save agent state to timestamped file
+        # timestamp = get_local_time().replace(" ", "_").replace(":", "_")
+        # filename = f"{timestamp}.json"
+        # os.makedirs(self.config.save_state_dir(), exist_ok=True)
+        # self.save_agent_state_json(os.path.join(self.config.save_state_dir(), filename))
+
+        # # save the persistence manager too (recall/archival memory)
+        # self.persistence_manager.save()
+
+    ### Local state management
+    # def to_dict(self):
+    #     # TODO: select specific variables for the saves state (to eventually move to a DB) rather than checkpointing everything in the class
+    #     return {
+    #         "model": self.model,
+    #         "system": self.system,
+    #         "functions": self.functions,
+    #         "messages": self.messages,  # TODO: convert to IDs
+    #         "messages_total": self.messages_total,
+    #         "memory": self.memory.to_dict(),
+    #     }
+
+    # def save_agent_state_json(self, filename):
+    #     """Save agent state to JSON"""
+    #     with open(filename, "w") as file:
+    #         json.dump(self.to_dict(), file)
+
+    # @classmethod
+    # def load_agent(cls, interface, agent_config: AgentConfig):
+    #     """Load saved agent state based on agent_config"""
+    #     # TODO: support loading from specific file
+    #     agent_name = agent_config.name
+
+    #     # TODO: update this for metadata database
+
+    #     # load state
+    #     directory = agent_config.save_state_dir()
+    #     json_files = glob.glob(os.path.join(directory, "*.json"))  # This will list all .json files in the current directory.
+    #     if not json_files:
+    #         print(f"/load error: no .json checkpoint files found")
+    #         raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {directory}")
+
+    #     # Sort files based on modified timestamp, with the latest file being the first.
+    #     filename = max(json_files, key=os.path.getmtime)
+    #     state = json.load(open(filename, "r"))
+
+    #     # load persistence manager
+    #     persistence_manager = LocalStateManager.load(agent_config)
+
+    #     messages = state["messages"]  # TODO: reconstruct messages using recall memory + stored IDs
+    #     agent = cls(
+    #         config=agent_config,
+    #         model=state["model"],
+    #         system=state["system"],
+    #         functions=link_functions(state["functions"]),
+    #         interface=interface,
+    #         persistence_manager=persistence_manager,
+    #         persistence_manager_init=False,
+    #         persona_notes=state["memory"]["persona"],
+    #         human_notes=state["memory"]["human"],
+    #         messages_total=state["messages_total"] if "messages_total" in state else len(messages) - 1,
+    #     )
+    #     agent._messages = messages
+    #     agent.memory = initialize_memory(state["memory"]["persona"], state["memory"]["human"])
+
+    #     return agent

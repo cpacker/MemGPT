@@ -12,11 +12,14 @@ from memgpt.agent import Agent
 import memgpt.system as system
 import memgpt.constants as constants
 from memgpt.cli.cli import attach
-from memgpt.connectors.storage import StorageConnector
+
+# from memgpt.agent_store.storage import StorageConnector
+from memgpt.metadata import MetadataStore
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
 import memgpt.server.utils as server_utils
 from memgpt.persistence_manager import PersistenceManager, LocalStateManager
+from memgpt.data_types import Source, Passage, Document, User, AgentState
 
 # TODO use custom interface
 from memgpt.interface import CLIInterface  # for printing to terminal
@@ -130,7 +133,7 @@ class SyncServer(LockingServer):
         max_chaining_steps: bool = None,
         # default_interface_cls: AgentInterface = CLIInterface,
         default_interface: AgentInterface = CLIInterface(),
-        default_persistence_manager_cls: PersistenceManager = LocalStateManager,
+        # default_persistence_manager_cls: PersistenceManager = LocalStateManager,
     ):
         """Server process holds in-memory agents that are being run"""
 
@@ -149,15 +152,20 @@ class SyncServer(LockingServer):
         self.default_interface = default_interface
 
         # The default persistence manager that will get assigned to agents ON CREATION
-        self.default_persistence_manager_cls = default_persistence_manager_cls
+        # self.default_persistence_manager_cls = default_persistence_manager_cls
+
+        # Initialize the connection to the DB
+        self.config = MemGPTConfig()
+        self.ms = MetadataStore(self.config)
 
     def save_agents(self):
+        """Saves all the agents that are in the in-memory object store"""
         for agent_d in self.active_agents:
             try:
                 agent_d["agent"].save()
                 logger.info(f"Saved agent {agent_d['agent_id']}")
             except Exception as e:
-                logger.exception(f"Error occurred while trying to save agent {agent_d['agent_id']}")
+                logger.exception(f"Error occurred while trying to save agent {agent_d['agent_id']}:\n{e}")
 
     def _get_agent(self, user_id: str, agent_id: str) -> Union[Agent, None]:
         """Get the agent object from the in-memory object store"""
@@ -187,18 +195,20 @@ class SyncServer(LockingServer):
         if interface is None:
             interface = self.default_interface
 
-        # If the agent isn't load it, load it and put it into memory
-        if AgentConfig.exists(agent_id):
-            logger.debug(f"(user={user_id}, agent={agent_id}) exists, loading into memory...")
-            agent_config = AgentConfig.load(agent_id)
-            with utils.suppress_stdout():
-                memgpt_agent = Agent.load_agent(interface=interface, agent_config=agent_config)
+        try:
+            agent_state = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
+            if not agent_state:
+                raise ValueError(f"agent_id {agent_id} does not exist")
+
+            # Instantiate an agent object using the state retrieved
+            memgpt_agent = Agent(agent_state=agent_state, interface=interface)
+
+            # Add the agent to the in-memory store and return its reference
             self._add_agent(user_id=user_id, agent_id=agent_id, agent_obj=memgpt_agent)
             return memgpt_agent
 
-        # If the agent doesn't exist, throw an error
-        else:
-            raise ValueError(f"agent_id {agent_id} does not exist")
+        except Exception as e:
+            logger.exception(f"Error occurred while trying to get agent {agent_id}:\n{e}")
 
     def _get_or_load_agent(self, user_id: str, agent_id: str) -> Agent:
         """Check if the agent is in-memory, then load"""
@@ -408,42 +418,72 @@ class SyncServer(LockingServer):
     def create_agent(
         self,
         user_id: str,
-        agent_config: Union[dict, AgentConfig],
+        agent_config: dict,
         interface: Union[AgentInterface, None] = None,
-        persistence_manager: Union[PersistenceManager, None] = None,
-    ) -> str:
+        # persistence_manager: Union[PersistenceManager, None] = None,
+    ) -> AgentState:
         """Create a new agent using a config"""
 
         # Initialize the agent based on the provided configuration
-        if isinstance(agent_config, dict):
-            agent_config = AgentConfig(**agent_config)
+        if not isinstance(agent_config, dict):
+            raise ValueError(f"agent_config must be provided as a dictionary")
 
         if interface is None:
             # interface = self.default_interface_cls()
             interface = self.default_interface
 
-        if persistence_manager is None:
-            persistence_manager = self.default_persistence_manager_cls(agent_config=agent_config)
+        # if persistence_manager is None:
+        # persistence_manager = self.default_persistence_manager_cls(agent_config=agent_config)
 
-        # Create agent via preset from config
-        agent = presets.use_preset(
-            agent_config.preset,
-            agent_config,
-            agent_config.model,
-            utils.get_persona_text(agent_config.persona),
-            utils.get_human_text(agent_config.human),
-            interface,
-            persistence_manager,
+        # TODO actually use the user_id that was passed into the server
+        USER_ID = self.config.anon_clientid
+        # create user and agent
+        user = User(id=USER_ID)
+        user = self.ms.get_user(user_id=USER_ID)
+        if not user:
+            user = User(id=USER_ID)
+            self.ms.create_user(user)
+
+        agent_state = AgentState(
+            user_id=user.id,
+            name=agent_config["name"] if "name" in agent_config else utils.create_random_username(),
+            preset=agent_config["preset"] if "preset" in agent_config else user.default_preset,
+            # TODO we need to allow passing raw persona/human text via the server request
+            persona=agent_config["persona"] if "persona" in agent_config else user.default_persona,
+            human=agent_config["human"] if "human" in agent_config else user.default_human,
+            llm_config=agent_config["llm_config"] if "llm_config" in agent_config else user.default_llm_config,
+            embedding_config=agent_config["embedding_config"] if "embedding_config" in agent_config else user.default_embedding_config,
         )
+        agent = presets.create_agent_from_preset(agent_state=agent_state, interface=interface)
+        # TODO where should we handle saving of the AgentState?
         agent.save()
+        # try:
+        # self.ms.create_agent(agent)
+        # except ValueError:
+        # agent name under user.id already exists, not OK
+        # raise
         logger.info(f"Created new agent from config: {agent}")
 
-        return agent.config.name
+        return agent.config
+
+    def delete_agent(
+        self,
+        user_id: str,
+        agent_id: str,
+    ):
+        # Make sure the user owns the agent
+        # TODO use real user_id
+        USER_ID = self.config.anon_clientid
+        agent = self.ms.get_agent(agent_id=agent_id, user_id=USER_ID)
+        if agent is not None:
+            self.ms.delete_agent(agent_id=agent_id)
 
     def list_agents(self, user_id: str) -> dict:
         """List all available agents to a user"""
-        agents_list = utils.list_agent_config_files()
-        return {"num_agents": len(agents_list), "agent_names": agents_list}
+        # TODO actually use the user_id that was passed into the server
+        USER_ID = self.config.anon_clientid
+        agents_list = self.ms.list_agents(user_id=USER_ID)
+        return {"num_agents": len(agents_list), "agent_names": [state.name for state in agents_list]}
 
     def get_agent_memory(self, user_id: str, agent_id: str) -> dict:
         """Return the memory of an agent (core memory + non-core statistics)"""

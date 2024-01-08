@@ -16,7 +16,7 @@ def create_test_agent():
     global client
     client = MemGPT(quickstart="openai")
 
-    agent_id = client.create_agent(
+    agent_state = client.create_agent(
         agent_config={
             # "name": test_agent_id,
             "persona": constants.DEFAULT_PERSONA,
@@ -25,13 +25,14 @@ def create_test_agent():
     )
 
     global agent_obj
-    agent_obj = client.server._get_or_load_agent(user_id="NULL", agent_id=agent_id)
+    agent_obj = client.server._get_or_load_agent(user_id="NULL", agent_id=agent_state.id)
 
 
 def test_archival():
     global agent_obj
     if agent_obj is None:
         create_test_agent()
+    assert agent_obj is not None
 
     base_functions.archival_memory_insert(agent_obj, "banana")
 

@@ -7,8 +7,7 @@ from memgpt.memory import (
     EmbeddingArchivalMemory,
 )
 from memgpt.utils import get_local_time, printd
-from memgpt.data_types import Message, ToolCall
-from memgpt.config import MemGPTConfig
+from memgpt.data_types import Message, ToolCall, AgentState
 
 from datetime import datetime
 
@@ -46,15 +45,14 @@ class LocalStateManager(PersistenceManager):
     recall_memory_cls = BaseRecallMemory
     archival_memory_cls = EmbeddingArchivalMemory
 
-    def __init__(self, agent_config: AgentConfig):
+    def __init__(self, agent_state: AgentState):
         # Memory held in-state useful for debugging stateful versions
         self.memory = None
         self.messages = []  # current in-context messages
         # self.all_messages = [] # all messages seen in current session (needed if lazily synchronizing state with DB)
-        self.archival_memory = EmbeddingArchivalMemory(agent_config)
-        self.recall_memory = BaseRecallMemory(agent_config)
-        self.agent_config = agent_config
-        self.config = MemGPTConfig.load()
+        self.archival_memory = EmbeddingArchivalMemory(agent_state)
+        self.recall_memory = BaseRecallMemory(agent_state)
+        self.agent_state = agent_state
 
     @classmethod
     def load(cls, agent_config: AgentConfig):
@@ -133,11 +131,12 @@ class LocalStateManager(PersistenceManager):
             tool_calls = None
 
         return Message(
-            user_id=self.config.anon_clientid,
-            agent_id=self.agent_config.name,
+            user_id=self.agent_state.user_id,
+            agent_id=self.agent_state.id,
             role=message["role"],
             text=message["content"],
-            model=self.agent_config.model,
+            name=message["name"] if "name" in message else None,
+            model=self.agent_state.llm_config.model,
             created_at=parse_formatted_time(timestamp),
             tool_calls=tool_calls,
             tool_call_id=message["tool_call_id"] if "tool_call_id" in message else None,

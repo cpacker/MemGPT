@@ -5,7 +5,7 @@ from tqdm import tqdm
 from typing import Optional, List, Iterator, Dict
 
 from memgpt.config import MemGPTConfig
-from memgpt.connectors.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.constants import MEMGPT_DIR
 from memgpt.utils import printd
@@ -87,7 +87,7 @@ def get_db_model(table_name: str, table_type: TableType):
                     user_id=self.user_id,
                     agent_id=self.agent_id,
                     role=self.role,
-                    user=self.user,
+                    name=self.name,
                     text=self.text,
                     model=self.model,
                     function_name=self.function_name,

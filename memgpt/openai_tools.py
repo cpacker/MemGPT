@@ -378,23 +378,25 @@ def create(
 
     config = MemGPTConfig.load()  # load credentials (currently not stored in agent config)
 
-    printd(f"Using model {agent_config.model_endpoint_type}, endpoint: {agent_config.model_endpoint}")
-    if agent_config.model_endpoint_type == "openai":
+    printd(f"Using model {agent_config.llm_config.model_endpoint_type}, endpoint: {agent_config.llm_config.model_endpoint}")
+    if agent_config.llm_config.model_endpoint_type == "openai":
         # openai
         return openai_chat_completions_request(
-            url=agent_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
+            url=agent_config.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
             api_key=config.openai_key,  # 'sk....'
             data=dict(
-                model=agent_config.model,
+                model=agent_config.llm_config.model,
                 messages=messages,
                 functions=functions,
                 function_call=function_call,
                 user=config.anon_clientid,
             ),
         )
-    elif agent_config.model_endpoint_type == "azure":
+    elif agent_config.llm_config.model_endpoint_type == "azure":
         # azure
-        azure_deployment = config.azure_deployment if config.azure_deployment is not None else MODEL_TO_AZURE_ENGINE[agent_config.model]
+        azure_deployment = (
+            config.azure_deployment if config.azure_deployment is not None else MODEL_TO_AZURE_ENGINE[agent_config.llm_config.model]
+        )
         return azure_openai_chat_completions_request(
             resource_name=config.azure_endpoint,
             deployment_id=azure_deployment,
@@ -411,14 +413,14 @@ def create(
         )
     else:  # local model
         return get_chat_completion(
-            model=agent_config.model,
+            model=agent_config.llm_config.model,
             messages=messages,
             functions=functions,
             function_call=function_call,
-            context_window=agent_config.context_window,
-            endpoint=agent_config.model_endpoint,
-            endpoint_type=agent_config.model_endpoint_type,
-            wrapper=agent_config.model_wrapper,
+            context_window=agent_config.llm_config.context_window,
+            endpoint=agent_config.llm_config.model_endpoint,
+            endpoint_type=agent_config.llm_config.model_endpoint_type,
+            wrapper=agent_config.llm_config.model_wrapper,
             user=config.anon_clientid,
             # hint
             first_message=first_message,
