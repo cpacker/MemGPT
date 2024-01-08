@@ -1,15 +1,13 @@
-import typer
-from typing import Optional, List
+from typing import List
 import os
 
 from memgpt.utils import is_valid_url
 
 from llama_index.embeddings import OpenAIEmbedding, AzureOpenAIEmbedding
-from llama_index.embeddings import TextEmbeddingsInference
 from llama_index.bridge.pydantic import PrivateAttr
-
 from llama_index.embeddings.base import BaseEmbedding
-from llama_index.embeddings.huggingface_utils import format_query, format_text
+from llama_index.embeddings.huggingface_utils import format_text
+import tiktoken
 
 
 class EmbeddingEndpoint(BaseEmbedding):
@@ -36,6 +34,7 @@ class EmbeddingEndpoint(BaseEmbedding):
         self._user = user
         self._base_url = base_url
         self._timeout = timeout
+        self._encoding = tiktoken.get_encoding(model)
         super().__init__(
             model_name=model,
         )
@@ -44,12 +43,22 @@ class EmbeddingEndpoint(BaseEmbedding):
     def class_name(cls) -> str:
         return "EmbeddingEndpoint"
 
+    def count_tokens(self, text: str) -> int:
+        """Count tokens using the embedding model's tokenizer"""
+        return len(self._encoding.encode(text))
+
     def _call_api(self, text: str) -> List[float]:
         if not is_valid_url(self._base_url):
             raise ValueError(
                 f"Embeddings endpoint does not have a valid URL (set to: '{self._base_url}'). Make sure embedding_endpoint is set correctly in your MemGPT config."
             )
         import httpx
+
+        # If necessary, truncate text to fit in the embedding model's max sequence length (usually 512)
+        num_tokens = self.count_tokens(text)
+        max_length = self._encoding.max_length
+        if num_tokens > max_length:
+            text = format_text(text, self.model_name, max_length=max_length)
 
         headers = {"Content-Type": "application/json"}
         json_data = {"input": text, "model": self.model_name, "user": self._user}
