@@ -78,7 +78,7 @@ def store_docs(name, docs, user_id=None, show_progress=True):
         ), f"Expected embedding dimension {user.default_embedding_config.embedding_dim}, got {len(node.embedding)}: {node.embedding}"
         passages.append(
             Passage(
-                user_id=config.anon_clientid,
+                user_id=user.id,
                 text=text,
                 data_source=name,
                 embedding=node.embedding,

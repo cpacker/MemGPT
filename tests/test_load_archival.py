@@ -34,10 +34,8 @@ def recreate_declarative_base():
     Base.metadata.clear()
 
 
-# @pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
-# @pytest.mark.parametrize("passage_storage_connector", ["chroma", "postgres"])
-@pytest.mark.parametrize("metadata_storage_connector", ["sqlite"])
-@pytest.mark.parametrize("passage_storage_connector", ["postgres"])
+@pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
+@pytest.mark.parametrize("passage_storage_connector", ["chroma", "postgres"])
 def test_load_directory(metadata_storage_connector, passage_storage_connector, clear_dynamically_created_models, recreate_declarative_base):
     # setup config
     config = MemGPTConfig()
