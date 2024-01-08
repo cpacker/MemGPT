@@ -24,7 +24,7 @@ def test_storage(storage_connector):
     ms = MetadataStore(config)
 
     # generate data
-    user_1 = User()
+    user_1 = User(default_llm_config=LLMConfig(model="gpt4"))
     user_2 = User()
     agent_1 = AgentState(
         user_id=user_1.id,
