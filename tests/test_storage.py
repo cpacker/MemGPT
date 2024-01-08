@@ -23,6 +23,9 @@ from memgpt.data_types import User
 import argparse
 from datetime import datetime, timedelta
 
+import copy
+
+
 # Note: the database will filter out rows that do not correspond to agent1 and test_user by default.
 texts = ["This is a test passage", "This is another test passage", "Cinderella wept"]
 start_date = datetime(2009, 10, 5, 18, 00)
@@ -82,10 +85,21 @@ def recreate_declarative_base():
 
 
 @pytest.mark.parametrize("storage_connector", ["postgres", "chroma", "sqlite"])
+# @pytest.mark.parametrize("storage_connector", ["sqlite", "chroma"])
+# @pytest.mark.parametrize("storage_connector", ["postgres"])
 @pytest.mark.parametrize("table_type", [TableType.RECALL_MEMORY, TableType.ARCHIVAL_MEMORY])
 def test_storage(storage_connector, table_type, clear_dynamically_created_models, recreate_declarative_base):
     # setup memgpt config
     # TODO: set env for different config path
+    print("GLOABLS", globals())
+    globals().clear()
+
+    # hacky way to cleanup globals that scruw up tests
+    # for table_name in ['Message']:
+    #    if 'Message' in globals():
+    #        print("Removing messages", globals()['Message'])
+    #        del globals()['Message']
+
     config = MemGPTConfig()
     if storage_connector == "postgres":
         if not os.getenv("PGVECTOR_TEST_DB_URL"):

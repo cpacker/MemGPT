@@ -13,7 +13,7 @@ from memgpt.cli.cli import attach
 from memgpt.constants import DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_HUMAN
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.metadata import MetadataStore
-from memgpt.data_types import Source, Passage, Document, User, AgentState
+from memgpt.data_types import Source, Passage, Document, User, AgentState, EmbeddingConfig
 
 
 @pytest.fixture(autouse=True)
@@ -66,8 +66,19 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
     # create metadata store
     ms = MetadataStore(config)
 
+    # embedding config
+    if os.getenv("OPENAI_API_KEY"):
+        embedding_config = EmbeddingConfig(
+            embedding_endpoint_type="openai",
+            embedding_endpoint="https://api.openai.com/v1",
+            embedding_dim=1536,
+            openai_key=os.getenv("OPENAI_API_KEY"),
+        )
+    else:
+        embedding_config = EmbeddingConfig(embedding_endpoint_type="local", embedding_endpoint=None, embedding_dim=384)
+
     # create user and agent
-    user = User(id=uuid.UUID(config.anon_clientid))
+    user = User(id=uuid.UUID(config.anon_clientid), default_embedding_config=embedding_config)
     agent = AgentState(
         user_id=user.id,
         name="test_agent",
