@@ -6,6 +6,7 @@ import json
 
 from box import Box
 
+from memgpt.local_llm.grammars.gbnf_grammar_generator import generate_gbnf_grammar_and_documentation_dictionaries
 from memgpt.local_llm.webui.api import get_webui_completion
 from memgpt.local_llm.webui.legacy_api import get_webui_completion as get_webui_completion_legacy
 from memgpt.local_llm.lmstudio.api import get_lmstudio_completion
@@ -47,7 +48,7 @@ def get_chat_completion(
     assert endpoint is not None, "Local LLM calls need the endpoint (eg http://localendpoint:1234) to be explicitly set"
     assert endpoint_type is not None, "Local LLM calls need the endpoint type (eg webui) to be explicitly set"
     global has_shown_warning
-    grammar_name = None
+    grammar = None
 
     if function_call != "auto":
         raise ValueError(f"function_call == {function_call} not supported (auto only)")
@@ -67,17 +68,19 @@ def get_chat_completion(
             # make the default to use grammar
             llm_wrapper = DEFAULT_WRAPPER(include_opening_brace_in_prefix=False)
             # grammar_name = "json"
-            grammar_name = "json_func_calls_with_inner_thoughts"
+            grammar, documentation = generate_gbnf_grammar_and_documentation_dictionaries(functions, root_rule_class="function", root_rule_content="params", model_prefix="Function", fields_prefix="Parameter")
         else:
             llm_wrapper = DEFAULT_WRAPPER()
     elif wrapper not in available_wrappers:
         raise ValueError(f"Could not find requested wrapper '{wrapper} in available wrappers list:\n{available_wrappers}")
     else:
         llm_wrapper = available_wrappers[wrapper]
-        if "grammar" in wrapper:
-            grammar_name = "json_func_calls_with_inner_thoughts"
+        if endpoint_type in ["koboldcpp", "llamacpp", "webui"]:
+            setattr(llm_wrapper,  "assistant_prefix_extra_first_message", "")
 
-    if grammar_name is not None and endpoint_type not in ["koboldcpp", "llamacpp", "webui"]:
+            grammar, documentation = generate_gbnf_grammar_and_documentation_dictionaries(functions, root_rule_class="function", root_rule_content="params", model_prefix="Function", fields_prefix="Parameter")
+
+    if grammar is not None and endpoint_type not in ["koboldcpp", "llamacpp", "webui"]:
         print(f"{CLI_WARNING_PREFIX}grammars are currently only supported when using llama.cpp as the MemGPT local LLM backend")
 
     # First step: turn the message sequence into a prompt that the model expects
@@ -87,6 +90,7 @@ def get_chat_completion(
             prompt = llm_wrapper.chat_completion_to_prompt(messages, functions, first_message=first_message)
         else:
             prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
+
         printd(prompt)
     except Exception as e:
         raise LocalLLMError(
@@ -95,17 +99,17 @@ def get_chat_completion(
 
     try:
         if endpoint_type == "webui":
-            result, usage = get_webui_completion(endpoint, prompt, context_window, grammar=grammar_name)
+            result, usage = get_webui_completion(endpoint, prompt, context_window, grammar=grammar)
         elif endpoint_type == "webui-legacy":
-            result, usage = get_webui_completion_legacy(endpoint, prompt, context_window, grammar=grammar_name)
+            result, usage = get_webui_completion_legacy(endpoint, prompt, context_window, grammar=grammar)
         elif endpoint_type == "lmstudio":
             result, usage = get_lmstudio_completion(endpoint, prompt, context_window, api="completions")
         elif endpoint_type == "lmstudio-legacy":
             result, usage = get_lmstudio_completion(endpoint, prompt, context_window, api="chat")
         elif endpoint_type == "llamacpp":
-            result, usage = get_llamacpp_completion(endpoint, prompt, context_window, grammar=grammar_name)
+            result, usage = get_llamacpp_completion(endpoint, prompt, context_window, grammar=grammar)
         elif endpoint_type == "koboldcpp":
-            result, usage = get_koboldcpp_completion(endpoint, prompt, context_window, grammar=grammar_name)
+            result, usage = get_koboldcpp_completion(endpoint, prompt, context_window, grammar=grammar)
         elif endpoint_type == "ollama":
             result, usage = get_ollama_completion(endpoint, model, prompt, context_window)
         elif endpoint_type == "vllm":

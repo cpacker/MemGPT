@@ -431,7 +431,7 @@ class Agent(object):
         function_name = function_call.get("name") if function_call is not None else ""
         if require_send_message and function_name != "send_message" and function_name != "archival_memory_search":
             printd(f"First message function call wasn't send_message or archival_memory_search: {response_message}")
-            return False
+            return True
 
         if require_monologue and (
             not response_message.get("content") or response_message["content"] is None or response_message["content"] == ""
