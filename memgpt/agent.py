@@ -165,7 +165,8 @@ class Agent(object):
         first_message_verify_mono=True,  # TODO move to config?
     ):
         # Hold a copy of the state that was used to init the agent
-        self.config = agent_state
+        self.config = agent_state  # TODO: remove
+        self.agent_state = agent_state
 
         # gpt-4, gpt-3.5-turbo, ...
         self.model = agent_state.llm_config.model

@@ -6,7 +6,7 @@ from typing import Optional, List, Dict
 import numpy as np
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
-from memgpt.utils import get_local_time
+from memgpt.utils import get_local_time, format_datetime
 
 # Defining schema objects:
 # Note: user/agent can borrow from MemGPTConfig/AgentConfig classes
@@ -389,6 +389,20 @@ class AgentState:
 
         # state
         self.state = state
+
+    # def __dict__(self):
+    #    return {
+    #        "id": self.id,
+    #        "name": self.name,
+    #        "user_id": self.user_id,
+    #        "preset": self.preset,
+    #        "persona": self.persona,
+    #        "human": self.human,
+    #        "llm_config": self.llm_config,
+    #        "embedding_config": self.embedding_config,
+    #        "created_at": format_datetime(self.created_at),
+    #        "state": self.state,
+    #    }
 
 
 class Source:

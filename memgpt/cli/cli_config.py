@@ -1,4 +1,5 @@
 import builtins
+import uuid
 import questionary
 from prettytable import PrettyTable
 import typer
@@ -20,6 +21,7 @@ from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.openai_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.server.utils import shorten_key_middle
 from memgpt.data_types import User, LLMConfig, EmbeddingConfig
+from memgpt.metadata import MetadataStore
 
 app = typer.Typer()
 
@@ -465,6 +467,7 @@ def configure():
         typer.secho(str(e), fg=typer.colors.RED)
         return
 
+    # TODO: remove most of this (deplicated with User table)
     config = MemGPTConfig(
         # model configs
         model=model,
@@ -502,8 +505,43 @@ def configure():
         metadata_storage_uri=recall_storage_uri,
         metadata_storage_path=recall_storage_path,
     )
+
     typer.secho(f"📖 Saving config to {config.config_path}", fg=typer.colors.GREEN)
     config.save()
+
+    # create user records
+    ms = MetadataStore(config)
+    user_id = uuid.UUID(config.anon_clientid)
+    user = User(
+        id=uuid.UUID(config.anon_clientid),
+        default_preset=default_preset,
+        default_persona=default_persona,
+        default_human=default_human,
+        default_agent=default_agent,
+        default_llm_config=LLMConfig(
+            model=model,
+            model_endpoint=model_endpoint,
+            model_endpoint_type=model_endpoint_type,
+            model_wrapper=model_wrapper,
+            context_window=context_window,
+        ),
+        default_embedding_config=EmbeddingConfig(
+            embedding_endpoint_type=embedding_endpoint_type,
+            embedding_endpoint=embedding_endpoint,
+            embedding_dim=embedding_dim,
+            embedding_model=embedding_model,
+            openai_key=openai_key,
+            azure_key=azure_creds["azure_key"],
+            azure_endpoint=azure_creds["azure_endpoint"],
+            azure_version=azure_creds["azure_version"],
+            azure_deployment=azure_creds["azure_deployment"],  # OK if None
+        ),
+    )
+    if ms.get_user(user_id):
+        # update user
+        ms.update_user(user)
+    else:
+        ms.create_user(user)
 
 
 class ListChoice(str, Enum):

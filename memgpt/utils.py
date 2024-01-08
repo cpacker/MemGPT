@@ -631,6 +631,10 @@ def get_local_time(timezone=None):
     return time_str.strip()
 
 
+def format_datetime(dt):
+    return dt.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
+
+
 def parse_json(string):
     """Parse JSON string into JSON with both json and demjson"""
     result = None
