@@ -42,6 +42,7 @@ async def test_dummy():
     assert True
 
 
+@pytest.mark.skip(reason="websockets is temporarily unsupported in 0.2.12")
 @pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="Missing PG URI and/or OpenAI API key")
 @pytest.mark.asyncio
 async def test_websockets():
