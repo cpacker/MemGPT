@@ -35,6 +35,7 @@ from datetime import datetime
 # Custom UUID type
 class CommonUUID(TypeDecorator):
     impl = CHAR
+    cache_ok = True
 
     def load_dialect_impl(self, dialect):
         if dialect.name == "postgresql":
@@ -56,10 +57,10 @@ class CommonUUID(TypeDecorator):
 
 
 class CommonVector(TypeDecorator):
-
     """Common type for representing vectors in SQLite"""
 
     impl = BINARY
+    cache_ok = True
 
     def load_dialect_impl(self, dialect):
         return dialect.type_descriptor(BINARY())
@@ -80,10 +81,10 @@ class CommonVector(TypeDecorator):
 
 
 class ToolCallColumn(TypeDecorator):
-
     """Custom type for storing List[ToolCall] as JSON"""
 
     impl = JSON
+    cache_ok = True
 
     def load_dialect_impl(self, dialect):
         return dialect.type_descriptor(JSON())

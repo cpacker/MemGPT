@@ -27,6 +27,7 @@ Base = declarative_base()
 # Custom UUID type
 class CommonUUID(TypeDecorator):
     impl = CHAR
+    cache_ok = True
 
     def load_dialect_impl(self, dialect):
         if dialect.name == "postgresql":
@@ -48,10 +49,10 @@ class CommonUUID(TypeDecorator):
 
 
 class LLMConfigColumn(TypeDecorator):
-
     """Custom type for storing LLMConfig as JSON"""
 
     impl = JSON
+    cache_ok = True
 
     def load_dialect_impl(self, dialect):
         return dialect.type_descriptor(JSON())
@@ -68,10 +69,10 @@ class LLMConfigColumn(TypeDecorator):
 
 
 class EmbeddingConfigColumn(TypeDecorator):
-
     """Custom type for storing EmbeddingConfig as JSON"""
 
     impl = JSON
+    cache_ok = True
 
     def load_dialect_impl(self, dialect):
         return dialect.type_descriptor(JSON())
