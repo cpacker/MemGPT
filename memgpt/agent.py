@@ -509,7 +509,6 @@ class Agent(object):
                     f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.llm_config.context_window)}"
                 )
 
-            print(f"FDASJFKLASDJFKLDASJ \n\n\n\nAPPENDING MESSAGES:\n{all_new_messages}")
             self._append_to_messages(all_new_messages)
             return all_new_messages, heartbeat_request, function_failed, active_memory_warning
 

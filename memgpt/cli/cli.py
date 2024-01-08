@@ -382,7 +382,7 @@ def run(
                 agent = questionary.select("Select agent:", choices=agents).ask()
 
     # create agent config
-    if agent and AgentConfig.exists(agent):  # use existing agent
+    if agent and ms.get_agent(agent_name=agent, user_id=user.id):  # use existing agent
         typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
         # agent_config = AgentConfig.load(agent)
         agent_state = ms.get_agent(agent_name=agent, user_id=user_id)
@@ -435,10 +435,8 @@ def run(
         # Update the agent with any overrides
         ms.update_agent(agent_state)
 
-        # Supress llama-index noise
-        with suppress_stdout():
-            # load existing agent
-            memgpt_agent = Agent.load_agent(interface, agent_state)
+        # create agent
+        memgpt_agent = Agent(agent_state, interface=interface)
 
     else:  # create new agent
         # create new agent config: override defaults with args if provided
