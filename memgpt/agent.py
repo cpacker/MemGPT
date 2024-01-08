@@ -191,11 +191,16 @@ class Agent(object):
             raise ValueError(f"'human' not found in provided AgentState")
         self.memory = initialize_memory(ai_notes=agent_state.state["persona"], human_notes=agent_state.state["human"])
         # Once the memory object is initialize, use it to "bake" the system message
-        self._messages = initialize_message_sequence(
-            self.model,
-            self.system,
-            self.memory,
-        )
+        if "messages" in agent_state.state and agent_state.state["messages"] is not None:
+            if not isinstance(agent_state.state["messages"], list):
+                raise ValueError(f"'messages' in AgentState was bad type: {type(agent_state.state['messages'])}")
+            self._messages = agent_state.state["messages"]
+        else:
+            self._messages = initialize_message_sequence(
+                self.model,
+                self.system,
+                self.memory,
+            )
 
         # Interface must implement:
         # - internal_monologue
@@ -672,6 +677,9 @@ class Agent(object):
         """Save agent state locally"""
 
         agent_state = self.to_agent_state()
+        # TODO(swooders) does this make sense?
+        # without this, even after Agent.__init__, agent.config.state["messages"] will be None
+        self.config = agent_state
 
         # Check if we need to create the agent
         if not self.ms.get_agent(agent_id=agent_state.id, user_id=agent_state.user_id, agent_name=agent_state.name):

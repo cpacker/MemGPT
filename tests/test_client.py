@@ -56,15 +56,26 @@ def test_save_load():
     client2_agent_state = client2_agent_obj.to_agent_state()
 
     # assert test_agent_state == client2_agent_state, f"{vars(test_agent_state)}\n{vars(client2_agent_state)}"
-    state_1 = vars(test_agent_state)
-    state_2 = vars(client2_agent_state)
-    assert state_1.keys() == state_2.keys(), f"{state_1.keys()}\n{state_2.keys}"
-    for k, v1 in state_1.items():
-        v2 = state_2[k]
-        if isinstance(v1, LLMConfig) or isinstance(v1, EmbeddingConfig):
-            assert vars(v1) == vars(v2), f"{vars(v1)}\n{vars(v2)}"
-        else:
-            assert v1 == v2, f"{v1}\n{v2}"
+    def check_state_equivalence(state_1, state_2):
+        assert state_1.keys() == state_2.keys(), f"{state_1.keys()}\n{state_2.keys}"
+        for k, v1 in state_1.items():
+            v2 = state_2[k]
+            if isinstance(v1, LLMConfig) or isinstance(v1, EmbeddingConfig):
+                assert vars(v1) == vars(v2), f"{vars(v1)}\n{vars(v2)}"
+            else:
+                assert v1 == v2, f"{v1}\n{v2}"
+
+    check_state_equivalence(vars(test_agent_state), vars(client2_agent_state))
+
+    # Now, write out the save from the original client
+    # This should persist the test message into the agent state
+    client.save()
+
+    client3 = MemGPT(quickstart="openai")
+    client3_agent_obj = client3.server._get_or_load_agent(user_id="", agent_id=test_agent_state.id)
+    client3_agent_state = client3_agent_obj.to_agent_state()
+
+    check_state_equivalence(vars(test_agent_state_post_message), vars(client3_agent_state))
 
 
 if __name__ == "__main__":

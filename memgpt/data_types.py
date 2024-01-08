@@ -390,6 +390,22 @@ class AgentState:
         # state
         self.state = state
 
+    # def __eq__(self, other):
+    #     if not isinstance(other, AgentState):
+    #         # return False
+    #         return NotImplemented
+
+    #     return (
+    #         self.name == other.name
+    #         and self.user_id == other.user_id
+    #         and self.persona == other.persona
+    #         and self.human == other.human
+    #         and vars(self.llm_config) == vars(other.llm_config)
+    #         and vars(self.embedding_config) == vars(other.embedding_config)
+    #         and self.preset == other.preset
+    #         and self.state == other.state
+    #     )
+
     # def __dict__(self):
     #    return {
     #        "id": self.id,
