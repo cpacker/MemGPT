@@ -27,6 +27,7 @@ from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.constants import MEMGPT_DIR
 from memgpt.utils import printd
 from memgpt.data_types import Record, Message, Passage, Source, ToolCall, LLMConfig, EmbeddingConfig, AgentState, User
+from memgpt.metadata import MetadataStore
 
 from datetime import datetime
 
@@ -98,8 +99,19 @@ class ToolCallColumn(TypeDecorator):
 Base = declarative_base()
 
 
-def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
-    config = MemGPTConfig.load()
+def get_db_model(config: MemGPTConfig, table_name: str, table_type: TableType, user_id, agent_id=None, dialect="postgresql"):
+
+    # get embedding dimention info
+    ms = MetadataStore(config)
+    if agent_id and ms.get_agent(agent_id):
+        agent = ms.get_agent(agent_id)
+        embedding_dim = agent.embedding_config.embedding_dim
+    else:
+        user = ms.get_user(user_id)
+        print("query", user_id, user)
+        if user is None:
+            raise ValueError(f"User {user_id} not found")
+        embedding_dim = user.default_embedding_config.embedding_dim
 
     # Define a helper function to create or get the model class
     def create_or_get_model(class_name, base_model, table_name):
@@ -132,7 +144,7 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
             else:
                 from pgvector.sqlalchemy import Vector
 
-                embedding = mapped_column(Vector(config.embedding_dim))
+                embedding = mapped_column(Vector(embedding_dim))
 
             metadata_ = Column(MutableJson)
 
@@ -192,7 +204,7 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
             else:
                 from pgvector.sqlalchemy import Vector
 
-                embedding = mapped_column(Vector(config.embedding_dim))
+                embedding = mapped_column(Vector(embedding_dim))
 
             # Add a datetime column, with default value as the current time
             created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -372,7 +384,7 @@ class PostgresStorageConnector(SQLStorageConnector):
         else:
             raise ValueError(f"Table type {table_type} not implemented")
         # create table
-        self.db_model = get_db_model(self.table_name, table_type)
+        self.db_model = get_db_model(config, self.table_name, table_type, user_id, agent_id)
         self.engine = create_engine(self.uri)
         for c in self.db_model.__table__.columns:
             if c.name == "embedding":
@@ -412,7 +424,7 @@ class SQLLiteStorageConnector(SQLStorageConnector):
         self.path = os.path.join(self.path, f"{self.table_name}.db")
 
         # Create the SQLAlchemy engine
-        self.db_model = get_db_model(self.table_name, table_type, dialect="sqlite")
+        self.db_model = get_db_model(config, self.table_name, table_type, user_id, agent_id, dialect="sqlite")
         self.engine = create_engine(f"sqlite:///{self.path}")
         Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
         self.Session = sessionmaker(bind=self.engine)

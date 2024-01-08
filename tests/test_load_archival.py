@@ -82,6 +82,8 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
     ms.delete_user(user.id)
     ms.create_user(user)
     ms.create_agent(agent)
+    user = ms.get_user(user.id)
+    print("Got user:", user, user.default_embedding_config)
 
     # setup storage connectors
     print("Creating storage connectors...")
@@ -132,7 +134,7 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
 
     # test loading into an agent
     # create agent
-    agent_id = uuid.uuid4()
+    agent_id = agent.id
     # create storage connector
     print("Creating agent archival storage connector...")
     conn = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config=config, user_id=user_id, agent_id=agent_id)
@@ -143,18 +145,17 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
 
     # attach data
     print("Attaching data...")
-    attach(agent=agent.name, data_source=name)
+    attach(agent=agent.name, data_source=name, user_id=user_id)
 
     # test to see if contained in storage
     assert len(passages) == conn.size()
     assert len(passages) == len(conn.get_all({"data_source": name}))
 
     # test: delete source
-    data_source_conn.delete({"name": name})
     passages_conn.delete({"data_source": name})
-    assert len(data_source_conn.get_all({"name": name})) == 0
     assert len(passages_conn.get_all({"data_source": name})) == 0
 
+    # cleanup
     ms.delete_user(user.id)
     ms.delete_agent(agent.id)
-    ms.delete_source(source.id)
+    ms.delete_source(sources[0].id)

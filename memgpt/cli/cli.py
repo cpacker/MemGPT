@@ -1,4 +1,5 @@
 import typer
+import uuid
 import json
 import requests
 import sys
@@ -530,12 +531,12 @@ def run(
 def attach(
     agent: str = typer.Option(help="Specify agent to attach data to"),
     data_source: str = typer.Option(help="Data source to attach to avent"),
-    user_id: str = typer.Option(None, help="User ID to associate with dataset."),
+    user_id: uuid.UUID = None,
 ):
     # use client ID is no user_id provided
     config = MemGPTConfig.load()
     if user_id is None:
-        user_id = config.anon_clientid
+        user_id = uuid.UUID(config.anon_clientid)
     try:
         # loads the data contained in data source into the agent's memory
         from memgpt.agent_store.storage import StorageConnector, TableType
@@ -544,11 +545,12 @@ def attach(
         ms = MetadataStore(config)
         agent = ms.get_agent(agent_name=agent, user_id=user_id)
         source = ms.get_source(source_name=data_source, user_id=user_id)
+        assert source is not None, f"Source {data_source} does not exist for user {user_id}"
 
         # get storage connectors
         with suppress_stdout():
-            source_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, user_id=user_id)
-            dest_storage = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, user_id=user_id, agent_id=agent.id)
+            source_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id=user_id)
+            dest_storage = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config, user_id=user_id, agent_id=agent.id)
 
         size = source_storage.size({"data_source": data_source})
         typer.secho(f"Ingesting {size} passages into {agent.name}", fg=typer.colors.GREEN)
@@ -570,7 +572,8 @@ def attach(
         dest_storage.save()
 
         # attach to agent
-        ms.attach_source(agent_id=agent.id, source_name=source.id, user_id=user_id)
+        source_id = ms.get_source(source_name=data_source, user_id=user_id).id
+        ms.attach_source(agent_id=agent.id, source_id=source_id, user_id=user_id)
 
         total_agent_passages = dest_storage.size()
 

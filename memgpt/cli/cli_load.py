@@ -54,6 +54,7 @@ def store_docs(name, docs, user_id=None, show_progress=True):
     # compute and record passages
     print("USER ID", user.id)
     storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user.id)
+    print("embedding config", user.default_embedding_config, user.default_embedding_config.embedding_dim)
     embed_model = embedding_model(user.default_embedding_config)
     orig_size = storage.size()
 
