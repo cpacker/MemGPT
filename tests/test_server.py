@@ -2,9 +2,12 @@ import memgpt.utils as utils
 
 utils.DEBUG = True
 from memgpt.server.server import SyncServer
+from .utils import wipe_config, wipe_memgpt_home
 
 
 def test_server():
+    wipe_memgpt_home()
+
     user_id = "NULL"
 
     server = SyncServer()
