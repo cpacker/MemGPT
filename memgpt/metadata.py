@@ -182,6 +182,8 @@ class SourceModel(Base):
     name = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    # TODO: add num passages
+
     def __repr__(self) -> str:
         return f"<Source(passage_id='{self.id}', name='{self.name}')>"
 
@@ -348,6 +350,11 @@ class MetadataStore:
         session = self.Session()
         results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
         return [r.source_id for r in results]
+
+    def list_attached_agents(self, source_id):
+        session = self.Session()
+        results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).all()
+        return [r.agent_id for r in results]
 
     def detach_source(self, agent_id: str, source_id: str):
         session = self.Session()

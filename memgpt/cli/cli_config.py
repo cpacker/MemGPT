@@ -553,21 +553,24 @@ class ListChoice(str, Enum):
 
 @app.command()
 def list(arg: Annotated[ListChoice, typer.Argument]):
+    config = MemGPTConfig.load()
+    ms = MetadataStore(config)
+    user_id = uuid.UUID(config.anon_clientid)
     if arg == ListChoice.agents:
         """List all agents"""
         table = PrettyTable()
         table.field_names = ["Name", "Model", "Persona", "Human", "Data Source", "Create Time"]
-        for agent_file in utils.list_agent_config_files():
-            agent_name = os.path.basename(agent_file).replace(".json", "")
-            agent_config = AgentConfig.load(agent_name)
+        for agent in ms.list_agents(user_id=user_id):
+            source_ids = ms.list_attached_sources(agent_id=agent.id)
+            source_names = [ms.get_source(source_id=source_id).name for source_id in source_ids]
             table.add_row(
                 [
-                    agent_name,
-                    agent_config.model,
-                    agent_config.persona,
-                    agent_config.human,
-                    ",".join(agent_config.data_sources),
-                    agent_config.create_time,
+                    agent.name,
+                    agent.llm_config.model,
+                    agent.persona,
+                    agent.human,
+                    ",".join(source_names),
+                    utils.format_datetime(agent.created_at),
                 ]
             )
         print(table)
@@ -592,20 +595,22 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         print(table)
     elif arg == ListChoice.sources:
         """List all data sources"""
-        conn = StorageConnector.get_metadata_storage_connector(table_type=TableType.DATA_SOURCES)  # already filters by user
-        passage_conn = StorageConnector.get_storage_connector(table_type=TableType.PASSAGES)
 
         # create table
         table = PrettyTable()
-        table.field_names = ["Name", "Created At", "Number of Passages", "Agents"]
+        table.field_names = ["Name", "Created At", "Agents"]
         # TODO: eventually look accross all storage connections
         # TODO: add data source stats
         # TODO: connect to agents
 
         # get all sources
-        for data_source in conn.get_all():
-            num_passages = passage_conn.size({"data_source": data_source.name})
-            table.add_row([data_source.name, data_source.created_at, num_passages, ""])
+        for source in ms.list_sources(user_id=user_id):
+            # get attached agents
+            agent_ids = ms.list_attached_agents(source_id=source.id)
+            agent_names = [ms.get_agent(agent_id=agent_id).name for agent_id in agent_ids]
+
+            table.add_row([source.name, utils.format_datetime(source.created_at), ",".join(agent_names)])
+
         print(table)
     else:
         raise ValueError(f"Unknown argument {arg}")
