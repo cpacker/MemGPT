@@ -188,7 +188,7 @@ def get_db_model(config: MemGPTConfig, table_name: str, table_type: TableType, u
             role = Column(String, nullable=False)
             text = Column(String)  # optional: can be null if function call
             model = Column(String, nullable=False)
-            user = Column(String)  # optional: multi-agent only
+            name = Column(String)  # optional: multi-agent only
 
             # tool call request info
             # if role == "assistant", this MAY be specified

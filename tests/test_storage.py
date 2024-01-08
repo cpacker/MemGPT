@@ -1,4 +1,5 @@
 import os
+from sqlalchemy.ext.declarative import declarative_base
 import uuid
 import subprocess
 import sys
@@ -62,9 +63,28 @@ def generate_messages(embed_model):
     return messages
 
 
+@pytest.fixture(autouse=True)
+def clear_dynamically_created_models():
+    """Wipe globals for SQLAlchemy"""
+    yield
+    for key in list(globals().keys()):
+        if key.endswith("Model"):
+            del globals()[key]
+
+
+@pytest.fixture(autouse=True)
+def recreate_declarative_base():
+    """Recreate the declarative base before each test"""
+    global Base
+    Base = declarative_base()
+    yield
+    Base.metadata.clear()
+
+
 @pytest.mark.parametrize("storage_connector", ["postgres", "chroma", "sqlite"])
 @pytest.mark.parametrize("table_type", [TableType.RECALL_MEMORY, TableType.ARCHIVAL_MEMORY])
-def test_storage(storage_connector, table_type):
+def test_storage(storage_connector, table_type, clear_dynamically_created_models, recreate_declarative_base):
+
     # setup memgpt config
     # TODO: set env for different config path
     config = MemGPTConfig()

@@ -73,7 +73,7 @@ class Message(Record):
 
         # openai info
         self.role = role  # role (agent/user/function)
-        self.user = user
+        self.name = name
 
         # tool (i.e. function) call info (optional)
 

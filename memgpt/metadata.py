@@ -218,7 +218,9 @@ class MetadataStore:
         # TODO: check to see if table(s) need to be greated or not
 
         self.engine = create_engine(self.uri)
-        Base.metadata.create_all(self.engine)
+        Base.metadata.create_all(
+            self.engine, tables=[UserModel.__table__, AgentModel.__table__, SourceModel.__table__, AgentSourceMappingModel.__table__]
+        )
         self.Session = sessionmaker(bind=self.engine)
 
     def create_agent(self, agent: AgentState):
