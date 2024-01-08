@@ -11,12 +11,14 @@ memgpt load <data-connector-type> --name <dataset-name> [ADDITIONAL ARGS]
 from typing import List
 from tqdm import tqdm
 import typer
+import uuid
 from memgpt.embeddings import embedding_model
-from memgpt.connectors.storage import StorageConnector
+from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
-from memgpt.data_types import Source, Passage, Document
+from memgpt.metadata import MetadataStore
+from memgpt.data_types import Source, Passage, Document, User
 from memgpt.utils import get_local_time, suppress_stdout
-from memgpt.connectors.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector, TableType
 
 from datetime import datetime
 
@@ -30,23 +32,30 @@ from llama_index import (
 app = typer.Typer()
 
 
-def store_docs(name, docs, show_progress=True):
+def store_docs(name, docs, user_id=None, show_progress=True):
     """Common function for embedding and storing documents"""
 
     config = MemGPTConfig.load()
+    if user_id is None:  # assume running local with single user
+        user_id = uuid.UUID(config.anon_clientid)
 
     # record data source metadata
-    data_source = Source(user_id=config.anon_clientid, name=name, created_at=datetime.now())
-    metadata_conn = StorageConnector.get_metadata_storage_connector(TableType.DATA_SOURCES)
-    if len(metadata_conn.get_all({"name": name})) > 0:
-        print(f"Data source {name} already exists in metadata, skipping.")
-        # TODO: should this error, or just add more data to this source?
+    ms = MetadataStore(config)
+    user = ms.get_user(user_id)
+    print("USER", user)
+    data_source = Source(user_id=user.id, name=name, created_at=datetime.now())
+    if not ms.get_source(user_id=user.id, source_name=name):
+        print("Trying to add...")
+        ms.create_source(data_source)
+        print("Created source", data_source)
     else:
-        metadata_conn.insert(data_source)
+        print(f"Source {name} for user {user.id} already exists")
 
     # compute and record passages
-    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, storage_type=config.archival_storage_type)
-    embed_model = embedding_model()
+    print("USER ID", user.id)
+    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user.id)
+    print("embedding config", user.default_embedding_config, user.default_embedding_config.embedding_dim)
+    embed_model = embedding_model(user.default_embedding_config)
     orig_size = storage.size()
 
     # use llama index to run embeddings code
@@ -65,11 +74,11 @@ def store_docs(name, docs, show_progress=True):
         node.embedding = vector
         text = node.text.replace("\x00", "\uFFFD")  # hacky fix for error on null characters
         assert (
-            len(node.embedding) == config.embedding_dim
-        ), f"Expected embedding dimension {config.embedding_dim}, got {len(node.embedding)}: {node.embedding}"
+            len(node.embedding) == user.default_embedding_config.embedding_dim
+        ), f"Expected embedding dimension {user.default_embedding_config.embedding_dim}, got {len(node.embedding)}: {node.embedding}"
         passages.append(
             Passage(
-                user_id=config.anon_clientid,
+                user_id=user.id,
                 text=text,
                 data_source=name,
                 embedding=node.embedding,
@@ -119,6 +128,7 @@ def load_directory(
     input_dir: str = typer.Option(None, help="Path to directory containing dataset."),
     input_files: List[str] = typer.Option(None, help="List of paths to files containing dataset."),
     recursive: bool = typer.Option(False, help="Recursively search for files in directory."),
+    user_id: str = typer.Option(None, help="User ID to associate with dataset."),
 ):
     try:
         from llama_index import SimpleDirectoryReader
@@ -136,7 +146,7 @@ def load_directory(
 
         # load docs
         docs = reader.load_data()
-        store_docs(name, docs)
+        store_docs(name, docs, user_id)
 
     except ValueError as e:
         typer.secho(f"Failed to load directory from provided information.\n{e}", fg=typer.colors.RED)

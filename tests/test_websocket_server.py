@@ -14,6 +14,7 @@ async def test_dummy():
     assert True
 
 
+@pytest.mark.skip(reason="websockets is temporarily unsupported in 0.2.12")
 @pytest.mark.asyncio
 async def test_websocket_server():
     # host = "127.0.0.1"
