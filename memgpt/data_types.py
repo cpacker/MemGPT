@@ -57,7 +57,7 @@ class Message(Record):
         role: str,
         text: str,
         model: str,  # model used to make function call
-        user: Optional[str] = None,  # optional participant name
+        name: Optional[str] = None,  # optional participant name
         created_at: Optional[str] = None,
         tool_calls: Optional[List[ToolCall]] = None,  # list of tool calls requested
         tool_call_id: Optional[str] = None,

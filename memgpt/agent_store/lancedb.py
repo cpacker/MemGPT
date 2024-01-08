@@ -87,7 +87,7 @@ def get_db_model(table_name: str, table_type: TableType):
                     user_id=self.user_id,
                     agent_id=self.agent_id,
                     role=self.role,
-                    user=self.user,
+                    name=self.name,
                     text=self.text,
                     model=self.model,
                     function_name=self.function_name,

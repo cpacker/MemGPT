@@ -135,6 +135,7 @@ class LocalStateManager(PersistenceManager):
             agent_id=self.agent_state.id,
             role=message["role"],
             text=message["content"],
+            name=message["name"] if "name" in message else None,
             model=self.agent_state.llm_config.model,
             created_at=parse_formatted_time(timestamp),
             tool_calls=tool_calls,
