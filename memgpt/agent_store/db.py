@@ -69,11 +69,16 @@ class CommonVector(TypeDecorator):
         if value:
             assert isinstance(value, np.ndarray) or isinstance(value, list), f"Value must be of type np.ndarray or list, got {type(value)}"
             assert isinstance(value[0], float), f"Value must be of type float, got {type(value[0])}"
+            # print("WRITE", np.array(value).tobytes())
             return np.array(value).tobytes()
         else:
+            # print("WRITE", value, type(value))
             return value
 
     def process_result_value(self, value, dialect):
+        if not value:
+            return value
+        # print("dialect", dialect, type(value))
         return np.frombuffer(value)
 
 
