@@ -12,12 +12,14 @@ from memgpt import utils
 
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.constants import MEMGPT_DIR
-from memgpt.connectors.storage import StorageConnector, TableType
+
+# from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.constants import LLM_MAX_TOKENS
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.openai_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.server.utils import shorten_key_middle
+from memgpt.data_types import User, LLMConfig, EmbeddingConfig
 
 app = typer.Typer()
 

@@ -4,7 +4,8 @@ from memgpt import constants
 from .utils import wipe_config
 
 
-test_agent_id = "test_client_agent"
+test_agent_name = "test_client_agent"
+test_agent_id = None
 client = None
 
 
@@ -13,15 +14,19 @@ def test_create_agent():
     global client
     client = MemGPT(quickstart="openai")
 
-    agent_id = client.create_agent(
+    agent_state = client.create_agent(
         agent_config={
-            "name": test_agent_id,
+            "name": test_agent_name,
             "persona": constants.DEFAULT_PERSONA,
             "human": constants.DEFAULT_HUMAN,
         }
     )
-    assert agent_id is not None
-    return client, agent_id
+    assert agent_state is not None
+
+    global test_agent_id
+    test_agent_id = agent_state.id
+
+    return client, agent_state
 
 
 def test_user_message():

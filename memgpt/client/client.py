@@ -1,6 +1,7 @@
 import os
 from typing import Dict, List, Union
 
+from memgpt.data_types import AgentState
 from memgpt.cli.cli import QuickstartChoice
 from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func, str_to_quickstart_choice
 from memgpt.config import MemGPTConfig, AgentConfig
@@ -12,6 +13,7 @@ from memgpt.server.server import SyncServer
 class Client(object):
     def __init__(
         self,
+        user_id: str = None,
         auto_save: bool = False,
         quickstart: Union[QuickstartChoice, str, None] = None,
         config: Union[Dict, MemGPTConfig] = None,  # not the same thing as AgentConfig
@@ -24,7 +26,6 @@ class Client(object):
         :param config: optional config settings to apply after quickstart
         :param debug: indicates whether to display debug messages.
         """
-        self.user_id = "null"
         self.auto_save = auto_save
 
         # make sure everything is set up properly
@@ -56,6 +57,7 @@ class Client(object):
         if config is not None:
             set_config_with_dict(config)
 
+        self.user_id = MemGPTConfig.load().anon_clientid if user_id is None else user_id
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface=self.interface)
 
@@ -69,23 +71,21 @@ class Client(object):
 
     def create_agent(
         self,
-        agent_config: Union[Dict, AgentConfig],
-        persistence_manager: Union[PersistenceManager, None] = None,
-        throw_if_exists: bool = False,
-    ) -> str:
+        agent_config: dict,
+        # persistence_manager: Union[PersistenceManager, None] = None,
+        throw_if_exists: bool = True,
+    ) -> AgentState:
         if isinstance(agent_config, dict):
             agent_name = agent_config.get("name")
         else:
-            agent_name = agent_config.name
+            raise TypeError(f"agent_config must be of type dict")
 
         if not self.agent_exists(agent_id=agent_name):
             self.interface.clear()
-            return self.server.create_agent(user_id=self.user_id, agent_config=agent_config, persistence_manager=persistence_manager)
-
-        if throw_if_exists:
+            agent_state = self.server.create_agent(user_id=self.user_id, agent_config=agent_config)
+            return agent_state
+        else:
             raise ValueError(f"Agent {agent_name} already exists")
-
-        return agent_name
 
     def get_agent_config(self, agent_id: str) -> Dict:
         self.interface.clear()

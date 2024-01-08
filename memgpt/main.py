@@ -25,7 +25,7 @@ import memgpt.errors as errors
 from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, suppress_stdout
 from memgpt.cli.cli_config import configure, list, add, delete
 from memgpt.cli.cli_load import app as load_app
-from memgpt.connectors.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector, TableType
 
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)

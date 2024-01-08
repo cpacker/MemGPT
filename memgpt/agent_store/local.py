@@ -20,7 +20,7 @@ from llama_index.schema import TextNode
 from memgpt.constants import MEMGPT_DIR
 from memgpt.data_types import Record
 from memgpt.config import MemGPTConfig
-from memgpt.connectors.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.utils import printd, get_local_time, parse_formatted_time
 from memgpt.data_types import Message, Passage, Record
@@ -252,9 +252,11 @@ class InMemoryStorageConnector(StorageConnector):
             user_id=self.config.anon_clientid,
             agent_id=self.agent_config.name,
             role=message["role"],
+            name=message["name"] if "name" in message else None,
             text=message["content"],
             model=self.agent_config.model,
             created_at=parse_formatted_time(timestamp),
+            # TODO(swooders) this should be tools, right?
             function_name=message["function_name"] if "function_name" in message else None,
             function_args=message["function_args"] if "function_args" in message else None,
             function_response=message["function_response"] if "function_response" in message else None,

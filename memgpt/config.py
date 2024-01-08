@@ -9,8 +9,8 @@ import memgpt
 import memgpt.utils as utils
 from memgpt.utils import printd, get_schema_diff
 from memgpt.functions.functions import load_all_function_sets
-from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS, DEFAULT_HUMAN, DEFAULT_PERSONA
-from memgpt.presets.presets import DEFAULT_PRESET
+from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS, DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
+from memgpt.data_types import AgentState, User, LLMConfig, EmbeddingConfig
 
 
 # helper functions for writing to configs
@@ -29,6 +29,119 @@ def set_field(config, section, field, value):
     if section not in config:  # create section
         config.add_section(section)
     config.set(section, field, value)
+
+
+@dataclass
+class Config:
+    # system config for MemGPT
+    config_path = os.path.join(MEMGPT_DIR, "config")
+    anon_clientid = None
+
+    # database configs: archival
+    archival_storage_type: str = "chroma"  # local, db
+    archival_storage_path: str = os.path.join(MEMGPT_DIR, "chroma")
+    archival_storage_uri: str = None  # TODO: eventually allow external vector DB
+
+    # database configs: recall
+    recall_storage_type: str = "sqlite"  # local, db
+    recall_storage_path: str = MEMGPT_DIR
+    recall_storage_uri: str = None  # TODO: eventually allow external vector DB
+
+    # database configs: metadata storage (sources, agents, data sources)
+    metadata_storage_type: str = "sqlite"
+    metadata_storage_path: str = MEMGPT_DIR
+    metadata_storage_uri: str = None
+
+    memgpt_version: str = None
+
+    @classmethod
+    def load(cls) -> "MemGPTConfig":
+        config = configparser.ConfigParser()
+
+        # allow overriding with env variables
+        if os.getenv("MEMGPT_CONFIG_PATH"):
+            config_path = os.getenv("MEMGPT_CONFIG_PATH")
+        else:
+            config_path = MemGPTConfig.config_path
+
+        if os.path.exists(config_path):
+            # read existing config
+            config.read(config_path)
+            config_dict = {
+                "archival_storage_type": get_field(config, "archival_storage", "type"),
+                "archival_storage_path": get_field(config, "archival_storage", "path"),
+                "archival_storage_uri": get_field(config, "archival_storage", "uri"),
+                "recall_storage_type": get_field(config, "recall_storage", "type"),
+                "recall_storage_path": get_field(config, "recall_storage", "path"),
+                "recall_storage_uri": get_field(config, "recall_storage", "uri"),
+                "metadata_storage_type": get_field(config, "metadata_storage", "type"),
+                "metadata_storage_path": get_field(config, "metadata_storage", "path"),
+                "metadata_storage_uri": get_field(config, "metadata_storage", "uri"),
+                "anon_clientid": get_field(config, "client", "anon_clientid"),
+                "config_path": config_path,
+                "memgpt_version": get_field(config, "version", "memgpt_version"),
+            }
+            config_dict = {k: v for k, v in config_dict.items() if v is not None}
+            return cls(**config_dict)
+
+        # create new config
+        anon_clientid = str(uuid.uuid())
+        config = cls(anon_clientid=anon_clientid, config_path=config_path)
+        config.save()  # save updated config
+        return config
+
+    def save(self):
+        import memgpt
+
+        config = configparser.ConfigParser()
+        # archival storage
+        set_field(config, "archival_storage", "type", self.archival_storage_type)
+        set_field(config, "archival_storage", "path", self.archival_storage_path)
+        set_field(config, "archival_storage", "uri", self.archival_storage_uri)
+
+        # recall storage
+        set_field(config, "recall_storage", "type", self.recall_storage_type)
+        set_field(config, "recall_storage", "path", self.recall_storage_path)
+        set_field(config, "recall_storage", "uri", self.recall_storage_uri)
+
+        # metadata storage
+        set_field(config, "metadata_storage", "type", self.metadata_storage_type)
+        set_field(config, "metadata_storage", "path", self.metadata_storage_path)
+        set_field(config, "metadata_storage", "uri", self.metadata_storage_uri)
+
+        # set version
+        set_field(config, "version", "memgpt_version", memgpt.__version__)
+
+        # client
+        if not self.anon_clientid:
+            self.anon_clientid = str(uuid.uuid())
+        set_field(config, "client", "anon_clientid", self.anon_clientid)
+
+        if not os.path.exists(MEMGPT_DIR):
+            os.makedirs(MEMGPT_DIR, exist_ok=True)
+        with open(self.config_path, "w") as f:
+            config.write(f)
+
+    @staticmethod
+    def exists():
+        # allow overriding with env variables
+        if os.getenv("MEMGPT_CONFIG_PATH"):
+            config_path = os.getenv("MEMGPT_CONFIG_PATH")
+        else:
+            config_path = MemGPTConfig.config_path
+
+        assert not os.path.isdir(config_path), f"Config path {config_path} cannot be set to a directory."
+        return os.path.exists(config_path)
+
+    @staticmethod
+    def create_config_dir():
+        if not os.path.exists(MEMGPT_DIR):
+            os.makedirs(MEMGPT_DIR, exist_ok=True)
+
+        folders = ["functions", "system_prompts", "presets", "settings"]
+        for folder in folders:
+            if not os.path.exists(os.path.join(MEMGPT_DIR, folder)):
+                os.makedirs(os.path.join(MEMGPT_DIR, folder))
 
 
 @dataclass
@@ -353,6 +466,17 @@ class AgentConfig:
         self.memgpt_version = memgpt.__version__
         with open(self.agent_config_path, "w") as f:
             json.dump(vars(self), f, indent=4)
+
+    def to_agent_state(self):
+        return AgentState(
+            name=self.name,
+            preset=self.preset,
+            persona=self.persona,
+            human=self.human,
+            llm_config=self.llm_config,
+            embedding_config=self.embedding_config,
+            create_time=self.create_time,
+        )
 
     @staticmethod
     def exists(name: str):

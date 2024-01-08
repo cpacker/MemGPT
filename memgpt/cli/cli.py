@@ -1,4 +1,5 @@
 import typer
+import uuid
 import json
 import requests
 import sys
@@ -25,6 +26,8 @@ from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
 from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
+from memgpt.data_types import AgentState
+from memgpt.metadata import MetadataStore
 
 
 class QuickstartChoice(Enum):
@@ -440,6 +443,9 @@ def run(
     else:  # create new agent
         # create new agent config: override defaults with args if provided
         typer.secho("\n🧬 Creating new agent...", fg=typer.colors.WHITE)
+
+        # TODO(swooders) complete hack to get the defaults loaded into AgentState properly
+        # If we don't do this, AgentState will have a ton of null values
         agent_config = AgentConfig(
             name=agent,
             persona=persona,
@@ -451,50 +457,69 @@ def run(
             model_endpoint=model_endpoint,
             context_window=context_window,
         )
-
         # save new agent config
-        agent_config.save()
-        typer.secho(f"->  🤖 Using persona profile '{agent_config.persona}'", fg=typer.colors.WHITE)
-        typer.secho(f"->  🧑 Using human profile '{agent_config.human}'", fg=typer.colors.WHITE)
+        # agent_config.save()
+
+        agent_init_state = AgentState(
+            name=agent_config.name,
+            persona_file=agent_config.persona,
+            human_file=agent_config.human,
+            preset=agent_config.preset,
+            model=agent_config.model,
+            model_wrapper=agent_config.model_wrapper,
+            model_endpoint_type=agent_config.model_endpoint_type,
+            model_endpoint=agent_config.model_endpoint,
+            context_window=agent_config.context_window,
+            # TODO(swooders) add embedding data properly
+            embedding_endpoint_type=config.embedding_endpoint_type,
+            embedding_endpoint=config.embedding_endpoint,
+            embedding_model=config.embedding_model,
+            embedding_dim=config.embedding_dim,
+            embedding_chunk_size=config.embedding_chunk_size,
+            # data_sources=???
+            created_at=agent_config.create_time,
+            memgpt_version=agent_config.memgpt_version,
+        )
+
+        typer.secho(f"->  🤖 Using persona profile '{agent_init_state.persona_file}'", fg=typer.colors.WHITE)
+        typer.secho(f"->  🧑 Using human profile '{agent_init_state.human_file}'", fg=typer.colors.WHITE)
 
         # Supress llama-index noise
-        with suppress_stdout():
-            # TODO: allow configrable state manager (only local is supported right now)
-            persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
+        # TODO(swooders) add persistence manager code? or comment out?
+        # with suppress_stdout():
+        # TODO: allow configrable state manager (only local is supported right now)
+        # persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
 
         # create agent
         try:
-            memgpt_agent = presets.use_preset(
-                agent_config.preset,
-                agent_config,
-                agent_config.model,
-                utils.get_persona_text(agent_config.persona),
-                utils.get_human_text(agent_config.human),
-                interface,
-                persistence_manager,
+            memgpt_agent = presets.create_agent_from_preset(
+                agent_state=agent_init_state,
+                interface=interface,
             )
         except ValueError as e:
+            # TODO(swooders) what's the equivalent cleanup code for the new DB refactor?
             typer.secho(f"Failed to create agent from provided information:\n{e}", fg=typer.colors.RED)
-            # Delete the directory of the failed agent
-            try:
-                # Path to the specific file
-                agent_config_file = agent_config.agent_config_path
+            # # Delete the directory of the failed agent
+            # try:
+            #     # Path to the specific file
+            #     agent_config_file = agent_config.agent_config_path
 
-                # Check if the file exists
-                if os.path.isfile(agent_config_file):
-                    # Delete the file
-                    os.remove(agent_config_file)
+            #     # Check if the file exists
+            #     if os.path.isfile(agent_config_file):
+            #         # Delete the file
+            #         os.remove(agent_config_file)
 
-                # Now, delete the directory along with any remaining files in it
-                agent_save_dir = os.path.join(MEMGPT_DIR, "agents", agent_config.name)
-                shutil.rmtree(agent_save_dir)
-            except:
-                typer.secho(f"Failed to delete agent directory during cleanup:\n{e}", fg=typer.colors.RED)
+            #     # Now, delete the directory along with any remaining files in it
+            #     agent_save_dir = os.path.join(MEMGPT_DIR, "agents", agent_config.name)
+            #     shutil.rmtree(agent_save_dir)
+            # except:
+            #     typer.secho(f"Failed to delete agent directory during cleanup:\n{e}", fg=typer.colors.RED)
             sys.exit(1)
-        typer.secho(f"🎉 Created new agent '{agent_config.name}'", fg=typer.colors.GREEN)
+        typer.secho(f"🎉 Created new agent '{agent_init_state.name}'", fg=typer.colors.GREEN)
 
     # pretty print agent config
-    printd(json.dumps(vars(agent_config), indent=4, sort_keys=True))
+    # printd(json.dumps(vars(agent_config), indent=4, sort_keys=True))
+    printd(json.dumps(vars(agent_init_state), indent=4, sort_keys=True))
 
     # start event loop
     from memgpt.main import run_agent_loop
@@ -506,21 +531,29 @@ def run(
 def attach(
     agent: str = typer.Option(help="Specify agent to attach data to"),
     data_source: str = typer.Option(help="Data source to attach to avent"),
+    user_id: uuid.UUID = None,
 ):
+    # use client ID is no user_id provided
+    config = MemGPTConfig.load()
+    if user_id is None:
+        user_id = uuid.UUID(config.anon_clientid)
     try:
         # loads the data contained in data source into the agent's memory
-        from memgpt.connectors.storage import StorageConnector, TableType
+        from memgpt.agent_store.storage import StorageConnector, TableType
         from tqdm import tqdm
 
-        agent_config = AgentConfig.load(agent)
+        ms = MetadataStore(config)
+        agent = ms.get_agent(agent_name=agent, user_id=user_id)
+        source = ms.get_source(source_name=data_source, user_id=user_id)
+        assert source is not None, f"Source {data_source} does not exist for user {user_id}"
 
         # get storage connectors
         with suppress_stdout():
-            source_storage = StorageConnector.get_storage_connector(table_type=TableType.PASSAGES)
-            dest_storage = StorageConnector.get_storage_connector(table_type=TableType.ARCHIVAL_MEMORY, agent_config=agent_config)
+            source_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id=user_id)
+            dest_storage = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config, user_id=user_id, agent_id=agent.id)
 
         size = source_storage.size({"data_source": data_source})
-        typer.secho(f"Ingesting {size} passages into {agent_config.name}", fg=typer.colors.GREEN)
+        typer.secho(f"Ingesting {size} passages into {agent.name}", fg=typer.colors.GREEN)
         page_size = 100
         generator = source_storage.get_all_paginated(filters={"data_source": data_source}, page_size=page_size)  # yields List[Passage]
         passages = []
@@ -530,13 +563,17 @@ def attach(
 
             # need to associated passage with agent (for filtering)
             for passage in passages:
-                passage.agent_id = agent_config.name
+                passage.agent_id = agent.id
 
             # insert into agent archival memory
             dest_storage.insert_many(passages)
 
         # save destination storage
         dest_storage.save()
+
+        # attach to agent
+        source_id = ms.get_source(source_name=data_source, user_id=user_id).id
+        ms.attach_source(agent_id=agent.id, source_id=source_id, user_id=user_id)
 
         total_agent_passages = dest_storage.size()
 
