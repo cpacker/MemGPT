@@ -65,9 +65,12 @@ class CommonVector(TypeDecorator):
         return dialect.type_descriptor(BINARY())
 
     def process_bind_param(self, value, dialect):
-        assert isinstance(value, np.ndarray) or isinstance(value, list), f"Value must be of type np.ndarray or list, got {type(value)}"
-        assert isinstance(value[0], float), f"Value must be of type float, got {type(value[0])}"
-        return np.array(value).tobytes()
+        if value:
+            assert isinstance(value, np.ndarray) or isinstance(value, list), f"Value must be of type np.ndarray or list, got {type(value)}"
+            assert isinstance(value[0], float), f"Value must be of type float, got {type(value[0])}"
+            return np.array(value).tobytes()
+        else:
+            return value
 
     def process_result_value(self, value, dialect):
         return np.frombuffer(value)
