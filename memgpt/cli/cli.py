@@ -26,7 +26,7 @@ from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
 from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
-from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig
+from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig, User
 from memgpt.metadata import MetadataStore
 
 
@@ -363,6 +363,12 @@ def run(
     ms = MetadataStore(config)
     user_id = uuid.UUID(config.anon_clientid)
     user = ms.get_user(user_id=user_id)
+    if user is None:
+        ms.create_user(User(id=user_id))
+        user = ms.get_user(user_id=user_id)
+        if user is None:
+            typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
+            sys.exit(1)
 
     # override with command line arguments
     if debug:
