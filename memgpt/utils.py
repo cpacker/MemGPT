@@ -346,7 +346,7 @@ NOUN_BANK = [
     "urchin",
     "viper",
     "wolf",
-    "x-ray",
+    "xray",
     "yucca",
     "zebu",
     "acorn",
@@ -458,8 +458,8 @@ NOUN_BANK = [
 
 def create_random_username() -> str:
     """Generate a random username by combining an adjective and a noun."""
-    adjective = random.choice(ADJECTIVE_BANK)
-    noun = random.choice(NOUN_BANK)
+    adjective = random.choice(ADJECTIVE_BANK).capitalize()
+    noun = random.choice(NOUN_BANK).capitalize()
     return adjective + noun
 
 

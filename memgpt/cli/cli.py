@@ -451,8 +451,9 @@ def run(
 
         if agent is None:
             # determine agent name
-            agent_count = len(ms.list_agents(user_id=user.id))
-            agent = f"agent_{agent_count}"
+            # agent_count = len(ms.list_agents(user_id=user.id))
+            # agent = f"agent_{agent_count}"
+            agent = utils.create_random_username()
 
         agent_state = AgentState(
             name=agent,
