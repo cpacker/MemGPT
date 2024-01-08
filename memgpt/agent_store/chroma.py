@@ -47,7 +47,6 @@ class ChromaStorageConnector(StorageConnector):
         chroma_filters = []
         ids = []
         for key, value in filter_conditions.items():
-
             # filter by id
             if key == "id":
                 ids = [str(value)]
