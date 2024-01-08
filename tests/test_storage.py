@@ -91,8 +91,6 @@ def recreate_declarative_base():
 def test_storage(storage_connector, table_type, clear_dynamically_created_models, recreate_declarative_base):
     # setup memgpt config
     # TODO: set env for different config path
-    print("GLOABLS", globals())
-    globals().clear()
 
     # hacky way to cleanup globals that scruw up tests
     # for table_name in ['Message']:
