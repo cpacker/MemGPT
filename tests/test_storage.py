@@ -16,6 +16,8 @@ from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.utils import get_local_time
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.constants import DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_HUMAN
+from memgpt.metadata import MetadataStore
+from memgpt.data_types import User
 
 import argparse
 from datetime import datetime, timedelta
@@ -25,9 +27,11 @@ texts = ["This is a test passage", "This is another test passage", "Cinderella w
 start_date = datetime(2009, 10, 5, 18, 00)
 dates = [start_date, start_date - timedelta(weeks=1), start_date + timedelta(weeks=1)]
 roles = ["user", "agent", "agent"]
-agent_ids = ["agent1", "agent2", "agent1"]
+agent_1_id = uuid.uuid4()
+agent_2_id = uuid.uuid4()
+agent_ids = [agent_1_id, agent_2_id, agent_1_id]
 ids = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
-user_id = "test_user"
+user_id = uuid.uuid4()
 
 
 # Data generation functions: Passages
@@ -96,7 +100,7 @@ def test_storage(storage_connector, table_type):
     # get embedding model
     embed_model = None
     if os.getenv("OPENAI_API_KEY"):
-        embedding_config = OpenAIEmbeddingConfig(
+        embedding_config = EmbeddingConfig(
             embedding_endpoint_type="openai",
             embedding_endpoint="https://api.openai.com/v1",
             embedding_dim=1536,
@@ -106,11 +110,28 @@ def test_storage(storage_connector, table_type):
         embedding_config = EmbeddingConfig(embedding_endpoint_type="local", embedding_endpoint=None, embedding_dim=384)
     embed_model = embedding_model(embedding_config)
 
+    # create user
+    ms = MetadataStore(config)
+    ms.delete_user(user_id)
+    user = User(id=user_id, default_embedding_config=embedding_config)
+    agent = AgentState(
+        user_id=user_id,
+        name="agent_1",
+        id=agent_1_id,
+        preset=user.default_preset,
+        persona=user.default_persona,
+        human=user.default_human,
+        llm_config=user.default_llm_config,
+        embedding_config=user.default_embedding_config,
+    )
+    ms.create_user(user)
+    ms.create_agent(agent)
+
     # create storage connector
-    conn = StorageConnector.get_storage_connector(table_type, config=config, user_id=user_id, agent_id="agent1")
+    conn = StorageConnector.get_storage_connector(table_type, config=config, user_id=user_id, agent_id=agent.id)
     # conn.client.delete_collection(conn.collection.name)  # clear out data
     conn.delete_table()
-    conn = StorageConnector.get_storage_connector(table_type, config=config, user_id=user_id, agent_id="agent1")
+    conn = StorageConnector.get_storage_connector(table_type, config=config, user_id=user_id, agent_id=agent.id)
 
     # generate data
     if table_type == TableType.ARCHIVAL_MEMORY:
@@ -156,7 +177,7 @@ def test_storage(storage_connector, table_type):
 
     # test: size
     assert conn.size() == 2, f"Expected 2 records, got {conn.size()}"
-    assert conn.size(filters={"agent_id": "agent1"}) == 2, f"Expected 2 records, got {conn.size(filters={'agent_id', 'agent1'})}"
+    assert conn.size(filters={"agent_id": agent.id}) == 2, f"Expected 2 records, got {conn.size(filters={'agent_id', agent.id})}"
     if table_type == TableType.RECALL_MEMORY:
         assert conn.size(filters={"role": "user"}) == 1, f"Expected 1 record, got {conn.size(filters={'role': 'user'})}"
 
@@ -189,3 +210,6 @@ def test_storage(storage_connector, table_type):
     # test: delete
     conn.delete({"id": ids[0]})
     assert conn.size() == 1, f"Expected 2 records, got {conn.size()}"
+
+    # cleanup
+    ms.delete_user(user_id)

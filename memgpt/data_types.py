@@ -188,12 +188,28 @@ class EmbeddingConfig:
         embedding_model: Optional[str] = None,
         embedding_dim: Optional[int] = 384,
         embedding_chunk_size: Optional[int] = 300,
+        # openai-only
+        openai_key: Optional[str] = None,
+        # azure-only
+        azure_key: Optional[str] = None,
+        azure_endpoint: Optional[str] = None,
+        azure_version: Optional[str] = None,
+        azure_deployment: Optional[str] = None,
     ):
         self.embedding_endpoint_type = embedding_endpoint_type
         self.embedding_endpoint = embedding_endpoint
         self.embedding_model = embedding_model
         self.embedding_dim = embedding_dim
         self.embedding_chunk_size = embedding_chunk_size
+
+        # openai
+        self.openai_key = openai_key
+
+        # azure
+        self.azure_key = azure_key
+        self.azure_endpoint = azure_endpoint
+        self.azure_version = azure_version
+        self.azure_deployment = azure_deployment
 
 
 class OpenAIEmbeddingConfig(EmbeddingConfig):
