@@ -111,7 +111,6 @@ def get_db_model(config: MemGPTConfig, table_name: str, table_type: TableType, u
         embedding_dim = agent.embedding_config.embedding_dim
     else:
         user = ms.get_user(user_id)
-        print("query", user_id, user)
         if user is None:
             raise ValueError(f"User {user_id} not found")
         embedding_dim = user.default_embedding_config.embedding_dim
@@ -241,7 +240,6 @@ def get_db_model(config: MemGPTConfig, table_name: str, table_type: TableType, u
 class SQLStorageConnector(StorageConnector):
     def __init__(self, table_type: str, config: MemGPTConfig, user_id, agent_id=None):
         super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
-        # print("SQL INIT")
         self.config = config
 
     def get_filters(self, filters: Optional[Dict] = {}):
@@ -249,9 +247,7 @@ class SQLStorageConnector(StorageConnector):
             filter_conditions = {**self.filters, **filters}
         else:
             filter_conditions = self.filters
-        print("TABLE FILTER", self.table_name, filter_conditions.items())
         all_filters = [getattr(self.db_model, key) == value for key, value in filter_conditions.items()]
-        print("filters", all_filters)
         return all_filters
 
     def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000) -> Iterator[List[Record]]:

@@ -445,7 +445,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         for passage in list(self.storage.get_all(limit=limit)):  # TODO: only get first 10
             passages.append(str(passage.text))
         memory_str = "\n".join(passages)
-        return f"\n### ARCHIVAL MEMORY ###" + f"\n{memory_str}"
+        return f"\n### ARCHIVAL MEMORY ###" + f"\n{memory_str}" + f"\nSize: {self.storage.size()}"
 
     def __len__(self):
         return self.storage.size()

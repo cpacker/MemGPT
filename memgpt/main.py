@@ -120,16 +120,6 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, no_verify=False, c
                     # attach new data
                     attach(memgpt_agent.config.name, data_source)
 
-                    # update agent config
-                    memgpt_agent.config.attach_data_source(data_source)
-
-                    # reload agent with new data source
-                    # TODO: maybe make this less ugly...
-                    with suppress_stdout():
-                        memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_archival_storage_connector(
-                            agent_config=memgpt_agent.config
-                        )
-                    # TODO: update metadata_db to record attached agents
                     continue
 
                 elif user_input.lower() == "/dump" or user_input.lower().startswith("/dump "):
