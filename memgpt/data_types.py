@@ -140,7 +140,7 @@ class Passage(Record):
 class LLMConfig:
     def __init__(
         self,
-        model: Optional[str] = "gpt4",
+        model: Optional[str] = "gpt-4",
         model_endpoint_type: Optional[str] = "openai",
         model_endpoint: Optional[str] = "https://api.openai.com/v1",
         model_wrapper: Optional[str] = None,
@@ -317,11 +317,11 @@ class User:
             if self.openai_key:
                 self.default_llm_config = OpenAILLMConfig(
                     openai_key=self.openai_key,
-                    model="gpt4",
+                    model="gpt-4",
                     model_endpoint_type="openai",
                     model_endpoint="https://api.openai.com/v1",
                     model_wrapper=None,
-                    context_window=LLM_MAX_TOKENS["gpt4"],
+                    context_window=LLM_MAX_TOKENS["gpt-4"],
                 )
             elif self.azure_key:
                 self.default_llm_config = AzureLLMConfig(
@@ -329,11 +329,11 @@ class User:
                     azure_endpoint=self.azure_endpoint,
                     azure_version=self.azure_version,
                     azure_deployment=self.azure_deployment,
-                    model="gpt4",
+                    model="gpt-4",
                     model_endpoint_type="azure",
                     model_endpoint="https://api.openai.com/v1",
                     model_wrapper=None,
-                    context_window=LLM_MAX_TOKENS["gpt4"],
+                    context_window=LLM_MAX_TOKENS["gpt-4"],
                 )
             else:
                 # memgpt hosted

@@ -57,7 +57,7 @@ def generate_messages(embed_model):
         if embed_model:
             embedding = embed_model.get_text_embedding(text)
         messages.append(
-            Message(user_id=user_id, text=text, agent_id=agent_id, role=role, created_at=date, id=id, model="gpt4", embedding=embedding)
+            Message(user_id=user_id, text=text, agent_id=agent_id, role=role, created_at=date, id=id, model="gpt-4", embedding=embedding)
         )
         print(messages[-1].text)
     return messages
@@ -84,7 +84,6 @@ def recreate_declarative_base():
 @pytest.mark.parametrize("storage_connector", ["postgres", "chroma", "sqlite"])
 @pytest.mark.parametrize("table_type", [TableType.RECALL_MEMORY, TableType.ARCHIVAL_MEMORY])
 def test_storage(storage_connector, table_type, clear_dynamically_created_models, recreate_declarative_base):
-
     # setup memgpt config
     # TODO: set env for different config path
     config = MemGPTConfig()

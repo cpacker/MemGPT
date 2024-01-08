@@ -24,7 +24,7 @@ def test_storage(storage_connector):
     ms = MetadataStore(config)
 
     # generate data
-    user_1 = User(default_llm_config=LLMConfig(model="gpt4"))
+    user_1 = User(default_llm_config=LLMConfig(model="gpt-4"))
     user_2 = User()
     agent_1 = AgentState(
         user_id=user_1.id,
@@ -55,7 +55,7 @@ def test_storage(storage_connector):
     print(agent_1.llm_config, user_1.default_llm_config)
     llm_config = ms.get_agent(agent_1.id).llm_config
     assert isinstance(llm_config, LLMConfig), f"LLMConfig is {type(llm_config)}"
-    assert llm_config.model == "gpt4", f"LLMConfig model is {llm_config.model}"
+    assert llm_config.model == "gpt-4", f"LLMConfig model is {llm_config.model}"
     llm_config.model = "gpt3.5-turbo"
     agent_1.llm_config = llm_config
     ms.update_agent(agent_1)
