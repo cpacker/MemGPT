@@ -1,29 +1,17 @@
 import os
 from sqlalchemy.ext.declarative import declarative_base
 import uuid
-import subprocess
-import sys
 import pytest
 
-# subprocess.check_call(
-#    [sys.executable, "-m", "pip", "install", "pgvector", "psycopg", "psycopg2-binary"]
-# )  # , "psycopg_binary"])  # "psycopg", "libpq-dev"])
-#
-# subprocess.check_call([sys.executable, "-m", "pip", "install", "lancedb"])
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.embeddings import embedding_model
 from memgpt.data_types import Message, Passage, EmbeddingConfig, AgentState, OpenAIEmbeddingConfig
-from memgpt.config import MemGPTConfig, AgentConfig
-from memgpt.utils import get_local_time
+from memgpt.config import MemGPTConfig
 from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.constants import DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_HUMAN
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import User
 
-import argparse
 from datetime import datetime, timedelta
-
-import copy
 
 
 # Note: the database will filter out rows that do not correspond to agent1 and test_user by default.

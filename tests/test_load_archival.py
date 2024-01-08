@@ -1,5 +1,3 @@
-# import tempfile
-# import asyncio
 import os
 import uuid
 import pytest
@@ -10,10 +8,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.cli.cli_load import load_directory, load_database, load_webpage
 from memgpt.cli.cli import attach
-from memgpt.constants import DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_HUMAN
-from memgpt.config import AgentConfig, MemGPTConfig
+from memgpt.config import MemGPTConfig
 from memgpt.metadata import MetadataStore
-from memgpt.data_types import Source, Passage, Document, User, AgentState, EmbeddingConfig
+from memgpt.data_types import User, AgentState, EmbeddingConfig
 
 
 @pytest.fixture(autouse=True)

@@ -9,7 +9,7 @@ from memgpt.data_types import AgentState
 from memgpt.metadata import MetadataStore
 from memgpt.interface import AgentInterface
 from memgpt.persistence_manager import PersistenceManager, LocalStateManager
-from memgpt.config import AgentConfig, MemGPTConfig
+from memgpt.config import MemGPTConfig
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from memgpt.memory import CoreMemory as InContextMemory, summarize_messages
 from memgpt.openai_tools import create, is_context_overflow_error

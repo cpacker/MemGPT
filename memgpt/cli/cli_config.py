@@ -11,7 +11,7 @@ from enum import Enum
 # from memgpt.cli import app
 from memgpt import utils
 
-from memgpt.config import MemGPTConfig, AgentConfig
+from memgpt.config import MemGPTConfig
 from memgpt.constants import MEMGPT_DIR
 
 # from memgpt.agent_store.storage import StorageConnector, TableType

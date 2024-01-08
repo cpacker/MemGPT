@@ -5,7 +5,7 @@ import re
 from typing import Optional, List, Iterator, Dict
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.utils import printd, datetime_to_timestamp, timestamp_to_datetime
-from memgpt.config import AgentConfig, MemGPTConfig
+from memgpt.config import MemGPTConfig
 from memgpt.data_types import Record, Message, Passage
 
 
