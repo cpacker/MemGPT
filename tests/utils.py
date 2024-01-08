@@ -18,6 +18,8 @@ def wipe_config():
 
 
 def wipe_memgpt_home():
+    """Wipes ~/.memgpt (moves to a backup), and initializes a new ~/.memgpt dir"""
+
     # Get the current timestamp in a readable format (e.g., YYYYMMDD_HHMMSS)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
