@@ -241,7 +241,7 @@ def get_db_model(config: MemGPTConfig, table_name: str, table_type: TableType, u
 class SQLStorageConnector(StorageConnector):
     def __init__(self, table_type: str, config: MemGPTConfig, user_id, agent_id=None):
         super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
-        print("SQL INIT")
+        # print("SQL INIT")
         self.config = config
 
     def get_filters(self, filters: Optional[Dict] = {}):
