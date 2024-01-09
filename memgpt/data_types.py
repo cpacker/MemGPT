@@ -8,9 +8,6 @@ import numpy as np
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
 from memgpt.utils import get_local_time, format_datetime
 
-# Defining schema objects:
-# Note: user/agent can borrow from MemGPTConfig/AgentConfig classes
-
 
 class Record:
     """
