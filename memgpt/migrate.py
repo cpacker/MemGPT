@@ -1,6 +1,7 @@
 import os
 import json
 
+import typer
 from tqdm import tqdm
 
 from memgpt.utils import MEMGPT_DIR, version_less_than
@@ -32,6 +33,28 @@ def agent_is_migrateable(agent_name: str):
         return False
 
 
+def migrate_agent(agent_name: str):
+    """Migrate an old agent folder (`~/.memgpt/agents/{agent_name}`)
+
+    Steps:
+    1. Load the agent state JSON from the old folder
+    2. Create a new AgentState using the agent config + agent internal state
+    3. Instantiate a new Agent by passing AgentState to Agent.__init__
+       (This will automatically run into a new database)
+    """
+    print("Stub migration TODO")
+    return
+
+    # 1. Load the agent state JSON from the old folder
+    # TODO
+
+    # 2. Create a new AgentState using the agent config + agent internal state
+    # TODO
+
+    # 3. Instantiate a new Agent by passing AgentState to Agent.__init__
+    # TODO
+
+
 def migrate_all_agents():
     """Scan over all agent folders in MEMGPT_DIR and migrate each agent."""
     agents_dir = os.path.join(MEMGPT_DIR, "agents")
@@ -46,20 +69,22 @@ def migrate_all_agents():
     # Iterate over each folder with a tqdm progress bar
     count = 0
     candidates = 0
-    for agent_name in tqdm(agent_folders, desc="Migrating agents"):
-        # Assuming migrate_agent is a function that takes the agent name and performs migration
-        try:
-            if agent_is_migrateable(agent_name=agent_name):
-                candidates += 1
-                # migrate_agent(agent_name)
-                print("fake migrate")
-                count += 1
-            else:
-                continue
-        except Exception as e:
-            print(f"Migrating {agent_name} failed with: {e}")
+    try:
+        for agent_name in tqdm(agent_folders, desc="Migrating agents"):
+            # Assuming migrate_agent is a function that takes the agent name and performs migration
+            try:
+                if agent_is_migrateable(agent_name=agent_name):
+                    candidates += 1
+                    migrate_agent(agent_name)
+                    count += 1
+                else:
+                    continue
+            except Exception as e:
+                type.secho(f"Migrating {agent_name} failed with: {e}", fg=typer.colors.RED)
+    except KeyboardInterrupt:
+        typer.secho(f"User cancelled operation", fg=typer.colors.RED)
 
     if candidates == 0:
-        print(f"No migration candidates found ({len(agent_folders)} agent folders total)")
+        typer.secho(f"No migration candidates found ({len(agent_folders)} agent folders total)", fg=typer.colors.GREEN)
     else:
-        print(f"Migrated {count}/{candidates} migration targets ({len(agent_folders)} agent folders total)")
+        typer.secho(f"Migrated {count}/{candidates} migration targets ({len(agent_folders)} agent folders total)", fg=typer.colors.GREEN)
