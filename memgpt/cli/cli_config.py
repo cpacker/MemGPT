@@ -669,6 +669,21 @@ def delete(option: str, name: str):
             ), f"Expected no passages with source {name}, but got {conn.get_all({'data_source': name})}"
 
             # TODO: should we also delete from agents?
+        elif option == "agent":
+
+            agent = ms.get_agent(agent_name=name, user_id=user_id)
+
+            # recall memory
+            recall_conn = StorageConnector.get_storage_connector(TableType.RECALL_MEMORY, config, user_id=user_id, agent_id=agent.id)
+            recall_conn.delete({"agent_id": agent.id})
+
+            # archival memory
+            archival_conn = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config, user_id=user_id, agent_id=agent.id)
+            archival_conn.delete({"agent_id": agent.id})
+
+            # metadata
+            ms.delete_agent(agent_id=agent.id)
+
         else:
             raise ValueError(f"Option {option} not implemented")
 
