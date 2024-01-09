@@ -670,7 +670,6 @@ def delete(option: str, name: str):
 
             # TODO: should we also delete from agents?
         elif option == "agent":
-
             agent = ms.get_agent(agent_name=name, user_id=user_id)
 
             # recall memory
