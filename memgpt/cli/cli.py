@@ -20,8 +20,7 @@ from memgpt.cli.cli_config import configure
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
 from memgpt.utils import printd, open_folder_in_explorer, suppress_stdout
-from memgpt.persistence_manager import LocalStateManager
-from memgpt.config import MemGPTConfig, AgentConfig
+from memgpt.config import MemGPTConfig
 from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
 from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model

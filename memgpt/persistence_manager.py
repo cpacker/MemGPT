@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
 import pickle
-from memgpt.config import AgentConfig
 from memgpt.memory import (
-    DummyRecallMemory,
     BaseRecallMemory,
     EmbeddingArchivalMemory,
 )
@@ -54,44 +52,6 @@ class LocalStateManager(PersistenceManager):
         self.recall_memory = BaseRecallMemory(agent_state)
         self.agent_state = agent_state
 
-    @classmethod
-    def load(cls, agent_config: AgentConfig):
-        """ Load a LocalStateManager from a file. """ ""
-        # TODO: remove this function
-        return cls(agent_config)
-        # try:
-        #    with open(filename, "rb") as f:
-        #        data = pickle.load(f)
-        # except ModuleNotFoundError as e:
-        #    # Patch for stripped openai package
-        #    # ModuleNotFoundError: No module named 'openai.openai_object'
-        #    with open(filename, "rb") as f:
-        #        unpickler = OpenAIBackcompatUnpickler(f)
-        #        data = unpickler.load()
-        #    # print(f"Unpickled data:\n{data.keys()}")
-
-        #    from memgpt.openai_backcompat.openai_object import OpenAIObject
-
-        #    def convert_openai_objects_to_dict(obj):
-        #        if isinstance(obj, OpenAIObject):
-        #            # Convert to dict or handle as needed
-        #            # print(f"detected OpenAIObject on {obj}")
-        #            return obj.to_dict_recursive()
-        #        elif isinstance(obj, dict):
-        #            return {k: convert_openai_objects_to_dict(v) for k, v in obj.items()}
-        #        elif isinstance(obj, list):
-        #            return [convert_openai_objects_to_dict(v) for v in obj]
-        #        else:
-        #            return obj
-
-        #    data = convert_openai_objects_to_dict(data)
-        #    # print(f"Converted data:\n{data.keys()}")
-
-        # manager = cls(agent_config)
-        # manager.archival_memory = EmbeddingArchivalMemory(agent_config)
-        # manager.recall_memory = BaseRecallMemory(agent_config)
-        # return manager
-
     def save(self):
         """Ensure storage connectors save data"""
         self.archival_memory.save()
@@ -105,9 +65,6 @@ class LocalStateManager(PersistenceManager):
         self.memory = agent.memory
         # printd(f"{self.__class__.__name__}.all_messages.len = {len(self.all_messages)}")
         printd(f"{self.__class__.__name__}.messages.len = {len(self.messages)}")
-
-        # Persistence manager also handles DB-related state
-        # self.recall_memory = self.recall_memory_cls(message_database=self.all_messages)
 
     def json_to_message(self, message_json) -> Message:
         """Convert agent message JSON into Message object"""
