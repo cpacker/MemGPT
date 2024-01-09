@@ -29,6 +29,7 @@ class Client(object):
         self.auto_save = auto_save
 
         # make sure everything is set up properly
+        # TODO: remove this eventually? for multi-user, we can't have a shared config directory
         MemGPTConfig.create_config_dir()
 
         # If this is the first ever start, do basic initialization

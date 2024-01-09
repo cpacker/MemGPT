@@ -361,6 +361,8 @@ class MemGPTConfig:
 @dataclass
 class AgentConfig:
     """
+
+    NOTE: this is a deprecated class, use AgentState instead. This class is only used for backcompatibility.
     Configuration for a specific instance of an agent
     """
 
