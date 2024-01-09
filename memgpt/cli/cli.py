@@ -28,6 +28,12 @@ from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
 from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig, User
 from memgpt.metadata import MetadataStore
+from memgpt.migrate import migrate_all_agents
+
+
+def migrate():
+    """Migrate old agents (pre 0.2.12) to the new database system"""
+    migrate_all_agents()
 
 
 class QuickstartChoice(Enum):
