@@ -963,6 +963,14 @@ def convert_dictionary_to_to_pydantic_model(dictionary: dict, model_name: str = 
 
                 if field_data.get("enum", []):
                     fields[field_name] = (list_to_enum(field_name, field_data.get("enum", [])), ...)
+                if field_type == "array":
+                    items = field_data.get("items", {})
+                    if items != {}:
+                        array = {"properties": items}
+                        array_type = convert_dictionary_to_to_pydantic_model(array, f'{model_name}_{field_name}')
+                        fields[field_name] = (List[array_type], ...)
+                    else:
+                        fields[field_name] = (list, ...)
                 elif field_type == 'object':
                     submodel = convert_dictionary_to_to_pydantic_model(field_data, f'{model_name}_{field_name}')
                     fields[field_name] = (submodel, ...)
@@ -981,8 +989,6 @@ def convert_dictionary_to_to_pydantic_model(dictionary: dict, model_name: str = 
     if "parameters" in dictionary:
         field_data = {"function": dictionary}
         return convert_dictionary_to_to_pydantic_model(field_data, f'{model_name}')
-
-
 
     custom_model = create_model(model_name, **fields)
     return custom_model
