@@ -1,3 +1,4 @@
+import configparser
 import os
 import json
 
@@ -5,12 +6,37 @@ import typer
 from tqdm import tqdm
 
 from memgpt.utils import MEMGPT_DIR, version_less_than
+from memgpt.config import MemGPTConfig
 
 # This is the version where the breaking change was made
 VERSION_CUTOFF = "0.2.12"
 
 
-def agent_is_migrateable(agent_name: str):
+def config_is_compatible() -> bool:
+    """Check if the config is OK to use with 0.2.12, or if it needs to be deleted"""
+    # NOTE: don't use built-in load(), since that will apply defaults
+    # memgpt_config = MemGPTConfig.load()
+    memgpt_config_file = os.path.join(MEMGPT_DIR, "config")
+    parser = configparser.ConfigParser()
+    parser.read(memgpt_config_file)
+
+    if "version" in parser and "memgpt_version" in parser["version"]:
+        version = parser["version"]["memgpt_version"]
+    else:
+        version = None
+
+    if version is None:
+        typer.secho(f"Current config version is missing", fg=typer.colors.RED)
+        return False
+    elif version_less_than(version, VERSION_CUTOFF):
+        typer.secho(f"Current config version ({version}) is older than cutoff ({VERSION_CUTOFF})", fg=typer.colors.RED)
+        return False
+    else:
+        typer.secho(f"Current config version {version} is compatible!", fg=typer.colors.GREEN)
+        return True
+
+
+def agent_is_migrateable(agent_name: str) -> bool:
     """Determine whether or not the agent folder is a migration target"""
     agent_folder = os.path.join(MEMGPT_DIR, "agents", agent_name)
 
@@ -42,7 +68,7 @@ def migrate_agent(agent_name: str):
     3. Instantiate a new Agent by passing AgentState to Agent.__init__
        (This will automatically run into a new database)
     """
-    print("Stub migration TODO")
+    print(f"Stub migration {agent_name}")
     return
 
     # 1. Load the agent state JSON from the old folder
@@ -57,6 +83,14 @@ def migrate_agent(agent_name: str):
 
 def migrate_all_agents():
     """Scan over all agent folders in MEMGPT_DIR and migrate each agent."""
+    if not config_is_compatible():
+        typer.secho(f"Your current config file is incompatible with MemGPT versions >= {VERSION_CUTOFF}", fg=typer.colors.RED)
+        typer.secho(
+            f"\nTo migrate old MemGPT agents, please delete your config file and run `memgpt configure`, then re-attempt `memgpt migrate`\n",
+            fg=typer.colors.WHITE,
+        )
+        return
+
     agents_dir = os.path.join(MEMGPT_DIR, "agents")
 
     # Ensure the directory exists
@@ -80,7 +114,7 @@ def migrate_all_agents():
                 else:
                     continue
             except Exception as e:
-                type.secho(f"Migrating {agent_name} failed with: {e}", fg=typer.colors.RED)
+                typer.secho(f"Migrating {agent_name} failed with: {e}", fg=typer.colors.RED)
     except KeyboardInterrupt:
         typer.secho(f"User cancelled operation", fg=typer.colors.RED)
 
