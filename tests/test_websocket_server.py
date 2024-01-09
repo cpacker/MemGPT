@@ -36,7 +36,7 @@ async def test_websocket_server():
         async with websockets.connect(uri) as websocket:
             # Initialize the server with a test config
             print("Sending config to server...")
-            await websocket.send(json.dumps({"type": "initialize", "config": test_config}))
+            await websocket.send(json.dumps({"type": "initialize", "config": test_config}, ensure_ascii=False))
             # Wait for the response
             response = await websocket.recv()
             print(f"Response from the agent: {response}")
@@ -45,7 +45,7 @@ async def test_websocket_server():
 
             # Send a message to the agent
             print("Sending message to server...")
-            await websocket.send(json.dumps({"type": "message", "content": "Hello, Agent!"}))
+            await websocket.send(json.dumps({"type": "message", "content": "Hello, Agent!"}, ensure_ascii=False))
             # Wait for the response
             # NOTE: we should be waiting for multiple responses
             response = await websocket.recv()

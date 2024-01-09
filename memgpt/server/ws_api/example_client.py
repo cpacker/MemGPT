@@ -32,7 +32,7 @@ async def send_message_and_print_replies(websocket, user_message, agent_id):
         if CLEAN_RESPONSES:
             print_server_response(response)
         else:
-            print(f"Server response:\n{json.dumps(response, indent=2)}")
+            print(f"Server response:\n{json.dumps(response, indent=2, ensure_ascii=False)}")
 
         # Check for a specific condition to break the loop
         if condition_to_stop_receiving(response):
@@ -63,7 +63,7 @@ async def basic_cli_client():
                     # Wait for the response
                     response = await websocket.recv()
                     response = json.loads(response)
-                    print(f"Server response:\n{json.dumps(response, indent=2)}")
+                    print(f"Server response:\n{json.dumps(response, indent=2, ensure_ascii=False)}")
 
                     await asyncio.sleep(1)
 

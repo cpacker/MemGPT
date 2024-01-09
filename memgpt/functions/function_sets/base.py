@@ -109,7 +109,7 @@ def conversation_search(self, query: str, page: Optional[int] = 0) -> Optional[s
     else:
         results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
         results_formatted = [f"timestamp: {d['timestamp']}, {d['message']['role']} - {d['message']['content']}" for d in results]
-        results_str = f"{results_pref} {json.dumps(results_formatted)}"
+        results_str = f"{results_pref} {json.dumps(results_formatted, ensure_ascii=False)}"
     return results_str
 
 
@@ -139,7 +139,7 @@ def conversation_search_date(self, start_date: str, end_date: str, page: Optiona
     else:
         results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
         results_formatted = [f"timestamp: {d['timestamp']}, {d['message']['role']} - {d['message']['content']}" for d in results]
-        results_str = f"{results_pref} {json.dumps(results_formatted)}"
+        results_str = f"{results_pref} {json.dumps(results_formatted, ensure_ascii=False)}"
     return results_str
 
 
@@ -182,5 +182,5 @@ def archival_memory_search(self, query: str, page: Optional[int] = 0) -> Optiona
     else:
         results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
         results_formatted = [f"timestamp: {d['timestamp']}, memory: {d['content']}" for d in results]
-        results_str = f"{results_pref} {json.dumps(results_formatted)}"
+        results_str = f"{results_pref} {json.dumps(results_formatted, ensure_ascii=False)}"
     return results_str

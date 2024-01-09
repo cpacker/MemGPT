@@ -200,7 +200,7 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, no_verify=False, c
                             text = user_input[len("/rewrite ") :].strip()
                             args = json.loads(memgpt_agent.messages[x].get("function_call").get("arguments"))
                             args["message"] = text
-                            memgpt_agent.messages[x].get("function_call").update({"arguments": json.dumps(args)})
+                            memgpt_agent.messages[x].get("function_call").update({"arguments": json.dumps(args, ensure_ascii=False)})
                             break
                     continue
 

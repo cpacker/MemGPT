@@ -9,7 +9,7 @@ def server_error(msg):
         {
             "type": "server_error",
             "message": msg,
-        }
+        }, ensure_ascii=False
     )
 
 
@@ -18,7 +18,7 @@ def server_command_response(status):
         {
             "type": "command_response",
             "status": status,
-        }
+        }, ensure_ascii=False
     )
 
 
@@ -27,7 +27,7 @@ def server_agent_response_error(msg):
         {
             "type": "agent_response_error",
             "message": msg,
-        }
+        }, ensure_ascii=False
     )
 
 
@@ -35,7 +35,7 @@ def server_agent_response_start():
     return json.dumps(
         {
             "type": "agent_response_start",
-        }
+        }, ensure_ascii=False
     )
 
 
@@ -43,7 +43,7 @@ def server_agent_response_end():
     return json.dumps(
         {
             "type": "agent_response_end",
-        }
+        }, ensure_ascii=False
     )
 
 
@@ -53,7 +53,7 @@ def server_agent_internal_monologue(msg):
             "type": "agent_response",
             "message_type": "internal_monologue",
             "message": msg,
-        }
+        }, ensure_ascii=False
     )
 
 
@@ -63,7 +63,7 @@ def server_agent_assistant_message(msg):
             "type": "agent_response",
             "message_type": "assistant_message",
             "message": msg,
-        }
+        }, ensure_ascii=False
     )
 
 
@@ -73,7 +73,7 @@ def server_agent_function_message(msg):
             "type": "agent_response",
             "message_type": "function_message",
             "message": msg,
-        }
+        }, ensure_ascii=False
     )
 
 
@@ -86,7 +86,7 @@ def client_user_message(msg, agent_id=None):
             "type": "user_message",
             "message": msg,
             "agent_id": agent_id,
-        }
+        }, ensure_ascii=False
     )
 
 
@@ -96,5 +96,5 @@ def client_command_create(config):
             "type": "command",
             "command": "create_agent",
             "config": config,
-        }
+        }, ensure_ascii=False
     )

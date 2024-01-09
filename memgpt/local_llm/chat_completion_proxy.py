@@ -126,7 +126,7 @@ def get_chat_completion(
             chat_completion_result = llm_wrapper.output_to_chat_completion_response(result, first_message=first_message)
         else:
             chat_completion_result = llm_wrapper.output_to_chat_completion_response(result)
-        printd(json.dumps(chat_completion_result, indent=2))
+        printd(json.dumps(chat_completion_result, indent=2, ensure_ascii=False))
     except Exception as e:
         raise LocalLLMError(f"Failed to parse JSON from local LLM response - error: {str(e)}")
 
@@ -143,13 +143,13 @@ def get_chat_completion(
         usage["prompt_tokens"] = count_tokens(prompt)
 
     # NOTE: we should compute on-the-fly anyways since we might have to correct for errors during JSON parsing
-    usage["completion_tokens"] = count_tokens(json.dumps(chat_completion_result))
+    usage["completion_tokens"] = count_tokens(json.dumps(chat_completion_result, ensure_ascii=False))
     """
     if usage["completion_tokens"] is None:
         printd(f"usage dict was missing completion_tokens, computing on-the-fly...")
         # chat_completion_result is dict with 'role' and 'content'
         # token counter wants a string
-        usage["completion_tokens"] = count_tokens(json.dumps(chat_completion_result))
+        usage["completion_tokens"] = count_tokens(json.dumps(chat_completion_result, ensure_ascii=False))
     """
 
     # NOTE: this is the token count that matters most

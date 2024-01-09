@@ -14,14 +14,14 @@ def insert_heartbeat(message):
         params = message_copy.get("function_call").get("arguments")
         params = json.loads(params)
         params["request_heartbeat"] = True
-        message_copy["function_call"]["arguments"] = json.dumps(params)
+        message_copy["function_call"]["arguments"] = json.dumps(params, ensure_ascii=False)
 
     elif message_copy.get("tool_call"):
         # function_name = message.get("tool_calls")[0].get("function").get("name")
         params = message_copy.get("tool_calls")[0].get("function").get("arguments")
         params = json.loads(params)
         params["request_heartbeat"] = True
-        message_copy["tools_calls"][0]["function"]["arguments"] = json.dumps(params)
+        message_copy["tools_calls"][0]["function"]["arguments"] = json.dumps(params, ensure_ascii=False)
 
     return message_copy
 

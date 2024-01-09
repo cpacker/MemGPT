@@ -32,7 +32,7 @@ EXAMPLE_FUNCTION_CALL_CORE_MEMORY_APPEND_MISSING = {
         "content": "I'll append to memory.",
         "function_call": {
             "name": "core_memory_append",
-            "arguments": json.dumps({"content": "new_stuff"}),
+            "arguments": json.dumps({"content": "new_stuff"}, ensure_ascii=False),
         },
     },
 }

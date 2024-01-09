@@ -61,7 +61,7 @@ def get_heartbeat(reason="Automated timer", include_location=False, location_nam
     if include_location:
         packaged_message["location"] = location_name
 
-    return json.dumps(packaged_message)
+    return json.dumps(packaged_message, ensure_ascii=False)
 
 
 def get_login_event(last_login="Never (first login)", include_location=False, location_name="San Francisco, CA, USA"):
@@ -76,7 +76,7 @@ def get_login_event(last_login="Never (first login)", include_location=False, lo
     if include_location:
         packaged_message["location"] = location_name
 
-    return json.dumps(packaged_message)
+    return json.dumps(packaged_message, ensure_ascii=False)
 
 
 def package_user_message(user_message, time=None, include_location=False, location_name="San Francisco, CA, USA", name=None):
@@ -94,7 +94,7 @@ def package_user_message(user_message, time=None, include_location=False, locati
     if name:
         packaged_message["name"] = name
 
-    return json.dumps(packaged_message)
+    return json.dumps(packaged_message, ensure_ascii=False)
 
 
 def package_function_response(was_success, response_string, timestamp=None):
@@ -105,7 +105,7 @@ def package_function_response(was_success, response_string, timestamp=None):
         "time": formatted_time,
     }
 
-    return json.dumps(packaged_message)
+    return json.dumps(packaged_message, ensure_ascii=False)
 
 
 def package_summarize_message(summary, summary_length, hidden_message_count, total_message_count, timestamp=None):
@@ -121,7 +121,7 @@ def package_summarize_message(summary, summary_length, hidden_message_count, tot
         "time": formatted_time,
     }
 
-    return json.dumps(packaged_message)
+    return json.dumps(packaged_message, ensure_ascii=False)
 
 
 def package_summarize_message_no_summary(hidden_message_count, timestamp=None, message=None):
@@ -140,7 +140,7 @@ def package_summarize_message_no_summary(hidden_message_count, timestamp=None, m
         "time": formatted_time,
     }
 
-    return json.dumps(packaged_message)
+    return json.dumps(packaged_message, ensure_ascii=False)
 
 
 def get_token_limit_warning():
@@ -151,4 +151,4 @@ def get_token_limit_warning():
         "time": formatted_time,
     }
 
-    return json.dumps(packaged_message)
+    return json.dumps(packaged_message, ensure_ascii=False)

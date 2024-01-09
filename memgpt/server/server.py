@@ -371,7 +371,7 @@ class SyncServer(LockingServer):
                         text = command[len("rewrite ") :].strip()
                         args = json.loads(memgpt_agent.messages[x].get("function_call").get("arguments"))
                         args["message"] = text
-                        memgpt_agent.messages[x].get("function_call").update({"arguments": json.dumps(args)})
+                        memgpt_agent.messages[x].get("function_call").update({"arguments": json.dumps(args, ensure_ascii=False)})
                         break
 
         # No skip options

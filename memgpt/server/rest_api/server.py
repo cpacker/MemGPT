@@ -130,7 +130,7 @@ async def user_message(body: UserMessage):
 
             async def formatted_message_generator():
                 async for message in interface.message_generator():
-                    formatted_message = f"data: {json.dumps(message)}\n\n"
+                    formatted_message = f"data: {json.dumps(message, ensure_ascii=False)}\n\n"
                     yield formatted_message
                     await asyncio.sleep(1)
 

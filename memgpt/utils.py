@@ -672,7 +672,7 @@ def validate_function_response(function_response_string: any, strict: bool = Fal
             # Allow dict through since it will be cast to json.dumps()
             try:
                 # TODO find a better way to do this that won't result in double escapes
-                function_response_string = json.dumps(function_response_string)
+                function_response_string = json.dumps(function_response_string, ensure_ascii=False)
             except:
                 raise ValueError(function_response_string)
 
@@ -780,8 +780,8 @@ def get_human_text(name: str):
 
 def get_schema_diff(schema_a, schema_b):
     # Assuming f_schema and linked_function['json_schema'] are your JSON schemas
-    f_schema_json = json.dumps(schema_a, indent=2)
-    linked_function_json = json.dumps(schema_b, indent=2)
+    f_schema_json = json.dumps(schema_a, indent=2, ensure_ascii=False)
+    linked_function_json = json.dumps(schema_b, indent=2, ensure_ascii=False)
 
     # Compute the difference using difflib
     difference = list(difflib.ndiff(f_schema_json.splitlines(keepends=True), linked_function_json.splitlines(keepends=True)))

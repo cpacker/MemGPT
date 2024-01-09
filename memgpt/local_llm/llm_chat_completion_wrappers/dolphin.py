@@ -125,7 +125,7 @@ class Dolphin21MistralWrapper(LLMChatCompletionWrapper):
                 "function": function_call["name"],
                 "params": json.loads(function_call["arguments"]),
             }
-            return json.dumps(airo_func_call, indent=2)
+            return json.dumps(airo_func_call, indent=2, ensure_ascii=False)
 
         # option (1): from HF README:
         # <|im_start|>user
@@ -237,7 +237,7 @@ class Dolphin21MistralWrapper(LLMChatCompletionWrapper):
             "content": None,
             "function_call": {
                 "name": function_name,
-                "arguments": json.dumps(function_parameters),
+                "arguments": json.dumps(function_parameters, ensure_ascii=False),
             },
         }
         return message
