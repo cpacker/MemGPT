@@ -42,19 +42,16 @@ def store_docs(name, docs, user_id=None, show_progress=True):
     # record data source metadata
     ms = MetadataStore(config)
     user = ms.get_user(user_id)
-    print("USER", user)
+    if user is None:
+        raise ValueError(f"Cannot find user {user_id} in metadata store. Please run 'memgpt configure'.")
     data_source = Source(user_id=user.id, name=name, created_at=datetime.now())
     if not ms.get_source(user_id=user.id, source_name=name):
-        print("Trying to add...")
         ms.create_source(data_source)
-        print("Created source", data_source)
     else:
         print(f"Source {name} for user {user.id} already exists")
 
     # compute and record passages
-    print("USER ID", user.id)
     storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user.id)
-    print("embedding config", user.default_embedding_config, user.default_embedding_config.embedding_dim)
     embed_model = embedding_model(user.default_embedding_config)
     orig_size = storage.size()
 
