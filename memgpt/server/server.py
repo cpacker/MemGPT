@@ -7,7 +7,7 @@ from functools import wraps
 from fastapi import HTTPException
 
 from memgpt.system import package_user_message
-from memgpt.config import AgentConfig, MemGPTConfig
+from memgpt.config import MemGPTConfig
 from memgpt.agent import Agent
 import memgpt.system as system
 import memgpt.constants as constants
@@ -60,7 +60,7 @@ class Server(object):
     def create_agent(
         self,
         user_id: str,
-        agent_config: Union[dict, AgentConfig],
+        agent_config: Union[dict, AgentState],
         interface: Union[AgentInterface, None],
         persistence_manager: Union[PersistenceManager, None],
     ) -> str:
