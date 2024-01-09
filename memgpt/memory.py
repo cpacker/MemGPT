@@ -6,8 +6,7 @@ from memgpt.constants import MESSAGE_SUMMARY_WARNING_FRAC
 from memgpt.utils import get_local_time, printd, count_tokens, validate_date_format, extract_date_from_timestamp
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
 from memgpt.openai_tools import create
-from memgpt.data_types import Message, Passage
-from memgpt.config import MemGPTConfig
+from memgpt.data_types import Message, Passage, AgentState
 from memgpt.embeddings import embedding_model
 from llama_index import Document
 from llama_index.node_parser import SimpleNodeParser
@@ -102,12 +101,12 @@ class CoreMemory(object):
 
 
 def summarize_messages(
-    agent_config,
+    agent_state: AgentState,
     message_sequence_to_summarize,
 ):
     """Summarize a message sequence using GPT"""
     # we need the context_window
-    context_window = agent_config.context_window
+    context_window = agent_state.llm_config.context_window
 
     summary_prompt = SUMMARY_PROMPT_SYSTEM
     summary_input = str(message_sequence_to_summarize)
@@ -116,7 +115,7 @@ def summarize_messages(
         trunc_ratio = (MESSAGE_SUMMARY_WARNING_FRAC * context_window / summary_input_tkns) * 0.8  # For good measure...
         cutoff = int(len(message_sequence_to_summarize) * trunc_ratio)
         summary_input = str(
-            [summarize_messages(agent_config=agent_config, message_sequence_to_summarize=message_sequence_to_summarize[:cutoff])]
+            [summarize_messages(agent_state, message_sequence_to_summarize=message_sequence_to_summarize[:cutoff])]
             + message_sequence_to_summarize[cutoff:]
         )
     message_sequence = [
@@ -125,7 +124,7 @@ def summarize_messages(
     ]
 
     response = create(
-        agent_config=agent_config,
+        agent_state=agent_config,
         messages=message_sequence,
     )
 
