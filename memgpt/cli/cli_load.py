@@ -32,6 +32,33 @@ from llama_index import (
 app = typer.Typer()
 
 
+def insert_passages_into_source(passages: List[Passage], source_name: str, user_id: uuid.UUID, config: MemGPTConfig):
+
+    """Insert a list of passages into a source by updating storage connectors and metadata store"""
+    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
+    orig_size = storage.size()
+
+    # insert metadata store
+    ms = MetadataStore(config)
+    source = ms.get_source(user_id=user_id, source_name=source_name)
+    if not source:
+        # create new
+        source = Source(user_id=user_id, name=source_name, created_at=get_local_time())
+        ms.create_source(source)
+
+    # make sure user_id is set for passages
+    for passage in passages:
+        # TODO: attach source IDs
+        # passage.source_id = source.id
+        passage.user_id = user_id
+        passage.data_source = source_name
+
+    # add and save all passages
+    storage.insert_many(passages)
+    assert orig_size + len(passages) == storage.size(), f"Expected {orig_size + len(passages)} passages, got {storage.size()}"
+    storage.save()
+
+
 def store_docs(name, docs, user_id=None, show_progress=True):
     """Common function for embedding and storing documents"""
 
@@ -51,9 +78,7 @@ def store_docs(name, docs, user_id=None, show_progress=True):
         print(f"Source {name} for user {user.id} already exists")
 
     # compute and record passages
-    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user.id)
     embed_model = embedding_model(user.default_embedding_config)
-    orig_size = storage.size()
 
     # use llama index to run embeddings code
     with suppress_stdout():
@@ -83,15 +108,14 @@ def store_docs(name, docs, user_id=None, show_progress=True):
             )
         )
 
-    # insert into storage
-    storage.insert_many(passages)
-    assert orig_size + len(passages) == storage.size(), f"Expected {orig_size + len(passages)} passages, got {storage.size()}"
-    storage.save()
+    insert_passages_into_source(passages, name, user_id, config)
 
 
 @app.command("index")
 def load_index(
-    name: str = typer.Option(help="Name of dataset to load."), dir: str = typer.Option(help="Path to directory containing index.")
+    name: str = typer.Option(help="Name of dataset to load."),
+    dir: str = typer.Option(help="Path to directory containing index."),
+    user_id: uuid.UUID = None,
 ):
     """Load a LlamaIndex saved VectorIndex into MemGPT"""
     try:
@@ -110,11 +134,11 @@ def load_index(
             passages.append(Passage(text=node.text, embedding=vector))
 
         # create storage connector
-        storage = StorageConnector.get_archival_storage_connector(name=name)
+        config = MemGPTConfig.load()
+        if user_id is None:
+            user_id = uuid.UUID(config.anon_clientid)
 
-        # add and save all passages
-        storage.insert_many(passages)
-        storage.save()
+        insert_passages_into_source(passages, name, user_id, config)
     except ValueError as e:
         typer.secho(f"Failed to load index from provided information.\n{e}", fg=typer.colors.RED)
 
@@ -220,6 +244,7 @@ def load_vector_database(
     table_name: str = typer.Option(help="Name of table containing data."),
     text_column: str = typer.Option(help="Name of column containing text."),
     embedding_column: str = typer.Option(help="Name of column containing embedding."),
+    user_id: uuid.UUID = None,
 ):
     """Load pre-computed embeddings into MemGPT from a database."""
 
@@ -252,9 +277,12 @@ def load_vector_database(
             passages.append(Passage(text=text, embedding=embedding))
             assert config.embedding_dim == len(embedding), f"Expected embedding dimension {config.embedding_dim}, got {len(embedding)}"
 
-        # insert into storage
-        storage = StorageConnector.get_archival_storage_connector(name=name)
-        storage.insert_many(passages)
+        # create storage connector
+        config = MemGPTConfig.load()
+        if user_id is None:
+            user_id = uuid.UUID(config.anon_clientid)
+
+        insert_passages_into_source(passages, name, user_id, config)
 
     except ValueError as e:
         typer.secho(f"Failed to load vector database from provided information.\n{e}", fg=typer.colors.RED)

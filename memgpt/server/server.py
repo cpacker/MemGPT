@@ -513,9 +513,10 @@ class SyncServer(LockingServer):
 
         return agent_config
 
-    def get_server_config(self, user_id: str) -> dict:
+    def get_server_config(self) -> dict:
         """Return the base config"""
-        base_config = vars(MemGPTConfig.load())
+        # TODO: do we need a seperate server config?
+        base_config = vars(self.config)
 
         def clean_keys(config):
             config_copy = config.copy()
