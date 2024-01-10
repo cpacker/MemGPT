@@ -1,15 +1,42 @@
 import configparser
+import datetime
 import os
+import sys
 import json
+import shutil
 
 import typer
 from tqdm import tqdm
+import questionary
 
 from memgpt.utils import MEMGPT_DIR, version_less_than
 from memgpt.config import MemGPTConfig
+from memgpt.cli.cli_config import configure
 
 # This is the version where the breaking change was made
 VERSION_CUTOFF = "0.2.12"
+
+
+def wipe_config_and_reconfigure():
+    """Wipe (backup) the config file, and launch `memgpt configure`"""
+
+    # Get the current timestamp in a readable format (e.g., YYYYMMDD_HHMMSS)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Construct the new backup directory name with the timestamp
+    backup_filename = os.path.join(MEMGPT_DIR, f"config_backup_{timestamp}")
+    existing_filename = os.path.join(MEMGPT_DIR, "config")
+
+    # Check if the existing file exists before moving
+    if os.path.exists(existing_filename):
+        # shutil should work cross-platform
+        shutil.move(existing_filename, backup_filename)
+        typer.secho(f"Deleted config file ({existing_filename}) and saved as backup ({backup_filename})", fg=typer.colors.GREEN)
+    else:
+        typer.secho(f"Couldn't find an existing config file to delete", fg=typer.colors.RED)
+
+    # Run configure
+    configure()
 
 
 def config_is_compatible() -> bool:
@@ -85,11 +112,17 @@ def migrate_all_agents():
     """Scan over all agent folders in MEMGPT_DIR and migrate each agent."""
     if not config_is_compatible():
         typer.secho(f"Your current config file is incompatible with MemGPT versions >= {VERSION_CUTOFF}", fg=typer.colors.RED)
-        typer.secho(
-            f"\nTo migrate old MemGPT agents, please delete your config file and run `memgpt configure`, then re-attempt `memgpt migrate`\n",
-            fg=typer.colors.WHITE,
-        )
-        return
+        if questionary.confirm(
+            "To migrate old MemGPT agents, you must delete your config file and run `memgpt configure`. Would you like to proceed?"
+        ).ask():
+            try:
+                wipe_config_and_reconfigure()
+            except Exception as e:
+                typer.secho(f"Fresh config generation failed - error:\n{e}", fg=typer.colors.RED)
+                raise
+        else:
+            typer.secho("Migration cancelled (to migrate old agents, run `memgpt migrate`)", fg=typer.colors.RED)
+            raise KeyboardInterrupt()
 
     agents_dir = os.path.join(MEMGPT_DIR, "agents")
 
