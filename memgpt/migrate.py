@@ -1,6 +1,8 @@
 import configparser
 import datetime
 import os
+import pickle
+import glob
 import sys
 import json
 import shutil
@@ -9,7 +11,7 @@ import typer
 from tqdm import tqdm
 import questionary
 
-from memgpt.utils import MEMGPT_DIR, version_less_than
+from memgpt.utils import MEMGPT_DIR, version_less_than, OpenAIBackcompatUnpickler
 from memgpt.config import MemGPTConfig
 from memgpt.cli.cli_config import configure
 
@@ -96,10 +98,63 @@ def migrate_agent(agent_name: str):
        (This will automatically run into a new database)
     """
     print(f"Stub migration {agent_name}")
-    return
 
     # 1. Load the agent state JSON from the old folder
     # TODO
+    agent_folder = os.path.join(MEMGPT_DIR, "agents", agent_name)
+    # migration_file = os.path.join(agent_folder, MIGRATION_FILE_NAME)
+
+    # load state from old checkpoint file
+    agent_ckpt_directory = os.path.join(agent_folder, "agent_state")
+    json_files = glob.glob(os.path.join(agent_ckpt_directory, "*.json"))  # This will list all .json files in the current directory.
+    if not json_files:
+        raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {agent_ckpt_directory}")
+
+    # Sort files based on modified timestamp, with the latest file being the first.
+    state_filename = max(json_files, key=os.path.getmtime)
+    state_dict = json.load(open(state_filename, "r"))
+
+    print(state_dict.keys())
+    print(state_dict["memory"])
+    # dict_keys(['model', 'system', 'functions', 'messages', 'messages_total', 'memory'])
+
+    # load old data from the persistence manager
+    persistence_filename = os.path.basename(state_filename).replace(".json", ".persistence.pickle")
+    persistence_filename = os.path.join(agent_folder, "persistence_manager", persistence_filename)
+    if not os.path.exists(persistence_filename):
+        raise ValueError(f"Cannot load {agent_name} - no saved persistence pickle found at {persistence_filename}")
+
+    try:
+        with open(persistence_filename, "rb") as f:
+            data = pickle.load(f)
+    except ModuleNotFoundError as e:
+        # Patch for stripped openai package
+        # ModuleNotFoundError: No module named 'openai.openai_object'
+        with open(persistence_filename, "rb") as f:
+            unpickler = OpenAIBackcompatUnpickler(f)
+            data = unpickler.load()
+
+        from memgpt.openai_backcompat.openai_object import OpenAIObject
+
+        def convert_openai_objects_to_dict(obj):
+            if isinstance(obj, OpenAIObject):
+                # Convert to dict or handle as needed
+                # print(f"detected OpenAIObject on {obj}")
+                return obj.to_dict_recursive()
+            elif isinstance(obj, dict):
+                return {k: convert_openai_objects_to_dict(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_openai_objects_to_dict(v) for v in obj]
+            else:
+                return obj
+
+        data = convert_openai_objects_to_dict(data)
+
+    # data will contain:
+    print("data.keys()", data.keys())
+    # manager.all_messages = data["all_messages"]
+    # manager.messages = data["messages"]
+    # manager.recall_memory = data["recall_memory"]
 
     # 2. Create a new AgentState using the agent config + agent internal state
     # TODO
