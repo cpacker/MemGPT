@@ -513,7 +513,7 @@ class SyncServer(LockingServer):
         # TODO actually use the user_id that was passed into the server
         USER_ID = self.config.anon_clientid
         agents_list = self.ms.list_agents(user_id=USER_ID)
-        return {"num_agents": len(agents_list), "agent_names": [state.name for state in agents_list]}
+        return {"num_agents": len(agents_list), "agents": [state.name for state in agents_list]}
 
     def get_agent_memory(self, user_id: str, agent_id: str) -> dict:
         """Return the memory of an agent (core memory + non-core statistics)"""
