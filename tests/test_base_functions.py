@@ -1,7 +1,7 @@
 from memgpt import MemGPT
 from memgpt import constants
 import memgpt.functions.function_sets.base as base_functions
-
+import os
 from .utils import wipe_config
 
 
@@ -14,7 +14,10 @@ def create_test_agent():
     """Create a test agent that we can call functions on"""
     wipe_config()
     global client
-    client = MemGPT(quickstart="openai")
+    if os.getenv("OPENAI_API_KEY"):
+        client = MemGPT(quickstart="openai")
+    else:
+        client = MemGPT(quickstart="memgpt_hosted")
 
     agent_state = client.create_agent(
         agent_config={

@@ -16,7 +16,10 @@ from memgpt import MemGPT
 
 def test_save_load():
     # configure_memgpt()  # rely on configure running first^
-    client = MemGPT(quickstart="openai")
+    if os.getenv("OPENAI_API_KEY"):
+        client = MemGPT(quickstart="openai")
+    else:
+        client = MemGPT(quickstart="memgpt_hosted")
 
     child = pexpect.spawn("memgpt run --agent test_save_load --first --strip-ui")
 
