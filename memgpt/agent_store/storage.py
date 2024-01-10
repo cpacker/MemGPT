@@ -115,13 +115,11 @@ class StorageConnector:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")
 
     @staticmethod
-    def get_archival_storage_connector(user_id, agent_id):
-        config = MemGPTConfig.load()
+    def get_archival_storage_connector(config: MemGPTConfig, user_id, agent_id):
         return StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config, user_id, agent_id)
 
     @staticmethod
-    def get_recall_storage_connector(user_id, agent_id):
-        config = MemGPTConfig.load()
+    def get_recall_storage_connector(config: MemGPTConfig, user_id, agent_id):
         return StorageConnector.get_storage_connector(TableType.RECALL_MEMORY, config, user_id, agent_id)
 
     @abstractmethod
