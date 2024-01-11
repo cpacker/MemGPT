@@ -4,6 +4,7 @@ import os
 import pickle
 import glob
 import sys
+import uuid
 import json
 import shutil
 
@@ -12,7 +13,8 @@ from tqdm import tqdm
 import questionary
 
 from memgpt.agent import Agent
-from memgpt.data_types import AgentState
+from memgpt.data_types import AgentState, User
+from memgpt.metadata import MetadataStore
 from memgpt.utils import MEMGPT_DIR, version_less_than, OpenAIBackcompatUnpickler
 from memgpt.config import MemGPTConfig
 from memgpt.cli.cli_config import configure
@@ -99,7 +101,6 @@ def migrate_agent(agent_name: str):
     3. Instantiate a new Agent by passing AgentState to Agent.__init__
        (This will automatically run into a new database)
     """
-    print(f"Stub migration {agent_name}")
 
     # 1. Load the agent state JSON from the old folder
     # TODO
@@ -116,8 +117,8 @@ def migrate_agent(agent_name: str):
     state_filename = max(json_files, key=os.path.getmtime)
     state_dict = json.load(open(state_filename, "r"))
 
-    print(state_dict.keys())
-    print(state_dict["memory"])
+    # print(state_dict.keys())
+    # print(state_dict["memory"])
     # dict_keys(['model', 'system', 'functions', 'messages', 'messages_total', 'memory'])
 
     # load old data from the persistence manager
@@ -153,7 +154,7 @@ def migrate_agent(agent_name: str):
         data = convert_openai_objects_to_dict(data)
 
     # data will contain:
-    print("data.keys()", data.keys())
+    # print("data.keys()", data.keys())
     # manager.all_messages = data["all_messages"]
     # manager.messages = data["messages"]
     # manager.recall_memory = data["recall_memory"]
@@ -164,9 +165,21 @@ def migrate_agent(agent_name: str):
 
     # 2. Create a new AgentState using the agent config + agent internal state
     config = MemGPTConfig.load()
+
+    # Creates the default user in case it doesn't exist yet
+    ms = MetadataStore(config)
+    user_id = uuid.UUID(config.anon_clientid)
+    user = ms.get_user(user_id=user_id)
+    if user is None:
+        ms.create_user(User(id=user_id))
+        user = ms.get_user(user_id=user_id)
+        if user is None:
+            typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
+            sys.exit(1)
+
     agent_state = AgentState(
         name=agent_config["name"],
-        user_id=config.anon_clientid,
+        user_id=user.id,
         persona=agent_config["persona"],  # eg 'sam_pov'
         human=agent_config["human"],  # eg 'basic'
         preset=agent_config["preset"],  # eg 'memgpt_chat'
@@ -177,6 +190,8 @@ def migrate_agent(agent_name: str):
             functions=state_dict["functions"],  # this shouldn't matter, since Agent.__init__ will re-link
             messages=state_dict["messages"],
         ),
+        llm_config=user.default_llm_config,
+        embedding_config=user.default_embedding_config,
     )
 
     # 3. Instantiate a new Agent by passing AgentState to Agent.__init__
@@ -187,12 +202,18 @@ def migrate_agent(agent_name: str):
         interface=None,
     )
 
-    # 4. Insert into recall
-    messages_to_insert = [agent.persistence_manager.json_to_message(msg) for msg in data["messages"]]
-    agent.persistence_manager.recall_memory.insert_many(messages_to_insert)
+    # Wrap the rest in a try-except so that we can cleanup by deleting the agent if we fail
+    try:
+        # 4. Insert into recall
+        messages_to_insert = [agent.persistence_manager.json_to_message(msg) for msg in data["messages"]]
+        agent.persistence_manager.recall_memory.insert_many(messages_to_insert)
 
-    # 5. Insert into archival
-    # TODO
+        # 5. Insert into archival
+        # TODO
+
+    except:
+        ms.delete_agent(agent_state.id)
+        raise
 
 
 def migrate_all_agents():
@@ -234,7 +255,7 @@ def migrate_all_agents():
                 else:
                     continue
             except Exception as e:
-                typer.secho(f"Migrating {agent_name} failed with: {e}", fg=typer.colors.RED)
+                typer.secho(f"Migrating {agent_name} failed with: {str(e)}", fg=typer.colors.RED)
     except KeyboardInterrupt:
         typer.secho(f"User cancelled operation", fg=typer.colors.RED)
 
