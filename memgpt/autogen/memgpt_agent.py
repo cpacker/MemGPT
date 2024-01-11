@@ -200,6 +200,7 @@ class MemGPTAgent(ConversableAgent):
         concat_other_agent_messages=False,
         is_termination_msg: Optional[Callable[[Dict], bool]] = None,
         default_auto_reply: Optional[Union[str, Dict, None]] = "",
+        # TODO: pass in MemGPT config (needed to create DB connections)
     ):
         super().__init__(name)
         self.agent = agent
@@ -234,6 +235,7 @@ class MemGPTAgent(ConversableAgent):
         self.agent.config.attach_data_source(data_source)
 
         # reload agent with new data source
+        # TODO: @charles we will need to pass in the MemGPT config here to get the DB URIs (not contained in agent)
         self.agent.persistence_manager.archival_memory.storage = StorageConnector.get_archival_storage_connector(
             agent_config=self.agent.config
         )
