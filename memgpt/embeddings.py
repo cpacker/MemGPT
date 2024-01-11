@@ -37,14 +37,7 @@ class EmbeddingEndpoint(BaseEmbedding):
         self._user = user
         self._base_url = base_url
         self._timeout = timeout
-        try:
-            self._encoding = tiktoken.get_encoding(model)
-        except:
-            # fallback to a known good model. This is somewhat dubious because it silently overrides the configuration.
-            # But CI can fail without this fallback. TODO: figure out a better way to handle this.
-            os.environ["TOKENIZERS_PARALLELISM"] = "False"
-            model = "BAAI/bge-small-en-v1.5"
-            self._encoding = tiktoken.get_encoding(model)
+        self._encoding = tiktoken.get_encoding(model)
         super().__init__(
             model_name=model,
         )
@@ -153,6 +146,16 @@ class EmbeddingEndpoint(BaseEmbedding):
         return self._get_text_embedding(text)
 
 
+def default_embedding_model():
+    # default to hugging face model running local
+    # warning: this is a terrible model
+    from llama_index.embeddings import HuggingFaceEmbedding
+
+    os.environ["TOKENIZERS_PARALLELISM"] = "False"
+    model = "BAAI/bge-small-en-v1.5"
+    return HuggingFaceEmbedding(model_name=model)
+
+
 def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None):
     """Return LlamaIndex embedding model to use for embeddings"""
 
@@ -174,13 +177,10 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
             api_version=config.azure_version,
         )
     elif endpoint_type == "hugging-face":
-        embed_model = EmbeddingEndpoint(model=config.embedding_model, base_url=config.embedding_endpoint, user=user_id)
+        try:
+            embed_model = EmbeddingEndpoint(model=config.embedding_model, base_url=config.embedding_endpoint, user=user_id)
+        except:
+            embed_model = default_embedding_model()
         return embed_model
     else:
-        # default to hugging face model running local
-        # warning: this is a terrible model
-        from llama_index.embeddings import HuggingFaceEmbedding
-
-        os.environ["TOKENIZERS_PARALLELISM"] = "False"
-        model = "BAAI/bge-small-en-v1.5"
-        return HuggingFaceEmbedding(model_name=model)
+        return default_embedding_model()
