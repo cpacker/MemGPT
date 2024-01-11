@@ -15,6 +15,7 @@ from enum import Enum
 from llama_index import set_global_service_context
 from llama_index import ServiceContext
 
+from memgpt.log import logger
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.cli.cli_config import configure
 import memgpt.presets.presets as presets
@@ -306,11 +307,14 @@ def run(
     """
 
     # setup logger
+    # TODO: remove Utils Debug after global logging is complete.
     utils.DEBUG = debug
-    logging.getLogger().setLevel(logging.CRITICAL)
-    if debug:
-        logging.getLogger().setLevel(logging.DEBUG)
+    # TODO: add logging command line options for runtime log level
 
+    if debug:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.CRITICAL)
     if not MemGPTConfig.exists():
         # if no config, ask about quickstart
         # do you want to do:
