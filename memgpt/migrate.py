@@ -11,6 +11,8 @@ import typer
 from tqdm import tqdm
 import questionary
 
+from memgpt.agent import Agent
+from memgpt.data_types import AgentState
 from memgpt.utils import MEMGPT_DIR, version_less_than, OpenAIBackcompatUnpickler
 from memgpt.config import MemGPTConfig
 from memgpt.cli.cli_config import configure
@@ -156,10 +158,40 @@ def migrate_agent(agent_name: str):
     # manager.messages = data["messages"]
     # manager.recall_memory = data["recall_memory"]
 
+    agent_config_filename = os.path.join(agent_folder, "config.json")
+    with open(agent_config_filename, "r") as fh:
+        agent_config = json.load(fh)
+
     # 2. Create a new AgentState using the agent config + agent internal state
-    # TODO
+    config = MemGPTConfig.load()
+    agent_state = AgentState(
+        name=agent_config["name"],
+        user_id=config.anon_clientid,
+        persona=agent_config["persona"],  # eg 'sam_pov'
+        human=agent_config["human"],  # eg 'basic'
+        preset=agent_config["preset"],  # eg 'memgpt_chat'
+        state=dict(
+            human=state_dict["memory"]["human"],
+            persona=state_dict["memory"]["persona"],
+            system=state_dict["system"],
+            functions=state_dict["functions"],  # this shouldn't matter, since Agent.__init__ will re-link
+            messages=state_dict["messages"],
+        ),
+    )
 
     # 3. Instantiate a new Agent by passing AgentState to Agent.__init__
+    # NOTE: the Agent.__init__ will trigger a save, which will write to the DB
+    agent = Agent(
+        agent_state=agent_state,
+        messages_total=state_dict["messages_total"],  # TODO: do we need this?
+        interface=None,
+    )
+
+    # 4. Insert into recall
+    messages_to_insert = [agent.persistence_manager.json_to_message(msg) for msg in data["messages"]]
+    agent.persistence_manager.recall_memory.insert_many(messages_to_insert)
+
+    # 5. Insert into archival
     # TODO
 
 
