@@ -10,7 +10,7 @@ model_endpoint_type = openai
 context_window = 8192
 
 [openai]
-key = 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
+key = FAKE_KEY
 
 [embedding]
 embedding_endpoint_type = openai
