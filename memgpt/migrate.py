@@ -273,12 +273,14 @@ def migrate_agent(agent_name: str):
 
         # 5. Insert into archival
         if os.path.exists(archival_filename):
-            nodes = pickle.load(open(archival_filename))
+            nodes = pickle.load(open(archival_filename, "rb"))
             passages = []
             for node in nodes:
-                passages.append(Passage(user_id=user.id, agent_id=agent.id, text=node.text, embedding=node.embedding))
+                print(len(node.embedding))
+                passages.append(Passage(user_id=user.id, agent_id=agent_state.id, text=node.text, embedding=node.embedding))
             if len(passages) > 0:
                 agent.persistence_manager.archival_memory.storage.insert_many(passages)
+                print(f"Inserted {len(passages)} passages into archival memory")
 
         else:
             print("No archival memory found at", archival_filename)
