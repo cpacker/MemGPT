@@ -33,7 +33,6 @@ app = typer.Typer()
 
 
 def insert_passages_into_source(passages: List[Passage], source_name: str, user_id: uuid.UUID, config: MemGPTConfig):
-
     """Insert a list of passages into a source by updating storage connectors and metadata store"""
     storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
     orig_size = storage.size()
