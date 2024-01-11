@@ -42,7 +42,8 @@ class EmbeddingEndpoint(BaseEmbedding):
         except:
             # fallback to a known good model. This is somewhat dubious because it silently overrides the configuration.
             # But CI can fail without this fallback. TODO: figure out a better way to handle this.
-            model = "cl100k_base"
+            os.environ["TOKENIZERS_PARALLELISM"] = "False"
+            model = "BAAI/bge-small-en-v1.5"
             self._encoding = tiktoken.get_encoding(model)
         super().__init__(
             model_name=model,
