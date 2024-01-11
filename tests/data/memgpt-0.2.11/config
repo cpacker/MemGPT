@@ -10,7 +10,7 @@ model_endpoint_type = openai
 context_window = 8192
 
 [openai]
-key = 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
+key = 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
 
 [embedding]
 embedding_endpoint_type = openai
@@ -26,3 +26,4 @@ memgpt_version = 0.2.11
 
 [client]
 anon_clientid = 00000000000000000000d67f40108c5c
+
