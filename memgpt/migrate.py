@@ -245,13 +245,13 @@ def migrate_agent(agent_name: str):
 
     # Wrap the rest in a try-except so that we can cleanup by deleting the agent if we fail
     try:
-        # 4. Insert into recall
-        messages_to_insert = [agent.persistence_manager.json_to_message(msg) for msg in data["messages"]]
-        agent.persistence_manager.recall_memory.insert_many(messages_to_insert)
-        print("Finished migrating recall memory")
+        ## 4. Insert into recall
+        # messages_to_insert = [agent.persistence_manager.json_to_message(msg) for msg in data["messages"]]
+        # agent.persistence_manager.recall_memory.insert_many(messages_to_insert)
+        # print("Finished migrating recall memory")
 
         # 5. Insert into archival
-        if os.path.exists(archival_directory):
+        if os.path.exists(archival_directory) and os.path.exists(os.path.join(archival_directory, "docstore.json")):
             storage_context = StorageContext.from_defaults(persist_dir=archival_directory)
             loaded_index = load_index_from_storage(storage_context)
             embed_dict = loaded_index._vector_store._data.embedding_dict

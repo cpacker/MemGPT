@@ -1,4 +1,5 @@
 import builtins
+from tqdm import tqdm
 import uuid
 import questionary
 from prettytable import PrettyTable
@@ -561,7 +562,7 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         """List all agents"""
         table = PrettyTable()
         table.field_names = ["Name", "Model", "Persona", "Human", "Data Source", "Create Time"]
-        for agent in ms.list_agents(user_id=user_id):
+        for agent in tqdm(ms.list_agents(user_id=user_id)):
             source_ids = ms.list_attached_sources(agent_id=agent.id)
             source_names = [ms.get_source(source_id=source_id).name for source_id in source_ids]
             table.add_row(
@@ -670,6 +671,7 @@ def delete(option: str, name: str):
 
             # TODO: should we also delete from agents?
         elif option == "agent":
+
             agent = ms.get_agent(agent_name=name, user_id=user_id)
 
             # recall memory
