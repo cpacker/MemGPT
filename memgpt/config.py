@@ -1,4 +1,4 @@
-from log import logger
+from memgpt.log import logger
 import inspect
 import json
 import os
