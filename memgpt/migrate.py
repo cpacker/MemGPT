@@ -92,6 +92,25 @@ def agent_is_migrateable(agent_name: str) -> bool:
         return False
 
 
+def migrate_source(source_name: str):
+    """Migrate an old source folder (`~/.memgpt/sources/{source_name}`).
+
+    Steps:
+    1. Load the VectorIndex from ~/.memgpt/sources/{source_name}/index
+    2. Insert new Source record into the database (if not exists)
+    """
+
+    # 1. Load the VectorIndex from ~/.memgpt/sources/{source_name}/index
+    # TODO
+    source_folder = os.path.join(MEMGPT_DIR, "sources", source_name)
+    index_file = os.path.join(source_folder, "index")
+
+    # load state from old checkpoint file
+    from memgpt.cli.cli_load import load_index
+
+    index = load_index(index_file)
+
+
 def migrate_agent(agent_name: str):
     """Migrate an old agent folder (`~/.memgpt/agents/{agent_name}`)
 
