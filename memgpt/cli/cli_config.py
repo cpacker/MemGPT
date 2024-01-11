@@ -59,6 +59,8 @@ def configure_llm_endpoint(config: MemGPTConfig):
     provider = questionary.select(
         "Select LLM inference provider:", choices=["openai", "azure", "local"], default=default_model_endpoint_type
     ).ask()
+    if provider is None:
+        raise KeyboardInterrupt
 
     # set: model_endpoint_type, model_endpoint
     if provider == "openai":
@@ -73,6 +75,8 @@ def configure_llm_endpoint(config: MemGPTConfig):
                     openai_api_key = questionary.text(
                         "Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):"
                     ).ask()
+                    if openai_api_key is None:
+                        raise KeyboardInterrupt
             config.openai_key = openai_api_key
             config.save()
         else:
@@ -83,6 +87,8 @@ def configure_llm_endpoint(config: MemGPTConfig):
                 "Enter your OpenAI API key (hit enter to use existing key):",
                 default=default_input,
             ).ask()
+            if openai_api_key is None:
+                raise KeyboardInterrupt
             # If the user modified it, use the new one
             if openai_api_key != default_input:
                 config.openai_key = openai_api_key
@@ -91,6 +97,8 @@ def configure_llm_endpoint(config: MemGPTConfig):
         model_endpoint_type = "openai"
         model_endpoint = "https://api.openai.com/v1"
         model_endpoint = questionary.text("Override default endpoint:", default=model_endpoint).ask()
+        if model_endpoint is None:
+            raise KeyboardInterrupt
         provider = "openai"
 
     elif provider == "azure":
@@ -120,6 +128,8 @@ def configure_llm_endpoint(config: MemGPTConfig):
             backend_options,
             default=default_model_endpoint_type,
         ).ask()
+        if model_endpoint_type is None:
+            raise KeyboardInterrupt
 
         # set default endpoint
         # if OPENAI_API_BASE is set, assume that this is the IP+port the user wanted to use
@@ -129,21 +139,33 @@ def configure_llm_endpoint(config: MemGPTConfig):
             if model_endpoint_type in DEFAULT_ENDPOINTS:
                 default_model_endpoint = DEFAULT_ENDPOINTS[model_endpoint_type]
                 model_endpoint = questionary.text("Enter default endpoint:", default=default_model_endpoint).ask()
+                if model_endpoint is None:
+                    raise KeyboardInterrupt
                 while not utils.is_valid_url(model_endpoint):
                     typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
                     model_endpoint = questionary.text("Enter default endpoint:", default=default_model_endpoint).ask()
+                    if model_endpoint is None:
+                        raise KeyboardInterrupt
             elif config.model_endpoint:
                 model_endpoint = questionary.text("Enter default endpoint:", default=config.model_endpoint).ask()
+                if model_endpoint is None:
+                    raise KeyboardInterrupt
                 while not utils.is_valid_url(model_endpoint):
                     typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
                     model_endpoint = questionary.text("Enter default endpoint:", default=config.model_endpoint).ask()
+                    if model_endpoint is None:
+                        raise KeyboardInterrupt
             else:
                 # default_model_endpoint = None
                 model_endpoint = None
                 model_endpoint = questionary.text("Enter default endpoint:").ask()
+                if model_endpoint is None:
+                    raise KeyboardInterrupt
                 while not utils.is_valid_url(model_endpoint):
                     typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
                     model_endpoint = questionary.text("Enter default endpoint:").ask()
+                    if model_endpoint is None:
+                        raise KeyboardInterrupt
         else:
             model_endpoint = default_model_endpoint
         assert model_endpoint, f"Environment variable OPENAI_API_BASE must be set."
@@ -183,6 +205,8 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
             choices=hardcoded_model_options + [see_all_option_str, other_option_str],
             default=config.model if valid_model else hardcoded_model_options[0],
         ).ask()
+        if model is None:
+            raise KeyboardInterrupt
 
         # If the user asked for the full list, show it
         if model == see_all_option_str:
@@ -192,6 +216,8 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
                 choices=fetched_model_options + [other_option_str],
                 default=config.model if valid_model else fetched_model_options[0],
             ).ask()
+            if model is None:
+                raise KeyboardInterrupt
 
         # Finally if the user asked to manually input, allow it
         if model == other_option_str:
@@ -200,6 +226,8 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
                 model = questionary.text(
                     "Enter custom model name:",
                 ).ask()
+                if model is None:
+                    raise KeyboardInterrupt
 
     else:  # local models
         # ollama also needs model type
@@ -209,6 +237,8 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
                 "Enter default model name (required for Ollama, see: https://memgpt.readme.io/docs/ollama):",
                 default=default_model,
             ).ask()
+            if model is None:
+                raise KeyboardInterrupt
             model = None if len(model) == 0 else model
 
         default_model = config.model if config.model and config.model_endpoint_type == "vllm" else ""
@@ -232,6 +262,8 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
                 model = questionary.select(
                     "Select default model:", choices=model_options, default=config.model if valid_model else model_options[0]
                 ).ask()
+                if model is None:
+                    raise KeyboardInterrupt
 
                 # If we got custom input, ask for raw input
                 if model == other_option_str:
@@ -239,6 +271,8 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
                         "Enter HuggingFace model tag (e.g. ehartford/dolphin-2.2.1-mistral-7b):",
                         default=default_model,
                     ).ask()
+                    if model is None:
+                        raise KeyboardInterrupt
                     # TODO allow empty string for input?
                     model = None if len(model) == 0 else model
 
@@ -247,6 +281,8 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
                     "Enter HuggingFace model tag (e.g. ehartford/dolphin-2.2.1-mistral-7b):",
                     default=default_model,
                 ).ask()
+                if model is None:
+                    raise KeyboardInterrupt
                 model = None if len(model) == 0 else model
 
         # model wrapper
@@ -256,6 +292,8 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
             choices=available_model_wrappers,
             default=DEFAULT_WRAPPER_NAME,
         ).ask()
+        if model_wrapper is None:
+            raise KeyboardInterrupt
 
     # set: context_window
     if str(model) not in LLM_MAX_TOKENS:
@@ -273,11 +311,15 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
             choices=context_length_options,
             default=str(LLM_MAX_TOKENS["DEFAULT"]),
         ).ask()
+        if context_window is None:
+            raise KeyboardInterrupt
 
         # If custom, ask for input
         if context_window == "custom":
             while True:
                 context_window = questionary.text("Enter context window (e.g. 8192)").ask()
+                if context_window is None:
+                    raise KeyboardInterrupt
                 try:
                     context_window = int(context_window)
                     break
@@ -300,6 +342,8 @@ def configure_embedding_endpoint(config: MemGPTConfig):
     embedding_provider = questionary.select(
         "Select embedding provider:", choices=["openai", "azure", "hugging-face", "local"], default=default_embedding_endpoint_type
     ).ask()
+    if embedding_provider is None:
+        raise KeyboardInterrupt
 
     if embedding_provider == "openai":
         # check for key
@@ -313,6 +357,8 @@ def configure_embedding_endpoint(config: MemGPTConfig):
                     openai_api_key = questionary.text(
                         "Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):"
                     ).ask()
+                    if openai_api_key is None:
+                        raise KeyboardInterrupt
                 config.openai_key = openai_api_key
                 config.save()
 
@@ -341,6 +387,8 @@ def configure_embedding_endpoint(config: MemGPTConfig):
 
         # get endpoint
         embedding_endpoint = questionary.text("Enter default endpoint:").ask()
+        if embedding_endpoint is None:
+            raise KeyboardInterrupt
         while not utils.is_valid_url(embedding_endpoint):
             typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
             embedding_endpoint = questionary.text("Enter default endpoint:").ask()
@@ -351,10 +399,14 @@ def configure_embedding_endpoint(config: MemGPTConfig):
             "Enter HuggingFace model tag (e.g. BAAI/bge-large-en-v1.5):",
             default=default_embedding_model,
         ).ask()
+        if embedding_model is None:
+            raise KeyboardInterrupt
 
         # get model dimentions
         default_embedding_dim = config.embedding_dim if config.embedding_dim else "1024"
         embedding_dim = questionary.text("Enter embedding model dimentions (e.g. 1024):", default=str(default_embedding_dim)).ask()
+        if embedding_dim is None:
+            raise KeyboardInterrupt
         try:
             embedding_dim = int(embedding_dim)
         except Exception as e:
@@ -374,16 +426,22 @@ def configure_cli(config: MemGPTConfig):
     # preset
     default_preset = config.preset if config.preset and config.preset in preset_options else None
     preset = questionary.select("Select default preset:", preset_options, default=default_preset).ask()
+    if preset is None:
+        raise KeyboardInterrupt
 
     # persona
     personas = [os.path.basename(f).replace(".txt", "") for f in utils.list_persona_files()]
     default_persona = config.persona if config.persona and config.persona in personas else None
     persona = questionary.select("Select default persona:", personas, default=default_persona).ask()
+    if persona is None:
+        raise KeyboardInterrupt
 
     # human
     humans = [os.path.basename(f).replace(".txt", "") for f in utils.list_human_files()]
     default_human = config.human if config.human and config.human in humans else None
     human = questionary.select("Select default human:", humans, default=default_human).ask()
+    if human is None:
+        raise KeyboardInterrupt
 
     # TODO: figure out if we should set a default agent or not
     agent = None
@@ -397,6 +455,8 @@ def configure_archival_storage(config: MemGPTConfig):
     archival_storage_type = questionary.select(
         "Select storage backend for archival data:", archival_storage_options, default=config.archival_storage_type
     ).ask()
+    if archival_storage_type is None:
+        raise KeyboardInterrupt
     archival_storage_uri, archival_storage_path = config.archival_storage_uri, config.archival_storage_path
 
     # configure postgres
@@ -405,6 +465,8 @@ def configure_archival_storage(config: MemGPTConfig):
             "Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}):",
             default=config.archival_storage_uri if config.archival_storage_uri else "",
         ).ask()
+        if archival_storage_uri is None:
+            raise KeyboardInterrupt
 
     # TODO: add back
     ## configure lancedb
@@ -417,8 +479,12 @@ def configure_archival_storage(config: MemGPTConfig):
     # configure chroma
     if archival_storage_type == "chroma":
         chroma_type = questionary.select("Select chroma backend:", ["http", "persistent"], default="persistent").ask()
+        if chroma_type is None:
+            raise KeyboardInterrupt
         if chroma_type == "http":
             archival_storage_uri = questionary.text("Enter chroma ip (e.g. localhost:8000):", default="localhost:8000").ask()
+            if archival_storage_uri is None:
+                raise KeyboardInterrupt
         if chroma_type == "persistent":
             archival_storage_path = os.path.join(MEMGPT_DIR, "chroma")
 
@@ -433,6 +499,8 @@ def configure_recall_storage(config: MemGPTConfig):
     recall_storage_type = questionary.select(
         "Select storage backend for recall data:", recall_storage_options, default=config.recall_storage_type
     ).ask()
+    if recall_storage_type is None:
+        raise KeyboardInterrupt
     recall_storage_uri, recall_storage_path = config.recall_storage_uri, config.recall_storage_path
     # configure postgres
     if recall_storage_type == "postgres":
@@ -440,6 +508,8 @@ def configure_recall_storage(config: MemGPTConfig):
             "Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}):",
             default=config.recall_storage_uri if config.recall_storage_uri else "",
         ).ask()
+        if recall_storage_uri is None:
+            raise KeyboardInterrupt
 
     return recall_storage_type, recall_storage_uri, recall_storage_path
 

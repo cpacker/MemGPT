@@ -4,6 +4,7 @@ import os
 import pickle
 import glob
 import sys
+import traceback
 import uuid
 import json
 import shutil
@@ -20,7 +21,7 @@ from llama_index import (
 from memgpt.agent import Agent
 from memgpt.data_types import AgentState, User, Passage
 from memgpt.metadata import MetadataStore
-from memgpt.utils import MEMGPT_DIR, version_less_than, OpenAIBackcompatUnpickler
+from memgpt.utils import MEMGPT_DIR, version_less_than, OpenAIBackcompatUnpickler, annotate_message_json_list_with_tool_calls
 from memgpt.config import MemGPTConfig
 from memgpt.cli.cli_config import configure
 
@@ -148,7 +149,9 @@ def migrate_agent(agent_name: str):
     agent_ckpt_directory = os.path.join(agent_folder, "agent_state")
     json_files = glob.glob(os.path.join(agent_ckpt_directory, "*.json"))  # This will list all .json files in the current directory.
     if not json_files:
-        raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {agent_ckpt_directory}")
+        # raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {agent_ckpt_directory}")
+        # NOTE this is a soft fail, just allow it to pass
+        return
 
     # Sort files based on modified timestamp, with the latest file being the first.
     state_filename = max(json_files, key=os.path.getmtime)
@@ -229,7 +232,7 @@ def migrate_agent(agent_name: str):
             persona=state_dict["memory"]["persona"],
             system=state_dict["system"],
             functions=state_dict["functions"],  # this shouldn't matter, since Agent.__init__ will re-link
-            messages=state_dict["messages"],
+            messages=annotate_message_json_list_with_tool_calls(state_dict["messages"]),
         ),
         llm_config=user.default_llm_config,
         embedding_config=user.default_embedding_config,
@@ -237,18 +240,36 @@ def migrate_agent(agent_name: str):
 
     # 3. Instantiate a new Agent by passing AgentState to Agent.__init__
     # NOTE: the Agent.__init__ will trigger a save, which will write to the DB
-    agent = Agent(
-        agent_state=agent_state,
-        messages_total=state_dict["messages_total"],  # TODO: do we need this?
-        interface=None,
-    )
+    try:
+        agent = Agent(
+            agent_state=agent_state,
+            messages_total=state_dict["messages_total"],  # TODO: do we need this?
+            interface=None,
+        )
+    except Exception as e:
+        if "Agent with name" in str(e):
+            print(e)
+            return
+        elif "was specified in agent.state.functions":
+            print(e)
+            return
+        else:
+            raise
 
     # Wrap the rest in a try-except so that we can cleanup by deleting the agent if we fail
     try:
         ## 4. Insert into recall
-        # messages_to_insert = [agent.persistence_manager.json_to_message(msg) for msg in data["messages"]]
-        # agent.persistence_manager.recall_memory.insert_many(messages_to_insert)
+        # TODO should this be 'messages', or 'all_messages'?
+        # all_messages in recall will have fields "timestamp" and "message"
+        full_message_history_buffer = annotate_message_json_list_with_tool_calls([d["message"] for d in data["all_messages"]])
+        # We want to keep the timestamp
+        for i in range(len(data["all_messages"])):
+            data["all_messages"][i]["message"] = full_message_history_buffer[i]
+        messages_to_insert = [agent.persistence_manager.json_to_message(msg) for msg in data["all_messages"]]
+        agent.persistence_manager.recall_memory.insert_many(messages_to_insert)
         # print("Finished migrating recall memory")
+
+        # TODO should we also assign data["messages"] to RecallMemory.messages?
 
         # 5. Insert into archival
         if os.path.exists(archival_directory) and os.path.exists(os.path.join(archival_directory, "docstore.json")):
@@ -263,6 +284,7 @@ def migrate_agent(agent_name: str):
                 passages.append(Passage(user_id=user.id, agent_id=agent.id, text=node.text, embedding=vector))
             if len(passages) > 0:
                 agent.persistence_manager.archival_memory.storage.insert_many(passages)
+
         else:
             print("No archival memory found at", archival_directory)
 
@@ -271,7 +293,8 @@ def migrate_agent(agent_name: str):
         raise
 
 
-def migrate_all_agents():
+# def migrate_all_agents(stop_on_fail=True):
+def migrate_all_agents(stop_on_fail=False):
     """Scan over all agent folders in MEMGPT_DIR and migrate each agent."""
     if not config_is_compatible():
         typer.secho(f"Your current config file is incompatible with MemGPT versions >= {VERSION_CUTOFF}", fg=typer.colors.RED)
@@ -298,23 +321,35 @@ def migrate_all_agents():
 
     # Iterate over each folder with a tqdm progress bar
     count = 0
-    candidates = 0
+    failures = []
+    candidates = []
     try:
         for agent_name in tqdm(agent_folders, desc="Migrating agents"):
             # Assuming migrate_agent is a function that takes the agent name and performs migration
             try:
                 if agent_is_migrateable(agent_name=agent_name):
-                    candidates += 1
+                    candidates.append(agent_name)
                     migrate_agent(agent_name)
                     count += 1
                 else:
                     continue
             except Exception as e:
-                typer.secho(f"Migrating {agent_name} failed with: {str(e)}", fg=typer.colors.RED)
+                failures.append({"name": agent_name, "reason": str(e)})
+                traceback.print_exc()
+                if stop_on_fail:
+                    raise
+                # typer.secho(f"Migrating {agent_name} failed with: {str(e)}", fg=typer.colors.RED)
     except KeyboardInterrupt:
         typer.secho(f"User cancelled operation", fg=typer.colors.RED)
 
-    if candidates == 0:
+    if len(candidates) == 0:
         typer.secho(f"No migration candidates found ({len(agent_folders)} agent folders total)", fg=typer.colors.GREEN)
     else:
-        typer.secho(f"Migrated {count}/{candidates} migration targets ({len(agent_folders)} agent folders total)", fg=typer.colors.GREEN)
+        typer.secho(f"Inspected {len(agent_folders)} agent folders")
+        if len(failures) > 0:
+            typer.secho(f"Failed migrations:", fg=typer.colors.RED)
+            for fail in failures:
+                typer.secho(f"{fail['name']}: {fail['reason']}", fg=typer.colors.RED)
+            typer.secho(f"❌ {len(failures)}/{len(candidates)} migration targets failed (see reasons above)", fg=typer.colors.RED)
+        if count > 0:
+            typer.secho(f"✅ {count}/{len(candidates)} agents were successfully migrated to the new database format", fg=typer.colors.GREEN)
