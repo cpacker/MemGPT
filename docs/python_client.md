@@ -18,7 +18,7 @@ client = MemGPT(
 )
 
 # You can set many more parameters, this is just a basic example
-agent_id = client.create_agent(
+agent_state = client.create_agent(
     agent_config={
       "persona": "sam_pov",
       "human": "cs_phd",
@@ -28,7 +28,7 @@ agent_id = client.create_agent(
 # Now that we have an agent_name identifier, we can send it a message!
 # The response will have data from the MemGPT agent
 my_message = "Hi MemGPT! How's it going?"
-response = client.user_message(agent_id=agent_id, message=my_message)
+response = client.user_message(agent_id=agent_state.id, message=my_message)
 ```
 
 ## More in-depth example of using the MemGPT Python client
@@ -68,7 +68,7 @@ agent_config = AgentConfig(
 # Create the agent according to AgentConfig we set up. If an agent with
 # the same name already exists it will simply return, unless you set
 # throw_if_exists to 'True'
-agent_id = client.create_agent(agent_config=agent_config)
+agent_state = client.create_agent(agent_config=agent_config)
 
 # Create a helper that sends a message and prints the assistant response only
 def send_message(message: str):
@@ -76,7 +76,7 @@ def send_message(message: str):
     sends a message and prints the assistant output only.
     :param message: the message to send
     """
-    response = client.user_message(agent_id=agent_id, message=message)
+    response = client.user_message(agent_id=agent_state.id, message=message)
     for r in response:
         # Can also handle other types "function_call", "function_return", "function_message"
         if "assistant_message" in r:

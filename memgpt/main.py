@@ -18,6 +18,7 @@ from prettytable import PrettyTable
 console = Console()
 
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
+from memgpt.config import MemGPTConfig
 import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.constants as constants
@@ -25,7 +26,8 @@ import memgpt.errors as errors
 from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, suppress_stdout
 from memgpt.cli.cli_config import configure, list, add, delete
 from memgpt.cli.cli_load import app as load_app
-from memgpt.connectors.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.metadata import MetadataStore
 
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
@@ -52,7 +54,7 @@ def clear_line(strip_ui=False):
         sys.stdout.flush()
 
 
-def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=False):
+def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, no_verify=False, cfg=None, strip_ui=False):
     counter = 0
     user_input = None
     skip_next_user_input = False
@@ -65,7 +67,7 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
         print()
 
     multiline_input = False
-    metadata_db = StorageConnector.get_metadata_storage_connector(table_type=TableType.DATA_SOURCES)  # already filters by user
+    ms = MetadataStore(config)
     while True:
         if not skip_next_user_input and (counter > 0 or USER_GOES_FIRST):
             # Ask for user input
@@ -104,7 +106,8 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                 elif user_input.lower() == "/attach":
                     # TODO: check if agent already has it
 
-                    data_source_options = [row.name for row in metadata_db.get_all()]
+                    data_source_options = ms.list_sources(user_id=memgpt_agent.agent_state.user_id)
+                    data_source_options = [s.name for s in data_source_options]
                     if len(data_source_options) == 0:
                         typer.secho(
                             'No sources available. You must load a souce with "memgpt load ..." before running /attach.',
@@ -117,16 +120,6 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                     # attach new data
                     attach(memgpt_agent.config.name, data_source)
 
-                    # update agent config
-                    memgpt_agent.config.attach_data_source(data_source)
-
-                    # reload agent with new data source
-                    # TODO: maybe make this less ugly...
-                    with suppress_stdout():
-                        memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_archival_storage_connector(
-                            agent_config=memgpt_agent.config
-                        )
-                    # TODO: update metadata_db to record attached agents
                     continue
 
                 elif user_input.lower() == "/dump" or user_input.lower().startswith("/dump "):

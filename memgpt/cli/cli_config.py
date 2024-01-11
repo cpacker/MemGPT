@@ -1,4 +1,5 @@
 import builtins
+import uuid
 import questionary
 from prettytable import PrettyTable
 import typer
@@ -10,14 +11,18 @@ from enum import Enum
 # from memgpt.cli import app
 from memgpt import utils
 
-from memgpt.config import MemGPTConfig, AgentConfig
+from memgpt.config import MemGPTConfig
 from memgpt.constants import MEMGPT_DIR
-from memgpt.connectors.storage import StorageConnector, TableType
+
+# from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.constants import LLM_MAX_TOKENS
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.openai_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.server.utils import shorten_key_middle
+from memgpt.data_types import User, LLMConfig, EmbeddingConfig
+from memgpt.metadata import MetadataStore
+from memgpt.agent_store.storage import StorageConnector, TableType
 
 app = typer.Typer()
 
@@ -463,6 +468,7 @@ def configure():
         typer.secho(str(e), fg=typer.colors.RED)
         return
 
+    # TODO: remove most of this (deplicated with User table)
     config = MemGPTConfig(
         # model configs
         model=model,
@@ -500,8 +506,43 @@ def configure():
         metadata_storage_uri=recall_storage_uri,
         metadata_storage_path=recall_storage_path,
     )
+
     typer.secho(f"📖 Saving config to {config.config_path}", fg=typer.colors.GREEN)
     config.save()
+
+    # create user records
+    ms = MetadataStore(config)
+    user_id = uuid.UUID(config.anon_clientid)
+    user = User(
+        id=uuid.UUID(config.anon_clientid),
+        default_preset=default_preset,
+        default_persona=default_persona,
+        default_human=default_human,
+        default_agent=default_agent,
+        default_llm_config=LLMConfig(
+            model=model,
+            model_endpoint=model_endpoint,
+            model_endpoint_type=model_endpoint_type,
+            model_wrapper=model_wrapper,
+            context_window=context_window,
+        ),
+        default_embedding_config=EmbeddingConfig(
+            embedding_endpoint_type=embedding_endpoint_type,
+            embedding_endpoint=embedding_endpoint,
+            embedding_dim=embedding_dim,
+            embedding_model=embedding_model,
+            openai_key=openai_key,
+            azure_key=azure_creds["azure_key"],
+            azure_endpoint=azure_creds["azure_endpoint"],
+            azure_version=azure_creds["azure_version"],
+            azure_deployment=azure_creds["azure_deployment"],  # OK if None
+        ),
+    )
+    if ms.get_user(user_id):
+        # update user
+        ms.update_user(user)
+    else:
+        ms.create_user(user)
 
 
 class ListChoice(str, Enum):
@@ -513,21 +554,24 @@ class ListChoice(str, Enum):
 
 @app.command()
 def list(arg: Annotated[ListChoice, typer.Argument]):
+    config = MemGPTConfig.load()
+    ms = MetadataStore(config)
+    user_id = uuid.UUID(config.anon_clientid)
     if arg == ListChoice.agents:
         """List all agents"""
         table = PrettyTable()
         table.field_names = ["Name", "Model", "Persona", "Human", "Data Source", "Create Time"]
-        for agent_file in utils.list_agent_config_files():
-            agent_name = os.path.basename(agent_file).replace(".json", "")
-            agent_config = AgentConfig.load(agent_name)
+        for agent in ms.list_agents(user_id=user_id):
+            source_ids = ms.list_attached_sources(agent_id=agent.id)
+            source_names = [ms.get_source(source_id=source_id).name for source_id in source_ids]
             table.add_row(
                 [
-                    agent_name,
-                    agent_config.model,
-                    agent_config.persona,
-                    agent_config.human,
-                    ",".join(agent_config.data_sources),
-                    agent_config.create_time,
+                    agent.name,
+                    agent.llm_config.model,
+                    agent.persona,
+                    agent.human,
+                    ",".join(source_names),
+                    utils.format_datetime(agent.created_at),
                 ]
             )
         print(table)
@@ -552,20 +596,22 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         print(table)
     elif arg == ListChoice.sources:
         """List all data sources"""
-        conn = StorageConnector.get_metadata_storage_connector(table_type=TableType.DATA_SOURCES)  # already filters by user
-        passage_conn = StorageConnector.get_storage_connector(table_type=TableType.PASSAGES)
 
         # create table
         table = PrettyTable()
-        table.field_names = ["Name", "Created At", "Number of Passages", "Agents"]
+        table.field_names = ["Name", "Created At", "Agents"]
         # TODO: eventually look accross all storage connections
         # TODO: add data source stats
         # TODO: connect to agents
 
         # get all sources
-        for data_source in conn.get_all():
-            num_passages = passage_conn.size({"data_source": data_source.name})
-            table.add_row([data_source.name, data_source.created_at, num_passages, ""])
+        for source in ms.list_sources(user_id=user_id):
+            # get attached agents
+            agent_ids = ms.list_attached_agents(source_id=source.id)
+            agent_names = [ms.get_agent(agent_id=agent_id).name for agent_id in agent_ids]
+
+            table.add_row([source.name, utils.format_datetime(source.created_at), ",".join(agent_names)])
+
         print(table)
     else:
         raise ValueError(f"Unknown argument {arg}")
@@ -602,22 +648,20 @@ def add(
 def delete(option: str, name: str):
     """Delete a source from the archival memory."""
 
+    config = MemGPTConfig.load()
+    user_id = uuid.UUID(config.anon_clientid)
+    ms = MetadataStore(config)
+    assert ms.get_user(user_id=user_id), f"User {user_id} does not exist"
+
     try:
         # delete from metadata
         if option == "source":
-            conn = StorageConnector.get_metadata_storage_connector(TableType.DATA_SOURCES)
-
-            # Check if the source exists
-            if conn.get_all({"name": name}) == []:
-                raise ValueError(f"No source named '{name}'")
-
-            conn.delete({"name": name})
-
-            # It should now be deleted
-            assert conn.get_all({"name": name}) == [], f"Expected no sources named {name}, but got {conn.get_all({'name': name})}"
+            # delete metadata
+            source = ms.get_source(source_name=name, user_id=user_id)
+            ms.delete_source(source_id=source.id)
 
             # delete from passages
-            conn = StorageConnector.get_storage_connector(TableType.PASSAGES)
+            conn = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id=user_id)
             conn.delete({"data_source": name})
 
             assert (
@@ -625,6 +669,20 @@ def delete(option: str, name: str):
             ), f"Expected no passages with source {name}, but got {conn.get_all({'data_source': name})}"
 
             # TODO: should we also delete from agents?
+        elif option == "agent":
+            agent = ms.get_agent(agent_name=name, user_id=user_id)
+
+            # recall memory
+            recall_conn = StorageConnector.get_storage_connector(TableType.RECALL_MEMORY, config, user_id=user_id, agent_id=agent.id)
+            recall_conn.delete({"agent_id": agent.id})
+
+            # archival memory
+            archival_conn = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config, user_id=user_id, agent_id=agent.id)
+            archival_conn.delete({"agent_id": agent.id})
+
+            # metadata
+            ms.delete_agent(agent_id=agent.id)
+
         else:
             raise ValueError(f"Option {option} not implemented")
 

@@ -5,6 +5,7 @@ MEMGPT_DIR = os.path.join(os.path.expanduser("~"), ".memgpt")
 DEFAULT_MEMGPT_MODEL = "gpt-4"
 DEFAULT_PERSONA = "sam_pov"
 DEFAULT_HUMAN = "basic"
+DEFAULT_PRESET = "memgpt_chat"
 
 FIRST_MESSAGE_ATTEMPTS = 10
 
