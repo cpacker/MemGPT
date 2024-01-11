@@ -24,7 +24,7 @@ class CreateAgentRequest(BaseModel):
 
 
 class CreateAgentResponse(BaseModel):
-    agent_id: str = Field(..., description="Unique identifier of the newly created agent.")
+    agent_id: uuid.UUID = Field(..., description="Unique identifier of the newly created agent.")
 
 
 def setup_agents_index_router(server: SyncServer, interface: QueuingInterface):
@@ -48,8 +48,8 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface):
         """
         interface.clear()
         try:
-            agent_id = server.create_agent(user_id=request.user_id, agent_config=request.config)
-            return CreateAgentResponse(agent_id=agent_id)
+            agent_state = server.create_agent(user_id=request.user_id, agent_config=request.config)
+            return CreateAgentResponse(agent_id=agent_state.id)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
