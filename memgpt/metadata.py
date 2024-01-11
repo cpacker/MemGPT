@@ -267,7 +267,6 @@ class MetadataStore:
         self.session.commit()
 
     def delete_source(self, source_id: str):
-
         # delete from sources table
         self.session.query(SourceModel).filter(SourceModel.id == source_id).delete()
 
@@ -277,7 +276,6 @@ class MetadataStore:
         self.session.commit()
 
     def delete_user(self, user_id: str):
-
         # delete from users table
         self.session.query(UserModel).filter(UserModel.id == user_id).delete()
 
