@@ -30,7 +30,7 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 VERSION_CUTOFF = "0.2.12"
 
 # Migration backup dir (where we'll dump old agents that we successfully migrated)
-MIGRATION_BACKUP_DIR = "migrated_agents_backup"
+MIGRATION_BACKUP_FOLDER = "migration_backups"
 
 
 def wipe_config_and_reconfigure():
@@ -40,7 +40,7 @@ def wipe_config_and_reconfigure():
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
     # Construct the new backup directory name with the timestamp
-    backup_filename = os.path.join(MEMGPT_DIR, f"config_backup_{timestamp}")
+    backup_filename = os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER, f"config_backup_{timestamp}")
     existing_filename = os.path.join(MEMGPT_DIR, "config")
 
     # Check if the existing file exists before moving
@@ -315,7 +315,7 @@ def migrate_agent(agent_name: str):
         raise
 
     try:
-        new_agent_folder = os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_DIR, agent_name)
+        new_agent_folder = os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER, "agents", agent_name)
         shutil.move(agent_folder, new_agent_folder)
     except Exception as e:
         print(f"Failed to move agent folder from {agent_folder} to {new_agent_folder}")
@@ -325,6 +325,11 @@ def migrate_agent(agent_name: str):
 # def migrate_all_agents(stop_on_fail=True):
 def migrate_all_agents(stop_on_fail: bool = False) -> dict:
     """Scan over all agent folders in MEMGPT_DIR and migrate each agent."""
+
+    if not os.path.exists(os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER)):
+        os.makedirs(os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER))
+        os.makedirs(os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER, "agents"))
+
     if not config_is_compatible():
         typer.secho(f"Your current config file is incompatible with MemGPT versions >= {VERSION_CUTOFF}", fg=typer.colors.RED)
         if questionary.confirm(
