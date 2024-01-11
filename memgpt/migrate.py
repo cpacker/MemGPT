@@ -19,11 +19,12 @@ from llama_index import (
 )
 
 from memgpt.agent import Agent
-from memgpt.data_types import AgentState, User, Passage
+from memgpt.data_types import AgentState, User, Passage, Source
 from memgpt.metadata import MetadataStore
 from memgpt.utils import MEMGPT_DIR, version_less_than, OpenAIBackcompatUnpickler, annotate_message_json_list_with_tool_calls
 from memgpt.config import MemGPTConfig
 from memgpt.cli.cli_config import configure
+from memgpt.agent_store.storage import StorageConnector, TableType
 
 # This is the version where the breaking change was made
 VERSION_CUTOFF = "0.2.12"
@@ -105,7 +106,8 @@ def migrate_source(source_name: str):
 
     # 1. Load the VectorIndex from ~/.memgpt/sources/{source_name}/index
     # TODO
-    source_folder = os.path.join(MEMGPT_DIR, "sources", source_name)
+    source_path = os.path.join(MEMGPT_DIR, "archival", source_name, "nodes.pkl")
+    assert os.path.exists(source_path), f"Source {source_name} does not exist at {source_path}"
 
     # load state from old checkpoint file
     from memgpt.cli.cli_load import load_index
@@ -122,11 +124,29 @@ def migrate_source(source_name: str):
             f"Failed to load user {str(user_id)} from database. Please make sure to migrate your config before migrating agents."
         )
 
-    # load Vector Index into archival memory
-    load_index(name=source_name, dir=source_folder, user_id=user.id)
+    # insert source into metadata store
+    source = Source(user_id=user.id, name=source_name)
+    ms.create_source(source)
+
+    try:
+        nodes = pickle.load(open(source_path, "rb"))
+        passages = []
+        for node in nodes:
+            # print(len(node.embedding))
+            # TODO: make sure embedding config matches embedding size?
+            passages.append(Passage(user_id=user.id, data_source=source_name, text=node.text, embedding=node.embedding))
+
+        assert len(passages) > 0, f"Source {source_name} has no passages"
+        conn = StorageConnector.get_storage_connector(TableType.PASSAGES, config=config, user_id=user_id)
+        conn.insert_many(passages)
+        print(f"Inserted {len(passages)} to {source_name}")
+    except Exception as e:
+        # delete from metadata store
+        ms.delete_source(source.id)
+        print("Failed to migrate", source_name)
 
     # basic checks
-    source = ms.get_source(user_id=user.id, name=source_name)
+    source = ms.get_source(user_id=user.id, source_name=source_name)
     assert source is not None, f"Failed to load source {source_name} from database after migration"
 
 
@@ -276,7 +296,8 @@ def migrate_agent(agent_name: str):
             nodes = pickle.load(open(archival_filename, "rb"))
             passages = []
             for node in nodes:
-                print(len(node.embedding))
+                # print(len(node.embedding))
+                # TODO: make sure embeding size matches embedding config?
                 passages.append(Passage(user_id=user.id, agent_id=agent_state.id, text=node.text, embedding=node.embedding))
             if len(passages) > 0:
                 agent.persistence_manager.archival_memory.storage.insert_many(passages)
@@ -353,6 +374,58 @@ def migrate_all_agents(stop_on_fail: bool = False) -> dict:
 
     return {
         "agent_folders": len(agent_folders),
+        "migration_candidates": len(candidates),
+        "successful_migrations": count,
+        "failed_migrations": len(failures),
+    }
+
+
+def migrate_all_sources(stop_on_fail: bool = False) -> dict:
+    """Scan over all agent folders in MEMGPT_DIR and migrate each agent."""
+
+    sources_dir = os.path.join(MEMGPT_DIR, "archival")
+
+    # Ensure the directory exists
+    if not os.path.exists(sources_dir):
+        raise ValueError(f"Directory {sources_dir} does not exist.")
+
+    # Get a list of all folders in agents_dir
+    source_folders = [f for f in os.listdir(sources_dir) if os.path.isdir(os.path.join(sources_dir, f))]
+
+    # Iterate over each folder with a tqdm progress bar
+    count = 0
+    failures = []
+    candidates = []
+    try:
+        for source_name in tqdm(source_folders, desc="Migrating data sources"):
+            # Assuming migrate_agent is a function that takes the agent name and performs migration
+            try:
+                candidates.append(source_name)
+                migrate_source(source_name)
+                count += 1
+            except Exception as e:
+                failures.append({"name": source_name, "reason": str(e)})
+                traceback.print_exc()
+                if stop_on_fail:
+                    raise
+                # typer.secho(f"Migrating {agent_name} failed with: {str(e)}", fg=typer.colors.RED)
+    except KeyboardInterrupt:
+        typer.secho(f"User cancelled operation", fg=typer.colors.RED)
+
+    if len(candidates) == 0:
+        typer.secho(f"No migration candidates found ({len(source_folders)} source folders total)", fg=typer.colors.GREEN)
+    else:
+        typer.secho(f"Inspected {len(source_folders)} source folders")
+        if len(failures) > 0:
+            typer.secho(f"Failed migrations:", fg=typer.colors.RED)
+            for fail in failures:
+                typer.secho(f"{fail['name']}: {fail['reason']}", fg=typer.colors.RED)
+            typer.secho(f"❌ {len(failures)}/{len(candidates)} migration targets failed (see reasons above)", fg=typer.colors.RED)
+        if count > 0:
+            typer.secho(f"✅ {count}/{len(candidates)} sources were successfully migrated to the new database format", fg=typer.colors.GREEN)
+
+    return {
+        "source_folders": len(source_folders),
         "migration_candidates": len(candidates),
         "successful_migrations": count,
         "failed_migrations": len(failures),
