@@ -6,7 +6,7 @@ from threading import Lock
 from functools import wraps
 from fastapi import HTTPException
 
-from memgpt.system import package_user_message
+from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
 from memgpt.agent import Agent
 import memgpt.system as system
@@ -165,7 +165,7 @@ class SyncServer(LockingServer):
         # self.default_persistence_manager_cls = default_persistence_manager_cls
 
         # Initialize the connection to the DB
-        self.config = MemGPTConfig()
+        self.config = MemGPTConfig.load()
         self.ms = MetadataStore(self.config)
 
     def save_agents(self):
@@ -412,7 +412,7 @@ class SyncServer(LockingServer):
         # Else, process it as a user message to be fed to the agent
         else:
             # Package the user message first
-            packaged_user_message = package_user_message(user_message=message)
+            packaged_user_message = system.package_user_message(user_message=message)
             # Run the agent state forward
             self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
 
@@ -432,7 +432,7 @@ class SyncServer(LockingServer):
         # Else, process it as a user message to be fed to the agent
         else:
             # Package the user message first
-            packaged_system_message = package_system_message(system_message=message)
+            packaged_system_message = system.package_system_message(system_message=message)
             # Run the agent state forward
             self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message)
 
@@ -448,9 +448,9 @@ class SyncServer(LockingServer):
     def create_agent(
         self,
         user_id: str,
-        agent_config: dict,
+        agent_config: Union[dict, AgentState],
         interface: Union[AgentInterface, None] = None,
-        # persistence_manager: Union[PersistenceManager, None] = None,
+        persistence_manager: Union[PersistenceManager, None] = None,
     ) -> AgentState:
         """Create a new agent using a config"""
 
@@ -466,13 +466,11 @@ class SyncServer(LockingServer):
         # persistence_manager = self.default_persistence_manager_cls(agent_config=agent_config)
 
         # TODO actually use the user_id that was passed into the server
-        USER_ID = self.config.anon_clientid
+        user_id = self.config.anon_clientid
         # create user and agent
-        user = User(id=USER_ID)
-        user = self.ms.get_user(user_id=USER_ID)
+        user = self.ms.get_user(user_id=user_id)
         if not user:
-            user = User(id=USER_ID)
-            self.ms.create_user(user)
+            raise ValueError(f"cannot find user with associated client id: {user_id}")
 
         agent_state = AgentState(
             user_id=user.id,
@@ -511,14 +509,22 @@ class SyncServer(LockingServer):
     def list_agents(self, user_id: str) -> dict:
         """List all available agents to a user"""
         # TODO actually use the user_id that was passed into the server
-        USER_ID = self.config.anon_clientid
-        agents_list = self.ms.list_agents(user_id=USER_ID)
-        return {"num_agents": len(agents_list), "agents": [state.name for state in agents_list]}
+        user_id = self.config.anon_clientid
+        agents_states = self.ms.list_agents(user_id=user_id)
+        return {"num_agents": len(agents_states), "agents": [
+            {
+                "id": state.id,
+                "name": state.name,
+                "human": state.human,
+                "persona": state.persona,
+                "created_at": state.created_at.isoformat()
+             } for state in agents_states]}
 
     def get_agent_memory(self, user_id: str, agent_id: str) -> dict:
         """Return the memory of an agent (core memory + non-core statistics)"""
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        # TODO: use real user_id
+        memgpt_agent = self._get_or_load_agent(user_id=self.config.anon_clientid, agent_id=agent_id)
 
         core_memory = memgpt_agent.memory
         recall_memory = memgpt_agent.persistence_manager.recall_memory
