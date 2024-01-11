@@ -12,8 +12,13 @@ import typer
 from tqdm import tqdm
 import questionary
 
+from llama_index import (
+    StorageContext,
+    load_index_from_storage,
+)
+
 from memgpt.agent import Agent
-from memgpt.data_types import AgentState, User
+from memgpt.data_types import AgentState, User, Passage
 from memgpt.metadata import MetadataStore
 from memgpt.utils import MEMGPT_DIR, version_less_than, OpenAIBackcompatUnpickler
 from memgpt.config import MemGPTConfig
@@ -93,22 +98,35 @@ def agent_is_migrateable(agent_name: str) -> bool:
 
 
 def migrate_source(source_name: str):
-    """Migrate an old source folder (`~/.memgpt/sources/{source_name}`).
-
-    Steps:
-    1. Load the VectorIndex from ~/.memgpt/sources/{source_name}/index
-    2. Insert new Source record into the database (if not exists)
+    """
+    Migrate an old source folder (`~/.memgpt/sources/{source_name}`).
     """
 
     # 1. Load the VectorIndex from ~/.memgpt/sources/{source_name}/index
     # TODO
     source_folder = os.path.join(MEMGPT_DIR, "sources", source_name)
-    index_file = os.path.join(source_folder, "index")
 
     # load state from old checkpoint file
     from memgpt.cli.cli_load import load_index
 
-    index = load_index(index_file)
+    # 2. Create a new AgentState using the agent config + agent internal state
+    config = MemGPTConfig.load()
+
+    # gets default user
+    ms = MetadataStore(config)
+    user_id = uuid.UUID(config.anon_clientid)
+    user = ms.get_user(user_id=user_id)
+    if user is None:
+        raise ValueError(
+            f"Failed to load user {str(user_id)} from database. Please make sure to migrate your config before migrating agents."
+        )
+
+    # load Vector Index into archival memory
+    load_index(name=source_name, dir=source_folder, user_id=user.id)
+
+    # basic checks
+    source = ms.get_source(user_id=user.id, name=source_name)
+    assert source is not None, f"Failed to load source {source_name} from database after migration"
 
 
 def migrate_agent(agent_name: str):
@@ -185,16 +203,19 @@ def migrate_agent(agent_name: str):
     # 2. Create a new AgentState using the agent config + agent internal state
     config = MemGPTConfig.load()
 
-    # Creates the default user in case it doesn't exist yet
+    # gets default user
     ms = MetadataStore(config)
     user_id = uuid.UUID(config.anon_clientid)
     user = ms.get_user(user_id=user_id)
     if user is None:
-        ms.create_user(User(id=user_id))
-        user = ms.get_user(user_id=user_id)
-        if user is None:
-            typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
-            sys.exit(1)
+        raise ValueError(
+            f"Failed to load user {str(user_id)} from database. Please make sure to migrate your config before migrating agents."
+        )
+    #    ms.create_user(User(id=user_id))
+    #    user = ms.get_user(user_id=user_id)
+    #    if user is None:
+    #        typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
+    #        sys.exit(1)
 
     agent_state = AgentState(
         name=agent_config["name"],
@@ -228,7 +249,17 @@ def migrate_agent(agent_name: str):
         agent.persistence_manager.recall_memory.insert_many(messages_to_insert)
 
         # 5. Insert into archival
-        # TODO
+        storage_context = StorageContext.from_defaults(persist_dir=dir)
+        loaded_index = load_index_from_storage(storage_context)
+        embed_dict = loaded_index._vector_store._data.embedding_dict
+        node_dict = loaded_index._docstore.docs
+        passages = []
+        for node_id, node in node_dict.items():
+            vector = embed_dict[node_id]
+            node.embedding = vector
+            passages.append(Passage(user_id=user.id, agent_id=agent.id, text=node.text, embedding=vector))
+        if len(passages) > 0:
+            agent.persistence_manager.archival_memory.storage.insert_many(passages)
 
     except:
         ms.delete_agent(agent_state.id)

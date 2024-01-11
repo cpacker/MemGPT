@@ -132,6 +132,9 @@ def load_index(
             node.embedding = vector
             passages.append(Passage(text=node.text, embedding=vector))
 
+        if len(passages) == 0:
+            raise ValueError(f"No passages found in index {dir}")
+
         # create storage connector
         config = MemGPTConfig.load()
         if user_id is None:
