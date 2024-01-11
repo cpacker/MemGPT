@@ -10,6 +10,8 @@ from box import Box
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
 from memgpt.constants import CLI_WARNING_PREFIX
 
+from memgpt.data_types import AgentState
+
 MODEL_TO_AZURE_ENGINE = {
     "gpt-4-1106-preview": "gpt-4",
     "gpt-4": "gpt-4",
@@ -365,7 +367,7 @@ def retry_with_exponential_backoff(
 
 @retry_with_exponential_backoff
 def create(
-    agent_config,
+    agent_state: AgentState,
     messages,
     functions=None,
     function_call="auto",
@@ -374,54 +376,53 @@ def create(
 ):
     """Return response to chat completion with backoff"""
     from memgpt.utils import printd
-    from memgpt.config import MemGPTConfig
 
-    config = MemGPTConfig.load()  # load credentials (currently not stored in agent config)
-
-    printd(f"Using model {agent_config.llm_config.model_endpoint_type}, endpoint: {agent_config.llm_config.model_endpoint}")
-    if agent_config.llm_config.model_endpoint_type == "openai":
+    printd(f"Using model {agent_state.llm_config.model_endpoint_type}, endpoint: {agent_state.llm_config.model_endpoint}")
+    if agent_state.llm_config.model_endpoint_type == "openai":
         # openai
         return openai_chat_completions_request(
-            url=agent_config.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
-            api_key=config.openai_key,  # 'sk....'
+            url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
+            api_key=agent_state.llm_config.openai_key,
             data=dict(
-                model=agent_config.llm_config.model,
+                model=agent_state.llm_config.model,
                 messages=messages,
                 functions=functions,
                 function_call=function_call,
-                user=config.anon_clientid,
+                user=str(agent_state.user_id),
             ),
         )
-    elif agent_config.llm_config.model_endpoint_type == "azure":
+    elif agent_state.llm_config.model_endpoint_type == "azure":
         # azure
         azure_deployment = (
-            config.azure_deployment if config.azure_deployment is not None else MODEL_TO_AZURE_ENGINE[agent_config.llm_config.model]
+            agent_state.llm_config.azure_deployment
+            if agent_state.llm_config.azure_deployment is not None
+            else MODEL_TO_AZURE_ENGINE[agent_state.llm_config.model]
         )
         return azure_openai_chat_completions_request(
-            resource_name=config.azure_endpoint,
+            resource_name=agent_state.llm_config.azure_endpoint,
             deployment_id=azure_deployment,
-            api_version=config.azure_version,
-            api_key=config.azure_key,
+            api_version=agent_state.llm_config.azure_version,
+            api_key=agent_state.llm_config.azure_key,
             data=dict(
                 # NOTE: don't pass model to Azure calls, that is the deployment_id
                 # model=agent_config.model,
                 messages=messages,
                 functions=functions,
                 function_call=function_call,
-                user=config.anon_clientid,
+                user=str(agent_state.user_id),
             ),
         )
     else:  # local model
         return get_chat_completion(
-            model=agent_config.llm_config.model,
+            model=agent_state.llm_config.model,
             messages=messages,
             functions=functions,
             function_call=function_call,
-            context_window=agent_config.llm_config.context_window,
-            endpoint=agent_config.llm_config.model_endpoint,
-            endpoint_type=agent_config.llm_config.model_endpoint_type,
-            wrapper=agent_config.llm_config.model_wrapper,
-            user=config.anon_clientid,
+            context_window=agent_state.llm_config.context_window,
+            endpoint=agent_state.llm_config.model_endpoint,
+            endpoint_type=agent_state.llm_config.model_endpoint_type,
+            wrapper=agent_state.llm_config.model_wrapper,
+            user=str(agent_state.user_id),
             # hint
             first_message=first_message,
         )

@@ -163,6 +163,7 @@ class Agent(object):
         # extras
         messages_total=None,  # TODO remove?
         first_message_verify_mono=True,  # TODO move to config?
+        memgpt_config: MemGPTConfig = None,
     ):
         # Hold a copy of the state that was used to init the agent
         self.config = agent_state  # TODO: remove
@@ -232,8 +233,13 @@ class Agent(object):
         # When the summarizer is run, set this back to False (to reset)
         self.agent_alerted_about_memory_pressure = False
 
-        # Initialize the connection to the DB
-        self.memgpt_config = MemGPTConfig()
+        # Read local config if not provided
+        if not memgpt_config:
+            self.memgpt_config = MemGPTConfig()
+        else:
+            self.memgpt_config = memgpt_config
+
+        # Initialize connection to metedata store
         self.ms = MetadataStore(self.memgpt_config)
 
         # Create the agent in the DB
@@ -292,7 +298,7 @@ class Agent(object):
         """Get response from LLM API"""
         try:
             response = create(
-                agent_config=self.config,
+                agent_state=self.config,
                 messages=message_sequence,
                 functions=self.functions,
                 function_call=function_call,
@@ -599,7 +605,7 @@ class Agent(object):
                 if (self.model is not None and self.model in LLM_MAX_TOKENS)
                 else str(LLM_MAX_TOKENS["DEFAULT"])
             )
-        summary = summarize_messages(agent_config=self.config, message_sequence_to_summarize=message_sequence_to_summarize)
+        summary = summarize_messages(agent_state=self.agent_state, message_sequence_to_summarize=message_sequence_to_summarize)
         printd(f"Got summary: {summary}")
 
         # Metadata that's useful for the agent to see
@@ -687,72 +693,3 @@ class Agent(object):
         else:
             # Otherwise, we should update the agent
             self.ms.update_agent(agent=agent_state)
-
-        # # save config
-        # self.config.save()
-
-        # # save agent state to timestamped file
-        # timestamp = get_local_time().replace(" ", "_").replace(":", "_")
-        # filename = f"{timestamp}.json"
-        # os.makedirs(self.config.save_state_dir(), exist_ok=True)
-        # self.save_agent_state_json(os.path.join(self.config.save_state_dir(), filename))
-
-        # # save the persistence manager too (recall/archival memory)
-        # self.persistence_manager.save()
-
-    ### Local state management
-    # def to_dict(self):
-    #     # TODO: select specific variables for the saves state (to eventually move to a DB) rather than checkpointing everything in the class
-    #     return {
-    #         "model": self.model,
-    #         "system": self.system,
-    #         "functions": self.functions,
-    #         "messages": self.messages,  # TODO: convert to IDs
-    #         "messages_total": self.messages_total,
-    #         "memory": self.memory.to_dict(),
-    #     }
-
-    # def save_agent_state_json(self, filename):
-    #     """Save agent state to JSON"""
-    #     with open(filename, "w") as file:
-    #         json.dump(self.to_dict(), file)
-
-    # @classmethod
-    # def load_agent(cls, interface, agent_config: AgentConfig):
-    #     """Load saved agent state based on agent_config"""
-    #     # TODO: support loading from specific file
-    #     agent_name = agent_config.name
-
-    #     # TODO: update this for metadata database
-
-    #     # load state
-    #     directory = agent_config.save_state_dir()
-    #     json_files = glob.glob(os.path.join(directory, "*.json"))  # This will list all .json files in the current directory.
-    #     if not json_files:
-    #         print(f"/load error: no .json checkpoint files found")
-    #         raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {directory}")
-
-    #     # Sort files based on modified timestamp, with the latest file being the first.
-    #     filename = max(json_files, key=os.path.getmtime)
-    #     state = json.load(open(filename, "r"))
-
-    #     # load persistence manager
-    #     persistence_manager = LocalStateManager.load(agent_config)
-
-    #     messages = state["messages"]  # TODO: reconstruct messages using recall memory + stored IDs
-    #     agent = cls(
-    #         config=agent_config,
-    #         model=state["model"],
-    #         system=state["system"],
-    #         functions=link_functions(state["functions"]),
-    #         interface=interface,
-    #         persistence_manager=persistence_manager,
-    #         persistence_manager_init=False,
-    #         persona_notes=state["memory"]["persona"],
-    #         human_notes=state["memory"]["human"],
-    #         messages_total=state["messages_total"] if "messages_total" in state else len(messages) - 1,
-    #     )
-    #     agent._messages = messages
-    #     agent.memory = initialize_memory(state["memory"]["persona"], state["memory"]["human"])
-
-    #     return agent

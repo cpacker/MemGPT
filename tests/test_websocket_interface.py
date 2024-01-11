@@ -8,6 +8,7 @@ import memgpt.presets.presets as presets
 import memgpt.utils as utils
 import memgpt.system as system
 from memgpt.persistence_manager import LocalStateManager
+from memgpt.data_types import AgentState
 
 
 # def test_websockets():
@@ -68,24 +69,17 @@ async def test_websockets():
 
     # Mock the persistence manager
     # create agents with defaults
-    agent_config = AgentConfig(
+
+    # TODO: this is currently broken, need to fix
+
+    agent_state = AgentState(
         persona="sam_pov",
         human="basic",
         model="gpt-4-1106-preview",
         model_endpoint_type="openai",
         model_endpoint="https://api.openai.com/v1",
     )
-    persistence_manager = LocalStateManager(agent_config=agent_config)
-
-    memgpt_agent = presets.create_agent_from_preset(
-        agent_config.preset,
-        agent_config,
-        agent_config.model,
-        agent_config.persona,  # note: extracting the raw text, not pulling from a file
-        agent_config.human,  # note: extracting raw text, not pulling from a file
-        ws_interface,
-        persistence_manager,
-    )
+    memgpt_agent = presets.create_agent_from_preset(agent_state, ws_interface)
 
     # Mock the user message packaging
     user_message = system.package_user_message("Hello, is anyone there?")
