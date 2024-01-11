@@ -8,6 +8,9 @@ import shutil
 from typing import Annotated
 from enum import Enum
 
+# from global logging configuration
+from memgpt.log import logger
+
 # from memgpt.cli import app
 from memgpt import utils
 

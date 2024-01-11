@@ -17,6 +17,7 @@ from prettytable import PrettyTable
 
 console = Console()
 
+from memgpt.log import logger
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.config import MemGPTConfig
 import memgpt.agent as agent
