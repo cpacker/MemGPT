@@ -350,13 +350,14 @@ class BaseRecallMemory(RecallMemory):
 class EmbeddingArchivalMemory(ArchivalMemory):
     """Archival memory with embedding based search"""
 
-    def __init__(self, config, agent_state, top_k: Optional[int] = 100):
+    def __init__(self, agent_state, top_k: Optional[int] = 100):
         """Init function for archival memory
 
         :param archival_memory_database: name of dataset to pre-fill archival with
         :type archival_memory_database: str
         """
         from memgpt.agent_store.storage import StorageConnector
+        from memgpt.config import MemGPTConfig
 
         self.top_k = top_k
         self.agent_state = agent_state
@@ -366,7 +367,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         self.embedding_chunk_size = agent_state.embedding_config.embedding_chunk_size
 
         # create storage backend
-        self.storage = StorageConnector.get_archival_storage_connector(config, user_id=agent_state.user_id, agent_id=agent_state.id)
+        self.storage = StorageConnector.get_archival_storage_connector(user_id=agent_state.user_id, agent_id=agent_state.id)
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
 
