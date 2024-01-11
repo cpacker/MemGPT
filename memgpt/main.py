@@ -18,14 +18,16 @@ from prettytable import PrettyTable
 console = Console()
 
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
+from memgpt.config import MemGPTConfig
 import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.constants as constants
 import memgpt.errors as errors
-from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart
-from memgpt.cli.cli_config import configure, list, add
+from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, suppress_stdout
+from memgpt.cli.cli_config import configure, list, add, delete
 from memgpt.cli.cli_load import app as load_app
-from memgpt.connectors.storage import StorageConnector
+from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.metadata import MetadataStore
 
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
@@ -34,6 +36,7 @@ app.command(name="attach")(attach)
 app.command(name="configure")(configure)
 app.command(name="list")(list)
 app.command(name="add")(add)
+app.command(name="delete")(delete)
 app.command(name="server")(server)
 app.command(name="folder")(open_folder)
 app.command(name="quickstart")(quickstart)
@@ -51,7 +54,7 @@ def clear_line(strip_ui=False):
         sys.stdout.flush()
 
 
-def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=False):
+def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, no_verify=False, cfg=None, strip_ui=False):
     counter = 0
     user_input = None
     skip_next_user_input = False
@@ -64,6 +67,7 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
         print()
 
     multiline_input = False
+    ms = MetadataStore(config)
     while True:
         if not skip_next_user_input and (counter > 0 or USER_GOES_FIRST):
             # Ask for user input
@@ -101,7 +105,9 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                     continue
                 elif user_input.lower() == "/attach":
                     # TODO: check if agent already has it
-                    data_source_options = StorageConnector.list_loaded_data()
+
+                    data_source_options = ms.list_sources(user_id=memgpt_agent.agent_state.user_id)
+                    data_source_options = [s.name for s in data_source_options]
                     if len(data_source_options) == 0:
                         typer.secho(
                             'No sources available. You must load a souce with "memgpt load ..." before running /attach.',
@@ -114,14 +120,6 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                     # attach new data
                     attach(memgpt_agent.config.name, data_source)
 
-                    # update agent config
-                    memgpt_agent.config.attach_data_source(data_source)
-
-                    # reload agent with new data source
-                    # TODO: maybe make this less ugly...
-                    memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_storage_connector(
-                        agent_config=memgpt_agent.config
-                    )
                     continue
 
                 elif user_input.lower() == "/dump" or user_input.lower().startswith("/dump "):
@@ -221,6 +219,45 @@ def run_agent_loop(memgpt_agent, first, no_verify=False, cfg=None, strip_ui=Fals
                             bold=True,
                         )
                     continue
+
+                elif user_input.lower().startswith("/add_function"):
+                    try:
+                        if len(user_input) < len("/add_function "):
+                            print("Missing function name after the command")
+                            continue
+                        function_name = user_input[len("/add_function ") :].strip()
+                        result = memgpt_agent.add_function(function_name)
+                        typer.secho(
+                            f"/add_function succeeded: {result}",
+                            fg=typer.colors.GREEN,
+                            bold=True,
+                        )
+                    except ValueError as e:
+                        typer.secho(
+                            f"/add_function failed:\n{e}",
+                            fg=typer.colors.RED,
+                            bold=True,
+                        )
+                        continue
+                elif user_input.lower().startswith("/remove_function"):
+                    try:
+                        if len(user_input) < len("/remove_function "):
+                            print("Missing function name after the command")
+                            continue
+                        function_name = user_input[len("/remove_function ") :].strip()
+                        result = memgpt_agent.remove_function(function_name)
+                        typer.secho(
+                            f"/remove_function succeeded: {result}",
+                            fg=typer.colors.GREEN,
+                            bold=True,
+                        )
+                    except ValueError as e:
+                        typer.secho(
+                            f"/remove_function failed:\n{e}",
+                            fg=typer.colors.RED,
+                            bold=True,
+                        )
+                        continue
 
                 # No skip options
                 elif user_input.lower() == "/wipe":

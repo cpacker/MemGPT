@@ -1,7 +1,7 @@
 ---
-title: LM Studio 
-excerpt: Setting up MemGPT with LM Studio 
-category: 6580da9a40bb410016b8b0c3 
+title: LM Studio
+excerpt: Setting up MemGPT with LM Studio
+category: 6580da9a40bb410016b8b0c3
 ---
 
 > 📘 Update your LM Studio
@@ -9,7 +9,7 @@ category: 6580da9a40bb410016b8b0c3
 > The current `lmstudio` backend will only work if your LM Studio is version 0.2.9 or newer.
 >
 > If you are on a version of LM Studio older than 0.2.9 (<= 0.2.8), select `lmstudio-legacy` as your backend type.
-
+>
 > ⚠️ Important LM Studio settings
 >
 > **Context length**: Make sure that "context length" (`n_ctx`) is set (in "Model initialization" on the right hand side "Server Model Settings" panel) to the max context length of the model you're using (e.g. 8000 for Mistral 7B variants).
@@ -26,7 +26,8 @@ category: 6580da9a40bb410016b8b0c3
 4. Copy the IP address + port that your server is running on (in the example screenshot, the address is `http://localhost:1234`)
 
 In your terminal where you're running MemGPT, run `memgpt configure` to set the default backend for MemGPT to point at LM Studio:
-```
+
+```text
 # if you are running LM Studio locally, the default IP address + port will be http://localhost:1234
 ? Select LLM inference provider: local
 ? Select LLM backend (select 'openai' if you have an OpenAI compatible proxy): lmstudio
@@ -35,6 +36,7 @@ In your terminal where you're running MemGPT, run `memgpt configure` to set the 
 ```
 
 If you have an existing agent that you want to move to the LM Studio backend, add extra flags to `memgpt run`:
+
 ```sh
 memgpt run --agent your_agent --model-endpoint-type lmstudio --model-endpoint http://localhost:1234
 ```

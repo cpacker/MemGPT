@@ -1,21 +1,28 @@
 import builtins
+import uuid
 import questionary
 from prettytable import PrettyTable
 import typer
 import os
 import shutil
+from typing import Annotated
+from enum import Enum
 
 # from memgpt.cli import app
 from memgpt import utils
 
-from memgpt.config import MemGPTConfig, AgentConfig
+from memgpt.config import MemGPTConfig
 from memgpt.constants import MEMGPT_DIR
-from memgpt.connectors.storage import StorageConnector
+
+# from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.constants import LLM_MAX_TOKENS
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.openai_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.server.utils import shorten_key_middle
+from memgpt.data_types import User, LLMConfig, EmbeddingConfig
+from memgpt.metadata import MetadataStore
+from memgpt.agent_store.storage import StorageConnector, TableType
 
 app = typer.Typer()
 
@@ -121,16 +128,21 @@ def configure_llm_endpoint(config: MemGPTConfig):
             if model_endpoint_type in DEFAULT_ENDPOINTS:
                 default_model_endpoint = DEFAULT_ENDPOINTS[model_endpoint_type]
                 model_endpoint = questionary.text("Enter default endpoint:", default=default_model_endpoint).ask()
+                while not utils.is_valid_url(model_endpoint):
+                    typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
+                    model_endpoint = questionary.text("Enter default endpoint:", default=default_model_endpoint).ask()
             elif config.model_endpoint:
                 model_endpoint = questionary.text("Enter default endpoint:", default=config.model_endpoint).ask()
+                while not utils.is_valid_url(model_endpoint):
+                    typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
+                    model_endpoint = questionary.text("Enter default endpoint:", default=config.model_endpoint).ask()
             else:
                 # default_model_endpoint = None
                 model_endpoint = None
-                while not model_endpoint:
+                model_endpoint = questionary.text("Enter default endpoint:").ask()
+                while not utils.is_valid_url(model_endpoint):
+                    typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
                     model_endpoint = questionary.text("Enter default endpoint:").ask()
-                    if "http://" not in model_endpoint and "https://" not in model_endpoint:
-                        typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
-                        model_endpoint = None
         else:
             model_endpoint = default_model_endpoint
         assert model_endpoint, f"Environment variable OPENAI_API_BASE must be set."
@@ -328,9 +340,9 @@ def configure_embedding_endpoint(config: MemGPTConfig):
 
         # get endpoint
         embedding_endpoint = questionary.text("Enter default endpoint:").ask()
-        if "http://" not in embedding_endpoint and "https://" not in embedding_endpoint:
+        while not utils.is_valid_url(embedding_endpoint):
             typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
-            embedding_endpoint = None
+            embedding_endpoint = questionary.text("Enter default endpoint:").ask()
 
         # get model type
         default_embedding_model = config.embedding_model if config.embedding_model else "BAAI/bge-large-en-v1.5"
@@ -380,11 +392,11 @@ def configure_cli(config: MemGPTConfig):
 
 def configure_archival_storage(config: MemGPTConfig):
     # Configure archival storage backend
-    archival_storage_options = ["local", "lancedb", "postgres", "chroma"]
+    archival_storage_options = ["postgres", "chroma"]
     archival_storage_type = questionary.select(
         "Select storage backend for archival data:", archival_storage_options, default=config.archival_storage_type
     ).ask()
-    archival_storage_uri, archival_storage_path = None, None
+    archival_storage_uri, archival_storage_path = config.archival_storage_uri, config.archival_storage_path
 
     # configure postgres
     if archival_storage_type == "postgres":
@@ -393,29 +405,42 @@ def configure_archival_storage(config: MemGPTConfig):
             default=config.archival_storage_uri if config.archival_storage_uri else "",
         ).ask()
 
-    # configure lancedb
-    if archival_storage_type == "lancedb":
-        archival_storage_uri = questionary.text(
-            "Enter lanncedb connection string (e.g. ./.lancedb",
-            default=config.archival_storage_uri if config.archival_storage_uri else "./.lancedb",
-        ).ask()
+    # TODO: add back
+    ## configure lancedb
+    # if archival_storage_type == "lancedb":
+    #    archival_storage_uri = questionary.text(
+    #        "Enter lanncedb connection string (e.g. ./.lancedb",
+    #        default=config.archival_storage_uri if config.archival_storage_uri else "./.lancedb",
+    #    ).ask()
 
     # configure chroma
     if archival_storage_type == "chroma":
-        chroma_type = questionary.select("Select chroma backend:", ["http", "persistent"], default="http").ask()
+        chroma_type = questionary.select("Select chroma backend:", ["http", "persistent"], default="persistent").ask()
         if chroma_type == "http":
             archival_storage_uri = questionary.text("Enter chroma ip (e.g. localhost:8000):", default="localhost:8000").ask()
         if chroma_type == "persistent":
-            print(config.config_path, config.archival_storage_path)
-            default_archival_storage_path = (
-                config.archival_storage_path if config.archival_storage_path else os.path.join(config.config_path, "chroma")
-            )
-            print(default_archival_storage_path)
-            archival_storage_path = questionary.text("Enter persistent storage location:", default=default_archival_storage_path).ask()
+            archival_storage_path = os.path.join(MEMGPT_DIR, "chroma")
 
     return archival_storage_type, archival_storage_uri, archival_storage_path
 
     # TODO: allow configuring embedding model
+
+
+def configure_recall_storage(config: MemGPTConfig):
+    # Configure recall storage backend
+    recall_storage_options = ["sqlite", "postgres"]
+    recall_storage_type = questionary.select(
+        "Select storage backend for recall data:", recall_storage_options, default=config.recall_storage_type
+    ).ask()
+    recall_storage_uri, recall_storage_path = config.recall_storage_uri, config.recall_storage_path
+    # configure postgres
+    if recall_storage_type == "postgres":
+        recall_storage_uri = questionary.text(
+            "Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}):",
+            default=config.recall_storage_uri if config.recall_storage_uri else "",
+        ).ask()
+
+    return recall_storage_type, recall_storage_uri, recall_storage_path
 
 
 @app.command()
@@ -438,10 +463,12 @@ def configure():
         embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = configure_embedding_endpoint(config)
         default_preset, default_persona, default_human, default_agent = configure_cli(config)
         archival_storage_type, archival_storage_uri, archival_storage_path = configure_archival_storage(config)
+        recall_storage_type, recall_storage_uri, recall_storage_path = configure_recall_storage(config)
     except ValueError as e:
         typer.secho(str(e), fg=typer.colors.RED)
         return
 
+    # TODO: remove most of this (deplicated with User table)
     config = MemGPTConfig(
         # model configs
         model=model,
@@ -470,32 +497,85 @@ def configure():
         archival_storage_type=archival_storage_type,
         archival_storage_uri=archival_storage_uri,
         archival_storage_path=archival_storage_path,
+        # recall storage
+        recall_storage_type=recall_storage_type,
+        recall_storage_uri=recall_storage_uri,
+        recall_storage_path=recall_storage_path,
+        # metadata storage (currently forced to match recall storage)
+        metadata_storage_type=recall_storage_type,
+        metadata_storage_uri=recall_storage_uri,
+        metadata_storage_path=recall_storage_path,
     )
+
     typer.secho(f"📖 Saving config to {config.config_path}", fg=typer.colors.GREEN)
     config.save()
 
+    # create user records
+    ms = MetadataStore(config)
+    user_id = uuid.UUID(config.anon_clientid)
+    user = User(
+        id=uuid.UUID(config.anon_clientid),
+        default_preset=default_preset,
+        default_persona=default_persona,
+        default_human=default_human,
+        default_agent=default_agent,
+        default_llm_config=LLMConfig(
+            model=model,
+            model_endpoint=model_endpoint,
+            model_endpoint_type=model_endpoint_type,
+            model_wrapper=model_wrapper,
+            context_window=context_window,
+        ),
+        default_embedding_config=EmbeddingConfig(
+            embedding_endpoint_type=embedding_endpoint_type,
+            embedding_endpoint=embedding_endpoint,
+            embedding_dim=embedding_dim,
+            embedding_model=embedding_model,
+            openai_key=openai_key,
+            azure_key=azure_creds["azure_key"],
+            azure_endpoint=azure_creds["azure_endpoint"],
+            azure_version=azure_creds["azure_version"],
+            azure_deployment=azure_creds["azure_deployment"],  # OK if None
+        ),
+    )
+    if ms.get_user(user_id):
+        # update user
+        ms.update_user(user)
+    else:
+        ms.create_user(user)
+
+
+class ListChoice(str, Enum):
+    agents = "agents"
+    humans = "humans"
+    personas = "personas"
+    sources = "sources"
+
 
 @app.command()
-def list(option: str):
-    if option == "agents":
+def list(arg: Annotated[ListChoice, typer.Argument]):
+    config = MemGPTConfig.load()
+    ms = MetadataStore(config)
+    user_id = uuid.UUID(config.anon_clientid)
+    if arg == ListChoice.agents:
         """List all agents"""
         table = PrettyTable()
         table.field_names = ["Name", "Model", "Persona", "Human", "Data Source", "Create Time"]
-        for agent_file in utils.list_agent_config_files():
-            agent_name = os.path.basename(agent_file).replace(".json", "")
-            agent_config = AgentConfig.load(agent_name)
+        for agent in ms.list_agents(user_id=user_id):
+            source_ids = ms.list_attached_sources(agent_id=agent.id)
+            source_names = [ms.get_source(source_id=source_id).name for source_id in source_ids]
             table.add_row(
                 [
-                    agent_name,
-                    agent_config.model,
-                    agent_config.persona,
-                    agent_config.human,
-                    ",".join(agent_config.data_sources),
-                    agent_config.create_time,
+                    agent.name,
+                    agent.llm_config.model,
+                    agent.persona,
+                    agent.human,
+                    ",".join(source_names),
+                    utils.format_datetime(agent.created_at),
                 ]
             )
         print(table)
-    elif option == "humans":
+    elif arg == ListChoice.humans:
         """List all humans"""
         table = PrettyTable()
         table.field_names = ["Name", "Text"]
@@ -504,7 +584,7 @@ def list(option: str):
             name = os.path.basename(human_file).replace("txt", "")
             table.add_row([name, text])
         print(table)
-    elif option == "personas":
+    elif arg == ListChoice.personas:
         """List all personas"""
         table = PrettyTable()
         table.field_names = ["Name", "Text"]
@@ -514,29 +594,27 @@ def list(option: str):
             name = os.path.basename(persona_file).replace(".txt", "")
             table.add_row([name, text])
         print(table)
-    elif option == "sources":
+    elif arg == ListChoice.sources:
         """List all data sources"""
+
+        # create table
         table = PrettyTable()
-        table.field_names = ["Name", "Location", "Agents"]
-        config = MemGPTConfig.load()
+        table.field_names = ["Name", "Created At", "Agents"]
         # TODO: eventually look accross all storage connections
         # TODO: add data source stats
-        source_to_agents = {}
-        for agent_file in utils.list_agent_config_files():
-            agent_name = os.path.basename(agent_file).replace(".json", "")
-            agent_config = AgentConfig.load(agent_name)
-            for ds in agent_config.data_sources:
-                if ds in source_to_agents:
-                    source_to_agents[ds].append(agent_name)
-                else:
-                    source_to_agents[ds] = [agent_name]
-        for data_source in StorageConnector.list_loaded_data():
-            location = config.archival_storage_type
-            agents = ",".join(source_to_agents[data_source]) if data_source in source_to_agents else ""
-            table.add_row([data_source, location, agents])
+        # TODO: connect to agents
+
+        # get all sources
+        for source in ms.list_sources(user_id=user_id):
+            # get attached agents
+            agent_ids = ms.list_attached_agents(source_id=source.id)
+            agent_names = [ms.get_agent(agent_id=agent_id).name for agent_id in agent_ids]
+
+            table.add_row([source.name, utils.format_datetime(source.created_at), ",".join(agent_names)])
+
         print(table)
     else:
-        raise ValueError(f"Unknown option {option}")
+        raise ValueError(f"Unknown argument {arg}")
 
 
 @app.command()
@@ -564,3 +642,51 @@ def add(
         # write text to file
         with open(os.path.join(directory, name), "w") as f:
             f.write(text)
+
+
+@app.command()
+def delete(option: str, name: str):
+    """Delete a source from the archival memory."""
+
+    config = MemGPTConfig.load()
+    user_id = uuid.UUID(config.anon_clientid)
+    ms = MetadataStore(config)
+    assert ms.get_user(user_id=user_id), f"User {user_id} does not exist"
+
+    try:
+        # delete from metadata
+        if option == "source":
+            # delete metadata
+            source = ms.get_source(source_name=name, user_id=user_id)
+            ms.delete_source(source_id=source.id)
+
+            # delete from passages
+            conn = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id=user_id)
+            conn.delete({"data_source": name})
+
+            assert (
+                conn.get_all({"data_source": name}) == []
+            ), f"Expected no passages with source {name}, but got {conn.get_all({'data_source': name})}"
+
+            # TODO: should we also delete from agents?
+        elif option == "agent":
+            agent = ms.get_agent(agent_name=name, user_id=user_id)
+
+            # recall memory
+            recall_conn = StorageConnector.get_storage_connector(TableType.RECALL_MEMORY, config, user_id=user_id, agent_id=agent.id)
+            recall_conn.delete({"agent_id": agent.id})
+
+            # archival memory
+            archival_conn = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config, user_id=user_id, agent_id=agent.id)
+            archival_conn.delete({"agent_id": agent.id})
+
+            # metadata
+            ms.delete_agent(agent_id=agent.id)
+
+        else:
+            raise ValueError(f"Option {option} not implemented")
+
+        typer.secho(f"Deleted source '{name}'", fg=typer.colors.GREEN)
+
+    except Exception as e:
+        typer.secho(f"Failed to deleted source '{name}'\n{e}", fg=typer.colors.RED)

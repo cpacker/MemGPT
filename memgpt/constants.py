@@ -5,6 +5,7 @@ MEMGPT_DIR = os.path.join(os.path.expanduser("~"), ".memgpt")
 DEFAULT_MEMGPT_MODEL = "gpt-4"
 DEFAULT_PERSONA = "sam_pov"
 DEFAULT_HUMAN = "basic"
+DEFAULT_PRESET = "memgpt_chat"
 
 FIRST_MESSAGE_ATTEMPTS = 10
 
@@ -67,7 +68,7 @@ CORE_MEMORY_PERSONA_CHAR_LIMIT = 2000
 CORE_MEMORY_HUMAN_CHAR_LIMIT = 2000
 
 # Function return limits
-FUNCTION_RETURN_CHAR_LIMIT = 2000
+FUNCTION_RETURN_CHAR_LIMIT = 3000  # ~300 words
 
 MAX_PAUSE_HEARTBEATS = 360  # in min
 

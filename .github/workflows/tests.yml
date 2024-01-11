@@ -16,13 +16,17 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+      PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
-    timeout-minutes: 5
+    timeout-minutes: 15
 
     steps:
-    - uses: actions/checkout@v1
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Build and run container
+      run: bash db/run_postgres.sh
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -39,14 +43,15 @@ jobs:
 
     - name: Install dependencies using Poetry
       env:
-        PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+        PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry install -E dev -E postgres -E local -E server
+        poetry install --all-extras
 
     - name: Set Poetry config
       env:
-        PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+        PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         poetry config virtualenvs.in-project false
@@ -54,7 +59,13 @@ jobs:
 
     - name: Run tests with pytest
       env:
-        PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+        PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        PGVECTOR_TEST_DB_URL=${{ secrets.PGVECTOR_TEST_DB_URL }} OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} poetry run pytest -s -vv tests
+        PGVECTOR_TEST_DB_URL=postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} poetry run pytest -s -vv -k "not test_storage" tests
+    - name: Run storage tests
+      env:
+        PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        PGVECTOR_TEST_DB_URL=postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} poetry run pytest -s -vv tests/test_storage.py
