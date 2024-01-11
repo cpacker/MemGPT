@@ -3,12 +3,11 @@ import ast
 import psycopg
 
 
-from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY
+from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, DateTime
 from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker, mapped_column, declarative_base
 from sqlalchemy.orm.session import close_all_sessions
 from sqlalchemy.sql import func
-from sqlalchemy import Column, BIGINT, String, DateTime
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy_json import mutable_json_type, MutableJson
 from sqlalchemy import TypeDecorator, CHAR
@@ -22,11 +21,11 @@ from tqdm import tqdm
 import pandas as pd
 
 from memgpt.config import MemGPTConfig
-from memgpt.connectors.storage import StorageConnector, TableType
-from memgpt.config import AgentConfig, MemGPTConfig
-from memgpt.constants import MEMGPT_DIR
+from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.config import MemGPTConfig
 from memgpt.utils import printd
-from memgpt.data_types import Record, Message, Passage, Source, ToolCall
+from memgpt.data_types import Record, Message, Passage, ToolCall
+from memgpt.metadata import MetadataStore
 
 from datetime import datetime
 
@@ -34,6 +33,7 @@ from datetime import datetime
 # Custom UUID type
 class CommonUUID(TypeDecorator):
     impl = CHAR
+    cache_ok = True
 
     def load_dialect_impl(self, dialect):
         if dialect.name == "postgresql":
@@ -55,27 +55,39 @@ class CommonUUID(TypeDecorator):
 
 
 class CommonVector(TypeDecorator):
-
     """Common type for representing vectors in SQLite"""
 
     impl = BINARY
+    cache_ok = True
 
     def load_dialect_impl(self, dialect):
         return dialect.type_descriptor(BINARY())
 
     def process_bind_param(self, value, dialect):
-        return np.array(value).tobytes()
+        if value:
+            assert isinstance(value, np.ndarray) or isinstance(value, list), f"Value must be of type np.ndarray or list, got {type(value)}"
+            assert isinstance(value[0], float), f"Value must be of type float, got {type(value[0])}"
+            # print("WRITE", np.array(value).tobytes())
+            return np.array(value).tobytes()
+        else:
+            # print("WRITE", value, type(value))
+            return value
 
     def process_result_value(self, value, dialect):
-        list_value = ast.literal_eval(value)
-        return np.array(list_value)
+        if not value:
+            return value
+        # print("dialect", dialect, type(value))
+        return np.frombuffer(value)
 
 
-class ToolCalls(TypeDecorator):
+# Custom serialization / de-serialization for JSON columns
 
+
+class ToolCallColumn(TypeDecorator):
     """Custom type for storing List[ToolCall] as JSON"""
 
     impl = JSON
+    cache_ok = True
 
     def load_dialect_impl(self, dialect):
         return dialect.type_descriptor(JSON())
@@ -94,8 +106,17 @@ class ToolCalls(TypeDecorator):
 Base = declarative_base()
 
 
-def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
-    config = MemGPTConfig.load()
+def get_db_model(config: MemGPTConfig, table_name: str, table_type: TableType, user_id, agent_id=None, dialect="postgresql"):
+    # get embedding dimention info
+    ms = MetadataStore(config)
+    if agent_id and ms.get_agent(agent_id):
+        agent = ms.get_agent(agent_id)
+        embedding_dim = agent.embedding_config.embedding_dim
+    else:
+        user = ms.get_user(user_id)
+        if user is None:
+            raise ValueError(f"User {user_id} not found")
+        embedding_dim = user.default_embedding_config.embedding_dim
 
     # Define a helper function to create or get the model class
     def create_or_get_model(class_name, base_model, table_name):
@@ -116,10 +137,10 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
             # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
             id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
             # id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-            user_id = Column(String, nullable=False)
+            user_id = Column(CommonUUID, nullable=False)
             text = Column(String, nullable=False)
-            doc_id = Column(String)
-            agent_id = Column(String)
+            doc_id = Column(CommonUUID)
+            agent_id = Column(CommonUUID)
             data_source = Column(String)  # agent_name if agent, data_source name if from data source
 
             # vector storage
@@ -128,7 +149,7 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
             else:
                 from pgvector.sqlalchemy import Vector
 
-                embedding = mapped_column(Vector(config.embedding_dim))
+                embedding = mapped_column(Vector(embedding_dim))
 
             metadata_ = Column(MutableJson)
 
@@ -162,20 +183,20 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
             # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
             id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
             # id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-            user_id = Column(String, nullable=False)
-            agent_id = Column(String, nullable=False)
+            user_id = Column(CommonUUID, nullable=False)
+            agent_id = Column(CommonUUID, nullable=False)
 
             # openai info
             role = Column(String, nullable=False)
             text = Column(String)  # optional: can be null if function call
             model = Column(String, nullable=False)
-            user = Column(String)  # optional: multi-agent only
+            name = Column(String)  # optional: multi-agent only
 
             # tool call request info
             # if role == "assistant", this MAY be specified
             # if role != "assistant", this must be null
             # TODO align with OpenAI spec of multiple tool calls
-            tool_calls = Column(ToolCalls)
+            tool_calls = Column(ToolCallColumn)
 
             # tool call response info
             # if role == "tool", then this must be specified
@@ -188,7 +209,7 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
             else:
                 from pgvector.sqlalchemy import Vector
 
-                embedding = mapped_column(Vector(config.embedding_dim))
+                embedding = mapped_column(Vector(embedding_dim))
 
             # Add a datetime column, with default value as the current time
             created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -201,7 +222,7 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
                     user_id=self.user_id,
                     agent_id=self.agent_id,
                     role=self.role,
-                    user=self.user,
+                    name=self.name,
                     text=self.text,
                     model=self.model,
                     tool_calls=self.tool_calls,
@@ -215,45 +236,22 @@ def get_db_model(table_name: str, table_type: TableType, dialect="postgresql"):
         class_name = f"{table_name.capitalize()}Model" + dialect
         return create_or_get_model(class_name, MessageModel, table_name)
 
-    elif table_type == TableType.DATA_SOURCES:
-
-        class SourceModel(Base):
-            """Defines data model for storing Passages (consisting of text, embedding)"""
-
-            __abstract__ = True  # this line is necessary
-
-            # Assuming passage_id is the primary key
-            # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-            id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-            user_id = Column(String, nullable=False)
-            name = Column(String, nullable=False)
-            created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-            def __repr__(self):
-                return f"<Source(passage_id='{self.id}', name='{self.name}')>"
-
-            def to_record(self):
-                return Source(id=self.id, user_id=self.user_id, name=self.name, created_at=self.created_at)
-
-        """Create database model for table_name"""
-        class_name = f"{table_name.capitalize()}Model" + dialect
-        return create_or_get_model(class_name, SourceModel, table_name)
-
     else:
         raise ValueError(f"Table type {table_type} not implemented")
 
 
 class SQLStorageConnector(StorageConnector):
-    def __init__(self, table_type: str, agent_config: Optional[AgentConfig] = None):
-        super().__init__(table_type=table_type, agent_config=agent_config)
-        self.config = MemGPTConfig.load()
+    def __init__(self, table_type: str, config: MemGPTConfig, user_id, agent_id=None):
+        super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
+        self.config = config
 
     def get_filters(self, filters: Optional[Dict] = {}):
         if filters is not None:
             filter_conditions = {**self.filters, **filters}
         else:
             filter_conditions = self.filters
-        return [getattr(self.db_model, key) == value for key, value in filter_conditions.items()]
+        all_filters = [getattr(self.db_model, key) == value for key, value in filter_conditions.items()]
+        return all_filters
 
     def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000) -> Iterator[List[Record]]:
         session = self.Session()
@@ -367,10 +365,10 @@ class PostgresStorageConnector(SQLStorageConnector):
 
     # TODO: this should probably eventually be moved into a parent DB class
 
-    def __init__(self, table_type: str, agent_config: Optional[AgentConfig] = None):
+    def __init__(self, table_type: str, config: MemGPTConfig, user_id, agent_id=None):
         from pgvector.sqlalchemy import Vector
 
-        super().__init__(table_type=table_type, agent_config=agent_config)
+        super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
 
         # get storage URI
         if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
@@ -388,7 +386,7 @@ class PostgresStorageConnector(SQLStorageConnector):
         else:
             raise ValueError(f"Table type {table_type} not implemented")
         # create table
-        self.db_model = get_db_model(self.table_name, table_type)
+        self.db_model = get_db_model(config, self.table_name, table_type, user_id, agent_id)
         self.engine = create_engine(self.uri)
         for c in self.db_model.__table__.columns:
             if c.name == "embedding":
@@ -411,8 +409,8 @@ class PostgresStorageConnector(SQLStorageConnector):
 
 
 class SQLLiteStorageConnector(SQLStorageConnector):
-    def __init__(self, table_type: str, agent_config: Optional[AgentConfig] = None):
-        super().__init__(table_type=table_type, agent_config=agent_config)
+    def __init__(self, table_type: str, config: MemGPTConfig, user_id, agent_id=None):
+        super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
 
         # get storage URI
         if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
@@ -422,17 +420,13 @@ class SQLLiteStorageConnector(SQLStorageConnector):
             self.path = self.config.recall_storage_path
             if self.path is None:
                 raise ValueError(f"Must specifiy recall_storage_path in config {self.config.recall_storage_path}")
-        elif table_type == TableType.DATA_SOURCES:
-            self.path = self.config.metadata_storage_path
-            if self.path is None:
-                raise ValueError(f"Must specifiy metadata_storage_path in config {self.config.metadata_storage_path}")
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 
         self.path = os.path.join(self.path, f"{self.table_name}.db")
 
         # Create the SQLAlchemy engine
-        self.db_model = get_db_model(self.table_name, table_type, dialect="sqlite")
+        self.db_model = get_db_model(config, self.table_name, table_type, user_id, agent_id, dialect="sqlite")
         self.engine = create_engine(f"sqlite:///{self.path}")
         Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
         self.Session = sessionmaker(bind=self.engine)

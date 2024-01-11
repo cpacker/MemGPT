@@ -37,6 +37,8 @@ def shorten_key_middle(key_string, chars_each_side=3):
     Returns:
     str: The shortened key string with an ellipsis in the middle.
     """
+    if not key_string:
+        return key_string
     key_length = len(key_string)
     if key_length <= 2 * chars_each_side:
         return "..."  # Return ellipsis if the key is too short

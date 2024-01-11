@@ -1,14 +1,11 @@
 from abc import ABC, abstractmethod
 import pickle
-from memgpt.config import AgentConfig
 from memgpt.memory import (
-    DummyRecallMemory,
     BaseRecallMemory,
     EmbeddingArchivalMemory,
 )
 from memgpt.utils import get_local_time, printd
-from memgpt.data_types import Message, ToolCall
-from memgpt.config import MemGPTConfig
+from memgpt.data_types import Message, ToolCall, AgentState
 
 from datetime import datetime
 
@@ -46,53 +43,14 @@ class LocalStateManager(PersistenceManager):
     recall_memory_cls = BaseRecallMemory
     archival_memory_cls = EmbeddingArchivalMemory
 
-    def __init__(self, agent_config: AgentConfig):
+    def __init__(self, agent_state: AgentState):
         # Memory held in-state useful for debugging stateful versions
         self.memory = None
         self.messages = []  # current in-context messages
         # self.all_messages = [] # all messages seen in current session (needed if lazily synchronizing state with DB)
-        self.archival_memory = EmbeddingArchivalMemory(agent_config)
-        self.recall_memory = BaseRecallMemory(agent_config)
-        self.agent_config = agent_config
-        self.config = MemGPTConfig.load()
-
-    @classmethod
-    def load(cls, agent_config: AgentConfig):
-        """ Load a LocalStateManager from a file. """ ""
-        # TODO: remove this function
-        return cls(agent_config)
-        # try:
-        #    with open(filename, "rb") as f:
-        #        data = pickle.load(f)
-        # except ModuleNotFoundError as e:
-        #    # Patch for stripped openai package
-        #    # ModuleNotFoundError: No module named 'openai.openai_object'
-        #    with open(filename, "rb") as f:
-        #        unpickler = OpenAIBackcompatUnpickler(f)
-        #        data = unpickler.load()
-        #    # print(f"Unpickled data:\n{data.keys()}")
-
-        #    from memgpt.openai_backcompat.openai_object import OpenAIObject
-
-        #    def convert_openai_objects_to_dict(obj):
-        #        if isinstance(obj, OpenAIObject):
-        #            # Convert to dict or handle as needed
-        #            # print(f"detected OpenAIObject on {obj}")
-        #            return obj.to_dict_recursive()
-        #        elif isinstance(obj, dict):
-        #            return {k: convert_openai_objects_to_dict(v) for k, v in obj.items()}
-        #        elif isinstance(obj, list):
-        #            return [convert_openai_objects_to_dict(v) for v in obj]
-        #        else:
-        #            return obj
-
-        #    data = convert_openai_objects_to_dict(data)
-        #    # print(f"Converted data:\n{data.keys()}")
-
-        # manager = cls(agent_config)
-        # manager.archival_memory = EmbeddingArchivalMemory(agent_config)
-        # manager.recall_memory = BaseRecallMemory(agent_config)
-        # return manager
+        self.archival_memory = EmbeddingArchivalMemory(agent_state)
+        self.recall_memory = BaseRecallMemory(agent_state)
+        self.agent_state = agent_state
 
     def save(self):
         """Ensure storage connectors save data"""
@@ -107,9 +65,6 @@ class LocalStateManager(PersistenceManager):
         self.memory = agent.memory
         # printd(f"{self.__class__.__name__}.all_messages.len = {len(self.all_messages)}")
         printd(f"{self.__class__.__name__}.messages.len = {len(self.messages)}")
-
-        # Persistence manager also handles DB-related state
-        # self.recall_memory = self.recall_memory_cls(message_database=self.all_messages)
 
     def json_to_message(self, message_json) -> Message:
         """Convert agent message JSON into Message object"""
@@ -133,11 +88,12 @@ class LocalStateManager(PersistenceManager):
             tool_calls = None
 
         return Message(
-            user_id=self.config.anon_clientid,
-            agent_id=self.agent_config.name,
+            user_id=self.agent_state.user_id,
+            agent_id=self.agent_state.id,
             role=message["role"],
             text=message["content"],
-            model=self.agent_config.model,
+            name=message["name"] if "name" in message else None,
+            model=self.agent_state.llm_config.model,
             created_at=parse_formatted_time(timestamp),
             tool_calls=tool_calls,
             tool_call_id=message["tool_call_id"] if "tool_call_id" in message else None,

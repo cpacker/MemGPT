@@ -11,12 +11,14 @@ memgpt load <data-connector-type> --name <dataset-name> [ADDITIONAL ARGS]
 from typing import List
 from tqdm import tqdm
 import typer
+import uuid
 from memgpt.embeddings import embedding_model
-from memgpt.connectors.storage import StorageConnector
+from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
-from memgpt.data_types import Source, Passage, Document
+from memgpt.metadata import MetadataStore
+from memgpt.data_types import Source, Passage, Document, User
 from memgpt.utils import get_local_time, suppress_stdout
-from memgpt.connectors.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector, TableType
 
 from datetime import datetime
 
@@ -30,24 +32,52 @@ from llama_index import (
 app = typer.Typer()
 
 
-def store_docs(name, docs, show_progress=True):
+def insert_passages_into_source(passages: List[Passage], source_name: str, user_id: uuid.UUID, config: MemGPTConfig):
+    """Insert a list of passages into a source by updating storage connectors and metadata store"""
+    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
+    orig_size = storage.size()
+
+    # insert metadata store
+    ms = MetadataStore(config)
+    source = ms.get_source(user_id=user_id, source_name=source_name)
+    if not source:
+        # create new
+        source = Source(user_id=user_id, name=source_name, created_at=get_local_time())
+        ms.create_source(source)
+
+    # make sure user_id is set for passages
+    for passage in passages:
+        # TODO: attach source IDs
+        # passage.source_id = source.id
+        passage.user_id = user_id
+        passage.data_source = source_name
+
+    # add and save all passages
+    storage.insert_many(passages)
+    assert orig_size + len(passages) == storage.size(), f"Expected {orig_size + len(passages)} passages, got {storage.size()}"
+    storage.save()
+
+
+def store_docs(name, docs, user_id=None, show_progress=True):
     """Common function for embedding and storing documents"""
 
     config = MemGPTConfig.load()
+    if user_id is None:  # assume running local with single user
+        user_id = uuid.UUID(config.anon_clientid)
 
     # record data source metadata
-    data_source = Source(user_id=config.anon_clientid, name=name, created_at=datetime.now())
-    metadata_conn = StorageConnector.get_metadata_storage_connector(TableType.DATA_SOURCES)
-    if len(metadata_conn.get_all({"name": name})) > 0:
-        print(f"Data source {name} already exists in metadata, skipping.")
-        # TODO: should this error, or just add more data to this source?
+    ms = MetadataStore(config)
+    user = ms.get_user(user_id)
+    if user is None:
+        raise ValueError(f"Cannot find user {user_id} in metadata store. Please run 'memgpt configure'.")
+    data_source = Source(user_id=user.id, name=name, created_at=datetime.now())
+    if not ms.get_source(user_id=user.id, source_name=name):
+        ms.create_source(data_source)
     else:
-        metadata_conn.insert(data_source)
+        print(f"Source {name} for user {user.id} already exists")
 
     # compute and record passages
-    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, storage_type=config.archival_storage_type)
-    embed_model = embedding_model()
-    orig_size = storage.size()
+    embed_model = embedding_model(user.default_embedding_config)
 
     # use llama index to run embeddings code
     with suppress_stdout():
@@ -65,11 +95,11 @@ def store_docs(name, docs, show_progress=True):
         node.embedding = vector
         text = node.text.replace("\x00", "\uFFFD")  # hacky fix for error on null characters
         assert (
-            len(node.embedding) == config.embedding_dim
-        ), f"Expected embedding dimension {config.embedding_dim}, got {len(node.embedding)}: {node.embedding}"
+            len(node.embedding) == user.default_embedding_config.embedding_dim
+        ), f"Expected embedding dimension {user.default_embedding_config.embedding_dim}, got {len(node.embedding)}: {node.embedding}"
         passages.append(
             Passage(
-                user_id=config.anon_clientid,
+                user_id=user.id,
                 text=text,
                 data_source=name,
                 embedding=node.embedding,
@@ -77,15 +107,14 @@ def store_docs(name, docs, show_progress=True):
             )
         )
 
-    # insert into storage
-    storage.insert_many(passages)
-    assert orig_size + len(passages) == storage.size(), f"Expected {orig_size + len(passages)} passages, got {storage.size()}"
-    storage.save()
+    insert_passages_into_source(passages, name, user_id, config)
 
 
 @app.command("index")
 def load_index(
-    name: str = typer.Option(help="Name of dataset to load."), dir: str = typer.Option(help="Path to directory containing index.")
+    name: str = typer.Option(help="Name of dataset to load."),
+    dir: str = typer.Option(help="Path to directory containing index."),
+    user_id: uuid.UUID = None,
 ):
     """Load a LlamaIndex saved VectorIndex into MemGPT"""
     try:
@@ -104,11 +133,11 @@ def load_index(
             passages.append(Passage(text=node.text, embedding=vector))
 
         # create storage connector
-        storage = StorageConnector.get_archival_storage_connector(name=name)
+        config = MemGPTConfig.load()
+        if user_id is None:
+            user_id = uuid.UUID(config.anon_clientid)
 
-        # add and save all passages
-        storage.insert_many(passages)
-        storage.save()
+        insert_passages_into_source(passages, name, user_id, config)
     except ValueError as e:
         typer.secho(f"Failed to load index from provided information.\n{e}", fg=typer.colors.RED)
 
@@ -119,6 +148,7 @@ def load_directory(
     input_dir: str = typer.Option(None, help="Path to directory containing dataset."),
     input_files: List[str] = typer.Option(None, help="List of paths to files containing dataset."),
     recursive: bool = typer.Option(False, help="Recursively search for files in directory."),
+    user_id: str = typer.Option(None, help="User ID to associate with dataset."),
 ):
     try:
         from llama_index import SimpleDirectoryReader
@@ -136,7 +166,7 @@ def load_directory(
 
         # load docs
         docs = reader.load_data()
-        store_docs(name, docs)
+        store_docs(name, docs, user_id)
 
     except ValueError as e:
         typer.secho(f"Failed to load directory from provided information.\n{e}", fg=typer.colors.RED)
@@ -213,6 +243,7 @@ def load_vector_database(
     table_name: str = typer.Option(help="Name of table containing data."),
     text_column: str = typer.Option(help="Name of column containing text."),
     embedding_column: str = typer.Option(help="Name of column containing embedding."),
+    user_id: uuid.UUID = None,
 ):
     """Load pre-computed embeddings into MemGPT from a database."""
 
@@ -245,9 +276,12 @@ def load_vector_database(
             passages.append(Passage(text=text, embedding=embedding))
             assert config.embedding_dim == len(embedding), f"Expected embedding dimension {config.embedding_dim}, got {len(embedding)}"
 
-        # insert into storage
-        storage = StorageConnector.get_archival_storage_connector(name=name)
-        storage.insert_many(passages)
+        # create storage connector
+        config = MemGPTConfig.load()
+        if user_id is None:
+            user_id = uuid.UUID(config.anon_clientid)
+
+        insert_passages_into_source(passages, name, user_id, config)
 
     except ValueError as e:
         typer.secho(f"Failed to load vector database from provided information.\n{e}", fg=typer.colors.RED)

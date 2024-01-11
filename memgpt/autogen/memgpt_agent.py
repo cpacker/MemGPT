@@ -12,7 +12,7 @@ import memgpt.presets.presets as presets
 from memgpt.config import AgentConfig, MemGPTConfig
 from memgpt.cli.cli import attach
 from memgpt.cli.cli_load import load_directory, load_webpage, load_index, load_database, load_vector_database
-from memgpt.connectors.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector, TableType
 
 
 def create_memgpt_autogen_agent_from_config(
@@ -171,7 +171,7 @@ def create_autogen_memgpt_agent(
         }
     persistence_manager = LocalStateManager(**persistence_manager_kwargs) if persistence_manager is None else persistence_manager
 
-    memgpt_agent = presets.use_preset(
+    memgpt_agent = presets.create_agent_from_preset(
         agent_config.preset,
         agent_config,
         agent_config.model,
@@ -200,6 +200,7 @@ class MemGPTAgent(ConversableAgent):
         concat_other_agent_messages=False,
         is_termination_msg: Optional[Callable[[Dict], bool]] = None,
         default_auto_reply: Optional[Union[str, Dict, None]] = "",
+        # TODO: pass in MemGPT config (needed to create DB connections)
     ):
         super().__init__(name)
         self.agent = agent
@@ -234,6 +235,7 @@ class MemGPTAgent(ConversableAgent):
         self.agent.config.attach_data_source(data_source)
 
         # reload agent with new data source
+        # TODO: @charles we will need to pass in the MemGPT config here to get the DB URIs (not contained in agent)
         self.agent.persistence_manager.archival_memory.storage = StorageConnector.get_archival_storage_connector(
             agent_config=self.agent.config
         )
