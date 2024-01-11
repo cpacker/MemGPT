@@ -161,7 +161,7 @@ def migrate_agent(agent_name: str):
     # load old data from the persistence manager
     persistence_filename = os.path.basename(state_filename).replace(".json", ".persistence.pickle")
     persistence_filename = os.path.join(agent_folder, "persistence_manager", persistence_filename)
-    archival_directory = os.path.join(agent_folder, "persistence_manager", "index")
+    archival_filename = os.path.join(agent_folder, "persistence_manager", "index", "nodes.pkl")
     if not os.path.exists(persistence_filename):
         raise ValueError(f"Cannot load {agent_name} - no saved persistence pickle found at {persistence_filename}")
 
@@ -251,20 +251,15 @@ def migrate_agent(agent_name: str):
         # print("Finished migrating recall memory")
 
         # 5. Insert into archival
-        if os.path.exists(archival_directory) and os.path.exists(os.path.join(archival_directory, "docstore.json")):
-            storage_context = StorageContext.from_defaults(persist_dir=archival_directory)
-            loaded_index = load_index_from_storage(storage_context)
-            embed_dict = loaded_index._vector_store._data.embedding_dict
-            node_dict = loaded_index._docstore.docs
+        if os.path.exists(archival_filename):
+            nodes = pickle.load(open(archival_filename))
             passages = []
-            for node_id, node in node_dict.items():
-                vector = embed_dict[node_id]
-                node.embedding = vector
-                passages.append(Passage(user_id=user.id, agent_id=agent.id, text=node.text, embedding=vector))
+            for node in nodes:
+                passages.append(Passage(user_id=user.id, agent_id=agent.id, text=node.text, embedding=node.embedding))
             if len(passages) > 0:
                 agent.persistence_manager.archival_memory.storage.insert_many(passages)
         else:
-            print("No archival memory found at", archival_directory)
+            print("No archival memory found at", archival_filename)
 
     except:
         ms.delete_agent(agent_state.id)
