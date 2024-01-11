@@ -7,7 +7,9 @@ import sys
 from memgpt.functions.schema_generator import generate_schema
 from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
 
-sys.path.append(os.path.join(MEMGPT_DIR, "functions"))
+USER_FUNCTIONS_DIR = os.path.join(MEMGPT_DIR, "functions")
+
+sys.path.append(USER_FUNCTIONS_DIR)
 
 
 def load_function_set(module):
@@ -42,24 +44,23 @@ def load_all_function_sets(merge=True):
     example_module_files = [f for f in os.listdir(function_sets_dir) if f.endswith(".py") and f != "__init__.py"]
 
     # ~/.memgpt/functions/*.py
-    user_scripts_dir = os.path.join(MEMGPT_DIR, "functions")
     # create if missing
-    if not os.path.exists(user_scripts_dir):
-        os.makedirs(user_scripts_dir)
-    user_module_files = [f for f in os.listdir(user_scripts_dir) if f.endswith(".py") and f != "__init__.py"]
+    if not os.path.exists(USER_FUNCTIONS_DIR):
+        os.makedirs(USER_FUNCTIONS_DIR)
+    user_module_files = [f for f in os.listdir(USER_FUNCTIONS_DIR) if f.endswith(".py") and f != "__init__.py"]
 
     # combine them both (pull from both examples and user-provided)
     # all_module_files = example_module_files + user_module_files
 
     # Add user_scripts_dir to sys.path
-    if user_scripts_dir not in sys.path:
-        sys.path.append(user_scripts_dir)
+    if USER_FUNCTIONS_DIR not in sys.path:
+        sys.path.append(USER_FUNCTIONS_DIR)
 
     schemas_and_functions = {}
-    for dir_path, module_files in [(function_sets_dir, example_module_files), (user_scripts_dir, user_module_files)]:
+    for dir_path, module_files in [(function_sets_dir, example_module_files), (USER_FUNCTIONS_DIR, user_module_files)]:
         for file in module_files:
             module_name = file[:-3]  # Remove '.py' from filename
-            if dir_path == user_scripts_dir:
+            if dir_path == USER_FUNCTIONS_DIR:
                 # For user scripts, adjust the module name appropriately
                 module_full_path = os.path.join(dir_path, file)
                 try:

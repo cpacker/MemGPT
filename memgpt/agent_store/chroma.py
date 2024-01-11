@@ -3,9 +3,9 @@ import uuid
 import json
 import re
 from typing import Optional, List, Iterator, Dict
-from memgpt.connectors.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.utils import printd, datetime_to_timestamp, timestamp_to_datetime
-from memgpt.config import AgentConfig, MemGPTConfig
+from memgpt.config import MemGPTConfig
 from memgpt.data_types import Record, Message, Passage
 
 
@@ -15,9 +15,8 @@ class ChromaStorageConnector(StorageConnector):
     # WARNING: This is not thread safe. Do NOT do concurrent access to the same collection.
     # Timestamps are converted to integer timestamps for chroma (datetime not supported)
 
-    def __init__(self, table_type: str, agent_config: Optional[AgentConfig] = None):
-        super().__init__(table_type=table_type, agent_config=agent_config)
-        config = MemGPTConfig.load()
+    def __init__(self, table_type: str, config: MemGPTConfig, user_id, agent_id=None):
+        super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
 
         assert table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES, "Chroma only supports archival memory"
 
@@ -34,6 +33,9 @@ class ChromaStorageConnector(StorageConnector):
         self.collection = self.client.get_or_create_collection(self.table_name)
         self.include = ["documents", "embeddings", "metadatas"]
 
+        # need to be converted to strings
+        self.uuid_fields = ["id", "user_id", "agent_id", "source_id"]
+
     def get_filters(self, filters: Optional[Dict] = {}):
         # get all filters for query
         if filters is not None:
@@ -45,16 +47,23 @@ class ChromaStorageConnector(StorageConnector):
         chroma_filters = []
         ids = []
         for key, value in filter_conditions.items():
+            # filter by id
             if key == "id":
                 ids = [str(value)]
                 continue
-            chroma_filters.append({key: {"$eq": value}})
+
+            # filter by other keys
+            if key in self.uuid_fields:
+                chroma_filters.append({key: {"$eq": str(value)}})
+            else:
+                chroma_filters.append({key: {"$eq": value}})
 
         if len(chroma_filters) > 1:
             chroma_filters = {"$and": chroma_filters}
+        elif len(chroma_filters) == 0:
+            chroma_filters = {}
         else:
             chroma_filters = chroma_filters[0]
-
         return ids, chroma_filters
 
     def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000) -> Iterator[List[Record]]:
@@ -79,6 +88,9 @@ class ChromaStorageConnector(StorageConnector):
         for metadata in results["metadatas"]:
             if "created_at" in metadata:
                 metadata["created_at"] = timestamp_to_datetime(metadata["created_at"])
+            for key, value in metadata.items():
+                if key in self.uuid_fields:
+                    metadata[key] = uuid.UUID(value)
         if results["embeddings"]:  # may not be returned, depending on table type
             return [
                 self.type(text=text, embedding=embedding, id=uuid.UUID(record_id), **metadatas)
@@ -130,6 +142,11 @@ class ChromaStorageConnector(StorageConnector):
                 record_metadata = {}
             metadata = {key: value for key, value in metadata.items() if value is not None}  # null values not allowed
             metadata = {**metadata, **record_metadata}  # merge with metadata
+
+            # convert uuids to strings
+            for key, value in metadata.items():
+                if key in self.uuid_fields:
+                    metadata[key] = str(value)
             metadatas.append(metadata)
         return ids, documents, embeddings, metadatas
 
