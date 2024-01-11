@@ -146,7 +146,7 @@ def migrate_source(source_name: str):
     except Exception as e:
         # delete from metadata store
         ms.delete_source(source.id)
-        print("Failed to migrate", source_name)
+        raise ValueError(f"Failed to migrate {source_name}: {str(e)}")
 
     # basic checks
     source = ms.get_source(user_id=user.id, source_name=source_name)
