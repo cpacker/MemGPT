@@ -289,7 +289,7 @@ def migrate_agent(agent_name: str):
 
 
 # def migrate_all_agents(stop_on_fail=True):
-def migrate_all_agents(stop_on_fail=False):
+def migrate_all_agents(stop_on_fail: bool = False) -> dict:
     """Scan over all agent folders in MEMGPT_DIR and migrate each agent."""
     if not config_is_compatible():
         typer.secho(f"Your current config file is incompatible with MemGPT versions >= {VERSION_CUTOFF}", fg=typer.colors.RED)
@@ -348,3 +348,10 @@ def migrate_all_agents(stop_on_fail=False):
             typer.secho(f"❌ {len(failures)}/{len(candidates)} migration targets failed (see reasons above)", fg=typer.colors.RED)
         if count > 0:
             typer.secho(f"✅ {count}/{len(candidates)} agents were successfully migrated to the new database format", fg=typer.colors.GREEN)
+
+    return {
+        "agent_folders": len(agent_folders),
+        "migration_candidates": len(candidates),
+        "successful_migrations": count,
+        "failed_migrations": len(failures),
+    }
