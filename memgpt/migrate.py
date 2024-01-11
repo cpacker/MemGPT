@@ -29,6 +29,9 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 # This is the version where the breaking change was made
 VERSION_CUTOFF = "0.2.12"
 
+# Migration backup dir (where we'll dump old agents that we successfully migrated)
+MIGRATION_BACKUP_DIR = "migrated_agents_backup"
+
 
 def wipe_config_and_reconfigure():
     """Wipe (backup) the config file, and launch `memgpt configure`"""
@@ -169,9 +172,9 @@ def migrate_agent(agent_name: str):
     agent_ckpt_directory = os.path.join(agent_folder, "agent_state")
     json_files = glob.glob(os.path.join(agent_ckpt_directory, "*.json"))  # This will list all .json files in the current directory.
     if not json_files:
-        # raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {agent_ckpt_directory}")
+        raise ValueError(f"Cannot load {agent_name} - no saved checkpoints found in {agent_ckpt_directory}")
         # NOTE this is a soft fail, just allow it to pass
-        return
+        # return
 
     # Sort files based on modified timestamp, with the latest file being the first.
     state_filename = max(json_files, key=os.path.getmtime)
@@ -267,14 +270,15 @@ def migrate_agent(agent_name: str):
             interface=None,
         )
     except Exception as e:
-        if "Agent with name" in str(e):
-            print(e)
-            return
-        elif "was specified in agent.state.functions":
-            print(e)
-            return
-        else:
-            raise
+        # if "Agent with name" in str(e):
+        #     print(e)
+        #     return
+        # elif "was specified in agent.state.functions":
+        #     print(e)
+        #     return
+        # else:
+        # raise
+        raise
 
     # Wrap the rest in a try-except so that we can cleanup by deleting the agent if we fail
     try:
@@ -308,6 +312,13 @@ def migrate_agent(agent_name: str):
 
     except:
         ms.delete_agent(agent_state.id)
+        raise
+
+    try:
+        new_agent_folder = os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_DIR, agent_name)
+        shutil.move(agent_folder, new_agent_folder)
+    except Exception as e:
+        print(f"Failed to move agent folder from {agent_folder} to {new_agent_folder}")
         raise
 
 
@@ -353,10 +364,10 @@ def migrate_all_agents(stop_on_fail: bool = False) -> dict:
                     continue
             except Exception as e:
                 failures.append({"name": agent_name, "reason": str(e)})
+                # typer.secho(f"Migrating {agent_name} failed with: {str(e)}", fg=typer.colors.RED)
                 traceback.print_exc()
                 if stop_on_fail:
                     raise
-                # typer.secho(f"Migrating {agent_name} failed with: {str(e)}", fg=typer.colors.RED)
     except KeyboardInterrupt:
         typer.secho(f"User cancelled operation", fg=typer.colors.RED)
 
