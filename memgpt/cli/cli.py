@@ -322,6 +322,37 @@ def run(
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.CRITICAL)
+
+    from memgpt.migrate import config_is_compatible, wipe_config_and_reconfigure, VERSION_CUTOFF
+
+    if not config_is_compatible(allow_empty=True):
+        typer.secho(f"\nYour current config file is incompatible with MemGPT versions later than {VERSION_CUTOFF}\n", fg=typer.colors.RED)
+        choices = [
+            "Run the full config setup (recommended)",
+            "Create a new config using defaults",
+            "Cancel",
+        ]
+        selection = questionary.select(
+            f"To use MemGPT, you must either downgrade your MemGPT version (<= {VERSION_CUTOFF}), or regenerate your config. Would you like to proceed?",
+            choices=choices,
+            default=choices[0],
+        ).ask()
+        if selection == choices[0]:
+            try:
+                wipe_config_and_reconfigure()
+            except Exception as e:
+                typer.secho(f"Fresh config generation failed - error:\n{e}", fg=typer.colors.RED)
+                raise
+        elif selection == choices[1]:
+            try:
+                wipe_config_and_reconfigure(run_configure=False)
+            except Exception as e:
+                typer.secho(f"Fresh config generation failed - error:\n{e}", fg=typer.colors.RED)
+                raise
+        else:
+            typer.secho("Migration cancelled (to migrate old agents, run `memgpt migrate`)", fg=typer.colors.RED)
+            raise KeyboardInterrupt()
+
     if not MemGPTConfig.exists():
         # if no config, ask about quickstart
         # do you want to do:
@@ -394,6 +425,8 @@ def run(
         if len(agents) > 0 and not any([persona, human, model]):
             print()
             select_agent = questionary.confirm("Would you like to select an existing agent?").ask()
+            if select_agent is None:
+                raise KeyboardInterrupt
             if select_agent:
                 agent = questionary.select("Select agent:", choices=agents).ask()
 
