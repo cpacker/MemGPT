@@ -1,6 +1,7 @@
 import copy
 import json
 
+from memgpt.constants import JSON_ENSURE_ASCII
 
 NO_HEARTBEAT_FUNCS = ["send_message", "pause_heartbeats"]
 
@@ -14,14 +15,14 @@ def insert_heartbeat(message):
         params = message_copy.get("function_call").get("arguments")
         params = json.loads(params)
         params["request_heartbeat"] = True
-        message_copy["function_call"]["arguments"] = json.dumps(params)
+        message_copy["function_call"]["arguments"] = json.dumps(params, ensure_ascii=JSON_ENSURE_ASCII)
 
     elif message_copy.get("tool_call"):
         # function_name = message.get("tool_calls")[0].get("function").get("name")
         params = message_copy.get("tool_calls")[0].get("function").get("arguments")
         params = json.loads(params)
         params["request_heartbeat"] = True
-        message_copy["tools_calls"][0]["function"]["arguments"] = json.dumps(params)
+        message_copy["tools_calls"][0]["function"]["arguments"] = json.dumps(params, ensure_ascii=JSON_ENSURE_ASCII)
 
     return message_copy
 
