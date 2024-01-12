@@ -4,8 +4,7 @@ from typing import Dict, List, Union
 from memgpt.data_types import AgentState
 from memgpt.cli.cli import QuickstartChoice
 from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func, str_to_quickstart_choice
-from memgpt.config import MemGPTConfig, AgentConfig
-from memgpt.persistence_manager import PersistenceManager
+from memgpt.config import MemGPTConfig
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
 
@@ -29,6 +28,7 @@ class Client(object):
         self.auto_save = auto_save
 
         # make sure everything is set up properly
+        # TODO: remove this eventually? for multi-user, we can't have a shared config directory
         MemGPTConfig.create_config_dir()
 
         # If this is the first ever start, do basic initialization

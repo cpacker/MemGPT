@@ -17,13 +17,14 @@ from prettytable import PrettyTable
 
 console = Console()
 
+from memgpt.log import logger
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.config import MemGPTConfig
 import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.constants as constants
 import memgpt.errors as errors
-from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, suppress_stdout
+from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, migrate
 from memgpt.cli.cli_config import configure, list, add, delete
 from memgpt.cli.cli_load import app as load_app
 from memgpt.agent_store.storage import StorageConnector, TableType
@@ -42,6 +43,8 @@ app.command(name="folder")(open_folder)
 app.command(name="quickstart")(quickstart)
 # load data commands
 app.add_typer(load_app, name="load")
+# migration command
+app.command(name="migrate")(migrate)
 
 
 def clear_line(strip_ui=False):
@@ -221,6 +224,45 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, no_verify=False, c
                             bold=True,
                         )
                     continue
+
+                elif user_input.lower().startswith("/add_function"):
+                    try:
+                        if len(user_input) < len("/add_function "):
+                            print("Missing function name after the command")
+                            continue
+                        function_name = user_input[len("/add_function ") :].strip()
+                        result = memgpt_agent.add_function(function_name)
+                        typer.secho(
+                            f"/add_function succeeded: {result}",
+                            fg=typer.colors.GREEN,
+                            bold=True,
+                        )
+                    except ValueError as e:
+                        typer.secho(
+                            f"/add_function failed:\n{e}",
+                            fg=typer.colors.RED,
+                            bold=True,
+                        )
+                        continue
+                elif user_input.lower().startswith("/remove_function"):
+                    try:
+                        if len(user_input) < len("/remove_function "):
+                            print("Missing function name after the command")
+                            continue
+                        function_name = user_input[len("/remove_function ") :].strip()
+                        result = memgpt_agent.remove_function(function_name)
+                        typer.secho(
+                            f"/remove_function succeeded: {result}",
+                            fg=typer.colors.GREEN,
+                            bold=True,
+                        )
+                    except ValueError as e:
+                        typer.secho(
+                            f"/remove_function failed:\n{e}",
+                            fg=typer.colors.RED,
+                            bold=True,
+                        )
+                        continue
 
                 # No skip options
                 elif user_input.lower() == "/wipe":

@@ -1,4 +1,5 @@
 from datetime import datetime
+import copy
 import re
 import json
 import os
@@ -6,8 +7,11 @@ import pickle
 import platform
 import random
 import subprocess
+import uuid
 import sys
 import io
+from typing import List
+
 from urllib.parse import urlparse
 from contextlib import contextmanager
 import difflib
@@ -455,6 +459,86 @@ NOUN_BANK = [
     "yak",
     "zebra",
 ]
+
+
+def annotate_message_json_list_with_tool_calls(messages: List[dict]):
+    """Add in missing tool_call_id fields to a list of messages using function call style
+
+    Walk through the list forwards:
+    - If we encounter an assistant message that calls a function ("function_call") but doesn't have a "tool_call_id" field
+      - Generate the tool_call_id
+    - Then check if the subsequent message is a role == "function" message
+      - If so, then att
+    """
+    tool_call_index = None
+    tool_call_id = None
+    updated_messages = []
+
+    for i, message in enumerate(messages):
+        if "role" not in message:
+            raise ValueError(f"message missing 'role' field:\n{message}")
+
+        # If we find a function call w/o a tool call ID annotation, annotate it
+        if message["role"] == "assistant" and "function_call" in message:
+            if "tool_call_id" in message and message["tool_call_id"] is not None:
+                printd(f"Message already has tool_call_id")
+                tool_call_id = message["tool_call_id"]
+            else:
+                tool_call_id = str(uuid.uuid4())
+                message["tool_call_id"] = tool_call_id
+            tool_call_index = i
+
+        # After annotating the call, we expect to find a follow-up response (also unannotated)
+        elif message["role"] == "function":
+            # We should have a new tool call id in the buffer
+            if tool_call_id is None:
+                # raise ValueError(
+                print(
+                    f"Got a function call role, but did not have a saved tool_call_id ready to use (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                )
+                # allow a soft fail in this case
+                message["tool_call_id"] = str(uuid.uuid4())
+            elif "tool_call_id" in message:
+                raise ValueError(
+                    f"Got a function call role, but it already had a saved tool_call_id (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                )
+            elif i != tool_call_index + 1:
+                raise ValueError(
+                    f"Got a function call role, saved tool_call_id came earlier than i-1 (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                )
+            else:
+                message["tool_call_id"] = tool_call_id
+                tool_call_id = None  # wipe the buffer
+
+        elif message["role"] == "tool":
+            raise NotImplementedError(
+                f"tool_call_id annotation is meant for deprecated functions style, but got role 'tool' in message (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+            )
+
+        else:
+            # eg role == 'user', nothing to do here
+            pass
+
+        updated_messages.append(copy.deepcopy(message))
+
+    return updated_messages
+
+
+def version_less_than(version_a: str, version_b: str) -> bool:
+    """Compare versions to check if version_a is less than version_b."""
+    # Regular expression to match version strings of the format int.int.int
+    version_pattern = re.compile(r"^\d+\.\d+\.\d+$")
+
+    # Assert that version strings match the required format
+    if not version_pattern.match(version_a) or not version_pattern.match(version_b):
+        raise ValueError("Version strings must be in the format 'int.int.int'")
+
+    # Split the version strings into parts
+    parts_a = [int(part) for part in version_a.split(".")]
+    parts_b = [int(part) for part in version_b.split(".")]
+
+    # Compare version parts
+    return parts_a < parts_b
 
 
 def create_random_username() -> str:

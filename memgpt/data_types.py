@@ -8,9 +8,6 @@ import numpy as np
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
 from memgpt.utils import get_local_time, format_datetime
 
-# Defining schema objects:
-# Note: user/agent can borrow from MemGPTConfig/AgentConfig classes
-
 
 class Record:
     """
@@ -145,6 +142,13 @@ class LLMConfig:
         model_endpoint: Optional[str] = "https://api.openai.com/v1",
         model_wrapper: Optional[str] = None,
         context_window: Optional[int] = None,
+        # openai-only
+        openai_key: Optional[str] = None,
+        # azure-only
+        azure_key: Optional[str] = None,
+        azure_endpoint: Optional[str] = None,
+        azure_version: Optional[str] = None,
+        azure_deployment: Optional[str] = None,
     ):
         self.model = model
         self.model_endpoint_type = model_endpoint_type
@@ -157,23 +161,10 @@ class LLMConfig:
         else:
             self.context_window = context_window
 
-
-class OpenAILLMConfig(LLMConfig):
-    def __init__(self, openai_key, **kwargs):
-        super().__init__(**kwargs)
+        # openai
         self.openai_key = openai_key
 
-
-class AzureLLMConfig(LLMConfig):
-    def __init__(
-        self,
-        azure_key: Optional[str] = None,
-        azure_endpoint: Optional[str] = None,
-        azure_version: Optional[str] = None,
-        azure_deployment: Optional[str] = None,
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
+        # azure
         self.azure_key = azure_key
         self.azure_endpoint = azure_endpoint
         self.azure_version = azure_version
