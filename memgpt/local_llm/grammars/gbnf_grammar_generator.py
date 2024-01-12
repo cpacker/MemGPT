@@ -5,7 +5,7 @@ from inspect import isclass, getdoc
 from types import NoneType
 
 from pydantic import BaseModel, create_model, Field
-from typing import Any, Type, List, get_args, get_origin, Tuple, Union, Optional
+from typing import Any, Type, List, get_args, get_origin, Tuple, Union, Optional, _GenericAlias
 from enum import Enum
 from typing import get_type_hints, Callable
 import re
@@ -27,7 +27,7 @@ class PydanticDataType(Enum):
     """
     STRING = "string"
     TRIPLE_QUOTED_STRING = "triple_quoted_string"
-    MARKDOWN_STRING = "markdown_string"
+    MARKDOWN_CODE_BLOCK = "markdown_code_block"
     BOOLEAN = "boolean"
     INTEGER = "integer"
     FLOAT = "float"
@@ -256,7 +256,7 @@ def generate_gbnf_float_rules(max_digit=None, min_digit=None, max_precision=None
     return float_rule, additional_rules
 
 
-def generate_gbnf_rule_for_type(model_name, look_for_markdown_code_block, look_for_triple_quoted_string, field_name,
+def generate_gbnf_rule_for_type(model_name, field_name,
                                 field_type, is_optional, processed_models, created_rules,
                                 field_info=None) -> \
         Tuple[str, list]:
@@ -264,8 +264,7 @@ def generate_gbnf_rule_for_type(model_name, look_for_markdown_code_block, look_f
     Generate GBNF rule for a given field type.
 
     :param model_name: Name of the model.
-    :param look_for_markdown_code_block: Look for Markdown code block
-    :param look_for_triple_quoted_string
+
     :param field_name: Name of the field.
     :param field_type: Type of the field.
     :param is_optional: Whether the field is optional.
@@ -283,7 +282,7 @@ def generate_gbnf_rule_for_type(model_name, look_for_markdown_code_block, look_f
 
     if isclass(field_type) and issubclass(field_type, BaseModel):
         nested_model_name = format_model_and_field_name(field_type.__name__)
-        nested_model_rules = generate_gbnf_grammar(field_type, processed_models, created_rules)
+        nested_model_rules,_, _ = generate_gbnf_grammar(field_type, processed_models, created_rules)
         rules.extend(nested_model_rules)
         gbnf_type, rules = nested_model_name, rules
     elif isclass(field_type) and issubclass(field_type, Enum):
@@ -293,8 +292,7 @@ def generate_gbnf_rule_for_type(model_name, look_for_markdown_code_block, look_f
         gbnf_type, rules = model_name + "-" + field_name, rules
     elif get_origin(field_type) == list:  # Array
         element_type = get_args(field_type)[0]
-        element_rule_name, additional_rules = generate_gbnf_rule_for_type(model_name, look_for_markdown_code_block,
-                                                                          look_for_triple_quoted_string,
+        element_rule_name, additional_rules = generate_gbnf_rule_for_type(model_name,
                                                                           f"{field_name}-element",
                                                                           element_type, is_optional, processed_models,
                                                                           created_rules)
@@ -303,10 +301,9 @@ def generate_gbnf_rule_for_type(model_name, look_for_markdown_code_block, look_f
         rules.append(array_rule)
         gbnf_type, rules = model_name + "-" + field_name, rules
 
-    elif get_origin(field_type) == set:  # Array
+    elif get_origin(field_type) == set or field_type == set:  # Array
         element_type = get_args(field_type)[0]
-        element_rule_name, additional_rules = generate_gbnf_rule_for_type(model_name, look_for_markdown_code_block,
-                                                                          look_for_triple_quoted_string,
+        element_rule_name, additional_rules = generate_gbnf_rule_for_type(model_name,
                                                                           f"{field_name}-element",
                                                                           element_type, is_optional, processed_models,
                                                                           created_rules)
@@ -322,14 +319,10 @@ def generate_gbnf_rule_for_type(model_name, look_for_markdown_code_block, look_f
         key_type, value_type = get_args(field_type)
 
         additional_key_type, additional_key_rules = generate_gbnf_rule_for_type(model_name,
-                                                                                look_for_markdown_code_block,
-                                                                                look_for_triple_quoted_string,
                                                                                 f"{field_name}-key-type",
                                                                                 key_type, is_optional, processed_models,
                                                                                 created_rules)
         additional_value_type, additional_value_rules = generate_gbnf_rule_for_type(model_name,
-                                                                                    look_for_markdown_code_block,
-                                                                                    look_for_triple_quoted_string,
                                                                                     f"{field_name}-value-type",
                                                                                     value_type, is_optional,
                                                                                     processed_models, created_rules)
@@ -342,10 +335,16 @@ def generate_gbnf_rule_for_type(model_name, look_for_markdown_code_block, look_f
         union_rules = []
 
         for union_type in union_types:
-            if not issubclass(union_type, NoneType):
+            if isinstance(union_type, _GenericAlias):
                 union_gbnf_type, union_rules_list = generate_gbnf_rule_for_type(model_name,
-                                                                                look_for_markdown_code_block,
-                                                                                look_for_triple_quoted_string,
+                                                                                field_name, union_type,
+                                                                                False,
+                                                                                processed_models, created_rules)
+                union_rules.append(union_gbnf_type)
+                rules.extend(union_rules_list)
+
+            elif not issubclass(union_type, NoneType):
+                union_gbnf_type, union_rules_list = generate_gbnf_rule_for_type(model_name,
                                                                                 field_name, union_type,
                                                                                 False,
                                                                                 processed_models, created_rules)
@@ -366,10 +365,10 @@ def generate_gbnf_rule_for_type(model_name, look_for_markdown_code_block, look_f
         if field_info and hasattr(field_info, 'json_schema_extra') and field_info.json_schema_extra is not None:
 
             triple_quoted_string = field_info.json_schema_extra.get('triple_quoted_string', False)
-            markdown_string = field_info.json_schema_extra.get('markdown_string', False)
+            markdown_string = field_info.json_schema_extra.get('markdown_code_block', False)
 
             gbnf_type = PydanticDataType.TRIPLE_QUOTED_STRING.value if triple_quoted_string else PydanticDataType.STRING.value
-            gbnf_type = PydanticDataType.MARKDOWN_STRING.value if markdown_string else gbnf_type
+            gbnf_type = PydanticDataType.MARKDOWN_CODE_BLOCK.value if markdown_string else gbnf_type
 
         elif field_info and hasattr(field_info, 'pattern'):
             # Convert regex pattern to grammar rule
@@ -469,12 +468,11 @@ def generate_gbnf_grammar(model: Type[BaseModel], processed_models: set, created
             field_type = field_info
             field_info = model.model_fields[field_name]
             is_optional = field_info.is_required is False and get_origin(field_type) is Optional
-        rule_name, additional_rules = generate_gbnf_rule_for_type(model_name, look_for_markdown_code_block,
-                                                                  look_for_triple_quoted_string,
+        rule_name, additional_rules = generate_gbnf_rule_for_type(model_name,
                                                                   format_model_and_field_name(field_name),
                                                                   field_type, is_optional,
                                                                   processed_models, created_rules, field_info)
-        look_for_markdown_code_block = True if rule_name == "markdown_string" else False
+        look_for_markdown_code_block = True if rule_name == "markdown_code_block" else False
         look_for_triple_quoted_string = True if rule_name == "triple_quoted_string" else False
         if not look_for_markdown_code_block and not look_for_triple_quoted_string:
             if rule_name not in created_rules:
@@ -482,8 +480,8 @@ def generate_gbnf_grammar(model: Type[BaseModel], processed_models: set, created
             model_rule_parts.append(f' ws \"\\\"{field_name}\\\"\" ": "  {rule_name}')  # Adding escaped quotes
             nested_rules.extend(additional_rules)
         else:
-            has_triple_quoted_string = look_for_markdown_code_block
-            has_markdown_code_block = look_for_triple_quoted_string
+            has_triple_quoted_string = look_for_triple_quoted_string
+            has_markdown_code_block = look_for_markdown_code_block
 
     fields_joined = r' "," "\n" '.join(model_rule_parts)
     model_rule = fr'{model_name} ::= "{{" "\n" {fields_joined} "\n" ws "}}"'
@@ -1063,7 +1061,7 @@ def create_dynamic_models_from_dictionaries(dictionaries: List[dict]):
     dynamic_models = []
     for func in dictionaries:
         model_name = format_model_and_field_name(func.get("name", ""))
-        dyn_model = convert_dictionary_to_to_pydantic_model(func, model_name)
+        dyn_model = convert_dictionary_to_pydantic_model(func, model_name)
         dynamic_models.append(dyn_model)
     return dynamic_models
 
@@ -1095,7 +1093,7 @@ def list_to_enum(enum_name, values):
     return Enum(enum_name, {value: value for value in values})
 
 
-def convert_dictionary_to_to_pydantic_model(dictionary: dict, model_name: str = 'CustomModel') -> Type[BaseModel]:
+def convert_dictionary_to_pydantic_model(dictionary: dict, model_name: str = 'CustomModel') -> Type[BaseModel]:
     """
     Convert a dictionary to a Pydantic model class.
 
@@ -1111,24 +1109,29 @@ def convert_dictionary_to_to_pydantic_model(dictionary: dict, model_name: str = 
     if "properties" in dictionary:
         for field_name, field_data in dictionary.get("properties", {}).items():
             if field_data == 'object':
-                submodel = convert_dictionary_to_to_pydantic_model(dictionary, f'{model_name}_{field_name}')
+                submodel = convert_dictionary_to_pydantic_model(dictionary, f'{model_name}_{field_name}')
                 fields[field_name] = (submodel, ...)
             else:
                 field_type = field_data.get('type', 'str')
 
                 if field_data.get("enum", []):
                     fields[field_name] = (list_to_enum(field_name, field_data.get("enum", [])), ...)
-                if field_type == "array":
+                elif field_type == "array":
                     items = field_data.get("items", {})
                     if items != {}:
                         array = {"properties": items}
-                        array_type = convert_dictionary_to_to_pydantic_model(array, f'{model_name}_{field_name}_items')
+                        array_type = convert_dictionary_to_pydantic_model(array, f'{model_name}_{field_name}_items')
                         fields[field_name] = (List[array_type], ...)
                     else:
                         fields[field_name] = (list, ...)
                 elif field_type == 'object':
-                    submodel = convert_dictionary_to_to_pydantic_model(field_data, f'{model_name}_{field_name}')
+                    submodel = convert_dictionary_to_pydantic_model(field_data, f'{model_name}_{field_name}')
                     fields[field_name] = (submodel, ...)
+                elif field_type == 'required':
+                    required = field_data.get("enum", [])
+                    for key, field in fields.items():
+                        if key not in required:
+                            fields[key] = (Optional[fields[key][0]], ...)
                 else:
                     field_type = json_schema_to_python_types(field_type)
                     fields[field_name] = (field_type, ...)
@@ -1140,13 +1143,15 @@ def convert_dictionary_to_to_pydantic_model(dictionary: dict, model_name: str = 
             elif field_name == "description":
                 fields["__doc__"] = field_data
             elif field_name == "parameters":
-                return convert_dictionary_to_to_pydantic_model(field_data, f'{model_name}')
+                return convert_dictionary_to_pydantic_model(field_data, f'{model_name}')
+
     if "parameters" in dictionary:
         field_data = {"function": dictionary}
-        return convert_dictionary_to_to_pydantic_model(field_data, f'{model_name}')
-
+        return convert_dictionary_to_pydantic_model(field_data, f'{model_name}')
+    if 'required' in dictionary:
+        required = dictionary.get('required', [])
+        for key, field in fields.items():
+            if key not in required:
+                fields[key] = (Optional[fields[key][0]], ...)
     custom_model = create_model(model_name, **fields)
     return custom_model
-
-
-
