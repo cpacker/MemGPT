@@ -171,12 +171,16 @@ def load_index(
         typer.secho(f"Failed to load index from provided information.\n{e}", fg=typer.colors.RED)
 
 
+default_extensions = ".txt,.md,.pdf"
+
+
 @app.command("directory")
 def load_directory(
     name: str = typer.Option(help="Name of dataset to load."),
     input_dir: str = typer.Option(None, help="Path to directory containing dataset."),
     input_files: List[str] = typer.Option(None, help="List of paths to files containing dataset."),
     recursive: bool = typer.Option(False, help="Recursively search for files in directory."),
+    extensions: str = typer.Option(default_extensions, help="Comma separated list of file extensions to load"),
     user_id: str = typer.Option(None, help="User ID to associate with dataset."),
 ):
     try:
@@ -189,6 +193,7 @@ def load_directory(
             reader = SimpleDirectoryReader(
                 input_dir=input_dir,
                 recursive=recursive,
+                required_exts=[ext.strip() for ext in extensions.split(",")],
             )
         else:
             reader = SimpleDirectoryReader(input_files=input_files)
