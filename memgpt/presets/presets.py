@@ -1,16 +1,33 @@
-from .utils import load_all_presets, is_valid_yaml_format
-from ..prompts import gpt_functions
-from ..prompts import gpt_system
-from ..functions.functions import load_all_function_sets
+from memgpt.data_types import AgentState
+from memgpt.interface import AgentInterface
+from memgpt.presets.utils import load_all_presets, is_valid_yaml_format
+from memgpt.utils import get_human_text, get_persona_text
+from memgpt.prompts import gpt_system
+from memgpt.functions.functions import load_all_function_sets
 
-DEFAULT_PRESET = "memgpt_chat"
 
 available_presets = load_all_presets()
 preset_options = list(available_presets.keys())
 
 
-def use_preset(preset_name, agent_config, model, persona, human, interface, persistence_manager):
-    """Storing combinations of SYSTEM + FUNCTION prompts"""
+# def create_agent_from_preset(preset_name, agent_config, model, persona, human, interface, persistence_manager):
+def create_agent_from_preset(agent_state: AgentState, interface: AgentInterface):
+    """Initialize a new agent from a preset (combination of system + function)"""
+
+    # Input validation
+    if agent_state.persona is None:
+        raise ValueError(f"'persona' not specified in AgentState (required)")
+    if agent_state.human is None:
+        raise ValueError(f"'human' not specified in AgentState (required)")
+    if agent_state.preset is None:
+        raise ValueError(f"'preset' not specified in AgentState (required)")
+    if not (agent_state.state == {} or agent_state.state is None):
+        raise ValueError(f"'state' must be uninitialized (empty)")
+
+    preset_name = agent_state.preset
+    persona_file = agent_state.persona
+    human_file = agent_state.human
+    model = agent_state.llm_config.model
 
     from memgpt.agent import Agent
     from memgpt.utils import printd
@@ -40,22 +57,26 @@ def use_preset(preset_name, agent_config, model, persona, human, interface, pers
             raise ValueError(f"Function '{f_name}' was specified in preset, but is not in function library:\n{available_functions.keys()}")
         preset_function_set[f_name] = available_functions[f_name]
     assert len(preset_function_set_names) == len(preset_function_set)
+    preset_function_set_schemas = [f_dict["json_schema"] for f_name, f_dict in preset_function_set.items()]
     printd(f"Available functions:\n", list(preset_function_set.keys()))
 
-    # preset_function_set = {f_name: f_dict for f_name, f_dict in available_functions.items() if f_name in preset_function_set_names}
-    # printd(f"Available functions:\n", [f_name for f_name, f_dict in preset_function_set.items()])
-    # Make sure that every function the preset wanted is inside the available functions
-    # assert len(preset_function_set_names) == len(preset_function_set)
+    # Override the following in the AgentState:
+    #   persona: str  # the current persona text
+    #   human: str  # the current human text
+    #   system: str,  # system prompt (not required if initializing with a preset)
+    #   functions: dict,  # schema definitions ONLY (function code linked at runtime)
+    #   messages: List[dict],  # in-context messages
+    agent_state.state = {
+        "persona": get_persona_text(persona_file),
+        "human": get_human_text(human_file),
+        "system": gpt_system.get_system_text(preset_system_prompt),
+        "functions": preset_function_set_schemas,
+        "messages": None,
+    }
 
     return Agent(
-        config=agent_config,
-        model=model,
-        system=gpt_system.get_system_text(preset_system_prompt),
-        functions=preset_function_set,
+        agent_state=agent_state,
         interface=interface,
-        persistence_manager=persistence_manager,
-        persona_notes=persona,
-        human_notes=human,
         # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
         first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
     )

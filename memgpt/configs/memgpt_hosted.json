@@ -1,5 +1,5 @@
 {
-    "context_window": 32768,
+    "context_window": 16384,
     "model": "ehartford/dolphin-2.5-mixtral-8x7b",
     "model_endpoint_type": "vllm",
     "model_endpoint": "https://api.memgpt.ai",
