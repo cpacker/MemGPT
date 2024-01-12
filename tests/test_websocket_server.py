@@ -4,6 +4,7 @@ import json
 import websockets
 import pytest
 
+from memgpt.constants import JSON_ENSURE_ASCII
 from memgpt.server.constants import WS_DEFAULT_PORT
 from memgpt.server.ws_api.server import WebSocketServer
 from memgpt.config import AgentConfig
@@ -36,7 +37,7 @@ async def test_websocket_server():
         async with websockets.connect(uri) as websocket:
             # Initialize the server with a test config
             print("Sending config to server...")
-            await websocket.send(json.dumps({"type": "initialize", "config": test_config}, ensure_ascii=False))
+            await websocket.send(json.dumps({"type": "initialize", "config": test_config}, ensure_ascii=JSON_ENSURE_ASCII))
             # Wait for the response
             response = await websocket.recv()
             print(f"Response from the agent: {response}")
@@ -45,7 +46,7 @@ async def test_websocket_server():
 
             # Send a message to the agent
             print("Sending message to server...")
-            await websocket.send(json.dumps({"type": "message", "content": "Hello, Agent!"}, ensure_ascii=False))
+            await websocket.send(json.dumps({"type": "message", "content": "Hello, Agent!"}, ensure_ascii=JSON_ENSURE_ASCII))
             # Wait for the response
             # NOTE: we should be waiting for multiple responses
             response = await websocket.recv()

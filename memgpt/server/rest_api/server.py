@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from memgpt.constants import JSON_ENSURE_ASCII
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.interface import QueuingInterface
 import memgpt.utils as utils
@@ -130,7 +131,7 @@ async def user_message(body: UserMessage):
 
             async def formatted_message_generator():
                 async for message in interface.message_generator():
-                    formatted_message = f"data: {json.dumps(message, ensure_ascii=False)}\n\n"
+                    formatted_message = f"data: {json.dumps(message, ensure_ascii=JSON_ENSURE_ASCII)}\n\n"
                     yield formatted_message
                     await asyncio.sleep(1)
 

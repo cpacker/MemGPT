@@ -22,7 +22,7 @@ import memgpt.utils as utils
 from memgpt.utils import printd, open_folder_in_explorer, suppress_stdout
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.config import MemGPTConfig, AgentConfig
-from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
+from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
 from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
@@ -503,8 +503,8 @@ def run(
         typer.secho(f"🎉 Created new agent '{agent_state.name}'", fg=typer.colors.GREEN)
 
     # pretty print agent config
-    # printd(json.dumps(vars(agent_config), indent=4, sort_keys=True, ensure_ascii=False))
-    # printd(json.dumps(agent_init_state), indent=4, sort_keys=True, ensure_ascii=False))
+    # printd(json.dumps(vars(agent_config), indent=4, sort_keys=True, ensure_ascii=JSON_ENSURE_ASCII))
+    # printd(json.dumps(agent_init_state), indent=4, sort_keys=True, ensure_ascii=JSON_ENSURE_ASCII))
 
     # configure llama index
     original_stdout = sys.stdout  # unfortunate hack required to suppress confusing print statements from llama index

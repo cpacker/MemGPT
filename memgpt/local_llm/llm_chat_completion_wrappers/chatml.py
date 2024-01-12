@@ -2,6 +2,7 @@ import json
 
 from .wrapper_base import LLMChatCompletionWrapper
 from ..json_parser import clean_json
+from ...constants import JSON_ENSURE_ASCII
 from ...errors import LLMJSONParsingError
 
 
@@ -128,7 +129,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
                 **json.loads(function_call["arguments"]),
             },
         }
-        return json.dumps(airo_func_call, indent=self.json_indent, ensure_ascii=False)
+        return json.dumps(airo_func_call, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
 
     # NOTE: BOS/EOS chatml tokens are NOT inserted here
     def _compile_assistant_message(self, message) -> str:
@@ -160,7 +161,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
             # Otherwise just dump the full json
             try:
                 user_msg_json = json.loads(message["content"])
-                user_msg_str = json.dumps(user_msg_json, indent=self.json_indent, ensure_ascii=False)
+                user_msg_str = json.dumps(user_msg_json, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
             except:
                 user_msg_str = message["content"]
 
@@ -175,7 +176,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         try:
             # indent the function replies
             function_return_dict = json.loads(message["content"])
-            function_return_str = json.dumps(function_return_dict, indent=self.json_indent, ensure_ascii=False)
+            function_return_str = json.dumps(function_return_dict, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
         except:
             function_return_str = message["content"]
 
@@ -312,7 +313,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
             "content": inner_thoughts,
             "function_call": {
                 "name": function_name,
-                "arguments": json.dumps(function_parameters, ensure_ascii=False),
+                "arguments": json.dumps(function_parameters, ensure_ascii=JSON_ENSURE_ASCII),
             },
         }
         return message
@@ -380,7 +381,7 @@ class ChatMLOuterInnerMonologueWrapper(ChatMLInnerMonologueWrapper):
                 **json.loads(function_call["arguments"]),
             },
         }
-        return json.dumps(airo_func_call, indent=self.json_indent, ensure_ascii=False)
+        return json.dumps(airo_func_call, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
 
     def output_to_chat_completion_response(self, raw_llm_output, first_message=False):
         """NOTE: Modified to expect "inner_thoughts" outside the function
@@ -441,7 +442,7 @@ class ChatMLOuterInnerMonologueWrapper(ChatMLInnerMonologueWrapper):
             "content": inner_thoughts,
             # "function_call": {
             #     "name": function_name,
-            #     "arguments": json.dumps(function_parameters, ensure_ascii=False),
+            #     "arguments": json.dumps(function_parameters, ensure_ascii=JSON_ENSURE_ASCII),
             # },
         }
 
@@ -449,7 +450,7 @@ class ChatMLOuterInnerMonologueWrapper(ChatMLInnerMonologueWrapper):
         if function_name is not None:
             message["function_call"] = {
                 "name": function_name,
-                "arguments": json.dumps(function_parameters, ensure_ascii=False),
+                "arguments": json.dumps(function_parameters, ensure_ascii=JSON_ENSURE_ASCII),
             }
 
         return message

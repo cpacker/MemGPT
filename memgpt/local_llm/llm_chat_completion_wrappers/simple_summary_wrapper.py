@@ -1,5 +1,6 @@
 import json
 from .wrapper_base import LLMChatCompletionWrapper
+from ...constants import JSON_ENSURE_ASCII
 
 
 class SimpleSummaryWrapper(LLMChatCompletionWrapper):
@@ -85,7 +86,7 @@ class SimpleSummaryWrapper(LLMChatCompletionWrapper):
                 "function": function_call["name"],
                 "params": json.loads(function_call["arguments"]),
             }
-            return json.dumps(airo_func_call, indent=2, ensure_ascii=False)
+            return json.dumps(airo_func_call, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
 
         # Add a sep for the conversation
         if self.include_section_separators:
@@ -147,7 +148,7 @@ class SimpleSummaryWrapper(LLMChatCompletionWrapper):
             "content": raw_llm_output,
             # "function_call": {
             # "name": function_name,
-            # "arguments": json.dumps(function_parameters, ensure_ascii=False),
+            # "arguments": json.dumps(function_parameters, ensure_ascii=JSON_ENSURE_ASCII),
             # },
         }
         return message

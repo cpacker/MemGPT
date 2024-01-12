@@ -32,6 +32,7 @@ from memgpt.constants import (
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
     LLM_MAX_TOKENS,
     CLI_WARNING_PREFIX,
+    JSON_ENSURE_ASCII,
 )
 from .errors import LLMError
 from .functions.functions import load_all_function_sets
@@ -64,11 +65,13 @@ def link_functions(function_schemas):
                 f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
             )
         # Once we find a matching function, make sure the schema is identical
-        if json.dumps(f_schema, ensure_ascii=False) != json.dumps(linked_function["json_schema"], ensure_ascii=False):
+        if json.dumps(f_schema, ensure_ascii=JSON_ENSURE_ASCII) != json.dumps(
+            linked_function["json_schema"], ensure_ascii=JSON_ENSURE_ASCII
+        ):
             # error_message = (
             #     f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different."
-            #     + f"\n>>>agent.state.functions\n{json.dumps(f_schema, indent=2, ensure_ascii=False)}"
-            #     + f"\n>>>function library\n{json.dumps(linked_function['json_schema'], indent=2, ensure_ascii=False)}"
+            #     + f"\n>>>agent.state.functions\n{json.dumps(f_schema, indent=2, ensure_ascii=JSON_ENSURE_ASCII)}"
+            #     + f"\n>>>function library\n{json.dumps(linked_function['json_schema'], indent=2, ensure_ascii=JSON_ENSURE_ASCII)}"
             # )
             schema_diff = get_schema_diff(f_schema, linked_function["json_schema"])
             error_message = (
@@ -433,7 +436,7 @@ class Agent(object):
                     if "name" in user_message_json:
                         packed_user_message["name"] = user_message_json["name"]
                         user_message_json.pop("name", None)
-                        packed_user_message["content"] = json.dumps(user_message_json, ensure_ascii=False)
+                        packed_user_message["content"] = json.dumps(user_message_json, ensure_ascii=JSON_ENSURE_ASCII)
                 except Exception as e:
                     print(f"{CLI_WARNING_PREFIX}handling of 'name' field failed with: {e}")
                 input_message_sequence = self.messages + [packed_user_message]
