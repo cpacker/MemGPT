@@ -33,8 +33,12 @@ VERSION_CUTOFF = "0.2.12"
 MIGRATION_BACKUP_FOLDER = "migration_backups"
 
 
-def wipe_config_and_reconfigure():
+def wipe_config_and_reconfigure(run_configure=True):
     """Wipe (backup) the config file, and launch `memgpt configure`"""
+
+    if not os.path.exists(os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER)):
+        os.makedirs(os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER))
+        os.makedirs(os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER, "agents"))
 
     # Get the current timestamp in a readable format (e.g., YYYYMMDD_HHMMSS)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -51,15 +55,21 @@ def wipe_config_and_reconfigure():
     else:
         typer.secho(f"Couldn't find an existing config file to delete", fg=typer.colors.RED)
 
-    # Run configure
-    configure()
+    if run_configure:
+        # Either run configure
+        configure()
+    else:
+        # Or create a new config with defaults
+        MemGPTConfig.load()
 
 
-def config_is_compatible() -> bool:
+def config_is_compatible(allow_empty=False, echo=False) -> bool:
     """Check if the config is OK to use with 0.2.12, or if it needs to be deleted"""
     # NOTE: don't use built-in load(), since that will apply defaults
     # memgpt_config = MemGPTConfig.load()
     memgpt_config_file = os.path.join(MEMGPT_DIR, "config")
+    if not os.path.exists(memgpt_config_file):
+        return True if allow_empty else False
     parser = configparser.ConfigParser()
     parser.read(memgpt_config_file)
 
@@ -69,13 +79,16 @@ def config_is_compatible() -> bool:
         version = None
 
     if version is None:
-        typer.secho(f"Current config version is missing", fg=typer.colors.RED)
+        if echo:
+            typer.secho(f"Current config version is missing", fg=typer.colors.RED)
         return False
     elif version_less_than(version, VERSION_CUTOFF):
-        typer.secho(f"Current config version ({version}) is older than cutoff ({VERSION_CUTOFF})", fg=typer.colors.RED)
+        if echo:
+            typer.secho(f"Current config version ({version}) is older than migration cutoff ({VERSION_CUTOFF})", fg=typer.colors.RED)
         return False
     else:
-        typer.secho(f"Current config version {version} is compatible!", fg=typer.colors.GREEN)
+        if echo:
+            typer.secho(f"Current config version {version} is compatible!", fg=typer.colors.GREEN)
         return True
 
 
@@ -330,7 +343,7 @@ def migrate_all_agents(stop_on_fail: bool = False) -> dict:
         os.makedirs(os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER))
         os.makedirs(os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER, "agents"))
 
-    if not config_is_compatible():
+    if not config_is_compatible(echo=True):
         typer.secho(f"Your current config file is incompatible with MemGPT versions >= {VERSION_CUTOFF}", fg=typer.colors.RED)
         if questionary.confirm(
             "To migrate old MemGPT agents, you must delete your config file and run `memgpt configure`. Would you like to proceed?"
