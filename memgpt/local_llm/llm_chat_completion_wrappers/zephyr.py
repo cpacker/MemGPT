@@ -2,6 +2,7 @@ import json
 
 from .wrapper_base import LLMChatCompletionWrapper
 from ..json_parser import clean_json
+from ...constants import JSON_ENSURE_ASCII
 from ...errors import LLMJSONParsingError
 
 
@@ -75,7 +76,7 @@ class ZephyrMistralWrapper(LLMChatCompletionWrapper):
                 "function": function_call["name"],
                 "params": json.loads(function_call["arguments"]),
             }
-            return json.dumps(airo_func_call, indent=2)
+            return json.dumps(airo_func_call, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
 
         for message in messages[1:]:
             assert message["role"] in ["user", "assistant", "function"], message
@@ -168,7 +169,7 @@ class ZephyrMistralWrapper(LLMChatCompletionWrapper):
             "content": None,
             "function_call": {
                 "name": function_name,
-                "arguments": json.dumps(function_parameters),
+                "arguments": json.dumps(function_parameters, ensure_ascii=JSON_ENSURE_ASCII),
             },
         }
         return message
@@ -237,7 +238,7 @@ class ZephyrMistralInnerMonologueWrapper(ZephyrMistralWrapper):
                     **json.loads(function_call["arguments"]),
                 },
             }
-            return json.dumps(airo_func_call, indent=2)
+            return json.dumps(airo_func_call, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
 
         # Add a sep for the conversation
         if self.include_section_separators:
@@ -335,7 +336,7 @@ class ZephyrMistralInnerMonologueWrapper(ZephyrMistralWrapper):
             "content": inner_thoughts,
             "function_call": {
                 "name": function_name,
-                "arguments": json.dumps(function_parameters),
+                "arguments": json.dumps(function_parameters, ensure_ascii=JSON_ENSURE_ASCII),
             },
         }
         return message

@@ -8,6 +8,8 @@ from enum import Enum
 
 import openai
 
+from memgpt.constants import JSON_ENSURE_ASCII
+
 # from openai import api_requestor, util
 # from openai.openai_response import OpenAIResponse
 # from openai.util import ApiType
@@ -339,7 +341,7 @@ class OpenAIObject(dict):
 
     def __str__(self):
         obj = self.to_dict_recursive()
-        return json.dumps(obj, sort_keys=True, indent=2)
+        return json.dumps(obj, sort_keys=True, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
 
     def to_dict(self):
         return dict(self)
