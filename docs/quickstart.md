@@ -1,22 +1,28 @@
 ---
-title: Quickstart 
-excerpt: Get up and running with MemGPT 
-category: 6580d34ee5e4d00068bf2a1d 
+title: Quickstart
+excerpt: Get up and running with MemGPT
+category: 6580d34ee5e4d00068bf2a1d
 ---
 
 ### Installation
+> 📘 Using Local LLMs?
+>
+> If you're using local LLMs refer to the MemGPT + open models page [here](local_llm) for additional installation requirements.
 
 To install MemGPT, make sure you have Python installed on your computer, then run:
+
 ```sh
 pip install pymemgpt
 ```
 
 If you are running LLMs locally, you will want to install MemGPT with the local dependencies by running:
+
 ```sh
 pip install pymemgpt[local]
 ```
 
 If you already have MemGPT installed, you can update to the latest version with:
+
 ```sh
 pip install pymemgpt -U
 ```
@@ -24,6 +30,7 @@ pip install pymemgpt -U
 ### Running MemGPT
 
 Now, you can run MemGPT and start chatting with a MemGPT agent with:
+
 ```sh
 memgpt run
 ```
@@ -38,10 +45,12 @@ Neither of these options require you to have an LLM running on your own machine.
 ### Quickstart
 
 If you'd ever like to quickly switch back to the default **OpenAI** or **MemGPT Free Endpoint** options, you can use the `quickstart` command:
+
 ```sh
-# this will set you up on the MemGPT Free Endpoint 
+# this will set you up on the MemGPT Free Endpoint
 memgpt quickstart
 ```
+
 ```sh
 # this will set you up on the default OpenAI settings
 memgpt quickstart --backend openai

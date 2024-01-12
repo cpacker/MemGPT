@@ -1,4 +1,5 @@
 import typer
+import uuid
 import json
 import requests
 import sys
@@ -14,17 +15,26 @@ from enum import Enum
 from llama_index import set_global_service_context
 from llama_index import ServiceContext
 
+from memgpt.log import logger
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.cli.cli_config import configure
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
 from memgpt.utils import printd, open_folder_in_explorer, suppress_stdout
-from memgpt.persistence_manager import LocalStateManager
-from memgpt.config import MemGPTConfig, AgentConfig
+from memgpt.config import MemGPTConfig
 from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
 from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
+from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig, User
+from memgpt.metadata import MetadataStore
+from memgpt.migrate import migrate_all_agents, migrate_all_sources
+
+
+def migrate():
+    """Migrate old agents (pre 0.2.12) to the new database system"""
+    migrate_all_agents()
+    migrate_all_sources()
 
 
 class QuickstartChoice(Enum):
@@ -285,10 +295,44 @@ def run(
     """
 
     # setup logger
+    # TODO: remove Utils Debug after global logging is complete.
     utils.DEBUG = debug
-    logging.getLogger().setLevel(logging.CRITICAL)
+    # TODO: add logging command line options for runtime log level
+
     if debug:
-        logging.getLogger().setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.CRITICAL)
+
+    from memgpt.migrate import config_is_compatible, wipe_config_and_reconfigure, VERSION_CUTOFF
+
+    if not config_is_compatible(allow_empty=True):
+        typer.secho(f"\nYour current config file is incompatible with MemGPT versions later than {VERSION_CUTOFF}\n", fg=typer.colors.RED)
+        choices = [
+            "Run the full config setup (recommended)",
+            "Create a new config using defaults",
+            "Cancel",
+        ]
+        selection = questionary.select(
+            f"To use MemGPT, you must either downgrade your MemGPT version (<= {VERSION_CUTOFF}), or regenerate your config. Would you like to proceed?",
+            choices=choices,
+            default=choices[0],
+        ).ask()
+        if selection == choices[0]:
+            try:
+                wipe_config_and_reconfigure()
+            except Exception as e:
+                typer.secho(f"Fresh config generation failed - error:\n{e}", fg=typer.colors.RED)
+                raise
+        elif selection == choices[1]:
+            try:
+                wipe_config_and_reconfigure(run_configure=False)
+            except Exception as e:
+                typer.secho(f"Fresh config generation failed - error:\n{e}", fg=typer.colors.RED)
+                raise
+        else:
+            typer.secho("Migration cancelled (to migrate old agents, run `memgpt migrate`)", fg=typer.colors.RED)
+            raise KeyboardInterrupt()
 
     if not MemGPTConfig.exists():
         # if no config, ask about quickstart
@@ -337,6 +381,17 @@ def run(
             configure()
             config = MemGPTConfig.load()
 
+    # read user id from config
+    ms = MetadataStore(config)
+    user_id = uuid.UUID(config.anon_clientid)
+    user = ms.get_user(user_id=user_id)
+    if user is None:
+        ms.create_user(User(id=user_id))
+        user = ms.get_user(user_id=user_id)
+        if user is None:
+            typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
+            sys.exit(1)
+
     # override with command line arguments
     if debug:
         config.debug = debug
@@ -344,172 +399,197 @@ def run(
         config.no_verify = no_verify
     # determine agent to use, if not provided
     if not yes and not agent:
-        agent_files = utils.list_agent_config_files()
-        agents = [AgentConfig.load(f).name for f in agent_files]
+        agents = ms.list_agents(user_id=user.id)
+        agents = [a.name for a in agents]
 
         if len(agents) > 0 and not any([persona, human, model]):
             print()
             select_agent = questionary.confirm("Would you like to select an existing agent?").ask()
+            if select_agent is None:
+                raise KeyboardInterrupt
             if select_agent:
                 agent = questionary.select("Select agent:", choices=agents).ask()
 
-    # configure llama index
-    config = MemGPTConfig.load()
-    original_stdout = sys.stdout  # unfortunate hack required to suppress confusing print statements from llama index
-    sys.stdout = io.StringIO()
-    embed_model = embedding_model()
-    service_context = ServiceContext.from_defaults(llm=None, embed_model=embed_model, chunk_size=config.embedding_chunk_size)
-    set_global_service_context(service_context)
-    sys.stdout = original_stdout
-
     # create agent config
-    if agent and AgentConfig.exists(agent):  # use existing agent
+    if agent and ms.get_agent(agent_name=agent, user_id=user.id):  # use existing agent
         typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
-        agent_config = AgentConfig.load(agent)
-        printd("State path:", agent_config.save_state_dir())
-        printd("Persistent manager path:", agent_config.save_persistence_manager_dir())
-        printd("Index path:", agent_config.save_agent_index_dir())
+        # agent_config = AgentConfig.load(agent)
+        agent_state = ms.get_agent(agent_name=agent, user_id=user_id)
+        printd("Loading agent state:", agent_state.id)
+        printd("Agent state:", agent_state.state)
+        # printd("State path:", agent_config.save_state_dir())
+        # printd("Persistent manager path:", agent_config.save_persistence_manager_dir())
+        # printd("Index path:", agent_config.save_agent_index_dir())
         # persistence_manager = LocalStateManager(agent_config).load() # TODO: implement load
         # TODO: load prior agent state
-        if persona and persona != agent_config.persona:
-            typer.secho(f"{CLI_WARNING_PREFIX}Overriding existing persona {agent_config.persona} with {persona}", fg=typer.colors.YELLOW)
-            agent_config.persona = persona
-            # raise ValueError(f"Cannot override {agent_config.name} existing persona {agent_config.persona} with {persona}")
-        if human and human != agent_config.human:
-            typer.secho(f"{CLI_WARNING_PREFIX}Overriding existing human {agent_config.human} with {human}", fg=typer.colors.YELLOW)
-            agent_config.human = human
+        if persona and persona != agent_state.persona:
+            typer.secho(f"{CLI_WARNING_PREFIX}Overriding existing persona {agent_state.persona} with {persona}", fg=typer.colors.YELLOW)
+            agent_state.persona = persona
+            # raise ValueError(f"Cannot override {agent_state.name} existing persona {agent_state.persona} with {persona}")
+        if human and human != agent_state.human:
+            typer.secho(f"{CLI_WARNING_PREFIX}Overriding existing human {agent_state.human} with {human}", fg=typer.colors.YELLOW)
+            agent_state.human = human
             # raise ValueError(f"Cannot override {agent_config.name} existing human {agent_config.human} with {human}")
 
         # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
-        if model and model != agent_config.model:
-            typer.secho(f"{CLI_WARNING_PREFIX}Overriding existing model {agent_config.model} with {model}", fg=typer.colors.YELLOW)
-            agent_config.model = model
-        if context_window is not None and int(context_window) != agent_config.context_window:
+        if model and model != agent_state.llm_config.model:
             typer.secho(
-                f"{CLI_WARNING_PREFIX}Overriding existing context window {agent_config.context_window} with {context_window}",
+                f"{CLI_WARNING_PREFIX}Overriding existing model {agent_state.llm_config.model} with {model}", fg=typer.colors.YELLOW
+            )
+            agent_state.llm_config.model = model
+        if context_window is not None and int(context_window) != agent_state.llm_config.context_window:
+            typer.secho(
+                f"{CLI_WARNING_PREFIX}Overriding existing context window {agent_state.llm_config.context_window} with {context_window}",
                 fg=typer.colors.YELLOW,
             )
-            agent_config.context_window = context_window
-        if model_wrapper and model_wrapper != agent_config.model_wrapper:
+            agent_state.llm_config.context_window = context_window
+        if model_wrapper and model_wrapper != agent_state.llm_config.model_wrapper:
             typer.secho(
-                f"{CLI_WARNING_PREFIX}Overriding existing model wrapper {agent_config.model_wrapper} with {model_wrapper}",
+                f"{CLI_WARNING_PREFIX}Overriding existing model wrapper {agent_state.llm_config.model_wrapper} with {model_wrapper}",
                 fg=typer.colors.YELLOW,
             )
-            agent_config.model_wrapper = model_wrapper
-        if model_endpoint and model_endpoint != agent_config.model_endpoint:
+            agent_state.llm_config.model_wrapper = model_wrapper
+        if model_endpoint and model_endpoint != agent_state.llm_config.model_endpoint:
             typer.secho(
-                f"{CLI_WARNING_PREFIX}Overriding existing model endpoint {agent_config.model_endpoint} with {model_endpoint}",
+                f"{CLI_WARNING_PREFIX}Overriding existing model endpoint {agent_state.llm_config.model_endpoint} with {model_endpoint}",
                 fg=typer.colors.YELLOW,
             )
-            agent_config.model_endpoint = model_endpoint
-        if model_endpoint_type and model_endpoint_type != agent_config.model_endpoint_type:
+            agent_state.llm_config.model_endpoint = model_endpoint
+        if model_endpoint_type and model_endpoint_type != agent_state.llm_config.model_endpoint_type:
             typer.secho(
-                f"{CLI_WARNING_PREFIX}Overriding existing model endpoint type {agent_config.model_endpoint_type} with {model_endpoint_type}",
+                f"{CLI_WARNING_PREFIX}Overriding existing model endpoint type {agent_state.llm_config.model_endpoint_type} with {model_endpoint_type}",
                 fg=typer.colors.YELLOW,
             )
-            agent_config.model_endpoint_type = model_endpoint_type
+            agent_state.llm_config.model_endpoint_type = model_endpoint_type
 
-        # Update the agent config with any overrides
-        agent_config.save()
+        # Update the agent with any overrides
+        ms.update_agent(agent_state)
 
-        # Supress llama-index noise
-        with suppress_stdout():
-            # load existing agent
-            memgpt_agent = Agent.load_agent(interface, agent_config)
+        # create agent
+        memgpt_agent = Agent(agent_state, interface=interface)
 
     else:  # create new agent
         # create new agent config: override defaults with args if provided
         typer.secho("\n🧬 Creating new agent...", fg=typer.colors.WHITE)
-        agent_config = AgentConfig(
-            name=agent,
-            persona=persona,
-            human=human,
-            preset=preset,
-            model=model,
-            model_wrapper=model_wrapper,
-            model_endpoint_type=model_endpoint_type,
-            model_endpoint=model_endpoint,
-            context_window=context_window,
-        )
 
-        # save new agent config
-        agent_config.save()
-        typer.secho(f"->  🤖 Using persona profile '{agent_config.persona}'", fg=typer.colors.WHITE)
-        typer.secho(f"->  🧑 Using human profile '{agent_config.human}'", fg=typer.colors.WHITE)
+        if agent is None:
+            # determine agent name
+            # agent_count = len(ms.list_agents(user_id=user.id))
+            # agent = f"agent_{agent_count}"
+            agent = utils.create_random_username()
+
+        agent_state = AgentState(
+            name=agent,
+            user_id=user.id,
+            persona=persona if persona else user.default_persona,
+            human=human if human else user.default_human,
+            preset=preset if preset else user.default_preset,
+            llm_config=user.default_llm_config,
+            embedding_config=user.default_embedding_config,
+        )
+        ms.create_agent(agent_state)
+
+        typer.secho(f"->  🤖 Using persona profile '{agent_state.persona}'", fg=typer.colors.WHITE)
+        typer.secho(f"->  🧑 Using human profile '{agent_state.human}'", fg=typer.colors.WHITE)
 
         # Supress llama-index noise
-        with suppress_stdout():
-            # TODO: allow configrable state manager (only local is supported right now)
-            persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
+        # TODO(swooders) add persistence manager code? or comment out?
+        # with suppress_stdout():
+        # TODO: allow configrable state manager (only local is supported right now)
+        # persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
 
         # create agent
         try:
-            memgpt_agent = presets.use_preset(
-                agent_config.preset,
-                agent_config,
-                agent_config.model,
-                utils.get_persona_text(agent_config.persona),
-                utils.get_human_text(agent_config.human),
-                interface,
-                persistence_manager,
+            memgpt_agent = presets.create_agent_from_preset(
+                agent_state=agent_state,
+                interface=interface,
             )
         except ValueError as e:
+            # TODO(swooders) what's the equivalent cleanup code for the new DB refactor?
             typer.secho(f"Failed to create agent from provided information:\n{e}", fg=typer.colors.RED)
-            # Delete the directory of the failed agent
-            try:
-                # Path to the specific file
-                agent_config_file = agent_config.agent_config_path
+            # # Delete the directory of the failed agent
+            # try:
+            #     # Path to the specific file
+            #     agent_config_file = agent_config.agent_config_path
 
-                # Check if the file exists
-                if os.path.isfile(agent_config_file):
-                    # Delete the file
-                    os.remove(agent_config_file)
+            #     # Check if the file exists
+            #     if os.path.isfile(agent_config_file):
+            #         # Delete the file
+            #         os.remove(agent_config_file)
 
-                # Now, delete the directory along with any remaining files in it
-                agent_save_dir = os.path.join(MEMGPT_DIR, "agents", agent_config.name)
-                shutil.rmtree(agent_save_dir)
-            except:
-                typer.secho(f"Failed to delete agent directory during cleanup:\n{e}", fg=typer.colors.RED)
+            #     # Now, delete the directory along with any remaining files in it
+            #     agent_save_dir = os.path.join(MEMGPT_DIR, "agents", agent_config.name)
+            #     shutil.rmtree(agent_save_dir)
+            # except:
+            #     typer.secho(f"Failed to delete agent directory during cleanup:\n{e}", fg=typer.colors.RED)
             sys.exit(1)
-        typer.secho(f"🎉 Created new agent '{agent_config.name}'", fg=typer.colors.GREEN)
+        typer.secho(f"🎉 Created new agent '{agent_state.name}'", fg=typer.colors.GREEN)
 
     # pretty print agent config
-    printd(json.dumps(vars(agent_config), indent=4, sort_keys=True))
+    # printd(json.dumps(vars(agent_config), indent=4, sort_keys=True))
+    # printd(json.dumps(agent_init_state), indent=4, sort_keys=True))
+
+    # configure llama index
+    original_stdout = sys.stdout  # unfortunate hack required to suppress confusing print statements from llama index
+    sys.stdout = io.StringIO()
+    embed_model = embedding_model(config=agent_state.embedding_config, user_id=user.id)
+    service_context = ServiceContext.from_defaults(llm=None, embed_model=embed_model, chunk_size=config.embedding_chunk_size)
+    set_global_service_context(service_context)
+    sys.stdout = original_stdout
 
     # start event loop
     from memgpt.main import run_agent_loop
 
     print()  # extra space
-    run_agent_loop(memgpt_agent, first, no_verify, config)  # TODO: add back no_verify
+    run_agent_loop(memgpt_agent, config, first, no_verify)  # TODO: add back no_verify
 
 
 def attach(
     agent: str = typer.Option(help="Specify agent to attach data to"),
     data_source: str = typer.Option(help="Data source to attach to avent"),
+    user_id: uuid.UUID = None,
 ):
+    # use client ID is no user_id provided
+    config = MemGPTConfig.load()
+    if user_id is None:
+        user_id = uuid.UUID(config.anon_clientid)
     try:
         # loads the data contained in data source into the agent's memory
-        from memgpt.connectors.storage import StorageConnector
+        from memgpt.agent_store.storage import StorageConnector, TableType
         from tqdm import tqdm
 
-        agent_config = AgentConfig.load(agent)
+        ms = MetadataStore(config)
+        agent = ms.get_agent(agent_name=agent, user_id=user_id)
+        source = ms.get_source(source_name=data_source, user_id=user_id)
+        assert source is not None, f"Source {data_source} does not exist for user {user_id}"
 
         # get storage connectors
         with suppress_stdout():
-            source_storage = StorageConnector.get_storage_connector(name=data_source)
-            dest_storage = StorageConnector.get_storage_connector(agent_config=agent_config)
+            source_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id=user_id)
+            dest_storage = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config, user_id=user_id, agent_id=agent.id)
 
-        size = source_storage.size()
-        typer.secho(f"Ingesting {size} passages into {agent_config.name}", fg=typer.colors.GREEN)
+        size = source_storage.size({"data_source": data_source})
+        typer.secho(f"Ingesting {size} passages into {agent.name}", fg=typer.colors.GREEN)
         page_size = 100
-        generator = source_storage.get_all_paginated(page_size=page_size)  # yields List[Passage]
+        generator = source_storage.get_all_paginated(filters={"data_source": data_source}, page_size=page_size)  # yields List[Passage]
         passages = []
         for i in tqdm(range(0, size, page_size)):
             passages = next(generator)
+            print("inserting", passages)
+
+            # need to associated passage with agent (for filtering)
+            for passage in passages:
+                passage.agent_id = agent.id
+
+            # insert into agent archival memory
             dest_storage.insert_many(passages)
 
         # save destination storage
         dest_storage.save()
+
+        # attach to agent
+        source_id = ms.get_source(source_name=data_source, user_id=user_id).id
+        ms.attach_source(agent_id=agent.id, source_id=source_id, user_id=user_id)
 
         total_agent_passages = dest_storage.size()
 
