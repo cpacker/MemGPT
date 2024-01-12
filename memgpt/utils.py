@@ -1,13 +1,19 @@
 from datetime import datetime
+import copy
+import re
 import json
 import os
 import pickle
 import platform
+import random
 import subprocess
+import uuid
 import sys
 import io
-from contextlib import contextmanager
+from typing import List
 
+from urllib.parse import urlparse
+from contextlib import contextmanager
 import difflib
 import demjson3 as demjson
 import pytz
@@ -20,6 +26,7 @@ from memgpt.constants import (
     CLI_WARNING_PREFIX,
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
+    JSON_ENSURE_ASCII,
 )
 
 from memgpt.openai_backcompat.openai_object import OpenAIObject
@@ -27,6 +34,567 @@ from memgpt.openai_backcompat.openai_object import OpenAIObject
 # TODO: what is this?
 # DEBUG = True
 DEBUG = False
+
+ADJECTIVE_BANK = [
+    "beautiful",
+    "gentle",
+    "angry",
+    "vivacious",
+    "grumpy",
+    "luxurious",
+    "fierce",
+    "delicate",
+    "fluffy",
+    "radiant",
+    "elated",
+    "magnificent",
+    "sassy",
+    "ecstatic",
+    "lustrous",
+    "gleaming",
+    "sorrowful",
+    "majestic",
+    "proud",
+    "dynamic",
+    "energetic",
+    "mysterious",
+    "loyal",
+    "brave",
+    "decisive",
+    "frosty",
+    "cheerful",
+    "adorable",
+    "melancholy",
+    "vibrant",
+    "elegant",
+    "gracious",
+    "inquisitive",
+    "opulent",
+    "peaceful",
+    "rebellious",
+    "scintillating",
+    "dazzling",
+    "whimsical",
+    "impeccable",
+    "meticulous",
+    "resilient",
+    "charming",
+    "vivacious",
+    "creative",
+    "intuitive",
+    "compassionate",
+    "innovative",
+    "enthusiastic",
+    "tremendous",
+    "effervescent",
+    "tenacious",
+    "fearless",
+    "sophisticated",
+    "witty",
+    "optimistic",
+    "exquisite",
+    "sincere",
+    "generous",
+    "kindhearted",
+    "serene",
+    "amiable",
+    "adventurous",
+    "bountiful",
+    "courageous",
+    "diligent",
+    "exotic",
+    "grateful",
+    "harmonious",
+    "imaginative",
+    "jubilant",
+    "keen",
+    "luminous",
+    "nurturing",
+    "outgoing",
+    "passionate",
+    "quaint",
+    "resourceful",
+    "sturdy",
+    "tactful",
+    "unassuming",
+    "versatile",
+    "wondrous",
+    "youthful",
+    "zealous",
+    "ardent",
+    "benevolent",
+    "capricious",
+    "dedicated",
+    "empathetic",
+    "fabulous",
+    "gregarious",
+    "humble",
+    "intriguing",
+    "jovial",
+    "kind",
+    "lovable",
+    "mindful",
+    "noble",
+    "original",
+    "pleasant",
+    "quixotic",
+    "reliable",
+    "spirited",
+    "tranquil",
+    "unique",
+    "venerable",
+    "warmhearted",
+    "xenodochial",
+    "yearning",
+    "zesty",
+    "amusing",
+    "blissful",
+    "calm",
+    "daring",
+    "enthusiastic",
+    "faithful",
+    "graceful",
+    "honest",
+    "incredible",
+    "joyful",
+    "kind",
+    "lovely",
+    "merry",
+    "noble",
+    "optimistic",
+    "peaceful",
+    "quirky",
+    "respectful",
+    "sweet",
+    "trustworthy",
+    "understanding",
+    "vibrant",
+    "witty",
+    "xenial",
+    "youthful",
+    "zealous",
+    "ambitious",
+    "brilliant",
+    "careful",
+    "devoted",
+    "energetic",
+    "friendly",
+    "glorious",
+    "humorous",
+    "intelligent",
+    "jovial",
+    "knowledgeable",
+    "loyal",
+    "modest",
+    "nice",
+    "obedient",
+    "patient",
+    "quiet",
+    "resilient",
+    "selfless",
+    "tolerant",
+    "unique",
+    "versatile",
+    "warm",
+    "xerothermic",
+    "yielding",
+    "zestful",
+    "amazing",
+    "bold",
+    "charming",
+    "determined",
+    "exciting",
+    "funny",
+    "happy",
+    "imaginative",
+    "jolly",
+    "keen",
+    "loving",
+    "magnificent",
+    "nifty",
+    "outstanding",
+    "polite",
+    "quick",
+    "reliable",
+    "sincere",
+    "thoughtful",
+    "unusual",
+    "valuable",
+    "wonderful",
+    "xenodochial",
+    "zealful",
+    "admirable",
+    "bright",
+    "clever",
+    "dedicated",
+    "extraordinary",
+    "generous",
+    "hardworking",
+    "inspiring",
+    "jubilant",
+    "kind-hearted",
+    "lively",
+    "miraculous",
+    "neat",
+    "open-minded",
+    "passionate",
+    "remarkable",
+    "stunning",
+    "truthful",
+    "upbeat",
+    "vivacious",
+    "welcoming",
+    "yare",
+    "zealous",
+]
+
+NOUN_BANK = [
+    "lizard",
+    "firefighter",
+    "banana",
+    "castle",
+    "dolphin",
+    "elephant",
+    "forest",
+    "giraffe",
+    "harbor",
+    "iceberg",
+    "jewelry",
+    "kangaroo",
+    "library",
+    "mountain",
+    "notebook",
+    "orchard",
+    "penguin",
+    "quilt",
+    "rainbow",
+    "squirrel",
+    "teapot",
+    "umbrella",
+    "volcano",
+    "waterfall",
+    "xylophone",
+    "yacht",
+    "zebra",
+    "apple",
+    "butterfly",
+    "caterpillar",
+    "dragonfly",
+    "elephant",
+    "flamingo",
+    "gorilla",
+    "hippopotamus",
+    "iguana",
+    "jellyfish",
+    "koala",
+    "lemur",
+    "mongoose",
+    "nighthawk",
+    "octopus",
+    "panda",
+    "quokka",
+    "rhinoceros",
+    "salamander",
+    "tortoise",
+    "unicorn",
+    "vulture",
+    "walrus",
+    "xenopus",
+    "yak",
+    "zebu",
+    "asteroid",
+    "balloon",
+    "compass",
+    "dinosaur",
+    "eagle",
+    "firefly",
+    "galaxy",
+    "hedgehog",
+    "island",
+    "jaguar",
+    "kettle",
+    "lion",
+    "mammoth",
+    "nucleus",
+    "owl",
+    "pumpkin",
+    "quasar",
+    "reindeer",
+    "snail",
+    "tiger",
+    "universe",
+    "vampire",
+    "wombat",
+    "xerus",
+    "yellowhammer",
+    "zeppelin",
+    "alligator",
+    "buffalo",
+    "cactus",
+    "donkey",
+    "emerald",
+    "falcon",
+    "gazelle",
+    "hamster",
+    "icicle",
+    "jackal",
+    "kitten",
+    "leopard",
+    "mushroom",
+    "narwhal",
+    "opossum",
+    "peacock",
+    "quail",
+    "rabbit",
+    "scorpion",
+    "toucan",
+    "urchin",
+    "viper",
+    "wolf",
+    "xray",
+    "yucca",
+    "zebu",
+    "acorn",
+    "biscuit",
+    "cupcake",
+    "daisy",
+    "eyeglasses",
+    "frisbee",
+    "goblin",
+    "hamburger",
+    "icicle",
+    "jackfruit",
+    "kaleidoscope",
+    "lighthouse",
+    "marshmallow",
+    "nectarine",
+    "obelisk",
+    "pancake",
+    "quicksand",
+    "raspberry",
+    "spinach",
+    "truffle",
+    "umbrella",
+    "volleyball",
+    "walnut",
+    "xylophonist",
+    "yogurt",
+    "zucchini",
+    "asterisk",
+    "blackberry",
+    "chimpanzee",
+    "dumpling",
+    "espresso",
+    "fireplace",
+    "gnome",
+    "hedgehog",
+    "illustration",
+    "jackhammer",
+    "kumquat",
+    "lemongrass",
+    "mandolin",
+    "nugget",
+    "ostrich",
+    "parakeet",
+    "quiche",
+    "racquet",
+    "seashell",
+    "tadpole",
+    "unicorn",
+    "vaccination",
+    "wolverine",
+    "xenophobia",
+    "yam",
+    "zeppelin",
+    "accordion",
+    "broccoli",
+    "carousel",
+    "daffodil",
+    "eggplant",
+    "flamingo",
+    "grapefruit",
+    "harpsichord",
+    "impression",
+    "jackrabbit",
+    "kitten",
+    "llama",
+    "mandarin",
+    "nachos",
+    "obelisk",
+    "papaya",
+    "quokka",
+    "rooster",
+    "sunflower",
+    "turnip",
+    "ukulele",
+    "viper",
+    "waffle",
+    "xylograph",
+    "yeti",
+    "zephyr",
+    "abacus",
+    "blueberry",
+    "crocodile",
+    "dandelion",
+    "echidna",
+    "fig",
+    "giraffe",
+    "hamster",
+    "iguana",
+    "jackal",
+    "kiwi",
+    "lobster",
+    "marmot",
+    "noodle",
+    "octopus",
+    "platypus",
+    "quail",
+    "raccoon",
+    "starfish",
+    "tulip",
+    "urchin",
+    "vampire",
+    "walrus",
+    "xylophone",
+    "yak",
+    "zebra",
+]
+
+
+def annotate_message_json_list_with_tool_calls(messages: List[dict]):
+    """Add in missing tool_call_id fields to a list of messages using function call style
+
+    Walk through the list forwards:
+    - If we encounter an assistant message that calls a function ("function_call") but doesn't have a "tool_call_id" field
+      - Generate the tool_call_id
+    - Then check if the subsequent message is a role == "function" message
+      - If so, then att
+    """
+    tool_call_index = None
+    tool_call_id = None
+    updated_messages = []
+
+    for i, message in enumerate(messages):
+        if "role" not in message:
+            raise ValueError(f"message missing 'role' field:\n{message}")
+
+        # If we find a function call w/o a tool call ID annotation, annotate it
+        if message["role"] == "assistant" and "function_call" in message:
+            if "tool_call_id" in message and message["tool_call_id"] is not None:
+                printd(f"Message already has tool_call_id")
+                tool_call_id = message["tool_call_id"]
+            else:
+                tool_call_id = str(uuid.uuid4())
+                message["tool_call_id"] = tool_call_id
+            tool_call_index = i
+
+        # After annotating the call, we expect to find a follow-up response (also unannotated)
+        elif message["role"] == "function":
+            # We should have a new tool call id in the buffer
+            if tool_call_id is None:
+                # raise ValueError(
+                print(
+                    f"Got a function call role, but did not have a saved tool_call_id ready to use (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                )
+                # allow a soft fail in this case
+                message["tool_call_id"] = str(uuid.uuid4())
+            elif "tool_call_id" in message:
+                raise ValueError(
+                    f"Got a function call role, but it already had a saved tool_call_id (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                )
+            elif i != tool_call_index + 1:
+                raise ValueError(
+                    f"Got a function call role, saved tool_call_id came earlier than i-1 (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                )
+            else:
+                message["tool_call_id"] = tool_call_id
+                tool_call_id = None  # wipe the buffer
+
+        elif message["role"] == "tool":
+            raise NotImplementedError(
+                f"tool_call_id annotation is meant for deprecated functions style, but got role 'tool' in message (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+            )
+
+        else:
+            # eg role == 'user', nothing to do here
+            pass
+
+        updated_messages.append(copy.deepcopy(message))
+
+    return updated_messages
+
+
+def version_less_than(version_a: str, version_b: str) -> bool:
+    """Compare versions to check if version_a is less than version_b."""
+    # Regular expression to match version strings of the format int.int.int
+    version_pattern = re.compile(r"^\d+\.\d+\.\d+$")
+
+    # Assert that version strings match the required format
+    if not version_pattern.match(version_a) or not version_pattern.match(version_b):
+        raise ValueError("Version strings must be in the format 'int.int.int'")
+
+    # Split the version strings into parts
+    parts_a = [int(part) for part in version_a.split(".")]
+    parts_b = [int(part) for part in version_b.split(".")]
+
+    # Compare version parts
+    return parts_a < parts_b
+
+
+def create_random_username() -> str:
+    """Generate a random username by combining an adjective and a noun."""
+    adjective = random.choice(ADJECTIVE_BANK).capitalize()
+    noun = random.choice(NOUN_BANK).capitalize()
+    return adjective + noun
+
+
+def verify_first_message_correctness(response, require_send_message=True, require_monologue=False) -> bool:
+    """Can be used to enforce that the first message always uses send_message"""
+    response_message = response.choices[0].message
+
+    # First message should be a call to send_message with a non-empty content
+    if require_send_message and not response_message.get("function_call"):
+        printd(f"First message didn't include function call: {response_message}")
+        return False
+
+    function_call = response_message.get("function_call")
+    function_name = function_call.get("name") if function_call is not None else ""
+    if require_send_message and function_name != "send_message" and function_name != "archival_memory_search":
+        printd(f"First message function call wasn't send_message or archival_memory_search: {response_message}")
+        return False
+
+    if require_monologue and (
+        not response_message.get("content") or response_message["content"] is None or response_message["content"] == ""
+    ):
+        printd(f"First message missing internal monologue: {response_message}")
+        return False
+
+    if response_message.get("content"):
+        ### Extras
+        monologue = response_message.get("content")
+
+        def contains_special_characters(s):
+            special_characters = '(){}[]"'
+            return any(char in s for char in special_characters)
+
+        if contains_special_characters(monologue):
+            printd(f"First message internal monologue contained special characters: {response_message}")
+            return False
+        # if 'functions' in monologue or 'send_message' in monologue or 'inner thought' in monologue.lower():
+        if "functions" in monologue or "send_message" in monologue:
+            # Sometimes the syntax won't be correct and internal syntax will leak into message.context
+            printd(f"First message internal monologue contained reserved words: {response_message}")
+            return False
+
+    return True
+
+
+def is_valid_url(url):
+    try:
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])
+    except ValueError:
+        return False
 
 
 @contextmanager
@@ -92,6 +660,21 @@ def united_diff(str1, str2):
     return "".join(diff)
 
 
+def parse_formatted_time(formatted_time):
+    # parse times returned by memgpt.utils.get_formatted_time()
+    return datetime.strptime(formatted_time, "%Y-%m-%d %I:%M:%S %p %Z%z")
+
+
+def datetime_to_timestamp(dt):
+    # convert datetime object to integer timestamp
+    return int(dt.timestamp())
+
+
+def timestamp_to_datetime(ts):
+    # convert integer timestamp to datetime object
+    return datetime.fromtimestamp(ts)
+
+
 def get_local_time_military():
     # Get the current time in UTC
     current_time_utc = datetime.now(pytz.utc)
@@ -125,12 +708,16 @@ def get_local_time(timezone=None):
         time_str = get_local_time_timezone(timezone)
     else:
         # Get the current time, which will be in the local timezone of the computer
-        local_time = datetime.now()
+        local_time = datetime.now().astimezone()
 
         # You may format it as you desire, including AM/PM
         time_str = local_time.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
 
     return time_str.strip()
+
+
+def format_datetime(dt):
+    return dt.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
 
 
 def parse_json(string):
@@ -170,7 +757,7 @@ def validate_function_response(function_response_string: any, strict: bool = Fal
             # Allow dict through since it will be cast to json.dumps()
             try:
                 # TODO find a better way to do this that won't result in double escapes
-                function_response_string = json.dumps(function_response_string)
+                function_response_string = json.dumps(function_response_string, ensure_ascii=JSON_ENSURE_ASCII)
             except:
                 raise ValueError(function_response_string)
 
@@ -278,8 +865,8 @@ def get_human_text(name: str):
 
 def get_schema_diff(schema_a, schema_b):
     # Assuming f_schema and linked_function['json_schema'] are your JSON schemas
-    f_schema_json = json.dumps(schema_a, indent=2)
-    linked_function_json = json.dumps(schema_b, indent=2)
+    f_schema_json = json.dumps(schema_a, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
+    linked_function_json = json.dumps(schema_b, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
 
     # Compute the difference using difflib
     difference = list(difflib.ndiff(f_schema_json.splitlines(keepends=True), linked_function_json.splitlines(keepends=True)))
@@ -288,3 +875,20 @@ def get_schema_diff(schema_a, schema_b):
     difference = [line for line in difference if line.startswith("+ ") or line.startswith("- ")]
 
     return "".join(difference)
+
+
+# datetime related
+def validate_date_format(date_str):
+    """Validate the given date string in the format 'YYYY-MM-DD'."""
+    try:
+        datetime.datetime.strptime(date_str, "%Y-%m-%d")
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
+def extract_date_from_timestamp(timestamp):
+    """Extracts and returns the date from the given timestamp."""
+    # Extracts the date (ignoring the time and timezone)
+    match = re.match(r"(\d{4}-\d{2}-\d{2})", timestamp)
+    return match.group(1) if match else None

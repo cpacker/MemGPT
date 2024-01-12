@@ -1,11 +1,21 @@
 from abc import ABC, abstractmethod
 import pickle
-from memgpt.config import AgentConfig
 from memgpt.memory import (
-    DummyRecallMemory,
+    BaseRecallMemory,
     EmbeddingArchivalMemory,
 )
-from memgpt.utils import get_local_time, printd, OpenAIBackcompatUnpickler
+from memgpt.utils import get_local_time, printd
+from memgpt.data_types import Message, ToolCall, AgentState
+
+from datetime import datetime
+
+
+def parse_formatted_time(formatted_time: str):
+    # parse times returned by memgpt.utils.get_formatted_time()
+    try:
+        return datetime.strptime(formatted_time.strip(), "%Y-%m-%d %I:%M:%S %p %Z%z")
+    except:
+        return datetime.strptime(formatted_time.strip(), "%Y-%m-%d %I:%M:%S %p")
 
 
 class PersistenceManager(ABC):
@@ -33,83 +43,65 @@ class PersistenceManager(ABC):
 class LocalStateManager(PersistenceManager):
     """In-memory state manager has nothing to manage, all agents are held in-memory"""
 
-    recall_memory_cls = DummyRecallMemory
+    recall_memory_cls = BaseRecallMemory
     archival_memory_cls = EmbeddingArchivalMemory
 
-    def __init__(self, agent_config: AgentConfig):
+    def __init__(self, agent_state: AgentState):
         # Memory held in-state useful for debugging stateful versions
         self.memory = None
-        self.messages = []
-        self.all_messages = []
-        self.archival_memory = EmbeddingArchivalMemory(agent_config)
-        self.recall_memory = None
-        self.agent_config = agent_config
+        self.messages = []  # current in-context messages
+        # self.all_messages = [] # all messages seen in current session (needed if lazily synchronizing state with DB)
+        self.archival_memory = EmbeddingArchivalMemory(agent_state)
+        self.recall_memory = BaseRecallMemory(agent_state)
+        self.agent_state = agent_state
 
-    @classmethod
-    def load(cls, filename, agent_config: AgentConfig):
-        """ Load a LocalStateManager from a file. """ ""
-        try:
-            with open(filename, "rb") as f:
-                data = pickle.load(f)
-        except ModuleNotFoundError as e:
-            # Patch for stripped openai package
-            # ModuleNotFoundError: No module named 'openai.openai_object'
-            with open(filename, "rb") as f:
-                unpickler = OpenAIBackcompatUnpickler(f)
-                data = unpickler.load()
-            # print(f"Unpickled data:\n{data.keys()}")
-
-            from memgpt.openai_backcompat.openai_object import OpenAIObject
-
-            def convert_openai_objects_to_dict(obj):
-                if isinstance(obj, OpenAIObject):
-                    # Convert to dict or handle as needed
-                    # print(f"detected OpenAIObject on {obj}")
-                    return obj.to_dict_recursive()
-                elif isinstance(obj, dict):
-                    return {k: convert_openai_objects_to_dict(v) for k, v in obj.items()}
-                elif isinstance(obj, list):
-                    return [convert_openai_objects_to_dict(v) for v in obj]
-                else:
-                    return obj
-
-            data = convert_openai_objects_to_dict(data)
-            # print(f"Converted data:\n{data.keys()}")
-
-        manager = cls(agent_config)
-        manager.all_messages = data["all_messages"]
-        manager.messages = data["messages"]
-        manager.recall_memory = data["recall_memory"]
-        manager.archival_memory = EmbeddingArchivalMemory(agent_config)
-        return manager
-
-    def save(self, filename):
-        with open(filename, "wb") as fh:
-            ## TODO: fix this hacky solution to pickle the retriever
-            self.archival_memory.save()
-            pickle.dump(
-                {
-                    "recall_memory": self.recall_memory,
-                    "messages": self.messages,
-                    "all_messages": self.all_messages,
-                },
-                fh,
-                protocol=pickle.HIGHEST_PROTOCOL,
-            )
-            printd(f"Saved state to {fh}")
+    def save(self):
+        """Ensure storage connectors save data"""
+        self.archival_memory.save()
+        self.recall_memory.save()
 
     def init(self, agent):
+        """Connect persistent state manager to agent"""
         printd(f"Initializing {self.__class__.__name__} with agent object")
-        self.all_messages = [{"timestamp": get_local_time(), "message": msg} for msg in agent.messages.copy()]
+        # self.all_messages = [{"timestamp": get_local_time(), "message": msg} for msg in agent.messages.copy()]
         self.messages = [{"timestamp": get_local_time(), "message": msg} for msg in agent.messages.copy()]
         self.memory = agent.memory
-        printd(f"{self.__class__.__name__}.all_messages.len = {len(self.all_messages)}")
+        # printd(f"{self.__class__.__name__}.all_messages.len = {len(self.all_messages)}")
         printd(f"{self.__class__.__name__}.messages.len = {len(self.messages)}")
 
-        # Persistence manager also handles DB-related state
-        self.recall_memory = self.recall_memory_cls(message_database=self.all_messages)
+    def json_to_message(self, message_json) -> Message:
+        """Convert agent message JSON into Message object"""
+        timestamp = message_json["timestamp"]
+        message = message_json["message"]
 
-        # TODO: init archival memory here?
+        # TODO: change this when we fully migrate to tool calls API
+        if "function_call" in message:
+            tool_calls = [
+                ToolCall(
+                    id=message["tool_call_id"],
+                    tool_call_type="function",
+                    function={
+                        "name": message["function_call"]["name"],
+                        "arguments": message["function_call"]["arguments"],
+                    },
+                )
+            ]
+            printd(f"Saving tool calls {[vars(tc) for tc in tool_calls]}")
+        else:
+            tool_calls = None
+
+        return Message(
+            user_id=self.agent_state.user_id,
+            agent_id=self.agent_state.id,
+            role=message["role"],
+            text=message["content"],
+            name=message["name"] if "name" in message else None,
+            model=self.agent_state.llm_config.model,
+            created_at=parse_formatted_time(timestamp),
+            tool_calls=tool_calls,
+            tool_call_id=message["tool_call_id"] if "tool_call_id" in message else None,
+            id=message["id"] if "id" in message else None,
+        )
 
     def trim_messages(self, num):
         # printd(f"InMemoryStateManager.trim_messages")
@@ -121,7 +113,9 @@ class LocalStateManager(PersistenceManager):
 
         printd(f"{self.__class__.__name__}.prepend_to_message")
         self.messages = [self.messages[0]] + added_messages + self.messages[1:]
-        self.all_messages.extend(added_messages)
+
+        # add to recall memory
+        self.recall_memory.insert_many([self.json_to_message(m) for m in added_messages])
 
     def append_to_messages(self, added_messages):
         # first tag with timestamps
@@ -129,7 +123,9 @@ class LocalStateManager(PersistenceManager):
 
         printd(f"{self.__class__.__name__}.append_to_messages")
         self.messages = self.messages + added_messages
-        self.all_messages.extend(added_messages)
+
+        # add to recall memory
+        self.recall_memory.insert_many([self.json_to_message(m) for m in added_messages])
 
     def swap_system_message(self, new_system_message):
         # first tag with timestamps
@@ -137,7 +133,9 @@ class LocalStateManager(PersistenceManager):
 
         printd(f"{self.__class__.__name__}.swap_system_message")
         self.messages[0] = new_system_message
-        self.all_messages.append(new_system_message)
+
+        # add to recall memory
+        self.recall_memory.insert(self.json_to_message(new_system_message))
 
     def update_memory(self, new_memory):
         printd(f"{self.__class__.__name__}.update_memory")

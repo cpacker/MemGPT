@@ -1,7 +1,7 @@
 import json
 import os
 
-from memgpt.constants import MEMGPT_DIR
+from memgpt.constants import MEMGPT_DIR, JSON_ENSURE_ASCII
 from memgpt.local_llm.settings.simple import settings as simple_settings
 from memgpt.local_llm.settings.deterministic_mirostat import settings as det_miro_settings
 
@@ -47,7 +47,9 @@ def get_completions_settings(defaults="simple") -> dict:
             with open(settings_file, "r") as file:
                 user_settings = json.load(file)
             if len(user_settings) > 0:
-                printd(f"Updating base settings with the following user settings:\n{json.dumps(user_settings,indent=2)}")
+                printd(
+                    f"Updating base settings with the following user settings:\n{json.dumps(user_settings,indent=2, ensure_ascii=JSON_ENSURE_ASCII)}"
+                )
                 settings.update(user_settings)
             else:
                 printd(f"'{settings_file}' was empty, ignoring...")
