@@ -232,7 +232,7 @@ class SyncServer(LockingServer):
         next_input_message = input_message
         counter = 0
         while True:
-            new_messages, heartbeat_request, function_failed, token_warning = memgpt_agent.step(
+            new_messages, heartbeat_request, function_failed, token_warning, tokens_accumulated = memgpt_agent.step(
                 next_input_message, first_message=False, skip_verify=no_verify
             )
             counter += 1
@@ -260,6 +260,8 @@ class SyncServer(LockingServer):
 
         memgpt_agent.interface.step_yield()
         logger.debug(f"Finished agent step")
+
+        return tokens_accumulated
 
     def _command(self, user_id: str, agent_id: str, command: str) -> Union[str, None]:
         """Process a CLI command"""
@@ -406,7 +408,9 @@ class SyncServer(LockingServer):
             # Package the user message first
             packaged_user_message = package_user_message(user_message=message)
             # Run the agent state forward
-            self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
+            tokens_accumulated = self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
+
+        return tokens_accumulated
 
     @LockingServer.agent_lock_decorator
     def run_command(self, user_id: str, agent_id: str, command: str) -> Union[str, None]:

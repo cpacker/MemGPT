@@ -73,7 +73,7 @@ class Client(object):
         self,
         agent_config: dict,
         # persistence_manager: Union[PersistenceManager, None] = None,
-        throw_if_exists: bool = True,
+        throw_if_exists: bool = False,
     ) -> AgentState:
         if isinstance(agent_config, dict):
             agent_name = agent_config.get("name")
@@ -85,6 +85,9 @@ class Client(object):
             agent_state = self.server.create_agent(user_id=self.user_id, agent_config=agent_config)
             return agent_state
         else:
+            if throw_if_exists:
+                self.server.delete_agent(user_id=self.user_id, agent_id=agent_name)
+                agent_state = self.server.create_agent(user_id=self.user_id, agent_config=agent_config)
             raise ValueError(f"Agent {agent_name} already exists")
 
     def get_agent_config(self, agent_id: str) -> Dict:
@@ -101,10 +104,10 @@ class Client(object):
 
     def user_message(self, agent_id: str, message: str) -> List[Dict]:
         self.interface.clear()
-        self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
+        tokens_accumulated = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
         if self.auto_save:
             self.save()
-        return self.interface.to_list()
+        return self.interface.to_list(), tokens_accumulated
 
     def run_command(self, agent_id: str, command: str) -> Union[str, None]:
         self.interface.clear()
