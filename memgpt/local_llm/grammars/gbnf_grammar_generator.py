@@ -162,13 +162,13 @@ def generate_gbnf_integer_rules(max_digit=None, min_digit=None):
 
     Generates GBNF (Generalized Backus-Naur Form) rules for integers based on the given maximum and minimum digits.
 
-    Parameters:
-    max_digit (int): The maximum number of digits for the integer. Default is None.
-    min_digit (int): The minimum number of digits for the integer. Default is None.
+    Args:
+        max_digit (int): The maximum number of digits for the integer. Default is None.
+        min_digit (int): The minimum number of digits for the integer. Default is None.
 
     Returns:
-    integer_rule (str): The identifier for the integer rule generated.
-    additional_rules (list): A list of additional rules generated based on the given maximum and minimum digits.
+        integer_rule (str): The identifier for the integer rule generated.
+        additional_rules (list): A list of additional rules generated based on the given maximum and minimum digits.
 
     """
     additional_rules = []
@@ -513,13 +513,13 @@ def generate_gbnf_grammar_from_pydantic_models(
     This method takes a list of Pydantic models and uses them to generate a GBNF grammar string. The generated grammar string can be used for parsing and validating data using the generated
     * grammar.
 
-    Parameters:
-    models (List[Type[BaseModel]]): A list of Pydantic models to generate the grammar from.
-    outer_object_name (str): Outer object name for the GBNF grammar. If None, no outer object will be generated. Eg. "function" for function calling.
-    outer_object_content (str): Content for the outer rule in the GBNF grammar. Eg. "function_parameters" or "params" for function calling.
-    list_of_outputs (str, optional): Allows a list of output objects
+    Ars:
+        models (List[Type[BaseModel]]): A list of Pydantic models to generate the grammar from.
+        outer_object_name (str): Outer object name for the GBNF grammar. If None, no outer object will be generated. Eg. "function" for function calling.
+        outer_object_content (str): Content for the outer rule in the GBNF grammar. Eg. "function_parameters" or "params" for function calling.
+        list_of_outputs (str, optional): Allows a list of output objects
     Returns:
-    str: The generated GBNF grammar string.
+        str: The generated GBNF grammar string.
 
     Examples:
         models = [UserModel, PostModel]
@@ -562,7 +562,7 @@ def generate_gbnf_grammar_from_pydantic_models(
         for model in models:
             mod_rule = rf"{format_model_and_field_name(model.__name__)}-grammar-model ::= ws"
             mod_rule += (
-                rf'"\"{format_model_and_field_name(model.__name__)}\"" "," ws "\"{outer_object_content}\"" ws ":" ws {format_model_and_field_name(model.__name__)}'
+                rf'"\"{model.__name__}\"" "," ws "\"{outer_object_content}\"" ws ":" ws {format_model_and_field_name(model.__name__)}'
                 + "\n"
             )
             mod_rules.append(mod_rule)
