@@ -6,7 +6,7 @@ import json
 
 from box import Box
 
-from memgpt.local_llm.grammars.gbnf_grammar_generator import generate_gbnf_grammar_and_documentation_dictionaries
+from memgpt.local_llm.grammars.gbnf_grammar_generator import generate_gbnf_grammar_and_documentation_from_dictionaries
 from memgpt.local_llm.webui.api import get_webui_completion
 from memgpt.local_llm.webui.legacy_api import get_webui_completion as get_webui_completion_legacy
 from memgpt.local_llm.lmstudio.api import get_lmstudio_completion
@@ -68,7 +68,9 @@ def get_chat_completion(
             # make the default to use grammar
             llm_wrapper = DEFAULT_WRAPPER(include_opening_brace_in_prefix=False)
             # grammar_name = "json"
-            grammar, documentation = generate_gbnf_grammar_and_documentation_dictionaries(functions, root_rule_class="function", root_rule_content="params", model_prefix="Function", fields_prefix="Parameter")
+            grammar, documentation = generate_gbnf_grammar_and_documentation_from_dictionaries(
+                functions, outer_object_name="function", outer_object_content="params", model_prefix="Function", fields_prefix="Parameter"
+            )
         else:
             llm_wrapper = DEFAULT_WRAPPER()
     elif wrapper not in available_wrappers:
@@ -76,9 +78,11 @@ def get_chat_completion(
     else:
         llm_wrapper = available_wrappers[wrapper]
         if endpoint_type in ["koboldcpp", "llamacpp", "webui"]:
-            setattr(llm_wrapper,  "assistant_prefix_extra_first_message", "")
+            setattr(llm_wrapper, "assistant_prefix_extra_first_message", "")
 
-            grammar, documentation = generate_gbnf_grammar_and_documentation_dictionaries(functions, root_rule_class="function", root_rule_content="params", model_prefix="Function", fields_prefix="Parameter")
+            grammar, documentation = generate_gbnf_grammar_and_documentation_from_dictionaries(
+                functions, outer_object_name="function", outer_object_content="params", model_prefix="Function", fields_prefix="Parameter"
+            )
 
     if grammar is not None and endpoint_type not in ["koboldcpp", "llamacpp", "webui"]:
         print(f"{CLI_WARNING_PREFIX}grammars are currently only supported when using llama.cpp as the MemGPT local LLM backend")
