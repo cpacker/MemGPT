@@ -71,6 +71,5 @@ def bench(
     print(f"PRESET: {config.preset}")
     print(f"PERSONA: {config.persona}")
     print(f"HUMAN: {config.human}")
-    print(f"AGENT: {config.agent}")
 
     print(f"\n\t-> Total score: {total_score}/{len(PROMPTS) * n_tries}, took {elapsed_time} seconds at average of {round(total_tokens_accumulated/elapsed_time, 2)} t/s\n")
