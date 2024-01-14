@@ -108,7 +108,7 @@ def get_chat_completion(
         # if hasattr(llm_wrapper, "supports_first_message") and llm_wrapper.supports_first_message:
         if hasattr(llm_wrapper, "supports_first_message"):
             prompt = llm_wrapper.chat_completion_to_prompt(
-                messages, functions, functions_documentation=documentation, first_message=first_message
+                messages, functions,  first_message=first_message
             )
         else:
             prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
