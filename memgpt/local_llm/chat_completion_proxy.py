@@ -6,7 +6,7 @@ import json
 
 from box import Box
 
-from memgpt.local_llm.grammars.gbnf_grammar_generator import generate_gbnf_grammar_and_documentation_from_dictionaries
+from memgpt.local_llm.grammars.gbnf_grammar_generator import create_dynamic_model_from_function, generate_gbnf_grammar_and_documentation
 from memgpt.local_llm.webui.api import get_webui_completion
 from memgpt.local_llm.webui.legacy_api import get_webui_completion as get_webui_completion_legacy
 from memgpt.local_llm.lmstudio.api import get_lmstudio_completion
@@ -29,6 +29,7 @@ def get_chat_completion(
     model,  # no model required (except for Ollama), since the model is fixed to whatever you set in your own backend
     messages,
     functions=None,
+    functions_python=None,
     function_call="auto",
     context_window=None,
     user=None,
@@ -54,6 +55,7 @@ def get_chat_completion(
         raise ValueError(f"function_call == {function_call} not supported (auto only)")
 
     available_wrappers = get_available_wrappers()
+    documentation = None
     if messages[0]["role"] == "system" and messages[0]["content"].strip() == SUMMARIZE_SYSTEM_MESSAGE.strip():
         # Special case for if the call we're making is coming from the summarizer
         llm_wrapper = simple_summary_wrapper.SimpleSummaryWrapper()
@@ -68,8 +70,15 @@ def get_chat_completion(
             # make the default to use grammar
             llm_wrapper = DEFAULT_WRAPPER(include_opening_brace_in_prefix=False)
             # grammar_name = "json"
-            grammar, documentation = generate_gbnf_grammar_and_documentation_from_dictionaries(
-                functions, outer_object_name="function", outer_object_content="params", model_prefix="Function", fields_prefix="Parameter"
+            grammar_function_models = []
+            for key, func in functions_python.items():
+                grammar_function_models.append(create_dynamic_model_from_function(func))
+            grammar, documentation = generate_gbnf_grammar_and_documentation(
+                grammar_function_models,
+                outer_object_name="function",
+                outer_object_content="params",
+                model_prefix="Function",
+                fields_prefix="Parameter",
             )
         else:
             llm_wrapper = DEFAULT_WRAPPER()
@@ -79,9 +88,16 @@ def get_chat_completion(
         llm_wrapper = available_wrappers[wrapper]
         if endpoint_type in ["koboldcpp", "llamacpp", "webui"]:
             setattr(llm_wrapper, "assistant_prefix_extra_first_message", "")
-
-            grammar, documentation = generate_gbnf_grammar_and_documentation_from_dictionaries(
-                functions, outer_object_name="function", outer_object_content="params", model_prefix="Function", fields_prefix="Parameter"
+            setattr(llm_wrapper, "assistant_prefix_extra", "")
+            grammar_function_models = []
+            for key, func in functions_python.items():
+                grammar_function_models.append(create_dynamic_model_from_function(func))
+            grammar, documentation = generate_gbnf_grammar_and_documentation(
+                grammar_function_models,
+                outer_object_name="function",
+                outer_object_content="params",
+                model_prefix="Function",
+                fields_prefix="Parameter",
             )
 
     if grammar is not None and endpoint_type not in ["koboldcpp", "llamacpp", "webui"]:
@@ -91,7 +107,9 @@ def get_chat_completion(
     try:
         # if hasattr(llm_wrapper, "supports_first_message") and llm_wrapper.supports_first_message:
         if hasattr(llm_wrapper, "supports_first_message"):
-            prompt = llm_wrapper.chat_completion_to_prompt(messages, functions, first_message=first_message)
+            prompt = llm_wrapper.chat_completion_to_prompt(
+                messages, functions, functions_documentation=documentation, first_message=first_message
+            )
         else:
             prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
 

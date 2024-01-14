@@ -82,25 +82,28 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         # TODO we're ignoring schema['parameters']['required']
         return func_str
 
-    def _compile_function_block(self, functions) -> str:
+    def _compile_function_block(self, functions, functions_documentation) -> str:
         """functions dict -> string describing functions choices"""
         prompt = ""
 
         # prompt += f"\nPlease select the most suitable function and parameters from the list of available functions below, based on the user's input. Provide your response in JSON format."
         prompt += f"Please select the most suitable function and parameters from the list of available functions below, based on the ongoing conversation. Provide your response in JSON format."
         prompt += f"\nAvailable functions:"
-        for function_dict in functions:
-            prompt += f"\n{self._compile_function_description(function_dict)}"
+        if functions_documentation is None:
+            for function_dict in functions:
+                prompt += f"\n{self._compile_function_description(function_dict)}"
+        else:
+            prompt += "\n" + functions_documentation
 
         return prompt
 
     # NOTE: BOS/EOS chatml tokens are NOT inserted here
-    def _compile_system_message(self, system_message, functions) -> str:
+    def _compile_system_message(self, system_message, functions_documentation, functions) -> str:
         """system prompt + memory + functions -> string"""
         prompt = ""
         prompt += system_message
         prompt += "\n"
-        prompt += self._compile_function_block(functions)
+        prompt += self._compile_function_block(functions, functions_documentation)
         return prompt
 
     def _compile_function_call(self, function_call, inner_thoughts=None):
@@ -183,13 +186,15 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         prompt += function_return_str
         return prompt
 
-    def chat_completion_to_prompt(self, messages, functions, first_message=False):
+    def chat_completion_to_prompt(self, messages, functions, functions_documentation=None, first_message=False):
         """chatml-style prompt formatting, with implied support for multi-role"""
         prompt = ""
 
         # System insturctions go first
         assert messages[0]["role"] == "system"
-        system_block = self._compile_system_message(system_message=messages[0]["content"], functions=functions)
+        system_block = self._compile_system_message(
+            system_message=messages[0]["content"], functions_documentation=functions_documentation, functions=functions
+        )
         prompt += f"<|im_start|>system\n{system_block.strip()}<|im_end|>"
 
         # Last are the user/assistant messages

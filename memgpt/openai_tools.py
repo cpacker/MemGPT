@@ -370,6 +370,7 @@ def create(
     agent_state: AgentState,
     messages,
     functions=None,
+    functions_python=None,
     function_call="auto",
     # hint
     first_message=False,
@@ -417,6 +418,7 @@ def create(
             model=agent_state.llm_config.model,
             messages=messages,
             functions=functions,
+            functions_python=functions_python,
             function_call=function_call,
             context_window=agent_state.llm_config.context_window,
             endpoint=agent_state.llm_config.model_endpoint,
