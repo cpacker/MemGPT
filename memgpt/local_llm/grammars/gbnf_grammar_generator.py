@@ -162,7 +162,7 @@ def generate_gbnf_integer_rules(max_digit=None, min_digit=None):
 
     Generates GBNF (Generalized Backus-Naur Form) rules for integers based on the given maximum and minimum digits.
 
-    Args:
+    Parameters:
         max_digit (int): The maximum number of digits for the integer. Default is None.
         min_digit (int): The minimum number of digits for the integer. Default is None.
 
@@ -513,7 +513,7 @@ def generate_gbnf_grammar_from_pydantic_models(
     This method takes a list of Pydantic models and uses them to generate a GBNF grammar string. The generated grammar string can be used for parsing and validating data using the generated
     * grammar.
 
-    Ars:
+    Args:
         models (List[Type[BaseModel]]): A list of Pydantic models to generate the grammar from.
         outer_object_name (str): Outer object name for the GBNF grammar. If None, no outer object will be generated. Eg. "function" for function calling.
         outer_object_content (str): Content for the outer rule in the GBNF grammar. Eg. "function_parameters" or "params" for function calling.
@@ -538,22 +538,24 @@ def generate_gbnf_grammar_from_pydantic_models(
             all_rules.extend(model_rules)
 
         if list_of_outputs:
-            root_rule = r'root ::= ws "["  grammar-models (","  grammar-models)*  "]"' + "\n"
+            root_rule = r'root ::= (" "| "\n") "[" ws grammar-models ("," ws grammar-models)* ws "]"' + "\n"
         else:
-            root_rule = r"root ::= ws grammar-models" + "\n"
+            root_rule = r'root ::= (" "| "\n") grammar-models' + "\n"
         root_rule += "grammar-models ::= " + " | ".join([format_model_and_field_name(model.__name__) for model in models])
         all_rules.insert(0, root_rule)
         return "\n".join(all_rules)
     elif outer_object_name is not None:
         if list_of_outputs:
             root_rule = (
-                rf'root ::= ws "["  {format_model_and_field_name(outer_object_name)} (","  {format_model_and_field_name(outer_object_name)})*  "]"'
+                rf'root ::= (" "| "\n") "[" ws {format_model_and_field_name(outer_object_name)} ("," ws {format_model_and_field_name(outer_object_name)})* ws "]"'
                 + "\n"
             )
         else:
             root_rule = f"root ::= {format_model_and_field_name(outer_object_name)}\n"
 
-        model_rule = rf'{format_model_and_field_name(outer_object_name)} ::= ws "{{" ws "\"{outer_object_name}\""  ": "  grammar-models'
+        model_rule = (
+            rf'{format_model_and_field_name(outer_object_name)} ::= (" "| "\n") "{{" ws "\"{outer_object_name}\""  ": "  grammar-models'
+        )
 
         fields_joined = " | ".join([rf"{format_model_and_field_name(model.__name__)}-grammar-model" for model in models])
 
@@ -589,10 +591,10 @@ def get_primitive_grammar(grammar):
     Returns the needed GBNF primitive grammar for a given GBNF grammar string.
 
     Args:
-    grammar (str): The string containing the GBNF grammar.
+        grammar (str): The string containing the GBNF grammar.
 
     Returns:
-    str: GBNF primitive grammar string.
+        str: GBNF primitive grammar string.
     """
     type_list = []
     if "string-list" in grammar:
@@ -651,44 +653,133 @@ triple-quotes ::= "'''" """
     return "\n" + "\n".join(additional_grammar) + any_block + primitive_grammar + markdown_code_block_grammar
 
 
-def generate_field_markdown(field_name: str, field_type: Type[Any], model: Type[BaseModel], depth=1) -> str:
-    indent = "  " * depth
-    field_markdown = f"{indent}- **{field_name}** (`{field_type.__name__}`): "
+def generate_markdown_documentation(
+    pydantic_models: List[Type[BaseModel]], model_prefix="Model", fields_prefix="Fields", documentation_with_field_description=True
+) -> str:
+    """
+    Generate markdown documentation for a list of Pydantic models.
 
-    # Extracting field description from Pydantic Field using __model_fields__
-    field_info = model.model_fields.get(field_name)
-    field_description = field_info.description if field_info and field_info.description else "No description available."
+    Args:
+        pydantic_models (List[Type[BaseModel]]): List of Pydantic model classes.
+        model_prefix (str): Prefix for the model section.
+        fields_prefix (str): Prefix for the fields section.
+        documentation_with_field_description (bool): Include field descriptions in the documentation.
 
-    field_markdown += field_description + "\n"
+    Returns:
+        str: Generated text documentation.
+    """
+    documentation = ""
+    pyd_models = [(model, True) for model in pydantic_models]
+    for model, add_prefix in pyd_models:
+        if add_prefix:
+            documentation += f"{model_prefix}: {format_model_and_field_name(model.__name__)}\n"
+        else:
+            documentation += f"Model: {format_model_and_field_name(model.__name__)}\n"
 
-    # Handling nested BaseModel fields
-    if isclass(field_type) and issubclass(field_type, BaseModel):
-        field_markdown += f"{indent}  - Details:\n"
-        for name, type_ in field_type.__annotations__.items():
-            field_markdown += generate_field_markdown(name, type_, field_type, depth + 2)
+        # Handling multi-line model description with proper indentation
 
-    return field_markdown
-
-
-def generate_markdown_report(pydantic_models: List[Type[BaseModel]]) -> str:
-    markdown = ""
-    for model in pydantic_models:
-        markdown += f"### {format_model_and_field_name(model.__name__)}\n"
-
-        # Check if the model's docstring is different from BaseModel's docstring
         class_doc = getdoc(model)
         base_class_doc = getdoc(BaseModel)
-        class_description = class_doc if class_doc and class_doc != base_class_doc else "No specific description available."
+        class_description = class_doc if class_doc and class_doc != base_class_doc else ""
+        if class_description != "":
+            documentation += "  Description: "
+            documentation += format_multiline_description(class_description, 0) + "\n"
 
-        markdown += f"{class_description}\n\n"
-        markdown += "#### Fields\n"
-
+        if add_prefix:
+            # Indenting the fields section
+            documentation += f"  {fields_prefix}:\n"
+        else:
+            documentation += f"  Fields:\n"
         if isclass(model) and issubclass(model, BaseModel):
             for name, field_type in model.__annotations__.items():
-                markdown += generate_field_markdown(format_model_and_field_name(name), field_type, model)
-        markdown += "\n"
+                # if name == "markdown_code_block":
+                #    continue
+                if get_origin(field_type) == list:
+                    element_type = get_args(field_type)[0]
+                    if isclass(element_type) and issubclass(element_type, BaseModel):
+                        pyd_models.append((element_type, False))
+                if get_origin(field_type) == Union:
+                    element_types = get_args(field_type)
+                    for element_type in element_types:
+                        if isclass(element_type) and issubclass(element_type, BaseModel):
+                            pyd_models.append((element_type, False))
+                documentation += generate_field_markdown(
+                    name, field_type, model, documentation_with_field_description=documentation_with_field_description
+                )
+            documentation += "\n"
 
-    return markdown
+        if hasattr(model, "Config") and hasattr(model.Config, "json_schema_extra") and "example" in model.Config.json_schema_extra:
+            documentation += f"  Expected Example Output for {format_model_and_field_name(model.__name__)}:\n"
+            json_example = json.dumps(model.Config.json_schema_extra["example"])
+            documentation += format_multiline_description(json_example, 2) + "\n"
+
+    return documentation
+
+
+def generate_field_markdown(
+    field_name: str, field_type: Type[Any], model: Type[BaseModel], depth=1, documentation_with_field_description=True
+) -> str:
+    """
+    Generate markdown documentation for a Pydantic model field.
+
+    Args:
+        field_name (str): Name of the field.
+        field_type (Type[Any]): Type of the field.
+        model (Type[BaseModel]): Pydantic model class.
+        depth (int): Indentation depth in the documentation.
+        documentation_with_field_description (bool): Include field descriptions in the documentation.
+
+    Returns:
+        str: Generated text documentation for the field.
+    """
+    indent = "    " * depth
+
+    field_info = model.model_fields.get(field_name)
+    field_description = field_info.description if field_info and field_info.description else ""
+
+    if get_origin(field_type) == list:
+        element_type = get_args(field_type)[0]
+        field_text = f"{indent}{field_name} ({format_model_and_field_name(field_type.__name__)} of {format_model_and_field_name(element_type.__name__)})"
+        if field_description != "":
+            field_text += ":\n"
+        else:
+            field_text += "\n"
+    elif get_origin(field_type) == Union:
+        element_types = get_args(field_type)
+        types = []
+        for element_type in element_types:
+            types.append(format_model_and_field_name(element_type.__name__))
+        field_text = f"{indent}{field_name} ({' or '.join(types)})"
+        if field_description != "":
+            field_text += ":\n"
+        else:
+            field_text += "\n"
+    else:
+        field_text = f"{indent}{field_name} ({format_model_and_field_name(field_type.__name__)})"
+        if field_description != "":
+            field_text += ":\n"
+        else:
+            field_text += "\n"
+
+    if not documentation_with_field_description:
+        return field_text
+
+    if field_description != "":
+        field_text += f"        Description: " + field_description + "\n"
+
+    # Check for and include field-specific examples if available
+    if hasattr(model, "Config") and hasattr(model.Config, "json_schema_extra") and "example" in model.Config.json_schema_extra:
+        field_example = model.Config.json_schema_extra["example"].get(field_name)
+        if field_example is not None:
+            example_text = f"'{field_example}'" if isinstance(field_example, str) else field_example
+            field_text += f"{indent}  Example: {example_text}\n"
+
+    if isclass(field_type) and issubclass(field_type, BaseModel):
+        field_text += f"{indent}  Details:\n"
+        for name, type_ in field_type.__annotations__.items():
+            field_text += generate_field_markdown(name, type_, field_type, depth + 2)
+
+    return field_text
 
 
 def format_json_example(example: dict, depth: int) -> str:
@@ -696,11 +787,11 @@ def format_json_example(example: dict, depth: int) -> str:
     Format a JSON example into a readable string with indentation.
 
     Args:
-    example (dict): JSON example to be formatted.
-    depth (int): Indentation depth.
+        example (dict): JSON example to be formatted.
+        depth (int): Indentation depth.
 
     Returns:
-    str: Formatted JSON example string.
+        str: Formatted JSON example string.
     """
     indent = "    " * depth
     formatted_example = "{\n"
@@ -718,13 +809,13 @@ def generate_text_documentation(
     Generate text documentation for a list of Pydantic models.
 
     Args:
-    pydantic_models (List[Type[BaseModel]]): List of Pydantic model classes.
-    model_prefix (str): Prefix for the model section.
-    fields_prefix (str): Prefix for the fields section.
-    documentation_with_field_description (bool): Include field descriptions in the documentation.
+        pydantic_models (List[Type[BaseModel]]): List of Pydantic model classes.
+        model_prefix (str): Prefix for the model section.
+        fields_prefix (str): Prefix for the fields section.
+        documentation_with_field_description (bool): Include field descriptions in the documentation.
 
     Returns:
-    str: Generated text documentation.
+        str: Generated text documentation.
     """
     documentation = ""
     pyd_models = [(model, True) for model in pydantic_models]
@@ -781,14 +872,14 @@ def generate_field_text(
     Generate text documentation for a Pydantic model field.
 
     Args:
-    field_name (str): Name of the field.
-    field_type (Type[Any]): Type of the field.
-    model (Type[BaseModel]): Pydantic model class.
-    depth (int): Indentation depth in the documentation.
-    documentation_with_field_description (bool): Include field descriptions in the documentation.
+        field_name (str): Name of the field.
+        field_type (Type[Any]): Type of the field.
+        model (Type[BaseModel]): Pydantic model class.
+        depth (int): Indentation depth in the documentation.
+        documentation_with_field_description (bool): Include field descriptions in the documentation.
 
     Returns:
-    str: Generated text documentation for the field.
+        str: Generated text documentation for the field.
     """
     indent = "    " * depth
 
@@ -845,11 +936,11 @@ def format_multiline_description(description: str, indent_level: int) -> str:
     Format a multiline description with proper indentation.
 
     Args:
-    description (str): Multiline description.
-    indent_level (int): Indentation level.
+        description (str): Multiline description.
+        indent_level (int): Indentation level.
 
     Returns:
-    str: Formatted multiline description.
+        str: Formatted multiline description.
     """
     indent = "    " * indent_level
     return indent + description.replace("\n", "\n" + indent)
@@ -862,13 +953,13 @@ def save_gbnf_grammar_and_documentation(
     Save GBNF grammar and documentation to specified files.
 
     Args:
-    grammar (str): GBNF grammar string.
-    documentation (str): Documentation string.
-    grammar_file_path (str): File path to save the GBNF grammar.
-    documentation_file_path (str): File path to save the documentation.
+        grammar (str): GBNF grammar string.
+        documentation (str): Documentation string.
+        grammar_file_path (str): File path to save the GBNF grammar.
+        documentation_file_path (str): File path to save the documentation.
 
     Returns:
-    None
+        None
     """
     try:
         with open(grammar_file_path, "w") as file:
@@ -890,10 +981,10 @@ def remove_empty_lines(string):
     Remove empty lines from a string.
 
     Args:
-    string (str): Input string.
+        string (str): Input string.
 
     Returns:
-    str: String with empty lines removed.
+        str: String with empty lines removed.
     """
     lines = string.splitlines()
     non_empty_lines = [line for line in lines if line.strip() != ""]
@@ -916,20 +1007,20 @@ def generate_and_save_gbnf_grammar_and_documentation(
     Generate GBNF grammar and documentation, and save them to specified files.
 
     Args:
-    pydantic_model_list: List of Pydantic model classes.
-    grammar_file_path (str): File path to save the generated GBNF grammar.
-    documentation_file_path (str): File path to save the generated documentation.
-    outer_object_name (str): Outer object name for the GBNF grammar. If None, no outer object will be generated. Eg. "function" for function calling.
-    outer_object_content (str): Content for the outer rule in the GBNF grammar. Eg. "function_parameters" or "params" for function calling.
-    model_prefix (str): Prefix for the model section in the documentation.
-    fields_prefix (str): Prefix for the fields section in the documentation.
-    list_of_outputs (bool): Whether the output is a list of items.
-    documentation_with_field_description (bool): Include field descriptions in the documentation.
+        pydantic_model_list: List of Pydantic model classes.
+        grammar_file_path (str): File path to save the generated GBNF grammar.
+        documentation_file_path (str): File path to save the generated documentation.
+        outer_object_name (str): Outer object name for the GBNF grammar. If None, no outer object will be generated. Eg. "function" for function calling.
+        outer_object_content (str): Content for the outer rule in the GBNF grammar. Eg. "function_parameters" or "params" for function calling.
+        model_prefix (str): Prefix for the model section in the documentation.
+        fields_prefix (str): Prefix for the fields section in the documentation.
+        list_of_outputs (bool): Whether the output is a list of items.
+        documentation_with_field_description (bool): Include field descriptions in the documentation.
 
     Returns:
-    None
+        None
     """
-    documentation = generate_text_documentation(
+    documentation = generate_markdown_documentation(
         pydantic_model_list, model_prefix, fields_prefix, documentation_with_field_description=documentation_with_field_description
     )
     grammar = generate_gbnf_grammar_from_pydantic_models(pydantic_model_list, outer_object_name, outer_object_content, list_of_outputs)
@@ -950,18 +1041,18 @@ def generate_gbnf_grammar_and_documentation(
     Generate GBNF grammar and documentation for a list of Pydantic models.
 
     Args:
-    pydantic_model_list: List of Pydantic model classes.
-    outer_object_name (str): Outer object name for the GBNF grammar. If None, no outer object will be generated. Eg. "function" for function calling.
-    outer_object_content (str): Content for the outer rule in the GBNF grammar. Eg. "function_parameters" or "params" for function calling.
-    model_prefix (str): Prefix for the model section in the documentation.
-    fields_prefix (str): Prefix for the fields section in the documentation.
-    list_of_outputs (bool): Whether the output is a list of items.
-    documentation_with_field_description (bool): Include field descriptions in the documentation.
+        pydantic_model_list: List of Pydantic model classes.
+        outer_object_name (str): Outer object name for the GBNF grammar. If None, no outer object will be generated. Eg. "function" for function calling.
+        outer_object_content (str): Content for the outer rule in the GBNF grammar. Eg. "function_parameters" or "params" for function calling.
+        model_prefix (str): Prefix for the model section in the documentation.
+        fields_prefix (str): Prefix for the fields section in the documentation.
+        list_of_outputs (bool): Whether the output is a list of items.
+        documentation_with_field_description (bool): Include field descriptions in the documentation.
 
     Returns:
-    tuple: GBNF grammar string, documentation string.
+        tuple: GBNF grammar string, documentation string.
     """
-    documentation = generate_text_documentation(
+    documentation = generate_markdown_documentation(
         copy(pydantic_model_list), model_prefix, fields_prefix, documentation_with_field_description=documentation_with_field_description
     )
     grammar = generate_gbnf_grammar_from_pydantic_models(pydantic_model_list, outer_object_name, outer_object_content, list_of_outputs)
@@ -982,19 +1073,19 @@ def generate_gbnf_grammar_and_documentation_from_dictionaries(
     Generate GBNF grammar and documentation from a list of dictionaries.
 
     Args:
-    dictionaries (List[dict]): List of dictionaries representing Pydantic models.
-    outer_object_name (str): Outer object name for the GBNF grammar. If None, no outer object will be generated. Eg. "function" for function calling.
-    outer_object_content (str): Content for the outer rule in the GBNF grammar. Eg. "function_parameters" or "params" for function calling.
-    model_prefix (str): Prefix for the model section in the documentation.
-    fields_prefix (str): Prefix for the fields section in the documentation.
-    list_of_outputs (bool): Whether the output is a list of items.
-    documentation_with_field_description (bool): Include field descriptions in the documentation.
+        dictionaries (List[dict]): List of dictionaries representing Pydantic models.
+        outer_object_name (str): Outer object name for the GBNF grammar. If None, no outer object will be generated. Eg. "function" for function calling.
+        outer_object_content (str): Content for the outer rule in the GBNF grammar. Eg. "function_parameters" or "params" for function calling.
+        model_prefix (str): Prefix for the model section in the documentation.
+        fields_prefix (str): Prefix for the fields section in the documentation.
+        list_of_outputs (bool): Whether the output is a list of items.
+        documentation_with_field_description (bool): Include field descriptions in the documentation.
 
     Returns:
-    tuple: GBNF grammar string, documentation string.
+        tuple: GBNF grammar string, documentation string.
     """
     pydantic_model_list = create_dynamic_models_from_dictionaries(dictionaries)
-    documentation = generate_text_documentation(
+    documentation = generate_markdown_documentation(
         copy(pydantic_model_list), model_prefix, fields_prefix, documentation_with_field_description=documentation_with_field_description
     )
     grammar = generate_gbnf_grammar_from_pydantic_models(pydantic_model_list, outer_object_name, outer_object_content, list_of_outputs)
@@ -1007,10 +1098,10 @@ def create_dynamic_model_from_function(func: Callable):
     Creates a dynamic Pydantic model from a given function's type hints and adds the function as a 'run' method.
 
     Args:
-    func (Callable): A function with type hints from which to create the model.
+        func (Callable): A function with type hints from which to create the model.
 
     Returns:
-    A dynamic Pydantic model class with the provided function as a 'run' method.
+        A dynamic Pydantic model class with the provided function as a 'run' method.
     """
     # Extracting type hints from the provided function
     type_hints = get_type_hints(func)
@@ -1049,11 +1140,11 @@ def add_run_method_to_dynamic_model(model: Type[BaseModel], func: Callable):
     Add a 'run' method to a dynamic Pydantic model, using the provided function.
 
     Args:
-    - model (Type[BaseModel]): Dynamic Pydantic model class.
-    - func (Callable): Function to be added as a 'run' method to the model.
+        model (Type[BaseModel]): Dynamic Pydantic model class.
+        func (Callable): Function to be added as a 'run' method to the model.
 
     Returns:
-    - Type[BaseModel]: Pydantic model class with the added 'run' method.
+        Type[BaseModel]: Pydantic model class with the added 'run' method.
     """
 
     def run_method_wrapper(self):
@@ -1071,10 +1162,10 @@ def create_dynamic_models_from_dictionaries(dictionaries: List[dict]):
     Create a list of dynamic Pydantic model classes from a list of dictionaries.
 
     Args:
-    - dictionaries (List[dict]): List of dictionaries representing model structures.
+        dictionaries (List[dict]): List of dictionaries representing model structures.
 
     Returns:
-    - List[Type[BaseModel]]: List of generated dynamic Pydantic model classes.
+        List[Type[BaseModel]]: List of generated dynamic Pydantic model classes.
     """
     dynamic_models = []
     for func in dictionaries:
@@ -1116,11 +1207,11 @@ def convert_dictionary_to_pydantic_model(dictionary: dict, model_name: str = "Cu
     Convert a dictionary to a Pydantic model class.
 
     Args:
-    - dictionary (dict): Dictionary representing the model structure.
-    - model_name (str): Name of the generated Pydantic model.
+        dictionary (dict): Dictionary representing the model structure.
+        model_name (str): Name of the generated Pydantic model.
 
     Returns:
-    - Type[BaseModel]: Generated Pydantic model class.
+        Type[BaseModel]: Generated Pydantic model class.
     """
     fields = {}
 
