@@ -526,7 +526,7 @@ class Agent(object):
                 )
 
             self._append_to_messages(all_new_messages)
-            return all_new_messages, heartbeat_request, function_failed, active_memory_warning, current_total_tokens
+            return all_new_messages, heartbeat_request, function_failed, active_memory_warning, response['usage']['completion_tokens']
 
         except Exception as e:
             printd(f"step() failed\nuser_message = {user_message}\nerror = {e}")
