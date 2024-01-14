@@ -11,13 +11,17 @@ client = MemGPT()
 
 def send_message(message: str, agent_id, turn: int, fn_type: str, print_msg: bool = False):
     try:
-        print(f"\t-> Now running {fn_type}. Progress: {turn}/{TRIES}", end="\r", flush=True)
+        print_msg = f"\t-> Now running {fn_type}. Progress: {turn}/{TRIES}"
+        print(print_msg, end="\r", flush=True)
         response, tokens_accumulated = client.user_message(agent_id=agent_id, message=message)
 
+        if turn + 1 == TRIES:
+            print("  " * len(print_msg), end='\r', flush=True)
+            
         for r in response:
             if "function_call" in r and fn_type in r['function_call'] and any("assistant_message" in re for re in response):
                 return True, r['function_call'], tokens_accumulated
-            
+        
         return False, "No function called.", tokens_accumulated
     except LLMJSONParsingError as e:
         print(f"Error in parsing MemGPT JSON: {e}")
