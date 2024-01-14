@@ -88,7 +88,8 @@ class Client(object):
             if throw_if_exists:
                 self.server.delete_agent(user_id=self.user_id, agent_id=agent_name)
                 agent_state = self.server.create_agent(user_id=self.user_id, agent_config=agent_config)
-            raise ValueError(f"Agent {agent_name} already exists")
+                return agent_state
+            # raise ValueError(f"Agent {agent_name} already exists")
 
     def get_agent_config(self, agent_id: str) -> Dict:
         self.interface.clear()
