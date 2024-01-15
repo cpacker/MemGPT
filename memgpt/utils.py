@@ -13,7 +13,8 @@ import io
 from typing import List
 import inspect
 from functools import wraps
-from typing import get_type_hints
+from typing import get_type_hints, Union, _GenericAlias
+
 
 from urllib.parse import urlparse
 from contextlib import contextmanager
@@ -464,6 +465,13 @@ NOUN_BANK = [
 ]
 
 
+def is_optional_type(hint):
+    """Check if the type hint is an Optional type."""
+    if isinstance(hint, _GenericAlias):
+        return hint.__origin__ is Union and type(None) in hint.__args__
+    return False
+
+
 def enforce_types(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -473,17 +481,20 @@ def enforce_types(func):
         # Get the function's argument names
         arg_names = inspect.getfullargspec(func).args
 
-        # Check types of positional arguments, skipping 'self' and 'cls' for class methods
-        for arg, (arg_name, hint) in zip(args, zip(arg_names, hints.values())):
-            if arg_name in ["self", "cls"]:
-                continue
-            if hint and not isinstance(arg, hint):
+        # Pair each argument with its corresponding type hint
+        args_with_hints = dict(zip(arg_names[1:], args[1:]))  # Skipping 'self'
+
+        # Check types of arguments
+        for arg_name, arg_value in args_with_hints.items():
+            hint = hints.get(arg_name)
+            if hint and not isinstance(arg_value, hint) and not (is_optional_type(hint) and arg_value is None):
                 raise ValueError(f"Argument {arg_name} does not match type {hint}")
 
         # Check types of keyword arguments
         for arg_name, arg_value in kwargs.items():
-            if arg_name in hints and not isinstance(arg_value, hints[arg_name]):
-                raise ValueError(f"Argument {arg_name} does not match type {hints[arg_name]}")
+            hint = hints.get(arg_name)
+            if hint and not isinstance(arg_value, hint) and not (is_optional_type(hint) and arg_value is None):
+                raise ValueError(f"Argument {arg_name} does not match type {hint}")
 
         return func(*args, **kwargs)
 
