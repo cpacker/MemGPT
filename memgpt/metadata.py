@@ -311,7 +311,7 @@ class MetadataStore:
 
     @enforce_types
     def get_agent(
-        self, agent_id: Optional[uuid.UUID] = None, agent_name: str = None, user_id: Optional[uuid.UUID] = None
+        self, agent_id: Optional[uuid.UUID] = None, agent_name: Optional[str] = None, user_id: Optional[uuid.UUID] = None
     ) -> Optional[AgentState]:
         if agent_id:
             results = self.session.query(AgentModel).filter(AgentModel.id == agent_id).all()
@@ -334,7 +334,7 @@ class MetadataStore:
 
     @enforce_types
     def get_source(
-        self, source_id: Optional[uuid.UUID] = None, user_id: Optional[uuid.UUID] = None, source_name: str = None
+        self, source_id: Optional[uuid.UUID] = None, user_id: Optional[uuid.UUID] = None, source_name: Optional[str] = None
     ) -> Optional[Source]:
         if source_id:
             results = self.session.query(SourceModel).filter(SourceModel.id == source_id).all()
