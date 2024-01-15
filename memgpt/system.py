@@ -109,6 +109,17 @@ def package_function_response(was_success, response_string, timestamp=None):
     return json.dumps(packaged_message, ensure_ascii=JSON_ENSURE_ASCII)
 
 
+def package_system_message(system_message, message_type="system_alert", time=None):
+    formatted_time = time if time else get_local_time()
+    packaged_message = {
+        "type": message_type,
+        "message": system_message,
+        "time": formatted_time,
+    }
+
+    return json.dumps(packaged_message)
+
+
 def package_summarize_message(summary, summary_length, hidden_message_count, total_message_count, timestamp=None):
     context_message = (
         f"Note: prior messages ({hidden_message_count} of {total_message_count} total messages) have been hidden from view due to conversation memory constraints.\n"

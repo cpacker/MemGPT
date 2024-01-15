@@ -219,39 +219,34 @@ def server(
     type: ServerChoice = typer.Option("rest", help="Server to run"),
     port: int = typer.Option(None, help="Port to run the server on"),
     host: str = typer.Option(None, help="Host to run the server on (default to localhost)"),
+    debug: bool = typer.Option(True, help="Turn debugging output on"),
 ):
     """Launch a MemGPT server process"""
 
+    if debug:
+        from memgpt.server.server import logger as server_logger
+
+        # Set the logging level
+        server_logger.setLevel(logging.DEBUG)
+        # Create a StreamHandler
+        stream_handler = logging.StreamHandler()
+        # Set the formatter (optional)
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        stream_handler.setFormatter(formatter)
+        # Add the handler to the logger
+        server_logger.addHandler(stream_handler)
+
     if type == ServerChoice.rest_api:
-        if port is None:
-            port = REST_DEFAULT_PORT
-
-        # Change to the desired directory
-        script_path = Path(__file__).resolve()
-        script_dir = script_path.parent
-
-        server_directory = os.path.join(script_dir.parent, "server", "rest_api")
-        if host is None:
-            command = f"uvicorn server:app --reload --port {port}"
-        else:
-            command = f"uvicorn server:app --reload --port {port} --host {host}"
-
-        # Run the command
-        print(f"Running REST server: {command} (inside {server_directory})")
+        import uvicorn
+        from memgpt.server.rest_api.server import app
 
         try:
             # Start the subprocess in a new session
-            process = subprocess.Popen(command, shell=True, start_new_session=True, cwd=server_directory)
-            process.wait()
+            uvicorn.run(app, host=host or "localhost", port=port or REST_DEFAULT_PORT)
+
         except KeyboardInterrupt:
             # Handle CTRL-C
             print("Terminating the server...")
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                print("Server terminated with kill()")
             sys.exit(0)
 
     elif type == ServerChoice.ws_api:
@@ -416,7 +411,6 @@ def run(
         config.debug = debug
     if no_verify:
         config.no_verify = no_verify
-
     # determine agent to use, if not provided
     if not yes and not agent:
         agents = ms.list_agents(user_id=user.id)

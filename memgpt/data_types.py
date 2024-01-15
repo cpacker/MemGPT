@@ -15,7 +15,7 @@ class Record:
     Memory units are searched over by functions defined in the memory classes
     """
 
-    def __init__(self, id: Optional[str] = None):
+    def __init__(self, id: Optional[uuid.UUID] = None):
         if id is None:
             self.id = uuid.uuid4()
         else:
@@ -49,8 +49,8 @@ class Message(Record):
 
     def __init__(
         self,
-        user_id: str,
-        agent_id: str,
+        user_id: uuid.UUID,
+        agent_id: uuid.UUID,
         role: str,
         text: str,
         model: str,  # model used to make function call
@@ -59,7 +59,7 @@ class Message(Record):
         tool_calls: Optional[List[ToolCall]] = None,  # list of tool calls requested
         tool_call_id: Optional[str] = None,
         embedding: Optional[np.ndarray] = None,
-        id: Optional[str] = None,
+        id: Optional[uuid.UUID] = None,
     ):
         super().__init__(id)
         self.user_id = user_id
@@ -112,13 +112,13 @@ class Passage(Record):
 
     def __init__(
         self,
-        user_id: str,
+        user_id: uuid.UUID,
         text: str,
-        agent_id: Optional[str] = None,  # set if contained in agent memory
+        agent_id: Optional[uuid.UUID] = None,  # set if contained in agent memory
         embedding: Optional[np.ndarray] = None,
         data_source: Optional[str] = None,  # None if created by agent
-        doc_id: Optional[str] = None,
-        id: Optional[str] = None,
+        doc_id: Optional[uuid.UUID] = None,
+        id: Optional[uuid.UUID] = None,
         metadata: Optional[dict] = {},
     ):
         super().__init__(id)
@@ -129,6 +129,10 @@ class Passage(Record):
         self.embedding = embedding
         self.doc_id = doc_id
         self.metadata = metadata
+
+        assert isinstance(self.user_id, uuid.UUID), f"UUID {self.user_id} must be a UUID type"
+        assert not agent_id or isinstance(self.agent_id, uuid.UUID), f"UUID {self.agent_id} must be a UUID type"
+        assert not doc_id or isinstance(self.doc_id, uuid.UUID), f"UUID {self.doc_id} must be a UUID type"
 
     # def __repr__(self):
     #    pass
@@ -254,6 +258,7 @@ class User:
             self.id = uuid.uuid4()
         else:
             self.id = id
+        assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
 
         self.default_preset = default_preset
         self.default_persona = default_persona
@@ -344,7 +349,7 @@ class AgentState:
     def __init__(
         self,
         name: str,
-        user_id: str,
+        user_id: uuid.UUID,
         persona: str,  # the filename where the persona was originally sourced from
         human: str,  # the filename where the human was originally sourced from
         llm_config: LLMConfig,
@@ -364,6 +369,8 @@ class AgentState:
             self.id = uuid.uuid4()
         else:
             self.id = id
+        assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
+        assert isinstance(user_id, uuid.UUID), f"UUID {user_id} must be a UUID type"
 
         # TODO(swooders) we need to handle the case where name is None here
         # in AgentConfig we autogenerate a name, not sure what the correct thing w/ DBs is, what about NounAdjective combos? Like giphy does? BoredGiraffe etc
@@ -415,7 +422,7 @@ class AgentState:
 class Source:
     def __init__(
         self,
-        user_id: str,
+        user_id: uuid.UUID,
         name: str,
         created_at: Optional[str] = None,
         id: Optional[uuid.UUID] = None,
@@ -424,6 +431,8 @@ class Source:
             self.id = uuid.uuid4()
         else:
             self.id = id
+        assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
+        assert isinstance(user_id, uuid.UUID), f"UUID {user_id} must be a UUID type"
 
         self.name = name
         self.user_id = user_id
