@@ -171,8 +171,8 @@ class SyncServer(LockingServer):
 
         # Create the default user
         base_user_id = uuid.UUID(self.config.anon_clientid)
-        base_user = User(id=base_user_id)
         if not self.ms.get_user(user_id=base_user_id):
+            base_user = User(id=base_user_id)
             self.ms.create_user(base_user)
 
     def save_agents(self):
@@ -478,7 +478,6 @@ class SyncServer(LockingServer):
         user_id = uuid.UUID(self.config.anon_clientid)
 
         logger.debug(f"Attempting to find user: {user_id}")
-        user = User(id=user_id)
         user = self.ms.get_user(user_id=user_id)
         if not user:
             raise ValueError(f"cannot find user with associated client id: {user_id}")
