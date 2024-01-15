@@ -467,10 +467,10 @@ NOUN_BANK = [
 def enforce_types(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        # Get type hints
-        hints = get_type_hints(func)
+        # Get type hints, excluding the return type hint
+        hints = {k: v for k, v in get_type_hints(func).items() if k != "return"}
 
-        # Get the function's arguments names
+        # Get the function's argument names
         arg_names = inspect.getfullargspec(func).args
 
         # Check types of positional arguments, skipping 'self' and 'cls' for class methods
