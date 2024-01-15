@@ -2,6 +2,7 @@ import json
 
 from .wrapper_base import LLMChatCompletionWrapper
 from ..json_parser import clean_json
+from ...constants import JSON_ENSURE_ASCII
 from ...errors import LLMJSONParsingError
 
 
@@ -125,7 +126,7 @@ class Dolphin21MistralWrapper(LLMChatCompletionWrapper):
                 "function": function_call["name"],
                 "params": json.loads(function_call["arguments"]),
             }
-            return json.dumps(airo_func_call, indent=2)
+            return json.dumps(airo_func_call, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
 
         # option (1): from HF README:
         # <|im_start|>user
@@ -237,7 +238,7 @@ class Dolphin21MistralWrapper(LLMChatCompletionWrapper):
             "content": None,
             "function_call": {
                 "name": function_name,
-                "arguments": json.dumps(function_parameters),
+                "arguments": json.dumps(function_parameters, ensure_ascii=JSON_ENSURE_ASCII),
             },
         }
         return message

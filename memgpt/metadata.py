@@ -223,97 +223,87 @@ class MetadataStore:
         Base.metadata.create_all(
             self.engine, tables=[UserModel.__table__, AgentModel.__table__, SourceModel.__table__, AgentSourceMappingModel.__table__]
         )
-        self.Session = sessionmaker(bind=self.engine)
+        session_maker = sessionmaker(bind=self.engine)
+        self.session = session_maker()
 
     def create_agent(self, agent: AgentState):
         # insert into agent table
-        session = self.Session()
         # make sure agent.name does not already exist for user user_id
-        if session.query(AgentModel).filter(AgentModel.name == agent.name).filter(AgentModel.user_id == agent.user_id).count() > 0:
+        if self.session.query(AgentModel).filter(AgentModel.name == agent.name).filter(AgentModel.user_id == agent.user_id).count() > 0:
             raise ValueError(f"Agent with name {agent.name} already exists")
-        session.add(AgentModel(**vars(agent)))
-        session.commit()
+        self.session.add(AgentModel(**vars(agent)))
+        self.session.commit()
 
     def create_source(self, source: Source):
-        session = self.Session()
         # make sure source.name does not already exist for user
-        if session.query(SourceModel).filter(SourceModel.name == source.name).filter(SourceModel.user_id == source.user_id).count() > 0:
+        if (
+            self.session.query(SourceModel).filter(SourceModel.name == source.name).filter(SourceModel.user_id == source.user_id).count()
+            > 0
+        ):
             raise ValueError(f"Source with name {source.name} already exists")
-        session.add(SourceModel(**vars(source)))
-        session.commit()
+        self.session.add(SourceModel(**vars(source)))
+        self.session.commit()
 
     def create_user(self, user: User):
-        session = self.Session()
-        if session.query(UserModel).filter(UserModel.id == user.id).count() > 0:
+        if self.session.query(UserModel).filter(UserModel.id == user.id).count() > 0:
             raise ValueError(f"User with id {user.id} already exists")
-        session.add(UserModel(**vars(user)))
-        session.commit()
+        self.session.add(UserModel(**vars(user)))
+        self.session.commit()
 
     def update_agent(self, agent: AgentState):
-        session = self.Session()
-        session.query(AgentModel).filter(AgentModel.id == agent.id).update(vars(agent))
-        session.commit()
+        self.session.query(AgentModel).filter(AgentModel.id == agent.id).update(vars(agent))
+        self.session.commit()
 
     def update_user(self, user: User):
-        session = self.Session()
-        session.query(UserModel).filter(UserModel.id == user.id).update(vars(user))
-        session.commit()
+        self.session.query(UserModel).filter(UserModel.id == user.id).update(vars(user))
+        self.session.commit()
 
     def update_source(self, source: Source):
-        session = self.Session()
-        session.query(SourceModel).filter(SourceModel.id == source.id).update(vars(source))
-        session.commit()
+        self.session.query(SourceModel).filter(SourceModel.id == source.id).update(vars(source))
+        self.session.commit()
 
     def delete_agent(self, agent_id: str):
-        session = self.Session()
-        session.query(AgentModel).filter(AgentModel.id == agent_id).delete()
-        session.commit()
+        self.session.query(AgentModel).filter(AgentModel.id == agent_id).delete()
+        self.session.commit()
 
     def delete_source(self, source_id: str):
-        session = self.Session()
-
         # delete from sources table
-        session.query(SourceModel).filter(SourceModel.id == source_id).delete()
+        self.session.query(SourceModel).filter(SourceModel.id == source_id).delete()
 
         # delete any mappings
-        session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).delete()
+        self.session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).delete()
 
-        session.commit()
+        self.session.commit()
 
     def delete_user(self, user_id: str):
-        session = self.Session()
-
         # delete from users table
-        session.query(UserModel).filter(UserModel.id == user_id).delete()
+        self.session.query(UserModel).filter(UserModel.id == user_id).delete()
 
         # delete associated agents
-        session.query(AgentModel).filter(AgentModel.user_id == user_id).delete()
+        self.session.query(AgentModel).filter(AgentModel.user_id == user_id).delete()
 
         # delete associated sources
-        session.query(SourceModel).filter(SourceModel.user_id == user_id).delete()
+        self.session.query(SourceModel).filter(SourceModel.user_id == user_id).delete()
 
         # delete associated mappings
-        session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.user_id == user_id).delete()
+        self.session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.user_id == user_id).delete()
 
-        session.commit()
+        self.session.commit()
 
     def list_agents(self, user_id: str) -> List[AgentState]:
-        session = self.Session()
-        results = session.query(AgentModel).filter(AgentModel.user_id == user_id).all()
+        results = self.session.query(AgentModel).filter(AgentModel.user_id == user_id).all()
         return [r.to_record() for r in results]
 
     def list_sources(self, user_id: str) -> List[Source]:
-        session = self.Session()
-        results = session.query(SourceModel).filter(SourceModel.user_id == user_id).all()
+        results = self.session.query(SourceModel).filter(SourceModel.user_id == user_id).all()
         return [r.to_record() for r in results]
 
     def get_agent(self, agent_id: str = None, agent_name: str = None, user_id: str = None) -> Optional[AgentState]:
-        session = self.Session()
         if agent_id:
-            results = session.query(AgentModel).filter(AgentModel.id == agent_id).all()
+            results = self.session.query(AgentModel).filter(AgentModel.id == agent_id).all()
         else:
             assert agent_name is not None and user_id is not None, "Must provide either agent_id or agent_name"
-            results = session.query(AgentModel).filter(AgentModel.name == agent_name).filter(AgentModel.user_id == user_id).all()
+            results = self.session.query(AgentModel).filter(AgentModel.name == agent_name).filter(AgentModel.user_id == user_id).all()
 
         if len(results) == 0:
             return None
@@ -321,20 +311,18 @@ class MetadataStore:
         return results[0].to_record()
 
     def get_user(self, user_id: str) -> Optional[User]:
-        session = self.Session()
-        results = session.query(UserModel).filter(UserModel.id == user_id).all()
+        results = self.session.query(UserModel).filter(UserModel.id == user_id).all()
         if len(results) == 0:
             return None
         assert len(results) == 1, f"Expected 1 result, got {len(results)}"
         return results[0].to_record()
 
     def get_source(self, source_id: str = None, user_id: str = None, source_name: str = None) -> Optional[Source]:
-        session = self.Session()
         if source_id:
-            results = session.query(SourceModel).filter(SourceModel.id == source_id).all()
+            results = self.session.query(SourceModel).filter(SourceModel.id == source_id).all()
         else:
             assert user_id is not None and source_name is not None
-            results = session.query(SourceModel).filter(SourceModel.name == source_name).filter(SourceModel.user_id == user_id).all()
+            results = self.session.query(SourceModel).filter(SourceModel.name == source_name).filter(SourceModel.user_id == user_id).all()
         if len(results) == 0:
             return None
         assert len(results) == 1, f"Expected 1 result, got {len(results)}"
@@ -342,23 +330,19 @@ class MetadataStore:
 
     # agent source metadata
     def attach_source(self, user_id: str, agent_id: str, source_id: str):
-        session = self.Session()
-        session.add(AgentSourceMappingModel(user_id=user_id, agent_id=agent_id, source_id=source_id))
-        session.commit()
+        self.session.add(AgentSourceMappingModel(user_id=user_id, agent_id=agent_id, source_id=source_id))
+        self.session.commit()
 
     def list_attached_sources(self, agent_id: str) -> List[Column]:
-        session = self.Session()
-        results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
+        results = self.session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
         return [r.source_id for r in results]
 
     def list_attached_agents(self, source_id):
-        session = self.Session()
-        results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).all()
+        results = self.session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).all()
         return [r.agent_id for r in results]
 
     def detach_source(self, agent_id: str, source_id: str):
-        session = self.Session()
-        session.query(AgentSourceMappingModel).filter(
+        self.session.query(AgentSourceMappingModel).filter(
             AgentSourceMappingModel.agent_id == agent_id, AgentSourceMappingModel.source_id == source_id
         ).delete()
-        session.commit()
+        self.session.commit()

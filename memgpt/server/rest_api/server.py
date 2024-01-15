@@ -5,6 +5,7 @@ from fastapi import FastAPI
 
 from starlette.middleware.cors import CORSMiddleware
 
+from memgpt.constants import JSON_ENSURE_ASCII
 from memgpt.server.rest_api.agents.index import setup_agents_index_router
 from memgpt.server.rest_api.agents.command import setup_agents_command_router
 from memgpt.server.rest_api.agents.config import setup_agents_config_router
@@ -80,3 +81,4 @@ def on_shutdown():
     global server
     server.save_agents()
     server = None
+

@@ -17,13 +17,14 @@ from prettytable import PrettyTable
 
 console = Console()
 
+from memgpt.log import logger
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.config import MemGPTConfig
 import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.constants as constants
 import memgpt.errors as errors
-from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, suppress_stdout
+from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, migrate
 from memgpt.cli.cli_config import configure, list, add, delete
 from memgpt.cli.cli_load import app as load_app
 from memgpt.agent_store.storage import StorageConnector, TableType
@@ -42,6 +43,8 @@ app.command(name="folder")(open_folder)
 app.command(name="quickstart")(quickstart)
 # load data commands
 app.add_typer(load_app, name="load")
+# migration command
+app.command(name="migrate")(migrate)
 
 
 def clear_line(strip_ui=False):
@@ -200,7 +203,9 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, no_verify=False, c
                             text = user_input[len("/rewrite ") :].strip()
                             args = json.loads(memgpt_agent.messages[x].get("function_call").get("arguments"))
                             args["message"] = text
-                            memgpt_agent.messages[x].get("function_call").update({"arguments": json.dumps(args)})
+                            memgpt_agent.messages[x].get("function_call").update(
+                                {"arguments": json.dumps(args, ensure_ascii=constants.JSON_ENSURE_ASCII)}
+                            )
                             break
                     continue
 
