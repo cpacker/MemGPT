@@ -2,7 +2,7 @@
 import os
 from typing import Optional, List, Dict
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
-from memgpt.utils import get_local_time
+from memgpt.utils import get_local_time, enforce_types
 from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig
 from memgpt.config import MemGPTConfig
 
@@ -226,6 +226,7 @@ class MetadataStore:
         session_maker = sessionmaker(bind=self.engine)
         self.session = session_maker()
 
+    @enforce_types
     def create_agent(self, agent: AgentState):
         # insert into agent table
         # make sure agent.name does not already exist for user user_id
@@ -234,6 +235,7 @@ class MetadataStore:
         self.session.add(AgentModel(**vars(agent)))
         self.session.commit()
 
+    @enforce_types
     def create_source(self, source: Source):
         # make sure source.name does not already exist for user
         if (
@@ -244,29 +246,35 @@ class MetadataStore:
         self.session.add(SourceModel(**vars(source)))
         self.session.commit()
 
+    @enforce_types
     def create_user(self, user: User):
         if self.session.query(UserModel).filter(UserModel.id == user.id).count() > 0:
             raise ValueError(f"User with id {user.id} already exists")
         self.session.add(UserModel(**vars(user)))
         self.session.commit()
 
+    @enforce_types
     def update_agent(self, agent: AgentState):
         self.session.query(AgentModel).filter(AgentModel.id == agent.id).update(vars(agent))
         self.session.commit()
 
+    @enforce_types
     def update_user(self, user: User):
         self.session.query(UserModel).filter(UserModel.id == user.id).update(vars(user))
         self.session.commit()
 
+    @enforce_types
     def update_source(self, source: Source):
         self.session.query(SourceModel).filter(SourceModel.id == source.id).update(vars(source))
         self.session.commit()
 
-    def delete_agent(self, agent_id: str):
+    @enforce_types
+    def delete_agent(self, agent_id: uuid.UUID):
         self.session.query(AgentModel).filter(AgentModel.id == agent_id).delete()
         self.session.commit()
 
-    def delete_source(self, source_id: str):
+    @enforce_types
+    def delete_source(self, source_id: uuid.UUID):
         # delete from sources table
         self.session.query(SourceModel).filter(SourceModel.id == source_id).delete()
 
@@ -275,7 +283,8 @@ class MetadataStore:
 
         self.session.commit()
 
-    def delete_user(self, user_id: str):
+    @enforce_types
+    def delete_user(self, user_id: uuid.UUID):
         # delete from users table
         self.session.query(UserModel).filter(UserModel.id == user_id).delete()
 
@@ -290,15 +299,20 @@ class MetadataStore:
 
         self.session.commit()
 
-    def list_agents(self, user_id: str) -> List[AgentState]:
+    @enforce_types
+    def list_agents(self, user_id: uuid.UUID) -> List[AgentState]:
         results = self.session.query(AgentModel).filter(AgentModel.user_id == user_id).all()
         return [r.to_record() for r in results]
 
-    def list_sources(self, user_id: str) -> List[Source]:
+    @enforce_types
+    def list_sources(self, user_id: uuid.UUID) -> List[Source]:
         results = self.session.query(SourceModel).filter(SourceModel.user_id == user_id).all()
         return [r.to_record() for r in results]
 
-    def get_agent(self, agent_id: str = None, agent_name: str = None, user_id: str = None) -> Optional[AgentState]:
+    @enforce_types
+    def get_agent(
+        self, agent_id: Optional[uuid.UUID] = None, agent_name: str = None, user_id: Optional[uuid.UUID] = None
+    ) -> Optional[AgentState]:
         if agent_id:
             results = self.session.query(AgentModel).filter(AgentModel.id == agent_id).all()
         else:
@@ -310,14 +324,18 @@ class MetadataStore:
         assert len(results) == 1, f"Expected 1 result, got {len(results)}"  # should only be one result
         return results[0].to_record()
 
-    def get_user(self, user_id: str) -> Optional[User]:
+    @enforce_types
+    def get_user(self, user_id: uuid.UUID) -> Optional[User]:
         results = self.session.query(UserModel).filter(UserModel.id == user_id).all()
         if len(results) == 0:
             return None
         assert len(results) == 1, f"Expected 1 result, got {len(results)}"
         return results[0].to_record()
 
-    def get_source(self, source_id: str = None, user_id: str = None, source_name: str = None) -> Optional[Source]:
+    @enforce_types
+    def get_source(
+        self, source_id: Optional[uuid.UUID] = None, user_id: Optional[uuid.UUID] = None, source_name: str = None
+    ) -> Optional[Source]:
         if source_id:
             results = self.session.query(SourceModel).filter(SourceModel.id == source_id).all()
         else:
@@ -329,19 +347,23 @@ class MetadataStore:
         return results[0].to_record()
 
     # agent source metadata
-    def attach_source(self, user_id: str, agent_id: str, source_id: str):
+    @enforce_types
+    def attach_source(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_id: uuid.UUID):
         self.session.add(AgentSourceMappingModel(user_id=user_id, agent_id=agent_id, source_id=source_id))
         self.session.commit()
 
-    def list_attached_sources(self, agent_id: str) -> List[Column]:
+    @enforce_types
+    def list_attached_sources(self, agent_id: uuid.UUID) -> List[Column]:
         results = self.session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
         return [r.source_id for r in results]
 
-    def list_attached_agents(self, source_id):
+    @enforce_types
+    def list_attached_agents(self, source_id: uuid.UUID):
         results = self.session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).all()
         return [r.agent_id for r in results]
 
-    def detach_source(self, agent_id: str, source_id: str):
+    @enforce_types
+    def detach_source(self, agent_id: uuid.UUID, source_id: uuid.UUID):
         self.session.query(AgentSourceMappingModel).filter(
             AgentSourceMappingModel.agent_id == agent_id, AgentSourceMappingModel.source_id == source_id
         ).delete()
