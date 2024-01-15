@@ -106,7 +106,14 @@ class ToolCallColumn(TypeDecorator):
 Base = declarative_base()
 
 
-def get_db_model(config: MemGPTConfig, table_name: str, table_type: TableType, user_id, agent_id=None, dialect="postgresql"):
+def get_db_model(
+    config: MemGPTConfig,
+    table_name: str,
+    table_type: TableType,
+    user_id: uuid.UUID,
+    agent_id: Optional[uuid.UUID] = None,
+    dialect="postgresql",
+):
     # get embedding dimention info
     ms = MetadataStore(config)
     if agent_id and ms.get_agent(agent_id):
