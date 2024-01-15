@@ -1,0 +1,29 @@
+[defaults]
+preset = memgpt_chat
+persona = sam_pov
+human = basic
+
+[model]
+model = gpt-4
+model_endpoint = https://api.openai.com/v1
+model_endpoint_type = openai
+context_window = 8192
+
+[openai]
+key = FAKE_KEY
+
+[embedding]
+embedding_endpoint_type = openai
+embedding_endpoint = https://api.openai.com/v1
+embedding_dim = 1536
+embedding_chunk_size = 300
+
+[archival_storage]
+type = local
+
+[version]
+memgpt_version = 0.2.11
+
+[client]
+anon_clientid = 00000000000000000000d67f40108c5c
+

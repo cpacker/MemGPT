@@ -15,18 +15,26 @@ from enum import Enum
 from llama_index import set_global_service_context
 from llama_index import ServiceContext
 
+from memgpt.log import logger
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.cli.cli_config import configure
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
 from memgpt.utils import printd, open_folder_in_explorer, suppress_stdout
 from memgpt.config import MemGPTConfig
-from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
+from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
 from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
 from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig, User
 from memgpt.metadata import MetadataStore
+from memgpt.migrate import migrate_all_agents, migrate_all_sources
+
+
+def migrate():
+    """Migrate old agents (pre 0.2.12) to the new database system"""
+    migrate_all_agents()
+    migrate_all_sources()
 
 
 class QuickstartChoice(Enum):
@@ -287,10 +295,44 @@ def run(
     """
 
     # setup logger
+    # TODO: remove Utils Debug after global logging is complete.
     utils.DEBUG = debug
-    logging.getLogger().setLevel(logging.CRITICAL)
+    # TODO: add logging command line options for runtime log level
+
     if debug:
-        logging.getLogger().setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.CRITICAL)
+
+    from memgpt.migrate import config_is_compatible, wipe_config_and_reconfigure, VERSION_CUTOFF
+
+    if not config_is_compatible(allow_empty=True):
+        typer.secho(f"\nYour current config file is incompatible with MemGPT versions later than {VERSION_CUTOFF}\n", fg=typer.colors.RED)
+        choices = [
+            "Run the full config setup (recommended)",
+            "Create a new config using defaults",
+            "Cancel",
+        ]
+        selection = questionary.select(
+            f"To use MemGPT, you must either downgrade your MemGPT version (<= {VERSION_CUTOFF}), or regenerate your config. Would you like to proceed?",
+            choices=choices,
+            default=choices[0],
+        ).ask()
+        if selection == choices[0]:
+            try:
+                wipe_config_and_reconfigure()
+            except Exception as e:
+                typer.secho(f"Fresh config generation failed - error:\n{e}", fg=typer.colors.RED)
+                raise
+        elif selection == choices[1]:
+            try:
+                wipe_config_and_reconfigure(run_configure=False)
+            except Exception as e:
+                typer.secho(f"Fresh config generation failed - error:\n{e}", fg=typer.colors.RED)
+                raise
+        else:
+            typer.secho("Migration cancelled (to migrate old agents, run `memgpt migrate`)", fg=typer.colors.RED)
+            raise KeyboardInterrupt()
 
     if not MemGPTConfig.exists():
         # if no config, ask about quickstart
@@ -363,6 +405,8 @@ def run(
         if len(agents) > 0 and not any([persona, human, model]):
             print()
             select_agent = questionary.confirm("Would you like to select an existing agent?").ask()
+            if select_agent is None:
+                raise KeyboardInterrupt
             if select_agent:
                 agent = questionary.select("Select agent:", choices=agents).ask()
 
@@ -482,8 +526,8 @@ def run(
         typer.secho(f"🎉 Created new agent '{agent_state.name}'", fg=typer.colors.GREEN)
 
     # pretty print agent config
-    # printd(json.dumps(vars(agent_config), indent=4, sort_keys=True))
-    # printd(json.dumps(agent_init_state), indent=4, sort_keys=True))
+    # printd(json.dumps(vars(agent_config), indent=4, sort_keys=True, ensure_ascii=JSON_ENSURE_ASCII))
+    # printd(json.dumps(agent_init_state), indent=4, sort_keys=True, ensure_ascii=JSON_ENSURE_ASCII))
 
     # configure llama index
     original_stdout = sys.stdout  # unfortunate hack required to suppress confusing print statements from llama index

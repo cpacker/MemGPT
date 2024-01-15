@@ -7,11 +7,10 @@ from memgpt.utils import is_valid_url
 from memgpt.data_types import EmbeddingConfig
 
 from llama_index.embeddings import OpenAIEmbedding, AzureOpenAIEmbedding
-from llama_index.embeddings import TextEmbeddingsInference
 from llama_index.bridge.pydantic import PrivateAttr
-
 from llama_index.embeddings.base import BaseEmbedding
-from llama_index.embeddings.huggingface_utils import format_query, format_text
+from llama_index.embeddings.huggingface_utils import format_text
+import tiktoken
 
 
 class EmbeddingEndpoint(BaseEmbedding):
@@ -38,6 +37,7 @@ class EmbeddingEndpoint(BaseEmbedding):
         self._user = user
         self._base_url = base_url
         self._timeout = timeout
+        self._encoding = tiktoken.get_encoding(model)
         super().__init__(
             model_name=model,
         )
@@ -46,12 +46,22 @@ class EmbeddingEndpoint(BaseEmbedding):
     def class_name(cls) -> str:
         return "EmbeddingEndpoint"
 
+    def count_tokens(self, text: str) -> int:
+        """Count tokens using the embedding model's tokenizer"""
+        return len(self._encoding.encode(text))
+
     def _call_api(self, text: str) -> List[float]:
         if not is_valid_url(self._base_url):
             raise ValueError(
                 f"Embeddings endpoint does not have a valid URL (set to: '{self._base_url}'). Make sure embedding_endpoint is set correctly in your MemGPT config."
             )
         import httpx
+
+        # If necessary, truncate text to fit in the embedding model's max sequence length (usually 512)
+        num_tokens = self.count_tokens(text)
+        max_length = self._encoding.max_length
+        if num_tokens > max_length:
+            text = format_text(text, self.model_name, max_length=max_length)
 
         headers = {"Content-Type": "application/json"}
         json_data = {"input": text, "model": self.model_name, "user": self._user}
@@ -136,6 +146,16 @@ class EmbeddingEndpoint(BaseEmbedding):
         return self._get_text_embedding(text)
 
 
+def default_embedding_model():
+    # default to hugging face model running local
+    # warning: this is a terrible model
+    from llama_index.embeddings import HuggingFaceEmbedding
+
+    os.environ["TOKENIZERS_PARALLELISM"] = "False"
+    model = "BAAI/bge-small-en-v1.5"
+    return HuggingFaceEmbedding(model_name=model)
+
+
 def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None):
     """Return LlamaIndex embedding model to use for embeddings"""
 
@@ -157,13 +177,10 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
             api_version=config.azure_version,
         )
     elif endpoint_type == "hugging-face":
-        embed_model = EmbeddingEndpoint(model=config.embedding_model, base_url=config.embedding_endpoint, user=user_id)
+        try:
+            embed_model = EmbeddingEndpoint(model=config.embedding_model, base_url=config.embedding_endpoint, user=user_id)
+        except:
+            embed_model = default_embedding_model()
         return embed_model
     else:
-        # default to hugging face model running local
-        # warning: this is a terrible model
-        from llama_index.embeddings import HuggingFaceEmbedding
-
-        os.environ["TOKENIZERS_PARALLELISM"] = "False"
-        model = "BAAI/bge-small-en-v1.5"
-        return HuggingFaceEmbedding(model_name=model)
+        return default_embedding_model()

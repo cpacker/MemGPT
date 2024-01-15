@@ -254,12 +254,11 @@ class SQLStorageConnector(StorageConnector):
         return all_filters
 
     def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000) -> Iterator[List[Record]]:
-        session = self.Session()
         offset = 0
         filters = self.get_filters(filters)
         while True:
             # Retrieve a chunk of records with the given page_size
-            db_record_chunk = session.query(self.db_model).filter(*filters).offset(offset).limit(page_size).all()
+            db_record_chunk = self.session.query(self.db_model).filter(*filters).offset(offset).limit(page_size).all()
 
             # If the chunk is empty, we've retrieved all records
             if not db_record_chunk:
@@ -272,40 +271,35 @@ class SQLStorageConnector(StorageConnector):
             offset += page_size
 
     def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[Record]:
-        session = self.Session()
         filters = self.get_filters(filters)
         if limit:
-            db_records = session.query(self.db_model).filter(*filters).limit(limit).all()
+            db_records = self.session.query(self.db_model).filter(*filters).limit(limit).all()
         else:
-            db_records = session.query(self.db_model).filter(*filters).all()
+            db_records = self.session.query(self.db_model).filter(*filters).all()
         return [record.to_record() for record in db_records]
 
     def get(self, id: str) -> Optional[Record]:
-        session = self.Session()
-        db_record = session.query(self.db_model).get(id)
+        db_record = self.session.query(self.db_model).get(id)
         if db_record is None:
             return None
         return db_record.to_record()
 
     def size(self, filters: Optional[Dict] = {}) -> int:
         # return size of table
-        session = self.Session()
         filters = self.get_filters(filters)
-        return session.query(self.db_model).filter(*filters).count()
+        return self.session.query(self.db_model).filter(*filters).count()
 
     def insert(self, record: Record):
-        session = self.Session()
         db_record = self.db_model(**vars(record))
-        session.add(db_record)
-        session.commit()
+        self.session.add(db_record)
+        self.session.commit()
 
     def insert_many(self, records: List[Record], show_progress=False):
-        session = self.Session()
         iterable = tqdm(records) if show_progress else records
         for record in iterable:
             db_record = self.db_model(**vars(record))
-            session.add(db_record)
-        session.commit()
+            self.session.add(db_record)
+        self.session.commit()
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
         raise NotImplementedError("Vector query not implemented for SQLStorageConnector")
@@ -315,15 +309,13 @@ class SQLStorageConnector(StorageConnector):
 
     def list_data_sources(self):
         assert self.table_type == TableType.ARCHIVAL_MEMORY, f"list_data_sources only implemented for ARCHIVAL_MEMORY"
-        session = self.Session()
-        unique_data_sources = session.query(self.db_model.data_source).filter(*self.filters).distinct().all()
+        unique_data_sources = self.session.query(self.db_model.data_source).filter(*self.filters).distinct().all()
         return unique_data_sources
 
     def query_date(self, start_date, end_date, offset=0, limit=None):
-        session = self.Session()
         filters = self.get_filters({})
         query = (
-            session.query(self.db_model)
+            self.session.query(self.db_model)
             .filter(*filters)
             .filter(self.db_model.created_at >= start_date)
             .filter(self.db_model.created_at <= end_date)
@@ -336,10 +328,12 @@ class SQLStorageConnector(StorageConnector):
 
     def query_text(self, query, offset=0, limit=None):
         # todo: make fuzz https://stackoverflow.com/questions/42388956/create-a-full-text-search-index-with-sqlalchemy-on-postgresql/42390204#42390204
-        session = self.Session()
         filters = self.get_filters({})
         query = (
-            session.query(self.db_model).filter(*filters).filter(func.lower(self.db_model.text).contains(func.lower(query))).offset(offset)
+            self.session.query(self.db_model)
+            .filter(*filters)
+            .filter(func.lower(self.db_model.text).contains(func.lower(query)))
+            .offset(offset)
         )
         if limit:
             query = query.limit(limit)
@@ -348,16 +342,14 @@ class SQLStorageConnector(StorageConnector):
         return [result.to_record() for result in results]
 
     def delete_table(self):
-        session = self.Session()
         close_all_sessions()
-        self.db_model.__table__.drop(session.bind)
-        session.commit()
+        self.db_model.__table__.drop(self.session.bind)
+        self.session.commit()
 
     def delete(self, filters: Optional[Dict] = {}):
-        session = self.Session()
         filters = self.get_filters(filters)
-        session.query(self.db_model).filter(*filters).delete()
-        session.commit()
+        self.session.query(self.db_model).filter(*filters).delete()
+        self.session.commit()
 
 
 class PostgresStorageConnector(SQLStorageConnector):
@@ -393,13 +385,13 @@ class PostgresStorageConnector(SQLStorageConnector):
                 assert isinstance(c.type, Vector), f"Embedding column must be of type Vector, got {c.type}"
         Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
 
-        self.Session = sessionmaker(bind=self.engine)
-        self.Session().execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
+        session_maker = sessionmaker(bind=self.engine)
+        self.session = session_maker()
+        self.session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
-        session = self.Session()
         filters = self.get_filters(filters)
-        results = session.scalars(
+        results = self.session.scalars(
             select(self.db_model).filter(*filters).order_by(self.db_model.embedding.l2_distance(query_vec)).limit(top_k)
         ).all()
 
@@ -429,7 +421,8 @@ class SQLLiteStorageConnector(SQLStorageConnector):
         self.db_model = get_db_model(config, self.table_name, table_type, user_id, agent_id, dialect="sqlite")
         self.engine = create_engine(f"sqlite:///{self.path}")
         Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
-        self.Session = sessionmaker(bind=self.engine)
+        session_maker = sessionmaker(bind=self.engine)
+        self.session = session_maker()
 
         import sqlite3
 

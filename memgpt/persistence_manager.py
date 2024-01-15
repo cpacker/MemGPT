@@ -10,9 +10,12 @@ from memgpt.data_types import Message, ToolCall, AgentState
 from datetime import datetime
 
 
-def parse_formatted_time(formatted_time):
+def parse_formatted_time(formatted_time: str):
     # parse times returned by memgpt.utils.get_formatted_time()
-    return datetime.strptime(formatted_time, "%Y-%m-%d %I:%M:%S %p %Z%z")
+    try:
+        return datetime.strptime(formatted_time.strip(), "%Y-%m-%d %I:%M:%S %p %Z%z")
+    except:
+        return datetime.strptime(formatted_time.strip(), "%Y-%m-%d %I:%M:%S %p")
 
 
 class PersistenceManager(ABC):
