@@ -168,6 +168,12 @@ class SyncServer(LockingServer):
         self.config = MemGPTConfig.load()
         self.ms = MetadataStore(self.config)
 
+        # Create the default user
+        base_user_id = self.config.anon_clientid
+        base_user = User(id=base_user_id)
+        if not self.ms.get_user(user_id=base_user_id):
+            self.ms.create_user(base_user)
+
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
         for agent_d in self.active_agents:
@@ -470,6 +476,7 @@ class SyncServer(LockingServer):
         # TODO actually use the user_id that was passed into the server
         user_id = self.config.anon_clientid
         # create user and agent
+        user = User(id=user_id)
         user = self.ms.get_user(user_id=user_id)
         if not user:
             raise ValueError(f"cannot find user with associated client id: {user_id}")
@@ -513,14 +520,19 @@ class SyncServer(LockingServer):
         # TODO actually use the user_id that was passed into the server
         user_id = self.config.anon_clientid
         agents_states = self.ms.list_agents(user_id=user_id)
-        return {"num_agents": len(agents_states), "agents": [
-            {
-                "id": state.id,
-                "name": state.name,
-                "human": state.human,
-                "persona": state.persona,
-                "created_at": state.created_at.isoformat()
-             } for state in agents_states]}
+        return {
+            "num_agents": len(agents_states),
+            "agents": [
+                {
+                    "id": state.id,
+                    "name": state.name,
+                    "human": state.human,
+                    "persona": state.persona,
+                    "created_at": state.created_at.isoformat(),
+                }
+                for state in agents_states
+            ],
+        }
 
     def get_agent_memory(self, user_id: str, agent_id: str) -> dict:
         """Return the memory of an agent (core memory + non-core statistics)"""
