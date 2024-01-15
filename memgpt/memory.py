@@ -124,7 +124,7 @@ def summarize_messages(
     ]
 
     response = create(
-        agent_state=agent_config,
+        agent_state=agent_state,
         messages=message_sequence,
     )
 
