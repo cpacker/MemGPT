@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from typing import Union, Callable
+import uuid
 import json
 import logging
 from threading import Lock
@@ -67,7 +68,7 @@ class Server(object):
         user_id: str,
         agent_config: Union[dict, AgentState],
         interface: Union[AgentInterface, None],
-        persistence_manager: Union[PersistenceManager, None],
+        # persistence_manager: Union[PersistenceManager, None],
     ) -> str:
         """Create a new agent using a config"""
         raise NotImplementedError
@@ -169,7 +170,7 @@ class SyncServer(LockingServer):
         self.ms = MetadataStore(self.config)
 
         # Create the default user
-        base_user_id = self.config.anon_clientid
+        base_user_id = uuid.UUID(self.config.anon_clientid)
         base_user = User(id=base_user_id)
         if not self.ms.get_user(user_id=base_user_id):
             self.ms.create_user(base_user)
@@ -458,7 +459,7 @@ class SyncServer(LockingServer):
         user_id: str,
         agent_config: Union[dict, AgentState],
         interface: Union[AgentInterface, None] = None,
-        persistence_manager: Union[PersistenceManager, None] = None,
+        # persistence_manager: Union[PersistenceManager, None] = None,
     ) -> AgentState:
         """Create a new agent using a config"""
 
@@ -474,7 +475,7 @@ class SyncServer(LockingServer):
         # persistence_manager = self.default_persistence_manager_cls(agent_config=agent_config)
 
         # TODO actually use the user_id that was passed into the server
-        user_id = self.config.anon_clientid
+        user_id = uuid.UUID(self.config.anon_clientid)
         # create user and agent
         user = User(id=user_id)
         user = self.ms.get_user(user_id=user_id)
