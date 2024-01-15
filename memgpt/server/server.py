@@ -571,20 +571,30 @@ class SyncServer(LockingServer):
         if start < 0 or count < 0:
             raise ValueError("Start and count values should be non-negative")
 
-        # Reverse the list to make it in reverse chronological order
-        reversed_messages = memgpt_agent.messages[::-1]
+        if start + count < len(memgpt_agent.messages):  # messages can be returned from whats in memory
+            # Reverse the list to make it in reverse chronological order
+            reversed_messages = memgpt_agent.messages[::-1]
+            # Check if start is within the range of the list
+            if start >= len(reversed_messages):
+                raise IndexError("Start index is out of range")
 
-        # Check if start is within the range of the list
-        if start >= len(reversed_messages):
-            raise IndexError("Start index is out of range")
+            # Calculate the end index, ensuring it does not exceed the list length
+            end_index = min(start + count, len(reversed_messages))
 
-        # Calculate the end index, ensuring it does not exceed the list length
-        end_index = min(start + count, len(reversed_messages))
+            # Slice the list for pagination
+            paginated_messages = reversed_messages[start:end_index]
+            return paginated_messages
 
-        # Slice the list for pagination
-        paginated_messages = reversed_messages[start:end_index]
+        # need to access persistence manager for additional messages
+        filters = {"agent_id": agent_id, "user_id": user_id}
+        db_iterator = memgpt_agent.persistence_manager.recall_memory.storage.get_all_paginated(filters=filters, limit=count, offset=start)
 
-        return paginated_messages
+        # get a single page of messages
+        messages = next(db_iterator)
+
+        # return messages in reverse chronological order
+        revered_messages = sorted(messages, key=lambda x: x.created_at, reverse=True)
+        return [vars(m) for m in revered_messages]
 
     def get_agent_config(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> dict:
         """Return the config of an agent"""
