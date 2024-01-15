@@ -11,6 +11,9 @@ import uuid
 import sys
 import io
 from typing import List
+import inspect
+from functools import wraps
+from typing import get_type_hints
 
 from urllib.parse import urlparse
 from contextlib import contextmanager
@@ -459,6 +462,32 @@ NOUN_BANK = [
     "yak",
     "zebra",
 ]
+
+
+def enforce_types(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Get type hints
+        hints = get_type_hints(func)
+
+        # Get the function's arguments names
+        arg_names = inspect.getfullargspec(func).args
+
+        # Check types of positional arguments, skipping 'self' and 'cls' for class methods
+        for arg, (arg_name, hint) in zip(args, zip(arg_names, hints.values())):
+            if arg_name in ["self", "cls"]:
+                continue
+            if hint and not isinstance(arg, hint):
+                raise ValueError(f"Argument {arg_name} does not match type {hint}")
+
+        # Check types of keyword arguments
+        for arg_name, arg_value in kwargs.items():
+            if arg_name in hints and not isinstance(arg_value, hints[arg_name]):
+                raise ValueError(f"Argument {arg_name} does not match type {hints[arg_name]}")
+
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 def annotate_message_json_list_with_tool_calls(messages: List[dict]):
