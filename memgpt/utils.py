@@ -11,6 +11,10 @@ import uuid
 import sys
 import io
 from typing import List
+import inspect
+from functools import wraps
+from typing import get_type_hints, Union, _GenericAlias
+
 
 from urllib.parse import urlparse
 from contextlib import contextmanager
@@ -459,6 +463,42 @@ NOUN_BANK = [
     "yak",
     "zebra",
 ]
+
+
+def is_optional_type(hint):
+    """Check if the type hint is an Optional type."""
+    if isinstance(hint, _GenericAlias):
+        return hint.__origin__ is Union and type(None) in hint.__args__
+    return False
+
+
+def enforce_types(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Get type hints, excluding the return type hint
+        hints = {k: v for k, v in get_type_hints(func).items() if k != "return"}
+
+        # Get the function's argument names
+        arg_names = inspect.getfullargspec(func).args
+
+        # Pair each argument with its corresponding type hint
+        args_with_hints = dict(zip(arg_names[1:], args[1:]))  # Skipping 'self'
+
+        # Check types of arguments
+        for arg_name, arg_value in args_with_hints.items():
+            hint = hints.get(arg_name)
+            if hint and not isinstance(arg_value, hint) and not (is_optional_type(hint) and arg_value is None):
+                raise ValueError(f"Argument {arg_name} does not match type {hint}")
+
+        # Check types of keyword arguments
+        for arg_name, arg_value in kwargs.items():
+            hint = hints.get(arg_name)
+            if hint and not isinstance(arg_value, hint) and not (is_optional_type(hint) and arg_value is None):
+                raise ValueError(f"Argument {arg_name} does not match type {hint}")
+
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 def annotate_message_json_list_with_tool_calls(messages: List[dict]):

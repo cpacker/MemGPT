@@ -1,6 +1,9 @@
+import uuid
+
 import memgpt.utils as utils
 
 utils.DEBUG = True
+from memgpt.config import MemGPTConfig
 from memgpt.server.server import SyncServer
 from .utils import wipe_config, wipe_memgpt_home
 
@@ -8,12 +11,13 @@ from .utils import wipe_config, wipe_memgpt_home
 def test_server():
     wipe_memgpt_home()
 
-    user_id = "NULL"
-
+    config = MemGPTConfig.load()
+    user_id = uuid.UUID(config.anon_clientid)
     server = SyncServer()
 
     try:
-        server.user_message(user_id=user_id, agent_id="agent no exist", message="Hello?")
+        fake_agent_id = uuid.uuid4()
+        server.user_message(user_id=user_id, agent_id=fake_agent_id, message="Hello?")
         raise Exception("user_message call should have failed")
     except (KeyError, ValueError) as e:
         # Error is expected

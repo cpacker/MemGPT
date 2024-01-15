@@ -1,5 +1,5 @@
 ---
-title: oobobooga web UI
+title: oobabooga web UI
 excerpt: Setting up MemGPT with web UI
 category: 6580da9a40bb410016b8b0c3
 ---
