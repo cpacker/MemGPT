@@ -1,4 +1,5 @@
 import os
+import uuid
 from typing import Dict, List, Union
 
 from memgpt.data_types import AgentState
@@ -57,7 +58,16 @@ class Client(object):
         if config is not None:
             set_config_with_dict(config)
 
-        self.user_id = MemGPTConfig.load().anon_clientid if user_id is None else user_id
+        if user_id is None:
+            # the default user_id
+            config = MemGPTConfig.load()
+            self.user_id = uuid.UUID(config.anon_clientid)
+        elif isinstance(user_id, str):
+            self.user_id = uuid.UUID(user_id)
+        elif isinstance(user_id, uuid.UUID):
+            self.user_id = user_id
+        else:
+            raise TypeError(user_id)
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface=self.interface)
 
