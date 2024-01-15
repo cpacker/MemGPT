@@ -1,7 +1,10 @@
+import os
+import uuid
+
 from memgpt import MemGPT
+from memgpt.config import MemGPTConfig
 from memgpt import constants
 import memgpt.functions.function_sets.base as base_functions
-import os
 from .utils import wipe_config
 
 
@@ -28,7 +31,9 @@ def create_test_agent():
     )
 
     global agent_obj
-    agent_obj = client.server._get_or_load_agent(user_id="NULL", agent_id=agent_state.id)
+    config = MemGPTConfig.load()
+    user_id = uuid.UUID(config.anon_clientid)
+    agent_obj = client.server._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
 
 
 def test_archival():
