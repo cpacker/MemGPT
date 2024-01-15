@@ -219,7 +219,7 @@ class MemGPTConfig:
 
     @staticmethod
     def generate_uuid() -> str:
-        return str(uuid.UUID(int=uuid.getnode()))
+        return uuid.UUID(int=uuid.getnode()).hex
 
     @classmethod
     def load(cls) -> "MemGPTConfig":
