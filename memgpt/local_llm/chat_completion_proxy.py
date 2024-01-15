@@ -6,7 +6,8 @@ import json
 
 from box import Box
 
-from memgpt.local_llm.grammars.gbnf_grammar_generator import create_dynamic_model_from_function, generate_gbnf_grammar_and_documentation
+from memgpt.local_llm.grammars.gbnf_grammar_generator import create_dynamic_model_from_function, \
+    generate_gbnf_grammar_and_documentation
 from memgpt.local_llm.webui.api import get_webui_completion
 from memgpt.local_llm.webui.legacy_api import get_webui_completion as get_webui_completion_legacy
 from memgpt.local_llm.lmstudio.api import get_lmstudio_completion
@@ -26,22 +27,23 @@ has_shown_warning = False
 
 
 def get_chat_completion(
-    model,  # no model required (except for Ollama), since the model is fixed to whatever you set in your own backend
-    messages,
-    functions=None,
-    functions_python=None,
-    function_call="auto",
-    context_window=None,
-    user=None,
-    # required
-    wrapper=None,
-    endpoint=None,
-    endpoint_type=None,
-    # optional cleanup
-    function_correction=True,
-    # extra hints to allow for additional prompt formatting hacks
-    # TODO this could alternatively be supported via passing function_call="send_message" into the wrapper
-    first_message=False,
+        model,
+        # no model required (except for Ollama), since the model is fixed to whatever you set in your own backend
+        messages,
+        functions=None,
+        functions_python=None,
+        function_call="auto",
+        context_window=None,
+        user=None,
+        # required
+        wrapper=None,
+        endpoint=None,
+        endpoint_type=None,
+        # optional cleanup
+        function_correction=True,
+        # extra hints to allow for additional prompt formatting hacks
+        # TODO this could alternatively be supported via passing function_call="send_message" into the wrapper
+        first_message=False,
 ):
     from memgpt.utils import printd
 
@@ -70,38 +72,23 @@ def get_chat_completion(
             # make the default to use grammar
             llm_wrapper = DEFAULT_WRAPPER(include_opening_brace_in_prefix=False)
             # grammar_name = "json"
-            grammar_function_models = []
-            for key, func in functions_python.items():
-                grammar_function_models.append(create_dynamic_model_from_function(func))
-            grammar, documentation = generate_gbnf_grammar_and_documentation(
-                grammar_function_models,
-                outer_object_name="function",
-                outer_object_content="params",
-                model_prefix="Function",
-                fields_prefix="Parameter",
-            )
+
+            grammar, documentation = generate_grammar_and_documentation(functions_python)
+            printd(grammar)
         else:
             llm_wrapper = DEFAULT_WRAPPER()
     elif wrapper not in available_wrappers:
-        raise ValueError(f"Could not find requested wrapper '{wrapper} in available wrappers list:\n{available_wrappers}")
+        raise ValueError(
+            f"Could not find requested wrapper '{wrapper} in available wrappers list:\n{available_wrappers}")
     else:
         llm_wrapper = available_wrappers[wrapper]
         if endpoint_type in ["koboldcpp", "llamacpp", "webui"]:
             setattr(llm_wrapper, "assistant_prefix_extra_first_message", "")
             setattr(llm_wrapper, "assistant_prefix_extra", "")
-            grammar_function_models = []
-            for key, func in functions_python.items():
-                grammar_function_models.append(create_dynamic_model_from_function(func))
-            grammar, documentation = generate_gbnf_grammar_and_documentation(
-                grammar_function_models,
-                outer_object_name="function",
-                outer_object_content="params",
-                model_prefix="Function",
-                fields_prefix="Parameter",
-            )
-
+            grammar, documentation = generate_grammar_and_documentation(functions_python)
     if grammar is not None and endpoint_type not in ["koboldcpp", "llamacpp", "webui"]:
-        print(f"{CLI_WARNING_PREFIX}grammars are currently only supported when using llama.cpp as the MemGPT local LLM backend")
+        print(
+            f"{CLI_WARNING_PREFIX}grammars are currently only supported when using llama.cpp as the MemGPT local LLM backend")
 
     # First step: turn the message sequence into a prompt that the model expects
     try:
@@ -202,3 +189,19 @@ def get_chat_completion(
     )
     printd(response)
     return response
+
+
+def generate_grammar_and_documentation(functions_python: dict):
+    from memgpt.utils import printd
+    grammar_function_models = []
+    for key, func in functions_python.items():
+        grammar_function_models.append(create_dynamic_model_from_function(func, True))
+    grammar, documentation = generate_gbnf_grammar_and_documentation(
+        grammar_function_models,
+        outer_object_name="function",
+        outer_object_content="params",
+        model_prefix="Function",
+        fields_prefix="Parameter",
+    )
+    printd(grammar)
+    return grammar, documentation

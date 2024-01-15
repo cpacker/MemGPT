@@ -1094,15 +1094,16 @@ def generate_gbnf_grammar_and_documentation_from_dictionaries(
     return grammar, documentation
 
 
-def create_dynamic_model_from_function(func: Callable):
+def create_dynamic_model_from_function(func: Callable, add_inner_thoughts: bool = False):
     """
     Creates a dynamic Pydantic model from a given function's type hints and adds the function as a 'run' method.
 
     Args:
         func (Callable): A function with type hints from which to create the model.
-
+        add_inner_thoughts:  Add an inner thoughts parameter
     Returns:
         A dynamic Pydantic model class with the provided function as a 'run' method.
+
     """
 
     # Get the signature of the function
@@ -1113,6 +1114,8 @@ def create_dynamic_model_from_function(func: Callable):
 
     dynamic_fields = {}
     param_docs = []
+    if add_inner_thoughts:
+        dynamic_fields["inner_thoughts"] = (str, None)
     for param in sig.parameters.values():
         # Exclude 'self' parameter
         if param.name == "self":
@@ -1137,8 +1140,13 @@ def create_dynamic_model_from_function(func: Callable):
         else:
             default_value = param.default
         dynamic_fields[param.name] = (param.annotation if param.annotation != inspect.Parameter.empty else str, default_value)
+
     # Creating the dynamic model
+
     dynamic_model = create_model(f"{func.__name__}", **dynamic_fields)
+
+    if add_inner_thoughts:
+        dynamic_model.model_fields["inner_thoughts"].description = "Deep inner monologue private to you only."
 
     for param_doc in param_docs:
         dynamic_model.model_fields[param_doc[0]].description = param_doc[1].description
