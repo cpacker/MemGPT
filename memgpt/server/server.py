@@ -476,7 +476,8 @@ class SyncServer(LockingServer):
 
         # TODO actually use the user_id that was passed into the server
         user_id = uuid.UUID(self.config.anon_clientid)
-        # create user and agent
+
+        logger.debug(f"Attempting to find user: {user_id}")
         user = User(id=user_id)
         user = self.ms.get_user(user_id=user_id)
         if not user:
@@ -492,14 +493,13 @@ class SyncServer(LockingServer):
             llm_config=agent_config["llm_config"] if "llm_config" in agent_config else user.default_llm_config,
             embedding_config=agent_config["embedding_config"] if "embedding_config" in agent_config else user.default_embedding_config,
         )
-        agent = presets.create_agent_from_preset(agent_state=agent_state, interface=interface)
-        # TODO where should we handle saving of the AgentState?
-        agent.save()
-        # try:
-        # self.ms.create_agent(agent)
-        # except ValueError:
-        # agent name under user.id already exists, not OK
-        # raise
+        logger.debug(f"Attempting to create agent from agent_state:\n{agent_state}")
+        try:
+            agent = presets.create_agent_from_preset(agent_state=agent_state, interface=interface)
+        except Exception as e:
+            logger.exception(e)
+            raise
+
         logger.info(f"Created new agent from config: {agent}")
 
         return agent.config
@@ -519,8 +519,9 @@ class SyncServer(LockingServer):
     def list_agents(self, user_id: str) -> dict:
         """List all available agents to a user"""
         # TODO actually use the user_id that was passed into the server
-        user_id = self.config.anon_clientid
+        user_id = uuid.UUID(self.config.anon_clientid)
         agents_states = self.ms.list_agents(user_id=user_id)
+        logger.info(f"Retrieved {len(agents_states)} agents for user {user_id}:\n{[vars(s) for s in agents_states]}")
         return {
             "num_agents": len(agents_states),
             "agents": [
