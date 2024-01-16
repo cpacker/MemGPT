@@ -192,14 +192,17 @@ def generate_grammar_and_documentation(functions_python: dict):
     from memgpt.utils import printd
 
     grammar_function_models = []
+    # create_dynamic_model_from_function will add inner thoughts to the function parameters if add_inner_thoughts is True.
+    # generate_gbnf_grammar_and_documentation will add inner thoughts to the outer object of the function parameters if add_inner_thoughts is True.
     for key, func in functions_python.items():
-        grammar_function_models.append(create_dynamic_model_from_function(func, True))
+        grammar_function_models.append(create_dynamic_model_from_function(func, add_inner_thoughts=False))
     grammar, documentation = generate_gbnf_grammar_and_documentation(
         grammar_function_models,
         outer_object_name="function",
         outer_object_content="params",
         model_prefix="Function",
         fields_prefix="Parameter",
+        add_inner_thoughts=True,
     )
     printd(grammar)
     return grammar, documentation

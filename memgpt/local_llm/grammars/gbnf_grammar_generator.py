@@ -508,7 +508,7 @@ def generate_gbnf_grammar(model: Type[BaseModel], processed_models: set, created
 
 
 def generate_gbnf_grammar_from_pydantic_models(
-    models: List[Type[BaseModel]], outer_object_name: str = None, outer_object_content: str = None, list_of_outputs: bool = False
+    models: List[Type[BaseModel]], outer_object_name: str = None, outer_object_content: str = None, list_of_outputs: bool = False, add_inner_thoughts: bool = False,
 ) -> str:
     """
     Generate GBNF Grammar from Pydantic Models.
@@ -521,6 +521,7 @@ def generate_gbnf_grammar_from_pydantic_models(
         outer_object_name (str): Outer object name for the GBNF grammar. If None, no outer object will be generated. Eg. "function" for function calling.
         outer_object_content (str): Content for the outer rule in the GBNF grammar. Eg. "function_parameters" or "params" for function calling.
         list_of_outputs (str, optional): Allows a list of output objects
+        add_inner_thoughts (bool): Add inner thoughts field on the outer_object level.
     Returns:
         str: The generated GBNF grammar string.
 
@@ -556,9 +557,14 @@ def generate_gbnf_grammar_from_pydantic_models(
         else:
             root_rule = f"root ::= {format_model_and_field_name(outer_object_name)}\n"
 
-        model_rule = (
-            rf'{format_model_and_field_name(outer_object_name)} ::= (" "| "\n") "{{" ws "\"{outer_object_name}\""  ":" ws grammar-models'
-        )
+        if add_inner_thoughts:
+            model_rule = (
+                rf'{format_model_and_field_name(outer_object_name)} ::= (" "| "\n") "{{" ws "\"inner_thoughts\""  ":" ws string "," "\n" ws "\"{outer_object_name}\""  ":" ws grammar-models'
+            )
+        else:
+            model_rule = (
+                rf'{format_model_and_field_name(outer_object_name)} ::= (" "| "\n") "{{" ws "\"{outer_object_name}\""  ":" ws grammar-models'
+            )
 
         fields_joined = " | ".join([rf"{format_model_and_field_name(model.__name__)}-grammar-model" for model in models])
 
@@ -1034,6 +1040,7 @@ def generate_gbnf_grammar_and_documentation(
     model_prefix: str = "Output Model",
     fields_prefix: str = "Output Fields",
     list_of_outputs: bool = False,
+    add_inner_thoughts: bool = False,
     documentation_with_field_description=True,
 ):
     """
@@ -1046,6 +1053,7 @@ def generate_gbnf_grammar_and_documentation(
         model_prefix (str): Prefix for the model section in the documentation.
         fields_prefix (str): Prefix for the fields section in the documentation.
         list_of_outputs (bool): Whether the output is a list of items.
+        add_inner_thoughts (bool): Add inner thoughts field on the outer_object level.
         documentation_with_field_description (bool): Include field descriptions in the documentation.
 
     Returns:
@@ -1054,7 +1062,7 @@ def generate_gbnf_grammar_and_documentation(
     documentation = generate_markdown_documentation(
         copy(pydantic_model_list), model_prefix, fields_prefix, documentation_with_field_description=documentation_with_field_description
     )
-    grammar = generate_gbnf_grammar_from_pydantic_models(pydantic_model_list, outer_object_name, outer_object_content, list_of_outputs)
+    grammar = generate_gbnf_grammar_from_pydantic_models(pydantic_model_list, outer_object_name, outer_object_content, list_of_outputs, add_inner_thoughts)
     grammar = remove_empty_lines(grammar + get_primitive_grammar(grammar))
     return grammar, documentation
 
