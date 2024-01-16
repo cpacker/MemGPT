@@ -71,15 +71,8 @@ def get_chat_completion(
                 f"{CLI_WARNING_PREFIX}no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --model-wrapper)"
             )
             has_shown_warning = True
-        if endpoint_type in grammar_supported_backends:
-            # make the default to use grammar
-            llm_wrapper = DEFAULT_WRAPPER(include_opening_brace_in_prefix=False)
-            # grammar_name = "json"
 
-            grammar, documentation = generate_grammar_and_documentation(functions_python)
-            printd(grammar)
-        else:
-            llm_wrapper = DEFAULT_WRAPPER()
+        llm_wrapper = DEFAULT_WRAPPER()
 
     # User provided an incorrect prompt formatter
     elif wrapper not in available_wrappers:
@@ -88,11 +81,29 @@ def get_chat_completion(
     # User provided a correct prompt formatter
     else:
         llm_wrapper = available_wrappers[wrapper]
-        # TODO move this to a flag
-        if "_grammar" in wrapper:
-            setattr(llm_wrapper, "assistant_prefix_extra_first_message", "")
-            setattr(llm_wrapper, "assistant_prefix_extra", "")
-            grammar, documentation = generate_grammar_and_documentation(functions_python)
+
+    # If the wrapper uses grammar, generate the grammar using the grammar generating function
+    # TODO move this to a flag
+    if "_grammar" in wrapper:
+        # When using grammars, we don't want to do any extras output tricks like appending a response prefix
+        setattr(llm_wrapper, "assistant_prefix_extra_first_message", "")
+        setattr(llm_wrapper, "assistant_prefix_extra", "")
+
+        # TODO find a better way to do this than string matching (eg an attribute)
+        if "noforce" in wrapper:
+            # "noforce" means that the prompt formatter expects inner thoughts as a top-level parameter
+            # this is closer to the OpenAI style since it allows for messages w/o any function calls
+            # however, with bad LLMs it makes it easier for the LLM to "forget" to call any of the functions
+            grammar, documentation = generate_grammar_and_documentation(
+                functions_python=functions_python, add_inner_thoughts_top_level=True, add_inner_thoughts_param_level=False
+            )
+        else:
+            # otherwise, the other prompt formatters will insert inner thoughts as a function call parameter (by default)
+            # this means that every response from the LLM will be required to call a function
+            grammar, documentation = generate_grammar_and_documentation(
+                functions_python=functions_python, add_inner_thoughts_top_level=False, add_inner_thoughts_param_level=True
+            )
+        printd(grammar)
 
     if grammar is not None and endpoint_type not in grammar_supported_backends:
         print(
@@ -201,21 +212,25 @@ def get_chat_completion(
     return response
 
 
-def generate_grammar_and_documentation(functions_python: dict):
+def generate_grammar_and_documentation(functions_python: dict, add_inner_thoughts_top_level: bool, add_inner_thoughts_param_level: bool):
     from memgpt.utils import printd
+
+    assert not (
+        add_inner_thoughts_top_level and add_inner_thoughts_param_level
+    ), "Can only place inner thoughts in one location in the grammar generator"
 
     grammar_function_models = []
     # create_dynamic_model_from_function will add inner thoughts to the function parameters if add_inner_thoughts is True.
     # generate_gbnf_grammar_and_documentation will add inner thoughts to the outer object of the function parameters if add_inner_thoughts is True.
     for key, func in functions_python.items():
-        grammar_function_models.append(create_dynamic_model_from_function(func, add_inner_thoughts=False))
+        grammar_function_models.append(create_dynamic_model_from_function(func, add_inner_thoughts=add_inner_thoughts_param_level))
     grammar, documentation = generate_gbnf_grammar_and_documentation(
         grammar_function_models,
         outer_object_name="function",
         outer_object_content="params",
         model_prefix="Function",
         fields_prefix="Parameter",
-        add_inner_thoughts=True,
+        add_inner_thoughts=add_inner_thoughts_top_level,
     )
     printd(grammar)
     return grammar, documentation
