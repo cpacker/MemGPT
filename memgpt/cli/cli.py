@@ -492,14 +492,46 @@ def run(
             # agent = f"agent_{agent_count}"
             agent = utils.create_random_username()
 
+        llm_config = user.default_llm_config
+        embedding_config = user.default_embedding_config  # TODO allow overriding embedding params via CLI run
+
+        # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
+        if model and model != llm_config.model:
+            typer.secho(f"{CLI_WARNING_PREFIX}Overriding default model {llm_config.model} with {model}", fg=typer.colors.YELLOW)
+            llm_config.model = model
+        if context_window is not None and int(context_window) != llm_config.context_window:
+            typer.secho(
+                f"{CLI_WARNING_PREFIX}Overriding default context window {llm_config.context_window} with {context_window}",
+                fg=typer.colors.YELLOW,
+            )
+            llm_config.context_window = context_window
+        if model_wrapper and model_wrapper != llm_config.model_wrapper:
+            typer.secho(
+                f"{CLI_WARNING_PREFIX}Overriding existing model wrapper {llm_config.model_wrapper} with {model_wrapper}",
+                fg=typer.colors.YELLOW,
+            )
+            llm_config.model_wrapper = model_wrapper
+        if model_endpoint and model_endpoint != llm_config.model_endpoint:
+            typer.secho(
+                f"{CLI_WARNING_PREFIX}Overriding existing model endpoint {llm_config.model_endpoint} with {model_endpoint}",
+                fg=typer.colors.YELLOW,
+            )
+            llm_config.model_endpoint = model_endpoint
+        if model_endpoint_type and model_endpoint_type != llm_config.model_endpoint_type:
+            typer.secho(
+                f"{CLI_WARNING_PREFIX}Overriding existing model endpoint type {llm_config.model_endpoint_type} with {model_endpoint_type}",
+                fg=typer.colors.YELLOW,
+            )
+            llm_config.model_endpoint_type = model_endpoint_type
+
         agent_state = AgentState(
             name=agent,
             user_id=user.id,
             persona=persona if persona else user.default_persona,
             human=human if human else user.default_human,
             preset=preset if preset else user.default_preset,
-            llm_config=user.default_llm_config,
-            embedding_config=user.default_embedding_config,
+            llm_config=llm_config,
+            embedding_config=embedding_config,
         )
         ms.create_agent(agent_state)
 
