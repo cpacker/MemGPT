@@ -23,6 +23,7 @@ from memgpt.errors import LocalLLMConnectionError, LocalLLMError
 from memgpt.constants import CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
 
 has_shown_warning = False
+grammar_supported_backends = ["koboldcpp", "llamacpp", "webui", "webui-legacy"]
 
 
 def get_chat_completion(
@@ -57,9 +58,12 @@ def get_chat_completion(
 
     available_wrappers = get_available_wrappers()
     documentation = None
+
+    # Special case for if the call we're making is coming from the summarizer
     if messages[0]["role"] == "system" and messages[0]["content"].strip() == SUMMARIZE_SYSTEM_MESSAGE.strip():
-        # Special case for if the call we're making is coming from the summarizer
         llm_wrapper = simple_summary_wrapper.SimpleSummaryWrapper()
+
+    # Select a default prompt formatter
     elif wrapper is None:
         # Warn the user that we're using the fallback
         if not has_shown_warning:
@@ -67,7 +71,7 @@ def get_chat_completion(
                 f"{CLI_WARNING_PREFIX}no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --model-wrapper)"
             )
             has_shown_warning = True
-        if endpoint_type in ["koboldcpp", "llamacpp", "webui"]:
+        if endpoint_type in grammar_supported_backends:
             # make the default to use grammar
             llm_wrapper = DEFAULT_WRAPPER(include_opening_brace_in_prefix=False)
             # grammar_name = "json"
@@ -76,16 +80,25 @@ def get_chat_completion(
             printd(grammar)
         else:
             llm_wrapper = DEFAULT_WRAPPER()
+
+    # User provided an incorrect prompt formatter
     elif wrapper not in available_wrappers:
         raise ValueError(f"Could not find requested wrapper '{wrapper} in available wrappers list:\n{available_wrappers}")
+
+    # User provided a correct prompt formatter
     else:
         llm_wrapper = available_wrappers[wrapper]
-        if endpoint_type in ["koboldcpp", "llamacpp", "webui"]:
+        # TODO move this to a flag
+        if "_grammar" in wrapper:
             setattr(llm_wrapper, "assistant_prefix_extra_first_message", "")
             setattr(llm_wrapper, "assistant_prefix_extra", "")
             grammar, documentation = generate_grammar_and_documentation(functions_python)
-    if grammar is not None and endpoint_type not in ["koboldcpp", "llamacpp", "webui"]:
-        print(f"{CLI_WARNING_PREFIX}grammars are currently only supported when using llama.cpp as the MemGPT local LLM backend")
+
+    if grammar is not None and endpoint_type not in grammar_supported_backends:
+        print(
+            f"{CLI_WARNING_PREFIX}grammars are currently not supported when using {endpoint_type} as the MemGPT local LLM backend (supported: {', '.join(grammar_supported_backends)})"
+        )
+        grammar = None
 
     # First step: turn the message sequence into a prompt that the model expects
     try:
