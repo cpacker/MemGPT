@@ -196,7 +196,7 @@ def get_db_model(
             # openai info
             role = Column(String, nullable=False)
             text = Column(String)  # optional: can be null if function call
-            model = Column(String, nullable=False)
+            model = Column(String)  # optional: can be null if LLM backend doesn't require specifying
             name = Column(String)  # optional: multi-agent only
 
             # tool call request info
