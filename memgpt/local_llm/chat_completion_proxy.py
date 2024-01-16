@@ -6,6 +6,7 @@ import json
 
 from box import Box
 
+from memgpt.local_llm.grammars.gbnf_grammar_generator import create_dynamic_model_from_function, generate_gbnf_grammar_and_documentation
 from memgpt.local_llm.webui.api import get_webui_completion
 from memgpt.local_llm.webui.legacy_api import get_webui_completion as get_webui_completion_legacy
 from memgpt.local_llm.lmstudio.api import get_lmstudio_completion
@@ -22,12 +23,15 @@ from memgpt.errors import LocalLLMConnectionError, LocalLLMError
 from memgpt.constants import CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
 
 has_shown_warning = False
+grammar_supported_backends = ["koboldcpp", "llamacpp", "webui", "webui-legacy"]
 
 
 def get_chat_completion(
-    model,  # no model required (except for Ollama), since the model is fixed to whatever you set in your own backend
+    model,
+    # no model required (except for Ollama), since the model is fixed to whatever you set in your own backend
     messages,
     functions=None,
+    functions_python=None,
     function_call="auto",
     context_window=None,
     user=None,
@@ -47,15 +51,19 @@ def get_chat_completion(
     assert endpoint is not None, "Local LLM calls need the endpoint (eg http://localendpoint:1234) to be explicitly set"
     assert endpoint_type is not None, "Local LLM calls need the endpoint type (eg webui) to be explicitly set"
     global has_shown_warning
-    grammar_name = None
+    grammar = None
 
     if function_call != "auto":
         raise ValueError(f"function_call == {function_call} not supported (auto only)")
 
     available_wrappers = get_available_wrappers()
+    documentation = None
+
+    # Special case for if the call we're making is coming from the summarizer
     if messages[0]["role"] == "system" and messages[0]["content"].strip() == SUMMARIZE_SYSTEM_MESSAGE.strip():
-        # Special case for if the call we're making is coming from the summarizer
         llm_wrapper = simple_summary_wrapper.SimpleSummaryWrapper()
+
+    # Select a default prompt formatter
     elif wrapper is None:
         # Warn the user that we're using the fallback
         if not has_shown_warning:
@@ -63,30 +71,60 @@ def get_chat_completion(
                 f"{CLI_WARNING_PREFIX}no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --model-wrapper)"
             )
             has_shown_warning = True
-        if endpoint_type in ["koboldcpp", "llamacpp", "webui"]:
-            # make the default to use grammar
-            llm_wrapper = DEFAULT_WRAPPER(include_opening_brace_in_prefix=False)
-            # grammar_name = "json"
-            grammar_name = "json_func_calls_with_inner_thoughts"
-        else:
-            llm_wrapper = DEFAULT_WRAPPER()
+
+        llm_wrapper = DEFAULT_WRAPPER()
+
+    # User provided an incorrect prompt formatter
     elif wrapper not in available_wrappers:
-        raise ValueError(f"Could not find requested wrapper '{wrapper} in available wrappers list:\n{available_wrappers}")
+        raise ValueError(f"Could not find requested wrapper '{wrapper} in available wrappers list:\n{', '.join(available_wrappers)}")
+
+    # User provided a correct prompt formatter
     else:
         llm_wrapper = available_wrappers[wrapper]
-        if "grammar" in wrapper:
-            grammar_name = "json_func_calls_with_inner_thoughts"
 
-    if grammar_name is not None and endpoint_type not in ["koboldcpp", "llamacpp", "webui"]:
-        print(f"{CLI_WARNING_PREFIX}grammars are currently only supported when using llama.cpp as the MemGPT local LLM backend")
+    # If the wrapper uses grammar, generate the grammar using the grammar generating function
+    # TODO move this to a flag
+    if "grammar" in wrapper:
+        # When using grammars, we don't want to do any extras output tricks like appending a response prefix
+        setattr(llm_wrapper, "assistant_prefix_extra_first_message", "")
+        setattr(llm_wrapper, "assistant_prefix_extra", "")
+
+        # TODO find a better way to do this than string matching (eg an attribute)
+        if "noforce" in wrapper:
+            # "noforce" means that the prompt formatter expects inner thoughts as a top-level parameter
+            # this is closer to the OpenAI style since it allows for messages w/o any function calls
+            # however, with bad LLMs it makes it easier for the LLM to "forget" to call any of the functions
+            grammar, documentation = generate_grammar_and_documentation(
+                functions_python=functions_python,
+                add_inner_thoughts_top_level=True,
+                add_inner_thoughts_param_level=False,
+                allow_only_inner_thoughts=True,
+            )
+        else:
+            # otherwise, the other prompt formatters will insert inner thoughts as a function call parameter (by default)
+            # this means that every response from the LLM will be required to call a function
+            grammar, documentation = generate_grammar_and_documentation(
+                functions_python=functions_python,
+                add_inner_thoughts_top_level=False,
+                add_inner_thoughts_param_level=True,
+                allow_only_inner_thoughts=False,
+            )
+        printd(grammar)
+
+    if grammar is not None and endpoint_type not in grammar_supported_backends:
+        print(
+            f"{CLI_WARNING_PREFIX}grammars are currently not supported when using {endpoint_type} as the MemGPT local LLM backend (supported: {', '.join(grammar_supported_backends)})"
+        )
+        grammar = None
 
     # First step: turn the message sequence into a prompt that the model expects
     try:
-        # if hasattr(llm_wrapper, "supports_first_message") and llm_wrapper.supports_first_message:
-        if hasattr(llm_wrapper, "supports_first_message"):
+        # if hasattr(llm_wrapper, "supports_first_message"):
+        if hasattr(llm_wrapper, "supports_first_message") and llm_wrapper.supports_first_message:
             prompt = llm_wrapper.chat_completion_to_prompt(messages, functions, first_message=first_message)
         else:
             prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
+
         printd(prompt)
     except Exception as e:
         raise LocalLLMError(
@@ -95,17 +133,17 @@ def get_chat_completion(
 
     try:
         if endpoint_type == "webui":
-            result, usage = get_webui_completion(endpoint, prompt, context_window, grammar=grammar_name)
+            result, usage = get_webui_completion(endpoint, prompt, context_window, grammar=grammar)
         elif endpoint_type == "webui-legacy":
-            result, usage = get_webui_completion_legacy(endpoint, prompt, context_window, grammar=grammar_name)
+            result, usage = get_webui_completion_legacy(endpoint, prompt, context_window, grammar=grammar)
         elif endpoint_type == "lmstudio":
             result, usage = get_lmstudio_completion(endpoint, prompt, context_window, api="completions")
         elif endpoint_type == "lmstudio-legacy":
             result, usage = get_lmstudio_completion(endpoint, prompt, context_window, api="chat")
         elif endpoint_type == "llamacpp":
-            result, usage = get_llamacpp_completion(endpoint, prompt, context_window, grammar=grammar_name)
+            result, usage = get_llamacpp_completion(endpoint, prompt, context_window, grammar=grammar)
         elif endpoint_type == "koboldcpp":
-            result, usage = get_koboldcpp_completion(endpoint, prompt, context_window, grammar=grammar_name)
+            result, usage = get_koboldcpp_completion(endpoint, prompt, context_window, grammar=grammar)
         elif endpoint_type == "ollama":
             result, usage = get_ollama_completion(endpoint, model, prompt, context_window)
         elif endpoint_type == "vllm":
@@ -178,3 +216,33 @@ def get_chat_completion(
     )
     printd(response)
     return response
+
+
+def generate_grammar_and_documentation(
+    functions_python: dict,
+    add_inner_thoughts_top_level: bool,
+    add_inner_thoughts_param_level: bool,
+    allow_only_inner_thoughts: bool,
+):
+    from memgpt.utils import printd
+
+    assert not (
+        add_inner_thoughts_top_level and add_inner_thoughts_param_level
+    ), "Can only place inner thoughts in one location in the grammar generator"
+
+    grammar_function_models = []
+    # create_dynamic_model_from_function will add inner thoughts to the function parameters if add_inner_thoughts is True.
+    # generate_gbnf_grammar_and_documentation will add inner thoughts to the outer object of the function parameters if add_inner_thoughts is True.
+    for key, func in functions_python.items():
+        grammar_function_models.append(create_dynamic_model_from_function(func, add_inner_thoughts=add_inner_thoughts_param_level))
+    grammar, documentation = generate_gbnf_grammar_and_documentation(
+        grammar_function_models,
+        outer_object_name="function",
+        outer_object_content="params",
+        model_prefix="Function",
+        fields_prefix="Parameter",
+        add_inner_thoughts=add_inner_thoughts_top_level,
+        allow_only_inner_thoughts=allow_only_inner_thoughts,
+    )
+    printd(grammar)
+    return grammar, documentation

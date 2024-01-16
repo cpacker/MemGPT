@@ -306,6 +306,7 @@ class Agent(object):
                 agent_state=self.config,
                 messages=message_sequence,
                 functions=self.functions,
+                functions_python=self.functions_python,
                 function_call=function_call,
                 # hint
                 first_message=first_message,

@@ -24,7 +24,7 @@ def get_llamacpp_completion(endpoint, prompt, context_window, grammar=None):
 
     # Set grammar
     if grammar is not None:
-        request["grammar"] = load_grammar_file(grammar)
+        request["grammar"] = grammar
 
     if not endpoint.startswith(("http://", "https://")):
         raise ValueError(f"Provided OPENAI_API_BASE value ({endpoint}) must begin with http:// or https://")
