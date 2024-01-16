@@ -104,7 +104,10 @@ def get_chat_completion(
             # otherwise, the other prompt formatters will insert inner thoughts as a function call parameter (by default)
             # this means that every response from the LLM will be required to call a function
             grammar, documentation = generate_grammar_and_documentation(
-                functions_python=functions_python, add_inner_thoughts_top_level=False, add_inner_thoughts_param_level=True
+                functions_python=functions_python,
+                add_inner_thoughts_top_level=False,
+                add_inner_thoughts_param_level=True,
+                allow_only_inner_thoughts=False,
             )
         printd(grammar)
 
@@ -116,8 +119,8 @@ def get_chat_completion(
 
     # First step: turn the message sequence into a prompt that the model expects
     try:
-        # if hasattr(llm_wrapper, "supports_first_message") and llm_wrapper.supports_first_message:
-        if hasattr(llm_wrapper, "supports_first_message"):
+        # if hasattr(llm_wrapper, "supports_first_message"):
+        if hasattr(llm_wrapper, "supports_first_message") and llm_wrapper.supports_first_message:
             prompt = llm_wrapper.chat_completion_to_prompt(messages, functions, first_message=first_message)
         else:
             prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
@@ -216,7 +219,10 @@ def get_chat_completion(
 
 
 def generate_grammar_and_documentation(
-    functions_python: dict, add_inner_thoughts_top_level: bool, add_inner_thoughts_param_level: bool, allow_only_inner_thoughts=False
+    functions_python: dict,
+    add_inner_thoughts_top_level: bool,
+    add_inner_thoughts_param_level: bool,
+    allow_only_inner_thoughts: bool,
 ):
     from memgpt.utils import printd
 
