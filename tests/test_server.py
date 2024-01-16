@@ -56,7 +56,11 @@ def test_server():
     except:
         raise
 
+    # stateless
     print(server.run_command(user_id=user_id, agent_id=agent_state.id, command="/memory"))
+
+    # stateful
+    print(server.user_message(user_id=user_id, agent_id=agent_state.id, message="Hello world"))
 
     # insert messages
     agent = server._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
