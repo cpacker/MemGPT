@@ -489,8 +489,6 @@ class SyncServer(LockingServer):
         if not user:
             raise ValueError(f"cannot find user with associated client id: {user_id}")
 
-        print("DEFAULT EMBEDDING", user.default_embedding_config.embedding_endpoint_type)
-
         agent_state = AgentState(
             user_id=user.id,
             name=agent_config["name"] if "name" in agent_config else utils.create_random_username(),
@@ -501,7 +499,6 @@ class SyncServer(LockingServer):
             llm_config=agent_config["llm_config"] if "llm_config" in agent_config else user.default_llm_config,
             embedding_config=agent_config["embedding_config"] if "embedding_config" in agent_config else user.default_embedding_config,
         )
-        print("agent_id", agent_state.id)
         logger.debug(f"Attempting to create agent from agent_state:\n{agent_state}")
         try:
             agent = presets.create_agent_from_preset(agent_state=agent_state, interface=interface)
@@ -601,7 +598,6 @@ class SyncServer(LockingServer):
             )
 
             # get a single page of messages
-            print("LIST", list(db_iterator))
             page = next(db_iterator)
 
             # return messages in reverse chronological order
