@@ -26,7 +26,7 @@ def get_webui_completion(endpoint, prompt, context_window, grammar=None):
 
     # Set grammar
     if grammar is not None:
-        request["grammar_string"] = load_grammar_file(grammar)
+        request["grammar_string"] = grammar
 
     if not endpoint.startswith(("http://", "https://")):
         raise ValueError(f"Provided OPENAI_API_BASE value ({endpoint}) must begin with http:// or https://")
