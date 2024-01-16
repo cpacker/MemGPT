@@ -508,7 +508,11 @@ def generate_gbnf_grammar(model: Type[BaseModel], processed_models: set, created
 
 
 def generate_gbnf_grammar_from_pydantic_models(
-    models: List[Type[BaseModel]], outer_object_name: str = None, outer_object_content: str = None, list_of_outputs: bool = False, add_inner_thoughts: bool = False,
+    models: List[Type[BaseModel]],
+    outer_object_name: str = None,
+    outer_object_content: str = None,
+    list_of_outputs: bool = False,
+    add_inner_thoughts: bool = False,
 ) -> str:
     """
     Generate GBNF Grammar from Pydantic Models.
@@ -558,13 +562,9 @@ def generate_gbnf_grammar_from_pydantic_models(
             root_rule = f"root ::= {format_model_and_field_name(outer_object_name)}\n"
 
         if add_inner_thoughts:
-            model_rule = (
-                rf'{format_model_and_field_name(outer_object_name)} ::= (" "| "\n") "{{" ws "\"inner_thoughts\""  ":" ws string "," "\n" ws "\"{outer_object_name}\""  ":" ws grammar-models'
-            )
+            model_rule = rf'{format_model_and_field_name(outer_object_name)} ::= (" "| "\n") "{{" ws "\"inner_thoughts\""  ":" ws string "," "\n" ws "\"{outer_object_name}\""  ":" ws grammar-models'
         else:
-            model_rule = (
-                rf'{format_model_and_field_name(outer_object_name)} ::= (" "| "\n") "{{" ws "\"{outer_object_name}\""  ":" ws grammar-models'
-            )
+            model_rule = rf'{format_model_and_field_name(outer_object_name)} ::= (" "| "\n") "{{" ws "\"{outer_object_name}\""  ":" ws grammar-models'
 
         fields_joined = " | ".join([rf"{format_model_and_field_name(model.__name__)}-grammar-model" for model in models])
 
@@ -1062,7 +1062,9 @@ def generate_gbnf_grammar_and_documentation(
     documentation = generate_markdown_documentation(
         copy(pydantic_model_list), model_prefix, fields_prefix, documentation_with_field_description=documentation_with_field_description
     )
-    grammar = generate_gbnf_grammar_from_pydantic_models(pydantic_model_list, outer_object_name, outer_object_content, list_of_outputs, add_inner_thoughts)
+    grammar = generate_gbnf_grammar_from_pydantic_models(
+        pydantic_model_list, outer_object_name, outer_object_content, list_of_outputs, add_inner_thoughts
+    )
     grammar = remove_empty_lines(grammar + get_primitive_grammar(grammar))
     return grammar, documentation
 
