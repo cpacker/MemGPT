@@ -49,12 +49,17 @@ def get_available_wrappers() -> dict:
     return {
         # New chatml-based wrappers
         "chatml": chatml.ChatMLInnerMonologueWrapper(),
+        "chatml-grammar": chatml.ChatMLInnerMonologueWrapper(),
         "chatml-noforce": chatml.ChatMLOuterInnerMonologueWrapper(),
+        "chatml-noforce-grammar": chatml.ChatMLOuterInnerMonologueWrapper(),
         # "chatml-noforce-sysm": chatml.ChatMLOuterInnerMonologueWrapper(use_system_role_in_user=True),
         "chatml-noforce-roles": chatml.ChatMLOuterInnerMonologueWrapper(use_system_role_in_user=True, allow_function_role=True),
+        "chatml-noforce-roles-grammar": chatml.ChatMLOuterInnerMonologueWrapper(use_system_role_in_user=True, allow_function_role=True),
         # With extra hints
         "chatml-hints": chatml.ChatMLInnerMonologueWrapper(assistant_prefix_hint=True),
+        "chatml-hints-grammar": chatml.ChatMLInnerMonologueWrapper(assistant_prefix_hint=True),
         "chatml-noforce-hints": chatml.ChatMLOuterInnerMonologueWrapper(assistant_prefix_hint=True),
+        "chatml-noforce-hints-grammar": chatml.ChatMLOuterInnerMonologueWrapper(assistant_prefix_hint=True),
         # Legacy wrappers
         "airoboros-l2-70b-2.1": airoboros.Airoboros21InnerMonologueWrapper(),
         "airoboros-l2-70b-2.1-grammar": airoboros.Airoboros21InnerMonologueWrapper(assistant_prefix_extra=None),
