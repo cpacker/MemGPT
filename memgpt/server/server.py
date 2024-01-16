@@ -618,10 +618,7 @@ class SyncServer(LockingServer):
         else:
             # need to access persistence manager for additional messages
             filters = {"agent_id": agent_id, "user_id": user_id}
-            print("filters", filters)
 
-            print("all all", [m.id for m in memgpt_agent.persistence_manager.recall_memory.storage.get_all()])
-            print("all", [m.id for m in memgpt_agent.persistence_manager.recall_memory.storage.get_all(filters=filters)])
             db_iterator = memgpt_agent.persistence_manager.recall_memory.storage.get_all_paginated(
                 filters=filters, page_size=count, offset=start
             )
