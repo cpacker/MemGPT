@@ -617,21 +617,35 @@ class SyncServer(LockingServer):
             messages = [memgpt_agent.persistence_manager.json_to_message(m) for m in paginated_messages]
         else:
             # need to access persistence manager for additional messages
-            filters = {"agent_id": agent_id, "user_id": user_id}
-
-            db_iterator = memgpt_agent.persistence_manager.recall_memory.storage.get_all_paginated(
-                filters=filters, page_size=count, offset=start
-            )
+            db_iterator = memgpt_agent.persistence_manager.recall_memory.storage.get_all_paginated(page_size=count, offset=start)
 
             # get a single page of messages
-            page = next(db_iterator)
+            # TODO: handle stop iteration
+            page = next(db_iterator, [])
 
             # return messages in reverse chronological order
             messages = sorted(page, key=lambda x: x.created_at, reverse=True)
 
         # convert to json
-        json_messages = [vars(m) for m in messages]
+        json_messages = [vars(record) for record in messages]
         return json_messages
+
+    def get_agent_archival(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
+        """Paginated query of all messages in agent archival memory"""
+        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        # iterate over records
+        db_iterator = memgpt_agent.persistence_manager.archival_memory.storage.get_all_paginated(page_size=count, offset=start)
+
+        # get a single page of messages
+        page = next(db_iterator, [])
+        json_passages = [vars(record) for record in page]
+        return json_passages
 
     def get_agent_config(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> dict:
         """Return the config of an agent"""

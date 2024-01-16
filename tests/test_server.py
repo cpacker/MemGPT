@@ -6,7 +6,8 @@ import memgpt.utils as utils
 utils.DEBUG = True
 from memgpt.config import MemGPTConfig
 from memgpt.server.server import SyncServer
-from memgpt.data_types import EmbeddingConfig, AgentState, LLMConfig, Message
+from memgpt.data_types import EmbeddingConfig, AgentState, LLMConfig, Message, Passage
+from memgpt.embeddings import embedding_model
 from .utils import wipe_config, wipe_memgpt_home
 
 
@@ -72,6 +73,30 @@ def test_server():
     messages_3 = server.get_agent_messages(user_id=user_id, agent_id=agent_state.id, start=1, count=5)
     # not sure exactly how many messages there should be
     assert len(messages_2) > len(messages_3)
+
+    # test safe empty return
+    messages_none = server.get_agent_messages(user_id=user_id, agent_id=agent_state.id, start=1000, count=1000)
+    assert len(messages_none) == 0
+
+    # test archival memory
+    agent = server._load_agent(user_id=user_id, agent_id=agent_state.id)
+    archival_memories = ["Cinderella wore a blue dress", "Dog eat dog", "Shishir loves indian food"]
+    embed_model = embedding_model(embedding_config)
+    for text in archival_memories:
+        embedding = embed_model.get_text_embedding(text)
+        agent.persistence_manager.archival_memory.storage.insert(
+            Passage(user_id=user_id, agent_id=agent_state.id, text=text, embedding=embedding)
+        )
+    passage_1 = server.get_agent_archival(user_id=user_id, agent_id=agent_state.id, start=0, count=1)
+    assert len(passage_1) == 1
+    passage_2 = server.get_agent_archival(user_id=user_id, agent_id=agent_state.id, start=1, count=1000)
+    assert len(passage_2) == 2
+
+    print(passage_1)
+
+    # test safe empty return
+    passage_none = server.get_agent_archival(user_id=user_id, agent_id=agent_state.id, start=1000, count=1000)
+    assert len(passage_none) == 0
 
 
 if __name__ == "__main__":
