@@ -2,6 +2,7 @@ import asyncio
 from asyncio import AbstractEventLoop
 from enum import Enum
 import json
+import uuid
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Body, HTTPException, Query
@@ -56,8 +57,14 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface)
         # Validate with the Pydantic model (optional)
         request = GetAgentMessagesRequest(user_id=user_id, agent_id=agent_id, start=start, count=count)
 
+        # TODO remove once chatui adds user selection / pulls user from config
+        request.user_id = None if request.user_id == "null" else request.user_id
+
+        user_id = uuid.UUID(request.user_id) if request.user_id else None
+        agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
+
         interface.clear()
-        messages = server.get_agent_messages(user_id=request.user_id, agent_id=request.agent_id, start=request.start, count=request.count)
+        messages = server.get_agent_messages(user_id=user_id, agent_id=agent_id, start=request.start, count=request.count)
         return GetAgentMessagesResponse(messages=messages)
 
     @router.post("/agents/message", tags=["agents"], response_model=UserMessageResponse)
@@ -68,6 +75,12 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface)
         This endpoint accepts a message from a user and processes it through the agent.
         It can optionally stream the response if 'stream' is set to True.
         """
+        # TODO remove once chatui adds user selection / pulls user from config
+        request.user_id = None if request.user_id == "null" else request.user_id
+
+        user_id = uuid.UUID(request.user_id) if request.user_id else None
+        agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
+
         if request.role == "user" or request.role is None:
             message_func = server.user_message
         elif request.role == "system":
@@ -83,7 +96,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface)
                 # Check if server.user_message is an async function
                 if asyncio.iscoroutinefunction(message_func):
                     # Start the async task
-                    await asyncio.create_task(message_func(user_id=request.user_id, agent_id=request.agent_id, message=request.message))
+                    await asyncio.create_task(message_func(user_id=user_id, agent_id=agent_id, message=request.message))
                 else:
 
                     def handle_exception(exception_loop: AbstractEventLoop, context):
@@ -95,7 +108,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface)
                     # Run the synchronous function in a thread pool
                     loop = asyncio.get_event_loop()
                     loop.set_exception_handler(handle_exception)
-                    loop.run_in_executor(None, message_func, request.user_id, request.agent_id, request.message)
+                    loop.run_in_executor(None, message_func, user_id, agent_id, request.message)
 
                 async def formatted_message_generator():
                     async for message in interface.message_generator():
@@ -113,7 +126,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface)
         else:
             interface.clear()
             try:
-                message_func(user_id=request.user_id, agent_id=request.agent_id, message=request.message)
+                message_func(user_id=user_id, agent_id=agent_id, message=request.message)
             except HTTPException:
                 raise
             except Exception as e:

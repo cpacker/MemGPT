@@ -1,3 +1,4 @@
+import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Body, Query
@@ -52,8 +53,14 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface):
         # Validate with the Pydantic model (optional)
         request = GetAgentMemoryRequest(user_id=user_id, agent_id=agent_id)
 
+        # TODO remove once chatui adds user selection / pulls user from config
+        request.user_id = None if request.user_id == "null" else request.user_id
+
+        user_id = uuid.UUID(request.user_id) if request.user_id else None
+        agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
+
         interface.clear()
-        memory = server.get_agent_memory(user_id=request.user_id, agent_id=request.agent_id)
+        memory = server.get_agent_memory(user_id=user_id, agent_id=agent_id)
         return GetAgentMemoryResponse(**memory)
 
     @router.post("/agents/memory", tags=["agents"], response_model=UpdateAgentMemoryResponse)
@@ -63,11 +70,16 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface):
 
         This endpoint accepts new memory contents (human and persona) and updates the core memory of the agent identified by the user ID and agent ID.
         """
+        # TODO remove once chatui adds user selection / pulls user from config
+        request.user_id = None if request.user_id == "null" else request.user_id
+
+        user_id = uuid.UUID(request.user_id) if request.user_id else None
+        agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
+
         interface.clear()
+
         new_memory_contents = {"persona": request.persona, "human": request.human}
-        response = server.update_agent_core_memory(
-            user_id=request.user_id, agent_id=request.agent_id, new_memory_contents=new_memory_contents
-        )
+        response = server.update_agent_core_memory(user_id=user_id, agent_id=agent_id, new_memory_contents=new_memory_contents)
         return UpdateAgentMemoryResponse(**response)
 
     return router
