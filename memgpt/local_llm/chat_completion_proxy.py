@@ -95,7 +95,7 @@ def get_chat_completion(
             # this is closer to the OpenAI style since it allows for messages w/o any function calls
             # however, with bad LLMs it makes it easier for the LLM to "forget" to call any of the functions
             grammar, documentation = generate_grammar_and_documentation(
-                functions_python=functions_python, add_inner_thoughts_top_level=True, add_inner_thoughts_param_level=False
+                functions_python=functions_python, add_inner_thoughts_top_level=True, add_inner_thoughts_param_level=False, allow_only_inner_thoughts=True
             )
         else:
             # otherwise, the other prompt formatters will insert inner thoughts as a function call parameter (by default)
@@ -212,7 +212,7 @@ def get_chat_completion(
     return response
 
 
-def generate_grammar_and_documentation(functions_python: dict, add_inner_thoughts_top_level: bool, add_inner_thoughts_param_level: bool):
+def generate_grammar_and_documentation(functions_python: dict, add_inner_thoughts_top_level: bool, add_inner_thoughts_param_level: bool, allow_only_inner_thoughts=False):
     from memgpt.utils import printd
 
     assert not (
@@ -231,6 +231,7 @@ def generate_grammar_and_documentation(functions_python: dict, add_inner_thought
         model_prefix="Function",
         fields_prefix="Parameter",
         add_inner_thoughts=add_inner_thoughts_top_level,
+        allow_only_inner_thoughts=allow_only_inner_thoughts
     )
     printd(grammar)
     return grammar, documentation
