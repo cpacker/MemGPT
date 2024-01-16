@@ -513,7 +513,7 @@ def generate_gbnf_grammar_from_pydantic_models(
     outer_object_content: str = None,
     list_of_outputs: bool = False,
     add_inner_thoughts: bool = False,
-    allow_only_inner_thoughts: bool = False
+    allow_only_inner_thoughts: bool = False,
 ) -> str:
     """
     Generate GBNF Grammar from Pydantic Models.
