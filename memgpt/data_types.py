@@ -53,7 +53,7 @@ class Message(Record):
         agent_id: uuid.UUID,
         role: str,
         text: str,
-        model: str,  # model used to make function call
+        model: Optional[str],  # model used to make function call
         name: Optional[str] = None,  # optional participant name
         created_at: Optional[str] = None,
         tool_calls: Optional[List[ToolCall]] = None,  # list of tool calls requested
