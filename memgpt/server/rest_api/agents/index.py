@@ -38,8 +38,13 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface):
         """
         request = ListAgentsRequest(user_id=user_id)
 
+        # TODO remove once chatui adds user selection / pulls user from config
+        request.user_id = None if request.user_id == "null" else request.user_id
+
+        user_id = uuid.UUID(request.user_id) if request.user_id else None
+
         interface.clear()
-        agents_data = server.list_agents(user_id=request.user_id)
+        agents_data = server.list_agents(user_id=user_id)
         return ListAgentsResponse(**agents_data)
 
     @router.post("/agents", tags=["agents"], response_model=CreateAgentResponse)
@@ -48,8 +53,13 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface):
         Create a new agent with the specified configuration.
         """
         interface.clear()
+
+        # TODO remove once chatui adds user selection / pulls user from config
+        request.user_id = None if request.user_id == "null" else request.user_id
+
         try:
-            agent_state = server.create_agent(user_id=request.user_id, agent_config=request.config)
+            user_id = uuid.UUID(request.user_id) if request.user_id else None
+            agent_state = server.create_agent(user_id=user_id, agent_config=request.config)
             return CreateAgentResponse(agent_id=agent_state.id)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
