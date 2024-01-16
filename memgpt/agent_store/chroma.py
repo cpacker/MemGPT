@@ -66,8 +66,7 @@ class ChromaStorageConnector(StorageConnector):
             chroma_filters = chroma_filters[0]
         return ids, chroma_filters
 
-    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000) -> Iterator[List[Record]]:
-        offset = 0
+    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000, offset=0) -> Iterator[List[Record]]:
         ids, filters = self.get_filters(filters)
         while True:
             # Retrieve a chunk of records with the given page_size

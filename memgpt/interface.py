@@ -266,3 +266,7 @@ class CLIInterface(AgentInterface):
     def print_messages_raw(message_sequence):
         for msg in message_sequence:
             print(msg)
+
+    @staticmethod
+    def step_yield():
+        pass
