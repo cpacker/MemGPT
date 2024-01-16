@@ -489,6 +489,8 @@ class SyncServer(LockingServer):
         if not user:
             raise ValueError(f"cannot find user with associated client id: {user_id}")
 
+        print("DEFAULT EMBEDDING", user.default_embedding_config.embedding_endpoint_type)
+
         agent_state = AgentState(
             user_id=user.id,
             name=agent_config["name"] if "name" in agent_config else utils.create_random_username(),
@@ -499,6 +501,7 @@ class SyncServer(LockingServer):
             llm_config=agent_config["llm_config"] if "llm_config" in agent_config else user.default_llm_config,
             embedding_config=agent_config["embedding_config"] if "embedding_config" in agent_config else user.default_embedding_config,
         )
+        print("agent_id", agent_state.id)
         logger.debug(f"Attempting to create agent from agent_state:\n{agent_state}")
         try:
             agent = presets.create_agent_from_preset(agent_state=agent_state, interface=interface)
@@ -564,7 +567,7 @@ class SyncServer(LockingServer):
         return memory_obj
 
     def get_agent_messages(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
-        """Paginated query of in-context messages in agent message queue"""
+        """Paginated query of all messages in agent message queue"""
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
 
@@ -583,18 +586,30 @@ class SyncServer(LockingServer):
 
             # Slice the list for pagination
             paginated_messages = reversed_messages[start:end_index]
-            return paginated_messages
 
-        # need to access persistence manager for additional messages
-        filters = {"agent_id": agent_id, "user_id": user_id}
-        db_iterator = memgpt_agent.persistence_manager.recall_memory.storage.get_all_paginated(filters=filters, limit=count, offset=start)
+            # convert to message objects:
+            messages = [memgpt_agent.persistence_manager.json_to_message(m) for m in paginated_messages]
+        else:
+            # need to access persistence manager for additional messages
+            filters = {"agent_id": agent_id, "user_id": user_id}
+            print("filters", filters)
 
-        # get a single page of messages
-        messages = next(db_iterator)
+            print("all all", [m.id for m in memgpt_agent.persistence_manager.recall_memory.storage.get_all()])
+            print("all", [m.id for m in memgpt_agent.persistence_manager.recall_memory.storage.get_all(filters=filters)])
+            db_iterator = memgpt_agent.persistence_manager.recall_memory.storage.get_all_paginated(
+                filters=filters, page_size=count, offset=start
+            )
 
-        # return messages in reverse chronological order
-        revered_messages = sorted(messages, key=lambda x: x.created_at, reverse=True)
-        return [vars(m) for m in revered_messages]
+            # get a single page of messages
+            print("LIST", list(db_iterator))
+            page = next(db_iterator)
+
+            # return messages in reverse chronological order
+            messages = sorted(page, key=lambda x: x.created_at, reverse=True)
+
+        # convert to json
+        json_messages = [vars(m) for m in messages]
+        return json_messages
 
     def get_agent_config(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> dict:
         """Return the config of an agent"""

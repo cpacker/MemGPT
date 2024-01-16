@@ -177,10 +177,6 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
             api_version=config.azure_version,
         )
     elif endpoint_type == "hugging-face":
-        try:
-            embed_model = EmbeddingEndpoint(model=config.embedding_model, base_url=config.embedding_endpoint, user=user_id)
-        except:
-            embed_model = default_embedding_model()
-        return embed_model
+        return EmbeddingEndpoint(model=config.embedding_model, base_url=config.embedding_endpoint, user=user_id)
     else:
         return default_embedding_model()
