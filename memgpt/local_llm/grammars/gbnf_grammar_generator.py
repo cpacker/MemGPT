@@ -290,7 +290,7 @@ def generate_gbnf_rule_for_type(
 
     if isclass(field_type) and issubclass(field_type, BaseModel):
         nested_model_name = format_model_and_field_name(field_type.__name__)
-        nested_model_rules, _, _ = generate_gbnf_grammar(field_type, processed_models, created_rules)
+        nested_model_rules, _ = generate_gbnf_grammar(field_type, processed_models, created_rules)
         rules.extend(nested_model_rules)
         gbnf_type, rules = nested_model_name, rules
     elif isclass(field_type) and issubclass(field_type, Enum):
@@ -493,16 +493,18 @@ def generate_gbnf_grammar(model: Type[BaseModel], processed_models: set, created
     fields_joined = r' "," "\n" '.join(model_rule_parts)
     model_rule = rf'{model_name} ::= "{{" "\n" {fields_joined} "\n" ws "}}"'
 
-    if look_for_markdown_code_block or look_for_triple_quoted_string:
-        model_rule += ' ws "}"'
-
+    has_special_string = False
     if has_triple_quoted_string:
+        model_rule += '"\\n" ws "}"'
         model_rule += '"\\n" triple-quoted-string'
+        has_special_string = True
     if has_markdown_code_block:
+        model_rule += '"\\n" ws "}"'
         model_rule += '"\\n" markdown-code-block'
+        has_special_string = True
     all_rules = [model_rule] + nested_rules
 
-    return all_rules, has_markdown_code_block, has_triple_quoted_string
+    return all_rules, has_special_string
 
 
 def generate_gbnf_grammar_from_pydantic_models(
@@ -535,7 +537,7 @@ def generate_gbnf_grammar_from_pydantic_models(
     created_rules = {}
     if outer_object_name is None:
         for model in models:
-            model_rules, _, _ = generate_gbnf_grammar(model, processed_models, created_rules)
+            model_rules, _ = generate_gbnf_grammar(model, processed_models, created_rules)
             all_rules.extend(model_rules)
 
         if list_of_outputs:
@@ -569,19 +571,15 @@ def generate_gbnf_grammar_from_pydantic_models(
             )
             mod_rules.append(mod_rule)
         grammar_model_rules += "\n" + "\n".join(mod_rules)
-        look_for_markdown_code_block = False
-        look_for_triple_quoted_string = False
+
         for model in models:
-            model_rules, markdown_block, triple_quoted_string = generate_gbnf_grammar(model, processed_models, created_rules)
+            model_rules, has_special_string = generate_gbnf_grammar(model, processed_models, created_rules)
+
+            if not has_special_string:
+                model_rules[0] += r'"\n" ws "}"'
+
             all_rules.extend(model_rules)
-            if markdown_block:
-                look_for_markdown_code_block = True
 
-            if triple_quoted_string:
-                look_for_triple_quoted_string = True
-
-        if not look_for_markdown_code_block and not look_for_triple_quoted_string:
-            model_rule += ' ws "}"'
         all_rules.insert(0, root_rule + model_rule + grammar_model_rules)
         return "\n".join(all_rules)
 
@@ -1094,16 +1092,15 @@ def generate_gbnf_grammar_and_documentation_from_dictionaries(
     return grammar, documentation
 
 
-def create_dynamic_model_from_function(func: Callable, add_inner_thoughts: bool = False):
+def create_dynamic_model_from_function(func: Callable):
     """
     Creates a dynamic Pydantic model from a given function's type hints and adds the function as a 'run' method.
 
     Args:
         func (Callable): A function with type hints from which to create the model.
-        add_inner_thoughts:  Add an inner thoughts parameter
+
     Returns:
         A dynamic Pydantic model class with the provided function as a 'run' method.
-
     """
 
     # Get the signature of the function
@@ -1114,8 +1111,6 @@ def create_dynamic_model_from_function(func: Callable, add_inner_thoughts: bool 
 
     dynamic_fields = {}
     param_docs = []
-    if add_inner_thoughts:
-        dynamic_fields["inner_thoughts"] = (str, None)
     for param in sig.parameters.values():
         # Exclude 'self' parameter
         if param.name == "self":
@@ -1140,13 +1135,8 @@ def create_dynamic_model_from_function(func: Callable, add_inner_thoughts: bool 
         else:
             default_value = param.default
         dynamic_fields[param.name] = (param.annotation if param.annotation != inspect.Parameter.empty else str, default_value)
-
     # Creating the dynamic model
-
     dynamic_model = create_model(f"{func.__name__}", **dynamic_fields)
-
-    if add_inner_thoughts:
-        dynamic_model.model_fields["inner_thoughts"].description = "Deep inner monologue private to you only."
 
     for param_doc in param_docs:
         dynamic_model.model_fields[param_doc[0]].description = param_doc[1].description
