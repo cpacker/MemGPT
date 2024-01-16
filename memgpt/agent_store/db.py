@@ -15,7 +15,7 @@ import uuid
 
 import re
 from tqdm import tqdm
-from typing import Optional, List, Iterator, Dict
+from typing import Optional, List, Iterator, Dict, Tuple
 import numpy as np
 from tqdm import tqdm
 import pandas as pd
@@ -275,6 +275,41 @@ class SQLStorageConnector(StorageConnector):
 
             # Increment the offset to get the next chunk in the next iteration
             offset += page_size
+
+    def get_all_cursor(
+        self,
+        filters: Optional[Dict] = {},
+        after: uuid.UUID = None,
+        before: uuid.UUID = None,
+        limit: Optional[int] = 1000,
+        order_by: str = "created_at",
+        reverse: bool = False,
+    ) -> Iterator[Tuple(uuid.UUID, List[Record])]:
+        """Get all that returns a cursor (record.id) and records"""
+        filters = self.get_filters(filters)
+
+        # generate query
+        query = self.session.query(self.db_model).filter(*filters)
+        if reverse:
+            query = query.order_by(getattr(self.db_model, order_by).desc())
+        else:
+            query = query.order_by(getattr(self.db_model, order_by).asc())
+
+        # cursor
+        if after:
+            query = query.filter(self.db_model.id > after)
+        if before:
+            query = query.filter(self.db_model.id < before)
+
+        # get records
+        db_record_chunk = query.filter(getattr(self.db_model, order_by) > after).limit(limit).all()
+        if not db_record_chunk:
+            return None
+        records = [record.to_record() for record in db_record_chunk]
+        next_cursor = records[-1].id
+
+        # return (cursor, list[records])
+        return (next_cursor, records)
 
     def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[Record]:
         filters = self.get_filters(filters)

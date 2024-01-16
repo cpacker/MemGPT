@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Union, Callable
+from typing import Union, Callable, Optional
 import uuid
 import json
 import logging
@@ -646,6 +646,48 @@ class SyncServer(LockingServer):
         page = next(db_iterator, [])
         json_passages = [vars(record) for record in page]
         return json_passages
+
+    def get_agent_archival_cursor(
+        self,
+        user_id: uuid.UUID,
+        agent_id: uuid.UUID,
+        after: Optional[uuid.UUID] = None,
+        before: Optional[uuid.UUID] = None,
+        limit: Optional[int] = 100,
+    ) -> list:
+        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        # iterate over records
+        records = memgpt_agent.persistence_manager.archival_memory.storage.get_all_cursor(after=after, before=before, limit=limit)
+        json_records = [vars(record) for record in records]
+        return json_records
+
+    def get_agent_recall_cursor(
+        self,
+        user_id: uuid.UUID,
+        agent_id: uuid.UUID,
+        after: Optional[uuid.UUID] = None,
+        before: Optional[uuid.UUID] = None,
+        limit: Optional[int] = 100,
+    ) -> list:
+        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        # iterate over records
+        records = memgpt_agent.persistence_manager.recall_memory.storage.get_all_cursor(after=after, before=before, limit=limit)
+        json_records = [vars(record) for record in records]
+
+        # TODO: mark what is in-context versus not
+        return json_records
 
     def get_agent_config(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> dict:
         """Return the config of an agent"""
