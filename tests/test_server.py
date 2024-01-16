@@ -15,6 +15,14 @@ def test_server():
     wipe_memgpt_home()
 
     config = MemGPTConfig.load()
+
+    # setup config for postgres storage
+    config.archival_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")
+    config.recall_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")
+    config.archival_storage_type = "postgres"
+    config.recall_storage_type = "postgres"
+    config.save()
+
     user_id = uuid.UUID(config.anon_clientid)
     server = SyncServer()
 
