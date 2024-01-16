@@ -41,7 +41,7 @@ jobs:
 
       - name: Generate openapi.json file 
         run: |
-          poetry run memgpt server
+          poetry run memgpt server &
           CMD_PID=$!
           sleep 5  # Wait for 5 seconds
           kill -SIGINT $CMD_PID
