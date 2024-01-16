@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Union, Callable
+from typing import Union, Callable, Optional, Tuple
 import uuid
 import json
 import logging
@@ -513,11 +513,15 @@ class SyncServer(LockingServer):
             llm_config=agent_config["llm_config"] if "llm_config" in agent_config else user.default_llm_config,
             embedding_config=agent_config["embedding_config"] if "embedding_config" in agent_config else user.default_embedding_config,
         )
+        # NOTE: you MUST add to the metadata store before creating the agent, otherwise the storage connectors will error on creation
+        self.ms.create_agent(agent_state)
+
         logger.debug(f"Attempting to create agent from agent_state:\n{agent_state}")
         try:
             agent = presets.create_agent_from_preset(agent_state=agent_state, interface=interface)
         except Exception as e:
             logger.exception(e)
+            self.ms.delete_agent(agent_id=agent_state.id)
             raise
 
         logger.info(f"Created new agent from config: {agent}")
@@ -646,6 +650,56 @@ class SyncServer(LockingServer):
         page = next(db_iterator, [])
         json_passages = [vars(record) for record in page]
         return json_passages
+
+    def get_agent_archival_cursor(
+        self,
+        user_id: uuid.UUID,
+        agent_id: uuid.UUID,
+        after: Optional[uuid.UUID] = None,
+        before: Optional[uuid.UUID] = None,
+        limit: Optional[int] = 100,
+        order_by: Optional[str] = "created_at",
+        reverse: Optional[bool] = False,
+    ):
+        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        # iterate over recorde
+        cursor, records = memgpt_agent.persistence_manager.archival_memory.storage.get_all_cursor(
+            after=after, before=before, limit=limit, order_by=order_by, reverse=reverse
+        )
+        json_records = [vars(record) for record in records]
+        return cursor, json_records
+
+    def get_agent_recall_cursor(
+        self,
+        user_id: uuid.UUID,
+        agent_id: uuid.UUID,
+        after: Optional[uuid.UUID] = None,
+        before: Optional[uuid.UUID] = None,
+        limit: Optional[int] = 100,
+        order_by: Optional[str] = "created_at",
+        reverse: Optional[bool] = False,
+    ):
+        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        # iterate over records
+        cursor, records = memgpt_agent.persistence_manager.recall_memory.storage.get_all_cursor(
+            after=after, before=before, limit=limit, order_by=order_by, reverse=reverse
+        )
+        json_records = [vars(record) for record in records]
+
+        # TODO: mark what is in-context versus not
+        return cursor, json_records
 
     def get_agent_config(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> dict:
         """Return the config of an agent"""
