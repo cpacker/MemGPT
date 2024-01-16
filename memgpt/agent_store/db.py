@@ -4,7 +4,8 @@ import psycopg
 
 
 from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, DateTime
-from sqlalchemy import func
+from sqlalchemy import func, or_, and_
+from sqlalchemy import desc, asc
 from sqlalchemy.orm import sessionmaker, mapped_column, declarative_base
 from sqlalchemy.orm.session import close_all_sessions
 from sqlalchemy.sql import func
@@ -67,16 +68,13 @@ class CommonVector(TypeDecorator):
         if value:
             assert isinstance(value, np.ndarray) or isinstance(value, list), f"Value must be of type np.ndarray or list, got {type(value)}"
             assert isinstance(value[0], float), f"Value must be of type float, got {type(value[0])}"
-            # print("WRITE", np.array(value).tobytes())
             return np.array(value).tobytes()
         else:
-            # print("WRITE", value, type(value))
             return value
 
     def process_result_value(self, value, dialect):
         if not value:
             return value
-        # print("dialect", dialect, type(value))
         return np.frombuffer(value)
 
 
@@ -124,6 +122,10 @@ def get_db_model(
         if user is None:
             raise ValueError(f"User {user_id} not found")
         embedding_dim = user.default_embedding_config.embedding_dim
+
+        # this cannot be the case if we are making an agent-specific table
+        assert table_type != TableType.RECALL_MEMORY, f"Agent {agent_id} not found"
+        assert table_type != TableType.ARCHIVAL_MEMORY, f"Agent {agent_id} not found"
 
     # Define a helper function to create or get the model class
     def create_or_get_model(class_name, base_model, table_name):
@@ -284,29 +286,45 @@ class SQLStorageConnector(StorageConnector):
         limit: Optional[int] = 1000,
         order_by: str = "created_at",
         reverse: bool = False,
-    ) -> Iterator[Tuple(uuid.UUID, List[Record])]:
+    ):
         """Get all that returns a cursor (record.id) and records"""
         filters = self.get_filters(filters)
 
         # generate query
         query = self.session.query(self.db_model).filter(*filters)
-        if reverse:
-            query = query.order_by(getattr(self.db_model, order_by).desc())
-        else:
-            query = query.order_by(getattr(self.db_model, order_by).asc())
+        # query = query.order_by(asc(self.db_model.id))
 
-        # cursor
+        # records are sorted by the order_by field first, and then by the ID if two fields are the same
+        if reverse:
+            query = query.order_by(desc(getattr(self.db_model, order_by)), asc(self.db_model.id))
+        else:
+            query = query.order_by(asc(getattr(self.db_model, order_by)), asc(self.db_model.id))
+
+        # cursor logic: filter records based on before/after ID
         if after:
-            query = query.filter(self.db_model.id > after)
+            after_value = getattr(self.get(id=after), order_by)
+            if reverse:  # if reverse, then we want to get records that are less than the after_value
+                sort_exp = getattr(self.db_model, order_by) < after_value
+            else:  # otherwise, we want to get records that are greater than the after_value
+                sort_exp = getattr(self.db_model, order_by) > after_value
+            query = query.filter(
+                or_(sort_exp, and_(getattr(self.db_model, order_by) == after_value, self.db_model.id > after))  # tiebreaker case
+            )
         if before:
-            query = query.filter(self.db_model.id < before)
+            before_value = getattr(self.get(id=before), order_by)
+            if reverse:
+                sort_exp = getattr(self.db_model, order_by) > before_value
+            else:
+                sort_exp = getattr(self.db_model, order_by) < before_value
+            query = query.filter(or_(sort_exp, and_(getattr(self.db_model, order_by) == before_value, self.db_model.id < before)))
 
         # get records
-        db_record_chunk = query.filter(getattr(self.db_model, order_by) > after).limit(limit).all()
+        db_record_chunk = query.limit(limit).all()
         if not db_record_chunk:
             return None
         records = [record.to_record() for record in db_record_chunk]
-        next_cursor = records[-1].id
+        next_cursor = db_record_chunk[-1].id
+        assert isinstance(next_cursor, uuid.UUID)
 
         # return (cursor, list[records])
         return (next_cursor, records)
