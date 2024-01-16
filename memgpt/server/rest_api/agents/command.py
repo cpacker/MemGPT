@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, Field
 
@@ -29,7 +30,12 @@ def setup_agents_command_router(server: SyncServer, interface: QueuingInterface)
         """
         interface.clear()
         try:
-            response = server.run_command(user_id=request.user_id, agent_id=request.agent_id, command=request.command)
+            # TODO remove once chatui adds user selection / pulls user from config
+            request.user_id = None if request.user_id == "null" else request.user_id
+
+            user_id = uuid.UUID(request.user_id) if request.user_id else None
+            agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
+            response = server.run_command(user_id=user_id, agent_id=agent_id, command=request.command)
         except HTTPException:
             raise
         except Exception as e:

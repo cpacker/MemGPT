@@ -71,8 +71,18 @@ class LocalStateManager(PersistenceManager):
 
     def json_to_message(self, message_json) -> Message:
         """Convert agent message JSON into Message object"""
-        timestamp = message_json["timestamp"]
-        message = message_json["message"]
+
+        # get message
+        if "message" in message_json:
+            message = message_json["message"]
+        else:
+            message = message_json
+
+        # get timestamp
+        if "timestamp" in message_json:
+            timestamp = parse_formatted_time(message_json["timestamp"])
+        else:
+            timestamp = get_local_time()
 
         # TODO: change this when we fully migrate to tool calls API
         if "function_call" in message:
@@ -97,7 +107,7 @@ class LocalStateManager(PersistenceManager):
             text=message["content"],
             name=message["name"] if "name" in message else None,
             model=self.agent_state.llm_config.model,
-            created_at=parse_formatted_time(timestamp),
+            created_at=timestamp,
             tool_calls=tool_calls,
             tool_call_id=message["tool_call_id"] if "tool_call_id" in message else None,
             id=message["id"] if "id" in message else None,
