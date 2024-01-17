@@ -29,7 +29,7 @@ def test_server():
         # llms
         model_endpoint_type="openai",
         model_endpoint="https://api.openai.com/v1",
-        model="gpt4",
+        model="gpt-4",
     )
     config.save()
 

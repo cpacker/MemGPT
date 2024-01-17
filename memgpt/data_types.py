@@ -237,7 +237,6 @@ class User:
 
     def __init__(
         self,
-        # name: str,
         id: Optional[uuid.UUID] = None,
         default_preset=DEFAULT_PRESET,
         default_persona=DEFAULT_PERSONA,
