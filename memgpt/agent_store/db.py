@@ -337,7 +337,7 @@ class SQLStorageConnector(StorageConnector):
             db_records = self.session.query(self.db_model).filter(*filters).all()
         return [record.to_record() for record in db_records]
 
-    def get(self, id: str) -> Optional[Record]:
+    def get(self, id: uuid.UUID) -> Optional[Record]:
         db_record = self.session.get(self.db_model, id)
         if db_record is None:
             return None
