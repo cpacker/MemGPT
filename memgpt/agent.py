@@ -199,22 +199,6 @@ class Agent(object):
         if "human" not in agent_state.state:
             raise ValueError(f"'human' not found in provided AgentState")
         self.memory = initialize_memory(ai_notes=agent_state.state["persona"], human_notes=agent_state.state["human"])
-        # Once the memory object is initialize, use it to "bake" the system message
-        if "messages" in agent_state.state and agent_state.state["messages"] is not None:
-            if not isinstance(agent_state.state["messages"], list):
-                raise ValueError(f"'messages' in AgentState was bad type: {type(agent_state.state['messages'])}")
-            self._messages = agent_state.state["messages"]
-        else:
-            init_messages = initialize_message_sequence(
-                self.model,
-                self.system,
-                self.memory,
-            )
-            self._messages = []
-            for msg in init_messages:
-                self._messages.append(
-                    Message.dict_to_message(agent_id=self.config.id, user_id=self.config.user_id, model=self.model, openai_message_dict=msg)
-                )
 
         # Interface must implement:
         # - internal_monologue
@@ -228,12 +212,6 @@ class Agent(object):
         # Create the persistence manager object based on the AgentState info
         # TODO
         self.persistence_manager = LocalStateManager(agent_state=agent_state)
-
-        # Keep track of the total number of messages throughout all time
-        self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
-        # self.messages_total_init = self.messages_total
-        self.messages_total_init = len(self._messages) - 1
-        printd(f"Agent initialized, self.messages_total={self.messages_total}")
 
         # State needed for heartbeat pausing
         self.pause_heartbeats_start = None
@@ -254,6 +232,35 @@ class Agent(object):
 
         # Initialize connection to metedata store
         self.ms = MetadataStore(self.memgpt_config)
+
+        # Once the memory object is initialized, use it to "bake" the system message
+        if "messages" in agent_state.state and agent_state.state["messages"] is not None:
+            if not isinstance(agent_state.state["messages"], list):
+                raise ValueError(f"'messages' in AgentState was bad type: {type(agent_state.state['messages'])}")
+            assert all([isinstance(msg, str) for msg in agent_state.state["messages"]])
+
+            # Convert to IDs, and pull from the database
+            self._messages = [
+                self.persistence_manager.recall_memory.storage.get(uuid.UUID(msg_id)) for msg_id in agent_state.state["messages"]
+            ]
+        else:
+            init_messages = initialize_message_sequence(
+                self.model,
+                self.system,
+                self.memory,
+            )
+            self._messages = []
+            for msg in init_messages:
+                self._messages.append(
+                    Message.dict_to_message(agent_id=self.config.id, user_id=self.config.user_id, model=self.model, openai_message_dict=msg)
+                )
+        assert all([isinstance(msg, Message) for msg in self._messages]), self._messages
+
+        # Keep track of the total number of messages throughout all time
+        self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
+        # self.messages_total_init = self.messages_total
+        self.messages_total_init = len(self._messages) - 1
+        printd(f"Agent initialized, self.messages_total={self.messages_total}")
 
         # Create the agent in the DB
         self.save()
@@ -298,7 +305,7 @@ class Agent(object):
         # for msg in added_messages:
         # msg.pop("api_response", None)
         # msg.pop("api_args", None)
-        new_messages = self.messages + added_messages  # append
+        new_messages = self._messages + added_messages  # append
 
         self._messages = new_messages
         self.messages_total += len(added_messages)
@@ -310,7 +317,7 @@ class Agent(object):
 
         self.persistence_manager.swap_system_message(new_system_message)
 
-        new_messages = [new_system_message] + self.messages[1:]  # swap index 0 (system)
+        new_messages = [new_system_message] + self._messages[1:]  # swap index 0 (system)
         self._messages = new_messages
 
     def _get_ai_reply(
@@ -744,7 +751,7 @@ class Agent(object):
             "human": self.memory.human,
             "system": self.system,
             "functions": self.functions,
-            "messages": self.messages,
+            "messages": [str(msg.id) for msg in self._messages],
         }
 
         agent_state = AgentState(
