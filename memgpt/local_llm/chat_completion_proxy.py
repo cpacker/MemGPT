@@ -44,7 +44,7 @@ def get_chat_completion(
     # extra hints to allow for additional prompt formatting hacks
     # TODO this could alternatively be supported via passing function_call="send_message" into the wrapper
     first_message=False,
-):
+) -> Box:
     from memgpt.utils import printd
 
     assert context_window is not None, "Local LLM calls need the context length to be explicitly set"

@@ -6,8 +6,11 @@ import os
 import json
 from pathlib import Path
 import traceback
+from typing import List, Tuple
 
-from memgpt.data_types import AgentState
+from box import Box
+
+from memgpt.data_types import AgentState, Message
 from memgpt.metadata import MetadataStore
 from memgpt.interface import AgentInterface
 from memgpt.persistence_manager import PersistenceManager, LocalStateManager
@@ -202,11 +205,16 @@ class Agent(object):
                 raise ValueError(f"'messages' in AgentState was bad type: {type(agent_state.state['messages'])}")
             self._messages = agent_state.state["messages"]
         else:
-            self._messages = initialize_message_sequence(
+            init_messages = initialize_message_sequence(
                 self.model,
                 self.system,
                 self.memory,
             )
+            self._messages = []
+            for msg in init_messages:
+                self._messages.append(
+                    Message.dict_to_message(agent_id=self.config.id, user_id=self.config.user_id, model=self.model, openai_message_dict=msg)
+                )
 
         # Interface must implement:
         # - internal_monologue
@@ -251,8 +259,13 @@ class Agent(object):
         self.save()
 
     @property
-    def messages(self):
+    def messages_raw(self) -> List[Message]:
         return self._messages
+
+    @property
+    def messages(self) -> List[dict]:
+        """Getter method that converts the internal Message list into OpenAI-style dicts"""
+        return [msg.to_openai_dict() for msg in self._messages]
 
     @messages.setter
     def messages(self, value):
@@ -265,16 +278,20 @@ class Agent(object):
         new_messages = [self.messages[0]] + self.messages[num:]
         self._messages = new_messages
 
-    def _prepend_to_messages(self, added_messages):
+    def _prepend_to_messages(self, added_messages: List[Message]):
         """Wrapper around self.messages.prepend to allow additional calls to a state/persistence manager"""
+        assert all([isinstance(msg, Message) for msg in added_messages])
+
         self.persistence_manager.prepend_to_messages(added_messages)
 
         new_messages = [self.messages[0]] + added_messages + self.messages[1:]  # prepend (no system)
         self._messages = new_messages
         self.messages_total += len(added_messages)  # still should increment the message counter (summaries are additions too)
 
-    def _append_to_messages(self, added_messages):
+    def _append_to_messages(self, added_messages: List[Message]):
         """Wrapper around self.messages.append to allow additional calls to a state/persistence manager"""
+        assert all([isinstance(msg, Message) for msg in added_messages])
+
         self.persistence_manager.append_to_messages(added_messages)
 
         # strip extra metadata if it exists
@@ -286,9 +303,11 @@ class Agent(object):
         self._messages = new_messages
         self.messages_total += len(added_messages)
 
-    def _swap_system_message(self, new_system_message):
-        assert new_system_message["role"] == "system", new_system_message
-        assert self.messages[0]["role"] == "system", self.messages
+    def _swap_system_message(self, new_system_message: Message):
+        assert isinstance(new_system_message, Message)
+        assert new_system_message.role == "system", new_system_message
+        assert self._messages[0].role == "system", self._messages
+
         self.persistence_manager.swap_system_message(new_system_message)
 
         new_messages = [new_system_message] + self.messages[1:]  # swap index 0 (system)
@@ -296,10 +315,10 @@ class Agent(object):
 
     def _get_ai_reply(
         self,
-        message_sequence,
-        function_call="auto",
-        first_message=False,  # hint
-    ):
+        message_sequence: List[dict],
+        function_call: str = "auto",
+        first_message: bool = False,  # hint
+    ) -> Box:
         """Get response from LLM API"""
         try:
             response = create(
@@ -324,8 +343,9 @@ class Agent(object):
         except Exception as e:
             raise e
 
-    def _handle_ai_response(self, response_message):
+    def _handle_ai_response(self, response_message: dict) -> Tuple[List[Message], bool, bool]:
         """Handles parsing and function execution"""
+
         messages = []  # append these to the history when done
 
         # Step 2: check if LLM wanted to call a function
@@ -337,7 +357,11 @@ class Agent(object):
             tool_call_id = str(uuid.uuid4())  # needs to be a string for JSON
             response_message["tool_call_id"] = tool_call_id
             # role: assistant (requesting tool call, set tool call ID)
-            messages.append(response_message)  # extend conversation with assistant's reply
+            messages.append(
+                Message.dict_to_message(
+                    agent_id=self.config.id, user_id=self.config.user_id, model=self.model, openai_message_dict=response_message
+                )
+            )  # extend conversation with assistant's reply
             printd(f"Function call message: {messages[-1]}")
 
             # Step 3: call the function
@@ -352,7 +376,17 @@ class Agent(object):
                 error_msg = f"No function named {function_name}"
                 function_response = package_function_response(False, error_msg)
                 messages.append(
-                    {"role": "function", "name": function_name, "content": function_response, "tool_call_id": tool_call_id}
+                    Message.dict_to_message(
+                        agent_id=self.config.id,
+                        user_id=self.config.user_id,
+                        model=self.model,
+                        openai_message_dict={
+                            "role": "function",
+                            "name": function_name,
+                            "content": function_response,
+                            "tool_call_id": tool_call_id,
+                        },
+                    )
                 )  # extend conversation with function response
                 self.interface.function_message(f"Error: {error_msg}")
                 return messages, None, True  # force a heartbeat to allow agent to handle error
@@ -365,11 +399,16 @@ class Agent(object):
                 error_msg = f"Error parsing JSON for function '{function_name}' arguments: {raw_function_args}"
                 function_response = package_function_response(False, error_msg)
                 messages.append(
-                    {
-                        "role": "function",
-                        "name": function_name,
-                        "content": function_response,
-                    }
+                    Message.dict_to_message(
+                        agent_id=self.config.id,
+                        user_id=self.config.user_id,
+                        model=self.model,
+                        openai_message_dict={
+                            "role": "function",
+                            "name": function_name,
+                            "content": function_response,
+                        },
+                    )
                 )  # extend conversation with function response
                 self.interface.function_message(f"Error: {error_msg}")
                 return messages, None, True  # force a heartbeat to allow agent to handle error
@@ -408,7 +447,17 @@ class Agent(object):
                 printd(error_msg_user)
                 function_response = package_function_response(False, error_msg)
                 messages.append(
-                    {"role": "function", "name": function_name, "content": function_response, "tool_call_id": tool_call_id}
+                    Message.dict_to_message(
+                        agent_id=self.config.id,
+                        user_id=self.config.user_id,
+                        model=self.model,
+                        openai_message_dict={
+                            "role": "function",
+                            "name": function_name,
+                            "content": function_response,
+                            "tool_call_id": tool_call_id,
+                        },
+                    )
                 )  # extend conversation with function response
                 self.interface.function_message(f"Error: {error_msg}")
                 return messages, None, True  # force a heartbeat to allow agent to handle error
@@ -417,13 +466,27 @@ class Agent(object):
             # Step 4: send the info on the function call and function response to GPT
             self.interface.function_message(f"Success: {function_response_string}")
             messages.append(
-                {"role": "function", "name": function_name, "content": function_response, "tool_call_id": tool_call_id}
+                Message.dict_to_message(
+                    agent_id=self.config.id,
+                    user_id=self.config.user_id,
+                    model=self.model,
+                    openai_message_dict={
+                        "role": "function",
+                        "name": function_name,
+                        "content": function_response,
+                        "tool_call_id": tool_call_id,
+                    },
+                )
             )  # extend conversation with function response
 
         else:
             # Standard non-function reply
             self.interface.internal_monologue(response_message.content)
-            messages.append(response_message)  # extend conversation with assistant's reply
+            messages.append(
+                Message.dict_to_message(
+                    agent_id=self.config.id, user_id=self.config.user_id, model=self.model, openai_message_dict=response_message
+                )
+            )  # extend conversation with assistant's reply
             heartbeat_request = None
             function_failed = None
 
@@ -485,18 +548,22 @@ class Agent(object):
 
             # Add the extra metadata to the assistant response
             # (e.g. enough metadata to enable recreating the API call)
-            assert "api_response" not in all_response_messages[0]
-            all_response_messages[0]["api_response"] = response_message_copy
-            assert "api_args" not in all_response_messages[0]
-            all_response_messages[0]["api_args"] = {
-                "model": self.model,
-                "messages": input_message_sequence,
-                "functions": self.functions,
-            }
+            # assert "api_response" not in all_response_messages[0]
+            # all_response_messages[0]["api_response"] = response_message_copy
+            # assert "api_args" not in all_response_messages[0]
+            # all_response_messages[0]["api_args"] = {
+            #     "model": self.model,
+            #     "messages": input_message_sequence,
+            #     "functions": self.functions,
+            # }
 
             # Step 4: extend the message history
             if user_message is not None:
-                all_new_messages = [packed_user_message] + all_response_messages
+                all_new_messages = [
+                    Message.dict_to_message(
+                        agent_id=self.config.id, user_id=self.config.user_id, model=self.model, openai_message_dict=packed_user_message
+                    )
+                ] + all_response_messages
             else:
                 all_new_messages = all_response_messages
 
@@ -625,7 +692,13 @@ class Agent(object):
         prior_len = len(self.messages)
         self._trim_messages(cutoff)
         packed_summary_message = {"role": "user", "content": summary_message}
-        self._prepend_to_messages([packed_summary_message])
+        self._prepend_to_messages(
+            [
+                Message.dict_to_message(
+                    agent_id=self.config.id, user_id=self.config.user_id, model=self.model, openai_message_dict=packed_summary_message
+                )
+            ]
+        )
 
         # reset alert
         self.agent_alerted_about_memory_pressure = False
@@ -658,7 +731,11 @@ class Agent(object):
         printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
 
         # Swap the system message out
-        self._swap_system_message(new_system_message)
+        self._swap_system_message(
+            Message.dict_to_message(
+                agent_id=self.config.id, user_id=self.config.user_id, model=self.model, openai_message_dict=new_system_message
+            )
+        )
 
     def to_agent_state(self):
         # The state may have change since the last time we wrote it

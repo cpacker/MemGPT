@@ -93,14 +93,14 @@ class Message(Record):
         user_id: uuid.UUID,
         agent_id: uuid.UUID,
         openai_message_dict: dict,
-        model: Optional[str],  # model used to make function call
+        model: Optional[str] = None,  # model used to make function call
     ):
         """Convert a ChatCompletion message object into a Message object (synced to DB)"""
 
         # If we're going from deprecated function form
         if openai_message_dict["role"] == "function" or "function_call" in openai_message_dict:
             # Cast into tool_call style
-            raise NotImplementedError
+            raise DeprecationWarning(openai_message_dict)
 
         else:
             # Basic sanity checks

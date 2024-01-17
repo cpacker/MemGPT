@@ -374,7 +374,7 @@ def create(
     function_call="auto",
     # hint
     first_message=False,
-):
+) -> Box:
     """Return response to chat completion with backoff"""
     from memgpt.utils import printd
 
