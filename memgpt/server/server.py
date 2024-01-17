@@ -347,7 +347,7 @@ class SyncServer(LockingServer):
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-        print("AGENT", memgpt_agent.config.id, memgpt_agent.config.user_id)
+        print("AGENT", memgpt_agent.agent_state.id, memgpt_agent.agent_state.user_id)
 
         if command.lower() == "exit":
             # exit not supported on server.py
@@ -372,15 +372,15 @@ class SyncServer(LockingServer):
                 raise ValueError(f"Invalid data source name: {data_source} (options={data_source_options})")
             else:
                 # attach new data
-                attach(memgpt_agent.config.name, data_source)
+                attach(memgpt_agent.agent_state.name, data_source)
 
                 # update agent config
-                memgpt_agent.config.attach_data_source(data_source)
+                memgpt_agent.agent_state.attach_data_source(data_source)
 
                 # reload agent with new data source
                 # TODO: maybe make this less ugly...
                 memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_storage_connector(
-                    agent_config=memgpt_agent.config
+                    agent_config=memgpt_agent.agent_state
                 )
 
         elif command.lower() == "dump" or command.lower().startswith("dump "):
@@ -602,7 +602,7 @@ class SyncServer(LockingServer):
 
         logger.info(f"Created new agent from config: {agent}")
 
-        return agent.config
+        return agent.agent_state
 
     def delete_agent(
         self,
@@ -795,7 +795,7 @@ class SyncServer(LockingServer):
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-        agent_config = vars(memgpt_agent.config)
+        agent_config = vars(memgpt_agent.agent_state)
 
         return agent_config
 

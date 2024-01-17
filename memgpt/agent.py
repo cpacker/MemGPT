@@ -176,7 +176,6 @@ class Agent(object):
         memgpt_config: MemGPTConfig = None,
     ):
         # Hold a copy of the state that was used to init the agent
-        self.config = agent_state  # TODO: remove
         self.agent_state = agent_state
 
         # gpt-4, gpt-3.5-turbo, ...
@@ -257,7 +256,9 @@ class Agent(object):
             init_messages_objs = []
             for msg in init_messages:
                 init_messages_objs.append(
-                    Message.dict_to_message(agent_id=self.config.id, user_id=self.config.user_id, model=self.model, openai_message_dict=msg)
+                    Message.dict_to_message(
+                        agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=msg
+                    )
                 )
             self._messages = []
             self.messages_total = 0
@@ -338,7 +339,7 @@ class Agent(object):
         """Get response from LLM API"""
         try:
             response = create(
-                agent_state=self.config,
+                agent_state=self.agent_state,
                 messages=message_sequence,
                 functions=self.functions,
                 functions_python=self.functions_python,
@@ -391,8 +392,8 @@ class Agent(object):
             # role: assistant (requesting tool call, set tool call ID)
             messages.append(
                 Message.dict_to_message(
-                    agent_id=self.config.id,
-                    user_id=self.config.user_id,
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
                     model=self.model,
                     openai_message_dict=response_message.model_dump(),
                 )
@@ -415,8 +416,8 @@ class Agent(object):
                 function_response = package_function_response(False, error_msg)
                 messages.append(
                     Message.dict_to_message(
-                        agent_id=self.config.id,
-                        user_id=self.config.user_id,
+                        agent_id=self.agent_state.id,
+                        user_id=self.agent_state.user_id,
                         model=self.model,
                         openai_message_dict={
                             "role": "tool",
@@ -438,8 +439,8 @@ class Agent(object):
                 function_response = package_function_response(False, error_msg)
                 messages.append(
                     Message.dict_to_message(
-                        agent_id=self.config.id,
-                        user_id=self.config.user_id,
+                        agent_id=self.agent_state.id,
+                        user_id=self.agent_state.user_id,
                         model=self.model,
                         openai_message_dict={
                             "role": "tool",
@@ -487,8 +488,8 @@ class Agent(object):
                 function_response = package_function_response(False, error_msg)
                 messages.append(
                     Message.dict_to_message(
-                        agent_id=self.config.id,
-                        user_id=self.config.user_id,
+                        agent_id=self.agent_state.id,
+                        user_id=self.agent_state.user_id,
                         model=self.model,
                         openai_message_dict={
                             "role": "tool",
@@ -506,8 +507,8 @@ class Agent(object):
             self.interface.function_message(f"Success: {function_response_string}")
             messages.append(
                 Message.dict_to_message(
-                    agent_id=self.config.id,
-                    user_id=self.config.user_id,
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
                     model=self.model,
                     openai_message_dict={
                         "role": "tool",
@@ -523,8 +524,8 @@ class Agent(object):
             self.interface.internal_monologue(response_message.content)
             messages.append(
                 Message.dict_to_message(
-                    agent_id=self.config.id,
-                    user_id=self.config.user_id,
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
                     model=self.model,
                     openai_message_dict=response_message.model_dump(),
                 )
@@ -603,7 +604,10 @@ class Agent(object):
             if user_message is not None:
                 all_new_messages = [
                     Message.dict_to_message(
-                        agent_id=self.config.id, user_id=self.config.user_id, model=self.model, openai_message_dict=packed_user_message
+                        agent_id=self.agent_state.id,
+                        user_id=self.agent_state.user_id,
+                        model=self.model,
+                        openai_message_dict=packed_user_message,
                     )
                 ] + all_response_messages
             else:
@@ -613,18 +617,18 @@ class Agent(object):
             current_total_tokens = response.usage.total_tokens
             active_memory_warning = False
             # We can't do summarize logic properly if context_window is undefined
-            if self.config.llm_config.context_window is None:
+            if self.agent_state.llm_config.context_window is None:
                 # Fallback if for some reason context_window is missing, just set to the default
                 print(f"{CLI_WARNING_PREFIX}could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
-                print(f"{self.config}")
-                self.config.llm_config.context_window = (
+                print(f"{self.agent_state}")
+                self.agent_state.llm_config.context_window = (
                     str(LLM_MAX_TOKENS[self.model])
                     if (self.model is not None and self.model in LLM_MAX_TOKENS)
                     else str(LLM_MAX_TOKENS["DEFAULT"])
                 )
-            if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.llm_config.context_window):
+            if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * int(self.agent_state.llm_config.context_window):
                 printd(
-                    f"{CLI_WARNING_PREFIX}last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.llm_config.context_window)}"
+                    f"{CLI_WARNING_PREFIX}last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * int(self.agent_state.llm_config.context_window)}"
                 )
                 # Only deliver the alert if we haven't already (this period)
                 if not self.agent_alerted_about_memory_pressure:
@@ -632,7 +636,7 @@ class Agent(object):
                     self.agent_alerted_about_memory_pressure = True  # it's up to the outer loop to handle this
             else:
                 printd(
-                    f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.llm_config.context_window)}"
+                    f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * int(self.agent_state.llm_config.context_window)}"
                 )
 
             self._append_to_messages(all_new_messages)
@@ -712,11 +716,11 @@ class Agent(object):
             printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
 
         # We can't do summarize logic properly if context_window is undefined
-        if self.config.llm_config.context_window is None:
+        if self.agent_state.llm_config.context_window is None:
             # Fallback if for some reason context_window is missing, just set to the default
             print(f"{CLI_WARNING_PREFIX}could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
-            print(f"{self.config}")
-            self.config.llm_config.context_window = (
+            print(f"{self.agent_state}")
+            self.agent_state.llm_config.context_window = (
                 str(LLM_MAX_TOKENS[self.model])
                 if (self.model is not None and self.model in LLM_MAX_TOKENS)
                 else str(LLM_MAX_TOKENS["DEFAULT"])
@@ -738,7 +742,10 @@ class Agent(object):
         self._prepend_to_messages(
             [
                 Message.dict_to_message(
-                    agent_id=self.config.id, user_id=self.config.user_id, model=self.model, openai_message_dict=packed_summary_message
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
+                    model=self.model,
+                    openai_message_dict=packed_summary_message,
                 )
             ]
         )
@@ -776,7 +783,7 @@ class Agent(object):
         # Swap the system message out
         self._swap_system_message(
             Message.dict_to_message(
-                agent_id=self.config.id, user_id=self.config.user_id, model=self.model, openai_message_dict=new_system_message
+                agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=new_system_message
             )
         )
 
@@ -791,15 +798,15 @@ class Agent(object):
         }
 
         agent_state = AgentState(
-            name=self.config.name,
-            user_id=self.config.user_id,
-            persona=self.config.persona,
-            human=self.config.human,
-            llm_config=self.config.llm_config,
-            embedding_config=self.config.embedding_config,
-            preset=self.config.preset,
-            id=self.config.id,
-            created_at=self.config.created_at,
+            name=self.agent_state.name,
+            user_id=self.agent_state.user_id,
+            persona=self.agent_state.persona,
+            human=self.agent_state.human,
+            llm_config=self.agent_state.llm_config,
+            embedding_config=self.agent_state.embedding_config,
+            preset=self.agent_state.preset,
+            id=self.agent_state.id,
+            created_at=self.agent_state.created_at,
             state=updated_state,
         )
 
@@ -851,7 +858,7 @@ class Agent(object):
         new_agent_state = self.to_agent_state()
 
         # without this, even after Agent.__init__, agent.config.state["messages"] will be None
-        self.config = new_agent_state
+        self.agent_state = new_agent_state
 
         # Check if we need to create the agent
         if not self.ms.get_agent(agent_id=new_agent_state.id, user_id=new_agent_state.user_id, agent_name=new_agent_state.name):
