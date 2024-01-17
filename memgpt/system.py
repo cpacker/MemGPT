@@ -1,3 +1,4 @@
+import uuid
 import json
 
 from .utils import get_local_time
@@ -18,6 +19,7 @@ def get_initial_boot_messages(version="startup"):
         ]
 
     elif version == "startup_with_send_message":
+        tool_call_id = str(uuid.uuid4())
         messages = [
             # first message includes both inner monologue and function call to send_message
             {
@@ -27,21 +29,38 @@ def get_initial_boot_messages(version="startup"):
                     "name": "send_message",
                     "arguments": '{\n  "message": "' + f"{INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG}" + '"\n}',
                 },
+                # TODO migrate to tool call
+                "tool_call_id": tool_call_id,
             },
             # obligatory function return message
-            {"role": "function", "name": "send_message", "content": package_function_response(True, None)},
+            {
+                "role": "function",
+                "name": "send_message",
+                "content": package_function_response(True, None),
+                # TODO migrate to tool call
+                "tool_call_id": tool_call_id,
+            },
         ]
 
     elif version == "startup_with_send_message_gpt35":
+        tool_call_id = str(uuid.uuid4())
         messages = [
             # first message includes both inner monologue and function call to send_message
             {
                 "role": "assistant",
                 "content": "*inner thoughts* Still waiting on the user. Sending a message with function.",
                 "function_call": {"name": "send_message", "arguments": '{\n  "message": "' + f"Hi, is anyone there?" + '"\n}'},
+                # TODO migrate to tool call
+                "tool_call_id": tool_call_id,
             },
             # obligatory function return message
-            {"role": "function", "name": "send_message", "content": package_function_response(True, None)},
+            {
+                "role": "function",
+                "name": "send_message",
+                "content": package_function_response(True, None),
+                # TODO migrate to tool call
+                "tool_call_id": tool_call_id,
+            },
         ]
 
     else:

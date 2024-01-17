@@ -69,6 +69,7 @@ class Message(Record):
         self.created_at = created_at
 
         # openai info
+        assert role in ["system", "assistant", "user", "tool"]
         self.role = role  # role (agent/user/function)
         self.name = name
 
@@ -98,16 +99,61 @@ class Message(Record):
         """Convert a ChatCompletion message object into a Message object (synced to DB)"""
 
         # If we're going from deprecated function form
-        if openai_message_dict["role"] == "function" or "function_call" in openai_message_dict:
+        if openai_message_dict["role"] == "function":
+            # raise DeprecationWarning(openai_message_dict)
+            return Message(
+                user_id=user_id,
+                agent_id=agent_id,
+                model=model,
+                # standard fields expected in an OpenAI ChatCompletion message object
+                role="tool",  # NOTE
+                text=openai_message_dict["content"],
+                name=openai_message_dict["name"] if "name" in openai_message_dict else None,
+                tool_calls=openai_message_dict["tool_calls"] if "tool_calls" in openai_message_dict else None,
+                tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
+            )
+
+        elif "function_call" in openai_message_dict:
+            assert openai_message_dict["role"] == "assistant", openai_message_dict
             # Cast into tool_call style
-            raise DeprecationWarning(openai_message_dict)
+            # raise DeprecationWarning(openai_message_dict)
+            tool_calls = [
+                ToolCall(
+                    id=openai_message_dict["tool_call_id"],
+                    tool_call_type="function",
+                    function={
+                        "name": openai_message_dict["function_call"]["name"],
+                        "arguments": openai_message_dict["function_call"]["arguments"],
+                    },
+                )
+            ]
+
+            return Message(
+                user_id=user_id,
+                agent_id=agent_id,
+                model=model,
+                # standard fields expected in an OpenAI ChatCompletion message object
+                role=openai_message_dict["role"],
+                text=openai_message_dict["content"],
+                name=openai_message_dict["name"] if "name" in openai_message_dict else None,
+                tool_calls=tool_calls,
+                tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
+            )
 
         else:
-            # Basic sanity checks
+            # Basic sanity check
             if openai_message_dict["role"] == "tool":
                 assert "tool_call_id" in openai_message_dict, openai_message_dict
+
             if "tool_calls" in openai_message_dict:
                 assert openai_message_dict["role"] == "assistant", openai_message_dict
+
+                tool_calls = [
+                    ToolCall(id=tool_call["id"], type=tool_call["type"], function=tool_call["function"])
+                    for tool_call in openai_message_dict["tool_calls"]
+                ]
+            else:
+                tool_calls = None
 
             # If we're going from tool-call style
             return Message(
@@ -118,7 +164,7 @@ class Message(Record):
                 role=openai_message_dict["role"],
                 text=openai_message_dict["content"],
                 name=openai_message_dict["name"] if "name" in openai_message_dict else None,
-                tool_calls=openai_message_dict["tool_calls"] if "tool_calls" in openai_message_dict else None,
+                tool_calls=tool_calls,
                 tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
             )
 
@@ -169,6 +215,8 @@ class Message(Record):
 
         else:
             raise ValueError(self.role)
+
+        return openai_message
 
 
 class Document(Record):

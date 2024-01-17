@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 import pickle
+from typing import List
+
 from memgpt.memory import (
     BaseRecallMemory,
     EmbeddingArchivalMemory,
@@ -100,6 +102,9 @@ class LocalStateManager(PersistenceManager):
         else:
             tool_calls = None
 
+        # if message["role"] == "function":
+        # message["role"] = "tool"
+
         return Message(
             user_id=self.agent_state.user_id,
             agent_id=self.agent_state.id,
@@ -117,7 +122,7 @@ class LocalStateManager(PersistenceManager):
         # printd(f"InMemoryStateManager.trim_messages")
         self.messages = [self.messages[0]] + self.messages[num:]
 
-    def prepend_to_messages(self, added_messages):
+    def prepend_to_messages(self, added_messages: List[Message]):
         # first tag with timestamps
         added_messages = [{"timestamp": get_local_time(), "message": msg} for msg in added_messages]
 
@@ -127,7 +132,7 @@ class LocalStateManager(PersistenceManager):
         # add to recall memory
         self.recall_memory.insert_many([self.json_to_message(m) for m in added_messages])
 
-    def append_to_messages(self, added_messages):
+    def append_to_messages(self, added_messages: List[Message]):
         # first tag with timestamps
         added_messages = [{"timestamp": get_local_time(), "message": msg} for msg in added_messages]
 
@@ -137,7 +142,7 @@ class LocalStateManager(PersistenceManager):
         # add to recall memory
         self.recall_memory.insert_many([self.json_to_message(m) for m in added_messages])
 
-    def swap_system_message(self, new_system_message):
+    def swap_system_message(self, new_system_message: Message):
         # first tag with timestamps
         new_system_message = {"timestamp": get_local_time(), "message": new_system_message}
 
