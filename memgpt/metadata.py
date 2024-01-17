@@ -93,6 +93,7 @@ class UserModel(Base):
     __table_args__ = {"extend_existing": True}
 
     id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+    # name = Column(String, nullable=False)
     default_preset = Column(String)
     default_persona = Column(String)
     default_human = Column(String)
@@ -115,6 +116,7 @@ class UserModel(Base):
     def to_record(self) -> User:
         return User(
             id=self.id,
+            # name=self.name
             default_preset=self.default_preset,
             default_persona=self.default_persona,
             default_human=self.default_human,
