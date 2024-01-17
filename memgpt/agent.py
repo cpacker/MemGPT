@@ -250,11 +250,15 @@ class Agent(object):
                 self.system,
                 self.memory,
             )
-            self._messages = []
+            init_messages_objs = []
             for msg in init_messages:
-                self._messages.append(
+                init_messages_objs.append(
                     Message.dict_to_message(agent_id=self.config.id, user_id=self.config.user_id, model=self.model, openai_message_dict=msg)
                 )
+            self._messages = []
+            self.messages_total = 0
+            self._append_to_messages(added_messages=init_messages_objs)
+
             assert all([isinstance(msg, Message) for msg in self._messages]), (self._messages, init_messages)
 
         # Keep track of the total number of messages throughout all time
