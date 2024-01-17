@@ -347,7 +347,7 @@ class SyncServer(LockingServer):
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-        print("AGENT", memgpt_agent.agent_state.id, memgpt_agent.agent_state.user_id)
+        # print("AGENT", memgpt_agent.agent_state.id, memgpt_agent.agent_state.user_id)
 
         if command.lower() == "exit":
             # exit not supported on server.py
@@ -594,7 +594,7 @@ class SyncServer(LockingServer):
             agent = presets.create_agent_from_preset(agent_state=agent_state, interface=interface)
 
             # TODO: this is a hacky way to get the system prompts injected into agent into the DB
-            # self.ms.update_agent(agent.agent_state)
+            self.ms.update_agent(agent.agent_state)
         except Exception as e:
             logger.exception(e)
             self.ms.delete_agent(agent_id=agent_state.id)
