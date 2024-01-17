@@ -35,6 +35,21 @@ from memgpt.data_types import (
     Message,
     ToolCall,
 )
+from memgpt.data_types import (
+    Source,
+    Passage,
+    Document,
+    User,
+    AgentState,
+    LLMConfig,
+    EmbeddingConfig,
+    Message,
+    ToolCall,
+    LLMConfig,
+    EmbeddingConfig,
+    Message,
+    ToolCall,
+)
 
 # TODO use custom interface
 from memgpt.interface import CLIInterface  # for printing to terminal
