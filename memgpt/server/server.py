@@ -615,6 +615,14 @@ class SyncServer(LockingServer):
             ],
         }
 
+    def get_agent(self, agent_id: uuid.UUID):
+        """Get the agent state"""
+        return self.ms.get_agent(agent_id=agent_id)
+
+    def get_user(self, user_id: uuid.UUID) -> User:
+        """Get the user"""
+        return self.ms.get_user(user_id=user_id)
+
     def get_agent_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> dict:
         """Return the memory of an agent (core memory + non-core statistics)"""
         if self.ms.get_user(user_id=user_id) is None:
