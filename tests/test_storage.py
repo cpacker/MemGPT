@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 texts = ["This is a test passage", "This is another test passage", "Cinderella wept"]
 start_date = datetime(2009, 10, 5, 18, 00)
 dates = [start_date, start_date - timedelta(weeks=1), start_date + timedelta(weeks=1)]
-roles = ["user", "agent", "agent"]
+roles = ["user", "assistant", "assistant"]
 agent_1_id = uuid.uuid4()
 agent_2_id = uuid.uuid4()
 agent_ids = [agent_1_id, agent_2_id, agent_1_id]
