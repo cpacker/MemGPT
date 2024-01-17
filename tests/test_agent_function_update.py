@@ -9,6 +9,8 @@ from memgpt.config import MemGPTConfig
 from memgpt import constants
 import memgpt.functions.function_sets.base as base_functions
 from memgpt.functions.functions import USER_FUNCTIONS_DIR
+from memgpt.utils import assistant_function_to_tool
+from memgpt.models import chat_completion_response
 
 from tests.utils import wipe_config
 
@@ -56,20 +58,20 @@ def hello_world_function():
 
 @pytest.fixture(scope="module")
 def ai_function_call():
-    class AiFunctionCall(UserDict):
-        def content(self):
-            return self.data["content"]
-
-    return AiFunctionCall(
-        {
-            "role": "assistant",
-            "content": "I will now call hello world",
-            "function_call": {
-                "name": "hello_world",
-                "arguments": json.dumps({}),
-            },
-        }
+    return chat_completion_response.Message(
+        **assistant_function_to_tool(
+            {
+                "role": "assistant",
+                "content": "I will now call hello world",
+                "function_call": {
+                    "name": "hello_world",
+                    "arguments": json.dumps({}),
+                },
+            }
+        )
     )
+
+    return
 
 
 def test_add_function_happy(agent, hello_world_function, ai_function_call):

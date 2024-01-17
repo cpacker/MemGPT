@@ -470,6 +470,20 @@ def get_tool_call_id() -> str:
     return str(uuid.uuid4())
 
 
+def assistant_function_to_tool(assistant_message: dict) -> dict:
+    assert "function_call" in assistant_message
+    new_msg = copy.deepcopy(assistant_message)
+    function_call = new_msg.pop("function_call")
+    new_msg["tool_calls"] = [
+        {
+            "id": get_tool_call_id(),
+            "type": "function",
+            "function": function_call,
+        }
+    ]
+    return new_msg
+
+
 def is_optional_type(hint):
     """Check if the type hint is an Optional type."""
     if isinstance(hint, _GenericAlias):
