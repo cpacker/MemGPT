@@ -62,6 +62,7 @@ def ai_function_call():
 
     return AiFunctionCall(
         {
+            "role": "assistant",
             "content": "I will now call hello world",
             "function_call": {
                 "name": "hello_world",
