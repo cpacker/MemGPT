@@ -140,6 +140,9 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         inner_thoughts = message["content"]
         if "function_call" in message and message["function_call"]:
             prompt += f"\n{self._compile_function_call(message['function_call'], inner_thoughts=inner_thoughts)}"
+        elif "tool_calls" in message and message["tool_calls"]:
+            for tool_call in message["tool_calls"]:
+                prompt += f"\n{self._compile_function_call(tool_call['function'], inner_thoughts=inner_thoughts)}"
         else:
             # TODO should we format this into JSON somehow?
             prompt += inner_thoughts
