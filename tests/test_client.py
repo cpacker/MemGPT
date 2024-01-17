@@ -9,7 +9,7 @@ from .utils import wipe_config
 import uuid
 
 
-test_agent_name = "test_client_agent"
+test_agent_name = "test_client_agent1"
 test_agent_state = None
 client = None
 
@@ -21,9 +21,9 @@ def test_create_user():
     wipe_config()
     global client
     if os.getenv("OPENAI_API_KEY"):
-        client = MemGPT(quickstart="openai")
+        client = MemGPT(quickstart="openai", user_id=test_user_id)
     else:
-        client = MemGPT(quickstart="memgpt_hosted")
+        client = MemGPT(quickstart="memgpt_hosted", user_id=test_user_id)
 
     user = client.server.create_user({"id": test_user_id})
     assert user is not None
@@ -33,16 +33,15 @@ def test_create_agent():
     wipe_config()
     global client
     if os.getenv("OPENAI_API_KEY"):
-        client = MemGPT(quickstart="openai")
+        client = MemGPT(quickstart="openai", user_id=test_user_id)
     else:
-        client = MemGPT(quickstart="memgpt_hosted")
+        client = MemGPT(quickstart="memgpt_hosted", user_id=test_user_id)
 
     config = MemGPTConfig.load()
 
     # ensure user exists
-    user_id = uuid.UUID(config.anon_clientid)
-    if not client.server.get_user(user_id=user_id):
-        client.server.create_user({"id": user_id})
+    if not client.server.get_user(user_id=test_user_id):
+        raise ValueError("Run test_create_user first")
 
     global test_agent_state
     test_agent_state = client.create_agent(
@@ -59,7 +58,7 @@ def test_create_agent():
 def test_user_message():
     """Test that we can send a message through the client"""
     assert client is not None, "Run create_agent test first"
-    response = client.user_message(user_id=test_user_id, agent_id=test_agent_state.id, message="Hello my name is Test, Client Test")
+    response = client.user_message(agent_id=test_agent_state.id, message="Hello my name is Test, Client Test")
     assert response is not None and len(response) > 0
 
     global test_agent_state_post_message
@@ -77,15 +76,13 @@ def test_save_load():
     assert test_agent_state is not None, "Run create_agent test first"
     assert test_agent_state_post_message is not None, "Run test_user_message test first"
 
-    user = client2.server.create_user()
-
     # Create a new client (not thread safe), and load the same agent
     # The agent state inside should correspond to the initial state pre-message
     if os.getenv("OPENAI_API_KEY"):
-        client2 = MemGPT(quickstart="openai")
+        client2 = MemGPT(quickstart="openai", user_id=test_user_id)
     else:
-        client2 = MemGPT(quickstart="memgpt_hosted")
-    client2_agent_obj = client2.server._get_or_load_agent(user_id=user.id, agent_id=test_agent_state.id)
+        client2 = MemGPT(quickstart="memgpt_hosted", user_id=test_user_id)
+    client2_agent_obj = client2.server._get_or_load_agent(user_id=test_user_id, agent_id=test_agent_state.id)
     client2_agent_state = client2_agent_obj.to_agent_state()
 
     # assert test_agent_state == client2_agent_state, f"{vars(test_agent_state)}\n{vars(client2_agent_state)}"
@@ -108,7 +105,7 @@ def test_save_load():
         client3 = MemGPT(quickstart="openai")
     else:
         client3 = MemGPT(quickstart="memgpt_hosted")
-    client3_agent_obj = client3.server._get_or_load_agent(user_id=user.id, agent_id=test_agent_state.id)
+    client3_agent_obj = client3.server._get_or_load_agent(user_id=test_user_id, agent_id=test_agent_state.id)
     client3_agent_state = client3_agent_obj.to_agent_state()
 
     check_state_equivalence(vars(test_agent_state_post_message), vars(client3_agent_state))

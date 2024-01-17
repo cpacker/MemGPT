@@ -77,6 +77,7 @@ class Client(object):
 
     def agent_exists(self, agent_id: str) -> bool:
         existing = self.list_agents()
+        # TODO: this is confusing since agent_id != agent_name
         return agent_id in [agent["name"] for agent in existing["agents"]]
 
     def create_agent(
