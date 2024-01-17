@@ -276,10 +276,6 @@ class Agent(object):
         self.save()
 
     @property
-    def messages_raw(self) -> List[Message]:
-        return self._messages
-
-    @property
     def messages(self) -> List[dict]:
         """Getter method that converts the internal Message list into OpenAI-style dicts"""
         return [msg.to_openai_dict() for msg in self._messages]
@@ -867,5 +863,5 @@ class Agent(object):
         # Otherwise, we should update the agent
         else:
             # print(f"Agent.save {new_agent_state.id} :: agent already exists, updating...")
-            # print(f"Agent.save {new_agent_state.id} :: preupdate:\n\tmessages={new_agent_state.state['messages']}")
+            print(f"Agent.save {new_agent_state.id} :: preupdate:\n\tmessages={new_agent_state.state['messages']}")
             self.ms.update_agent(agent=new_agent_state)
