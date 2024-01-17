@@ -295,9 +295,9 @@ class Agent(object):
         self.persistence_manager.append_to_messages(added_messages)
 
         # strip extra metadata if it exists
-        for msg in added_messages:
-            msg.pop("api_response", None)
-            msg.pop("api_args", None)
+        # for msg in added_messages:
+        # msg.pop("api_response", None)
+        # msg.pop("api_args", None)
         new_messages = self.messages + added_messages  # append
 
         self._messages = new_messages

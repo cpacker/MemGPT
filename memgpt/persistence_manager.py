@@ -124,33 +124,33 @@ class LocalStateManager(PersistenceManager):
 
     def prepend_to_messages(self, added_messages: List[Message]):
         # first tag with timestamps
-        added_messages = [{"timestamp": get_local_time(), "message": msg} for msg in added_messages]
+        # added_messages = [{"timestamp": get_local_time(), "message": msg} for msg in added_messages]
 
         printd(f"{self.__class__.__name__}.prepend_to_message")
         self.messages = [self.messages[0]] + added_messages + self.messages[1:]
 
         # add to recall memory
-        self.recall_memory.insert_many([self.json_to_message(m) for m in added_messages])
+        self.recall_memory.insert_many([m for m in added_messages])
 
     def append_to_messages(self, added_messages: List[Message]):
         # first tag with timestamps
-        added_messages = [{"timestamp": get_local_time(), "message": msg} for msg in added_messages]
+        # added_messages = [{"timestamp": get_local_time(), "message": msg} for msg in added_messages]
 
         printd(f"{self.__class__.__name__}.append_to_messages")
         self.messages = self.messages + added_messages
 
         # add to recall memory
-        self.recall_memory.insert_many([self.json_to_message(m) for m in added_messages])
+        self.recall_memory.insert_many([m for m in added_messages])
 
     def swap_system_message(self, new_system_message: Message):
         # first tag with timestamps
-        new_system_message = {"timestamp": get_local_time(), "message": new_system_message}
+        # new_system_message = {"timestamp": get_local_time(), "message": new_system_message}
 
         printd(f"{self.__class__.__name__}.swap_system_message")
         self.messages[0] = new_system_message
 
         # add to recall memory
-        self.recall_memory.insert(self.json_to_message(new_system_message))
+        self.recall_memory.insert(new_system_message)
 
     def update_memory(self, new_memory):
         printd(f"{self.__class__.__name__}.update_memory")

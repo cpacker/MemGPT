@@ -37,6 +37,13 @@ class ToolCall(object):
         self.tool_call_type = tool_call_type
         self.function = function
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "type": self.tool_call_type,
+            "function": self.function,
+        }
+
 
 class Message(Record):
     """Representation of a message sent.
@@ -66,7 +73,7 @@ class Message(Record):
         self.agent_id = agent_id
         self.text = text
         self.model = model  # model name (e.g. gpt-4)
-        self.created_at = created_at
+        self.created_at = datetime.now().astimezone() if created_at is None else created_at
 
         # openai info
         assert role in ["system", "assistant", "user", "tool"]
@@ -98,6 +105,7 @@ class Message(Record):
     ):
         """Convert a ChatCompletion message object into a Message object (synced to DB)"""
 
+        # print("converting ", openai_message_dict)
         # If we're going from deprecated function form
         if openai_message_dict["role"] == "function":
             # raise DeprecationWarning(openai_message_dict)
@@ -203,7 +211,7 @@ class Message(Record):
             if self.name is not None:
                 openai_message["name"] = self.name
             if self.tool_calls is not None:
-                openai_message["tool_calls"] = self.tool_calls
+                openai_message["tool_calls"] = [tool_call.to_dict() for tool_call in self.tool_calls]
 
         elif self.role == "tool":
             assert all([v is not None for v in [self.text, self.role, self.tool_call_id]]), vars(self)
