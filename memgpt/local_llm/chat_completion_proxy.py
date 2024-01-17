@@ -1,8 +1,10 @@
 """Key idea: create drop-in replacement for agent's ChatCompletion call that runs on an OpenLLM backend"""
 
 import os
+from datetime import datetime
 import requests
 import json
+import uuid
 
 from box import Box
 
@@ -21,6 +23,8 @@ from memgpt.local_llm.function_parser import patch_function
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
 from memgpt.errors import LocalLLMConnectionError, LocalLLMError
 from memgpt.constants import CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
+from memgpt.models.chat_completion_response import ChatCompletionResponse, Choice, Message, ToolCall, UsageStatistics
+from memgpt.utils import get_tool_call_id
 
 has_shown_warning = False
 grammar_supported_backends = ["koboldcpp", "llamacpp", "webui", "webui-legacy"]
@@ -44,7 +48,7 @@ def get_chat_completion(
     # extra hints to allow for additional prompt formatting hacks
     # TODO this could alternatively be supported via passing function_call="send_message" into the wrapper
     first_message=False,
-) -> Box:
+) -> ChatCompletionResponse:
     from memgpt.utils import printd
 
     assert context_window is not None, "Local LLM calls need the context length to be explicitly set"
@@ -196,23 +200,28 @@ def get_chat_completion(
         usage["total_tokens"] = usage["prompt_tokens"] + usage["completion_tokens"]
 
     # unpack with response.choices[0].message.content
-    response = Box(
-        {
-            "model": model,
-            "choices": [
-                {
-                    "message": chat_completion_result,
-                    # TODO vary 'finish_reason' based on backend response
-                    # NOTE if we got this far (parsing worked), then it's probably OK to treat this as a stop
-                    "finish_reason": "stop",
-                }
-            ],
-            "usage": {
-                "prompt_tokens": usage["prompt_tokens"],
-                "completion_tokens": usage["completion_tokens"],
-                "total_tokens": usage["total_tokens"],
-            },
-        }
+    response = ChatCompletionResponse(
+        id=str(uuid.uuid4()),  # TODO something better?
+        choices=[
+            Choice(
+                finish_reason="stop",
+                index=0,
+                message=Message(
+                    role=chat_completion_result["role"],
+                    content=chat_completion_result["content"],
+                    tool_calls=[ToolCall(id=get_tool_call_id(), type="function", function=chat_completion_result["function_call"])]
+                    if "function_call" in chat_completion_result
+                    else [],
+                ),
+            )
+        ],
+        created=datetime.now().astimezone(),
+        model=model,
+        # "This fingerprint represents the backend configuration that the model runs with."
+        # system_fingerprint=user if user is not None else "null",
+        system_fingerprint=None,
+        object="chat.completion",
+        usage=UsageStatistics(**usage),
     )
     printd(response)
     return response

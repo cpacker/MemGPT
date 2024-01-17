@@ -25,19 +25,27 @@ def get_initial_boot_messages(version="startup"):
             {
                 "role": "assistant",
                 "content": INITIAL_BOOT_MESSAGE_SEND_MESSAGE_THOUGHT,
-                "function_call": {
-                    "name": "send_message",
-                    "arguments": '{\n  "message": "' + f"{INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG}" + '"\n}',
-                },
-                # TODO migrate to tool call
-                "tool_call_id": tool_call_id,
+                # "function_call": {
+                #     "name": "send_message",
+                #     "arguments": '{\n  "message": "' + f"{INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG}" + '"\n}',
+                # },
+                "tool_calls": [
+                    {
+                        "id": tool_call_id,
+                        "type": "function",
+                        "function": {
+                            "name": "send_message",
+                            "arguments": '{\n  "message": "' + f"{INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG}" + '"\n}',
+                        },
+                    }
+                ],
             },
             # obligatory function return message
             {
-                "role": "function",
-                "name": "send_message",
+                # "role": "function",
+                "role": "tool",
+                "name": "send_message",  # NOTE: technically not up to spec, this is old functions style
                 "content": package_function_response(True, None),
-                # TODO migrate to tool call
                 "tool_call_id": tool_call_id,
             },
         ]
@@ -49,16 +57,24 @@ def get_initial_boot_messages(version="startup"):
             {
                 "role": "assistant",
                 "content": "*inner thoughts* Still waiting on the user. Sending a message with function.",
-                "function_call": {"name": "send_message", "arguments": '{\n  "message": "' + f"Hi, is anyone there?" + '"\n}'},
-                # TODO migrate to tool call
-                "tool_call_id": tool_call_id,
+                # "function_call": {"name": "send_message", "arguments": '{\n  "message": "' + f"Hi, is anyone there?" + '"\n}'},
+                "tool_calls": [
+                    {
+                        "id": tool_call_id,
+                        "type": "function",
+                        "function": {
+                            "name": "send_message",
+                            "arguments": '{\n  "message": "' + f"Hi, is anyone there?" + '"\n}',
+                        },
+                    }
+                ],
             },
             # obligatory function return message
             {
-                "role": "function",
+                # "role": "function",
+                "role": "tool",
                 "name": "send_message",
                 "content": package_function_response(True, None),
-                # TODO migrate to tool call
                 "tool_call_id": tool_call_id,
             },
         ]

@@ -32,6 +32,7 @@ from memgpt.constants import (
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
     JSON_ENSURE_ASCII,
 )
+from memgpt.models.chat_completion_response import ChatCompletionResponse
 
 from memgpt.openai_backcompat.openai_object import OpenAIObject
 
@@ -465,6 +466,10 @@ NOUN_BANK = [
 ]
 
 
+def get_tool_call_id() -> str:
+    return str(uuid.uuid4())
+
+
 def is_optional_type(hint):
     """Check if the type hint is an Optional type."""
     if isinstance(hint, _GenericAlias):
@@ -588,30 +593,31 @@ def create_random_username() -> str:
     return adjective + noun
 
 
-def verify_first_message_correctness(response, require_send_message=True, require_monologue=False) -> bool:
+def verify_first_message_correctness(
+    response: ChatCompletionResponse, require_send_message: bool = True, require_monologue: bool = False
+) -> bool:
     """Can be used to enforce that the first message always uses send_message"""
     response_message = response.choices[0].message
 
     # First message should be a call to send_message with a non-empty content
-    if require_send_message and not response_message.get("function_call"):
+    if require_send_message and not (response_message.function_call or response_message.tool_calls):
         printd(f"First message didn't include function call: {response_message}")
         return False
 
-    function_call = response_message.get("function_call")
-    function_name = function_call.get("name") if function_call is not None else ""
+    assert not (response_message.function_call and response_message.tool_calls), response_message
+    function_call = response_message.function_call if response_message.function_call else response_message.tool_calls[0].function
+    function_name = function_call.name if function_call is not None else ""
     if require_send_message and function_name != "send_message" and function_name != "archival_memory_search":
         printd(f"First message function call wasn't send_message or archival_memory_search: {response_message}")
         return False
 
-    if require_monologue and (
-        not response_message.get("content") or response_message["content"] is None or response_message["content"] == ""
-    ):
+    if require_monologue and (not response_message.content or response_message.content is None or response_message.content == ""):
         printd(f"First message missing internal monologue: {response_message}")
         return False
 
-    if response_message.get("content"):
+    if response_message.content:
         ### Extras
-        monologue = response_message.get("content")
+        monologue = response_message.content
 
         def contains_special_characters(s):
             special_characters = '(){}[]"'

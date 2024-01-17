@@ -11,6 +11,7 @@ from typing import List, Tuple
 from box import Box
 
 from memgpt.data_types import AgentState, Message
+from memgpt.models import chat_completion_response
 from memgpt.metadata import MetadataStore
 from memgpt.interface import AgentInterface
 from memgpt.persistence_manager import PersistenceManager, LocalStateManager
@@ -19,6 +20,7 @@ from memgpt.system import get_login_event, package_function_response, package_su
 from memgpt.memory import CoreMemory as InContextMemory, summarize_messages
 from memgpt.openai_tools import create, is_context_overflow_error
 from memgpt.utils import (
+    get_tool_call_id,
     get_local_time,
     parse_json,
     united_diff,
@@ -330,7 +332,7 @@ class Agent(object):
         message_sequence: List[dict],
         function_call: str = "auto",
         first_message: bool = False,  # hint
-    ) -> Box:
+    ) -> chat_completion_response.ChatCompletionResponse:
         """Get response from LLM API"""
         try:
             response = create(
@@ -347,7 +349,7 @@ class Agent(object):
                 raise Exception("Finish reason was length (maximum context length)")
 
             # catches for soft errors
-            if response.choices[0].finish_reason not in ["stop", "function_call"]:
+            if response.choices[0].finish_reason not in ["stop", "function_call", "tool_calls"]:
                 raise Exception(f"API call finish with bad finish reason: {response}")
 
             # unpack with response.choices[0].message.content
@@ -355,23 +357,42 @@ class Agent(object):
         except Exception as e:
             raise e
 
-    def _handle_ai_response(self, response_message: dict) -> Tuple[List[Message], bool, bool]:
+    def _handle_ai_response(
+        self, response_message: chat_completion_response.Message, override_tool_call_id: bool = True
+    ) -> Tuple[List[Message], bool, bool]:
         """Handles parsing and function execution"""
 
         messages = []  # append these to the history when done
 
         # Step 2: check if LLM wanted to call a function
-        if response_message.get("function_call"):
+        if response_message.function_call or (response_message.tool_calls is not None and len(response_message.tool_calls) > 0):
+            if response_message.function_call:
+                raise DeprecationWarning(response_message)
+            if response_message.tool_calls is not None and len(response_message.tool_calls) > 1:
+                raise NotImplementedError(f">1 tool call not supported")
+
             # The content if then internal monologue, not chat
             self.interface.internal_monologue(response_message.content)
 
             # generate UUID for tool call
-            tool_call_id = str(uuid.uuid4())  # needs to be a string for JSON
-            response_message["tool_call_id"] = tool_call_id
+            if override_tool_call_id or response_message.function_call:
+                tool_call_id = get_tool_call_id()  # needs to be a string for JSON
+                response_message.tool_calls[0].id = tool_call_id
+            else:
+                tool_call_id = response_message.tool_calls[0].id
+                assert tool_call_id is not None  # should be defined
+
+            # only necessary to add the tool_cal_id to a function call (antipattern)
+            # response_message_dict = response_message.model_dump()
+            # response_message_dict["tool_call_id"] = tool_call_id
+
             # role: assistant (requesting tool call, set tool call ID)
             messages.append(
                 Message.dict_to_message(
-                    agent_id=self.config.id, user_id=self.config.user_id, model=self.model, openai_message_dict=response_message
+                    agent_id=self.config.id,
+                    user_id=self.config.user_id,
+                    model=self.model,
+                    openai_message_dict=response_message.model_dump(),
                 )
             )  # extend conversation with assistant's reply
             printd(f"Function call message: {messages[-1]}")
@@ -380,7 +401,10 @@ class Agent(object):
             # Note: the JSON response may not always be valid; be sure to handle errors
 
             # Failure case 1: function name is wrong
-            function_name = response_message["function_call"]["name"]
+            function_call = (
+                response_message.function_call if response_message.function_call is not None else response_message.tool_calls[0].function
+            )
+            function_name = function_call.name
             printd(f"Request to call function {function_name} with tool_call_id: {tool_call_id}")
             try:
                 function_to_call = self.functions_python[function_name]
@@ -393,7 +417,7 @@ class Agent(object):
                         user_id=self.config.user_id,
                         model=self.model,
                         openai_message_dict={
-                            "role": "function",
+                            "role": "tool",
                             "name": function_name,
                             "content": function_response,
                             "tool_call_id": tool_call_id,
@@ -405,7 +429,7 @@ class Agent(object):
 
             # Failure case 2: function name is OK, but function args are bad JSON
             try:
-                raw_function_args = response_message["function_call"]["arguments"]
+                raw_function_args = function_call.arguments
                 function_args = parse_json(raw_function_args)
             except Exception as e:
                 error_msg = f"Error parsing JSON for function '{function_name}' arguments: {raw_function_args}"
@@ -416,9 +440,10 @@ class Agent(object):
                         user_id=self.config.user_id,
                         model=self.model,
                         openai_message_dict={
-                            "role": "function",
+                            "role": "tool",
                             "name": function_name,
                             "content": function_response,
+                            "tool_call_id": tool_call_id,
                         },
                     )
                 )  # extend conversation with function response
@@ -464,7 +489,7 @@ class Agent(object):
                         user_id=self.config.user_id,
                         model=self.model,
                         openai_message_dict={
-                            "role": "function",
+                            "role": "tool",
                             "name": function_name,
                             "content": function_response,
                             "tool_call_id": tool_call_id,
@@ -483,7 +508,7 @@ class Agent(object):
                     user_id=self.config.user_id,
                     model=self.model,
                     openai_message_dict={
-                        "role": "function",
+                        "role": "tool",
                         "name": function_name,
                         "content": function_response,
                         "tool_call_id": tool_call_id,
@@ -496,7 +521,10 @@ class Agent(object):
             self.interface.internal_monologue(response_message.content)
             messages.append(
                 Message.dict_to_message(
-                    agent_id=self.config.id, user_id=self.config.user_id, model=self.model, openai_message_dict=response_message
+                    agent_id=self.config.id,
+                    user_id=self.config.user_id,
+                    model=self.model,
+                    openai_message_dict=response_message.model_dump(),
                 )
             )  # extend conversation with assistant's reply
             heartbeat_request = None
@@ -580,7 +608,7 @@ class Agent(object):
                 all_new_messages = all_response_messages
 
             # Check the memory pressure and potentially issue a memory pressure warning
-            current_total_tokens = response["usage"]["total_tokens"]
+            current_total_tokens = response.usage.total_tokens
             active_memory_warning = False
             # We can't do summarize logic properly if context_window is undefined
             if self.config.llm_config.context_window is None:

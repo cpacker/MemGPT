@@ -7,6 +7,7 @@ import numpy as np
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
 from memgpt.utils import get_local_time, format_datetime
+from memgpt.models import chat_completion_response
 
 
 class Record:
@@ -84,10 +85,15 @@ class Message(Record):
 
         # if role == "assistant", this MAY be specified
         # if role != "assistant", this must be null
+        assert tool_calls is None or isinstance(tool_calls, list)
         self.tool_calls = tool_calls
 
         # if role == "tool", then this must be specified
         # if role != "tool", this must be null
+        if role == "tool":
+            assert tool_call_id is not None
+        else:
+            assert tool_call_id is None
         self.tool_call_id = tool_call_id
 
         # embedding (optional)
@@ -121,13 +127,13 @@ class Message(Record):
                 tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
             )
 
-        elif "function_call" in openai_message_dict:
+        elif "function_call" in openai_message_dict and openai_message_dict["function_call"] is not None:
             assert openai_message_dict["role"] == "assistant", openai_message_dict
             # Cast into tool_call style
             # raise DeprecationWarning(openai_message_dict)
             tool_calls = [
                 ToolCall(
-                    id=openai_message_dict["tool_call_id"],
+                    id=openai_message_dict["tool_call_id"],  # NOTE: unconventional, not to spec
                     tool_call_type="function",
                     function={
                         "name": openai_message_dict["function_call"]["name"],
@@ -157,7 +163,7 @@ class Message(Record):
                 assert openai_message_dict["role"] == "assistant", openai_message_dict
 
                 tool_calls = [
-                    ToolCall(id=tool_call["id"], type=tool_call["type"], function=tool_call["function"])
+                    ToolCall(id=tool_call["id"], tool_call_type=tool_call["type"], function=tool_call["function"])
                     for tool_call in openai_message_dict["tool_calls"]
                 ]
             else:
