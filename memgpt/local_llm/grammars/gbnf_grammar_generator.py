@@ -1310,5 +1310,3 @@ def convert_dictionary_to_pydantic_model(dictionary: dict, model_name: str = "Cu
                 fields[key] = (Optional[fields[key][0]], ...)
     custom_model = create_model(model_name, **fields)
     return custom_model
-
-
