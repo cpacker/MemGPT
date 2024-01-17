@@ -465,8 +465,7 @@ def generate_gbnf_grammar(model: Type[BaseModel], processed_models: set, created
     nested_rules = []
     has_markdown_code_block = False
     has_triple_quoted_string = False
-    look_for_markdown_code_block = False
-    look_for_triple_quoted_string = False
+
     for field_name, field_info in model_fields.items():
         if not issubclass(model, BaseModel):
             field_type, default_value = field_info
@@ -1163,8 +1162,7 @@ def create_dynamic_model_from_function(func: Callable, add_inner_thoughts: bool 
             default_value = ...
         else:
             default_value = param.default
-        if param.annotation != inspect.Parameter.empty and isclass(param.annotation) and issubclass(param.annotation, BaseModel):
-            print("FUCK")
+
         dynamic_fields[param.name] = (param.annotation if param.annotation != inspect.Parameter.empty else str, default_value)
     # Creating the dynamic model
     dynamic_model = create_model(f"{func.__name__}", **dynamic_fields)
@@ -1314,54 +1312,3 @@ def convert_dictionary_to_pydantic_model(dictionary: dict, model_name: str = "Cu
     return custom_model
 
 
-from typing import List, Any
-
-from pydantic import Field, BaseModel
-
-
-class RowData(BaseModel):
-    row: List[Any] = Field(..., description="The values for each row")
-    citation: str = Field(..., description="The citation for this row from the original source data")
-
-
-class Dataframe(BaseModel):
-    """
-    Class representing a dataframe. This class is used to convert
-    data into a frame that can be used by pandas.
-    """
-
-    name: str = Field(..., description="The name of the dataframe")
-    data: List[RowData] = Field(
-        ...,
-        description="Correct rows of data aligned to column names, Nones are allowed",
-    )
-    columns: List[str] = Field(
-        ...,
-        description="Column names relevant from source data, should be in snake_case",
-    )
-
-    def to_pandas(self):
-        import pandas as pd
-
-        columns = self.columns + ["citation"]
-        data = [row.row + [row.citation] for row in self.data]
-
-        return pd.DataFrame(data=data, columns=columns)
-
-
-class Database(BaseModel):
-    """
-    A set of correct named and defined tables as dataframes
-    """
-
-    tables: List[Dataframe] = Field(
-        ...,
-        description="List of tables in the database",
-    )
-
-
-# a, b = generate_gbnf_grammar_and_documentation([Database])
-
-# print(a)
-
-# print(b)
