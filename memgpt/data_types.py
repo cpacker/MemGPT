@@ -53,7 +53,7 @@ class Message(Record):
         agent_id: uuid.UUID,
         role: str,
         text: str,
-        model: Optional[str],  # model used to make function call
+        model: Optional[str] = None,  # model used to make function call
         name: Optional[str] = None,  # optional participant name
         created_at: Optional[str] = None,
         tool_calls: Optional[List[ToolCall]] = None,  # list of tool calls requested
@@ -87,6 +87,88 @@ class Message(Record):
 
     # def __repr__(self):
     #    pass
+
+    @staticmethod
+    def dict_to_message(
+        user_id: uuid.UUID,
+        agent_id: uuid.UUID,
+        openai_message_dict: dict,
+        model: Optional[str],  # model used to make function call
+    ):
+        """Convert a ChatCompletion message object into a Message object (synced to DB)"""
+
+        # If we're going from deprecated function form
+        if openai_message_dict["role"] == "function" or "function_call" in openai_message_dict:
+            # Cast into tool_call style
+            raise NotImplementedError
+
+        else:
+            # Basic sanity checks
+            if openai_message_dict["role"] == "tool":
+                assert "tool_call_id" in openai_message_dict, openai_message_dict
+            if "tool_calls" in openai_message_dict:
+                assert openai_message_dict["role"] == "assistant", openai_message_dict
+
+            # If we're going from tool-call style
+            return Message(
+                user_id=user_id,
+                agent_id=agent_id,
+                model=model,
+                # standard fields expected in an OpenAI ChatCompletion message object
+                role=openai_message_dict["role"],
+                text=openai_message_dict["content"],
+                name=openai_message_dict["name"] if "name" in openai_message_dict else None,
+                tool_calls=openai_message_dict["tool_calls"] if "tool_calls" in openai_message_dict else None,
+                tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
+            )
+
+    def to_openai_dict(self):
+        """Go from Message class to ChatCompletion message object"""
+
+        # TODO change to pydantic casting, eg `return SystemMessageModel(self)`
+
+        if self.role == "system":
+            assert all([v is not None for v in [self.text, self.role]]), vars(self)
+            openai_message = {
+                "content": self.text,
+                "role": self.role,
+            }
+            # Optional field, do not include if null
+            if self.name is not None:
+                openai_message["name"] = self.name
+
+        elif self.role == "user":
+            assert all([v is not None for v in [self.text, self.role]]), vars(self)
+            openai_message = {
+                "content": self.text,
+                "role": self.role,
+            }
+            # Optional field, do not include if null
+            if self.name is not None:
+                openai_message["name"] = self.name
+
+        elif self.role == "assistant":
+            assert all([v is not None for v in [self.text, self.role]]), vars(self)
+            openai_message = {
+                "content": self.text,
+                "role": self.role,
+            }
+            # Optional fields, do not include if null
+            if self.name is not None:
+                openai_message["name"] = self.name
+            if self.tool_calls is not None:
+                openai_message["tool_calls"] = self.tool_calls
+
+        elif self.role == "tool":
+            assert all([v is not None for v in [self.text, self.role, self.tool_call_id]]), vars(self)
+            openai_message = {
+                "content": self.text,
+                "role": self.role,
+                "tool_call_id": self.tool_call_id,
+            }
+
+        else:
+            raise ValueError(self.role)
 
 
 class Document(Record):
