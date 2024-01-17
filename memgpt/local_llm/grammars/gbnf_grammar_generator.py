@@ -683,7 +683,7 @@ def generate_markdown_documentation(
         if add_prefix:
             documentation += f"{model_prefix}: {model.__name__}\n"
         else:
-            documentation += f"Model: {model.__name__}\n"
+            documentation += f"class: {model.__name__}\n"
 
         # Handling multi-line model description with proper indentation
 
@@ -691,18 +691,19 @@ def generate_markdown_documentation(
         base_class_doc = getdoc(BaseModel)
         class_description = class_doc if class_doc and class_doc != base_class_doc else ""
         if class_description != "":
-            documentation += "  Description: "
-            documentation += format_multiline_description(class_description, 0) + "\n"
+            documentation += format_multiline_description("description: " + class_description, 1) + "\n"
 
         if add_prefix:
             # Indenting the fields section
             documentation += f"  {fields_prefix}:\n"
         else:
-            documentation += f"  Fields:\n"
+            documentation += f"  attributes:\n"
         if isclass(model) and issubclass(model, BaseModel):
             for name, field_type in model.__annotations__.items():
                 # if name == "markdown_code_block":
                 #    continue
+                if isclass(field_type) and issubclass(field_type, BaseModel):
+                    pyd_models.append((field_type, False))
                 if get_origin(field_type) == list:
                     element_type = get_args(field_type)[0]
                     if isclass(element_type) and issubclass(element_type, BaseModel):
@@ -748,25 +749,33 @@ def generate_field_markdown(
 
     if get_origin(field_type) == list:
         element_type = get_args(field_type)[0]
-        field_text = f"{indent}{field_name} ({format_model_and_field_name(field_type.__name__)} of {format_model_and_field_name(element_type.__name__)})"
+        field_text = f"{indent}{field_name} ({field_type.__name__} of {element_type.__name__})"
         if field_description != "":
-            field_text += ":\n"
+            field_text += ": "
         else:
             field_text += "\n"
     elif get_origin(field_type) == Union:
         element_types = get_args(field_type)
         types = []
         for element_type in element_types:
-            types.append(format_model_and_field_name(element_type.__name__))
+            types.append(element_type.__name__)
         field_text = f"{indent}{field_name} ({' or '.join(types)})"
         if field_description != "":
-            field_text += ":\n"
+            field_text += ": "
+        else:
+            field_text += "\n"
+    elif issubclass(field_type, Enum):
+        enum_values = [f"'{str(member.value)}'" for member in field_type]
+
+        field_text = f"{indent}{field_name} ({' or '.join(enum_values)})"
+        if field_description != "":
+            field_text += ": "
         else:
             field_text += "\n"
     else:
-        field_text = f"{indent}{field_name} ({format_model_and_field_name(field_type.__name__)})"
+        field_text = f"{indent}{field_name} ({field_type.__name__})"
         if field_description != "":
-            field_text += ":\n"
+            field_text += ": "
         else:
             field_text += "\n"
 
@@ -774,7 +783,7 @@ def generate_field_markdown(
         return field_text
 
     if field_description != "":
-        field_text += f"        Description: " + field_description + "\n"
+        field_text += field_description + "\n"
 
     # Check for and include field-specific examples if available
     if hasattr(model, "Config") and hasattr(model.Config, "json_schema_extra") and "example" in model.Config.json_schema_extra:
@@ -784,7 +793,7 @@ def generate_field_markdown(
             field_text += f"{indent}  Example: {example_text}\n"
 
     if isclass(field_type) and issubclass(field_type, BaseModel):
-        field_text += f"{indent}  Details:\n"
+        field_text += f"{indent}  details:\n"
         for name, type_ in field_type.__annotations__.items():
             field_text += generate_field_markdown(name, type_, field_type, depth + 2)
 
@@ -952,7 +961,7 @@ def format_multiline_description(description: str, indent_level: int) -> str:
     Returns:
         str: Formatted multiline description.
     """
-    indent = "    " * indent_level
+    indent = "  " * indent_level
     return indent + description.replace("\n", "\n" + indent)
 
 
@@ -1154,6 +1163,8 @@ def create_dynamic_model_from_function(func: Callable, add_inner_thoughts: bool 
             default_value = ...
         else:
             default_value = param.default
+        if param.annotation != inspect.Parameter.empty and isclass(param.annotation) and issubclass(param.annotation, BaseModel):
+            print("FUCK")
         dynamic_fields[param.name] = (param.annotation if param.annotation != inspect.Parameter.empty else str, default_value)
     # Creating the dynamic model
     dynamic_model = create_model(f"{func.__name__}", **dynamic_fields)
@@ -1301,3 +1312,56 @@ def convert_dictionary_to_pydantic_model(dictionary: dict, model_name: str = "Cu
                 fields[key] = (Optional[fields[key][0]], ...)
     custom_model = create_model(model_name, **fields)
     return custom_model
+
+
+from typing import List, Any
+
+from pydantic import Field, BaseModel
+
+
+class RowData(BaseModel):
+    row: List[Any] = Field(..., description="The values for each row")
+    citation: str = Field(..., description="The citation for this row from the original source data")
+
+
+class Dataframe(BaseModel):
+    """
+    Class representing a dataframe. This class is used to convert
+    data into a frame that can be used by pandas.
+    """
+
+    name: str = Field(..., description="The name of the dataframe")
+    data: List[RowData] = Field(
+        ...,
+        description="Correct rows of data aligned to column names, Nones are allowed",
+    )
+    columns: List[str] = Field(
+        ...,
+        description="Column names relevant from source data, should be in snake_case",
+    )
+
+    def to_pandas(self):
+        import pandas as pd
+
+        columns = self.columns + ["citation"]
+        data = [row.row + [row.citation] for row in self.data]
+
+        return pd.DataFrame(data=data, columns=columns)
+
+
+class Database(BaseModel):
+    """
+    A set of correct named and defined tables as dataframes
+    """
+
+    tables: List[Dataframe] = Field(
+        ...,
+        description="List of tables in the database",
+    )
+
+
+# a, b = generate_gbnf_grammar_and_documentation([Database])
+
+# print(a)
+
+# print(b)
