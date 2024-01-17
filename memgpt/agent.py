@@ -237,6 +237,7 @@ class Agent(object):
 
         # Once the memory object is initialized, use it to "bake" the system message
         if "messages" in agent_state.state and agent_state.state["messages"] is not None:
+            # print(f"Agent.__init__ :: loading, state={agent_state.state['messages']}")
             if not isinstance(agent_state.state["messages"], list):
                 raise ValueError(f"'messages' in AgentState was bad type: {type(agent_state.state['messages'])}")
             assert all([isinstance(msg, str) for msg in agent_state.state["messages"]])
@@ -247,6 +248,7 @@ class Agent(object):
             ]
             assert all([isinstance(msg, Message) for msg in self._messages]), (self._messages, agent_state.state["messages"])
         else:
+            # print(f"Agent.__init__ :: creating, state={agent_state.state['messages']}")
             init_messages = initialize_message_sequence(
                 self.model,
                 self.system,
@@ -778,7 +780,7 @@ class Agent(object):
             )
         )
 
-    def to_agent_state(self):
+    def to_agent_state(self) -> AgentState:
         # The state may have change since the last time we wrote it
         updated_state = {
             "persona": self.memory.persona,
@@ -846,15 +848,17 @@ class Agent(object):
     def save(self):
         """Save agent state locally"""
 
-        agent_state = self.to_agent_state()
+        new_agent_state = self.to_agent_state()
 
-        # TODO(swooders) does this make sense?
         # without this, even after Agent.__init__, agent.config.state["messages"] will be None
-        self.config = agent_state
+        self.config = new_agent_state
 
         # Check if we need to create the agent
-        if not self.ms.get_agent(agent_id=agent_state.id, user_id=agent_state.user_id, agent_name=agent_state.name):
-            self.ms.create_agent(agent=agent_state)
+        if not self.ms.get_agent(agent_id=new_agent_state.id, user_id=new_agent_state.user_id, agent_name=new_agent_state.name):
+            # print(f"Agent.save {new_agent_state.id} :: agent does not exist, creating...")
+            self.ms.create_agent(agent=new_agent_state)
+        # Otherwise, we should update the agent
         else:
-            # Otherwise, we should update the agent
-            self.ms.update_agent(agent=agent_state)
+            # print(f"Agent.save {new_agent_state.id} :: agent already exists, updating...")
+            # print(f"Agent.save {new_agent_state.id} :: preupdate:\n\tmessages={new_agent_state.state['messages']}")
+            self.ms.update_agent(agent=new_agent_state)
