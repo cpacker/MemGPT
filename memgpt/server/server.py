@@ -736,7 +736,6 @@ class SyncServer(LockingServer):
         order_by: Optional[str] = "created_at",
         reverse: Optional[bool] = False,
     ):
-        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
