@@ -20,7 +20,21 @@ import memgpt.presets.presets as presets
 import memgpt.utils as utils
 import memgpt.server.utils as server_utils
 from memgpt.persistence_manager import PersistenceManager, LocalStateManager
-from memgpt.data_types import Source, Passage, Document, User, AgentState, LLMConfig, EmbeddingConfig, Message, ToolCall
+from memgpt.data_types import (
+    Source,
+    Passage,
+    Document,
+    User,
+    AgentState,
+    LLMConfig,
+    EmbeddingConfig,
+    Message,
+    ToolCall,
+    LLMConfig,
+    EmbeddingConfig,
+    Message,
+    ToolCall,
+)
 
 # TODO use custom interface
 from memgpt.interface import CLIInterface  # for printing to terminal
@@ -117,6 +131,7 @@ class LockingServer(Server):
             try:
                 # Execute the function
                 # logger.info(f"running function on agent_id = {agent_id}")
+                print("USERID", user_id)
                 return func(self, user_id, agent_id, *args, **kwargs)
             finally:
                 # Release the lock
@@ -331,6 +346,7 @@ class SyncServer(LockingServer):
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        print("AGENT", memgpt_agent.config.id, memgpt_agent.config.user_id)
 
         if command.lower() == "exit":
             # exit not supported on server.py
