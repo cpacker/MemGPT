@@ -259,6 +259,10 @@ def azure_openai_chat_completions_request(resource_name, deployment_id, api_vers
         data.pop("functions")
         data.pop("function_call", None)  # extra safe,  should exist always (default="auto")
 
+    if "tools" in data and data["tools"] is None:
+        data.pop("tools")
+        data.pop("tool_choice", None)  # extra safe,  should exist always (default="auto")
+
     printd(f"Sending request to {url}")
     try:
         response = requests.post(url, headers=headers, json=data)
@@ -422,19 +426,30 @@ def create(
             if agent_state.llm_config.azure_deployment is not None
             else MODEL_TO_AZURE_ENGINE[agent_state.llm_config.model]
         )
-        return azure_openai_chat_completions_request(
-            resource_name=agent_state.llm_config.azure_endpoint,
-            deployment_id=azure_deployment,
-            api_version=agent_state.llm_config.azure_version,
-            api_key=agent_state.llm_config.azure_key,
-            data=dict(
+        if use_tool_naming:
+            data = dict(
+                # NOTE: don't pass model to Azure calls, that is the deployment_id
+                # model=agent_config.model,
+                messages=messages,
+                tools=[{"type": "function", "function": f} for f in functions],
+                tool_choice=function_call,
+                user=str(agent_state.user_id),
+            )
+        else:
+            data = dict(
                 # NOTE: don't pass model to Azure calls, that is the deployment_id
                 # model=agent_config.model,
                 messages=messages,
                 functions=functions,
                 function_call=function_call,
                 user=str(agent_state.user_id),
-            ),
+            )
+        return azure_openai_chat_completions_request(
+            resource_name=agent_state.llm_config.azure_endpoint,
+            deployment_id=azure_deployment,
+            api_version=agent_state.llm_config.azure_version,
+            api_key=agent_state.llm_config.azure_key,
+            data=data,
         )
 
     # local model
