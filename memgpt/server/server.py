@@ -593,8 +593,8 @@ class SyncServer(LockingServer):
         try:
             agent = presets.create_agent_from_preset(agent_state=agent_state, interface=interface)
 
-            # TODO: this is a hacky way to get the system prompts injected into agent into the DB
-            self.ms.update_agent(agent.agent_state)
+            # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
+            # self.ms.update_agent(agent.agent_state)
         except Exception as e:
             logger.exception(e)
             self.ms.delete_agent(agent_id=agent_state.id)
