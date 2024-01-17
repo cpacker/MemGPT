@@ -23,6 +23,13 @@ def test_create_agent():
     else:
         client = MemGPT(quickstart="memgpt_hosted")
 
+    config = MemGPTConfig.load()
+
+    # ensure user exists
+    user_id = uuid.UUID(config.anon_clientid)
+    if not client.server.get_user(user_id=user_id):
+        client.server.create_user({"id": user_id})
+
     global test_agent_state
     test_agent_state = client.create_agent(
         agent_config={

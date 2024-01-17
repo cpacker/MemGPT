@@ -386,7 +386,7 @@ class AgentState:
         self.created_at = created_at if created_at is not None else datetime.now()
 
         # state
-        self.state = state
+        self.state = {} if not state else state
 
     # def __eq__(self, other):
     #     if not isinstance(other, AgentState):

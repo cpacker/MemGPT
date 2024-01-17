@@ -20,7 +20,7 @@ import memgpt.presets.presets as presets
 import memgpt.utils as utils
 import memgpt.server.utils as server_utils
 from memgpt.persistence_manager import PersistenceManager, LocalStateManager
-from memgpt.data_types import Source, Passage, Document, User, AgentState
+from memgpt.data_types import Source, Passage, Document, User, AgentState, LLMConfig, EmbeddingConfig, Message, ToolCall
 
 # TODO use custom interface
 from memgpt.interface import CLIInterface  # for printing to terminal
@@ -167,13 +167,47 @@ class SyncServer(LockingServer):
 
         # Initialize the connection to the DB
         self.config = MemGPTConfig.load()
+
+        # Ensure valid database configuration
+        # TODO: add back once tests are matched
+        # assert (
+        #    self.config.metadata_storage_type == "postgres"
+        # ), f"Invalid metadata_storage_type for server: {self.config.metadata_storage_type}"
+        # assert (
+        #    self.config.archival_storage_type == "postgres"
+        # ), f"Invalid archival_storage_type for server: {self.config.archival_storage_type}"
+        # assert self.config.recall_storage_type == "postgres", f"Invalid recall_storage_type for server: {self.config.recall_storage_type}"
+
+        # Generate default LLM/Embedding configs for the server
+        # TODO: we may also want to do the same thing with default persona/human/etc.
+        self.server_llm_config = LLMConfig(
+            model=self.config.model,
+            model_endpoint_type=self.config.model_endpoint_type,
+            model_endpoint=self.config.model_endpoint,
+            model_wrapper=self.config.model_wrapper,
+            context_window=self.config.context_window,
+            openai_key=self.config.openai_key,
+            azure_key=self.config.azure_key,
+            azure_endpoint=self.config.azure_endpoint,
+            azure_version=self.config.azure_version,
+            azure_deployment=self.config.azure_deployment,
+        )
+        self.server_embedding_config = EmbeddingConfig(
+            embedding_endpoint_type=self.config.embedding_endpoint_type,
+            embedding_endpoint=self.config.embedding_endpoint,
+            embedding_dim=self.config.embedding_dim,
+            openai_key=self.config.openai_key,
+        )
+
+        # Initialize the metadata store
         self.ms = MetadataStore(self.config)
 
-        # Create the default user
-        base_user_id = uuid.UUID(self.config.anon_clientid)
-        if not self.ms.get_user(user_id=base_user_id):
-            base_user = User(id=base_user_id)
-            self.ms.create_user(base_user)
+        # NOTE: removed, since server should be multi-user
+        ## Create the default user
+        # base_user_id = uuid.UUID(self.config.anon_clientid)
+        # if not self.ms.get_user(user_id=base_user_id):
+        #    base_user = User(id=base_user_id)
+        #    self.ms.create_user(base_user)
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
@@ -421,7 +455,6 @@ class SyncServer(LockingServer):
     @LockingServer.agent_lock_decorator
     def user_message(self, user_id: uuid.UUID, agent_id: uuid.UUID, message: str) -> None:
         """Process an incoming user message and feed it through the MemGPT agent"""
-        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
@@ -443,7 +476,6 @@ class SyncServer(LockingServer):
     @LockingServer.agent_lock_decorator
     def system_message(self, user_id: uuid.UUID, agent_id: uuid.UUID, message: str) -> None:
         """Process an incoming system message and feed it through the MemGPT agent"""
-        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
@@ -465,7 +497,6 @@ class SyncServer(LockingServer):
     @LockingServer.agent_lock_decorator
     def run_command(self, user_id: uuid.UUID, agent_id: uuid.UUID, command: str) -> Union[str, None]:
         """Run a command on the agent"""
-        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
@@ -475,6 +506,26 @@ class SyncServer(LockingServer):
                 command = command[1:]  # strip the prefix
         return self._command(user_id=user_id, agent_id=agent_id, command=command)
 
+    def create_user(
+        self,
+        user_config: Optional[Union[dict, User]] = {},
+    ):
+        """Create a new user using a config"""
+        if not isinstance(user_config, dict):
+            raise ValueError(f"user_config must be provided as a dictionary")
+
+        user = User(
+            id=user_config["id"] if "id" in user_config else None,
+            default_preset=user_config["default_preset"] if "default_preset" in user_config else "memgpt_chat",
+            default_persona=user_config["default_persona"] if "default_persona" in user_config else constants.DEFAULT_PERSONA,
+            default_human=user_config["default_human"] if "default_human" in user_config else constants.DEFAULT_HUMAN,
+            default_llm_config=self.server_llm_config,
+            default_embedding_config=self.server_embedding_config,
+        )
+        self.ms.create_user(user)
+        logger.info(f"Created new user from config: {user}")
+        return user
+
     def create_agent(
         self,
         user_id: uuid.UUID,
@@ -483,7 +534,6 @@ class SyncServer(LockingServer):
         # persistence_manager: Union[PersistenceManager, None] = None,
     ) -> AgentState:
         """Create a new agent using a config"""
-        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
@@ -519,6 +569,9 @@ class SyncServer(LockingServer):
         logger.debug(f"Attempting to create agent from agent_state:\n{agent_state}")
         try:
             agent = presets.create_agent_from_preset(agent_state=agent_state, interface=interface)
+
+            # TODO: this is a hacky way to get the system prompts injected into agent into the DB
+            self.ms.update_agent(agent.agent_state)
         except Exception as e:
             logger.exception(e)
             self.ms.delete_agent(agent_id=agent_state.id)
@@ -533,25 +586,19 @@ class SyncServer(LockingServer):
         user_id: uuid.UUID,
         agent_id: uuid.UUID,
     ):
-        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
-        # Make sure the user owns the agent
-        # TODO use real user_id
-        USER_ID = self.config.anon_clientid
-        agent = self.ms.get_agent(agent_id=agent_id, user_id=USER_ID)
+        # TODO: Make sure the user owns the agent
+        agent = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
         if agent is not None:
             self.ms.delete_agent(agent_id=agent_id)
 
     def list_agents(self, user_id: uuid.UUID) -> dict:
         """List all available agents to a user"""
-        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
-        # TODO actually use the user_id that was passed into the server
-        user_id = uuid.UUID(self.config.anon_clientid)
         agents_states = self.ms.list_agents(user_id=user_id)
         logger.info(f"Retrieved {len(agents_states)} agents for user {user_id}:\n{[vars(s) for s in agents_states]}")
         return {
@@ -568,9 +615,16 @@ class SyncServer(LockingServer):
             ],
         }
 
+    def get_agent(self, agent_id: uuid.UUID):
+        """Get the agent state"""
+        return self.ms.get_agent(agent_id=agent_id)
+
+    def get_user(self, user_id: uuid.UUID) -> User:
+        """Get the user"""
+        return self.ms.get_user(user_id=user_id)
+
     def get_agent_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> dict:
         """Return the memory of an agent (core memory + non-core statistics)"""
-        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
@@ -594,7 +648,6 @@ class SyncServer(LockingServer):
 
     def get_agent_messages(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
         """Paginated query of all messages in agent message queue"""
-        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
@@ -636,7 +689,6 @@ class SyncServer(LockingServer):
 
     def get_agent_archival(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
         """Paginated query of all messages in agent archival memory"""
-        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
@@ -661,7 +713,6 @@ class SyncServer(LockingServer):
         order_by: Optional[str] = "created_at",
         reverse: Optional[bool] = False,
     ):
-        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
@@ -685,7 +736,6 @@ class SyncServer(LockingServer):
         order_by: Optional[str] = "created_at",
         reverse: Optional[bool] = False,
     ):
-        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
@@ -703,7 +753,6 @@ class SyncServer(LockingServer):
 
     def get_agent_config(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> dict:
         """Return the config of an agent"""
-        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
@@ -730,7 +779,6 @@ class SyncServer(LockingServer):
 
     def update_agent_core_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_memory_contents: dict) -> dict:
         """Update the agents core memory block, return the new state"""
-        user_id = uuid.UUID(self.config.anon_clientid)  # TODO use real
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
