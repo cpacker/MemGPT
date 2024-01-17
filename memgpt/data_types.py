@@ -381,6 +381,7 @@ class User:
 
     def __init__(
         self,
+        # name: str,
         id: Optional[uuid.UUID] = None,
         default_preset=DEFAULT_PRESET,
         default_persona=DEFAULT_PERSONA,
@@ -530,7 +531,7 @@ class AgentState:
         self.created_at = created_at if created_at is not None else datetime.now()
 
         # state
-        self.state = state
+        self.state = {} if not state else state
 
     # def __eq__(self, other):
     #     if not isinstance(other, AgentState):
