@@ -330,7 +330,6 @@ class SyncServer(LockingServer):
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-        print("AGENT", memgpt_agent.config.id, memgpt_agent.config.user_id)
 
         if command.lower() == "exit":
             # exit not supported on server.py
