@@ -686,9 +686,9 @@ class SyncServer(LockingServer):
         if start < 0 or count < 0:
             raise ValueError("Start and count values should be non-negative")
 
-        if start + count < len(memgpt_agent.messages):  # messages can be returned from whats in memory
+        if start + count < len(memgpt_agent._messages):  # messages can be returned from whats in memory
             # Reverse the list to make it in reverse chronological order
-            reversed_messages = memgpt_agent.messages[::-1]
+            reversed_messages = memgpt_agent._messages[::-1]
             # Check if start is within the range of the list
             if start >= len(reversed_messages):
                 raise IndexError("Start index is out of range")
@@ -697,10 +697,8 @@ class SyncServer(LockingServer):
             end_index = min(start + count, len(reversed_messages))
 
             # Slice the list for pagination
-            paginated_messages = reversed_messages[start:end_index]
+            messages = reversed_messages[start:end_index]
 
-            # convert to message objects:
-            messages = [memgpt_agent.persistence_manager.json_to_message(m) for m in paginated_messages]
         else:
             # need to access persistence manager for additional messages
             db_iterator = memgpt_agent.persistence_manager.recall_memory.storage.get_all_paginated(page_size=count, offset=start)

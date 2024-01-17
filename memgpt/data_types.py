@@ -30,6 +30,7 @@ class ToolCall(object):
         self,
         id: str,
         # TODO should we include this? it's fixed to 'function' only (for now) in OAI schema
+        # NOTE: called ToolCall.type in official OpenAI schema
         tool_call_type: str,  # only 'function' is supported
         # function: { 'name': ..., 'arguments': ...}
         function: Dict[str, str],
@@ -108,13 +109,18 @@ class Message(Record):
         agent_id: uuid.UUID,
         openai_message_dict: dict,
         model: Optional[str] = None,  # model used to make function call
+        allow_functions_style: bool = False,  # allow deprecated functions style?
     ):
         """Convert a ChatCompletion message object into a Message object (synced to DB)"""
 
-        # print("converting ", openai_message_dict)
         # If we're going from deprecated function form
         if openai_message_dict["role"] == "function":
-            # raise DeprecationWarning(openai_message_dict)
+            if not allow_functions_style:
+                raise DeprecationWarning(openai_message_dict)
+            assert "tool_call_id" in openai_message_dict, openai_message_dict
+
+            # Convert from 'function' response to a 'tool' response
+            # NOTE: this does not conventionally include a tool_call_id, it's on the caster to provide it
             return Message(
                 user_id=user_id,
                 agent_id=agent_id,
@@ -128,12 +134,16 @@ class Message(Record):
             )
 
         elif "function_call" in openai_message_dict and openai_message_dict["function_call"] is not None:
+            if not allow_functions_style:
+                raise DeprecationWarning(openai_message_dict)
             assert openai_message_dict["role"] == "assistant", openai_message_dict
-            # Cast into tool_call style
-            # raise DeprecationWarning(openai_message_dict)
+            assert "tool_call_id" in openai_message_dict, openai_message_dict
+
+            # Convert a function_call (from an assistant message) into a tool_call
+            # NOTE: this does not conventionally include a tool_call_id (ToolCall.id), it's on the caster to provide it
             tool_calls = [
                 ToolCall(
-                    id=openai_message_dict["tool_call_id"],  # NOTE: unconventional, not to spec
+                    id=openai_message_dict["tool_call_id"],  # NOTE: unconventional source, not to spec
                     tool_call_type="function",
                     function={
                         "name": openai_message_dict["function_call"]["name"],
@@ -151,13 +161,16 @@ class Message(Record):
                 text=openai_message_dict["content"],
                 name=openai_message_dict["name"] if "name" in openai_message_dict else None,
                 tool_calls=tool_calls,
-                tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
+                tool_call_id=None,  # NOTE: None, since this field is only non-null for role=='tool'
             )
 
         else:
             # Basic sanity check
             if openai_message_dict["role"] == "tool":
-                assert "tool_call_id" in openai_message_dict, openai_message_dict
+                assert "tool_call_id" in openai_message_dict and openai_message_dict["tool_call_id"] is not None, openai_message_dict
+            else:
+                if "tool_call_id" in openai_message_dict:
+                    assert openai_message_dict["tool_call_id"] is None, openai_message_dict
 
             if "tool_calls" in openai_message_dict:
                 assert openai_message_dict["role"] == "assistant", openai_message_dict

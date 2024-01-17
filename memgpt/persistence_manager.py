@@ -71,6 +71,7 @@ class LocalStateManager(PersistenceManager):
         # printd(f"{self.__class__.__name__}.all_messages.len = {len(self.all_messages)}")
         printd(f"{self.__class__.__name__}.messages.len = {len(self.messages)}")
 
+    '''
     def json_to_message(self, message_json) -> Message:
         """Convert agent message JSON into Message object"""
 
@@ -117,6 +118,7 @@ class LocalStateManager(PersistenceManager):
             tool_call_id=message["tool_call_id"] if "tool_call_id" in message else None,
             id=message["id"] if "id" in message else None,
         )
+    '''
 
     def trim_messages(self, num):
         # printd(f"InMemoryStateManager.trim_messages")
