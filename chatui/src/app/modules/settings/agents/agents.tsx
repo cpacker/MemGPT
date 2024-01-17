@@ -15,6 +15,7 @@ import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { useAgentActions, useCurrentAgent } from '../../../libs/agents/agent.store';
 import { useAgentsQuery } from '../../../libs/agents/use-agents.query';
+import { useAuthStoreState } from '../../../libs/auth/auth.store';
 import { SettingsLayout } from '../layout';
 
 const agentsFormSchema = z.object({
@@ -33,7 +34,8 @@ const getDefaultValues: (initialName: string | null | undefined) => Partial<Agen
 });
 
 export function AgentsForm() {
-	const { data, isLoading } = useAgentsQuery();
+	const auth = useAuthStoreState();
+	const { data, isLoading } = useAgentsQuery(auth.uuid);
 	const currentAgent = useCurrentAgent();
 	const { setAgent } = useAgentActions();
 

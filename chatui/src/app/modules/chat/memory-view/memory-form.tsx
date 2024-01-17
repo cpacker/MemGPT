@@ -17,16 +17,18 @@ import * as z from 'zod';
 import { AgentMemory } from '../../../libs/agents/agent-memory';
 import { AgentMemoryUpdateSchema } from '../../../libs/agents/agent-memory-update';
 import { useAgentMemoryUpdateMutation } from '../../../libs/agents/use-agent-memory.mutation';
+import { useAuthStoreState } from '../../../libs/auth/auth.store';
 
 export function MemoryForm({ className, data, agentId }: { className?: string; data: AgentMemory; agentId: string }) {
-	const mutation = useAgentMemoryUpdateMutation();
+	const auth = useAuthStoreState();
+	const mutation = useAgentMemoryUpdateMutation(auth.uuid);
 
 	const form = useForm<z.infer<typeof AgentMemoryUpdateSchema>>({
 		resolver: zodResolver(AgentMemoryUpdateSchema),
 		defaultValues: {
 			persona: data?.core_memory?.persona,
 			human: data?.core_memory?.human,
-			user_id: 'null',
+			user_id: auth.uuid ?? undefined,
 			agent_id: agentId,
 		},
 	});
