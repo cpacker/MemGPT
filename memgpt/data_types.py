@@ -138,6 +138,9 @@ class Passage(Record):
     #    pass
 
 
+supported_auth_types = ["bearer_token", "x_api_key"]
+
+
 class LLMConfig:
     def __init__(
         self,
@@ -146,6 +149,9 @@ class LLMConfig:
         model_endpoint: Optional[str] = "https://api.openai.com/v1",
         model_wrapper: Optional[str] = None,
         context_window: Optional[int] = None,
+        # generic auth options (for local LLMs)
+        auth_key: Optional[str] = None,
+        auth_type: Optional[str] = None,  # ['bearer_token', 'api_key']
         # openai-only
         openai_key: Optional[str] = None,
         # azure-only
@@ -165,6 +171,11 @@ class LLMConfig:
         else:
             self.context_window = context_window
 
+        # generic auth options (for local LLMs)
+        assert auth_type is None or auth_type in supported_auth_types, auth_type
+        self.auth_key = auth_key
+        self.auth_type = auth_type
+
         # openai
         self.openai_key = openai_key
 
@@ -183,6 +194,9 @@ class EmbeddingConfig:
         embedding_model: Optional[str] = None,
         embedding_dim: Optional[int] = 384,
         embedding_chunk_size: Optional[int] = 300,
+        # generic auth options (for local LLMs)
+        auth_key: Optional[str] = None,
+        auth_type: Optional[str] = None,  # ['bearer_token', 'api_key']
         # openai-only
         openai_key: Optional[str] = None,
         # azure-only
@@ -196,6 +210,11 @@ class EmbeddingConfig:
         self.embedding_model = embedding_model
         self.embedding_dim = embedding_dim
         self.embedding_chunk_size = embedding_chunk_size
+
+        # generic auth options (for local LLMs)
+        assert auth_type is None or auth_type in supported_auth_types, auth_type
+        self.auth_key = auth_key
+        self.auth_type = auth_type
 
         # openai
         self.openai_key = openai_key

@@ -3,12 +3,12 @@ from urllib.parse import urljoin
 import requests
 
 from memgpt.local_llm.settings.settings import get_completions_settings
-from memgpt.local_llm.utils import load_grammar_file, count_tokens
+from memgpt.local_llm.utils import count_tokens, post_json_auth_request
 
 WEBUI_API_SUFFIX = "/v1/completions"
 
 
-def get_webui_completion(endpoint, prompt, context_window, grammar=None):
+def get_webui_completion(endpoint, auth_type, auth_key, prompt, context_window, grammar=None):
     """Compatibility for the new OpenAI API: https://github.com/oobabooga/text-generation-webui/wiki/12-%E2%80%90-OpenAI-API#examples"""
     from memgpt.utils import printd
 
@@ -33,7 +33,7 @@ def get_webui_completion(endpoint, prompt, context_window, grammar=None):
 
     try:
         URI = urljoin(endpoint.strip("/") + "/", WEBUI_API_SUFFIX.strip("/"))
-        response = requests.post(URI, json=request)
+        response = post_json_auth_request(uri=URI, json_payload=request, auth_type=auth_type, auth_key=auth_key)
         if response.status_code == 200:
             result_full = response.json()
             printd(f"JSON API response:\n{result_full}")
