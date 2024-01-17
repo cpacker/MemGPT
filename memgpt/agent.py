@@ -243,6 +243,7 @@ class Agent(object):
             self._messages = [
                 self.persistence_manager.recall_memory.storage.get(uuid.UUID(msg_id)) for msg_id in agent_state.state["messages"]
             ]
+            assert all([isinstance(msg, Message) for msg in self._messages]), (self._messages, agent_state.state["messages"])
         else:
             init_messages = initialize_message_sequence(
                 self.model,
@@ -254,7 +255,7 @@ class Agent(object):
                 self._messages.append(
                     Message.dict_to_message(agent_id=self.config.id, user_id=self.config.user_id, model=self.model, openai_message_dict=msg)
                 )
-        assert all([isinstance(msg, Message) for msg in self._messages]), self._messages
+            assert all([isinstance(msg, Message) for msg in self._messages]), (self._messages, init_messages)
 
         # Keep track of the total number of messages throughout all time
         self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
@@ -813,6 +814,7 @@ class Agent(object):
         """Save agent state locally"""
 
         agent_state = self.to_agent_state()
+
         # TODO(swooders) does this make sense?
         # without this, even after Agent.__init__, agent.config.state["messages"] will be None
         self.config = agent_state
