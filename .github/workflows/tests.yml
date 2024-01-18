@@ -33,13 +33,11 @@ jobs:
         PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry shell
-        pytest -s -vv -k "not test_storage" tests
+        poetry run pytest -s -vv -k "not test_storage" tests
 
     - name: Run storage tests
       env:
         PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry shell
-        pytest -s -vv tests/test_storage.py
+        poetry run pytest -s -vv tests/test_storage.py
