@@ -25,6 +25,7 @@ from memgpt.config import MemGPTConfig
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.utils import printd
+from memgpt.constants import MAX_EMBEDDING_DIM
 from memgpt.data_types import Record, Message, Passage, ToolCall
 from memgpt.metadata import MetadataStore
 
@@ -114,19 +115,19 @@ def get_db_model(
 ):
     # get embedding dimention info
     # TODO: Need to remove this and just pass in AgentState/User instead
-    ms = MetadataStore(config)
-    if agent_id and ms.get_agent(agent_id):
-        agent = ms.get_agent(agent_id)
-        embedding_dim = agent.embedding_config.embedding_dim
-    else:
-        user = ms.get_user(user_id)
-        if user is None:
-            raise ValueError(f"User {user_id} not found")
-        embedding_dim = user.default_embedding_config.embedding_dim
+    # ms = MetadataStore(config)
+    # if agent_id and ms.get_agent(agent_id):
+    #    agent = ms.get_agent(agent_id)
+    #    embedding_dim = agent.embedding_config.embedding_dim
+    # else:
+    #    user = ms.get_user(user_id)
+    #    if user is None:
+    #        raise ValueError(f"User {user_id} not found")
+    #    embedding_dim = user.default_embedding_config.embedding_dim
 
-        # this cannot be the case if we are making an agent-specific table
-        assert table_type != TableType.RECALL_MEMORY, f"Agent {agent_id} not found"
-        assert table_type != TableType.ARCHIVAL_MEMORY, f"Agent {agent_id} not found"
+    #    # this cannot be the case if we are making an agent-specific table
+    #    assert table_type != TableType.RECALL_MEMORY, f"Agent {agent_id} not found"
+    #    assert table_type != TableType.ARCHIVAL_MEMORY, f"Agent {agent_id} not found"
 
     # Define a helper function to create or get the model class
     def create_or_get_model(class_name, base_model, table_name):
@@ -159,7 +160,7 @@ def get_db_model(
             else:
                 from pgvector.sqlalchemy import Vector
 
-                embedding = mapped_column(Vector(embedding_dim))
+                embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
 
             metadata_ = Column(MutableJson)
 
@@ -219,7 +220,7 @@ def get_db_model(
             else:
                 from pgvector.sqlalchemy import Vector
 
-                embedding = mapped_column(Vector(embedding_dim))
+                embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
 
             # Add a datetime column, with default value as the current time
             created_at = Column(DateTime(timezone=True), server_default=func.now())

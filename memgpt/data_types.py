@@ -5,7 +5,7 @@ from abc import abstractmethod
 from typing import Optional, List, Dict
 import numpy as np
 
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
+from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS, MAX_EMBEDDING_DIM
 from memgpt.utils import get_local_time, format_datetime
 from memgpt.models import chat_completion_response
 
@@ -68,6 +68,8 @@ class Message(Record):
         tool_calls: Optional[List[ToolCall]] = None,  # list of tool calls requested
         tool_call_id: Optional[str] = None,
         embedding: Optional[np.ndarray] = None,
+        embedding_dim: Optional[int] = None,
+        embedding_model: Optional[str] = None,
         id: Optional[uuid.UUID] = None,
     ):
         super().__init__(id)
@@ -81,6 +83,11 @@ class Message(Record):
         assert role in ["system", "assistant", "user", "tool"]
         self.role = role  # role (agent/user/function)
         self.name = name
+
+        # pad and store embeddings
+        self.embedding = np.pad(embedding, (0, MAX_EMBEDDING_DIM - embedding.shape[0]), mode="constant") if embedding is not None else None
+        self.embedding_dim = embedding_dim
+        self.embedding_model = embedding_model
 
         # tool (i.e. function) call info (optional)
 
@@ -273,6 +280,8 @@ class Passage(Record):
         text: str,
         agent_id: Optional[uuid.UUID] = None,  # set if contained in agent memory
         embedding: Optional[np.ndarray] = None,
+        embedding_dim: Optional[int] = None,
+        embedding_model: Optional[str] = None,
         data_source: Optional[str] = None,  # None if created by agent
         doc_id: Optional[uuid.UUID] = None,
         id: Optional[uuid.UUID] = None,
@@ -286,6 +295,11 @@ class Passage(Record):
         self.embedding = embedding
         self.doc_id = doc_id
         self.metadata = metadata
+
+        # pad and store embeddings
+        self.embedding = np.pad(embedding, (0, MAX_EMBEDDING_DIM - embedding.shape[0]), mode="constant") if embedding is not None else None
+        self.embedding_dim = embedding_dim
+        self.embedding_model = embedding_model
 
         assert isinstance(self.user_id, uuid.UUID), f"UUID {self.user_id} must be a UUID type"
         assert not agent_id or isinstance(self.agent_id, uuid.UUID), f"UUID {self.agent_id} must be a UUID type"
@@ -584,6 +598,9 @@ class Source:
         name: str,
         created_at: Optional[str] = None,
         id: Optional[uuid.UUID] = None,
+        # embedding info
+        embedding_model: Optional[str] = None,
+        embedding_dim: Optional[int] = None,
     ):
         if id is None:
             self.id = uuid.uuid4()
@@ -595,3 +612,7 @@ class Source:
         self.name = name
         self.user_id = user_id
         self.created_at = created_at
+
+        # embedding info (optional)
+        self.embedding_dim = embedding_dim
+        self.embedding_model = embedding_model
