@@ -7,6 +7,7 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.embeddings import embedding_model
 from memgpt.data_types import Message, Passage, EmbeddingConfig, AgentState, OpenAIEmbeddingConfig
 from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import User
@@ -123,8 +124,12 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
             embedding_endpoint_type="openai",
             embedding_endpoint="https://api.openai.com/v1",
             embedding_dim=1536,
+            # openai_key=os.getenv("OPENAI_API_KEY"),
+        )
+        credentials = MemGPTCredentials(
             openai_key=os.getenv("OPENAI_API_KEY"),
         )
+        credentials.save()
     else:
         embedding_config = EmbeddingConfig(embedding_endpoint_type="local", embedding_endpoint=None, embedding_dim=384)
     embed_model = embedding_model(embedding_config)
