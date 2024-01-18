@@ -307,13 +307,20 @@ class BaseRecallMemory(RecallMemory):
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
 
+    def get_all(self, start=0, count=None):
+        results = self.storage.get_all(start, count)
+        results_json = [message.to_openai_dict() for message in results]
+        return results_json, len(results)
+
     def text_search(self, query_string, count=None, start=None):
         results = self.storage.query_text(query_string, count, start)
-        return results, len(results)
+        results_json = [message.to_openai_dict() for message in results]
+        return results_json, len(results)
 
     def date_search(self, start_date, end_date, count=None, start=None):
         results = self.storage.query_date(start_date, end_date, count, start)
-        return results, len(results)
+        results_json = [message.to_openai_dict() for message in results]
+        return results_json, len(results)
 
     def __repr__(self) -> str:
         total = self.storage.size()
