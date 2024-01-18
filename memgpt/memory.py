@@ -350,7 +350,7 @@ class BaseRecallMemory(RecallMemory):
 class EmbeddingArchivalMemory(ArchivalMemory):
     """Archival memory with embedding based search"""
 
-    def __init__(self, agent_state, top_k: Optional[int] = 100):
+    def __init__(self, agent_state: AgentState, top_k: Optional[int] = 100):
         """Init function for archival memory
 
         :param archival_memory_database: name of dataset to pre-fill archival with

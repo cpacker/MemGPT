@@ -132,7 +132,7 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
     # create user
     ms = MetadataStore(config)
     ms.delete_user(user_id)
-    user = User(id=user_id, default_embedding_config=embedding_config)
+    user = User(id=user_id)
     agent = AgentState(
         user_id=user_id,
         name="agent_1",
@@ -140,8 +140,8 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
         preset=user.default_preset,
         persona=user.default_persona,
         human=user.default_human,
-        llm_config=user.default_llm_config,
-        embedding_config=user.default_embedding_config,
+        llm_config=config.default_llm_config,
+        embedding_config=config.default_embedding_config,
     )
     ms.create_user(user)
     ms.create_agent(agent)

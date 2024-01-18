@@ -7,6 +7,7 @@ import urllib
 
 from box import Box
 
+from memgpt.credentials import MemGPTCredentials
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
 from memgpt.constants import CLI_WARNING_PREFIX
 from memgpt.models.chat_completion_response import ChatCompletionResponse
@@ -392,10 +393,13 @@ def create(
 
     printd(f"Using model {agent_state.llm_config.model_endpoint_type}, endpoint: {agent_state.llm_config.model_endpoint}")
 
+    # TODO eventually refactor so that credentials are passed through
+    credentials = MemGPTCredentials.load()
+
     # openai
     if agent_state.llm_config.model_endpoint_type == "openai":
         # TODO do the same for Azure?
-        if agent_state.llm_config.openai_key is None:
+        if credentials.openai_key is None:
             raise ValueError(f"OpenAI key is missing from MemGPT config file")
         if use_tool_naming:
             data = dict(
@@ -415,15 +419,15 @@ def create(
             )
         return openai_chat_completions_request(
             url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
-            api_key=agent_state.llm_config.openai_key,
+            api_key=credentials.openai_key,
             data=data,
         )
 
     # azure
     elif agent_state.llm_config.model_endpoint_type == "azure":
         azure_deployment = (
-            agent_state.llm_config.azure_deployment
-            if agent_state.llm_config.azure_deployment is not None
+            credentials.azure_deployment
+            if credentials.azure_deployment is not None
             else MODEL_TO_AZURE_ENGINE[agent_state.llm_config.model]
         )
         if use_tool_naming:
@@ -445,10 +449,10 @@ def create(
                 user=str(agent_state.user_id),
             )
         return azure_openai_chat_completions_request(
-            resource_name=agent_state.llm_config.azure_endpoint,
+            resource_name=credentials.azure_endpoint,
             deployment_id=azure_deployment,
-            api_version=agent_state.llm_config.azure_version,
-            api_key=agent_state.llm_config.azure_key,
+            api_version=credentials.azure_version,
+            api_key=credentials.azure_key,
             data=data,
         )
 
@@ -468,6 +472,6 @@ def create(
             # hint
             first_message=first_message,
             # auth-related
-            auth_type=agent_state.llm_config.auth_type,
-            auth_key=agent_state.llm_config.auth_key,
+            auth_type=credentials.openllm_auth_type,
+            auth_key=credentials.openllm_key,
         )

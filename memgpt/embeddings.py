@@ -5,6 +5,7 @@ import os
 
 from memgpt.utils import is_valid_url
 from memgpt.data_types import EmbeddingConfig
+from memgpt.credentials import MemGPTCredentials
 
 from llama_index.embeddings import OpenAIEmbedding, AzureOpenAIEmbedding
 from llama_index.bridge.pydantic import PrivateAttr
@@ -161,20 +162,23 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
 
     endpoint_type = config.embedding_endpoint_type
 
+    # TODO refactor to pass credentials through args
+    credentials = MemGPTCredentials.load()
+
     if endpoint_type == "openai":
         additional_kwargs = {"user_id": user_id} if user_id else {}
-        model = OpenAIEmbedding(api_base=config.embedding_endpoint, api_key=config.openai_key, additional_kwargs=additional_kwargs)
+        model = OpenAIEmbedding(api_base=config.embedding_endpoint, api_key=credentials.openai_key, additional_kwargs=additional_kwargs)
         return model
     elif endpoint_type == "azure":
         # https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings
         model = "text-embedding-ada-002"
-        deployment = config.azure_embedding_deployment if config.azure_embedding_deployment is not None else model
+        deployment = credentials.azure_embedding_deployment if credentials.azure_embedding_deployment is not None else model
         return AzureOpenAIEmbedding(
             model=model,
             deployment_name=deployment,
-            api_key=config.azure_key,
-            azure_endpoint=config.azure_endpoint,
-            api_version=config.azure_version,
+            api_key=credentials.azure_key,
+            azure_endpoint=credentials.azure_endpoint,
+            api_version=credentials.azure_version,
         )
     elif endpoint_type == "hugging-face":
         try:

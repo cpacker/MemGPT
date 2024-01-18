@@ -543,8 +543,6 @@ class SyncServer(LockingServer):
             default_preset=user_config["default_preset"] if "default_preset" in user_config else "memgpt_chat",
             default_persona=user_config["default_persona"] if "default_persona" in user_config else constants.DEFAULT_PERSONA,
             default_human=user_config["default_human"] if "default_human" in user_config else constants.DEFAULT_HUMAN,
-            default_llm_config=self.server_llm_config,
-            default_embedding_config=self.server_embedding_config,
         )
         self.ms.create_user(user)
         logger.info(f"Created new user from config: {user}")
@@ -584,8 +582,8 @@ class SyncServer(LockingServer):
             # TODO we need to allow passing raw persona/human text via the server request
             persona=agent_config["persona"] if "persona" in agent_config else user.default_persona,
             human=agent_config["human"] if "human" in agent_config else user.default_human,
-            llm_config=agent_config["llm_config"] if "llm_config" in agent_config else user.default_llm_config,
-            embedding_config=agent_config["embedding_config"] if "embedding_config" in agent_config else user.default_embedding_config,
+            llm_config=agent_config["llm_config"] if "llm_config" in agent_config else self.server_llm_config,
+            embedding_config=agent_config["embedding_config"] if "embedding_config" in agent_config else self.server_embedding_config,
         )
         # NOTE: you MUST add to the metadata store before creating the agent, otherwise the storage connectors will error on creation
         # TODO: fix this db dependency and remove
