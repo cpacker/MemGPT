@@ -21,7 +21,7 @@ def test_save_load():
     else:
         client = MemGPT(quickstart="memgpt_hosted")
 
-    child = pexpect.spawn("memgpt run --agent test_save_load --first --strip-ui")
+    child = pexpect.spawn("poetry run memgpt run --agent test_save_load --first --strip-ui")
 
     child.expect("Enter your message:", timeout=TIMEOUT)
     child.sendline()
@@ -37,7 +37,7 @@ def test_save_load():
     assert child.isalive() is False, "CLI should have terminated."
     assert child.exitstatus == 0, "CLI did not exit cleanly."
 
-    child = pexpect.spawn("memgpt run --agent test_save_load --first --strip-ui")
+    child = pexpect.spawn("poetry run memgpt run --agent test_save_load --first --strip-ui")
     child.expect("Using existing agent test_save_load", timeout=TIMEOUT)
     child.expect("Enter your message:", timeout=TIMEOUT)
     child.sendline("/exit")

@@ -5,6 +5,7 @@ from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSON
 from memgpt.utils import get_local_time, enforce_types
 from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig
 from memgpt.config import MemGPTConfig
+from memgpt.agent import Agent
 
 from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, Boolean
 from sqlalchemy import func
@@ -93,6 +94,7 @@ class UserModel(Base):
     __table_args__ = {"extend_existing": True}
 
     id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+    # name = Column(String, nullable=False)
     default_preset = Column(String)
     default_persona = Column(String)
     default_human = Column(String)
@@ -115,6 +117,7 @@ class UserModel(Base):
     def to_record(self) -> User:
         return User(
             id=self.id,
+            # name=self.name
             default_preset=self.default_preset,
             default_persona=self.default_persona,
             default_human=self.default_human,
@@ -368,3 +371,15 @@ class MetadataStore:
             AgentSourceMappingModel.agent_id == agent_id, AgentSourceMappingModel.source_id == source_id
         ).delete()
         self.session.commit()
+
+
+def save_agent(agent: Agent, ms: MetadataStore):
+    """Save agent to metadata store"""
+
+    agent.update_state()
+    agent_state = agent.agent_state
+
+    if ms.get_agent(agent_id=agent_state.id):
+        ms.update_agent(agent_state)
+    else:
+        ms.create_agent(agent_state)

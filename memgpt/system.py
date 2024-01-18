@@ -1,3 +1,4 @@
+import uuid
 import json
 
 from .utils import get_local_time
@@ -18,30 +19,64 @@ def get_initial_boot_messages(version="startup"):
         ]
 
     elif version == "startup_with_send_message":
+        tool_call_id = str(uuid.uuid4())
         messages = [
             # first message includes both inner monologue and function call to send_message
             {
                 "role": "assistant",
                 "content": INITIAL_BOOT_MESSAGE_SEND_MESSAGE_THOUGHT,
-                "function_call": {
-                    "name": "send_message",
-                    "arguments": '{\n  "message": "' + f"{INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG}" + '"\n}',
-                },
+                # "function_call": {
+                #     "name": "send_message",
+                #     "arguments": '{\n  "message": "' + f"{INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG}" + '"\n}',
+                # },
+                "tool_calls": [
+                    {
+                        "id": tool_call_id,
+                        "type": "function",
+                        "function": {
+                            "name": "send_message",
+                            "arguments": '{\n  "message": "' + f"{INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG}" + '"\n}',
+                        },
+                    }
+                ],
             },
             # obligatory function return message
-            {"role": "function", "name": "send_message", "content": package_function_response(True, None)},
+            {
+                # "role": "function",
+                "role": "tool",
+                "name": "send_message",  # NOTE: technically not up to spec, this is old functions style
+                "content": package_function_response(True, None),
+                "tool_call_id": tool_call_id,
+            },
         ]
 
     elif version == "startup_with_send_message_gpt35":
+        tool_call_id = str(uuid.uuid4())
         messages = [
             # first message includes both inner monologue and function call to send_message
             {
                 "role": "assistant",
                 "content": "*inner thoughts* Still waiting on the user. Sending a message with function.",
-                "function_call": {"name": "send_message", "arguments": '{\n  "message": "' + f"Hi, is anyone there?" + '"\n}'},
+                # "function_call": {"name": "send_message", "arguments": '{\n  "message": "' + f"Hi, is anyone there?" + '"\n}'},
+                "tool_calls": [
+                    {
+                        "id": tool_call_id,
+                        "type": "function",
+                        "function": {
+                            "name": "send_message",
+                            "arguments": '{\n  "message": "' + f"Hi, is anyone there?" + '"\n}',
+                        },
+                    }
+                ],
             },
             # obligatory function return message
-            {"role": "function", "name": "send_message", "content": package_function_response(True, None)},
+            {
+                # "role": "function",
+                "role": "tool",
+                "name": "send_message",
+                "content": package_function_response(True, None),
+                "tool_call_id": tool_call_id,
+            },
         ]
 
     else:
