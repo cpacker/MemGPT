@@ -103,7 +103,7 @@ def store_docs(name, docs, user_id=None, show_progress=True):
         print(f"Source {name} for user {user.id} already exists")
 
     # compute and record passages
-    embed_model = embedding_model(user.default_embedding_config)
+    embed_model = embedding_model(config.default_embedding_config)
 
     # use llama index to run embeddings code
     with suppress_stdout():
@@ -121,8 +121,8 @@ def store_docs(name, docs, user_id=None, show_progress=True):
         node.embedding = vector
         text = node.text.replace("\x00", "\uFFFD")  # hacky fix for error on null characters
         assert (
-            len(node.embedding) == user.default_embedding_config.embedding_dim
-        ), f"Expected embedding dimension {user.default_embedding_config.embedding_dim}, got {len(node.embedding)}: {node.embedding}"
+            len(node.embedding) == config.default_embedding_config.embedding_dim
+        ), f"Expected embedding dimension {config.default_embedding_config.embedding_dim}, got {len(node.embedding)}: {node.embedding}"
         passages.append(
             Passage(
                 user_id=user.id,

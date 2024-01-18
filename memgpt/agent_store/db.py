@@ -122,7 +122,7 @@ def get_db_model(
         user = ms.get_user(user_id)
         if user is None:
             raise ValueError(f"User {user_id} not found")
-        embedding_dim = user.default_embedding_config.embedding_dim
+        embedding_dim = config.default_embedding_config.embedding_dim
 
         # this cannot be the case if we are making an agent-specific table
         assert table_type != TableType.RECALL_MEMORY, f"Agent {agent_id} not found"
