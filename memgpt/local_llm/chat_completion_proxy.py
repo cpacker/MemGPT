@@ -88,7 +88,7 @@ def get_chat_completion(
 
     # If the wrapper uses grammar, generate the grammar using the grammar generating function
     # TODO move this to a flag
-    if "grammar" in wrapper:
+    if wrapper is not None and "grammar" in wrapper:
         # When using grammars, we don't want to do any extras output tricks like appending a response prefix
         setattr(llm_wrapper, "assistant_prefix_extra_first_message", "")
         setattr(llm_wrapper, "assistant_prefix_extra", "")
