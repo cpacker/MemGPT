@@ -64,7 +64,7 @@ def test_user_message():
     assert response is not None and len(response) > 0
 
     global test_agent_state_post_message
-    client.server.active_agents[0]["agent"].to_agent_state()
+    client.server.active_agents[0]["agent"].update_state()
     test_agent_state_post_message = client.server.active_agents[0]["agent"].agent_state
     print(
         f"[2] MESSAGE SEND SUCCESS!!! AGENT {test_agent_state_post_message.id}\n\tmessages={test_agent_state_post_message.state['messages']}"
@@ -90,7 +90,7 @@ def test_save_load():
         client2 = MemGPT(quickstart="memgpt_hosted", user_id=test_user_id)
     print(f"\n\n[3] CREATING CLIENT2, LOADING AGENT {test_agent_state.id}!")
     client2_agent_obj = client2.server._get_or_load_agent(user_id=test_user_id, agent_id=test_agent_state.id)
-    client2_agent_state = client2_agent_obj.to_agent_state()
+    client2_agent_state = client2_agent_obj.update_state()
     print(f"[3] LOADED AGENT! AGENT {client2_agent_state.id}\n\tmessages={client2_agent_state.state['messages']}")
 
     # assert test_agent_state == client2_agent_state, f"{vars(test_agent_state)}\n{vars(client2_agent_state)}"
@@ -115,7 +115,7 @@ def test_save_load():
     else:
         client3 = MemGPT(quickstart="memgpt_hosted", user_id=test_user_id)
     client3_agent_obj = client3.server._get_or_load_agent(user_id=test_user_id, agent_id=test_agent_state.id)
-    client3_agent_state = client3_agent_obj.to_agent_state()
+    client3_agent_state = client3_agent_obj.update_state()
 
     check_state_equivalence(vars(test_agent_state_post_message), vars(client3_agent_state))
 

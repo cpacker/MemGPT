@@ -376,7 +376,7 @@ class MetadataStore:
 def save_agent(agent: Agent, ms: MetadataStore):
     """Save agent to metadata store"""
 
-    agent.to_agent_state()
+    agent.update_state()
     agent_state = agent.agent_state
 
     if ms.get_agent(agent_id=agent_state.id):

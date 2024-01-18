@@ -273,6 +273,7 @@ class Agent(object):
 
         # Create the agent in the DB
         # self.save()
+        self.update_state()
 
     @property
     def messages(self) -> List[dict]:
@@ -822,6 +823,7 @@ class Agent(object):
 
         msg = f"Added function {function_name}"
         # self.save()
+        self.update_state()
         printd(msg)
         return msg
 
@@ -844,6 +846,7 @@ class Agent(object):
 
         msg = f"Removed function {function_name}"
         # self.save()
+        self.update_state()
         printd(msg)
         return msg
 
@@ -865,7 +868,7 @@ class Agent(object):
     #        print(f"Agent.save {new_agent_state.id} :: preupdate:\n\tmessages={new_agent_state.state['messages']}")
     #        self.ms.update_agent(agent=new_agent_state)
 
-    def to_agent_state(self):
+    def update_state(self):
         updated_state = {
             "persona": self.memory.persona,
             "human": self.memory.human,
