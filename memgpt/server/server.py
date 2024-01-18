@@ -228,7 +228,8 @@ class SyncServer(LockingServer):
         """Saves all the agents that are in the in-memory object store"""
         for agent_d in self.active_agents:
             try:
-                agent_d["agent"].save()
+                # agent_d["agent"].save()
+                save_agent(agent_d["agent"], self.ms)
                 logger.info(f"Saved agent {agent_d['agent_id']}")
             except Exception as e:
                 logger.exception(f"Error occurred while trying to save agent {agent_d['agent_id']}:\n{e}")
