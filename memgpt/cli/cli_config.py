@@ -638,7 +638,7 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
     if arg == ListChoice.agents:
         """List all agents"""
         table = PrettyTable()
-        table.field_names = ["Name", "Model", "Persona", "Human", "Data Source", "Create Time"]
+        table.field_names = ["Name", "LLM Model", "Embedding Model", "Embedding Dim", "Persona", "Human", "Data Source", "Create Time"]
         for agent in tqdm(ms.list_agents(user_id=user_id)):
             source_ids = ms.list_attached_sources(agent_id=agent.id)
             source_names = [ms.get_source(source_id=source_id).name for source_id in source_ids]
@@ -646,6 +646,8 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
                 [
                     agent.name,
                     agent.llm_config.model,
+                    agent.embedding_config.embedding_model,
+                    agent.embedding_config.embedding_dim,
                     agent.persona,
                     agent.human,
                     ",".join(source_names),
@@ -677,7 +679,7 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
 
         # create table
         table = PrettyTable()
-        table.field_names = ["Name", "Created At", "Agents"]
+        table.field_names = ["Name", "Embedding Model", "Embedding Dim", "Created At", "Agents"]
         # TODO: eventually look accross all storage connections
         # TODO: add data source stats
         # TODO: connect to agents
@@ -688,7 +690,9 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
             agent_ids = ms.list_attached_agents(source_id=source.id)
             agent_names = [ms.get_agent(agent_id=agent_id).name for agent_id in agent_ids]
 
-            table.add_row([source.name, utils.format_datetime(source.created_at), ",".join(agent_names)])
+            table.add_row(
+                [source.name, source.embedding_model, source.embedding_dim, utils.format_datetime(source.created_at), ",".join(agent_names)]
+            )
 
         print(table)
     else:
