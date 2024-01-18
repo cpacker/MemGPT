@@ -29,14 +29,13 @@ jobs:
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v2
+
+      - name: "Setup Python, Poetry and Dependencies"
+        uses: packetcoders/action-setup-cache-python-poetry@main
         with:
-          python-version: 3.11
-      - name: Install poetry
-        run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          python-version: "3.11"
+          poetry-version: "1.7.1"
+
       - name: Set release version
         run: |
           # Extract the version number from pyproject.toml using awk
@@ -49,12 +48,14 @@ jobs:
           sed -i "s/__version__ = '.*'/__version__ = '${NIGHTLY_VERSION}'/g" memgpt/__init__.py
           cat pyproject.toml
           cat memgpt/__init__.py
+
       - name: Configure poetry
-        run: |
-          poetry config pypi-token.pypi ${{ secrets.PYPI_NIGHTLY_TOKEN }}
+        env:
+          PYPI_NIGHTLY_TOKEN: ${{ secrets.PYPI_NIGHTLY_TOKEN }}
+        run: poetry config pypi-token.pypi "$PYPI_NIGHTLY_TOKEN"
+
       - name: Build the Python package
         run: poetry build
+
       - name: Publish the package to PyPI
         run: poetry publish
-        env:
-          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_NIGHTLY_TOKEN }}
