@@ -121,7 +121,6 @@ def test_server():
     message_ids = [m["id"] for m in messages_3]
     for message_id in message_ids:
         assert message_id in in_context_ids, f"{message_id} not in {in_context_ids}"
-    print("in context", in_context_ids)
 
     # test archival memory cursor pagination
     cursor1, passages_1 = server.get_agent_archival_cursor(
