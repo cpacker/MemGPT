@@ -40,10 +40,6 @@ jobs:
         poetry config virtualenvs.path ~/.virtualenvs
 
     - name: Install dependencies using Poetry
-      env:
-        PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
-
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         poetry install --all-extras
 
