@@ -14,23 +14,41 @@ from .utils import wipe_config, wipe_memgpt_home
 def test_server():
     wipe_memgpt_home()
 
-    config = MemGPTConfig(
-        archival_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
-        recall_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
-        metadata_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
-        archival_storage_type="postgres",
-        recall_storage_type="postgres",
-        metadata_storage_type="postgres",
-        # embeddings
-        embedding_endpoint_type="openai",
-        embedding_endpoint="https://api.openai.com/v1",
-        embedding_dim=1536,
-        openai_key=os.getenv("OPENAI_API_KEY"),
-        # llms
-        model_endpoint_type="openai",
-        model_endpoint="https://api.openai.com/v1",
-        model="gpt-4",
-    )
+    if os.getenv("OPENAI_API_KEY"):
+        config = MemGPTConfig(
+            archival_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
+            recall_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
+            metadata_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
+            archival_storage_type="postgres",
+            recall_storage_type="postgres",
+            metadata_storage_type="postgres",
+            # embeddings
+            embedding_endpoint_type="openai",
+            embedding_endpoint="https://api.openai.com/v1",
+            embedding_dim=1536,
+            openai_key=os.getenv("OPENAI_API_KEY"),
+            # llms
+            model_endpoint_type="openai",
+            model_endpoint="https://api.openai.com/v1",
+            model="gpt-4",
+        )
+    else:  # hosted
+        config = MemGPTConfig(
+            archival_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
+            recall_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
+            metadata_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
+            archival_storage_type="postgres",
+            recall_storage_type="postgres",
+            metadata_storage_type="postgres",
+            # embeddings
+            embedding_endpoint_type="hugging-face",
+            embedding_endpoint="https://embeddings.memgpt.ai",
+            embedding_dim=1024,
+            # llms
+            model_endpoint_type="vllm",
+            model_endpoint="https://api.memgpt.ai",
+            model="ehartford/dolphin-2.5-mixtral-8x7b",
+        )
     config.save()
 
     server = SyncServer()
