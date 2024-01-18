@@ -461,7 +461,14 @@ class Agent(object):
             # Failure case 3: function failed during execution
             self.interface.function_message(f"Running {function_name}({function_args})")
             try:
+                spec = inspect.getfullargspec(function_to_call).annotations
+
+                for name, arg in function_args.items():
+                    if isinstance(function_args[name], dict):
+                        function_args[name] = spec[name](**function_args[name])
+
                 function_args["self"] = self  # need to attach self to arg since it's dynamically linked
+
                 function_response = function_to_call(**function_args)
                 if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search"]:
                     # with certain functions we rely on the paging mechanism to handle overflow

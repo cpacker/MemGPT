@@ -26,7 +26,7 @@ class Dolphin21MistralWrapper(LLMChatCompletionWrapper):
         self.include_opening_brance_in_prefix = include_opening_brace_in_prefix
         self.include_section_separators = include_section_separators
 
-    def chat_completion_to_prompt(self, messages, functions):
+    def chat_completion_to_prompt(self, messages, functions, function_documentation=None):
         """Example for airoboros: https://huggingface.co/jondurbin/airoboros-l2-70b-2.1#prompt-format
 
         <|im_start|>system
@@ -97,8 +97,11 @@ class Dolphin21MistralWrapper(LLMChatCompletionWrapper):
         # prompt += f"\nPlease select the most suitable function and parameters from the list of available functions below, based on the user's input. Provide your response in JSON format."
         prompt += f"\nPlease select the most suitable function and parameters from the list of available functions below, based on the ongoing conversation. Provide your response in JSON format."
         prompt += f"\nAvailable functions:"
-        for function_dict in functions:
-            prompt += f"\n{create_function_description(function_dict)}"
+        if function_documentation is not None:
+            prompt += f"\n{function_documentation}"
+        else:
+            for function_dict in functions:
+                prompt += f"\n{create_function_description(function_dict)}"
 
         # Put functions INSIDE system message (TODO experiment with this)
         prompt += IM_END_TOKEN

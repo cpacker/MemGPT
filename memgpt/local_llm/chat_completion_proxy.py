@@ -88,7 +88,7 @@ def get_chat_completion(
 
     # If the wrapper uses grammar, generate the grammar using the grammar generating function
     # TODO move this to a flag
-    if "grammar" in wrapper:
+    if wrapper is not None and "grammar" in wrapper:
         # When using grammars, we don't want to do any extras output tricks like appending a response prefix
         setattr(llm_wrapper, "assistant_prefix_extra_first_message", "")
         setattr(llm_wrapper, "assistant_prefix_extra", "")
@@ -125,9 +125,11 @@ def get_chat_completion(
     try:
         # if hasattr(llm_wrapper, "supports_first_message"):
         if hasattr(llm_wrapper, "supports_first_message") and llm_wrapper.supports_first_message:
-            prompt = llm_wrapper.chat_completion_to_prompt(messages, functions, first_message=first_message)
+            prompt = llm_wrapper.chat_completion_to_prompt(
+                messages, functions, first_message=first_message, function_documentation=documentation
+            )
         else:
-            prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
+            prompt = llm_wrapper.chat_completion_to_prompt(messages, functions, function_documentation=documentation)
 
         printd(prompt)
     except Exception as e:
@@ -248,8 +250,8 @@ def generate_grammar_and_documentation(
         grammar_function_models,
         outer_object_name="function",
         outer_object_content="params",
-        model_prefix="Function",
-        fields_prefix="Parameter",
+        model_prefix="function",
+        fields_prefix="params",
         add_inner_thoughts=add_inner_thoughts_top_level,
         allow_only_inner_thoughts=allow_only_inner_thoughts,
     )
