@@ -95,12 +95,15 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         return prompt
 
     # NOTE: BOS/EOS chatml tokens are NOT inserted here
-    def _compile_system_message(self, system_message, functions) -> str:
+    def _compile_system_message(self, system_message, functions, function_documentation=None) -> str:
         """system prompt + memory + functions -> string"""
         prompt = ""
         prompt += system_message
         prompt += "\n"
-        prompt += self._compile_function_block(functions)
+        if function_documentation is not None:
+            prompt += function_documentation
+        else:
+            prompt += self._compile_function_block(functions)
         return prompt
 
     def _compile_function_call(self, function_call, inner_thoughts=None):
@@ -186,13 +189,15 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         prompt += function_return_str
         return prompt
 
-    def chat_completion_to_prompt(self, messages, functions, first_message=False):
+    def chat_completion_to_prompt(self, messages, functions, first_message=False, function_documentation=None):
         """chatml-style prompt formatting, with implied support for multi-role"""
         prompt = ""
 
         # System insturctions go first
         assert messages[0]["role"] == "system"
-        system_block = self._compile_system_message(system_message=messages[0]["content"], functions=functions)
+        system_block = self._compile_system_message(
+            system_message=messages[0]["content"], functions=functions, function_documentation=function_documentation
+        )
         prompt += f"<|im_start|>system\n{system_block.strip()}<|im_end|>"
 
         # Last are the user/assistant messages

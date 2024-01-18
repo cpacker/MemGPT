@@ -17,7 +17,7 @@ class SimpleSummaryWrapper(LLMChatCompletionWrapper):
         self.include_assistant_prefix = include_assistant_prefix
         self.include_section_separators = include_section_separators
 
-    def chat_completion_to_prompt(self, messages, functions):
+    def chat_completion_to_prompt(self, messages, functions, function_documentation=None):
         """Example for airoboros: https://huggingface.co/jondurbin/airoboros-l2-70b-2.1#prompt-format
 
         Instructions on how to summarize
