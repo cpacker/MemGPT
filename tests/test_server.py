@@ -114,6 +114,15 @@ def test_server():
     cursor4, messages_4 = server.get_agent_recall_cursor(user_id=user.id, agent_id=agent_state.id, reverse=True, before=cursor1)
     assert len(messages_4) == 1
 
+    # test in-context message ids
+    in_context_ids = server.get_in_context_message_ids(user_id=user.id, agent_id=agent_state.id)
+    assert len(in_context_ids) == len(messages_3)
+    assert isinstance(in_context_ids[0], uuid.UUID)
+    message_ids = [m["id"] for m in messages_3]
+    for message_id in message_ids:
+        assert message_id in in_context_ids, f"{message_id} not in {in_context_ids}"
+    print("in context", in_context_ids)
+
     # test archival memory cursor pagination
     cursor1, passages_1 = server.get_agent_archival_cursor(
         user_id=user.id, agent_id=agent_state.id, reverse=False, limit=2, order_by="text"

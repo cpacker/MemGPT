@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Union, Callable, Optional, Tuple
+from typing import Union, Callable, Optional, Tuple, List
 import uuid
 import json
 import logging
@@ -691,6 +691,12 @@ class SyncServer(LockingServer):
         }
 
         return memory_obj
+
+    def get_in_context_message_ids(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> List[uuid.UUID]:
+        """Get the message ids of the in-context messages in the agent's memory"""
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        return [m.id for m in memgpt_agent._messages]
 
     def get_agent_messages(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
         """Paginated query of all messages in agent message queue"""
