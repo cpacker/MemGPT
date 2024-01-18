@@ -21,4 +21,4 @@ jobs:
 
     - name: Run main.py with input
       run: |
-        echo -e "\n\n\nn" | python main.py
+        echo -e "\n\n\nn" | poetry run python main.py
