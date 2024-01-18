@@ -7,7 +7,6 @@ from memgpt.config import MemGPTConfig
 from memgpt.server.server import SyncServer
 from memgpt.data_types import EmbeddingConfig, AgentState, LLMConfig, Message, Passage, User
 from memgpt.embeddings import embedding_model
-from memgpt.metadata import MetadataStore
 from .utils import wipe_config, wipe_memgpt_home
 
 

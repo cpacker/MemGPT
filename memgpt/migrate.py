@@ -19,7 +19,7 @@ from llama_index import (
 )
 
 from memgpt.agent import Agent
-from memgpt.data_types import AgentState, User, Passage, Source
+from memgpt.data_types import AgentState, User, Passage, Source, Message
 from memgpt.metadata import MetadataStore
 from memgpt.utils import MEMGPT_DIR, version_less_than, OpenAIBackcompatUnpickler, annotate_message_json_list_with_tool_calls
 from memgpt.config import MemGPTConfig
@@ -302,7 +302,7 @@ def migrate_agent(agent_name: str):
         # We want to keep the timestamp
         for i in range(len(data["all_messages"])):
             data["all_messages"][i]["message"] = full_message_history_buffer[i]
-        messages_to_insert = [agent.persistence_manager.json_to_message(msg) for msg in data["all_messages"]]
+        messages_to_insert = [Message.dict_to_message(msg, allow_functions_style=True) for msg in data["all_messages"]]
         agent.persistence_manager.recall_memory.insert_many(messages_to_insert)
         # print("Finished migrating recall memory")
 
