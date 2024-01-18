@@ -26,15 +26,7 @@ jobs:
       with:
         python-version: "3.11"
         poetry-version: "1.7.1"
-
-    - name: Set Poetry config
-      run: |
-        poetry config virtualenvs.in-project false
-        poetry config virtualenvs.path ~/.virtualenvs
-
-    - name: Install dependencies using Poetry
-      run: |
-        poetry install --all-extras
+        install-args: "--all-extras"
 
     - name: Run tests with pytest
       env:
