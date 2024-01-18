@@ -4,6 +4,7 @@ import memgpt.utils as utils
 
 utils.DEBUG = True
 from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials
 from memgpt.server.server import SyncServer
 from memgpt.data_types import EmbeddingConfig, AgentState, LLMConfig, Message, Passage, User
 from memgpt.embeddings import embedding_model
@@ -22,14 +23,20 @@ def test_server():
             recall_storage_type="postgres",
             metadata_storage_type="postgres",
             # embeddings
-            embedding_endpoint_type="openai",
-            embedding_endpoint="https://api.openai.com/v1",
-            embedding_dim=1536,
-            openai_key=os.getenv("OPENAI_API_KEY"),
+            default_embedding_config=EmbeddingConfig(
+                embedding_endpoint_type="openai",
+                embedding_endpoint="https://api.openai.com/v1",
+                embedding_dim=1536,
+            ),
             # llms
-            model_endpoint_type="openai",
-            model_endpoint="https://api.openai.com/v1",
-            model="gpt-4",
+            default_llm_config=LLMConfig(
+                model_endpoint_type="openai",
+                model_endpoint="https://api.openai.com/v1",
+                model="gpt-4",
+            ),
+        )
+        credentials = MemGPTCredentials(
+            openai_key=os.getenv("OPENAI_API_KEY"),
         )
     else:  # hosted
         config = MemGPTConfig(
@@ -40,16 +47,22 @@ def test_server():
             recall_storage_type="postgres",
             metadata_storage_type="postgres",
             # embeddings
-            embedding_endpoint_type="hugging-face",
-            embedding_endpoint="https://embeddings.memgpt.ai",
-            embedding_model="BAAI/bge-large-en-v1.5",
-            embedding_dim=1024,
+            default_embedding_config=EmbeddingConfig(
+                embedding_endpoint_type="hugging-face",
+                embedding_endpoint="https://embeddings.memgpt.ai",
+                embedding_model="BAAI/bge-large-en-v1.5",
+                embedding_dim=1024,
+            ),
             # llms
-            model_endpoint_type="vllm",
-            model_endpoint="https://api.memgpt.ai",
-            model="ehartford/dolphin-2.5-mixtral-8x7b",
+            default_llm_config=LLMConfig(
+                model_endpoint_type="vllm",
+                model_endpoint="https://api.memgpt.ai",
+                model="ehartford/dolphin-2.5-mixtral-8x7b",
+            ),
         )
+        credentials = MemGPTCredentials()
     config.save()
+    credentials.save()
 
     server = SyncServer()
 

@@ -9,6 +9,7 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.cli.cli_load import load_directory, load_database, load_webpage
 from memgpt.cli.cli import attach
 from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import User, AgentState, EmbeddingConfig
 
@@ -69,8 +70,12 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
             embedding_endpoint_type="openai",
             embedding_endpoint="https://api.openai.com/v1",
             embedding_dim=1536,
+            # openai_key=os.getenv("OPENAI_API_KEY"),
+        )
+        credentials = MemGPTCredentials(
             openai_key=os.getenv("OPENAI_API_KEY"),
         )
+        credentials.save()
     else:
         embedding_config = EmbeddingConfig(embedding_endpoint_type="local", embedding_endpoint=None, embedding_dim=384)
 

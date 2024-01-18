@@ -9,6 +9,7 @@ from fastapi import HTTPException
 
 from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials
 from memgpt.agent import Agent
 import memgpt.system as system
 import memgpt.constants as constants
@@ -183,6 +184,9 @@ class SyncServer(LockingServer):
         # Initialize the connection to the DB
         self.config = MemGPTConfig.load()
 
+        # TODO figure out how to handle credentials for the server
+        self.credentials = MemGPTCredentials.load()
+
         # Ensure valid database configuration
         # TODO: add back once tests are matched
         # assert (
@@ -196,22 +200,22 @@ class SyncServer(LockingServer):
         # Generate default LLM/Embedding configs for the server
         # TODO: we may also want to do the same thing with default persona/human/etc.
         self.server_llm_config = LLMConfig(
-            model=self.config.model,
-            model_endpoint_type=self.config.model_endpoint_type,
-            model_endpoint=self.config.model_endpoint,
-            model_wrapper=self.config.model_wrapper,
-            context_window=self.config.context_window,
-            openai_key=self.config.openai_key,
-            azure_key=self.config.azure_key,
-            azure_endpoint=self.config.azure_endpoint,
-            azure_version=self.config.azure_version,
-            azure_deployment=self.config.azure_deployment,
+            model=self.config.default_llm_config.model,
+            model_endpoint_type=self.config.default_llm_config.model_endpoint_type,
+            model_endpoint=self.config.default_llm_config.model_endpoint,
+            model_wrapper=self.config.default_llm_config.model_wrapper,
+            context_window=self.config.default_llm_config.context_window,
+            # openai_key=self.credentials.openai_key,
+            # azure_key=self.credentials.azure_key,
+            # azure_endpoint=self.credentials.azure_endpoint,
+            # azure_version=self.credentials.azure_version,
+            # azure_deployment=self.credentials.azure_deployment,
         )
         self.server_embedding_config = EmbeddingConfig(
-            embedding_endpoint_type=self.config.embedding_endpoint_type,
-            embedding_endpoint=self.config.embedding_endpoint,
-            embedding_dim=self.config.embedding_dim,
-            openai_key=self.config.openai_key,
+            embedding_endpoint_type=self.config.default_embedding_config.embedding_endpoint_type,
+            embedding_endpoint=self.config.default_embedding_config.embedding_endpoint,
+            embedding_dim=self.config.default_embedding_config.embedding_dim,
+            # openai_key=self.credentials.openai_key,
         )
 
         # Initialize the metadata store
