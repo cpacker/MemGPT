@@ -113,6 +113,7 @@ def get_db_model(
     dialect="postgresql",
 ):
     # get embedding dimention info
+    # TODO: Need to remove this and just pass in AgentState/User instead
     ms = MetadataStore(config)
     if agent_id and ms.get_agent(agent_id):
         agent = ms.get_agent(agent_id)

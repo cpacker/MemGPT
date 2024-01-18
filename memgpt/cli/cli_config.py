@@ -71,8 +71,8 @@ def configure_llm_endpoint(config: MemGPTConfig):
         if config.openai_key is None:
             # allow key to get pulled from env vars
             openai_api_key = os.getenv("OPENAI_API_KEY", None)
+            # if we still can't find it, ask for it as input
             if openai_api_key is None:
-                # if we still can't find it, ask for it as input
                 while openai_api_key is None or len(openai_api_key) == 0:
                     # Ask for API key as input
                     openai_api_key = questionary.text(
@@ -87,7 +87,7 @@ def configure_llm_endpoint(config: MemGPTConfig):
             openai_api_key = None
             default_input = shorten_key_middle(config.openai_key) if config.openai_key.startswith("sk-") else config.openai_key
             openai_api_key = questionary.text(
-                "Enter your OpenAI API key (hit enter to use existing key):",
+                "Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):",
                 default=default_input,
             ).ask()
             if openai_api_key is None:
@@ -541,6 +541,9 @@ def configure():
     except ValueError as e:
         typer.secho(str(e), fg=typer.colors.RED)
         return
+
+    # openai key might have gotten added along the way
+    openai_key = config.openai_key if config.openai_key is not None else openai_key
 
     # TODO: remove most of this (deplicated with User table)
     config = MemGPTConfig(
