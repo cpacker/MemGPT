@@ -5,6 +5,7 @@ from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSON
 from memgpt.utils import get_local_time, enforce_types
 from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig
 from memgpt.config import MemGPTConfig
+from memgpt.agent import Agent
 
 from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, Boolean
 from sqlalchemy import func
@@ -370,3 +371,15 @@ class MetadataStore:
             AgentSourceMappingModel.agent_id == agent_id, AgentSourceMappingModel.source_id == source_id
         ).delete()
         self.session.commit()
+
+
+def save_agent(agent: Agent, ms: MetadataStore):
+    """Save agent to metadata store"""
+
+    agent.to_agent_state()
+    agent_state = agent.agent_state
+
+    if ms.get_agent(agent_id=agent_state.id):
+        ms.update_agent(agent_state)
+    else:
+        ms.create_agent(agent_state)

@@ -12,7 +12,6 @@ from box import Box
 
 from memgpt.data_types import AgentState, Message
 from memgpt.models import chat_completion_response
-from memgpt.metadata import MetadataStore
 from memgpt.interface import AgentInterface
 from memgpt.persistence_manager import PersistenceManager, LocalStateManager
 from memgpt.config import MemGPTConfig
@@ -232,7 +231,7 @@ class Agent(object):
             self.memgpt_config = memgpt_config
 
         # Initialize connection to metedata store
-        self.ms = MetadataStore(self.memgpt_config)
+        # self.ms = MetadataStore(self.memgpt_config)
 
         # Once the memory object is initialized, use it to "bake" the system message
         if "messages" in agent_state.state and agent_state.state["messages"] is not None:
@@ -273,7 +272,7 @@ class Agent(object):
         printd(f"Agent initialized, self.messages_total={self.messages_total}")
 
         # Create the agent in the DB
-        self.save()
+        # self.save()
 
     @property
     def messages(self) -> List[dict]:
@@ -783,30 +782,30 @@ class Agent(object):
             )
         )
 
-    def to_agent_state(self) -> AgentState:
-        # The state may have change since the last time we wrote it
-        updated_state = {
-            "persona": self.memory.persona,
-            "human": self.memory.human,
-            "system": self.system,
-            "functions": self.functions,
-            "messages": [str(msg.id) for msg in self._messages],
-        }
+    # def to_agent_state(self) -> AgentState:
+    #    # The state may have change since the last time we wrote it
+    #    updated_state = {
+    #        "persona": self.memory.persona,
+    #        "human": self.memory.human,
+    #        "system": self.system,
+    #        "functions": self.functions,
+    #        "messages": [str(msg.id) for msg in self._messages],
+    #    }
 
-        agent_state = AgentState(
-            name=self.agent_state.name,
-            user_id=self.agent_state.user_id,
-            persona=self.agent_state.persona,
-            human=self.agent_state.human,
-            llm_config=self.agent_state.llm_config,
-            embedding_config=self.agent_state.embedding_config,
-            preset=self.agent_state.preset,
-            id=self.agent_state.id,
-            created_at=self.agent_state.created_at,
-            state=updated_state,
-        )
+    #    agent_state = AgentState(
+    #        name=self.agent_state.name,
+    #        user_id=self.agent_state.user_id,
+    #        persona=self.agent_state.persona,
+    #        human=self.agent_state.human,
+    #        llm_config=self.agent_state.llm_config,
+    #        embedding_config=self.agent_state.embedding_config,
+    #        preset=self.agent_state.preset,
+    #        id=self.agent_state.id,
+    #        created_at=self.agent_state.created_at,
+    #        state=updated_state,
+    #    )
 
-        return agent_state
+    #    return agent_state
 
     def add_function(self, function_name: str) -> str:
         if function_name in self.functions_python.keys():
@@ -822,7 +821,7 @@ class Agent(object):
         self.functions_python[function_name] = available_functions[function_name]["python_function"]
 
         msg = f"Added function {function_name}"
-        self.save()
+        # self.save()
         printd(msg)
         return msg
 
@@ -844,24 +843,47 @@ class Agent(object):
         self.functions_python.pop(function_name)
 
         msg = f"Removed function {function_name}"
-        self.save()
+        # self.save()
         printd(msg)
         return msg
 
-    def save(self):
-        """Save agent state locally"""
+    # def save(self):
+    #    """Save agent state locally"""
 
-        new_agent_state = self.to_agent_state()
+    #    new_agent_state = self.to_agent_state()
 
-        # without this, even after Agent.__init__, agent.config.state["messages"] will be None
-        self.agent_state = new_agent_state
+    #    # without this, even after Agent.__init__, agent.config.state["messages"] will be None
+    #    self.agent_state = new_agent_state
 
-        # Check if we need to create the agent
-        if not self.ms.get_agent(agent_id=new_agent_state.id, user_id=new_agent_state.user_id, agent_name=new_agent_state.name):
-            # print(f"Agent.save {new_agent_state.id} :: agent does not exist, creating...")
-            self.ms.create_agent(agent=new_agent_state)
-        # Otherwise, we should update the agent
-        else:
-            # print(f"Agent.save {new_agent_state.id} :: agent already exists, updating...")
-            print(f"Agent.save {new_agent_state.id} :: preupdate:\n\tmessages={new_agent_state.state['messages']}")
-            self.ms.update_agent(agent=new_agent_state)
+    #    # Check if we need to create the agent
+    #    if not self.ms.get_agent(agent_id=new_agent_state.id, user_id=new_agent_state.user_id, agent_name=new_agent_state.name):
+    #        # print(f"Agent.save {new_agent_state.id} :: agent does not exist, creating...")
+    #        self.ms.create_agent(agent=new_agent_state)
+    #    # Otherwise, we should update the agent
+    #    else:
+    #        # print(f"Agent.save {new_agent_state.id} :: agent already exists, updating...")
+    #        print(f"Agent.save {new_agent_state.id} :: preupdate:\n\tmessages={new_agent_state.state['messages']}")
+    #        self.ms.update_agent(agent=new_agent_state)
+
+    def to_agent_state(self):
+        updated_state = {
+            "persona": self.memory.persona,
+            "human": self.memory.human,
+            "system": self.system,
+            "functions": self.functions,
+            "messages": [str(msg.id) for msg in self._messages],
+        }
+
+        self.agent_state = AgentState(
+            name=self.agent_state.name,
+            user_id=self.agent_state.user_id,
+            persona=self.agent_state.persona,
+            human=self.agent_state.human,
+            llm_config=self.agent_state.llm_config,
+            embedding_config=self.agent_state.embedding_config,
+            preset=self.agent_state.preset,
+            id=self.agent_state.id,
+            created_at=self.agent_state.created_at,
+            state=updated_state,
+        )
+        return self.agent_state

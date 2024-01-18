@@ -64,7 +64,8 @@ def test_user_message():
     assert response is not None and len(response) > 0
 
     global test_agent_state_post_message
-    test_agent_state_post_message = client.server.active_agents[0]["agent"].to_agent_state()
+    client.server.active_agents[0]["agent"].to_agent_state()
+    test_agent_state_post_message = client.server.active_agents[0]["agent"].agent_state
     print(
         f"[2] MESSAGE SEND SUCCESS!!! AGENT {test_agent_state_post_message.id}\n\tmessages={test_agent_state_post_message.state['messages']}"
     )

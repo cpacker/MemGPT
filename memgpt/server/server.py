@@ -15,7 +15,7 @@ import memgpt.constants as constants
 from memgpt.cli.cli import attach
 
 # from memgpt.agent_store.storage import StorageConnector
-from memgpt.metadata import MetadataStore
+from memgpt.metadata import MetadataStore, save_agent
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
 import memgpt.server.utils as server_utils
@@ -354,7 +354,7 @@ class SyncServer(LockingServer):
             raise ValueError(command)
 
         elif command.lower() == "save" or command.lower() == "savechat":
-            memgpt_agent.save()
+            save_agent(memgpt_agent, self.ms)
 
         elif command.lower() == "attach":
             # Different from CLI, we extract the data source name from the command
@@ -587,6 +587,7 @@ class SyncServer(LockingServer):
             embedding_config=agent_config["embedding_config"] if "embedding_config" in agent_config else user.default_embedding_config,
         )
         # NOTE: you MUST add to the metadata store before creating the agent, otherwise the storage connectors will error on creation
+        # TODO: fix this db dependency and remove
         self.ms.create_agent(agent_state)
 
         logger.debug(f"Attempting to create agent from agent_state:\n{agent_state}")
@@ -599,6 +600,8 @@ class SyncServer(LockingServer):
             logger.exception(e)
             self.ms.delete_agent(agent_id=agent_state.id)
             raise
+
+        save_agent(agent, self.ms)
 
         logger.info(f"Created new agent from config: {agent}")
 

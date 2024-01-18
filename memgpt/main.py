@@ -28,7 +28,7 @@ from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart
 from memgpt.cli.cli_config import configure, list, add, delete
 from memgpt.cli.cli_load import app as load_app
 from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.metadata import MetadataStore
+from memgpt.metadata import MetadataStore, save_agent
 
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
@@ -57,7 +57,7 @@ def clear_line(strip_ui=False):
         sys.stdout.flush()
 
 
-def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, no_verify=False, cfg=None, strip_ui=False):
+def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore, no_verify=False, cfg=None, strip_ui=False):
     counter = 0
     user_input = None
     skip_next_user_input = False
@@ -101,10 +101,12 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, no_verify=False, c
             if user_input.startswith("/"):
                 # updated agent save functions
                 if user_input.lower() == "/exit":
-                    memgpt_agent.save()
+                    # memgpt_agent.save()
+                    save_agent(memgpt_agent, ms)
                     break
                 elif user_input.lower() == "/save" or user_input.lower() == "/savechat":
-                    memgpt_agent.save()
+                    # memgpt_agent.save()
+                    save_agent(memgpt_agent, ms)
                     continue
                 elif user_input.lower() == "/attach":
                     # TODO: check if agent already has it

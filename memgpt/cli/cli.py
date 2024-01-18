@@ -587,7 +587,7 @@ def run(
     from memgpt.main import run_agent_loop
 
     print()  # extra space
-    run_agent_loop(memgpt_agent, config, first, no_verify)  # TODO: add back no_verify
+    run_agent_loop(memgpt_agent, config, first, ms, no_verify)  # TODO: add back no_verify
 
 
 def attach(
