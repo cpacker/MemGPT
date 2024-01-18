@@ -23,18 +23,16 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Build and run container
       run: bash db/run_postgres.sh
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: "Setup Python, Poetry and Dependencies"
+      uses: packetcoders/action-setup-cache-python-poetry@main
       with:
         python-version: "3.11"
-
-    - name: Install poetry
-      run: pip install poetry
+        poetry-version: "1.7.1"
 
     - name: Set Poetry config
       run: |
@@ -42,20 +40,8 @@ jobs:
         poetry config virtualenvs.path ~/.virtualenvs
 
     - name: Install dependencies using Poetry
-      env:
-        PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
-
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         poetry install --all-extras
-
-    - name: Set Poetry config
-      env:
-        PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      run: |
-        poetry config virtualenvs.in-project false
-        poetry config virtualenvs.path ~/.virtualenvs
 
     - name: Run tests with pytest
       env:
@@ -63,6 +49,7 @@ jobs:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         PGVECTOR_TEST_DB_URL=postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} poetry run pytest -s -vv -k "not test_storage" tests
+
     - name: Run storage tests
       env:
         PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
