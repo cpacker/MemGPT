@@ -111,6 +111,9 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                 elif user_input.lower() == "/attach":
                     # TODO: check if agent already has it
 
+                    # TODO: check to ensure source embedding dimentions/model match agents, and disallow attachment if not
+                    # TODO: alternatively, only list sources with compatible embeddings, and print warning about non-compatible sources
+
                     data_source_options = ms.list_sources(user_id=memgpt_agent.agent_state.user_id)
                     data_source_options = [s.name for s in data_source_options]
                     if len(data_source_options) == 0:

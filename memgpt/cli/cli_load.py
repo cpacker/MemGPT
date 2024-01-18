@@ -102,6 +102,8 @@ def store_docs(name, docs, user_id=None, show_progress=True):
     else:
         print(f"Source {name} for user {user.id} already exists")
 
+    # TODO: check to make sure embedding config matches source embedding settings, and prompt for migration if not
+
     # compute and record passages
     embed_model = embedding_model(user.default_embedding_config)
 
