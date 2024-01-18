@@ -140,6 +140,9 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         inner_thoughts = message["content"]
         if "function_call" in message and message["function_call"]:
             prompt += f"\n{self._compile_function_call(message['function_call'], inner_thoughts=inner_thoughts)}"
+        elif "tool_calls" in message and message["tool_calls"]:
+            for tool_call in message["tool_calls"]:
+                prompt += f"\n{self._compile_function_call(tool_call['function'], inner_thoughts=inner_thoughts)}"
         else:
             # TODO should we format this into JSON somehow?
             prompt += inner_thoughts
@@ -194,7 +197,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
 
         # Last are the user/assistant messages
         for message in messages[1:]:
-            assert message["role"] in ["user", "assistant", "function"], message
+            assert message["role"] in ["user", "assistant", "tool"], message
 
             if message["role"] == "user":
                 # Support for AutoGen naming of agents
@@ -217,7 +220,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
 
                 prompt += f"\n<|im_start|>{role_str}\n{msg_str.strip()}<|im_end|>"
 
-            elif message["role"] == "function":
+            elif message["role"] == "tool":
                 if self.allow_function_role:
                     role_str = message["role"]
                     msg_str = self._compile_function_response(message)
