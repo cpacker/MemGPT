@@ -22,6 +22,7 @@ import memgpt.presets.presets as presets
 import memgpt.utils as utils
 from memgpt.utils import printd, open_folder_in_explorer, suppress_stdout
 from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials
 from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
 from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
@@ -71,11 +72,27 @@ def set_config_with_dict(new_config: dict) -> bool:
         printd(f"Saving new config file.")
         old_config.save()
         typer.secho(f"📖 MemGPT configuration file updated!", fg=typer.colors.GREEN)
-        typer.secho(f"🧠 model\t-> {old_config.model}\n🖥️  endpoint\t-> {old_config.model_endpoint}", fg=typer.colors.GREEN)
+        typer.secho(
+            "\n".join(
+                [
+                    f"🧠 model\t-> {old_config.default_llm_config.model}",
+                    f"🖥️  endpoint\t-> {old_config.default_llm_config.model_endpoint}",
+                ]
+            ),
+            fg=typer.colors.GREEN,
+        )
         return True
     else:
         typer.secho(f"📖 MemGPT configuration file unchanged.", fg=typer.colors.WHITE)
-        typer.secho(f"🧠 model\t-> {old_config.model}\n🖥️  endpoint\t-> {old_config.model_endpoint}", fg=typer.colors.WHITE)
+        typer.secho(
+            "\n".join(
+                [
+                    f"🧠 model\t-> {old_config.default_llm_config.model}",
+                    f"🖥️  endpoint\t-> {old_config.default_llm_config.model_endpoint}",
+                ]
+            ),
+            fg=typer.colors.WHITE,
+        )
         return False
 
 
@@ -95,6 +112,7 @@ def quickstart(
 
     # make sure everything is set up properly
     MemGPTConfig.create_config_dir()
+    credentials = MemGPTCredentials.load()
 
     config_was_modified = False
     if backend == QuickstartChoice.memgpt_hosted:
@@ -145,6 +163,8 @@ def quickstart(
         while api_key is None or len(api_key) == 0:
             # Ask for API key as input
             api_key = questionary.text("Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):").ask()
+        credentials.openai_key = api_key
+        credentials.save()
 
         # if latest, try to pull the config from the repo
         # fallback to using local
@@ -158,8 +178,6 @@ def quickstart(
                 config = response.json()
                 # Output a success message and the first few items in the dictionary as a sample
                 print("JSON config file downloaded successfully.")
-                # Add the API key
-                config["openai_key"] = api_key
                 config_was_modified = set_config_with_dict(config)
             else:
                 typer.secho(f"Failed to download config from {url}. Status code: {response.status_code}", fg=typer.colors.RED)
@@ -170,7 +188,6 @@ def quickstart(
                 try:
                     with open(backup_config_path, "r") as file:
                         backup_config = json.load(file)
-                        backup_config["openai_key"] = api_key
                     printd("Loaded backup config file successfully.")
                     config_was_modified = set_config_with_dict(backup_config)
                 except FileNotFoundError:
@@ -183,7 +200,6 @@ def quickstart(
             try:
                 with open(backup_config_path, "r") as file:
                     backup_config = json.load(file)
-                    backup_config["openai_key"] = api_key
                 printd("Loaded config file successfully.")
                 config_was_modified = set_config_with_dict(backup_config)
             except FileNotFoundError:
@@ -492,8 +508,8 @@ def run(
             # agent = f"agent_{agent_count}"
             agent = utils.create_random_username()
 
-        llm_config = user.default_llm_config
-        embedding_config = user.default_embedding_config  # TODO allow overriding embedding params via CLI run
+        llm_config = config.default_llm_config
+        embedding_config = config.default_embedding_config  # TODO allow overriding embedding params via CLI run
 
         # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
         if model and model != llm_config.model:
@@ -579,7 +595,9 @@ def run(
     original_stdout = sys.stdout  # unfortunate hack required to suppress confusing print statements from llama index
     sys.stdout = io.StringIO()
     embed_model = embedding_model(config=agent_state.embedding_config, user_id=user.id)
-    service_context = ServiceContext.from_defaults(llm=None, embed_model=embed_model, chunk_size=config.embedding_chunk_size)
+    service_context = ServiceContext.from_defaults(
+        llm=None, embed_model=embed_model, chunk_size=agent_state.embedding_config.embedding_chunk_size
+    )
     set_global_service_context(service_context)
     sys.stdout = original_stdout
 
