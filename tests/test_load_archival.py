@@ -156,7 +156,7 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
 
     # attach data
     print("Attaching data...")
-    attach(agent=agent.name, data_source=name, user_id=user_id)
+    attach(agent_name=agent.name, data_source=name, user_id=user_id)
 
     # test to see if contained in storage
     assert len(passages) == conn.size()

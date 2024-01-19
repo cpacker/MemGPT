@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import configparser
 import typer
 import questionary
+from typing import Optional
 
 import memgpt
 import memgpt.utils as utils
@@ -28,19 +29,19 @@ class MemGPTCredentials:
 
     # openai config
     openai_auth_type: str = "bearer_token"
-    openai_key: str = None
+    openai_key: Optional[str] = None
 
     # azure config
     azure_auth_type: str = "api_key"
-    azure_key: str = None
-    azure_endpoint: str = None
-    azure_version: str = None
-    azure_deployment: str = None
-    azure_embedding_deployment: str = None
+    azure_key: Optional[str] = None
+    azure_endpoint: Optional[str] = None
+    azure_version: Optional[str] = None
+    azure_deployment: Optional[str] = None
+    azure_embedding_deployment: Optional[str] = None
 
     # custom llm API config
-    openllm_auth_type: str = None
-    openllm_key: str = None
+    openllm_auth_type: Optional[str] = None
+    openllm_key: Optional[str] = None
 
     @classmethod
     def load(cls) -> "MemGPTCredentials":

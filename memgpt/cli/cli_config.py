@@ -188,15 +188,16 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
     if model_endpoint_type == "openai" or model_endpoint_type == "azure":
         # Get the model list from the openai / azure endpoint
         hardcoded_model_options = ["gpt-4", "gpt-4-32k", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
-        fetched_model_options = None
+        fetched_model_options = []
         try:
             if model_endpoint_type == "openai":
-                fetched_model_options = openai_get_model_list(url=model_endpoint, api_key=credentials.openai_key)
+                fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=credentials.openai_key)
             elif model_endpoint_type == "azure":
-                fetched_model_options = azure_openai_get_model_list(
+                assert credentials.azure_version is not None, f"Missing azure_version"
+                fetched_model_options_response = azure_openai_get_model_list(
                     url=model_endpoint, api_key=credentials.azure_key, api_version=credentials.azure_version
                 )
-            fetched_model_options = [obj["id"] for obj in fetched_model_options["data"] if obj["id"].startswith("gpt-")]
+            fetched_model_options = [obj["id"] for obj in fetched_model_options_response["data"] if obj["id"].startswith("gpt-")]
         except:
             # NOTE: if this fails, it means the user's key is probably bad
             typer.secho(
@@ -208,11 +209,11 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
         other_option_str = "[enter model name manually]"
 
         # Check if the model we have set already is even in the list (informs our default)
-        valid_model = config.model in hardcoded_model_options
+        valid_model = config.default_llm_config.model in hardcoded_model_options
         model = questionary.select(
             "Select default model (recommended: gpt-4):",
             choices=hardcoded_model_options + [see_all_option_str, other_option_str],
-            default=config.model if valid_model else hardcoded_model_options[0],
+            default=config.default_llm_config.model if valid_model else hardcoded_model_options[0],
         ).ask()
         if model is None:
             raise KeyboardInterrupt
