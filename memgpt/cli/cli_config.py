@@ -79,7 +79,7 @@ def configure_llm_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials)
             if openai_api_key is None:
                 while openai_api_key is None or len(openai_api_key) == 0:
                     # Ask for API key as input
-                    openai_api_key = questionary.text(
+                    openai_api_key = questionary.password(
                         "Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):"
                     ).ask()
                     if openai_api_key is None:
@@ -92,7 +92,7 @@ def configure_llm_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials)
             default_input = (
                 shorten_key_middle(credentials.openai_key) if credentials.openai_key.startswith("sk-") else credentials.openai_key
             )
-            openai_api_key = questionary.text(
+            openai_api_key = questionary.password(
                 "Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):",
                 default=default_input,
             ).ask()
@@ -373,7 +373,7 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
                 # if we still can't find it, ask for it as input
                 while openai_api_key is None or len(openai_api_key) == 0:
                     # Ask for API key as input
-                    openai_api_key = questionary.text(
+                    openai_api_key = questionary.password(
                         "Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):"
                     ).ask()
                     if openai_api_key is None:
