@@ -16,7 +16,7 @@ from memgpt.log import logger
 from memgpt import utils
 
 from memgpt.config import MemGPTConfig
-from memgpt.credentials import MemGPTCredentials
+from memgpt.credentials import MemGPTCredentials, SUPPORTED_AUTH_TYPES
 from memgpt.constants import MEMGPT_DIR
 
 # from memgpt.agent_store.storage import StorageConnector, TableType
@@ -313,6 +313,31 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
         ).ask()
         if model_wrapper is None:
             raise KeyboardInterrupt
+
+        # ask about local auth
+        use_local_auth = questionary.confirm(
+            "Is your LLM endpoint authenticated? (default no)",
+            default=False,
+        ).ask()
+        if use_local_auth is None:
+            raise KeyboardInterrupt
+        if use_local_auth:
+            local_auth_type = questionary.select(
+                "What HTTP authentication method does your endpoint require?",
+                choices=SUPPORTED_AUTH_TYPES,
+                default=SUPPORTED_AUTH_TYPES[0],
+            ).ask()
+            if local_auth_type is None:
+                raise KeyboardInterrupt
+            local_auth_key = questionary.password(
+                "Enter your authentication key:",
+            ).ask()
+            if local_auth_key is None:
+                raise KeyboardInterrupt
+            # credentials = MemGPTCredentials.load()
+            credentials.openllm_auth_type = local_auth_type
+            credentials.openllm_key = local_auth_key
+            credentials.save()
 
     # set: context_window
     if str(model) not in LLM_MAX_TOKENS:
