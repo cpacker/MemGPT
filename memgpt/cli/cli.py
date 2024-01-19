@@ -243,6 +243,7 @@ def create_default_user_or_exit(config: MemGPTConfig, ms: MetadataStore):
         else:
             return user
 
+
 def server(
     type: ServerChoice = typer.Option("rest", help="Server to run"),
     port: int = typer.Option(None, help="Port to run the server on"),
