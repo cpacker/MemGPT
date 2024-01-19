@@ -12,22 +12,25 @@ from ...errors import LLMJSONParsingError
 
 # A configurable model agnostic wrapper.
 class ConfigurableWrapper(LLMChatCompletionWrapper):
-    def __init__(self, pre_prompt: str = "",
-                 post_prompt: str = "",
-                 sys_prompt_start: str = "",
-                 sys_prompt_end: str = "",
-                 user_prompt_start: str = "",
-                 user_prompt_end: str = "",
-                 assistant_prompt_start: str = "",
-                 assistant_prompt_end: str = "",
-                 tool_prompt_start: str = "",
-                 tool_prompt_end: str = "",
-                 include_sys_prompt_in_first_user_message: bool = False,
-                 default_stop_sequences=None,
-                 simplify_json_content: bool = False,
-                 strip_prompt: bool = False,
-                 json_indent: int = 2,
-                 clean_function_args: bool = False):
+    def __init__(
+        self,
+        pre_prompt: str = "",
+        post_prompt: str = "",
+        sys_prompt_start: str = "",
+        sys_prompt_end: str = "",
+        user_prompt_start: str = "",
+        user_prompt_end: str = "",
+        assistant_prompt_start: str = "",
+        assistant_prompt_end: str = "",
+        tool_prompt_start: str = "",
+        tool_prompt_end: str = "",
+        include_sys_prompt_in_first_user_message: bool = False,
+        default_stop_sequences=None,
+        simplify_json_content: bool = False,
+        strip_prompt: bool = False,
+        json_indent: int = 2,
+        clean_function_args: bool = False,
+    ):
         """
         Initializes a new MessagesFormatter object.
 
@@ -106,7 +109,6 @@ class ConfigurableWrapper(LLMChatCompletionWrapper):
         return prompt
 
     def _compile_function_call(self, function_call, inner_thoughts=None):
-
         airo_func_call = {
             "function": function_call["name"],
             "params": {
@@ -164,8 +166,7 @@ class ConfigurableWrapper(LLMChatCompletionWrapper):
         try:
             # indent the function replies
             function_return_dict = json.loads(message["content"])
-            function_return_str = json.dumps(function_return_dict, indent=self.json_indent,
-                                             ensure_ascii=JSON_ENSURE_ASCII)
+            function_return_str = json.dumps(function_return_dict, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
         except:
             function_return_str = message["content"]
 
@@ -280,10 +281,10 @@ class ConfigurableWrapper(LLMChatCompletionWrapper):
             "tool_prompt_end": self.tool_prompt_end,
             "strip_prompt": self.strip_prompt,
             "json_indent": self.json_indent,
-            "clean_function_args": self.clean_func_args
+            "clean_function_args": self.clean_func_args,
         }
 
-        with open(file_path, 'w') as yaml_file:
+        with open(file_path, "w") as yaml_file:
             yaml.dump(config_data, yaml_file, default_flow_style=False)
 
     def load_from_yaml(self, file_path: str):
@@ -293,7 +294,7 @@ class ConfigurableWrapper(LLMChatCompletionWrapper):
         Args:
             file_path (str): The path to the YAML file.
         """
-        with open(file_path, 'r') as yaml_file:
+        with open(file_path, "r") as yaml_file:
             config_data = yaml.safe_load(yaml_file)
 
         # Update the instance variables with the loaded data
