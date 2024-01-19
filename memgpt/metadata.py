@@ -64,6 +64,7 @@ class LLMConfigColumn(TypeDecorator):
         return value
 
     def process_result_value(self, value, dialect):
+        print("GET VALUE", value)
         if value:
             return LLMConfig(**value)
         return value
@@ -297,6 +298,7 @@ class MetadataStore:
 
     @enforce_types
     def list_agents(self, user_id: uuid.UUID) -> List[AgentState]:
+        print("query agents", user_id)
         results = self.session.query(AgentModel).filter(AgentModel.user_id == user_id).all()
         return [r.to_record() for r in results]
 

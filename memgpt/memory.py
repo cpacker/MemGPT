@@ -372,6 +372,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         # create embedding model
         self.embed_model = embedding_model(agent_state.embedding_config)
         self.embedding_chunk_size = agent_state.embedding_config.embedding_chunk_size
+        assert self.embedding_chunk_size, f"Must set {agent_state.embedding_config.embedding_chunk_size}"
 
         # create storage backend
         self.storage = StorageConnector.get_archival_storage_connector(user_id=agent_state.user_id, agent_id=agent_state.id)

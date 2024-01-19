@@ -409,6 +409,7 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
         embedding_endpoint_type = "openai"
         embedding_endpoint = "https://api.openai.com/v1"
         embedding_dim = 1536
+        embedding_model = "text-embedding-ada-002"
 
     elif embedding_provider == "azure":
         # check for necessary vars
@@ -422,6 +423,7 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
         embedding_endpoint_type = "azure"
         embedding_endpoint = azure_creds["azure_embedding_endpoint"]
         embedding_dim = 1536
+        embedding_model = "text-embedding-ada-002"
 
     elif embedding_provider == "hugging-face":
         # configure hugging face embedding endpoint (https://github.com/huggingface/text-embeddings-inference)

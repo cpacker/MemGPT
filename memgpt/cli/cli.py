@@ -416,11 +416,14 @@ def run(
     user_id = uuid.UUID(config.anon_clientid)
     user = ms.get_user(user_id=user_id)
     if user is None:
+        print("Creating user", user_id)
         ms.create_user(User(id=user_id))
         user = ms.get_user(user_id=user_id)
         if user is None:
             typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
             sys.exit(1)
+    else:
+        print("existing user", user, user_id)
 
     # override with command line arguments
     if debug:
@@ -510,6 +513,7 @@ def run(
 
         llm_config = config.default_llm_config
         embedding_config = config.default_embedding_config  # TODO allow overriding embedding params via CLI run
+        print(vars(embedding_config))
 
         # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
         if model and model != llm_config.model:

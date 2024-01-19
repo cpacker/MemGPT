@@ -134,8 +134,12 @@ class MemGPTConfig:
                 "embedding_model": get_field(config, "embedding", "embedding_model"),
                 "embedding_endpoint_type": get_field(config, "embedding", "embedding_endpoint_type"),
                 "embedding_dim": get_field(config, "embedding", "embedding_dim"),
-                "embedding_chunk_size": get_field(config, "embedding", "chunk_size"),
+                "embedding_chunk_size": get_field(config, "embedding", "embedding_chunk_size"),
             }
+            # Remove null values
+            llm_config_dict = {k: v for k, v in llm_config_dict.items() if v is not None}
+            embedding_config_dict = {k: v for k, v in embedding_config_dict.items() if v is not None}
+            print("CONFIG DICT", embedding_config_dict)
             # Correct the types that aren't strings
             if llm_config_dict["context_window"] is not None:
                 llm_config_dict["context_window"] = int(llm_config_dict["context_window"])
@@ -146,6 +150,8 @@ class MemGPTConfig:
             # Construct the inner properties
             llm_config = LLMConfig(**llm_config_dict)
             embedding_config = EmbeddingConfig(**embedding_config_dict)
+
+            print("FINAL CONFIG", vars(embedding_config))
 
             # Everything else
             config_dict = {

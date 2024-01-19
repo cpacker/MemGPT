@@ -85,6 +85,8 @@ class Message(Record):
         self.name = name
 
         # pad and store embeddings
+        if isinstance(embedding, list):
+            embedding = np.array(embedding)
         self.embedding = np.pad(embedding, (0, MAX_EMBEDDING_DIM - embedding.shape[0]), mode="constant") if embedding is not None else None
         self.embedding_dim = embedding_dim
         self.embedding_model = embedding_model
@@ -179,7 +181,7 @@ class Message(Record):
                 if "tool_call_id" in openai_message_dict:
                     assert openai_message_dict["tool_call_id"] is None, openai_message_dict
 
-            if "tool_calls" in openai_message_dict and openai_message_dict["tool_calls"] is not None:
+            if "tool_calls" in openai_message_dict:
                 assert openai_message_dict["role"] == "assistant", openai_message_dict
 
                 tool_calls = [
@@ -297,6 +299,8 @@ class Passage(Record):
         self.metadata = metadata
 
         # pad and store embeddings
+        if isinstance(embedding, list):
+            embedding = np.array(embedding)
         self.embedding = np.pad(embedding, (0, MAX_EMBEDDING_DIM - embedding.shape[0]), mode="constant") if embedding is not None else None
         self.embedding_dim = embedding_dim
         self.embedding_model = embedding_model
@@ -341,6 +345,13 @@ class EmbeddingConfig:
         self.embedding_model = embedding_model
         self.embedding_dim = embedding_dim
         self.embedding_chunk_size = embedding_chunk_size
+
+        # fields cannot be set to None
+        assert self.embedding_endpoint_type
+        assert self.embedding_endpoint
+        assert self.embedding_model
+        assert self.embedding_dim
+        assert self.embedding_chunk_size
 
 
 class OpenAIEmbeddingConfig(EmbeddingConfig):
