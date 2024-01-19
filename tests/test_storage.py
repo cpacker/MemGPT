@@ -7,6 +7,7 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.embeddings import embedding_model
 from memgpt.data_types import Message, Passage, EmbeddingConfig, AgentState, OpenAIEmbeddingConfig
 from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import User
@@ -123,8 +124,12 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
             embedding_endpoint_type="openai",
             embedding_endpoint="https://api.openai.com/v1",
             embedding_dim=1536,
+            # openai_key=os.getenv("OPENAI_API_KEY"),
+        )
+        credentials = MemGPTCredentials(
             openai_key=os.getenv("OPENAI_API_KEY"),
         )
+        credentials.save()
     else:
         embedding_config = EmbeddingConfig(embedding_endpoint_type="local", embedding_endpoint=None, embedding_dim=384)
     embed_model = embedding_model(embedding_config)
@@ -132,7 +137,7 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
     # create user
     ms = MetadataStore(config)
     ms.delete_user(user_id)
-    user = User(id=user_id, default_embedding_config=embedding_config)
+    user = User(id=user_id)
     agent = AgentState(
         user_id=user_id,
         name="agent_1",
@@ -140,8 +145,8 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
         preset=user.default_preset,
         persona=user.default_persona,
         human=user.default_human,
-        llm_config=user.default_llm_config,
-        embedding_config=user.default_embedding_config,
+        llm_config=config.default_llm_config,
+        embedding_config=config.default_embedding_config,
     )
     ms.create_user(user)
     ms.create_agent(agent)
