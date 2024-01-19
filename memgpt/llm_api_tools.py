@@ -7,8 +7,10 @@ import urllib
 
 from box import Box
 
+from memgpt.credentials import MemGPTCredentials
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
 from memgpt.constants import CLI_WARNING_PREFIX
+from memgpt.models.chat_completion_response import ChatCompletionResponse
 
 from memgpt.data_types import AgentState
 
@@ -178,6 +180,10 @@ def openai_chat_completions_request(url, api_key, data):
         data.pop("functions")
         data.pop("function_call", None)  # extra safe,  should exist always (default="auto")
 
+    if "tools" in data and data["tools"] is None:
+        data.pop("tools")
+        data.pop("tool_choice", None)  # extra safe,  should exist always (default="auto")
+
     printd(f"Sending request to {url}")
     try:
         # Example code to trigger a rate limit response:
@@ -195,7 +201,7 @@ def openai_chat_completions_request(url, api_key, data):
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
         response = response.json()  # convert to dict from string
         printd(f"response.json = {response}")
-        response = Box(response)  # convert to 'dot-dict' style which is the openai python client default
+        response = ChatCompletionResponse(**response)  # convert to 'dot-dict' style which is the openai python client default
         return response
     except requests.exceptions.HTTPError as http_err:
         # Handle HTTP errors (e.g., response 4XX, 5XX)
@@ -253,6 +259,10 @@ def azure_openai_chat_completions_request(resource_name, deployment_id, api_vers
     if "functions" in data and data["functions"] is None:
         data.pop("functions")
         data.pop("function_call", None)  # extra safe,  should exist always (default="auto")
+
+    if "tools" in data and data["tools"] is None:
+        data.pop("tools")
+        data.pop("tool_choice", None)  # extra safe,  should exist always (default="auto")
 
     printd(f"Sending request to {url}")
     try:
@@ -374,46 +384,80 @@ def create(
     function_call="auto",
     # hint
     first_message=False,
-):
+    # use tool naming?
+    # if false, will use deprecated 'functions' style
+    use_tool_naming=True,
+) -> ChatCompletionResponse:
     """Return response to chat completion with backoff"""
     from memgpt.utils import printd
 
     printd(f"Using model {agent_state.llm_config.model_endpoint_type}, endpoint: {agent_state.llm_config.model_endpoint}")
+
+    # TODO eventually refactor so that credentials are passed through
+    credentials = MemGPTCredentials.load()
+
+    # openai
     if agent_state.llm_config.model_endpoint_type == "openai":
-        # openai
-        return openai_chat_completions_request(
-            url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
-            api_key=agent_state.llm_config.openai_key,
-            data=dict(
+        # TODO do the same for Azure?
+        if credentials.openai_key is None:
+            raise ValueError(f"OpenAI key is missing from MemGPT config file")
+        if use_tool_naming:
+            data = dict(
+                model=agent_state.llm_config.model,
+                messages=messages,
+                tools=[{"type": "function", "function": f} for f in functions],
+                tool_choice=function_call,
+                user=str(agent_state.user_id),
+            )
+        else:
+            data = dict(
                 model=agent_state.llm_config.model,
                 messages=messages,
                 functions=functions,
                 function_call=function_call,
                 user=str(agent_state.user_id),
-            ),
+            )
+        return openai_chat_completions_request(
+            url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
+            api_key=credentials.openai_key,
+            data=data,
         )
+
+    # azure
     elif agent_state.llm_config.model_endpoint_type == "azure":
-        # azure
         azure_deployment = (
-            agent_state.llm_config.azure_deployment
-            if agent_state.llm_config.azure_deployment is not None
+            credentials.azure_deployment
+            if credentials.azure_deployment is not None
             else MODEL_TO_AZURE_ENGINE[agent_state.llm_config.model]
         )
-        return azure_openai_chat_completions_request(
-            resource_name=agent_state.llm_config.azure_endpoint,
-            deployment_id=azure_deployment,
-            api_version=agent_state.llm_config.azure_version,
-            api_key=agent_state.llm_config.azure_key,
-            data=dict(
+        if use_tool_naming:
+            data = dict(
+                # NOTE: don't pass model to Azure calls, that is the deployment_id
+                # model=agent_config.model,
+                messages=messages,
+                tools=[{"type": "function", "function": f} for f in functions],
+                tool_choice=function_call,
+                user=str(agent_state.user_id),
+            )
+        else:
+            data = dict(
                 # NOTE: don't pass model to Azure calls, that is the deployment_id
                 # model=agent_config.model,
                 messages=messages,
                 functions=functions,
                 function_call=function_call,
                 user=str(agent_state.user_id),
-            ),
+            )
+        return azure_openai_chat_completions_request(
+            resource_name=credentials.azure_endpoint,
+            deployment_id=azure_deployment,
+            api_version=credentials.azure_version,
+            api_key=credentials.azure_key,
+            data=data,
         )
-    else:  # local model
+
+    # local model
+    else:
         return get_chat_completion(
             model=agent_state.llm_config.model,
             messages=messages,
@@ -427,4 +471,7 @@ def create(
             user=str(agent_state.user_id),
             # hint
             first_message=first_message,
+            # auth-related
+            auth_type=credentials.openllm_auth_type,
+            auth_key=credentials.openllm_key,
         )

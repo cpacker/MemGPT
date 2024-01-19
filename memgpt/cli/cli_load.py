@@ -103,11 +103,13 @@ def store_docs(name, docs, user_id=None, show_progress=True):
         print(f"Source {name} for user {user.id} already exists")
 
     # compute and record passages
-    embed_model = embedding_model(user.default_embedding_config)
+    embed_model = embedding_model(config.default_embedding_config)
 
     # use llama index to run embeddings code
     with suppress_stdout():
-        service_context = ServiceContext.from_defaults(llm=None, embed_model=embed_model, chunk_size=config.embedding_chunk_size)
+        service_context = ServiceContext.from_defaults(
+            llm=None, embed_model=embed_model, chunk_size=config.default_embedding_config.embedding_chunk_size
+        )
     index = VectorStoreIndex.from_documents(docs, service_context=service_context, show_progress=True)
     embed_dict = index._vector_store._data.embedding_dict
     node_dict = index._docstore.docs
@@ -121,8 +123,8 @@ def store_docs(name, docs, user_id=None, show_progress=True):
         node.embedding = vector
         text = node.text.replace("\x00", "\uFFFD")  # hacky fix for error on null characters
         assert (
-            len(node.embedding) == user.default_embedding_config.embedding_dim
-        ), f"Expected embedding dimension {user.default_embedding_config.embedding_dim}, got {len(node.embedding)}: {node.embedding}"
+            len(node.embedding) == config.default_embedding_config.embedding_dim
+        ), f"Expected embedding dimension {config.default_embedding_config.embedding_dim}, got {len(node.embedding)}: {node.embedding}"
         passages.append(
             Passage(
                 user_id=user.id,

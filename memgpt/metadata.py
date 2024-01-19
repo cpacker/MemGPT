@@ -5,6 +5,7 @@ from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSON
 from memgpt.utils import get_local_time, enforce_types
 from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig
 from memgpt.config import MemGPTConfig
+from memgpt.agent import Agent
 
 from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, Boolean
 from sqlalchemy import func
@@ -99,15 +100,6 @@ class UserModel(Base):
     default_human = Column(String)
     default_agent = Column(String)
 
-    default_llm_config = Column(LLMConfigColumn)
-    default_embedding_config = Column(EmbeddingConfigColumn)
-
-    azure_key = Column(String, nullable=True)
-    azure_endpoint = Column(String, nullable=True)
-    azure_version = Column(String, nullable=True)
-    azure_deployment = Column(String, nullable=True)
-
-    openai_key = Column(String, nullable=True)
     policies_accepted = Column(Boolean, nullable=False, default=False)
 
     def __repr__(self) -> str:
@@ -121,13 +113,6 @@ class UserModel(Base):
             default_persona=self.default_persona,
             default_human=self.default_human,
             default_agent=self.default_agent,
-            default_llm_config=self.default_llm_config,
-            default_embedding_config=self.default_embedding_config,
-            azure_key=self.azure_key,
-            azure_endpoint=self.azure_endpoint,
-            azure_version=self.azure_version,
-            azure_deployment=self.azure_deployment,
-            openai_key=self.openai_key,
             policies_accepted=self.policies_accepted,
         )
 
@@ -370,3 +355,15 @@ class MetadataStore:
             AgentSourceMappingModel.agent_id == agent_id, AgentSourceMappingModel.source_id == source_id
         ).delete()
         self.session.commit()
+
+
+def save_agent(agent: Agent, ms: MetadataStore):
+    """Save agent to metadata store"""
+
+    agent.update_state()
+    agent_state = agent.agent_state
+
+    if ms.get_agent(agent_id=agent_state.id):
+        ms.update_agent(agent_state)
+    else:
+        ms.create_agent(agent_state)

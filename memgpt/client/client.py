@@ -1,6 +1,6 @@
 import os
 import uuid
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
 
 from memgpt.data_types import AgentState
 from memgpt.cli.cli import QuickstartChoice
@@ -75,27 +75,32 @@ class Client(object):
         self.interface.clear()
         return self.server.list_agents(user_id=self.user_id)
 
-    def agent_exists(self, agent_id: str) -> bool:
+    def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
+        if not (agent_id or agent_name):
+            raise ValueError(f"Either agent_id or agent_name must be provided")
+        if agent_id and agent_name:
+            raise ValueError(f"Only one of agent_id or agent_name can be provided")
         existing = self.list_agents()
-        return agent_id in [agent["name"] for agent in existing["agents"]]
+        if agent_id:
+            return agent_id in [agent["id"] for agent in existing["agents"]]
+        else:
+            return agent_name in [agent["name"] for agent in existing["agents"]]
 
     def create_agent(
         self,
         agent_config: dict,
-        # persistence_manager: Union[PersistenceManager, None] = None,
-        throw_if_exists: bool = True,
     ) -> AgentState:
         if isinstance(agent_config, dict):
             agent_name = agent_config.get("name")
         else:
             raise TypeError(f"agent_config must be of type dict")
 
-        if not self.agent_exists(agent_id=agent_name):
-            self.interface.clear()
-            agent_state = self.server.create_agent(user_id=self.user_id, agent_config=agent_config)
-            return agent_state
-        else:
-            raise ValueError(f"Agent {agent_name} already exists")
+        if "name" in agent_config and self.agent_exists(agent_name=agent_config["name"]):
+            raise ValueError(f"Agent with name {agent_config['name']} already exists (user_id={self.user_id})")
+
+        self.interface.clear()
+        agent_state = self.server.create_agent(user_id=self.user_id, agent_config=agent_config)
+        return agent_state
 
     def get_agent_config(self, agent_id: str) -> Dict:
         self.interface.clear()

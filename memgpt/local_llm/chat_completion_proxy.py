@@ -1,8 +1,10 @@
 """Key idea: create drop-in replacement for agent's ChatCompletion call that runs on an OpenLLM backend"""
 
 import os
+from datetime import datetime
 import requests
 import json
+import uuid
 
 from box import Box
 
@@ -21,6 +23,8 @@ from memgpt.local_llm.function_parser import patch_function
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
 from memgpt.errors import LocalLLMConnectionError, LocalLLMError
 from memgpt.constants import CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
+from memgpt.models.chat_completion_response import ChatCompletionResponse, Choice, Message, ToolCall, UsageStatistics
+from memgpt.utils import get_tool_call_id
 
 has_shown_warning = False
 grammar_supported_backends = ["koboldcpp", "llamacpp", "webui", "webui-legacy"]
@@ -44,7 +48,10 @@ def get_chat_completion(
     # extra hints to allow for additional prompt formatting hacks
     # TODO this could alternatively be supported via passing function_call="send_message" into the wrapper
     first_message=False,
-):
+    # optional auth headers
+    auth_type=None,
+    auth_key=None,
+) -> ChatCompletionResponse:
     from memgpt.utils import printd
 
     assert context_window is not None, "Local LLM calls need the context length to be explicitly set"
@@ -84,7 +91,7 @@ def get_chat_completion(
 
     # If the wrapper uses grammar, generate the grammar using the grammar generating function
     # TODO move this to a flag
-    if "grammar" in wrapper:
+    if wrapper is not None and "grammar" in wrapper:
         # When using grammars, we don't want to do any extras output tricks like appending a response prefix
         setattr(llm_wrapper, "assistant_prefix_extra_first_message", "")
         setattr(llm_wrapper, "assistant_prefix_extra", "")
@@ -121,9 +128,11 @@ def get_chat_completion(
     try:
         # if hasattr(llm_wrapper, "supports_first_message"):
         if hasattr(llm_wrapper, "supports_first_message") and llm_wrapper.supports_first_message:
-            prompt = llm_wrapper.chat_completion_to_prompt(messages, functions, first_message=first_message)
+            prompt = llm_wrapper.chat_completion_to_prompt(
+                messages, functions, first_message=first_message, function_documentation=documentation
+            )
         else:
-            prompt = llm_wrapper.chat_completion_to_prompt(messages, functions)
+            prompt = llm_wrapper.chat_completion_to_prompt(messages, functions, function_documentation=documentation)
 
         printd(prompt)
     except Exception as e:
@@ -133,21 +142,21 @@ def get_chat_completion(
 
     try:
         if endpoint_type == "webui":
-            result, usage = get_webui_completion(endpoint, prompt, context_window, grammar=grammar)
+            result, usage = get_webui_completion(endpoint, auth_type, auth_key, prompt, context_window, grammar=grammar)
         elif endpoint_type == "webui-legacy":
-            result, usage = get_webui_completion_legacy(endpoint, prompt, context_window, grammar=grammar)
+            result, usage = get_webui_completion_legacy(endpoint, auth_type, auth_key, prompt, context_window, grammar=grammar)
         elif endpoint_type == "lmstudio":
-            result, usage = get_lmstudio_completion(endpoint, prompt, context_window, api="completions")
+            result, usage = get_lmstudio_completion(endpoint, auth_type, auth_key, prompt, context_window, api="completions")
         elif endpoint_type == "lmstudio-legacy":
-            result, usage = get_lmstudio_completion(endpoint, prompt, context_window, api="chat")
+            result, usage = get_lmstudio_completion(endpoint, auth_type, auth_key, prompt, context_window, api="chat")
         elif endpoint_type == "llamacpp":
-            result, usage = get_llamacpp_completion(endpoint, prompt, context_window, grammar=grammar)
+            result, usage = get_llamacpp_completion(endpoint, auth_type, auth_key, prompt, context_window, grammar=grammar)
         elif endpoint_type == "koboldcpp":
-            result, usage = get_koboldcpp_completion(endpoint, prompt, context_window, grammar=grammar)
+            result, usage = get_koboldcpp_completion(endpoint, auth_type, auth_key, prompt, context_window, grammar=grammar)
         elif endpoint_type == "ollama":
-            result, usage = get_ollama_completion(endpoint, model, prompt, context_window)
+            result, usage = get_ollama_completion(endpoint, auth_type, auth_key, model, prompt, context_window)
         elif endpoint_type == "vllm":
-            result, usage = get_vllm_completion(endpoint, model, prompt, context_window, user)
+            result, usage = get_vllm_completion(endpoint, auth_type, auth_key, model, prompt, context_window, user)
         else:
             raise LocalLLMError(
                 f"Invalid endpoint type {endpoint_type}, please set variable depending on your backend (webui, lmstudio, llamacpp, koboldcpp)"
@@ -196,23 +205,28 @@ def get_chat_completion(
         usage["total_tokens"] = usage["prompt_tokens"] + usage["completion_tokens"]
 
     # unpack with response.choices[0].message.content
-    response = Box(
-        {
-            "model": model,
-            "choices": [
-                {
-                    "message": chat_completion_result,
-                    # TODO vary 'finish_reason' based on backend response
-                    # NOTE if we got this far (parsing worked), then it's probably OK to treat this as a stop
-                    "finish_reason": "stop",
-                }
-            ],
-            "usage": {
-                "prompt_tokens": usage["prompt_tokens"],
-                "completion_tokens": usage["completion_tokens"],
-                "total_tokens": usage["total_tokens"],
-            },
-        }
+    response = ChatCompletionResponse(
+        id=str(uuid.uuid4()),  # TODO something better?
+        choices=[
+            Choice(
+                finish_reason="stop",
+                index=0,
+                message=Message(
+                    role=chat_completion_result["role"],
+                    content=chat_completion_result["content"],
+                    tool_calls=[ToolCall(id=get_tool_call_id(), type="function", function=chat_completion_result["function_call"])]
+                    if "function_call" in chat_completion_result
+                    else [],
+                ),
+            )
+        ],
+        created=datetime.now().astimezone(),
+        model=model,
+        # "This fingerprint represents the backend configuration that the model runs with."
+        # system_fingerprint=user if user is not None else "null",
+        system_fingerprint=None,
+        object="chat.completion",
+        usage=UsageStatistics(**usage),
     )
     printd(response)
     return response
@@ -239,8 +253,8 @@ def generate_grammar_and_documentation(
         grammar_function_models,
         outer_object_name="function",
         outer_object_content="params",
-        model_prefix="Function",
-        fields_prefix="Parameter",
+        model_prefix="function",
+        fields_prefix="params",
         add_inner_thoughts=add_inner_thoughts_top_level,
         allow_only_inner_thoughts=allow_only_inner_thoughts,
     )

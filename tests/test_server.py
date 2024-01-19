@@ -4,34 +4,65 @@ import memgpt.utils as utils
 
 utils.DEBUG = True
 from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials
 from memgpt.server.server import SyncServer
 from memgpt.data_types import EmbeddingConfig, AgentState, LLMConfig, Message, Passage, User
 from memgpt.embeddings import embedding_model
-from memgpt.metadata import MetadataStore
 from .utils import wipe_config, wipe_memgpt_home
 
 
 def test_server():
     wipe_memgpt_home()
 
-    config = MemGPTConfig(
-        archival_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
-        recall_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
-        metadata_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
-        archival_storage_type="postgres",
-        recall_storage_type="postgres",
-        metadata_storage_type="postgres",
-        # embeddings
-        embedding_endpoint_type="openai",
-        embedding_endpoint="https://api.openai.com/v1",
-        embedding_dim=1536,
-        openai_key=os.getenv("OPENAI_API_KEY"),
-        # llms
-        model_endpoint_type="openai",
-        model_endpoint="https://api.openai.com/v1",
-        model="gpt-4",
-    )
+    if os.getenv("OPENAI_API_KEY"):
+        config = MemGPTConfig(
+            archival_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
+            recall_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
+            metadata_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
+            archival_storage_type="postgres",
+            recall_storage_type="postgres",
+            metadata_storage_type="postgres",
+            # embeddings
+            default_embedding_config=EmbeddingConfig(
+                embedding_endpoint_type="openai",
+                embedding_endpoint="https://api.openai.com/v1",
+                embedding_dim=1536,
+            ),
+            # llms
+            default_llm_config=LLMConfig(
+                model_endpoint_type="openai",
+                model_endpoint="https://api.openai.com/v1",
+                model="gpt-4",
+            ),
+        )
+        credentials = MemGPTCredentials(
+            openai_key=os.getenv("OPENAI_API_KEY"),
+        )
+    else:  # hosted
+        config = MemGPTConfig(
+            archival_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
+            recall_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
+            metadata_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
+            archival_storage_type="postgres",
+            recall_storage_type="postgres",
+            metadata_storage_type="postgres",
+            # embeddings
+            default_embedding_config=EmbeddingConfig(
+                embedding_endpoint_type="hugging-face",
+                embedding_endpoint="https://embeddings.memgpt.ai",
+                embedding_model="BAAI/bge-large-en-v1.5",
+                embedding_dim=1024,
+            ),
+            # llms
+            default_llm_config=LLMConfig(
+                model_endpoint_type="vllm",
+                model_endpoint="https://api.memgpt.ai",
+                model="ehartford/dolphin-2.5-mixtral-8x7b",
+            ),
+        )
+        credentials = MemGPTCredentials()
     config.save()
+    credentials.save()
 
     server = SyncServer()
 
@@ -95,6 +126,14 @@ def test_server():
     assert len(messages_3) == len(messages_1) + len(messages_2)
     cursor4, messages_4 = server.get_agent_recall_cursor(user_id=user.id, agent_id=agent_state.id, reverse=True, before=cursor1)
     assert len(messages_4) == 1
+
+    # test in-context message ids
+    in_context_ids = server.get_in_context_message_ids(user_id=user.id, agent_id=agent_state.id)
+    assert len(in_context_ids) == len(messages_3)
+    assert isinstance(in_context_ids[0], uuid.UUID)
+    message_ids = [m["id"] for m in messages_3]
+    for message_id in message_ids:
+        assert message_id in in_context_ids, f"{message_id} not in {in_context_ids}"
 
     # test archival memory cursor pagination
     cursor1, passages_1 = server.get_agent_archival_cursor(

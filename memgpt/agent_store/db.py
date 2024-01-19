@@ -1,7 +1,4 @@
 import os
-import ast
-import psycopg
-
 
 from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, DateTime
 from sqlalchemy import func, or_, and_
@@ -9,7 +6,7 @@ from sqlalchemy import desc, asc
 from sqlalchemy.orm import sessionmaker, mapped_column, declarative_base
 from sqlalchemy.orm.session import close_all_sessions
 from sqlalchemy.sql import func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy_json import mutable_json_type, MutableJson
 from sqlalchemy import TypeDecorator, CHAR
 import uuid
@@ -113,6 +110,7 @@ def get_db_model(
     dialect="postgresql",
 ):
     # get embedding dimention info
+    # TODO: Need to remove this and just pass in AgentState/User instead
     ms = MetadataStore(config)
     if agent_id and ms.get_agent(agent_id):
         agent = ms.get_agent(agent_id)
@@ -121,7 +119,7 @@ def get_db_model(
         user = ms.get_user(user_id)
         if user is None:
             raise ValueError(f"User {user_id} not found")
-        embedding_dim = user.default_embedding_config.embedding_dim
+        embedding_dim = config.default_embedding_config.embedding_dim
 
         # this cannot be the case if we are making an agent-specific table
         assert table_type != TableType.RECALL_MEMORY, f"Agent {agent_id} not found"

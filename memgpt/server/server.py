@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Union, Callable, Optional, Tuple
+from typing import Union, Callable, Optional, Tuple, List
 import uuid
 import json
 import logging
@@ -9,13 +9,14 @@ from fastapi import HTTPException
 
 from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials
 from memgpt.agent import Agent
 import memgpt.system as system
 import memgpt.constants as constants
 from memgpt.cli.cli import attach
 
 # from memgpt.agent_store.storage import StorageConnector
-from memgpt.metadata import MetadataStore
+from memgpt.metadata import MetadataStore, save_agent
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
 import memgpt.server.utils as server_utils
@@ -183,6 +184,9 @@ class SyncServer(LockingServer):
         # Initialize the connection to the DB
         self.config = MemGPTConfig.load()
 
+        # TODO figure out how to handle credentials for the server
+        self.credentials = MemGPTCredentials.load()
+
         # Ensure valid database configuration
         # TODO: add back once tests are matched
         # assert (
@@ -196,22 +200,22 @@ class SyncServer(LockingServer):
         # Generate default LLM/Embedding configs for the server
         # TODO: we may also want to do the same thing with default persona/human/etc.
         self.server_llm_config = LLMConfig(
-            model=self.config.model,
-            model_endpoint_type=self.config.model_endpoint_type,
-            model_endpoint=self.config.model_endpoint,
-            model_wrapper=self.config.model_wrapper,
-            context_window=self.config.context_window,
-            openai_key=self.config.openai_key,
-            azure_key=self.config.azure_key,
-            azure_endpoint=self.config.azure_endpoint,
-            azure_version=self.config.azure_version,
-            azure_deployment=self.config.azure_deployment,
+            model=self.config.default_llm_config.model,
+            model_endpoint_type=self.config.default_llm_config.model_endpoint_type,
+            model_endpoint=self.config.default_llm_config.model_endpoint,
+            model_wrapper=self.config.default_llm_config.model_wrapper,
+            context_window=self.config.default_llm_config.context_window,
+            # openai_key=self.credentials.openai_key,
+            # azure_key=self.credentials.azure_key,
+            # azure_endpoint=self.credentials.azure_endpoint,
+            # azure_version=self.credentials.azure_version,
+            # azure_deployment=self.credentials.azure_deployment,
         )
         self.server_embedding_config = EmbeddingConfig(
-            embedding_endpoint_type=self.config.embedding_endpoint_type,
-            embedding_endpoint=self.config.embedding_endpoint,
-            embedding_dim=self.config.embedding_dim,
-            openai_key=self.config.openai_key,
+            embedding_endpoint_type=self.config.default_embedding_config.embedding_endpoint_type,
+            embedding_endpoint=self.config.default_embedding_config.embedding_endpoint,
+            embedding_dim=self.config.default_embedding_config.embedding_dim,
+            # openai_key=self.credentials.openai_key,
         )
 
         # Initialize the metadata store
@@ -228,7 +232,8 @@ class SyncServer(LockingServer):
         """Saves all the agents that are in the in-memory object store"""
         for agent_d in self.active_agents:
             try:
-                agent_d["agent"].save()
+                # agent_d["agent"].save()
+                save_agent(agent_d["agent"], self.ms)
                 logger.info(f"Saved agent {agent_d['agent_id']}")
             except Exception as e:
                 logger.exception(f"Error occurred while trying to save agent {agent_d['agent_id']}:\n{e}")
@@ -272,6 +277,7 @@ class SyncServer(LockingServer):
             if not agent_state:
                 logger.exception(f"agent_id {agent_id} does not exist")
                 raise ValueError(f"agent_id {agent_id} does not exist")
+            # print(f"server._load_agent :: load got agent state {agent_id}, messages = {agent_state.state['messages']}")
 
             # Instantiate an agent object using the state retrieved
             logger.info(f"Creating an agent object")
@@ -346,14 +352,14 @@ class SyncServer(LockingServer):
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-        print("AGENT", memgpt_agent.config.id, memgpt_agent.config.user_id)
+        # print("AGENT", memgpt_agent.agent_state.id, memgpt_agent.agent_state.user_id)
 
         if command.lower() == "exit":
             # exit not supported on server.py
             raise ValueError(command)
 
         elif command.lower() == "save" or command.lower() == "savechat":
-            memgpt_agent.save()
+            save_agent(memgpt_agent, self.ms)
 
         elif command.lower() == "attach":
             # Different from CLI, we extract the data source name from the command
@@ -371,15 +377,15 @@ class SyncServer(LockingServer):
                 raise ValueError(f"Invalid data source name: {data_source} (options={data_source_options})")
             else:
                 # attach new data
-                attach(memgpt_agent.config.name, data_source)
+                attach(memgpt_agent.agent_state.name, data_source)
 
                 # update agent config
-                memgpt_agent.config.attach_data_source(data_source)
+                memgpt_agent.agent_state.attach_data_source(data_source)
 
                 # reload agent with new data source
                 # TODO: maybe make this less ugly...
                 memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_storage_connector(
-                    agent_config=memgpt_agent.config
+                    agent_config=memgpt_agent.agent_state
                 )
 
         elif command.lower() == "dump" or command.lower().startswith("dump "):
@@ -473,6 +479,8 @@ class SyncServer(LockingServer):
         """Process an incoming user message and feed it through the MemGPT agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Basic input sanitization
         if not isinstance(message, str) or len(message) == 0:
@@ -494,6 +502,8 @@ class SyncServer(LockingServer):
         """Process an incoming system message and feed it through the MemGPT agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Basic input sanitization
         if not isinstance(message, str) or len(message) == 0:
@@ -515,6 +525,8 @@ class SyncServer(LockingServer):
         """Run a command on the agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # If the input begins with a command prefix, attempt to process it as a command
         if command.startswith("/"):
@@ -535,8 +547,6 @@ class SyncServer(LockingServer):
             default_preset=user_config["default_preset"] if "default_preset" in user_config else "memgpt_chat",
             default_persona=user_config["default_persona"] if "default_persona" in user_config else constants.DEFAULT_PERSONA,
             default_human=user_config["default_human"] if "default_human" in user_config else constants.DEFAULT_HUMAN,
-            default_llm_config=self.server_llm_config,
-            default_embedding_config=self.server_embedding_config,
         )
         self.ms.create_user(user)
         logger.info(f"Created new user from config: {user}")
@@ -576,26 +586,29 @@ class SyncServer(LockingServer):
             # TODO we need to allow passing raw persona/human text via the server request
             persona=agent_config["persona"] if "persona" in agent_config else user.default_persona,
             human=agent_config["human"] if "human" in agent_config else user.default_human,
-            llm_config=agent_config["llm_config"] if "llm_config" in agent_config else user.default_llm_config,
-            embedding_config=agent_config["embedding_config"] if "embedding_config" in agent_config else user.default_embedding_config,
+            llm_config=agent_config["llm_config"] if "llm_config" in agent_config else self.server_llm_config,
+            embedding_config=agent_config["embedding_config"] if "embedding_config" in agent_config else self.server_embedding_config,
         )
         # NOTE: you MUST add to the metadata store before creating the agent, otherwise the storage connectors will error on creation
+        # TODO: fix this db dependency and remove
         self.ms.create_agent(agent_state)
 
         logger.debug(f"Attempting to create agent from agent_state:\n{agent_state}")
         try:
             agent = presets.create_agent_from_preset(agent_state=agent_state, interface=interface)
 
-            # TODO: this is a hacky way to get the system prompts injected into agent into the DB
-            self.ms.update_agent(agent.agent_state)
+            # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
+            # self.ms.update_agent(agent.agent_state)
         except Exception as e:
             logger.exception(e)
             self.ms.delete_agent(agent_id=agent_state.id)
             raise
 
+        save_agent(agent, self.ms)
+
         logger.info(f"Created new agent from config: {agent}")
 
-        return agent.config
+        return agent.agent_state
 
     def delete_agent(
         self,
@@ -604,6 +617,8 @@ class SyncServer(LockingServer):
     ):
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # TODO: Make sure the user owns the agent
         agent = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
@@ -631,9 +646,9 @@ class SyncServer(LockingServer):
             ],
         }
 
-    def get_agent(self, agent_id: uuid.UUID):
+    def get_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
         """Get the agent state"""
-        return self.ms.get_agent(agent_id=agent_id)
+        return self.ms.get_agent(agent_id=agent_id, user_id=user_id)
 
     def get_user(self, user_id: uuid.UUID) -> User:
         """Get the user"""
@@ -643,6 +658,8 @@ class SyncServer(LockingServer):
         """Return the memory of an agent (core memory + non-core statistics)"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
@@ -662,10 +679,18 @@ class SyncServer(LockingServer):
 
         return memory_obj
 
+    def get_in_context_message_ids(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> List[uuid.UUID]:
+        """Get the message ids of the in-context messages in the agent's memory"""
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        return [m.id for m in memgpt_agent._messages]
+
     def get_agent_messages(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
         """Paginated query of all messages in agent message queue"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
@@ -673,9 +698,9 @@ class SyncServer(LockingServer):
         if start < 0 or count < 0:
             raise ValueError("Start and count values should be non-negative")
 
-        if start + count < len(memgpt_agent.messages):  # messages can be returned from whats in memory
+        if start + count < len(memgpt_agent._messages):  # messages can be returned from whats in memory
             # Reverse the list to make it in reverse chronological order
-            reversed_messages = memgpt_agent.messages[::-1]
+            reversed_messages = memgpt_agent._messages[::-1]
             # Check if start is within the range of the list
             if start >= len(reversed_messages):
                 raise IndexError("Start index is out of range")
@@ -684,10 +709,8 @@ class SyncServer(LockingServer):
             end_index = min(start + count, len(reversed_messages))
 
             # Slice the list for pagination
-            paginated_messages = reversed_messages[start:end_index]
+            messages = reversed_messages[start:end_index]
 
-            # convert to message objects:
-            messages = [memgpt_agent.persistence_manager.json_to_message(m) for m in paginated_messages]
         else:
             # need to access persistence manager for additional messages
             db_iterator = memgpt_agent.persistence_manager.recall_memory.storage.get_all_paginated(page_size=count, offset=start)
@@ -707,6 +730,8 @@ class SyncServer(LockingServer):
         """Paginated query of all messages in agent archival memory"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
@@ -731,6 +756,8 @@ class SyncServer(LockingServer):
     ):
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
@@ -754,6 +781,8 @@ class SyncServer(LockingServer):
     ):
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
@@ -771,10 +800,12 @@ class SyncServer(LockingServer):
         """Return the config of an agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-        agent_config = vars(memgpt_agent.config)
+        agent_config = vars(memgpt_agent.agent_state)
 
         return agent_config
 
@@ -797,6 +828,8 @@ class SyncServer(LockingServer):
         """Update the agents core memory block, return the new state"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
