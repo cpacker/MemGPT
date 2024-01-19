@@ -1496,13 +1496,13 @@ tests = ["pandas (>=1.4)", "pytest", "pytest-asyncio", "pytest-mock", "requests"
 
 [[package]]
 name = "llama-index"
-version = "0.9.33"
+version = "0.9.34"
 description = "Interface between LLMs and your data"
 optional = false
 python-versions = ">=3.8.1,<4.0"
 files = [
-    {file = "llama_index-0.9.33-py3-none-any.whl", hash = "sha256:23291335df361631b8c92f47285303173b52dca9b12364c0ad32b73dd9d14639"},
-    {file = "llama_index-0.9.33.tar.gz", hash = "sha256:1d740bb04c2a98e5e9ddb1d9006ec4c30228a6912d9eb572dcda32048c9f2b66"},
+    {file = "llama_index-0.9.34-py3-none-any.whl", hash = "sha256:8ced1e0dcdd40929b645e93e9056b7e1700de378d8724a4c05b4fe6b49597e25"},
+    {file = "llama_index-0.9.34.tar.gz", hash = "sha256:152554f4042425875517e35afca4d98641fa5fda79a3f0fe8dd0f7a9783f6d0d"},
 ]
 
 [package.dependencies]
@@ -2572,13 +2572,13 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "posthog"
-version = "3.3.1"
+version = "3.3.2"
 description = "Integrate PostHog into any python application."
 optional = false
 python-versions = "*"
 files = [
-    {file = "posthog-3.3.1-py2.py3-none-any.whl", hash = "sha256:5f53b232acb680a0389e372db5f786061a18386b8b5324bddcc64eff9fdb319b"},
-    {file = "posthog-3.3.1.tar.gz", hash = "sha256:252cb6ab5cbe7ff002753f34fb647721b3af75034b4a5a631317ebf3db58fe59"},
+    {file = "posthog-3.3.2-py2.py3-none-any.whl", hash = "sha256:14fb43ea95c40b353db59c49af2c09ff15188aa2963f48091fc7912fa9375263"},
+    {file = "posthog-3.3.2.tar.gz", hash = "sha256:734bf89f3c372605a8bbf2b07f600885287209145d747b09ccd004c59834750e"},
 ]
 
 [package.dependencies]
@@ -3072,6 +3072,24 @@ files = [
     {file = "pyreadline3-3.4.1-py3-none-any.whl", hash = "sha256:b0efb6516fd4fb07b45949053826a62fa4cb353db5be2bbb4a7aa1fdd1e345fb"},
     {file = "pyreadline3-3.4.1.tar.gz", hash = "sha256:6f3d1f7b8a31ba32b73917cefc1f28cc660562f39aea8646d30bd6eff21f7bae"},
 ]
+
+[[package]]
+name = "pyright"
+version = "1.1.347"
+description = "Command line wrapper for pyright"
+optional = true
+python-versions = ">=3.7"
+files = [
+    {file = "pyright-1.1.347-py3-none-any.whl", hash = "sha256:14dd31b594aa3ec464894f66b8a2d206ebef1501e52789eb88cf2a79b0907fbe"},
+    {file = "pyright-1.1.347.tar.gz", hash = "sha256:17ea09322f60080f82abc4e622e43d1a5ebaa407ba86963b15b2bc01cca256e0"},
+]
+
+[package.dependencies]
+nodeenv = ">=1.6.0"
+
+[package.extras]
+all = ["twine (>=3.4.1)"]
+dev = ["twine (>=3.4.1)"]
 
 [[package]]
 name = "pytest"
@@ -4850,7 +4868,7 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 
 [extras]
 autogen = ["pyautogen"]
-dev = ["black", "datasets", "pexpect", "pre-commit", "pytest", "pytest-asyncio"]
+dev = ["black", "datasets", "pexpect", "pre-commit", "pyright", "pytest", "pytest-asyncio"]
 local = ["huggingface-hub", "torch", "transformers"]
 postgres = ["pg8000", "pgvector"]
 server = ["fastapi", "uvicorn", "websockets"]
@@ -4858,4 +4876,4 @@ server = ["fastapi", "uvicorn", "websockets"]
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.12,>=3.9"
-content-hash = "08816def96c57cd170699da079d53f7c665d534a8f9da06f974905c4d2fbfa10"
+content-hash = "2ac71b23a51de4fc02d3061c535d8e6d599ef1800596713b864ef050a67e3a38"

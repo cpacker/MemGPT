@@ -1,0 +1,41 @@
+name: "Python/Pyright types check"
+on:
+  push:
+    branches: [ main ]
+    paths: ["**.py"]
+  pull_request:
+    branches: [ main ]
+    paths: ["**.py"]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  pyright:
+    name: "Warn-only Pyright types check"
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: "Setup Python, Poetry and Dependencies"
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: ${{matrix.python-version}}
+          poetry-version: "1.7.1"
+          install-args: "-E dev"  # TODO: change this to --group dev when PR #842 lands
+
+      - name: "Run Pyright"  # TODO: remove "|| true" once all type errors have been fixed
+        run: |
+          poetry run pyright \
+            --pythonversion ${{matrix.python-version}} \
+            --outputjson \
+            --level error \
+            --project . || true
+
+# This could be updated to only run on files that have changed by using:
+# git diff-tree --no-commit-id --name-only -r --name-only "$GITHUB_SHA" | grep ".py"

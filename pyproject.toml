@@ -53,11 +53,12 @@ html2text = "^2020.1.16"
 docx2txt = "^0.8"
 sqlalchemy = "^2.0.25"
 pexpect = {version = "^4.9.0", optional = true}
+pyright = {version = "^1.1.347", optional = true}
 
 [tool.poetry.extras]
 local = ["torch", "huggingface-hub", "transformers"]
 postgres = ["pgvector", "pg8000"]
-dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets"]
+dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright"]
 server = ["websockets", "fastapi", "uvicorn"]
 autogen = ["pyautogen"]
 
