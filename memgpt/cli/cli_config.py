@@ -404,7 +404,7 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
                     if openai_api_key is None:
                         raise KeyboardInterrupt
                 credentials.openai_key = openai_api_key
-                config.save()
+                credentials.save()
 
         embedding_endpoint_type = "openai"
         embedding_endpoint = "https://api.openai.com/v1"
