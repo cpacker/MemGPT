@@ -59,7 +59,7 @@ class ConfigurableJSONWrapper(LLMChatCompletionWrapper):
             custom_roles_prompt_end: (str): Custom role prompt start. For chatml, this would be '<|im_end|>\n'
             include_sys_prompt_in_first_user_message (bool): Indicates whether to include the system prompt in the first user message. For Llama2 this would be True, for chatml, this would be False
             simplify_json_content (bool):
-
+            strip_prompt (bool): If whitespaces at the end and beginning of the prompt get stripped.
             default_stop_sequences (List[str]): List of default stop sequences.
 
         """
