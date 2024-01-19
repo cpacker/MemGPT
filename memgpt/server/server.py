@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Union, Callable, Optional, Tuple
+from typing import Union, Callable, Optional, Tuple, List
 import uuid
 import json
 import logging
@@ -9,6 +9,7 @@ from fastapi import HTTPException
 
 from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials
 from memgpt.agent import Agent
 import memgpt.system as system
 import memgpt.constants as constants
@@ -20,6 +21,21 @@ import memgpt.presets.presets as presets
 import memgpt.utils as utils
 import memgpt.server.utils as server_utils
 from memgpt.persistence_manager import PersistenceManager, LocalStateManager
+from memgpt.data_types import (
+    Source,
+    Passage,
+    Document,
+    User,
+    AgentState,
+    LLMConfig,
+    EmbeddingConfig,
+    Message,
+    ToolCall,
+    LLMConfig,
+    EmbeddingConfig,
+    Message,
+    ToolCall,
+)
 from memgpt.data_types import (
     Source,
     Passage,
@@ -183,6 +199,9 @@ class SyncServer(LockingServer):
         # Initialize the connection to the DB
         self.config = MemGPTConfig.load()
 
+        # TODO figure out how to handle credentials for the server
+        self.credentials = MemGPTCredentials.load()
+
         # Ensure valid database configuration
         # TODO: add back once tests are matched
         # assert (
@@ -196,22 +215,22 @@ class SyncServer(LockingServer):
         # Generate default LLM/Embedding configs for the server
         # TODO: we may also want to do the same thing with default persona/human/etc.
         self.server_llm_config = LLMConfig(
-            model=self.config.model,
-            model_endpoint_type=self.config.model_endpoint_type,
-            model_endpoint=self.config.model_endpoint,
-            model_wrapper=self.config.model_wrapper,
-            context_window=self.config.context_window,
-            openai_key=self.config.openai_key,
-            azure_key=self.config.azure_key,
-            azure_endpoint=self.config.azure_endpoint,
-            azure_version=self.config.azure_version,
-            azure_deployment=self.config.azure_deployment,
+            model=self.config.default_llm_config.model,
+            model_endpoint_type=self.config.default_llm_config.model_endpoint_type,
+            model_endpoint=self.config.default_llm_config.model_endpoint,
+            model_wrapper=self.config.default_llm_config.model_wrapper,
+            context_window=self.config.default_llm_config.context_window,
+            # openai_key=self.credentials.openai_key,
+            # azure_key=self.credentials.azure_key,
+            # azure_endpoint=self.credentials.azure_endpoint,
+            # azure_version=self.credentials.azure_version,
+            # azure_deployment=self.credentials.azure_deployment,
         )
         self.server_embedding_config = EmbeddingConfig(
-            embedding_endpoint_type=self.config.embedding_endpoint_type,
-            embedding_endpoint=self.config.embedding_endpoint,
-            embedding_dim=self.config.embedding_dim,
-            openai_key=self.config.openai_key,
+            embedding_endpoint_type=self.config.default_embedding_config.embedding_endpoint_type,
+            embedding_endpoint=self.config.default_embedding_config.embedding_endpoint,
+            embedding_dim=self.config.default_embedding_config.embedding_dim,
+            # openai_key=self.credentials.openai_key,
         )
 
         # Initialize the metadata store
@@ -543,8 +562,6 @@ class SyncServer(LockingServer):
             default_preset=user_config["default_preset"] if "default_preset" in user_config else "memgpt_chat",
             default_persona=user_config["default_persona"] if "default_persona" in user_config else constants.DEFAULT_PERSONA,
             default_human=user_config["default_human"] if "default_human" in user_config else constants.DEFAULT_HUMAN,
-            default_llm_config=self.server_llm_config,
-            default_embedding_config=self.server_embedding_config,
         )
         self.ms.create_user(user)
         logger.info(f"Created new user from config: {user}")
@@ -584,8 +601,8 @@ class SyncServer(LockingServer):
             # TODO we need to allow passing raw persona/human text via the server request
             persona=agent_config["persona"] if "persona" in agent_config else user.default_persona,
             human=agent_config["human"] if "human" in agent_config else user.default_human,
-            llm_config=agent_config["llm_config"] if "llm_config" in agent_config else user.default_llm_config,
-            embedding_config=agent_config["embedding_config"] if "embedding_config" in agent_config else user.default_embedding_config,
+            llm_config=agent_config["llm_config"] if "llm_config" in agent_config else self.server_llm_config,
+            embedding_config=agent_config["embedding_config"] if "embedding_config" in agent_config else self.server_embedding_config,
         )
         # NOTE: you MUST add to the metadata store before creating the agent, otherwise the storage connectors will error on creation
         # TODO: fix this db dependency and remove
@@ -676,6 +693,12 @@ class SyncServer(LockingServer):
         }
 
         return memory_obj
+
+    def get_in_context_message_ids(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> List[uuid.UUID]:
+        """Get the message ids of the in-context messages in the agent's memory"""
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        return [m.id for m in memgpt_agent._messages]
 
     def get_agent_messages(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
         """Paginated query of all messages in agent message queue"""

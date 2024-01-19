@@ -24,7 +24,7 @@ def test_storage(storage_connector):
     ms = MetadataStore(config)
 
     # generate data
-    user_1 = User(default_llm_config=LLMConfig(model="gpt-4"))
+    user_1 = User()
     user_2 = User()
     agent_1 = AgentState(
         user_id=user_1.id,
@@ -32,8 +32,8 @@ def test_storage(storage_connector):
         preset=user_1.default_preset,
         persona=user_1.default_persona,
         human=user_1.default_human,
-        llm_config=user_1.default_llm_config,
-        embedding_config=user_1.default_embedding_config,
+        llm_config=config.default_llm_config,
+        embedding_config=config.default_embedding_config,
     )
     source_1 = Source(user_id=user_1.id, name="source_1")
 
@@ -52,7 +52,7 @@ def test_storage(storage_connector):
     # test: updating
 
     # test: update JSON-stored LLMConfig class
-    print(agent_1.llm_config, user_1.default_llm_config)
+    print(agent_1.llm_config, config.default_llm_config)
     llm_config = ms.get_agent(agent_1.id).llm_config
     assert isinstance(llm_config, LLMConfig), f"LLMConfig is {type(llm_config)}"
     assert llm_config.model == "gpt-4", f"LLMConfig model is {llm_config.model}"
