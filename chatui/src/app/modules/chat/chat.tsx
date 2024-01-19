@@ -64,6 +64,7 @@ const Chat = () => {
 
 	return (
 		<div className="mx-auto max-w-screen-xl p-4">
+            <h1 className='text-center text-xl font-semibold'>{currentAgent?.name || 'No Agent Selected'}</h1>
 			<MessageContainer agentSet={!!currentAgent} readyState={readyState} messages={messages} />
 			<UserInput enabled={readyState !== ReadyState.LOADING} onSend={sendMessageAndAddToHistory} />
 		</div>
