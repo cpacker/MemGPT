@@ -4,7 +4,7 @@ from typing import Optional, List
 import os
 import numpy as np
 
-from memgpt.utils import is_valid_url
+from memgpt.utils import is_valid_url, printd
 from memgpt.data_types import EmbeddingConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.constants import MAX_EMBEDDING_DIM, EMBEDDING_TO_TOKENIZER_MAP, EMBEDDING_TO_TOKENIZER_DEFAULT
@@ -32,7 +32,7 @@ def check_and_split_text(text: str, embedding_model: str) -> List[str]:
         max_length = encoding.max_length
     else:
         # TODO: figure out the real number
-        print(f"Warning: couldn't find max_length for tokenizer {embedding_model}, using default max_length 8191")
+        printd(f"Warning: couldn't find max_length for tokenizer {embedding_model}, using default max_length 8191")
         max_length = 8191
 
     # truncate text if too long
