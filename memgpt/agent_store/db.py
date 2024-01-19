@@ -433,7 +433,6 @@ class PostgresStorageConnector(SQLStorageConnector):
             if c.name == "embedding":
                 assert isinstance(c.type, Vector), f"Embedding column must be of type Vector, got {c.type}"
 
-        print("Creating table", self.db_model.__table__)
         Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
 
         session_maker = sessionmaker(bind=self.engine)

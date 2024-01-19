@@ -96,7 +96,7 @@ def store_docs(name, docs, user_id=None, show_progress=True):
     # TODO: replace this to instead split up docs that are too large
     # (this is a temporary fix to avoid breaking the llama index)
     for doc in docs:
-        doc.text = check_and_split_text(doc.text, config.default_embedding_config)[0]
+        doc.text = check_and_split_text(doc.text, config.default_embedding_config.embedding_model)[0]
 
     # record data source metadata
     ms = MetadataStore(config)

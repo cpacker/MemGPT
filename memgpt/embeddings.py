@@ -20,13 +20,22 @@ def check_and_split_text(text: str, embedding_model: str) -> List[str]:
     """Split text into chunks of max_length tokens or less"""
 
     if embedding_model in EMBEDDING_TO_TOKENIZER_MAP:
-        encoding = tiktoken.get_encoding(embedding_model)
+        encoding = tiktoken.get_encoding(EMBEDDING_TO_TOKENIZER_MAP[embedding_model])
     else:
         print(f"Warning: couldn't find tokenizer for model {embedding_model}, using default tokenizer {EMBEDDING_TO_TOKENIZER_DEFAULT}")
         encoding = tiktoken.get_encoding(EMBEDDING_TO_TOKENIZER_DEFAULT)
 
     num_tokens = len(encoding.encode(text))
-    max_length = encoding.max_length
+
+    # determine max length
+    if hasattr(encoding, "max_length"):
+        max_length = encoding.max_length
+    else:
+        # TODO: figure out the real number
+        print(f"Warning: couldn't find max_length for tokenizer {embedding_model}, using default max_length 8191")
+        max_length = 8191
+
+    # truncate text if too long
     if num_tokens > max_length:
         # TODO: split this into two pieces of text instead of truncating
         print(f"Warning: text is too long ({num_tokens} tokens), truncating to {max_length} tokens.")
