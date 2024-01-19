@@ -91,10 +91,10 @@ def test_create_user():
 
     # test passage dimentionality
     config = MemGPTConfig.load()
-    storage = StorageConnector.get_storage_connector(TableType.PASSAGE, config)
+    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user.id)
     storage.filters = {}  # clear filters to be able to get all passages
     passages = storage.get_all()
-    for passage in passage:
+    for passage in passages:
         if passage.agent_id == hosted_agent.id:
             assert (
                 passage.embedding_dim == hosted_agent.embedding_config.embedding_dim
