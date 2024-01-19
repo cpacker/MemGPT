@@ -208,11 +208,11 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
         other_option_str = "[enter model name manually]"
 
         # Check if the model we have set already is even in the list (informs our default)
-        valid_model = config.model in hardcoded_model_options
+        valid_model = config.default_llm_config.model in hardcoded_model_options
         model = questionary.select(
             "Select default model (recommended: gpt-4):",
             choices=hardcoded_model_options + [see_all_option_str, other_option_str],
-            default=config.model if valid_model else hardcoded_model_options[0],
+            default=config.default_llm_config.model if valid_model else hardcoded_model_options[0],
         ).ask()
         if model is None:
             raise KeyboardInterrupt
@@ -514,7 +514,7 @@ def configure_archival_storage(config: MemGPTConfig, credentials: MemGPTCredenti
     # TODO: allow configuring embedding model
 
 
-def configure_recall_storage(config: MemGPTConfig):
+def configure_recall_storage(config: MemGPTConfig, credentials: MemGPTCredentials):
     # Configure recall storage backend
     recall_storage_options = ["sqlite", "postgres"]
     recall_storage_type = questionary.select(
@@ -602,13 +602,13 @@ def configure():
         persona=default_persona,
         human=default_human,
         agent=default_agent,
-        # credentials
-        openai_key=openai_key,
-        azure_key=azure_creds["azure_key"],
-        azure_endpoint=azure_creds["azure_endpoint"],
-        azure_version=azure_creds["azure_version"],
-        azure_deployment=azure_creds["azure_deployment"],  # OK if None
-        azure_embedding_deployment=azure_creds["azure_embedding_deployment"],  # OK if None
+        ## credentials
+        # openai_key=openai_key,
+        # azure_key=azure_creds["azure_key"],
+        # azure_endpoint=azure_creds["azure_endpoint"],
+        # azure_version=azure_creds["azure_version"],
+        # azure_deployment=azure_creds["azure_deployment"],  # OK if None
+        # azure_embedding_deployment=azure_creds["azure_embedding_deployment"],  # OK if None
         # storage
         archival_storage_type=archival_storage_type,
         archival_storage_uri=archival_storage_uri,
