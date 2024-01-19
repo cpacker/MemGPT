@@ -53,13 +53,16 @@ def str_to_quickstart_choice(choice_str: str) -> QuickstartChoice:
 
 
 def set_config_with_dict(new_config: dict) -> bool:
+    print("NEW CONFIG", new_config)
     """Set the base config using a dict"""
     from memgpt.utils import printd
 
     old_config = MemGPTConfig.load()
     modified = False
+    print(vars(old_config).items())
     for k, v in vars(old_config).items():
         if k in new_config:
+            print("compare", k, v, new_config[k])
             if v != new_config[k]:
                 printd(f"Replacing config {k}: {v} -> {new_config[k]}")
                 modified = True
@@ -67,6 +70,30 @@ def set_config_with_dict(new_config: dict) -> bool:
                 setattr(old_config, k, new_config[k])  # Set the new value using dot notation
             else:
                 printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+
+    # update embedding config
+    for k, v in vars(old_config.default_embedding_config).items():
+        if k in new_config:
+            print("compare", k, v, new_config[k])
+            if v != new_config[k]:
+                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
+                modified = True
+                # old_config[k] = new_config[k]
+                setattr(old_config.default_embedding_config, k, new_config[k])
+        else:
+            printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+
+    # update llm config
+    for k, v in vars(old_config.default_llm_config).items():
+        if k in new_config:
+            print("compare", k, v, new_config[k])
+            if v != new_config[k]:
+                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
+                modified = True
+                # old_config[k] = new_config[k]
+                setattr(old_config.default_llm_config, k, new_config[k])
+        else:
+            printd(f"Skipping new config {k}: {v} == {new_config[k]}")
 
     if modified:
         printd(f"Saving new config file.")
