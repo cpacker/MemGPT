@@ -16,6 +16,12 @@ from llama_index.embeddings.huggingface_utils import format_text
 import tiktoken
 
 
+EMBEDDING_TO_TOKENIZER_MAP = {
+    "text-embedding-ada-002": "cl100k_base",
+}
+EMBEDDING_TO_TOKENIZER_DEFAULT = "cl100k_base"
+
+
 class EmbeddingEndpoint(BaseEmbedding):
 
     """Implementation for OpenAI compatible endpoint"""
@@ -40,7 +46,11 @@ class EmbeddingEndpoint(BaseEmbedding):
         self._user = user
         self._base_url = base_url
         self._timeout = timeout
-        self._encoding = tiktoken.get_encoding(model)
+        if model in EMBEDDING_TO_TOKENIZER_MAP:
+            self._encoding = tiktoken.get_encoding(model)
+        else:
+            print(f"Warning: couldn't find tokenizer for model {model}, using default tokenizer {EMBEDDING_TO_TOKENIZER_DEFAULT}")
+            self._encoding = tiktoken.get_encoding(EMBEDDING_TO_TOKENIZER_DEFAULT)
         super().__init__(
             model_name=model,
         )
