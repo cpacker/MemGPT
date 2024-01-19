@@ -87,6 +87,7 @@ class ConfigurableJSONWrapper(LLMChatCompletionWrapper):
         self.strip_prompt = strip_prompt
         self.json_indent = json_indent
         self.clean_func_args = clean_function_args
+        self.supports_first_message = True
 
     def _compile_function_description(self, schema, add_inner_thoughts=True) -> str:
         """Go from a JSON schema to a string description for a prompt"""
@@ -195,11 +196,10 @@ class ConfigurableJSONWrapper(LLMChatCompletionWrapper):
         formatted_messages = self.pre_prompt
 
         no_user_prompt_start = False
-        assert messages[0]["role"] == "system"
+
         for message in messages:
-            assert message["role"] in ["user", "assistant", "tool"], message
             if message["role"] == "system":
-                msg = self._compile_system_message(message, functions, function_documentation)
+                msg = self._compile_system_message(message["content"], functions, function_documentation)
                 formatted_messages += self.sys_prompt_start + msg + self.sys_prompt_end
 
                 if self.include_sys_prompt_in_first_user_message:
@@ -214,10 +214,29 @@ class ConfigurableJSONWrapper(LLMChatCompletionWrapper):
                     formatted_messages += self.user_prompt_start + msg + self.user_prompt_end
 
             elif message["role"] == "assistant":
-                role_str = message["name"].strip().lower() if (self.allow_custom_roles and "name" in message) else message["role"]
                 msg = self._compile_assistant_message(message)
-                formatted_messages += self.custom_roles_prompt_start + role_str + self.custom_post_role + msg + self.custom_roles_prompt_end
-
+                if self.allow_custom_roles and "name" in message:
+                    role_str = message["name"].strip().lower() if (self.allow_custom_roles and "name" in message) else message["role"]
+                    if no_user_prompt_start:
+                        no_user_prompt_start = False
+                        formatted_messages += (
+                            self.user_prompt_end
+                            + self.custom_roles_prompt_start
+                            + role_str
+                            + self.custom_post_role
+                            + msg
+                            + self.custom_roles_prompt_end
+                        )
+                    else:
+                        formatted_messages += (
+                            self.custom_roles_prompt_start + role_str + self.custom_post_role + msg + self.custom_roles_prompt_end
+                        )
+                else:
+                    if no_user_prompt_start:
+                        no_user_prompt_start = False
+                        formatted_messages += self.user_prompt_end + self.assistant_prompt_start + msg + self.assistant_prompt_end
+                    else:
+                        formatted_messages += self.assistant_prompt_start + msg + self.assistant_prompt_end
             elif message["role"] == "tool":
                 msg = self._compile_function_response(message)
                 formatted_messages += self.tool_prompt_start + msg + self.tool_prompt_end
@@ -267,12 +286,18 @@ class ConfigurableJSONWrapper(LLMChatCompletionWrapper):
             # regular unpacking
             function_name = function_json_output["function"]
             function_parameters = function_json_output["params"]
+            if "inner_thoughts" in function_json_output:
+                inner_thoughts = function_json_output["inner_thoughts"]
+            else:
+                if "inner_thoughts" in function_json_output["params"]:
+                    inner_thoughts = function_json_output["params"]["inner_thoughts"]
+                else:
+                    inner_thoughts = ""
         except KeyError as e:
             raise LLMJSONParsingError(
                 f"Received valid JSON from LLM, but JSON was missing fields: {str(e)}. JSON result was:\n{function_json_output}"
             )
 
-        inner_thoughts = None
         if self.clean_func_args:
             (
                 inner_thoughts,
