@@ -11,7 +11,7 @@ from ...errors import LLMJSONParsingError
 
 
 # A configurable model agnostic wrapper.
-class ConfigurableWrapper(LLMChatCompletionWrapper):
+class ConfigurableJSONWrapper(LLMChatCompletionWrapper):
     def __init__(
         self,
         pre_prompt: str = "",
@@ -24,6 +24,12 @@ class ConfigurableWrapper(LLMChatCompletionWrapper):
         assistant_prompt_end: str = "",
         tool_prompt_start: str = "",
         tool_prompt_end: str = "",
+        assistant_prefix_extra="",
+        assistant_prefix_extra_first_message="",
+        allow_custom_roles: bool = False,  # allow roles outside user/assistant
+        custom_post_role: str = "",  # For chatml this would be '\n'
+        custom_roles_prompt_start: str = "",  # For chatml this would be '<|im_start|>'
+        custom_roles_prompt_end: str = "",  # For chatml this would be '<|im_end|>'
         include_sys_prompt_in_first_user_message: bool = False,
         default_stop_sequences=None,
         simplify_json_content: bool = False,
@@ -37,19 +43,26 @@ class ConfigurableWrapper(LLMChatCompletionWrapper):
         Args:
             pre_prompt (str): The pre-prompt content.
             post_prompt(str): The post-prompt content
-            sys_prompt_start (str): The system prompt start.
-            sys_prompt_end (str): The system prompt end.
-            user_prompt_start (str): The user prompt start.
-            user_prompt_end (str): The user prompt end.
-            assistant_prompt_start (str): The assistant prompt start.
-            assistant_prompt_end (str): The assistant prompt end.
+            sys_prompt_start (str): The system messages prompt start. For chatml this would be something like '<|im_start|>system\n'
+            sys_prompt_end (str): The system messages prompt end. For chatml this would be something like '<|im_end|>'
+            user_prompt_start (str): The user messages prompt start.
+            user_prompt_end (str): The user messages prompt end.
+            assistant_prompt_start (str): The assistant messages prompt start.
+            assistant_prompt_end (str): The assistant messages prompt end.
+            tool_prompt_start (str): The tool messages prompt start.
+            tool_prompt_end (str): The tool messages prompt end.
+            assistant_prefix_extra (str): A prefix for every assistant message
+            assistant_prefix_extra_first_message (str): A prefix for the first assistant message
+            allow_custom_roles (bool): If the wrapper allows custom roles, like names for autogen agents.
+            custom_post_role (str): The part that comes after role string.  For chatml this would be '\n'
+            custom_roles_prompt_start: (str): Custom role prompt start. For chatml this would be '<|im_start|>'
+            custom_roles_prompt_end: (str): Custom role prompt start. For chatml this would be '<|im_end|>'
             include_sys_prompt_in_first_user_message (bool): Indicates whether to include the system prompt
                                                              in the first user message.
             simplify_json_content (bool):
 
             default_stop_sequences (List[str]): List of default stop sequences.
-            tool_prompt_start (str): The tool prompt start.
-            tool_prompt_end (str): The tool prompt end.
+
         """
         if default_stop_sequences is None:
             default_stop_sequences = []
@@ -61,11 +74,17 @@ class ConfigurableWrapper(LLMChatCompletionWrapper):
         self.user_prompt_end = user_prompt_end
         self.assistant_prompt_start = assistant_prompt_start
         self.assistant_prompt_end = assistant_prompt_end
+        self.tool_prompt_start = tool_prompt_start
+        self.tool_prompt_end = tool_prompt_end
+        self.assistant_prefix_extra = assistant_prefix_extra
+        self.assistant_prefix_extra_first_message = assistant_prefix_extra_first_message
+        self.allow_custom_roles = allow_custom_roles
+        self.custom_post_role = custom_post_role
+        self.custom_roles_prompt_start = custom_roles_prompt_start
+        self.custom_roles_prompt_end = custom_roles_prompt_end
         self.include_sys_prompt_in_first_user_message = include_sys_prompt_in_first_user_message
         self.simplify_json_content = simplify_json_content
         self.default_stop_sequences = default_stop_sequences
-        self.tool_prompt_start = tool_prompt_start
-        self.tool_prompt_end = tool_prompt_end
         self.strip_prompt = strip_prompt
         self.json_indent = json_indent
         self.clean_func_args = clean_function_args
@@ -173,7 +192,7 @@ class ConfigurableWrapper(LLMChatCompletionWrapper):
         prompt += function_return_str
         return prompt
 
-    def chat_completion_to_prompt(self, messages, functions, function_documentation=None):
+    def chat_completion_to_prompt(self, messages, functions, first_message=False, function_documentation=None):
         formatted_messages = self.pre_prompt
 
         no_user_prompt_start = False
@@ -196,17 +215,26 @@ class ConfigurableWrapper(LLMChatCompletionWrapper):
                     formatted_messages += self.user_prompt_start + msg + self.user_prompt_end
 
             elif message["role"] == "assistant":
+                role_str = message["name"].strip().lower() if (self.allow_custom_roles and "name" in message) else message["role"]
                 msg = self._compile_assistant_message(message)
-                formatted_messages += self.assistant_prompt_start + msg + self.assistant_prompt_end
+                formatted_messages += self.custom_roles_prompt_start + role_str + self.custom_post_role + msg + self.custom_roles_prompt_end
 
             elif message["role"] == "tool":
                 msg = self._compile_function_response(message)
                 formatted_messages += self.tool_prompt_start + msg + self.tool_prompt_end
+
         if self.strip_prompt:
-            prompt = formatted_messages + self.post_prompt
+            if first_message:
+                prompt = formatted_messages + self.post_prompt + self.assistant_prefix_extra_first_message
+            else:
+                prompt = formatted_messages + self.post_prompt + self.assistant_prefix_extra
             return prompt.strip()
         else:
-            return formatted_messages + self.post_prompt
+            if first_message:
+                prompt = formatted_messages + self.post_prompt + self.assistant_prefix_extra_first_message
+            else:
+                prompt = formatted_messages + self.post_prompt + self.assistant_prefix_extra
+            return prompt
 
     def _clean_function_args(self, function_name, function_args):
         """Some basic MemGPT-specific cleaning of function args"""
@@ -224,7 +252,11 @@ class ConfigurableWrapper(LLMChatCompletionWrapper):
         # TODO more cleaning to fix errors LLM makes
         return inner_thoughts, cleaned_function_name, cleaned_function_args
 
-    def output_to_chat_completion_response(self, raw_llm_output):
+    def output_to_chat_completion_response(self, raw_llm_output, first_message=False):
+        assistant_prefix = self.assistant_prefix_extra_first_message if first_message else self.assistant_prefix_extra
+        if assistant_prefix and raw_llm_output[: len(assistant_prefix)] != assistant_prefix:
+            raw_llm_output = assistant_prefix + raw_llm_output
+
         try:
             function_json_output = clean_json(raw_llm_output)
         except Exception as e:
@@ -241,6 +273,7 @@ class ConfigurableWrapper(LLMChatCompletionWrapper):
                 f"Received valid JSON from LLM, but JSON was missing fields: {str(e)}. JSON result was:\n{function_json_output}"
             )
 
+        inner_thoughts = None
         if self.clean_func_args:
             (
                 inner_thoughts,
@@ -265,7 +298,7 @@ class ConfigurableWrapper(LLMChatCompletionWrapper):
         Args:
             file_path (str): The path to the YAML file.
         """
-        config_data = {
+        data = {
             "pre_prompt": self.pre_prompt,
             "post_prompt": self.post_prompt,
             "sys_prompt_start": self.sys_prompt_start,
@@ -274,20 +307,26 @@ class ConfigurableWrapper(LLMChatCompletionWrapper):
             "user_prompt_end": self.user_prompt_end,
             "assistant_prompt_start": self.assistant_prompt_start,
             "assistant_prompt_end": self.assistant_prompt_end,
-            "include_sys_prompt_in_first_user_message": self.include_sys_prompt_in_first_user_message,
-            "simplify_json_content": self.simplify_json_content,
-            "default_stop_sequences": self.default_stop_sequences,
             "tool_prompt_start": self.tool_prompt_start,
             "tool_prompt_end": self.tool_prompt_end,
+            "assistant_prefix_extra": self.assistant_prefix_extra,
+            "assistant_prefix_extra_first_message": self.assistant_prefix_extra_first_message,
+            "allow_custom_roles": self.allow_custom_roles,
+            "custom_roles_prompt_start": self.custom_roles_prompt_start,
+            "custom_roles_prompt_end": self.custom_roles_prompt_end,
+            "include_sys_prompt_in_first_user_message": self.include_sys_prompt_in_first_user_message,
+            "simplify_json_content": self.simplify_json_content,
             "strip_prompt": self.strip_prompt,
             "json_indent": self.json_indent,
             "clean_function_args": self.clean_func_args,
+            "default_stop_sequences": self.default_stop_sequences,
         }
 
         with open(file_path, "w") as yaml_file:
-            yaml.dump(config_data, yaml_file, default_flow_style=False)
+            yaml.dump(data, yaml_file, default_flow_style=False)
 
-    def load_from_yaml(self, file_path: str):
+    @staticmethod
+    def load_from_yaml(file_path: str):
         """
         Load the configuration from a YAML file.
 
@@ -295,7 +334,31 @@ class ConfigurableWrapper(LLMChatCompletionWrapper):
             file_path (str): The path to the YAML file.
         """
         with open(file_path, "r") as yaml_file:
-            config_data = yaml.safe_load(yaml_file)
+            data = yaml.safe_load(yaml_file)
 
-        # Update the instance variables with the loaded data
-        self.__dict__.update(config_data)
+        wrapper = ConfigurableJSONWrapper()
+        # Set the attributes from the loaded data
+        wrapper.pre_prompt = data.get("pre_prompt", "")
+        wrapper.post_prompt = data.get("post_prompt", "")
+        wrapper.sys_prompt_start = data.get("sys_prompt_start", "")
+        wrapper.sys_prompt_end = data.get("sys_prompt_end", "")
+        wrapper.user_prompt_start = data.get("user_prompt_start", "")
+        wrapper.user_prompt_end = data.get("user_prompt_end", "")
+        wrapper.assistant_prompt_start = data.get("assistant_prompt_start", "")
+        wrapper.assistant_prompt_end = data.get("assistant_prompt_end", "")
+        wrapper.tool_prompt_start = data.get("tool_prompt_start", "")
+        wrapper.tool_prompt_end = data.get("tool_prompt_end", "")
+        wrapper.assistant_prefix_extra = data.get("assistant_prefix_extra", "")
+        wrapper.assistant_prefix_extra_first_message = data.get("assistant_prefix_extra_first_message", "")
+        wrapper.allow_custom_roles = data.get("allow_custom_roles", False)
+        wrapper.custom_post_role = data.get("custom_post_role", "")
+        wrapper.custom_roles_prompt_start = data.get("custom_roles_prompt_start", "")
+        wrapper.custom_roles_prompt_end = data.get("custom_roles_prompt_end", "")
+        wrapper.include_sys_prompt_in_first_user_message = data.get("include_sys_prompt_in_first_user_message", False)
+        wrapper.simplify_json_content = data.get("simplify_json_content", False)
+        wrapper.strip_prompt = data.get("strip_prompt", False)
+        wrapper.json_indent = data.get("json_indent", 2)
+        wrapper.clean_func_args = data.get("clean_function_args", False)
+        wrapper.default_stop_sequences = data.get("default_stop_sequences", [])
+
+        return wrapper
