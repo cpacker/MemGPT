@@ -513,7 +513,6 @@ def run(
 
         llm_config = config.default_llm_config
         embedding_config = config.default_embedding_config  # TODO allow overriding embedding params via CLI run
-        print(vars(embedding_config))
 
         # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
         if model and model != llm_config.model:
