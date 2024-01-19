@@ -42,23 +42,22 @@ class ConfigurableJSONWrapper(LLMChatCompletionWrapper):
 
         Args:
             pre_prompt (str): The pre-prompt content.
-            post_prompt(str): The post-prompt content
-            sys_prompt_start (str): The system messages prompt start. For chatml this would be something like '<|im_start|>system\n'
-            sys_prompt_end (str): The system messages prompt end. For chatml this would be something like '<|im_end|>'
-            user_prompt_start (str): The user messages prompt start.
-            user_prompt_end (str): The user messages prompt end.
-            assistant_prompt_start (str): The assistant messages prompt start.
-            assistant_prompt_end (str): The assistant messages prompt end.
-            tool_prompt_start (str): The tool messages prompt start.
-            tool_prompt_end (str): The tool messages prompt end.
-            assistant_prefix_extra (str): A prefix for every assistant message
-            assistant_prefix_extra_first_message (str): A prefix for the first assistant message
+            post_prompt (str): The post-prompt content
+            sys_prompt_start (str): The system messages prompt start. For chatml, this would be '<|im_start|>system\n'
+            sys_prompt_end (str): The system messages prompt end. For chatml, this would be '<|im_end|>'
+            user_prompt_start (str): The user messages prompt start. For chatml, this would be '<|im_start|>user\n'
+            user_prompt_end (str): The user messages prompt end. For chatml, this would be '<|im_end|>\n'
+            assistant_prompt_start (str): The assistant messages prompt start. For chatml, this would be '<|im_start|>user\n'
+            assistant_prompt_end (str): The assistant messages prompt end. For chatml, this would be '<|im_end|>\n'
+            tool_prompt_start (str): The tool messages prompt start. For chatml, this would be '<|im_start|>tool\n' if the model supports the tool role, otherwise it would be something like '<|im_start|>user\nFUNCTION RETURN:\n'
+            tool_prompt_end (str): The tool messages prompt end. For chatml, this would be '<|im_end|>\n'
+            assistant_prefix_extra (str): A prefix for every assistant message to steer the model to output JSON. Something like '\n{\n  "function":'
+            assistant_prefix_extra_first_message (str): A prefix for the first assistant message to steer the model to output JSON and use a specific function. Something like '\n{\n  "function": "send_message",'
             allow_custom_roles (bool): If the wrapper allows custom roles, like names for autogen agents.
-            custom_post_role (str): The part that comes after role string.  For chatml this would be '\n'
-            custom_roles_prompt_start: (str): Custom role prompt start. For chatml this would be '<|im_start|>'
-            custom_roles_prompt_end: (str): Custom role prompt start. For chatml this would be '<|im_end|>'
-            include_sys_prompt_in_first_user_message (bool): Indicates whether to include the system prompt
-                                                             in the first user message.
+            custom_post_role (str): The part that comes after the custom role string.  For chatml, this would be '\n'
+            custom_roles_prompt_start: (str): Custom role prompt start. For chatml, this would be '<|im_start|>'
+            custom_roles_prompt_end: (str): Custom role prompt start. For chatml, this would be '<|im_end|>\n'
+            include_sys_prompt_in_first_user_message (bool): Indicates whether to include the system prompt in the first user message. For Llama2 this would be True, for chatml, this would be False
             simplify_json_content (bool):
 
             default_stop_sequences (List[str]): List of default stop sequences.
@@ -312,6 +311,7 @@ class ConfigurableJSONWrapper(LLMChatCompletionWrapper):
             "assistant_prefix_extra": self.assistant_prefix_extra,
             "assistant_prefix_extra_first_message": self.assistant_prefix_extra_first_message,
             "allow_custom_roles": self.allow_custom_roles,
+            "custom_post_role": self.custom_post_role,
             "custom_roles_prompt_start": self.custom_roles_prompt_start,
             "custom_roles_prompt_end": self.custom_roles_prompt_end,
             "include_sys_prompt_in_first_user_message": self.include_sys_prompt_in_first_user_message,
