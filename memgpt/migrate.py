@@ -150,6 +150,10 @@ def migrate_source(source_name: str):
         for node in nodes:
             # print(len(node.embedding))
             # TODO: make sure embedding config matches embedding size?
+            if len(node.embedding) != config.default_embedding_config.embedding_dim:
+                raise ValueError(
+                    f"Cannot migrate source {source_name} due to incompatible embedding dimentions. Please re-load this source with `memgpt load`."
+                )
             passages.append(
                 Passage(
                     user_id=user.id,
@@ -322,8 +326,8 @@ def migrate_agent(agent_name: str):
             nodes = pickle.load(open(archival_filename, "rb"))
             passages = []
             for node in nodes:
-                # print(len(node.embedding))
-                # TODO: make sure embeding size matches embedding config?
+                if len(node.embedding) != config.default_embedding_config.embedding_dim:
+                    raise ValueError(f"Cannot migrate agent {agent_state.name} due to incompatible embedding dimentions.")
                 passages.append(
                     Passage(
                         user_id=user.id,
