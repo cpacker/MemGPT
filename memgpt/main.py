@@ -123,7 +123,24 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                             bold=True,
                         )
                         continue
-                    data_source = questionary.select("Select data source", choices=data_source_options).ask()
+
+                    # determine what sources are valid to be attached to this agent
+                    valid_options = []
+                    invalid_options = []
+                    for source in data_source_options:
+                        if source.embedding_model == memgpt_agent.embedding_model and source.embedding_dim == memgpt_agent.embedding_dim:
+                            valid_options.append(source.name)
+                        else:
+                            invalid_options.append(source.name)
+
+                    # print warning about invalid sources
+                    typer.secho(
+                        f"Warning: the following sources are not compatible with this agent's embedding model and dimension: {invalid_options}",
+                        fg=typer.colors.YELLOW,
+                    )
+
+                    # prompt user for data source selection
+                    data_source = questionary.select("Select data source", choices=valid_options).ask()
 
                     # attach new data
                     attach(memgpt_agent.config.name, data_source)

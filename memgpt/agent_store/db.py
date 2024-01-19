@@ -158,6 +158,8 @@ def get_db_model(
                 from pgvector.sqlalchemy import Vector
 
                 embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
+            embedding_dim = Column(BIGINT)
+            embedding_model = Column(String)
 
             metadata_ = Column(MutableJson)
 
@@ -168,6 +170,8 @@ def get_db_model(
                 return Passage(
                     text=self.text,
                     embedding=self.embedding,
+                    embedding_dim=self.embedding_dim,
+                    embedding_model=self.embedding_model,
                     doc_id=self.doc_id,
                     user_id=self.user_id,
                     id=self.id,
@@ -218,6 +222,8 @@ def get_db_model(
                 from pgvector.sqlalchemy import Vector
 
                 embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
+            embedding_dim = Column(BIGINT)
+            embedding_model = Column(String)
 
             # Add a datetime column, with default value as the current time
             created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -236,6 +242,8 @@ def get_db_model(
                     tool_calls=self.tool_calls,
                     tool_call_id=self.tool_call_id,
                     embedding=self.embedding,
+                    embedding_dim=self.embedding_dim,
+                    embedding_model=self.embedding_model,
                     created_at=self.created_at,
                     id=self.id,
                 )

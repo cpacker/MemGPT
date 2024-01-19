@@ -168,6 +168,8 @@ class SourceModel(Base):
     user_id = Column(CommonUUID, nullable=False)
     name = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    embedding_dim = Column(BIGINT)
+    embedding_model = Column(String)
 
     # TODO: add num passages
 
@@ -175,7 +177,14 @@ class SourceModel(Base):
         return f"<Source(passage_id='{self.id}', name='{self.name}')>"
 
     def to_record(self) -> Source:
-        return Source(id=self.id, user_id=self.user_id, name=self.name, created_at=self.created_at)
+        return Source(
+            id=self.id,
+            user_id=self.user_id,
+            name=self.name,
+            created_at=self.created_at,
+            embedding_dim=self.embedding_dim,
+            embedding_model=self.embedding_model,
+        )
 
 
 class AgentSourceMappingModel(Base):
