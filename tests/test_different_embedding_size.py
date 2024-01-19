@@ -42,36 +42,51 @@ def generate_passages(user, agent):
 
 
 def test_create_user():
-
-    # openai: create client
     wipe_config()
-    openai_client = MemGPT(quickstart="openai", user_id=test_user_id)
+
+    # create client
+    client = MemGPT(quickstart="openai", user_id=test_user_id)
 
     # create user
-    user = openai_client.server.create_user({"id": test_user_id})
+    user = client.server.create_user({"id": test_user_id})
 
     # openai: create agent
-    openai_agent = openai_client.create_agent({"user_id": test_user_id, "name": "openai_agent"})
+    openai_agent = client.create_agent(
+        {
+            "user_id": test_user_id,
+            "name": "openai_agent",
+        }
+    )
     assert (
         openai_agent.embedding_config.embedding_endpoint_type == "openai"
     ), f"openai_agent.embedding_config.embedding_endpoint_type={openai_agent.embedding_config.embedding_endpoint_type}"
 
     # openai: add passages
     passages, openai_embeddings = generate_passages(user, openai_agent)
-    openai_agent_run = openai_client.server._get_or_load_agent(user_id=user.id, agent_id=openai_agent.id)
+    openai_agent_run = client.server._get_or_load_agent(user_id=user.id, agent_id=openai_agent.id)
     openai_agent_run.persistence_manager.archival_memory.storage.insert_many(passages)
 
     # hosted: create agent
-    wipe_config()
-    hosted_client = MemGPT(quickstart="memgpt_hosted", user_id=test_user_id)
-    hosted_agent = hosted_client.create_agent({"user_id": test_user_id, "name": "hosted_agent"})
+    hosted_agent = client.create_agent(
+        {
+            "user_id": test_user_id,
+            "name": "hosted_agent",
+            "embedding_config": EmbeddingConfig(
+                embedding_endpoint_type="hugging-face",
+                embedding_model="BAAI/bge-large-en-v1.5",
+                embedding_endpoint="https://embeddings.memgpt.ai",
+                embedding_dim=1024,
+            ),
+        }
+    )
+    # check to make sure endpoint overriden
     assert (
         hosted_agent.embedding_config.embedding_endpoint_type == "hugging-face"
     ), f"hosted_agent.embedding_config.embedding_endpoint_type={hosted_agent.embedding_config.embedding_endpoint_type}"
 
     # hosted: add passages
     passages, hosted_embeddings = generate_passages(user, hosted_agent)
-    hosted_agent_run = hosted_client.server._get_or_load_agent(user_id=user.id, agent_id=hosted_agent.id)
+    hosted_agent_run = client.server._get_or_load_agent(user_id=user.id, agent_id=hosted_agent.id)
     hosted_agent_run.persistence_manager.archival_memory.storage.insert_many(passages)
 
     # test passage dimentionality

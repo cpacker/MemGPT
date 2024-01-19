@@ -110,22 +110,6 @@ def get_db_model(
     agent_id: Optional[uuid.UUID] = None,
     dialect="postgresql",
 ):
-    # get embedding dimention info
-    # TODO: Need to remove this and just pass in AgentState/User instead
-    # ms = MetadataStore(config)
-    # if agent_id and ms.get_agent(agent_id):
-    #    agent = ms.get_agent(agent_id)
-    #    embedding_dim = agent.embedding_config.embedding_dim
-    # else:
-    #    user = ms.get_user(user_id)
-    #    if user is None:
-    #        raise ValueError(f"User {user_id} not found")
-    #    embedding_dim = user.default_embedding_config.embedding_dim
-
-    #    # this cannot be the case if we are making an agent-specific table
-    #    assert table_type != TableType.RECALL_MEMORY, f"Agent {agent_id} not found"
-    #    assert table_type != TableType.ARCHIVAL_MEMORY, f"Agent {agent_id} not found"
-
     # Define a helper function to create or get the model class
     def create_or_get_model(class_name, base_model, table_name):
         if class_name in globals():
