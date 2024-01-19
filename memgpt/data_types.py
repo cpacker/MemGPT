@@ -91,6 +91,10 @@ class Message(Record):
         self.embedding_dim = embedding_dim
         self.embedding_model = embedding_model
 
+        if self.embedding:
+            assert self.embedding_dim, f"Must specify embedding_dim if providing an embedding"
+            assert self.embedding_model, f"Must specify embedding_model if providing an embedding"
+
         # tool (i.e. function) call info (optional)
 
         # if role == "assistant", this MAY be specified
@@ -294,7 +298,6 @@ class Passage(Record):
         self.agent_id = agent_id
         self.text = text
         self.data_source = data_source
-        self.embedding = embedding
         self.doc_id = doc_id
         self.metadata = metadata
 
@@ -304,6 +307,10 @@ class Passage(Record):
         self.embedding = np.pad(embedding, (0, MAX_EMBEDDING_DIM - embedding.shape[0]), mode="constant") if embedding is not None else None
         self.embedding_dim = embedding_dim
         self.embedding_model = embedding_model
+
+        if self.embedding:
+            assert self.embedding_dim, f"Must specify embedding_dim if providing an embedding"
+            assert self.embedding_model, f"Must specify embedding_model if providing an embedding"
 
         assert isinstance(self.user_id, uuid.UUID), f"UUID {self.user_id} must be a UUID type"
         assert not agent_id or isinstance(self.agent_id, uuid.UUID), f"UUID {self.agent_id} must be a UUID type"

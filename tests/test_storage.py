@@ -11,6 +11,7 @@ from memgpt.credentials import MemGPTCredentials
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import User
+from memgpt.constants import MAX_EMBEDDING_DIM
 
 from datetime import datetime, timedelta
 
@@ -33,10 +34,23 @@ def generate_passages(embed_model):
     # embeddings: use openai if env is set, otherwise local
     passages = []
     for text, _, _, agent_id, id in zip(texts, dates, roles, agent_ids, ids):
-        embedding = None
+        embedding, embedding_model, embedding_dim = None, None, None
         if embed_model:
             embedding = embed_model.get_text_embedding(text)
-        passages.append(Passage(user_id=user_id, text=text, agent_id=agent_id, embedding=embedding, data_source="test_source", id=id))
+            embeding_model = "gpt-4"
+            embedding_dim = embedding.shape[1]
+        passages.append(
+            Passage(
+                user_id=user_id,
+                text=text,
+                agent_id=agent_id,
+                embedding=embedding,
+                data_source="test_source",
+                id=id,
+                embedding_dim=embedding_dim,
+                embeding_model=embeding_model,
+            )
+        )
     return passages
 
 
@@ -45,11 +59,24 @@ def generate_messages(embed_model):
     """Generate list of 3 Message objects"""
     messages = []
     for text, date, role, agent_id, id in zip(texts, dates, roles, agent_ids, ids):
-        embedding = None
+        embedding, embedding_model, embedding_dim = None, None, None
         if embed_model:
             embedding = embed_model.get_text_embedding(text)
+            embeding_model = "gpt-4"
+            embedding_dim = embedding.shape[1]
         messages.append(
-            Message(user_id=user_id, text=text, agent_id=agent_id, role=role, created_at=date, id=id, model="gpt-4", embedding=embedding)
+            Message(
+                user_id=user_id,
+                text=text,
+                agent_id=agent_id,
+                role=role,
+                created_at=date,
+                id=id,
+                model="gpt-4",
+                embedding=embedding,
+                embeding_model=embeding_model,
+                embedding_dim=embedding_dim,
+            )
         )
         print(messages[-1].text)
     return messages
@@ -164,6 +191,13 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
         records = generate_messages(embed_model)
     else:
         raise NotImplementedError(f"Table type {table_type} not implemented")
+
+    # check record dimentions
+    if embed_model:
+        assert records[0].embedding.shape[0] == MAX_EMBEDDING_DIM, f"Expected {MAX_EMBEDDING_DIM}, got {records[0].embedding.shape[0]}"
+        assert (
+            records[0].embedding_dim == embedding_config.embedding_dim
+        ), f"Expected {embedding_config.embedding_dim}, got {records[0].embedding_dim}"
 
     # test: insert
     conn.insert(records[0])
