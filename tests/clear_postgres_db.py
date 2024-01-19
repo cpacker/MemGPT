@@ -2,10 +2,12 @@ import os
 
 from sqlalchemy import create_engine, MetaData
 
+
 def main():
     uri = os.environ.get(
         "PGVECTOR_TEST_DB_URL",
-        "postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt")
+        "postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt",
+    )
 
     engine = create_engine(uri)
     meta = MetaData()
@@ -13,5 +15,5 @@ def main():
     meta.drop_all(bind=engine)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
