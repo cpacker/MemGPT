@@ -87,13 +87,16 @@ class Message(Record):
         # pad and store embeddings
         if isinstance(embedding, list):
             embedding = np.array(embedding)
-        self.embedding = np.pad(embedding, (0, MAX_EMBEDDING_DIM - embedding.shape[0]), mode="constant") if embedding is not None else None
+        self.embedding = (
+            np.pad(embedding, (0, MAX_EMBEDDING_DIM - embedding.shape[0]), mode="constant").tolist() if embedding is not None else None
+        )
         self.embedding_dim = embedding_dim
         self.embedding_model = embedding_model
 
-        if self.embedding:
+        if self.embedding is not None:
             assert self.embedding_dim, f"Must specify embedding_dim if providing an embedding"
             assert self.embedding_model, f"Must specify embedding_model if providing an embedding"
+            assert len(self.embedding) == MAX_EMBEDDING_DIM, f"Embedding must be of length {MAX_EMBEDDING_DIM}"
 
         # tool (i.e. function) call info (optional)
 
@@ -109,9 +112,6 @@ class Message(Record):
         else:
             assert tool_call_id is None
         self.tool_call_id = tool_call_id
-
-        # embedding (optional)
-        self.embedding = embedding
 
     # def __repr__(self):
     #    pass
@@ -304,13 +304,16 @@ class Passage(Record):
         # pad and store embeddings
         if isinstance(embedding, list):
             embedding = np.array(embedding)
-        self.embedding = np.pad(embedding, (0, MAX_EMBEDDING_DIM - embedding.shape[0]), mode="constant") if embedding is not None else None
+        self.embedding = (
+            np.pad(embedding, (0, MAX_EMBEDDING_DIM - embedding.shape[0]), mode="constant").tolist() if embedding is not None else None
+        )
         self.embedding_dim = embedding_dim
         self.embedding_model = embedding_model
 
-        if self.embedding:
+        if self.embedding is not None:
             assert self.embedding_dim, f"Must specify embedding_dim if providing an embedding"
             assert self.embedding_model, f"Must specify embedding_model if providing an embedding"
+            assert len(self.embedding) == MAX_EMBEDDING_DIM, f"Embedding must be of length {MAX_EMBEDDING_DIM}"
 
         assert isinstance(self.user_id, uuid.UUID), f"UUID {self.user_id} must be a UUID type"
         assert not agent_id or isinstance(self.agent_id, uuid.UUID), f"UUID {self.agent_id} must be a UUID type"

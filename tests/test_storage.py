@@ -4,7 +4,7 @@ import uuid
 import pytest
 
 from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.embeddings import embedding_model
+from memgpt.embeddings import embedding_model, query_embedding
 from memgpt.data_types import Message, Passage, EmbeddingConfig, AgentState, OpenAIEmbeddingConfig
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
@@ -37,8 +37,8 @@ def generate_passages(embed_model):
         embedding, embedding_model, embedding_dim = None, None, None
         if embed_model:
             embedding = embed_model.get_text_embedding(text)
-            embeding_model = "gpt-4"
-            embedding_dim = embedding.shape[1]
+            embedding_model = "gpt-4"
+            embedding_dim = len(embedding)
         passages.append(
             Passage(
                 user_id=user_id,
@@ -48,7 +48,7 @@ def generate_passages(embed_model):
                 data_source="test_source",
                 id=id,
                 embedding_dim=embedding_dim,
-                embeding_model=embeding_model,
+                embedding_model=embedding_model,
             )
         )
     return passages
@@ -62,8 +62,8 @@ def generate_messages(embed_model):
         embedding, embedding_model, embedding_dim = None, None, None
         if embed_model:
             embedding = embed_model.get_text_embedding(text)
-            embeding_model = "gpt-4"
-            embedding_dim = embedding.shape[1]
+            embedding_model = "gpt-4"
+            embedding_dim = len(embedding)
         messages.append(
             Message(
                 user_id=user_id,
@@ -74,7 +74,7 @@ def generate_messages(embed_model):
                 id=id,
                 model="gpt-4",
                 embedding=embedding,
-                embeding_model=embeding_model,
+                embedding_model=embedding_model,
                 embedding_dim=embedding_dim,
             )
         )
@@ -193,8 +193,9 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
         raise NotImplementedError(f"Table type {table_type} not implemented")
 
     # check record dimentions
+    print("TABLE TYPE", table_type, type(records[0]), len(records[0].embedding))
     if embed_model:
-        assert records[0].embedding.shape[0] == MAX_EMBEDDING_DIM, f"Expected {MAX_EMBEDDING_DIM}, got {records[0].embedding.shape[0]}"
+        assert len(records[0].embedding) == MAX_EMBEDDING_DIM, f"Expected {MAX_EMBEDDING_DIM}, got {len(records[0].embedding)}"
         assert (
             records[0].embedding_dim == embedding_config.embedding_dim
         ), f"Expected {embedding_config.embedding_dim}, got {records[0].embedding_dim}"
@@ -242,7 +243,7 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
     # test: query (vector)
     if table_type == TableType.ARCHIVAL_MEMORY:
         query = "why was she crying"
-        query_vec = embed_model.get_text_embedding(query)
+        query_vec = query_embedding(embed_model, query)
         res = conn.query(None, query_vec, top_k=2)
         assert len(res) == 2, f"Expected 2 results, got {len(res)}"
         print("Archival memory results", res)

@@ -2,10 +2,12 @@ import typer
 import uuid
 from typing import Optional, List
 import os
+import numpy as np
 
 from memgpt.utils import is_valid_url
 from memgpt.data_types import EmbeddingConfig
 from memgpt.credentials import MemGPTCredentials
+from memgpt.constants import MAX_EMBEDDING_DIM
 
 from llama_index.embeddings import OpenAIEmbedding, AzureOpenAIEmbedding
 from llama_index.bridge.pydantic import PrivateAttr
@@ -155,6 +157,14 @@ def default_embedding_model():
     os.environ["TOKENIZERS_PARALLELISM"] = "False"
     model = "BAAI/bge-small-en-v1.5"
     return HuggingFaceEmbedding(model_name=model)
+
+
+def query_embedding(embedding_model, query_text: str):
+    """Generate padded embedding for querying database"""
+    query_vec = embedding_model.get_text_embedding(query_text)
+    query_vec = np.array(query_vec)
+    query_vec = np.pad(query_vec, (0, MAX_EMBEDDING_DIM - query_vec.shape[0]), mode="constant").tolist()
+    return query_vec
 
 
 def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None):
