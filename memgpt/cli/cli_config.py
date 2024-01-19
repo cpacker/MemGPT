@@ -6,7 +6,7 @@ from prettytable import PrettyTable
 import typer
 import os
 import shutil
-from typing import Annotated
+from typing import Annotated, Tuple
 from enum import Enum
 
 # from global logging configuration
