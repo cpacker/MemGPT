@@ -539,7 +539,7 @@ def configure_archival_storage(config: MemGPTConfig, credentials: MemGPTCredenti
     # TODO: allow configuring embedding model
 
 
-def configure_recall_storage(config: MemGPTConfig):
+def configure_recall_storage(config: MemGPTConfig, credentials: MemGPTCredentials):
     # Configure recall storage backend
     recall_storage_options = ["sqlite", "postgres"]
     recall_storage_type = questionary.select(
@@ -627,13 +627,6 @@ def configure():
         persona=default_persona,
         human=default_human,
         agent=default_agent,
-        # credentials
-        openai_key=openai_key,
-        azure_key=azure_creds["azure_key"],
-        azure_endpoint=azure_creds["azure_endpoint"],
-        azure_version=azure_creds["azure_version"],
-        azure_deployment=azure_creds["azure_deployment"],  # OK if None
-        azure_embedding_deployment=azure_creds["azure_embedding_deployment"],  # OK if None
         # storage
         archival_storage_type=archival_storage_type,
         archival_storage_uri=archival_storage_uri,
