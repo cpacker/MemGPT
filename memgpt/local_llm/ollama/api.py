@@ -4,6 +4,7 @@ import requests
 
 
 from memgpt.local_llm.settings.settings import get_completions_settings
+from memgpt.local_llm.utils import post_json_auth_request
 from memgpt.utils import count_tokens
 from memgpt.errors import LocalLLMError
 
@@ -11,7 +12,7 @@ from memgpt.errors import LocalLLMError
 OLLAMA_API_SUFFIX = "/api/generate"
 
 
-def get_ollama_completion(endpoint, model, prompt, context_window, grammar=None):
+def get_ollama_completion(endpoint, auth_type, auth_key, model, prompt, context_window, grammar=None):
     """See https://github.com/jmorganca/ollama/blob/main/docs/api.md for instructions on how to run the LLM web server"""
     from memgpt.utils import printd
 
@@ -61,7 +62,7 @@ def get_ollama_completion(endpoint, model, prompt, context_window, grammar=None)
 
     try:
         URI = urljoin(endpoint.strip("/") + "/", OLLAMA_API_SUFFIX.strip("/"))
-        response = requests.post(URI, json=request)
+        response = post_json_auth_request(uri=URI, json_payload=request, auth_type=auth_type, auth_key=auth_key)
         if response.status_code == 200:
             # https://github.com/jmorganca/ollama/blob/main/docs/api.md
             result_full = response.json()
