@@ -2,7 +2,7 @@
 
 We originally tried to use Llama Index VectorIndex, but their limited API was extremely problematic.
 """
-from typing import Any, Optional, List, Iterator
+from typing import Any, Optional, List, Iterator, Union
 import re
 import pickle
 import os
@@ -41,7 +41,13 @@ DOCUMENT_TABLE_NAME = "memgpt_documents"  # original documents (from source)
 class StorageConnector:
     """Defines a DB connection that is user-specific to access data: Documents, Passages, Archival/Recall Memory"""
 
-    def __init__(self, table_type: TableType, config: MemGPTConfig, user_id, agent_id=None):
+    def __init__(
+        self,
+        table_type: Union[TableType.ARCHIVAL_MEMORY, TableType.RECALL_MEMORY, TableType.PASSAGES, TableType.DOCUMENTS],
+        config: MemGPTConfig,
+        user_id,
+        agent_id=None,
+    ):
         self.user_id = user_id
         self.agent_id = agent_id
         self.table_type = table_type
@@ -84,7 +90,12 @@ class StorageConnector:
         return filter_conditions
 
     @staticmethod
-    def get_storage_connector(table_type: TableType, config: MemGPTConfig, user_id, agent_id=None):
+    def get_storage_connector(
+        table_type: Union[TableType.ARCHIVAL_MEMORY, TableType.RECALL_MEMORY, TableType.PASSAGES, TableType.DOCUMENTS],
+        config: MemGPTConfig,
+        user_id,
+        agent_id=None,
+    ):
         if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
             storage_type = config.archival_storage_type
         elif table_type == TableType.RECALL_MEMORY:

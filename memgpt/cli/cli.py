@@ -11,6 +11,7 @@ from pathlib import Path
 import os
 import subprocess
 from enum import Enum
+from typing import Optional
 
 from llama_index import set_global_service_context
 from llama_index import ServiceContext
@@ -27,7 +28,7 @@ from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
 from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
-from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig, User
+from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig, User, Passage
 from memgpt.metadata import MetadataStore
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
 
@@ -279,19 +280,21 @@ def server(
         # Run the command
         print(f"Running WS (websockets) server: {command} (inside {server_directory})")
 
+        process = None
         try:
             # Start the subprocess in a new session
             process = subprocess.Popen(command, shell=True, start_new_session=True, cwd=server_directory)
             process.wait()
         except KeyboardInterrupt:
             # Handle CTRL-C
-            print("Terminating the server...")
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                print("Server terminated with kill()")
+            if process is not None:
+                print("Terminating the server...")
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    print("Server terminated with kill()")
             sys.exit(0)
 
 
@@ -421,12 +424,8 @@ def run(
         if user is None:
             typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
             sys.exit(1)
+    assert user is not None
 
-    # override with command line arguments
-    if debug:
-        config.debug = debug
-    if no_verify:
-        config.no_verify = no_verify
     # determine agent to use, if not provided
     if not yes and not agent:
         agents = ms.list_agents(user_id=user.id)
@@ -441,10 +440,11 @@ def run(
                 agent = questionary.select("Select agent:", choices=agents).ask()
 
     # create agent config
-    if agent and ms.get_agent(agent_name=agent, user_id=user.id):  # use existing agent
+    agent_state = ms.get_agent(agent_name=agent, user_id=user.id) if agent else None
+    if agent and agent_state:  # use existing agent
         typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
         # agent_config = AgentConfig.load(agent)
-        agent_state = ms.get_agent(agent_name=agent, user_id=user_id)
+        # agent_state = ms.get_agent(agent_name=agent, user_id=user_id)
         printd("Loading agent state:", agent_state.id)
         printd("Agent state:", agent_state.state)
         # printd("State path:", agent_config.save_state_dir())
@@ -496,7 +496,7 @@ def run(
         ms.update_agent(agent_state)
 
         # create agent
-        memgpt_agent = Agent(agent_state, interface=interface)
+        memgpt_agent = Agent(agent_state, interface=interface())
 
     else:  # create new agent
         # create new agent config: override defaults with args if provided
@@ -564,7 +564,7 @@ def run(
         try:
             memgpt_agent = presets.create_agent_from_preset(
                 agent_state=agent_state,
-                interface=interface,
+                interface=interface(),
             )
         except ValueError as e:
             # TODO(swooders) what's the equivalent cleanup code for the new DB refactor?
@@ -609,9 +609,9 @@ def run(
 
 
 def attach(
-    agent: str = typer.Option(help="Specify agent to attach data to"),
+    agent_name: str = typer.Option(help="Specify agent to attach data to"),
     data_source: str = typer.Option(help="Data source to attach to avent"),
-    user_id: uuid.UUID = None,
+    user_id: Optional[uuid.UUID] = None,
 ):
     # use client ID is no user_id provided
     config = MemGPTConfig.load()
@@ -623,7 +623,8 @@ def attach(
         from tqdm import tqdm
 
         ms = MetadataStore(config)
-        agent = ms.get_agent(agent_name=agent, user_id=user_id)
+        agent = ms.get_agent(agent_name=agent_name, user_id=user_id)
+        assert agent is not None, f"No agent found under agent_name={agent_name}, user_id={user_id}"
         source = ms.get_source(source_name=data_source, user_id=user_id)
         assert source is not None, f"Source {data_source} does not exist for user {user_id}"
 
@@ -643,6 +644,7 @@ def attach(
 
             # need to associated passage with agent (for filtering)
             for passage in passages:
+                assert isinstance(passage, Passage), f"Generate yielded bad non-Passage type: {type(passage)}"
                 passage.agent_id = agent.id
 
             # insert into agent archival memory
@@ -652,7 +654,9 @@ def attach(
         dest_storage.save()
 
         # attach to agent
-        source_id = ms.get_source(source_name=data_source, user_id=user_id).id
+        source = ms.get_source(source_name=data_source, user_id=user_id)
+        assert source is not None, f"source does not exist for source_name={data_source}, user_id={user_id}"
+        source_id = source.id
         ms.attach_source(agent_id=agent.id, source_id=source_id, user_id=user_id)
 
         total_agent_passages = dest_storage.size()
