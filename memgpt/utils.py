@@ -780,7 +780,7 @@ def format_datetime(dt):
     return dt.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
 
 
-def parse_json(string):
+def parse_json(string) -> dict:
     """Parse JSON string into JSON with both json and demjson"""
     result = None
     try:

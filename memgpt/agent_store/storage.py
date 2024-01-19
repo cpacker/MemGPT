@@ -6,6 +6,7 @@ from typing import Any, Optional, List, Iterator
 import re
 import pickle
 import os
+import uuid
 from abc import abstractmethod
 
 from typing import List, Optional, Dict
@@ -137,7 +138,7 @@ class StorageConnector:
         pass
 
     @abstractmethod
-    def get(self, id: str) -> Optional[Record]:
+    def get(self, id: uuid.UUID) -> Optional[Record]:
         pass
 
     @abstractmethod

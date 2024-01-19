@@ -401,7 +401,7 @@ class AgentState:
         # messages: List[dict],  # in-context messages
         id: Optional[uuid.UUID] = None,
         state: Optional[dict] = None,
-        created_at: Optional[str] = None,
+        created_at: Optional[datetime] = None,
     ):
         if id is None:
             self.id = uuid.uuid4()
