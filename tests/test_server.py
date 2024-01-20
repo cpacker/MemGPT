@@ -4,6 +4,7 @@ import memgpt.utils as utils
 
 utils.DEBUG = True
 from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials
 from memgpt.server.server import SyncServer
 from memgpt.data_types import EmbeddingConfig, AgentState, LLMConfig, Message, Passage, User
 from memgpt.embeddings import embedding_model
@@ -22,14 +23,20 @@ def test_server():
             recall_storage_type="postgres",
             metadata_storage_type="postgres",
             # embeddings
-            embedding_endpoint_type="openai",
-            embedding_endpoint="https://api.openai.com/v1",
-            embedding_dim=1536,
-            openai_key=os.getenv("OPENAI_API_KEY"),
+            default_embedding_config=EmbeddingConfig(
+                embedding_endpoint_type="openai",
+                embedding_endpoint="https://api.openai.com/v1",
+                embedding_dim=1536,
+            ),
             # llms
-            model_endpoint_type="openai",
-            model_endpoint="https://api.openai.com/v1",
-            model="gpt-4",
+            default_llm_config=LLMConfig(
+                model_endpoint_type="openai",
+                model_endpoint="https://api.openai.com/v1",
+                model="gpt-4",
+            ),
+        )
+        credentials = MemGPTCredentials(
+            openai_key=os.getenv("OPENAI_API_KEY"),
         )
     else:  # hosted
         config = MemGPTConfig(
@@ -40,16 +47,22 @@ def test_server():
             recall_storage_type="postgres",
             metadata_storage_type="postgres",
             # embeddings
-            embedding_endpoint_type="hugging-face",
-            embedding_endpoint="https://embeddings.memgpt.ai",
-            embedding_model="BAAI/bge-large-en-v1.5",
-            embedding_dim=1024,
+            default_embedding_config=EmbeddingConfig(
+                embedding_endpoint_type="hugging-face",
+                embedding_endpoint="https://embeddings.memgpt.ai",
+                embedding_model="BAAI/bge-large-en-v1.5",
+                embedding_dim=1024,
+            ),
             # llms
-            model_endpoint_type="vllm",
-            model_endpoint="https://api.memgpt.ai",
-            model="ehartford/dolphin-2.5-mixtral-8x7b",
+            default_llm_config=LLMConfig(
+                model_endpoint_type="vllm",
+                model_endpoint="https://api.memgpt.ai",
+                model="ehartford/dolphin-2.5-mixtral-8x7b",
+            ),
         )
+        credentials = MemGPTCredentials()
     config.save()
+    credentials.save()
 
     server = SyncServer()
 
@@ -91,7 +104,14 @@ def test_server():
     for text in archival_memories:
         embedding = embed_model.get_text_embedding(text)
         agent.persistence_manager.archival_memory.storage.insert(
-            Passage(user_id=user.id, agent_id=agent_state.id, text=text, embedding=embedding)
+            Passage(
+                user_id=user.id,
+                agent_id=agent_state.id,
+                text=text,
+                embedding=embedding,
+                embedding_dim=agent.agent_state.embedding_config.embedding_dim,
+                embedding_model=agent.agent_state.embedding_config.embedding_model,
+            )
         )
 
     # add data into recall memory
@@ -113,6 +133,14 @@ def test_server():
     assert len(messages_3) == len(messages_1) + len(messages_2)
     cursor4, messages_4 = server.get_agent_recall_cursor(user_id=user.id, agent_id=agent_state.id, reverse=True, before=cursor1)
     assert len(messages_4) == 1
+
+    # test in-context message ids
+    in_context_ids = server.get_in_context_message_ids(user_id=user.id, agent_id=agent_state.id)
+    assert len(in_context_ids) == len(messages_3)
+    assert isinstance(in_context_ids[0], uuid.UUID)
+    message_ids = [m["id"] for m in messages_3]
+    for message_id in message_ids:
+        assert message_id in in_context_ids, f"{message_id} not in {in_context_ids}"
 
     # test archival memory cursor pagination
     cursor1, passages_1 = server.get_agent_archival_cursor(

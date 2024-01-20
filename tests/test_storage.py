@@ -4,12 +4,14 @@ import uuid
 import pytest
 
 from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.embeddings import embedding_model
+from memgpt.embeddings import embedding_model, query_embedding
 from memgpt.data_types import Message, Passage, EmbeddingConfig, AgentState, OpenAIEmbeddingConfig
 from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import User
+from memgpt.constants import MAX_EMBEDDING_DIM
 
 from datetime import datetime, timedelta
 
@@ -32,10 +34,23 @@ def generate_passages(embed_model):
     # embeddings: use openai if env is set, otherwise local
     passages = []
     for text, _, _, agent_id, id in zip(texts, dates, roles, agent_ids, ids):
-        embedding = None
+        embedding, embedding_model, embedding_dim = None, None, None
         if embed_model:
             embedding = embed_model.get_text_embedding(text)
-        passages.append(Passage(user_id=user_id, text=text, agent_id=agent_id, embedding=embedding, data_source="test_source", id=id))
+            embedding_model = "gpt-4"
+            embedding_dim = len(embedding)
+        passages.append(
+            Passage(
+                user_id=user_id,
+                text=text,
+                agent_id=agent_id,
+                embedding=embedding,
+                data_source="test_source",
+                id=id,
+                embedding_dim=embedding_dim,
+                embedding_model=embedding_model,
+            )
+        )
     return passages
 
 
@@ -44,11 +59,24 @@ def generate_messages(embed_model):
     """Generate list of 3 Message objects"""
     messages = []
     for text, date, role, agent_id, id in zip(texts, dates, roles, agent_ids, ids):
-        embedding = None
+        embedding, embedding_model, embedding_dim = None, None, None
         if embed_model:
             embedding = embed_model.get_text_embedding(text)
+            embedding_model = "gpt-4"
+            embedding_dim = len(embedding)
         messages.append(
-            Message(user_id=user_id, text=text, agent_id=agent_id, role=role, created_at=date, id=id, model="gpt-4", embedding=embedding)
+            Message(
+                user_id=user_id,
+                text=text,
+                agent_id=agent_id,
+                role=role,
+                created_at=date,
+                id=id,
+                model="gpt-4",
+                embedding=embedding,
+                embedding_model=embedding_model,
+                embedding_dim=embedding_dim,
+            )
         )
         print(messages[-1].text)
     return messages
@@ -123,8 +151,12 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
             embedding_endpoint_type="openai",
             embedding_endpoint="https://api.openai.com/v1",
             embedding_dim=1536,
+            # openai_key=os.getenv("OPENAI_API_KEY"),
+        )
+        credentials = MemGPTCredentials(
             openai_key=os.getenv("OPENAI_API_KEY"),
         )
+        credentials.save()
     else:
         embedding_config = EmbeddingConfig(embedding_endpoint_type="local", embedding_endpoint=None, embedding_dim=384)
     embed_model = embedding_model(embedding_config)
@@ -132,7 +164,7 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
     # create user
     ms = MetadataStore(config)
     ms.delete_user(user_id)
-    user = User(id=user_id, default_embedding_config=embedding_config)
+    user = User(id=user_id)
     agent = AgentState(
         user_id=user_id,
         name="agent_1",
@@ -140,8 +172,8 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
         preset=user.default_preset,
         persona=user.default_persona,
         human=user.default_human,
-        llm_config=user.default_llm_config,
-        embedding_config=user.default_embedding_config,
+        llm_config=config.default_llm_config,
+        embedding_config=config.default_embedding_config,
     )
     ms.create_user(user)
     ms.create_agent(agent)
@@ -159,6 +191,14 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
         records = generate_messages(embed_model)
     else:
         raise NotImplementedError(f"Table type {table_type} not implemented")
+
+    # check record dimentions
+    print("TABLE TYPE", table_type, type(records[0]), len(records[0].embedding))
+    if embed_model:
+        assert len(records[0].embedding) == MAX_EMBEDDING_DIM, f"Expected {MAX_EMBEDDING_DIM}, got {len(records[0].embedding)}"
+        assert (
+            records[0].embedding_dim == embedding_config.embedding_dim
+        ), f"Expected {embedding_config.embedding_dim}, got {records[0].embedding_dim}"
 
     # test: insert
     conn.insert(records[0])
@@ -203,7 +243,7 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
     # test: query (vector)
     if table_type == TableType.ARCHIVAL_MEMORY:
         query = "why was she crying"
-        query_vec = embed_model.get_text_embedding(query)
+        query_vec = query_embedding(embed_model, query)
         res = conn.query(None, query_vec, top_k=2)
         assert len(res) == 2, f"Expected 2 results, got {len(res)}"
         print("Archival memory results", res)

@@ -10,14 +10,14 @@ from typing import List, Tuple
 
 from box import Box
 
-from memgpt.data_types import AgentState, Message
+from memgpt.data_types import AgentState, Message, EmbeddingConfig
 from memgpt.models import chat_completion_response
 from memgpt.interface import AgentInterface
 from memgpt.persistence_manager import PersistenceManager, LocalStateManager
 from memgpt.config import MemGPTConfig
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from memgpt.memory import CoreMemory as InContextMemory, summarize_messages
-from memgpt.openai_tools import create, is_context_overflow_error
+from memgpt.llm_api_tools import create, is_context_overflow_error
 from memgpt.utils import (
     get_tool_call_id,
     get_local_time,
@@ -897,3 +897,10 @@ class Agent(object):
             state=updated_state,
         )
         return self.agent_state
+
+    def migrate_embedding(self, embedding_config: EmbeddingConfig):
+        """Migrate the agent to a new embedding"""
+        # TODO: archival memory
+
+        # TODO: recall memory
+        raise NotImplementedError()

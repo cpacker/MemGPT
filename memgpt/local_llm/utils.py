@@ -1,10 +1,38 @@
 import os
+import requests
 import tiktoken
 
 import memgpt.local_llm.llm_chat_completion_wrappers.airoboros as airoboros
 import memgpt.local_llm.llm_chat_completion_wrappers.dolphin as dolphin
 import memgpt.local_llm.llm_chat_completion_wrappers.zephyr as zephyr
 import memgpt.local_llm.llm_chat_completion_wrappers.chatml as chatml
+
+
+def post_json_auth_request(uri, json_payload, auth_type, auth_key):
+    """Send a POST request with a JSON payload and optional authentication"""
+
+    # By default most local LLM inference servers do not have authorization enabled
+    if auth_type is None:
+        response = requests.post(uri, json=json_payload)
+
+    # Used by OpenAI, together.ai, Mistral AI
+    elif auth_type == "bearer_token":
+        if auth_key is None:
+            raise ValueError(f"auth_type is {auth_type}, but auth_key is null")
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {auth_key}"}
+        response = requests.post(uri, json=json_payload, headers=headers)
+
+    # Used by OpenAI Azure
+    elif auth_type == "api_key":
+        if auth_key is None:
+            raise ValueError(f"auth_type is {auth_type}, but auth_key is null")
+        headers = {"Content-Type": "application/json", "api-key": f"{auth_key}"}
+        response = requests.post(uri, json=json_payload, headers=headers)
+
+    else:
+        raise ValueError(f"Unsupport authentication type: {auth_type}")
+
+    return response
 
 
 # deprecated for Box

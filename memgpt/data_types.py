@@ -5,7 +5,7 @@ from abc import abstractmethod
 from typing import Optional, List, Dict
 import numpy as np
 
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
+from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS, MAX_EMBEDDING_DIM
 from memgpt.utils import get_local_time, format_datetime
 from memgpt.models import chat_completion_response
 
@@ -68,6 +68,8 @@ class Message(Record):
         tool_calls: Optional[List[ToolCall]] = None,  # list of tool calls requested
         tool_call_id: Optional[str] = None,
         embedding: Optional[np.ndarray] = None,
+        embedding_dim: Optional[int] = None,
+        embedding_model: Optional[str] = None,
         id: Optional[uuid.UUID] = None,
     ):
         super().__init__(id)
@@ -81,6 +83,20 @@ class Message(Record):
         assert role in ["system", "assistant", "user", "tool"]
         self.role = role  # role (agent/user/function)
         self.name = name
+
+        # pad and store embeddings
+        if isinstance(embedding, list):
+            embedding = np.array(embedding)
+        self.embedding = (
+            np.pad(embedding, (0, MAX_EMBEDDING_DIM - embedding.shape[0]), mode="constant").tolist() if embedding is not None else None
+        )
+        self.embedding_dim = embedding_dim
+        self.embedding_model = embedding_model
+
+        if self.embedding is not None:
+            assert self.embedding_dim, f"Must specify embedding_dim if providing an embedding"
+            assert self.embedding_model, f"Must specify embedding_model if providing an embedding"
+            assert len(self.embedding) == MAX_EMBEDDING_DIM, f"Embedding must be of length {MAX_EMBEDDING_DIM}"
 
         # tool (i.e. function) call info (optional)
 
@@ -96,9 +112,6 @@ class Message(Record):
         else:
             assert tool_call_id is None
         self.tool_call_id = tool_call_id
-
-        # embedding (optional)
-        self.embedding = embedding
 
     # def __repr__(self):
     #    pass
@@ -273,6 +286,8 @@ class Passage(Record):
         text: str,
         agent_id: Optional[uuid.UUID] = None,  # set if contained in agent memory
         embedding: Optional[np.ndarray] = None,
+        embedding_dim: Optional[int] = None,
+        embedding_model: Optional[str] = None,
         data_source: Optional[str] = None,  # None if created by agent
         doc_id: Optional[uuid.UUID] = None,
         id: Optional[uuid.UUID] = None,
@@ -283,16 +298,26 @@ class Passage(Record):
         self.agent_id = agent_id
         self.text = text
         self.data_source = data_source
-        self.embedding = embedding
         self.doc_id = doc_id
         self.metadata = metadata
+
+        # pad and store embeddings
+        if isinstance(embedding, list):
+            embedding = np.array(embedding)
+        self.embedding = (
+            np.pad(embedding, (0, MAX_EMBEDDING_DIM - embedding.shape[0]), mode="constant").tolist() if embedding is not None else None
+        )
+        self.embedding_dim = embedding_dim
+        self.embedding_model = embedding_model
+
+        if self.embedding is not None:
+            assert self.embedding_dim, f"Must specify embedding_dim if providing an embedding"
+            assert self.embedding_model, f"Must specify embedding_model if providing an embedding"
+            assert len(self.embedding) == MAX_EMBEDDING_DIM, f"Embedding must be of length {MAX_EMBEDDING_DIM}"
 
         assert isinstance(self.user_id, uuid.UUID), f"UUID {self.user_id} must be a UUID type"
         assert not agent_id or isinstance(self.agent_id, uuid.UUID), f"UUID {self.agent_id} must be a UUID type"
         assert not doc_id or isinstance(self.doc_id, uuid.UUID), f"UUID {self.doc_id} must be a UUID type"
-
-    # def __repr__(self):
-    #    pass
 
 
 class LLMConfig:
@@ -303,13 +328,6 @@ class LLMConfig:
         model_endpoint: Optional[str] = "https://api.openai.com/v1",
         model_wrapper: Optional[str] = None,
         context_window: Optional[int] = None,
-        # openai-only
-        openai_key: Optional[str] = None,
-        # azure-only
-        azure_key: Optional[str] = None,
-        azure_endpoint: Optional[str] = None,
-        azure_version: Optional[str] = None,
-        azure_deployment: Optional[str] = None,
     ):
         self.model = model
         self.model_endpoint_type = model_endpoint_type
@@ -322,31 +340,15 @@ class LLMConfig:
         else:
             self.context_window = context_window
 
-        # openai
-        self.openai_key = openai_key
-
-        # azure
-        self.azure_key = azure_key
-        self.azure_endpoint = azure_endpoint
-        self.azure_version = azure_version
-        self.azure_deployment = azure_deployment
-
 
 class EmbeddingConfig:
     def __init__(
         self,
-        embedding_endpoint_type: Optional[str] = "local",
-        embedding_endpoint: Optional[str] = None,
-        embedding_model: Optional[str] = None,
-        embedding_dim: Optional[int] = 384,
+        embedding_endpoint_type: Optional[str] = "openai",
+        embedding_endpoint: Optional[str] = "https://api.openai.com/v1",
+        embedding_model: Optional[str] = "text-embedding-ada-002",
+        embedding_dim: Optional[int] = 1536,
         embedding_chunk_size: Optional[int] = 300,
-        # openai-only
-        openai_key: Optional[str] = None,
-        # azure-only
-        azure_key: Optional[str] = None,
-        azure_endpoint: Optional[str] = None,
-        azure_version: Optional[str] = None,
-        azure_deployment: Optional[str] = None,
     ):
         self.embedding_endpoint_type = embedding_endpoint_type
         self.embedding_endpoint = embedding_endpoint
@@ -354,14 +356,12 @@ class EmbeddingConfig:
         self.embedding_dim = embedding_dim
         self.embedding_chunk_size = embedding_chunk_size
 
-        # openai
-        self.openai_key = openai_key
-
-        # azure
-        self.azure_key = azure_key
-        self.azure_endpoint = azure_endpoint
-        self.azure_version = azure_version
-        self.azure_deployment = azure_deployment
+        # fields cannot be set to None
+        assert self.embedding_endpoint_type
+        assert self.embedding_endpoint
+        assert self.embedding_model
+        assert self.embedding_dim
+        assert self.embedding_chunk_size
 
 
 class OpenAIEmbeddingConfig(EmbeddingConfig):
@@ -400,15 +400,6 @@ class User:
         default_persona=DEFAULT_PERSONA,
         default_human=DEFAULT_HUMAN,
         default_agent=None,
-        default_llm_config: Optional[LLMConfig] = None,  # defaults: llm model
-        default_embedding_config: Optional[EmbeddingConfig] = None,  # defaults: embeddings
-        # azure information
-        azure_key=None,
-        azure_endpoint=None,
-        azure_version=None,
-        azure_deployment=None,
-        # openai information
-        openai_key=None,
         # other
         policies_accepted=False,
     ):
@@ -422,82 +413,6 @@ class User:
         self.default_persona = default_persona
         self.default_human = default_human
         self.default_agent = default_agent
-
-        # model defaults
-        self.default_llm_config = default_llm_config if default_llm_config is not None else LLMConfig()
-        self.default_embedding_config = default_embedding_config if default_embedding_config is not None else EmbeddingConfig()
-
-        # azure information
-        # TODO: split this up accross model config and embedding config?
-        self.azure_key = azure_key
-        self.azure_endpoint = azure_endpoint
-        self.azure_version = azure_version
-        self.azure_deployment = azure_deployment
-
-        # openai information
-        self.openai_key = openai_key
-
-        # set default embedding config
-        if default_embedding_config is None:
-            if self.openai_key:
-                self.default_embedding_config = OpenAIEmbeddingConfig(
-                    openai_key=self.openai_key,
-                    embedding_endpoint_type="openai",
-                    embedding_endpoint="https://api.openai.com/v1",
-                    embedding_dim=1536,
-                )
-            elif self.azure_key:
-                self.default_embedding_config = AzureEmbeddingConfig(
-                    azure_key=self.azure_key,
-                    azure_endpoint=self.azure_endpoint,
-                    azure_version=self.azure_version,
-                    azure_deployment=self.azure_deployment,
-                    embedding_endpoint_type="azure",
-                    embedding_endpoint="https://api.openai.com/v1",
-                    embedding_dim=1536,
-                )
-            else:
-                # memgpt hosted
-                self.default_embedding_config = EmbeddingConfig(
-                    embedding_endpoint_type="hugging-face",
-                    embedding_endpoint="https://embeddings.memgpt.ai",
-                    embedding_model="BAAI/bge-large-en-v1.5",
-                    embedding_dim=1024,
-                    embedding_chunk_size=300,
-                )
-
-        # set default LLM config
-        if default_llm_config is None:
-            if self.openai_key:
-                self.default_llm_config = OpenAILLMConfig(
-                    openai_key=self.openai_key,
-                    model="gpt-4",
-                    model_endpoint_type="openai",
-                    model_endpoint="https://api.openai.com/v1",
-                    model_wrapper=None,
-                    context_window=LLM_MAX_TOKENS["gpt-4"],
-                )
-            elif self.azure_key:
-                self.default_llm_config = AzureLLMConfig(
-                    azure_key=self.azure_key,
-                    azure_endpoint=self.azure_endpoint,
-                    azure_version=self.azure_version,
-                    azure_deployment=self.azure_deployment,
-                    model="gpt-4",
-                    model_endpoint_type="azure",
-                    model_endpoint="https://api.openai.com/v1",
-                    model_wrapper=None,
-                    context_window=LLM_MAX_TOKENS["gpt-4"],
-                )
-            else:
-                # memgpt hosted
-                self.default_llm_config = LLMConfig(
-                    model="ehartford/dolphin-2.5-mixtral-8x7b",
-                    model_endpoint_type="vllm",
-                    model_endpoint="https://api.memgpt.ai",
-                    model_wrapper="chatml",
-                    context_window=16384,
-                )
 
         # misc
         self.policies_accepted = policies_accepted
@@ -546,36 +461,6 @@ class AgentState:
         # state
         self.state = {} if not state else state
 
-    # def __eq__(self, other):
-    #     if not isinstance(other, AgentState):
-    #         # return False
-    #         return NotImplemented
-
-    #     return (
-    #         self.name == other.name
-    #         and self.user_id == other.user_id
-    #         and self.persona == other.persona
-    #         and self.human == other.human
-    #         and vars(self.llm_config) == vars(other.llm_config)
-    #         and vars(self.embedding_config) == vars(other.embedding_config)
-    #         and self.preset == other.preset
-    #         and self.state == other.state
-    #     )
-
-    # def __dict__(self):
-    #    return {
-    #        "id": self.id,
-    #        "name": self.name,
-    #        "user_id": self.user_id,
-    #        "preset": self.preset,
-    #        "persona": self.persona,
-    #        "human": self.human,
-    #        "llm_config": self.llm_config,
-    #        "embedding_config": self.embedding_config,
-    #        "created_at": format_datetime(self.created_at),
-    #        "state": self.state,
-    #    }
-
 
 class Source:
     def __init__(
@@ -584,6 +469,9 @@ class Source:
         name: str,
         created_at: Optional[str] = None,
         id: Optional[uuid.UUID] = None,
+        # embedding info
+        embedding_model: Optional[str] = None,
+        embedding_dim: Optional[int] = None,
     ):
         if id is None:
             self.id = uuid.uuid4()
@@ -595,3 +483,7 @@ class Source:
         self.name = name
         self.user_id = user_id
         self.created_at = created_at
+
+        # embedding info (optional)
+        self.embedding_dim = embedding_dim
+        self.embedding_model = embedding_model
