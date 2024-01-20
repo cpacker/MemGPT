@@ -3,6 +3,16 @@ from logging import CRITICAL, ERROR, WARN, WARNING, INFO, DEBUG, NOTSET
 
 MEMGPT_DIR = os.path.join(os.path.expanduser("~"), ".memgpt")
 
+# embeddings
+MAX_EMBEDDING_DIM = 4096  # maximum supported embeding size - do NOT change or else DBs will need to be reset
+
+# tokenizers
+EMBEDDING_TO_TOKENIZER_MAP = {
+    "text-embedding-ada-002": "cl100k_base",
+}
+EMBEDDING_TO_TOKENIZER_DEFAULT = "cl100k_base"
+
+
 DEFAULT_MEMGPT_MODEL = "gpt-4"
 DEFAULT_PERSONA = "sam_pov"
 DEFAULT_HUMAN = "basic"

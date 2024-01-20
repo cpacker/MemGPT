@@ -1,4 +1,4 @@
-name: MemGPT tests
+name: Run All pytest Tests
 
 env:
   PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}

@@ -6,11 +6,7 @@ packages = [
 ]
 description = "Teaching LLMs memory management for unbounded context"
 authors = [
-    "Charles Packer <contact@charlespacker.com>",
-    "Vivian Fang <hi@vivi.sh>",
-    "Sarah Wooders <sarahwooders@gmail.com>",
-    "Shishir Patil <shishirpatil@berkeley.edu>",
-    "Kevin Lin <kevinlin@eecs.berkeley.edu>"
+    "MemGPT Team <hi@memgpt.ai>",
 ]
 license = "Apache License"
 readme = "README.md"
