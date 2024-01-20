@@ -6,6 +6,7 @@ import sys
 
 from memgpt.functions.schema_generator import generate_schema
 from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
+from memgpt.utils import printd
 
 USER_FUNCTIONS_DIR = os.path.join(MEMGPT_DIR, "functions")
 
@@ -17,6 +18,11 @@ def load_function_set(module):
     function_dict = {}
 
     for attr_name in dir(module):
+        if attr_name.startswith("_"):
+            # Skip private functions
+            printd(f"Skipping {attr_name} because it starts with _, private function")
+            continue
+
         # Get the attribute
         attr = getattr(module, attr_name)
 
