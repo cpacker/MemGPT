@@ -249,7 +249,7 @@ class Message(Record):
 class Document(Record):
     """A document represent a document loaded into MemGPT, which is broken down into passages."""
 
-    def __init__(self, user_id: str, text: str, data_source: str, document_id: Optional[str] = None, created_at: Optional[str] = None, embedding: Optional[np.ndarray] = None,
+    def __init__(self, user_id: str, text: str, data_source: str, document_id: Optional[str] = None, created_at: Optional[str] = None,
                  metadata: Optional[dict] = None):
         super().__init__(document_id)
         if metadata is None:
@@ -258,7 +258,6 @@ class Document(Record):
         self.text = text
         self.document_id = document_id
         self.data_source = data_source
-        self.embedding = embedding
         self.metadata = metadata
         self.created_at = created_at
 

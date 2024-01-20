@@ -84,31 +84,6 @@ def insert_passages_into_source(passages: List[Passage], source_name: str, user_
     storage.save()
 
 
-def insert_passages_into_source(passages: List[Passage], source_name: str, user_id: uuid.UUID, config: MemGPTConfig):
-    """Insert a list of passages into a source by updating storage connectors and metadata store"""
-    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
-    orig_size = storage.size()
-
-    # insert metadata store
-    ms = MetadataStore(config)
-    source = ms.get_source(user_id=user_id, source_name=source_name)
-    if not source:
-        # create new
-        source = Source(user_id=user_id, name=source_name, created_at=get_local_time())
-        ms.create_source(source)
-
-    # make sure user_id is set for passages
-    for passage in passages:
-        # TODO: attach source IDs
-        # passage.source_id = source.id
-        passage.user_id = user_id
-        passage.data_source = source_name
-
-    # add and save all passages
-    storage.insert_many(passages)
-    assert orig_size + len(passages) == storage.size(), f"Expected {orig_size + len(passages)} passages, got {storage.size()}"
-    storage.save()
-
 def store_docs(name, docs, user_id=None, show_progress=True):
     """Common function for embedding and storing documents"""
 
@@ -138,28 +113,30 @@ def store_docs(name, docs, user_id=None, show_progress=True):
     index = VectorStoreIndex.from_documents(docs, service_context=service_context, show_progress=True)
     embed_dict = index._vector_store._data.embedding_dict
     node_dict = index._docstore.docs
-
-    # TODO: add document store
-
-    # gather passages
     passages = []
-    for node_id, node in tqdm(node_dict.items()):
-        vector = embed_dict[node_id]
-        node.embedding = vector
-        text = node.text.replace("\x00", "\uFFFD")  # hacky fix for error on null characters
-        assert (
-            len(node.embedding) == config.default_embedding_config.embedding_dim
-        ), f"Expected embedding dimension {config.default_embedding_config.embedding_dim}, got {len(node.embedding)}: {node.embedding}"
-        passages.append(
-            Passage(
-                user_id=user.id,
-                text=text,
-                data_source=name,
-                embedding=node.embedding,
-                metadata=None,
+    storage = StorageConnector.get_storage_connector(TableType.DOCUMENTS, config, user_id)
+    docs_storage = []
+    for doc in docs:
+        doc_storage = Document(user_id=user_id, text=doc.text, document_id=doc.doc_id, data_source=data_source.name)
+        docs_storage.append(doc_storage)
+        for node_id, node in tqdm(node_dict.items()):
+            vector = embed_dict[node_id]
+            node.embedding = vector
+            text = node.text.replace("\x00", "\uFFFD")  # hacky fix for error on null characters
+            assert (
+                len(node.embedding) == config.default_embedding_config.embedding_dim
+            ), f"Expected embedding dimension {config.default_embedding_config.embedding_dim}, got {len(node.embedding)}: {node.embedding}"
+            passages.append(
+                Passage(
+                    user_id=user.id,
+                    text=text,
+                    data_source=name,
+                    embedding=node.embedding,
+                    doc_id=doc_storage.id,
+                    metadata=None,
+                )
             )
-        )
-
+    storage.insert_many(docs_storage)
     insert_passages_into_source(passages, name, user_id, config)
 
 

@@ -84,9 +84,9 @@ class StorageConnector:
 
     @staticmethod
     def get_storage_connector(table_type: TableType, config: MemGPTConfig, user_id, agent_id=None):
-        if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES or table_type == TableType.DOCUMENTS:
+        if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
             storage_type = config.archival_storage_type
-        elif table_type == TableType.RECALL_MEMORY:
+        elif table_type == TableType.RECALL_MEMORY or table_type == TableType.DOCUMENTS:
             storage_type = config.recall_storage_type
         else:
             raise ValueError(f"Table type {table_type} not implemented")
