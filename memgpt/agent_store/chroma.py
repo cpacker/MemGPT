@@ -157,15 +157,15 @@ class ChromaStorageConnector(StorageConnector):
 
     def insert(self, record: Record):
         ids, documents, embeddings, metadatas = self.format_records([record])
-        if not any(embeddings):
+        if any([e is None for e in embeddings]):
             raise ValueError("Embeddings must be provided to chroma")
-        self.collection.add(documents=documents, embeddings=embeddings, ids=ids, metadatas=metadatas)
+        self.collection.add(documents=documents, embeddings=[e for e in embeddings if e is not None], ids=ids, metadatas=metadatas)
 
     def insert_many(self, records: List[RecordType], show_progress=False):
         ids, documents, embeddings, metadatas = self.format_records(records)
-        if not any(embeddings):
+        if any([e is None for e in embeddings]):
             raise ValueError("Embeddings must be provided to chroma")
-        self.collection.add(documents=documents, embeddings=embeddings, ids=ids, metadatas=metadatas)
+        self.collection.add(documents=documents, embeddings=[e for e in embeddings if e is not None], ids=ids, metadatas=metadatas)
 
     def delete(self, filters: Optional[Dict] = {}):
         ids, filters = self.get_filters(filters)
@@ -195,8 +195,9 @@ class ChromaStorageConnector(StorageConnector):
         flattened_results = {}
         for key, value in results.items():
             if value:
-                flattened_results[key] = value[0]
-                assert len(value) == 1, f"Value is size {len(value)}: {value}"
+                # value is an Optional[List] type according to chromadb.api.types
+                flattened_results[key] = value[0]  # type: ignore
+                assert len(value) == 1, f"Value is size {len(value)}: {value}"  # type: ignore
             else:
                 flattened_results[key] = value
 
