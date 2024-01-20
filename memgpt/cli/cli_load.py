@@ -167,7 +167,8 @@ def store_docs(name, docs, user_id=None, show_progress=True):
                     embedding_dim=config.default_embedding_config.embedding_dim,
                     embedding_model=config.default_embedding_config.embedding_model,
                 )
-    
+            )
+
     storage.insert_many(docs_storage)
     insert_passages_into_source(passages, name, user_id, config)
 
