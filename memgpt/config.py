@@ -198,7 +198,6 @@ class MemGPTConfig:
         set_field(config, "defaults", "preset", self.preset)
         set_field(config, "defaults", "persona", self.persona)
         set_field(config, "defaults", "human", self.human)
-        set_field(config, "defaults", "agent", self.agent)
 
         # model defaults
         set_field(config, "model", "model", self.default_llm_config.model)
