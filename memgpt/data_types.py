@@ -358,8 +358,6 @@ class EmbeddingConfig:
 
         # fields cannot be set to None
         assert self.embedding_endpoint_type
-        assert self.embedding_endpoint
-        assert self.embedding_model
         assert self.embedding_dim
         assert self.embedding_chunk_size
 
