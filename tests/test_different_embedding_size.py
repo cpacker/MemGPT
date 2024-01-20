@@ -42,6 +42,11 @@ def generate_passages(user, agent):
 
 
 def test_create_user():
+
+    if not os.getenv("OPENAI_API_KEY"):
+        print("Skipping test, missing OPENAI_API_KEY")
+        return
+
     wipe_config()
 
     # create client
