@@ -1,3 +1,5 @@
+# type: ignore
+
 import lancedb
 import uuid
 from datetime import datetime
