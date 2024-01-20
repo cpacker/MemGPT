@@ -25,7 +25,7 @@ from memgpt.config import MemGPTConfig
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.utils import printd
-from memgpt.data_types import Record, Message, Passage, ToolCall
+from memgpt.data_types import Record, Message, Passage, ToolCall, RecordType
 from memgpt.metadata import MetadataStore
 
 from datetime import datetime
@@ -263,7 +263,7 @@ class SQLStorageConnector(StorageConnector):
         all_filters = [getattr(self.db_model, key) == value for key, value in filter_conditions.items()]
         return all_filters
 
-    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000, offset=0) -> Iterator[List[Record]]:
+    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000, offset=0) -> Iterator[List[RecordType]]:
         filters = self.get_filters(filters)
         while True:
             # Retrieve a chunk of records with the given page_size
@@ -330,7 +330,7 @@ class SQLStorageConnector(StorageConnector):
         # return (cursor, list[records])
         return (next_cursor, records)
 
-    def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[Record]:
+    def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[RecordType]:
         filters = self.get_filters(filters)
         if limit:
             db_records = self.session.query(self.db_model).filter(*filters).limit(limit).all()
@@ -354,14 +354,14 @@ class SQLStorageConnector(StorageConnector):
         self.session.add(db_record)
         self.session.commit()
 
-    def insert_many(self, records: List[Record], show_progress=False):
+    def insert_many(self, records: List[RecordType], show_progress=False):
         iterable = tqdm(records) if show_progress else records
         for record in iterable:
             db_record = self.db_model(**vars(record))
             self.session.add(db_record)
         self.session.commit()
 
-    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         raise NotImplementedError("Vector query not implemented for SQLStorageConnector")
 
     def save(self):
@@ -449,7 +449,7 @@ class PostgresStorageConnector(SQLStorageConnector):
         self.session = session_maker()
         self.session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
 
-    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         filters = self.get_filters(filters)
         results = self.session.scalars(
             select(self.db_model).filter(*filters).order_by(self.db_model.embedding.l2_distance(query_vec)).limit(top_k)

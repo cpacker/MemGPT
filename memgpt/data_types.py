@@ -2,11 +2,11 @@
 import uuid
 from datetime import datetime
 from abc import abstractmethod
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, TypeVar
 import numpy as np
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
-from memgpt.utils import get_local_time, format_datetime
+from memgpt.utils import get_local_time, format_datetime, get_utc_time
 from memgpt.models import chat_completion_response
 
 
@@ -23,6 +23,11 @@ class Record:
             self.id = id
 
         assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
+
+
+# This allows type checking to work when you pass a Passage into a function expecting List[Record]
+# (just use List[RecordType] instead)
+RecordType = TypeVar("RecordType", bound="Record")
 
 
 class ToolCall(object):
@@ -75,7 +80,7 @@ class Message(Record):
         self.agent_id = agent_id
         self.text = text
         self.model = model  # model name (e.g. gpt-4)
-        self.created_at = datetime.now().astimezone() if created_at is None else created_at
+        self.created_at = get_utc_time() if created_at is None else created_at
 
         # openai info
         assert role in ["system", "assistant", "user", "tool"]
@@ -432,7 +437,7 @@ class Source:
         self,
         user_id: uuid.UUID,
         name: str,
-        created_at: Optional[str] = None,
+        created_at: Optional[datetime] = None,
         id: Optional[uuid.UUID] = None,
     ):
         if id is None:

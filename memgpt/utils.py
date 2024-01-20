@@ -776,6 +776,10 @@ def get_local_time(timezone=None):
     return time_str.strip()
 
 
+def get_utc_time() -> datetime:
+    return datetime.now(pytz.utc)
+
+
 def format_datetime(dt):
     return dt.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
 

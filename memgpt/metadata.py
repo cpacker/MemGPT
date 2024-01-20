@@ -340,12 +340,12 @@ class MetadataStore:
         self.session.commit()
 
     @enforce_types
-    def list_attached_sources(self, agent_id: uuid.UUID) -> List[Column]:
+    def list_attached_sources(self, agent_id: uuid.UUID) -> List[uuid.UUID]:
         results = self.session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
         return [r.source_id for r in results]
 
     @enforce_types
-    def list_attached_agents(self, source_id: uuid.UUID):
+    def list_attached_agents(self, source_id: uuid.UUID) -> List[uuid.UUID]:
         results = self.session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).all()
         return [r.agent_id for r in results]
 

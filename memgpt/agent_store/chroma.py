@@ -1,12 +1,14 @@
-import chromadb
 import uuid
 import json
 import re
 from typing import Optional, List, Iterator, Dict
+
+import chromadb
+
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.utils import printd, datetime_to_timestamp, timestamp_to_datetime
 from memgpt.config import MemGPTConfig
-from memgpt.data_types import Record, Message, Passage
+from memgpt.data_types import Record, Message, Passage, RecordType
 
 
 class ChromaStorageConnector(StorageConnector):
@@ -66,7 +68,7 @@ class ChromaStorageConnector(StorageConnector):
             chroma_filters = chroma_filters[0]
         return ids, chroma_filters
 
-    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000, offset=0) -> Iterator[List[Record]]:
+    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000, offset=0) -> Iterator[List[RecordType]]:
         ids, filters = self.get_filters(filters)
         while True:
             # Retrieve a chunk of records with the given page_size
@@ -104,7 +106,7 @@ class ChromaStorageConnector(StorageConnector):
                 for (text, id, metadatas) in zip(results["documents"], results["ids"], results["metadatas"])
             ]
 
-    def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[Record]:
+    def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[RecordType]:
         ids, filters = self.get_filters(filters)
         if self.collection.count() == 0:
             return []
@@ -120,7 +122,7 @@ class ChromaStorageConnector(StorageConnector):
             return None
         return self.results_to_records(results)[0]
 
-    def format_records(self, records: List[Record]):
+    def format_records(self, records: List[T]):
         metadatas = []
         ids = [str(record.id) for record in records]
         documents = [record.text for record in records]
@@ -155,7 +157,7 @@ class ChromaStorageConnector(StorageConnector):
             raise ValueError("Embeddings must be provided to chroma")
         self.collection.add(documents=documents, embeddings=embeddings, ids=ids, metadatas=metadatas)
 
-    def insert_many(self, records: List[Record], show_progress=False):
+    def insert_many(self, records: List[RecordType], show_progress=False):
         ids, documents, embeddings, metadatas = self.format_records(records)
         if not any(embeddings):
             raise ValueError("Embeddings must be provided to chroma")
@@ -181,7 +183,7 @@ class ChromaStorageConnector(StorageConnector):
     def list_data_sources(self):
         raise NotImplementedError
 
-    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         ids, filters = self.get_filters(filters)
         results = self.collection.query(query_embeddings=[query_vec], n_results=top_k, include=self.include, where=filters)
 
