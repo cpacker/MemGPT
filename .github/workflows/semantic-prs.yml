@@ -1,4 +1,4 @@
-name: "Lint PR"
+name: Validate Pull Request Format
 
 on:
   pull_request_target:

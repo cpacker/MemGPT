@@ -1,15 +1,11 @@
 import os
-import ast
-import psycopg
-
-
 from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, DateTime
 from sqlalchemy import func, or_, and_
 from sqlalchemy import desc, asc
 from sqlalchemy.orm import sessionmaker, mapped_column, declarative_base
 from sqlalchemy.orm.session import close_all_sessions
 from sqlalchemy.sql import func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy_json import mutable_json_type, MutableJson
 from sqlalchemy import TypeDecorator, CHAR
 import uuid
@@ -25,6 +21,7 @@ from memgpt.config import MemGPTConfig
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.utils import printd
+from memgpt.constants import MAX_EMBEDDING_DIM
 from memgpt.data_types import Record, Message, Passage, ToolCall
 from memgpt.metadata import MetadataStore
 
@@ -112,22 +109,6 @@ def get_db_model(
     agent_id: Optional[uuid.UUID] = None,
     dialect="postgresql",
 ):
-    # get embedding dimention info
-    # TODO: Need to remove this and just pass in AgentState/User instead
-    ms = MetadataStore(config)
-    if agent_id and ms.get_agent(agent_id):
-        agent = ms.get_agent(agent_id)
-        embedding_dim = agent.embedding_config.embedding_dim
-    else:
-        user = ms.get_user(user_id)
-        if user is None:
-            raise ValueError(f"User {user_id} not found")
-        embedding_dim = config.default_embedding_config.embedding_dim
-
-        # this cannot be the case if we are making an agent-specific table
-        assert table_type != TableType.RECALL_MEMORY, f"Agent {agent_id} not found"
-        assert table_type != TableType.ARCHIVAL_MEMORY, f"Agent {agent_id} not found"
-
     # Define a helper function to create or get the model class
     def create_or_get_model(class_name, base_model, table_name):
         if class_name in globals():
@@ -159,7 +140,9 @@ def get_db_model(
             else:
                 from pgvector.sqlalchemy import Vector
 
-                embedding = mapped_column(Vector(embedding_dim))
+                embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
+            embedding_dim = Column(BIGINT)
+            embedding_model = Column(String)
 
             metadata_ = Column(MutableJson)
 
@@ -170,6 +153,8 @@ def get_db_model(
                 return Passage(
                     text=self.text,
                     embedding=self.embedding,
+                    embedding_dim=self.embedding_dim,
+                    embedding_model=self.embedding_model,
                     doc_id=self.doc_id,
                     user_id=self.user_id,
                     id=self.id,
@@ -219,7 +204,9 @@ def get_db_model(
             else:
                 from pgvector.sqlalchemy import Vector
 
-                embedding = mapped_column(Vector(embedding_dim))
+                embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
+            embedding_dim = Column(BIGINT)
+            embedding_model = Column(String)
 
             # Add a datetime column, with default value as the current time
             created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -238,6 +225,8 @@ def get_db_model(
                     tool_calls=self.tool_calls,
                     tool_call_id=self.tool_call_id,
                     embedding=self.embedding,
+                    embedding_dim=self.embedding_dim,
+                    embedding_model=self.embedding_model,
                     created_at=self.created_at,
                     id=self.id,
                 )
@@ -443,6 +432,7 @@ class PostgresStorageConnector(SQLStorageConnector):
         for c in self.db_model.__table__.columns:
             if c.name == "embedding":
                 assert isinstance(c.type, Vector), f"Embedding column must be of type Vector, got {c.type}"
+
         Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
 
         session_maker = sessionmaker(bind=self.engine)

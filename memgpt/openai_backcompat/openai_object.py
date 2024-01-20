@@ -6,7 +6,7 @@ from typing import Optional, Tuple, Union
 
 from enum import Enum
 
-import openai
+# import openai
 
 from memgpt.constants import JSON_ENSURE_ASCII
 
@@ -68,7 +68,8 @@ class ApiType(Enum):
         elif label.lower() in ("open_ai", "openai"):
             return ApiType.OPEN_AI
         else:
-            raise openai.error.InvalidAPIType(
+            # raise openai.error.InvalidAPIType(
+            raise Exception(
                 "The API type provided in invalid. Please select one of the supported API types: 'azure', 'azure_ad', 'open_ai'"
             )
 
@@ -361,7 +362,8 @@ class OpenAIObject(dict):
 
     @property
     def typed_api_type(self):
-        return ApiType.from_str(self.api_type) if self.api_type else ApiType.from_str(openai.api_type)
+        # return ApiType.from_str(self.api_type) if self.api_type else ApiType.from_str(openai.api_type)
+        return ApiType.from_str(self.api_type) if self.api_type else ApiType.from_str(ApiType.OPEN_AI)
 
     # This class overrides __setitem__ to throw exceptions on inputs that it
     # doesn't like. This can cause problems when we try to copy an object
