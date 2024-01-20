@@ -69,6 +69,28 @@ def set_config_with_dict(new_config: dict) -> bool:
             else:
                 printd(f"Skipping new config {k}: {v} == {new_config[k]}")
 
+    # update embedding config
+    for k, v in vars(old_config.default_embedding_config).items():
+        if k in new_config:
+            if v != new_config[k]:
+                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
+                modified = True
+                # old_config[k] = new_config[k]
+                setattr(old_config.default_embedding_config, k, new_config[k])
+        else:
+            printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+
+    # update llm config
+    for k, v in vars(old_config.default_llm_config).items():
+        if k in new_config:
+            if v != new_config[k]:
+                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
+                modified = True
+                # old_config[k] = new_config[k]
+                setattr(old_config.default_llm_config, k, new_config[k])
+        else:
+            printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+
     if modified:
         printd(f"Saving new config file.")
         old_config.save()
@@ -419,12 +441,14 @@ def run(
     user_id = uuid.UUID(config.anon_clientid)
     user = ms.get_user(user_id=user_id)
     if user is None:
+        print("Creating user", user_id)
         ms.create_user(User(id=user_id))
         user = ms.get_user(user_id=user_id)
         if user is None:
             typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
             sys.exit(1)
-    assert user is not None
+    else:
+        print("existing user", user, user_id)
 
     # determine agent to use, if not provided
     if not yes and not agent:

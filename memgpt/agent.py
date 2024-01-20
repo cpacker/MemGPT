@@ -10,7 +10,7 @@ from typing import List, Tuple, Optional, cast
 
 from box import Box
 
-from memgpt.data_types import AgentState, Message
+from memgpt.data_types import AgentState, Message, EmbeddingConfig
 from memgpt.models import chat_completion_response
 from memgpt.interface import AgentInterface
 from memgpt.persistence_manager import PersistenceManager, LocalStateManager
@@ -904,3 +904,10 @@ class Agent(object):
             state=updated_state,
         )
         return self.agent_state
+
+    def migrate_embedding(self, embedding_config: EmbeddingConfig):
+        """Migrate the agent to a new embedding"""
+        # TODO: archival memory
+
+        # TODO: recall memory
+        raise NotImplementedError()

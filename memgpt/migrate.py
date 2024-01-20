@@ -150,7 +150,20 @@ def migrate_source(source_name: str):
         for node in nodes:
             # print(len(node.embedding))
             # TODO: make sure embedding config matches embedding size?
-            passages.append(Passage(user_id=user.id, data_source=source_name, text=node.text, embedding=node.embedding))
+            if len(node.embedding) != config.default_embedding_config.embedding_dim:
+                raise ValueError(
+                    f"Cannot migrate source {source_name} due to incompatible embedding dimentions. Please re-load this source with `memgpt load`."
+                )
+            passages.append(
+                Passage(
+                    user_id=user.id,
+                    data_source=source_name,
+                    text=node.text,
+                    embedding=node.embedding,
+                    embedding_dim=config.default_embedding_config.embedding_dim,
+                    embedding_model=config.default_embedding_config.embedding_model,
+                )
+            )
 
         assert len(passages) > 0, f"Source {source_name} has no passages"
         conn = StorageConnector.get_storage_connector(TableType.PASSAGES, config=config, user_id=user_id)
@@ -313,9 +326,18 @@ def migrate_agent(agent_name: str):
             nodes = pickle.load(open(archival_filename, "rb"))
             passages = []
             for node in nodes:
-                # print(len(node.embedding))
-                # TODO: make sure embeding size matches embedding config?
-                passages.append(Passage(user_id=user.id, agent_id=agent_state.id, text=node.text, embedding=node.embedding))
+                if len(node.embedding) != config.default_embedding_config.embedding_dim:
+                    raise ValueError(f"Cannot migrate agent {agent_state.name} due to incompatible embedding dimentions.")
+                passages.append(
+                    Passage(
+                        user_id=user.id,
+                        agent_id=agent_state.id,
+                        text=node.text,
+                        embedding=node.embedding,
+                        embedding_dim=agent_state.embedding_config.embedding_dim,
+                        embedding_model=agent_state.embedding_config.embedding_model,
+                    )
+                )
             if len(passages) > 0:
                 agent.persistence_manager.archival_memory.storage.insert_many(passages)
                 print(f"Inserted {len(passages)} passages into archival memory")
