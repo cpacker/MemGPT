@@ -1,4 +1,4 @@
-name: "Python/Pyright types check"
+name: "Python Static Analysis"
 on:
   push:
     branches: [ main ]
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   pyright:
-    name: "Warn-only Pyright types check"
+    name: "Pyright types check"
     strategy:
       matrix:
         python-version: ["3.11"]
@@ -29,13 +29,11 @@ jobs:
           poetry-version: "1.7.1"
           install-args: "-E dev"  # TODO: change this to --group dev when PR #842 lands
 
-      - name: "Run Pyright"  # TODO: remove "|| true" once all type errors have been fixed
-        run: |
-          poetry run pyright \
-            --pythonversion ${{matrix.python-version}} \
-            --outputjson \
-            --level error \
-            --project . || true
+      - name: "Add Poetry venv to PATH"
+        run: 'echo "$(poetry env info --path)/bin" >> $GITHUB_PATH'
 
-# This could be updated to only run on files that have changed by using:
-# git diff-tree --no-commit-id --name-only -r --name-only "$GITHUB_SHA" | grep ".py"
+      - name: "Run Pyright"
+        uses: jakebailey/pyright-action@v2
+        with:
+          python-version: ${{matrix.python-version}}
+          level: "error"
