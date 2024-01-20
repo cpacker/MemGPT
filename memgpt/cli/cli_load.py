@@ -10,9 +10,10 @@ memgpt load <data-connector-type> --name <dataset-name> [ADDITIONAL ARGS]
 
 from typing import List
 from tqdm import tqdm
+import numpy as np
 import typer
 import uuid
-from memgpt.embeddings import embedding_model
+from memgpt.embeddings import embedding_model, check_and_split_text
 from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
 from memgpt.metadata import MetadataStore
@@ -91,16 +92,45 @@ def store_docs(name, docs, user_id=None, show_progress=True):
     if user_id is None:  # assume running local with single user
         user_id = uuid.UUID(config.anon_clientid)
 
+    # ensure doc text is not too long
+    # TODO: replace this to instead split up docs that are too large
+    # (this is a temporary fix to avoid breaking the llama index)
+    for doc in docs:
+        doc.text = check_and_split_text(doc.text, config.default_embedding_config.embedding_model)[0]
+
     # record data source metadata
     ms = MetadataStore(config)
     user = ms.get_user(user_id)
     if user is None:
         raise ValueError(f"Cannot find user {user_id} in metadata store. Please run 'memgpt configure'.")
-    data_source = Source(user_id=user.id, name=name, created_at=datetime.now())
-    if not ms.get_source(user_id=user.id, source_name=name):
+
+    # create data source record
+    data_source = Source(
+        user_id=user.id,
+        name=name,
+        created_at=datetime.now(),
+        embedding_model=config.default_embedding_config.embedding_model,
+        embedding_dim=config.default_embedding_config.embedding_dim,
+    )
+    existing_source = ms.get_source(user_id=user.id, source_name=name)
+    if not existing_source:
         ms.create_source(data_source)
     else:
-        print(f"Source {name} for user {user.id} already exists")
+        print(f"Source {name} for user {user.id} already exists.")
+        if existing_source.embedding_model != data_source.embedding_model:
+            print(
+                f"Warning: embedding model for existing source {existing_source.embedding_model} does not match default {data_source.embedding_model}"
+            )
+            print("Cannot import data into this source without a compatible embedding endpoint.")
+            print("Please run 'memgpt configure' to update the default embedding settings.")
+            return False
+        if existing_source.embedding_dim != data_source.embedding_dim:
+            print(
+                f"Warning: embedding dimension for existing source {existing_source.embedding_dim} does not match default {data_source.embedding_dim}"
+            )
+            print("Cannot import data into this source without a compatible embedding endpoint.")
+            print("Please run 'memgpt configure' to update the default embedding settings.")
+            return False
 
     # compute and record passages
     embed_model = embedding_model(config.default_embedding_config)
@@ -132,6 +162,8 @@ def store_docs(name, docs, user_id=None, show_progress=True):
                 data_source=name,
                 embedding=node.embedding,
                 metadata=None,
+                embedding_dim=config.default_embedding_config.embedding_dim,
+                embedding_model=config.default_embedding_config.embedding_model,
             )
         )
 
@@ -154,19 +186,30 @@ def load_index(
         embed_dict = loaded_index._vector_store._data.embedding_dict
         node_dict = loaded_index._docstore.docs
 
-        passages = []
-        for node_id, node in node_dict.items():
-            vector = embed_dict[node_id]
-            node.embedding = vector
-            passages.append(Passage(text=node.text, embedding=vector))
-
-        if len(passages) == 0:
-            raise ValueError(f"No passages found in index {dir}")
-
         # create storage connector
         config = MemGPTConfig.load()
         if user_id is None:
             user_id = uuid.UUID(config.anon_clientid)
+
+        passages = []
+        for node_id, node in node_dict.items():
+            vector = embed_dict[node_id]
+            node.embedding = vector
+            # assume embedding are the same as config
+            passages.append(
+                Passage(
+                    text=node.text,
+                    embedding=np.array(vector),
+                    embedding_dim=config.default_embedding_config.embedding_dim,
+                    embedding_model=config.default_embedding_config.embedding_model,
+                )
+            )
+            assert config.default_embedding_config.embedding_dim == len(
+                vector
+            ), f"Expected embedding dimension {config.default_embedding_config.embedding_dim}, got {len(vector)}"
+
+        if len(passages) == 0:
+            raise ValueError(f"No passages found in index {dir}")
 
         insert_passages_into_source(passages, name, user_id, config)
     except ValueError as e:
@@ -309,7 +352,10 @@ def load_vector_database(
         # Convert to a list of tuples (text, embedding)
         passages = []
         for text, embedding in result:
-            passages.append(Passage(text=text, embedding=embedding))
+            # assume that embeddings are the same model as in config
+            passages.append(
+                Passage(text=text, embedding=embedding, embedding_dim=config.embedding_dim, embedding_model=config.embedding_model)
+            )
             assert config.embedding_dim == len(embedding), f"Expected embedding dimension {config.embedding_dim}, got {len(embedding)}"
 
         # create storage connector
