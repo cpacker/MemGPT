@@ -236,13 +236,7 @@ class MetadataStore:
     def create_source(self, source: Source):
         # make sure source.name does not already exist for user
         with self.session_maker() as session:
-            if (
-                self.session.query(SourceModel)
-                .filter(SourceModel.name == source.name)
-                .filter(SourceModel.user_id == source.user_id)
-                .count()
-                > 0
-            ):
+            if session.query(SourceModel).filter(SourceModel.name == source.name).filter(SourceModel.user_id == source.user_id).count() > 0:
                 raise ValueError(f"Source with name {source.name} already exists")
             session.add(SourceModel(**vars(source)))
             session.commit()
