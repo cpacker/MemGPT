@@ -96,7 +96,7 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
         agent_id: str = Query(..., description="Identifier of the agent whose config is requested."),
     ):
         """
-        Delete an agent from the database.
+        Delete an agent.
         """
         request = AgentConfigRequest(user_id=user_id, agent_id=agent_id)
 
