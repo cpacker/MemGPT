@@ -347,12 +347,12 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                         new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                         break
             except KeyboardInterrupt:
-                print("User interrupt occured.")
+                print("User interrupt occurred.")
                 retry = questionary.confirm("Retry agent.step()?").ask()
                 if not retry:
                     break
             except Exception as e:
-                print("An exception ocurred when running agent.step(): ")
+                print("An exception occurred when running agent.step(): ")
                 traceback.print_exc()
                 retry = questionary.confirm("Retry agent.step()?").ask()
                 if not retry:
