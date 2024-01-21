@@ -226,8 +226,7 @@ class MetadataStore:
         Base.metadata.create_all(
             self.engine, tables=[UserModel.__table__, AgentModel.__table__, SourceModel.__table__, AgentSourceMappingModel.__table__]
         )
-        session_maker = sessionmaker(bind=self.engine)
-        self.session = session_maker()
+        self.session_maker = sessionmaker(bind=self.engine)
 
     @enforce_types
     def create_agent(self, agent: AgentState):
