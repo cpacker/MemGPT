@@ -3,12 +3,13 @@ from asyncio import AbstractEventLoop
 from enum import Enum
 import json
 import uuid
-from typing import List, Optional
+from typing import List
 
-from fastapi import APIRouter, Depends, Body, HTTPException, Query
-from pydantic import BaseModel, Field, constr, validator
+from fastapi import APIRouter, Body, HTTPException, Query
+from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
+from memgpt.constants import JSON_ENSURE_ASCII
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
 
@@ -112,7 +113,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface)
 
                 async def formatted_message_generator():
                     async for message in interface.message_generator():
-                        formatted_message = f"data: {json.dumps(message)}\n\n"
+                        formatted_message = f"data: {json.dumps(message, ensure_ascii=JSON_ENSURE_ASCII)}\n\n"
                         yield formatted_message
                         await asyncio.sleep(1)
 
