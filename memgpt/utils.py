@@ -11,6 +11,10 @@ import uuid
 import sys
 import io
 from typing import List
+import inspect
+from functools import wraps
+from typing import get_type_hints, Union, _GenericAlias
+
 
 from urllib.parse import urlparse
 from contextlib import contextmanager
@@ -28,6 +32,7 @@ from memgpt.constants import (
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
     JSON_ENSURE_ASCII,
 )
+from memgpt.models.chat_completion_response import ChatCompletionResponse
 
 from memgpt.openai_backcompat.openai_object import OpenAIObject
 
@@ -232,11 +237,11 @@ ADJECTIVE_BANK = [
     "hardworking",
     "inspiring",
     "jubilant",
-    "kind-hearted",
+    "kindhearted",
     "lively",
     "miraculous",
     "neat",
-    "open-minded",
+    "openminded",
     "passionate",
     "remarkable",
     "stunning",
@@ -461,6 +466,60 @@ NOUN_BANK = [
 ]
 
 
+def get_tool_call_id() -> str:
+    return str(uuid.uuid4())
+
+
+def assistant_function_to_tool(assistant_message: dict) -> dict:
+    assert "function_call" in assistant_message
+    new_msg = copy.deepcopy(assistant_message)
+    function_call = new_msg.pop("function_call")
+    new_msg["tool_calls"] = [
+        {
+            "id": get_tool_call_id(),
+            "type": "function",
+            "function": function_call,
+        }
+    ]
+    return new_msg
+
+
+def is_optional_type(hint):
+    """Check if the type hint is an Optional type."""
+    if isinstance(hint, _GenericAlias):
+        return hint.__origin__ is Union and type(None) in hint.__args__
+    return False
+
+
+def enforce_types(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Get type hints, excluding the return type hint
+        hints = {k: v for k, v in get_type_hints(func).items() if k != "return"}
+
+        # Get the function's argument names
+        arg_names = inspect.getfullargspec(func).args
+
+        # Pair each argument with its corresponding type hint
+        args_with_hints = dict(zip(arg_names[1:], args[1:]))  # Skipping 'self'
+
+        # Check types of arguments
+        for arg_name, arg_value in args_with_hints.items():
+            hint = hints.get(arg_name)
+            if hint and not isinstance(arg_value, hint) and not (is_optional_type(hint) and arg_value is None):
+                raise ValueError(f"Argument {arg_name} does not match type {hint}")
+
+        # Check types of keyword arguments
+        for arg_name, arg_value in kwargs.items():
+            hint = hints.get(arg_name)
+            if hint and not isinstance(arg_value, hint) and not (is_optional_type(hint) and arg_value is None):
+                raise ValueError(f"Argument {arg_name} does not match type {hint}")
+
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 def annotate_message_json_list_with_tool_calls(messages: List[dict]):
     """Add in missing tool_call_id fields to a list of messages using function call style
 
@@ -548,30 +607,31 @@ def create_random_username() -> str:
     return adjective + noun
 
 
-def verify_first_message_correctness(response, require_send_message=True, require_monologue=False) -> bool:
+def verify_first_message_correctness(
+    response: ChatCompletionResponse, require_send_message: bool = True, require_monologue: bool = False
+) -> bool:
     """Can be used to enforce that the first message always uses send_message"""
     response_message = response.choices[0].message
 
     # First message should be a call to send_message with a non-empty content
-    if require_send_message and not response_message.get("function_call"):
+    if require_send_message and not (response_message.function_call or response_message.tool_calls):
         printd(f"First message didn't include function call: {response_message}")
         return False
 
-    function_call = response_message.get("function_call")
-    function_name = function_call.get("name") if function_call is not None else ""
+    assert not (response_message.function_call and response_message.tool_calls), response_message
+    function_call = response_message.function_call if response_message.function_call else response_message.tool_calls[0].function
+    function_name = function_call.name if function_call is not None else ""
     if require_send_message and function_name != "send_message" and function_name != "archival_memory_search":
         printd(f"First message function call wasn't send_message or archival_memory_search: {response_message}")
         return False
 
-    if require_monologue and (
-        not response_message.get("content") or response_message["content"] is None or response_message["content"] == ""
-    ):
+    if require_monologue and (not response_message.content or response_message.content is None or response_message.content == ""):
         printd(f"First message missing internal monologue: {response_message}")
         return False
 
-    if response_message.get("content"):
+    if response_message.content:
         ### Extras
-        monologue = response_message.get("content")
+        monologue = response_message.content
 
         def contains_special_characters(s):
             special_characters = '(){}[]"'

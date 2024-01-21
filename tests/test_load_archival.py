@@ -9,6 +9,7 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.cli.cli_load import load_directory, load_database, load_webpage
 from memgpt.cli.cli import attach
 from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import User, AgentState, EmbeddingConfig
 
@@ -69,27 +70,31 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
             embedding_endpoint_type="openai",
             embedding_endpoint="https://api.openai.com/v1",
             embedding_dim=1536,
+            # openai_key=os.getenv("OPENAI_API_KEY"),
+        )
+        credentials = MemGPTCredentials(
             openai_key=os.getenv("OPENAI_API_KEY"),
         )
+        credentials.save()
     else:
         embedding_config = EmbeddingConfig(embedding_endpoint_type="local", embedding_endpoint=None, embedding_dim=384)
 
     # create user and agent
-    user = User(id=uuid.UUID(config.anon_clientid), default_embedding_config=embedding_config)
+    user = User(id=uuid.UUID(config.anon_clientid))
     agent = AgentState(
         user_id=user.id,
         name="test_agent",
         preset=user.default_preset,
         persona=user.default_persona,
         human=user.default_human,
-        llm_config=user.default_llm_config,
-        embedding_config=user.default_embedding_config,
+        llm_config=config.default_llm_config,
+        embedding_config=embedding_config,
     )
     ms.delete_user(user.id)
     ms.create_user(user)
     ms.create_agent(agent)
     user = ms.get_user(user.id)
-    print("Got user:", user, user.default_embedding_config)
+    print("Got user:", user, embedding_config)
 
     # setup storage connectors
     print("Creating storage connectors...")

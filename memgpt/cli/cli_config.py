@@ -16,13 +16,14 @@ from memgpt.log import logger
 from memgpt import utils
 
 from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials, SUPPORTED_AUTH_TYPES
 from memgpt.constants import MEMGPT_DIR
 
 # from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.constants import LLM_MAX_TOKENS
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
-from memgpt.openai_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
+from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.server.utils import shorten_key_middle
 from memgpt.data_types import User, LLMConfig, EmbeddingConfig
 from memgpt.metadata import MetadataStore
@@ -50,13 +51,16 @@ def get_openai_credentials():
     return openai_key
 
 
-def configure_llm_endpoint(config: MemGPTConfig):
+def configure_llm_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials):
     # configure model endpoint
     model_endpoint_type, model_endpoint = None, None
 
     # get default
-    default_model_endpoint_type = config.model_endpoint_type
-    if config.model_endpoint_type is not None and config.model_endpoint_type not in ["openai", "azure"]:  # local model
+    default_model_endpoint_type = config.default_llm_config.model_endpoint_type
+    if config.default_llm_config.model_endpoint_type is not None and config.default_llm_config.model_endpoint_type not in [
+        "openai",
+        "azure",
+    ]:  # local model
         default_model_endpoint_type = "local"
 
     provider = questionary.select(
@@ -68,34 +72,36 @@ def configure_llm_endpoint(config: MemGPTConfig):
     # set: model_endpoint_type, model_endpoint
     if provider == "openai":
         # check for key
-        if config.openai_key is None:
+        if credentials.openai_key is None:
             # allow key to get pulled from env vars
             openai_api_key = os.getenv("OPENAI_API_KEY", None)
+            # if we still can't find it, ask for it as input
             if openai_api_key is None:
-                # if we still can't find it, ask for it as input
                 while openai_api_key is None or len(openai_api_key) == 0:
                     # Ask for API key as input
-                    openai_api_key = questionary.text(
+                    openai_api_key = questionary.password(
                         "Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):"
                     ).ask()
                     if openai_api_key is None:
                         raise KeyboardInterrupt
-            config.openai_key = openai_api_key
-            config.save()
+            credentials.openai_key = openai_api_key
+            credentials.save()
         else:
             # Give the user an opportunity to overwrite the key
             openai_api_key = None
-            default_input = shorten_key_middle(config.openai_key) if config.openai_key.startswith("sk-") else config.openai_key
-            openai_api_key = questionary.text(
-                "Enter your OpenAI API key (hit enter to use existing key):",
+            default_input = (
+                shorten_key_middle(credentials.openai_key) if credentials.openai_key.startswith("sk-") else credentials.openai_key
+            )
+            openai_api_key = questionary.password(
+                "Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):",
                 default=default_input,
             ).ask()
             if openai_api_key is None:
                 raise KeyboardInterrupt
             # If the user modified it, use the new one
             if openai_api_key != default_input:
-                config.openai_key = openai_api_key
-                config.save()
+                credentials.openai_key = openai_api_key
+                credentials.save()
 
         model_endpoint_type = "openai"
         model_endpoint = "https://api.openai.com/v1"
@@ -112,9 +118,9 @@ def configure_llm_endpoint(config: MemGPTConfig):
                 "Missing environment variables for Azure (see https://memgpt.readme.io/docs/endpoints#azure-openai). Please set then run `memgpt configure` again."
             )
         else:
-            config.azure_key = azure_creds["azure_key"]
-            config.azure_endpoint = azure_creds["azure_endpoint"]
-            config.azure_version = azure_creds["azure_version"]
+            credentials.azure_key = azure_creds["azure_key"]
+            credentials.azure_endpoint = azure_creds["azure_endpoint"]
+            credentials.azure_version = azure_creds["azure_version"]
             config.save()
 
         model_endpoint_type = "azure"
@@ -123,9 +129,9 @@ def configure_llm_endpoint(config: MemGPTConfig):
     else:  # local models
         backend_options = ["webui", "webui-legacy", "llamacpp", "koboldcpp", "ollama", "lmstudio", "lmstudio-legacy", "vllm", "openai"]
         default_model_endpoint_type = None
-        if config.model_endpoint_type in backend_options:
+        if config.default_llm_config.model_endpoint_type in backend_options:
             # set from previous config
-            default_model_endpoint_type = config.model_endpoint_type
+            default_model_endpoint_type = config.default_llm_config.model_endpoint_type
         model_endpoint_type = questionary.select(
             "Select LLM backend (select 'openai' if you have an OpenAI compatible proxy):",
             backend_options,
@@ -149,13 +155,13 @@ def configure_llm_endpoint(config: MemGPTConfig):
                     model_endpoint = questionary.text("Enter default endpoint:", default=default_model_endpoint).ask()
                     if model_endpoint is None:
                         raise KeyboardInterrupt
-            elif config.model_endpoint:
-                model_endpoint = questionary.text("Enter default endpoint:", default=config.model_endpoint).ask()
+            elif config.default_llm_config.model_endpoint:
+                model_endpoint = questionary.text("Enter default endpoint:", default=config.default_llm_config.model_endpoint).ask()
                 if model_endpoint is None:
                     raise KeyboardInterrupt
                 while not utils.is_valid_url(model_endpoint):
                     typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
-                    model_endpoint = questionary.text("Enter default endpoint:", default=config.model_endpoint).ask()
+                    model_endpoint = questionary.text("Enter default endpoint:", default=config.default_llm_config.model_endpoint).ask()
                     if model_endpoint is None:
                         raise KeyboardInterrupt
             else:
@@ -176,7 +182,7 @@ def configure_llm_endpoint(config: MemGPTConfig):
     return model_endpoint_type, model_endpoint
 
 
-def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoint: str):
+def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_endpoint_type: str, model_endpoint: str):
     # set: model, model_wrapper
     model, model_wrapper = None, None
     if model_endpoint_type == "openai" or model_endpoint_type == "azure":
@@ -185,10 +191,10 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
         fetched_model_options = None
         try:
             if model_endpoint_type == "openai":
-                fetched_model_options = openai_get_model_list(url=model_endpoint, api_key=config.openai_key)
+                fetched_model_options = openai_get_model_list(url=model_endpoint, api_key=credentials.openai_key)
             elif model_endpoint_type == "azure":
                 fetched_model_options = azure_openai_get_model_list(
-                    url=model_endpoint, api_key=config.azure_key, api_version=config.azure_version
+                    url=model_endpoint, api_key=credentials.azure_key, api_version=credentials.azure_version
                 )
             fetched_model_options = [obj["id"] for obj in fetched_model_options["data"] if obj["id"].startswith("gpt-")]
         except:
@@ -202,11 +208,11 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
         other_option_str = "[enter model name manually]"
 
         # Check if the model we have set already is even in the list (informs our default)
-        valid_model = config.model in hardcoded_model_options
+        valid_model = config.default_llm_config.model in hardcoded_model_options
         model = questionary.select(
             "Select default model (recommended: gpt-4):",
             choices=hardcoded_model_options + [see_all_option_str, other_option_str],
-            default=config.model if valid_model else hardcoded_model_options[0],
+            default=config.default_llm_config.model if valid_model else hardcoded_model_options[0],
         ).ask()
         if model is None:
             raise KeyboardInterrupt
@@ -217,7 +223,7 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
             model = questionary.select(
                 "Select default model (recommended: gpt-4):",
                 choices=fetched_model_options + [other_option_str],
-                default=config.model if valid_model else fetched_model_options[0],
+                default=config.default_llm_config.model if valid_model else fetched_model_options[0],
             ).ask()
             if model is None:
                 raise KeyboardInterrupt
@@ -235,7 +241,11 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
     else:  # local models
         # ollama also needs model type
         if model_endpoint_type == "ollama":
-            default_model = config.model if config.model and config.model_endpoint_type == "ollama" else DEFAULT_OLLAMA_MODEL
+            default_model = (
+                config.default_llm_config.model
+                if config.default_llm_config.model and config.default_llm_config.model_endpoint_type == "ollama"
+                else DEFAULT_OLLAMA_MODEL
+            )
             model = questionary.text(
                 "Enter default model name (required for Ollama, see: https://memgpt.readme.io/docs/ollama):",
                 default=default_model,
@@ -244,7 +254,11 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
                 raise KeyboardInterrupt
             model = None if len(model) == 0 else model
 
-        default_model = config.model if config.model and config.model_endpoint_type == "vllm" else ""
+        default_model = (
+            config.default_llm_config.model
+            if config.default_llm_config.model and config.default_llm_config.model_endpoint_type == "vllm"
+            else ""
+        )
 
         # vllm needs huggingface model tag
         if model_endpoint_type == "vllm":
@@ -260,10 +274,12 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
             # If we got model options from vLLM endpoint, allow selection + custom input
             if model_options is not None:
                 other_option_str = "other (enter name)"
-                valid_model = config.model in model_options
+                valid_model = config.default_llm_config.model in model_options
                 model_options.append(other_option_str)
                 model = questionary.select(
-                    "Select default model:", choices=model_options, default=config.model if valid_model else model_options[0]
+                    "Select default model:",
+                    choices=model_options,
+                    default=config.default_llm_config.model if valid_model else model_options[0],
                 ).ask()
                 if model is None:
                     raise KeyboardInterrupt
@@ -297,6 +313,31 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
         ).ask()
         if model_wrapper is None:
             raise KeyboardInterrupt
+
+        # ask about local auth
+        use_local_auth = questionary.confirm(
+            "Is your LLM endpoint authenticated? (default no)",
+            default=False,
+        ).ask()
+        if use_local_auth is None:
+            raise KeyboardInterrupt
+        if use_local_auth:
+            local_auth_type = questionary.select(
+                "What HTTP authentication method does your endpoint require?",
+                choices=SUPPORTED_AUTH_TYPES,
+                default=SUPPORTED_AUTH_TYPES[0],
+            ).ask()
+            if local_auth_type is None:
+                raise KeyboardInterrupt
+            local_auth_key = questionary.password(
+                "Enter your authentication key:",
+            ).ask()
+            if local_auth_key is None:
+                raise KeyboardInterrupt
+            # credentials = MemGPTCredentials.load()
+            credentials.openllm_auth_type = local_auth_type
+            credentials.openllm_key = local_auth_key
+            credentials.save()
 
     # set: context_window
     if str(model) not in LLM_MAX_TOKENS:
@@ -336,10 +377,10 @@ def configure_model(config: MemGPTConfig, model_endpoint_type: str, model_endpoi
     return model, model_wrapper, context_window
 
 
-def configure_embedding_endpoint(config: MemGPTConfig):
+def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials):
     # configure embedding endpoint
 
-    default_embedding_endpoint_type = config.embedding_endpoint_type
+    default_embedding_endpoint_type = config.default_embedding_config.embedding_endpoint_type
 
     embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = None, None, None, None
     embedding_provider = questionary.select(
@@ -350,24 +391,25 @@ def configure_embedding_endpoint(config: MemGPTConfig):
 
     if embedding_provider == "openai":
         # check for key
-        if config.openai_key is None:
+        if credentials.openai_key is None:
             # allow key to get pulled from env vars
             openai_api_key = os.getenv("OPENAI_API_KEY", None)
             if openai_api_key is None:
                 # if we still can't find it, ask for it as input
                 while openai_api_key is None or len(openai_api_key) == 0:
                     # Ask for API key as input
-                    openai_api_key = questionary.text(
+                    openai_api_key = questionary.password(
                         "Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):"
                     ).ask()
                     if openai_api_key is None:
                         raise KeyboardInterrupt
-                config.openai_key = openai_api_key
-                config.save()
+                credentials.openai_key = openai_api_key
+                credentials.save()
 
         embedding_endpoint_type = "openai"
         embedding_endpoint = "https://api.openai.com/v1"
         embedding_dim = 1536
+        embedding_model = "text-embedding-ada-002"
 
     elif embedding_provider == "azure":
         # check for necessary vars
@@ -381,6 +423,7 @@ def configure_embedding_endpoint(config: MemGPTConfig):
         embedding_endpoint_type = "azure"
         embedding_endpoint = azure_creds["azure_embedding_endpoint"]
         embedding_dim = 1536
+        embedding_model = "text-embedding-ada-002"
 
     elif embedding_provider == "hugging-face":
         # configure hugging face embedding endpoint (https://github.com/huggingface/text-embeddings-inference)
@@ -397,7 +440,9 @@ def configure_embedding_endpoint(config: MemGPTConfig):
             embedding_endpoint = questionary.text("Enter default endpoint:").ask()
 
         # get model type
-        default_embedding_model = config.embedding_model if config.embedding_model else "BAAI/bge-large-en-v1.5"
+        default_embedding_model = (
+            config.default_embedding_config.embedding_model if config.default_embedding_config.embedding_model else "BAAI/bge-large-en-v1.5"
+        )
         embedding_model = questionary.text(
             "Enter HuggingFace model tag (e.g. BAAI/bge-large-en-v1.5):",
             default=default_embedding_model,
@@ -406,7 +451,7 @@ def configure_embedding_endpoint(config: MemGPTConfig):
             raise KeyboardInterrupt
 
         # get model dimentions
-        default_embedding_dim = config.embedding_dim if config.embedding_dim else "1024"
+        default_embedding_dim = config.default_embedding_config.embedding_dim if config.default_embedding_config.embedding_dim else "1024"
         embedding_dim = questionary.text("Enter embedding model dimentions (e.g. 1024):", default=str(default_embedding_dim)).ask()
         if embedding_dim is None:
             raise KeyboardInterrupt
@@ -422,7 +467,7 @@ def configure_embedding_endpoint(config: MemGPTConfig):
     return embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model
 
 
-def configure_cli(config: MemGPTConfig):
+def configure_cli(config: MemGPTConfig, credentials: MemGPTCredentials):
     # set: preset, default_persona, default_human, default_agent``
     from memgpt.presets.presets import preset_options
 
@@ -452,7 +497,7 @@ def configure_cli(config: MemGPTConfig):
     return preset, persona, human, agent
 
 
-def configure_archival_storage(config: MemGPTConfig):
+def configure_archival_storage(config: MemGPTConfig, credentials: MemGPTCredentials):
     # Configure archival storage backend
     archival_storage_options = ["postgres", "chroma"]
     archival_storage_type = questionary.select(
@@ -496,7 +541,7 @@ def configure_archival_storage(config: MemGPTConfig):
     # TODO: allow configuring embedding model
 
 
-def configure_recall_storage(config: MemGPTConfig):
+def configure_recall_storage(config: MemGPTConfig, credentials: MemGPTCredentials):
     # Configure recall storage backend
     recall_storage_options = ["sqlite", "postgres"]
     recall_storage_type = questionary.select(
@@ -522,6 +567,7 @@ def configure():
     """Updates default MemGPT configurations"""
 
     # check credentials
+    credentials = MemGPTCredentials.load()
     openai_key = get_openai_credentials()
     azure_creds = get_azure_credentials()
 
@@ -530,43 +576,59 @@ def configure():
     # Will pre-populate with defaults, or what the user previously set
     config = MemGPTConfig.load()
     try:
-        model_endpoint_type, model_endpoint = configure_llm_endpoint(config)
-        model, model_wrapper, context_window = configure_model(
-            config=config, model_endpoint_type=model_endpoint_type, model_endpoint=model_endpoint
+        model_endpoint_type, model_endpoint = configure_llm_endpoint(
+            config=config,
+            credentials=credentials,
         )
-        embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = configure_embedding_endpoint(config)
-        default_preset, default_persona, default_human, default_agent = configure_cli(config)
-        archival_storage_type, archival_storage_uri, archival_storage_path = configure_archival_storage(config)
-        recall_storage_type, recall_storage_uri, recall_storage_path = configure_recall_storage(config)
+        model, model_wrapper, context_window = configure_model(
+            config=config,
+            credentials=credentials,
+            model_endpoint_type=model_endpoint_type,
+            model_endpoint=model_endpoint,
+        )
+        embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = configure_embedding_endpoint(
+            config=config,
+            credentials=credentials,
+        )
+        default_preset, default_persona, default_human, default_agent = configure_cli(
+            config=config,
+            credentials=credentials,
+        )
+        archival_storage_type, archival_storage_uri, archival_storage_path = configure_archival_storage(
+            config=config,
+            credentials=credentials,
+        )
+        recall_storage_type, recall_storage_uri, recall_storage_path = configure_recall_storage(
+            config=config,
+            credentials=credentials,
+        )
     except ValueError as e:
         typer.secho(str(e), fg=typer.colors.RED)
         return
 
+    # openai key might have gotten added along the way
+    openai_key = credentials.openai_key if credentials.openai_key is not None else openai_key
+
     # TODO: remove most of this (deplicated with User table)
     config = MemGPTConfig(
-        # model configs
-        model=model,
-        model_endpoint=model_endpoint,
-        model_endpoint_type=model_endpoint_type,
-        model_wrapper=model_wrapper,
-        context_window=context_window,
-        # embedding configs
-        embedding_endpoint_type=embedding_endpoint_type,
-        embedding_endpoint=embedding_endpoint,
-        embedding_dim=embedding_dim,
-        embedding_model=embedding_model,
+        default_llm_config=LLMConfig(
+            model=model,
+            model_endpoint=model_endpoint,
+            model_endpoint_type=model_endpoint_type,
+            model_wrapper=model_wrapper,
+            context_window=context_window,
+        ),
+        default_embedding_config=EmbeddingConfig(
+            embedding_endpoint_type=embedding_endpoint_type,
+            embedding_endpoint=embedding_endpoint,
+            embedding_dim=embedding_dim,
+            embedding_model=embedding_model,
+        ),
         # cli configs
         preset=default_preset,
         persona=default_persona,
         human=default_human,
         agent=default_agent,
-        # credentials
-        openai_key=openai_key,
-        azure_key=azure_creds["azure_key"],
-        azure_endpoint=azure_creds["azure_endpoint"],
-        azure_version=azure_creds["azure_version"],
-        azure_deployment=azure_creds["azure_deployment"],  # OK if None
-        azure_embedding_deployment=azure_creds["azure_embedding_deployment"],  # OK if None
         # storage
         archival_storage_type=archival_storage_type,
         archival_storage_uri=archival_storage_uri,
@@ -593,25 +655,6 @@ def configure():
         default_persona=default_persona,
         default_human=default_human,
         default_agent=default_agent,
-        default_llm_config=LLMConfig(
-            model=model,
-            model_endpoint=model_endpoint,
-            model_endpoint_type=model_endpoint_type,
-            model_wrapper=model_wrapper,
-            context_window=context_window,
-            openai_key=openai_key,
-        ),
-        default_embedding_config=EmbeddingConfig(
-            embedding_endpoint_type=embedding_endpoint_type,
-            embedding_endpoint=embedding_endpoint,
-            embedding_dim=embedding_dim,
-            embedding_model=embedding_model,
-            openai_key=openai_key,
-            azure_key=azure_creds["azure_key"],
-            azure_endpoint=azure_creds["azure_endpoint"],
-            azure_version=azure_creds["azure_version"],
-            azure_deployment=azure_creds["azure_deployment"],  # OK if None
-        ),
     )
     if ms.get_user(user_id):
         # update user
@@ -635,7 +678,7 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
     if arg == ListChoice.agents:
         """List all agents"""
         table = PrettyTable()
-        table.field_names = ["Name", "Model", "Persona", "Human", "Data Source", "Create Time"]
+        table.field_names = ["Name", "LLM Model", "Embedding Model", "Embedding Dim", "Persona", "Human", "Data Source", "Create Time"]
         for agent in tqdm(ms.list_agents(user_id=user_id)):
             source_ids = ms.list_attached_sources(agent_id=agent.id)
             source_names = [ms.get_source(source_id=source_id).name for source_id in source_ids]
@@ -643,6 +686,8 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
                 [
                     agent.name,
                     agent.llm_config.model,
+                    agent.embedding_config.embedding_model,
+                    agent.embedding_config.embedding_dim,
                     agent.persona,
                     agent.human,
                     ",".join(source_names),
@@ -674,7 +719,7 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
 
         # create table
         table = PrettyTable()
-        table.field_names = ["Name", "Created At", "Agents"]
+        table.field_names = ["Name", "Embedding Model", "Embedding Dim", "Created At", "Agents"]
         # TODO: eventually look accross all storage connections
         # TODO: add data source stats
         # TODO: connect to agents
@@ -685,7 +730,9 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
             agent_ids = ms.list_attached_agents(source_id=source.id)
             agent_names = [ms.get_agent(agent_id=agent_id).name for agent_id in agent_ids]
 
-            table.add_row([source.name, utils.format_datetime(source.created_at), ",".join(agent_names)])
+            table.add_row(
+                [source.name, source.embedding_model, source.embedding_dim, utils.format_datetime(source.created_at), ",".join(agent_names)]
+            )
 
         print(table)
     else:

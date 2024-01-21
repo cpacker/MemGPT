@@ -22,12 +22,13 @@ import memgpt.presets.presets as presets
 import memgpt.utils as utils
 from memgpt.utils import printd, open_folder_in_explorer, suppress_stdout
 from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials
 from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
 from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
 from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig, User
-from memgpt.metadata import MetadataStore
+from memgpt.metadata import MetadataStore, save_agent
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
 
 
@@ -67,15 +68,53 @@ def set_config_with_dict(new_config: dict) -> bool:
             else:
                 printd(f"Skipping new config {k}: {v} == {new_config[k]}")
 
+    # update embedding config
+    for k, v in vars(old_config.default_embedding_config).items():
+        if k in new_config:
+            if v != new_config[k]:
+                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
+                modified = True
+                # old_config[k] = new_config[k]
+                setattr(old_config.default_embedding_config, k, new_config[k])
+        else:
+            printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+
+    # update llm config
+    for k, v in vars(old_config.default_llm_config).items():
+        if k in new_config:
+            if v != new_config[k]:
+                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
+                modified = True
+                # old_config[k] = new_config[k]
+                setattr(old_config.default_llm_config, k, new_config[k])
+        else:
+            printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+
     if modified:
         printd(f"Saving new config file.")
         old_config.save()
         typer.secho(f"📖 MemGPT configuration file updated!", fg=typer.colors.GREEN)
-        typer.secho(f"🧠 model\t-> {old_config.model}\n🖥️  endpoint\t-> {old_config.model_endpoint}", fg=typer.colors.GREEN)
+        typer.secho(
+            "\n".join(
+                [
+                    f"🧠 model\t-> {old_config.default_llm_config.model}",
+                    f"🖥️  endpoint\t-> {old_config.default_llm_config.model_endpoint}",
+                ]
+            ),
+            fg=typer.colors.GREEN,
+        )
         return True
     else:
         typer.secho(f"📖 MemGPT configuration file unchanged.", fg=typer.colors.WHITE)
-        typer.secho(f"🧠 model\t-> {old_config.model}\n🖥️  endpoint\t-> {old_config.model_endpoint}", fg=typer.colors.WHITE)
+        typer.secho(
+            "\n".join(
+                [
+                    f"🧠 model\t-> {old_config.default_llm_config.model}",
+                    f"🖥️  endpoint\t-> {old_config.default_llm_config.model_endpoint}",
+                ]
+            ),
+            fg=typer.colors.WHITE,
+        )
         return False
 
 
@@ -95,6 +134,7 @@ def quickstart(
 
     # make sure everything is set up properly
     MemGPTConfig.create_config_dir()
+    credentials = MemGPTCredentials.load()
 
     config_was_modified = False
     if backend == QuickstartChoice.memgpt_hosted:
@@ -144,7 +184,9 @@ def quickstart(
         api_key = os.getenv("OPENAI_API_KEY")
         while api_key is None or len(api_key) == 0:
             # Ask for API key as input
-            api_key = questionary.text("Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):").ask()
+            api_key = questionary.password("Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):").ask()
+        credentials.openai_key = api_key
+        credentials.save()
 
         # if latest, try to pull the config from the repo
         # fallback to using local
@@ -158,8 +200,6 @@ def quickstart(
                 config = response.json()
                 # Output a success message and the first few items in the dictionary as a sample
                 print("JSON config file downloaded successfully.")
-                # Add the API key
-                config["openai_key"] = api_key
                 config_was_modified = set_config_with_dict(config)
             else:
                 typer.secho(f"Failed to download config from {url}. Status code: {response.status_code}", fg=typer.colors.RED)
@@ -170,7 +210,6 @@ def quickstart(
                 try:
                     with open(backup_config_path, "r") as file:
                         backup_config = json.load(file)
-                        backup_config["openai_key"] = api_key
                     printd("Loaded backup config file successfully.")
                     config_was_modified = set_config_with_dict(backup_config)
                 except FileNotFoundError:
@@ -183,7 +222,6 @@ def quickstart(
             try:
                 with open(backup_config_path, "r") as file:
                     backup_config = json.load(file)
-                    backup_config["openai_key"] = api_key
                 printd("Loaded config file successfully.")
                 config_was_modified = set_config_with_dict(backup_config)
             except FileNotFoundError:
@@ -215,43 +253,61 @@ class ServerChoice(Enum):
     ws_api = "websocket"
 
 
+def create_default_user_or_exit(config: MemGPTConfig, ms: MetadataStore):
+    user_id = uuid.UUID(config.anon_clientid)
+    user = ms.get_user(user_id=user_id)
+    if user is None:
+        ms.create_user(User(id=user_id))
+        user = ms.get_user(user_id=user_id)
+        if user is None:
+            typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
+            sys.exit(1)
+        else:
+            return user
+    else:
+        return user
+
+
 def server(
     type: ServerChoice = typer.Option("rest", help="Server to run"),
     port: int = typer.Option(None, help="Port to run the server on"),
     host: str = typer.Option(None, help="Host to run the server on (default to localhost)"),
+    debug: bool = typer.Option(True, help="Turn debugging output on"),
 ):
     """Launch a MemGPT server process"""
 
+    if debug:
+        from memgpt.server.server import logger as server_logger
+
+        # Set the logging level
+        server_logger.setLevel(logging.DEBUG)
+        # Create a StreamHandler
+        stream_handler = logging.StreamHandler()
+        # Set the formatter (optional)
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        stream_handler.setFormatter(formatter)
+        # Add the handler to the logger
+        server_logger.addHandler(stream_handler)
+
     if type == ServerChoice.rest_api:
-        if port is None:
-            port = REST_DEFAULT_PORT
+        import uvicorn
+        from memgpt.server.rest_api.server import app
 
-        # Change to the desired directory
-        script_path = Path(__file__).resolve()
-        script_dir = script_path.parent
-
-        server_directory = os.path.join(script_dir.parent, "server", "rest_api")
-        if host is None:
-            command = f"uvicorn server:app --reload --port {port}"
+        if MemGPTConfig.exists():
+            config = MemGPTConfig.load()
+            ms = MetadataStore(config)
+            create_default_user_or_exit(config, ms)
         else:
-            command = f"uvicorn server:app --reload --port {port} --host {host}"
-
-        # Run the command
-        print(f"Running REST server: {command} (inside {server_directory})")
+            typer.secho(f"No configuration exists. Run memgpt configure before starting the server.", fg=typer.colors.RED)
+            sys.exit(1)
 
         try:
             # Start the subprocess in a new session
-            process = subprocess.Popen(command, shell=True, start_new_session=True, cwd=server_directory)
-            process.wait()
+            uvicorn.run(app, host=host or "localhost", port=port or REST_DEFAULT_PORT)
+
         except KeyboardInterrupt:
             # Handle CTRL-C
-            print("Terminating the server...")
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                print("Server terminated with kill()")
+            typer.secho("Terminating the server...")
             sys.exit(0)
 
     elif type == ServerChoice.ws_api:
@@ -266,7 +322,7 @@ def server(
         command = f"python server.py {port}"
 
         # Run the command
-        print(f"Running WS (websockets) server: {command} (inside {server_directory})")
+        typer.secho(f"Running WS (websockets) server: {command} (inside {server_directory})")
 
         try:
             # Start the subprocess in a new session
@@ -274,13 +330,13 @@ def server(
             process.wait()
         except KeyboardInterrupt:
             # Handle CTRL-C
-            print("Terminating the server...")
+            typer.secho("Terminating the server...")
             process.terminate()
             try:
                 process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 process.kill()
-                print("Server terminated with kill()")
+                typer.secho("Server terminated with kill()")
             sys.exit(0)
 
 
@@ -402,21 +458,13 @@ def run(
 
     # read user id from config
     ms = MetadataStore(config)
-    user_id = uuid.UUID(config.anon_clientid)
-    user = ms.get_user(user_id=user_id)
-    if user is None:
-        ms.create_user(User(id=user_id))
-        user = ms.get_user(user_id=user_id)
-        if user is None:
-            typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
-            sys.exit(1)
+    user = create_default_user_or_exit(config, ms)
 
     # override with command line arguments
     if debug:
         config.debug = debug
     if no_verify:
         config.no_verify = no_verify
-
     # determine agent to use, if not provided
     if not yes and not agent:
         agents = ms.list_agents(user_id=user.id)
@@ -434,7 +482,7 @@ def run(
     if agent and ms.get_agent(agent_name=agent, user_id=user.id):  # use existing agent
         typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
         # agent_config = AgentConfig.load(agent)
-        agent_state = ms.get_agent(agent_name=agent, user_id=user_id)
+        agent_state = ms.get_agent(agent_name=agent, user_id=user.id)
         printd("Loading agent state:", agent_state.id)
         printd("Agent state:", agent_state.state)
         # printd("State path:", agent_config.save_state_dir())
@@ -498,14 +546,46 @@ def run(
             # agent = f"agent_{agent_count}"
             agent = utils.create_random_username()
 
+        llm_config = config.default_llm_config
+        embedding_config = config.default_embedding_config  # TODO allow overriding embedding params via CLI run
+
+        # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
+        if model and model != llm_config.model:
+            typer.secho(f"{CLI_WARNING_PREFIX}Overriding default model {llm_config.model} with {model}", fg=typer.colors.YELLOW)
+            llm_config.model = model
+        if context_window is not None and int(context_window) != llm_config.context_window:
+            typer.secho(
+                f"{CLI_WARNING_PREFIX}Overriding default context window {llm_config.context_window} with {context_window}",
+                fg=typer.colors.YELLOW,
+            )
+            llm_config.context_window = context_window
+        if model_wrapper and model_wrapper != llm_config.model_wrapper:
+            typer.secho(
+                f"{CLI_WARNING_PREFIX}Overriding existing model wrapper {llm_config.model_wrapper} with {model_wrapper}",
+                fg=typer.colors.YELLOW,
+            )
+            llm_config.model_wrapper = model_wrapper
+        if model_endpoint and model_endpoint != llm_config.model_endpoint:
+            typer.secho(
+                f"{CLI_WARNING_PREFIX}Overriding existing model endpoint {llm_config.model_endpoint} with {model_endpoint}",
+                fg=typer.colors.YELLOW,
+            )
+            llm_config.model_endpoint = model_endpoint
+        if model_endpoint_type and model_endpoint_type != llm_config.model_endpoint_type:
+            typer.secho(
+                f"{CLI_WARNING_PREFIX}Overriding existing model endpoint type {llm_config.model_endpoint_type} with {model_endpoint_type}",
+                fg=typer.colors.YELLOW,
+            )
+            llm_config.model_endpoint_type = model_endpoint_type
+
         agent_state = AgentState(
             name=agent,
             user_id=user.id,
             persona=persona if persona else user.default_persona,
             human=human if human else user.default_human,
             preset=preset if preset else user.default_preset,
-            llm_config=user.default_llm_config,
-            embedding_config=user.default_embedding_config,
+            llm_config=llm_config,
+            embedding_config=embedding_config,
         )
         ms.create_agent(agent_state)
 
@@ -524,6 +604,7 @@ def run(
                 agent_state=agent_state,
                 interface=interface,
             )
+            save_agent(agent=memgpt_agent, ms=ms)
         except ValueError as e:
             # TODO(swooders) what's the equivalent cleanup code for the new DB refactor?
             typer.secho(f"Failed to create agent from provided information:\n{e}", fg=typer.colors.RED)
@@ -543,7 +624,7 @@ def run(
             # except:
             #     typer.secho(f"Failed to delete agent directory during cleanup:\n{e}", fg=typer.colors.RED)
             sys.exit(1)
-        typer.secho(f"🎉 Created new agent '{agent_state.name}'", fg=typer.colors.GREEN)
+        typer.secho(f"🎉 Created new agent '{agent_state.name}' (id={agent_state.id})", fg=typer.colors.GREEN)
 
     # pretty print agent config
     # printd(json.dumps(vars(agent_config), indent=4, sort_keys=True, ensure_ascii=JSON_ENSURE_ASCII))
@@ -553,7 +634,9 @@ def run(
     original_stdout = sys.stdout  # unfortunate hack required to suppress confusing print statements from llama index
     sys.stdout = io.StringIO()
     embed_model = embedding_model(config=agent_state.embedding_config, user_id=user.id)
-    service_context = ServiceContext.from_defaults(llm=None, embed_model=embed_model, chunk_size=config.embedding_chunk_size)
+    service_context = ServiceContext.from_defaults(
+        llm=None, embed_model=embed_model, chunk_size=agent_state.embedding_config.embedding_chunk_size
+    )
     set_global_service_context(service_context)
     sys.stdout = original_stdout
 
@@ -561,7 +644,7 @@ def run(
     from memgpt.main import run_agent_loop
 
     print()  # extra space
-    run_agent_loop(memgpt_agent, config, first, no_verify)  # TODO: add back no_verify
+    run_agent_loop(memgpt_agent, config, first, ms, no_verify)  # TODO: add back no_verify
 
 
 def attach(

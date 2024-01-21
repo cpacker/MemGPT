@@ -95,12 +95,15 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         return prompt
 
     # NOTE: BOS/EOS chatml tokens are NOT inserted here
-    def _compile_system_message(self, system_message, functions) -> str:
+    def _compile_system_message(self, system_message, functions, function_documentation=None) -> str:
         """system prompt + memory + functions -> string"""
         prompt = ""
         prompt += system_message
         prompt += "\n"
-        prompt += self._compile_function_block(functions)
+        if function_documentation is not None:
+            prompt += function_documentation
+        else:
+            prompt += self._compile_function_block(functions)
         return prompt
 
     def _compile_function_call(self, function_call, inner_thoughts=None):
@@ -140,6 +143,9 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         inner_thoughts = message["content"]
         if "function_call" in message and message["function_call"]:
             prompt += f"\n{self._compile_function_call(message['function_call'], inner_thoughts=inner_thoughts)}"
+        elif "tool_calls" in message and message["tool_calls"]:
+            for tool_call in message["tool_calls"]:
+                prompt += f"\n{self._compile_function_call(tool_call['function'], inner_thoughts=inner_thoughts)}"
         else:
             # TODO should we format this into JSON somehow?
             prompt += inner_thoughts
@@ -183,18 +189,20 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         prompt += function_return_str
         return prompt
 
-    def chat_completion_to_prompt(self, messages, functions, first_message=False):
+    def chat_completion_to_prompt(self, messages, functions, first_message=False, function_documentation=None):
         """chatml-style prompt formatting, with implied support for multi-role"""
         prompt = ""
 
         # System insturctions go first
         assert messages[0]["role"] == "system"
-        system_block = self._compile_system_message(system_message=messages[0]["content"], functions=functions)
+        system_block = self._compile_system_message(
+            system_message=messages[0]["content"], functions=functions, function_documentation=function_documentation
+        )
         prompt += f"<|im_start|>system\n{system_block.strip()}<|im_end|>"
 
         # Last are the user/assistant messages
         for message in messages[1:]:
-            assert message["role"] in ["user", "assistant", "function"], message
+            assert message["role"] in ["user", "assistant", "tool"], message
 
             if message["role"] == "user":
                 # Support for AutoGen naming of agents
@@ -217,7 +225,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
 
                 prompt += f"\n<|im_start|>{role_str}\n{msg_str.strip()}<|im_end|>"
 
-            elif message["role"] == "function":
+            elif message["role"] == "tool":
                 if self.allow_function_role:
                     role_str = message["role"]
                     msg_str = self._compile_function_response(message)

@@ -3,7 +3,7 @@ import inspect
 import json
 import os
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import configparser
 import typer
 import questionary
@@ -37,119 +37,6 @@ def set_field(config, section, field, value):
 
 
 @dataclass
-class Config:
-    # system config for MemGPT
-    config_path = os.path.join(MEMGPT_DIR, "config")
-    anon_clientid = None
-
-    # database configs: archival
-    archival_storage_type: str = "chroma"  # local, db
-    archival_storage_path: str = os.path.join(MEMGPT_DIR, "chroma")
-    archival_storage_uri: str = None  # TODO: eventually allow external vector DB
-
-    # database configs: recall
-    recall_storage_type: str = "sqlite"  # local, db
-    recall_storage_path: str = MEMGPT_DIR
-    recall_storage_uri: str = None  # TODO: eventually allow external vector DB
-
-    # database configs: metadata storage (sources, agents, data sources)
-    metadata_storage_type: str = "sqlite"
-    metadata_storage_path: str = MEMGPT_DIR
-    metadata_storage_uri: str = None
-
-    memgpt_version: str = None
-
-    @classmethod
-    def load(cls) -> "MemGPTConfig":
-        config = configparser.ConfigParser()
-
-        # allow overriding with env variables
-        if os.getenv("MEMGPT_CONFIG_PATH"):
-            config_path = os.getenv("MEMGPT_CONFIG_PATH")
-        else:
-            config_path = MemGPTConfig.config_path
-
-        if os.path.exists(config_path):
-            # read existing config
-            config.read(config_path)
-            config_dict = {
-                "archival_storage_type": get_field(config, "archival_storage", "type"),
-                "archival_storage_path": get_field(config, "archival_storage", "path"),
-                "archival_storage_uri": get_field(config, "archival_storage", "uri"),
-                "recall_storage_type": get_field(config, "recall_storage", "type"),
-                "recall_storage_path": get_field(config, "recall_storage", "path"),
-                "recall_storage_uri": get_field(config, "recall_storage", "uri"),
-                "metadata_storage_type": get_field(config, "metadata_storage", "type"),
-                "metadata_storage_path": get_field(config, "metadata_storage", "path"),
-                "metadata_storage_uri": get_field(config, "metadata_storage", "uri"),
-                "anon_clientid": get_field(config, "client", "anon_clientid"),
-                "config_path": config_path,
-                "memgpt_version": get_field(config, "version", "memgpt_version"),
-            }
-            config_dict = {k: v for k, v in config_dict.items() if v is not None}
-            return cls(**config_dict)
-
-        # create new config
-        anon_clientid = str(uuid.uuid())
-        config = cls(anon_clientid=anon_clientid, config_path=config_path)
-        config.save()  # save updated config
-        return config
-
-    def save(self):
-        import memgpt
-
-        config = configparser.ConfigParser()
-        # archival storage
-        set_field(config, "archival_storage", "type", self.archival_storage_type)
-        set_field(config, "archival_storage", "path", self.archival_storage_path)
-        set_field(config, "archival_storage", "uri", self.archival_storage_uri)
-
-        # recall storage
-        set_field(config, "recall_storage", "type", self.recall_storage_type)
-        set_field(config, "recall_storage", "path", self.recall_storage_path)
-        set_field(config, "recall_storage", "uri", self.recall_storage_uri)
-
-        # metadata storage
-        set_field(config, "metadata_storage", "type", self.metadata_storage_type)
-        set_field(config, "metadata_storage", "path", self.metadata_storage_path)
-        set_field(config, "metadata_storage", "uri", self.metadata_storage_uri)
-
-        # set version
-        set_field(config, "version", "memgpt_version", memgpt.__version__)
-
-        # client
-        if not self.anon_clientid:
-            self.anon_clientid = str(uuid.uuid())
-        set_field(config, "client", "anon_clientid", self.anon_clientid)
-
-        if not os.path.exists(MEMGPT_DIR):
-            os.makedirs(MEMGPT_DIR, exist_ok=True)
-        with open(self.config_path, "w") as f:
-            config.write(f)
-
-    @staticmethod
-    def exists():
-        # allow overriding with env variables
-        if os.getenv("MEMGPT_CONFIG_PATH"):
-            config_path = os.getenv("MEMGPT_CONFIG_PATH")
-        else:
-            config_path = MemGPTConfig.config_path
-
-        assert not os.path.isdir(config_path), f"Config path {config_path} cannot be set to a directory."
-        return os.path.exists(config_path)
-
-    @staticmethod
-    def create_config_dir():
-        if not os.path.exists(MEMGPT_DIR):
-            os.makedirs(MEMGPT_DIR, exist_ok=True)
-
-        folders = ["functions", "system_prompts", "presets", "settings"]
-        for folder in folders:
-            if not os.path.exists(os.path.join(MEMGPT_DIR, folder)):
-                os.makedirs(os.path.join(MEMGPT_DIR, folder))
-
-
-@dataclass
 class MemGPTConfig:
     config_path: str = os.path.join(MEMGPT_DIR, "config")
     anon_clientid: str = None
@@ -157,34 +44,16 @@ class MemGPTConfig:
     # preset
     preset: str = DEFAULT_PRESET
 
-    # model parameters
-    model: str = None
-    model_endpoint_type: str = None
-    model_endpoint: str = None  # localhost:8000
-    model_wrapper: str = None
-    context_window: int = LLM_MAX_TOKENS[model] if model in LLM_MAX_TOKENS else LLM_MAX_TOKENS["DEFAULT"]
-
-    # model parameters: openai
-    openai_key: str = None
-
-    # model parameters: azure
-    azure_key: str = None
-    azure_endpoint: str = None
-    azure_version: str = None
-    azure_deployment: str = None
-    azure_embedding_deployment: str = None
-
     # persona parameters
     persona: str = DEFAULT_PERSONA
     human: str = DEFAULT_HUMAN
     agent: str = None
 
+    # model parameters
+    default_llm_config: LLMConfig = field(default_factory=LLMConfig)
+
     # embedding parameters
-    embedding_endpoint_type: str = "openai"  # openai, azure, local
-    embedding_endpoint: str = None
-    embedding_model: str = None
-    embedding_dim: int = 1536
-    embedding_chunk_size: int = 300  # number of tokens
+    default_embedding_config: EmbeddingConfig = field(default_factory=EmbeddingConfig)
 
     # database configs: archival
     archival_storage_type: str = "chroma"  # local, db
@@ -214,9 +83,10 @@ class MemGPTConfig:
 
     def __post_init__(self):
         # ensure types
-        self.embedding_chunk_size = int(self.embedding_chunk_size)
-        self.embedding_dim = int(self.embedding_dim)
-        self.context_window = int(self.context_window)
+        # self.embedding_chunk_size = int(self.embedding_chunk_size)
+        # self.embedding_dim = int(self.embedding_dim)
+        # self.context_window = int(self.context_window)
+        pass
 
     @staticmethod
     def generate_uuid() -> str:
@@ -249,27 +119,49 @@ class MemGPTConfig:
         if os.path.exists(config_path):
             # read existing config
             config.read(config_path)
-            config_dict = {
+
+            # Handle extraction of nested LLMConfig and EmbeddingConfig
+            llm_config_dict = {
+                # Extract relevant LLM configuration from the config file
                 "model": get_field(config, "model", "model"),
                 "model_endpoint": get_field(config, "model", "model_endpoint"),
                 "model_endpoint_type": get_field(config, "model", "model_endpoint_type"),
                 "model_wrapper": get_field(config, "model", "model_wrapper"),
                 "context_window": get_field(config, "model", "context_window"),
-                "preset": get_field(config, "defaults", "preset"),
-                "persona": get_field(config, "defaults", "persona"),
-                "human": get_field(config, "defaults", "human"),
-                "agent": get_field(config, "defaults", "agent"),
-                "openai_key": get_field(config, "openai", "key"),
-                "azure_key": get_field(config, "azure", "key"),
-                "azure_endpoint": get_field(config, "azure", "endpoint"),
-                "azure_version": get_field(config, "azure", "version"),
-                "azure_deployment": get_field(config, "azure", "deployment"),
-                "azure_embedding_deployment": get_field(config, "azure", "embedding_deployment"),
+            }
+            embedding_config_dict = {
+                # Extract relevant Embedding configuration from the config file
                 "embedding_endpoint": get_field(config, "embedding", "embedding_endpoint"),
                 "embedding_model": get_field(config, "embedding", "embedding_model"),
                 "embedding_endpoint_type": get_field(config, "embedding", "embedding_endpoint_type"),
                 "embedding_dim": get_field(config, "embedding", "embedding_dim"),
-                "embedding_chunk_size": get_field(config, "embedding", "chunk_size"),
+                "embedding_chunk_size": get_field(config, "embedding", "embedding_chunk_size"),
+            }
+            # Remove null values
+            llm_config_dict = {k: v for k, v in llm_config_dict.items() if v is not None}
+            embedding_config_dict = {k: v for k, v in embedding_config_dict.items() if v is not None}
+            # Correct the types that aren't strings
+            if llm_config_dict["context_window"] is not None:
+                llm_config_dict["context_window"] = int(llm_config_dict["context_window"])
+            if embedding_config_dict["embedding_dim"] is not None:
+                embedding_config_dict["embedding_dim"] = int(embedding_config_dict["embedding_dim"])
+            if embedding_config_dict["embedding_chunk_size"] is not None:
+                embedding_config_dict["embedding_chunk_size"] = int(embedding_config_dict["embedding_chunk_size"])
+            # Construct the inner properties
+            llm_config = LLMConfig(**llm_config_dict)
+            embedding_config = EmbeddingConfig(**embedding_config_dict)
+
+            # Everything else
+            config_dict = {
+                # Two prepared configs
+                "default_llm_config": llm_config,
+                "default_embedding_config": embedding_config,
+                # Agent related
+                "preset": get_field(config, "defaults", "preset"),
+                "persona": get_field(config, "defaults", "persona"),
+                "human": get_field(config, "defaults", "human"),
+                "agent": get_field(config, "defaults", "agent"),
+                # Storage related
                 "archival_storage_type": get_field(config, "archival_storage", "type"),
                 "archival_storage_path": get_field(config, "archival_storage", "path"),
                 "archival_storage_uri": get_field(config, "archival_storage", "uri"),
@@ -279,10 +171,13 @@ class MemGPTConfig:
                 "metadata_storage_type": get_field(config, "metadata_storage", "type"),
                 "metadata_storage_path": get_field(config, "metadata_storage", "path"),
                 "metadata_storage_uri": get_field(config, "metadata_storage", "uri"),
+                # Misc
                 "anon_clientid": get_field(config, "client", "anon_clientid"),
                 "config_path": config_path,
                 "memgpt_version": get_field(config, "version", "memgpt_version"),
             }
+
+            # Don't include null values
             config_dict = {k: v for k, v in config_dict.items() if v is not None}
 
             return cls(**config_dict)
@@ -307,28 +202,18 @@ class MemGPTConfig:
         set_field(config, "defaults", "agent", self.agent)
 
         # model defaults
-        set_field(config, "model", "model", self.model)
-        set_field(config, "model", "model_endpoint", self.model_endpoint)
-        set_field(config, "model", "model_endpoint_type", self.model_endpoint_type)
-        set_field(config, "model", "model_wrapper", self.model_wrapper)
-        set_field(config, "model", "context_window", str(self.context_window))
-
-        # security credentials: openai
-        set_field(config, "openai", "key", self.openai_key)
-
-        # security credentials: azure
-        set_field(config, "azure", "key", self.azure_key)
-        set_field(config, "azure", "endpoint", self.azure_endpoint)
-        set_field(config, "azure", "version", self.azure_version)
-        set_field(config, "azure", "deployment", self.azure_deployment)
-        set_field(config, "azure", "embedding_deployment", self.azure_embedding_deployment)
+        set_field(config, "model", "model", self.default_llm_config.model)
+        set_field(config, "model", "model_endpoint", self.default_llm_config.model_endpoint)
+        set_field(config, "model", "model_endpoint_type", self.default_llm_config.model_endpoint_type)
+        set_field(config, "model", "model_wrapper", self.default_llm_config.model_wrapper)
+        set_field(config, "model", "context_window", str(self.default_llm_config.context_window))
 
         # embeddings
-        set_field(config, "embedding", "embedding_endpoint_type", self.embedding_endpoint_type)
-        set_field(config, "embedding", "embedding_endpoint", self.embedding_endpoint)
-        set_field(config, "embedding", "embedding_model", self.embedding_model)
-        set_field(config, "embedding", "embedding_dim", str(self.embedding_dim))
-        set_field(config, "embedding", "embedding_chunk_size", str(self.embedding_chunk_size))
+        set_field(config, "embedding", "embedding_endpoint_type", self.default_embedding_config.embedding_endpoint_type)
+        set_field(config, "embedding", "embedding_endpoint", self.default_embedding_config.embedding_endpoint)
+        set_field(config, "embedding", "embedding_model", self.default_embedding_config.embedding_model)
+        set_field(config, "embedding", "embedding_dim", str(self.default_embedding_config.embedding_dim))
+        set_field(config, "embedding", "embedding_chunk_size", str(self.default_embedding_config.embedding_chunk_size))
 
         # archival storage
         set_field(config, "archival_storage", "type", self.archival_storage_type)

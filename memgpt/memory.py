@@ -5,9 +5,9 @@ from typing import Optional, List, Tuple
 from memgpt.constants import MESSAGE_SUMMARY_WARNING_FRAC
 from memgpt.utils import get_local_time, printd, count_tokens, validate_date_format, extract_date_from_timestamp
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
-from memgpt.openai_tools import create
+from memgpt.llm_api_tools import create
 from memgpt.data_types import Message, Passage, AgentState
-from memgpt.embeddings import embedding_model
+from memgpt.embeddings import embedding_model, query_embedding
 from llama_index import Document
 from llama_index.node_parser import SimpleNodeParser
 
@@ -124,7 +124,7 @@ def summarize_messages(
     ]
 
     response = create(
-        agent_state=agent_config,
+        agent_state=agent_state,
         messages=message_sequence,
     )
 
@@ -307,13 +307,20 @@ class BaseRecallMemory(RecallMemory):
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
 
+    def get_all(self, start=0, count=None):
+        results = self.storage.get_all(start, count)
+        results_json = [message.to_openai_dict() for message in results]
+        return results_json, len(results)
+
     def text_search(self, query_string, count=None, start=None):
         results = self.storage.query_text(query_string, count, start)
-        return results, len(results)
+        results_json = [message.to_openai_dict() for message in results]
+        return results_json, len(results)
 
     def date_search(self, start_date, end_date, count=None, start=None):
         results = self.storage.query_date(start_date, end_date, count, start)
-        return results, len(results)
+        results_json = [message.to_openai_dict() for message in results]
+        return results_json, len(results)
 
     def __repr__(self) -> str:
         total = self.storage.size()
@@ -350,7 +357,7 @@ class BaseRecallMemory(RecallMemory):
 class EmbeddingArchivalMemory(ArchivalMemory):
     """Archival memory with embedding based search"""
 
-    def __init__(self, agent_state, top_k: Optional[int] = 100):
+    def __init__(self, agent_state: AgentState, top_k: Optional[int] = 100):
         """Init function for archival memory
 
         :param archival_memory_database: name of dataset to pre-fill archival with
@@ -365,6 +372,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         # create embedding model
         self.embed_model = embedding_model(agent_state.embedding_config)
         self.embedding_chunk_size = agent_state.embedding_config.embedding_chunk_size
+        assert self.embedding_chunk_size, f"Must set {agent_state.embedding_config.embedding_chunk_size}"
 
         # create storage backend
         self.storage = StorageConnector.get_archival_storage_connector(user_id=agent_state.user_id, agent_id=agent_state.id)
@@ -377,6 +385,8 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             agent_id=self.agent_state.id,
             text=text,
             embedding=embedding,
+            embedding_dim=self.agent_state.embedding_config.embedding_dim,
+            embedding_model=self.agent_state.embedding_config.embedding_model,
         )
 
     def save(self):
@@ -425,7 +435,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         try:
             if query_string not in self.cache:
                 # self.cache[query_string] = self.retriever.retrieve(query_string)
-                query_vec = self.embed_model.get_text_embedding(query_string)
+                query_vec = query_embedding(self.embed_model, query_string)
                 self.cache[query_string] = self.storage.query(query_string, query_vec, top_k=self.top_k)
 
             start = int(start if start else 0)

@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 import pickle
+from typing import List
+
 from memgpt.memory import (
     BaseRecallMemory,
     EmbeddingArchivalMemory,
@@ -69,10 +71,21 @@ class LocalStateManager(PersistenceManager):
         # printd(f"{self.__class__.__name__}.all_messages.len = {len(self.all_messages)}")
         printd(f"{self.__class__.__name__}.messages.len = {len(self.messages)}")
 
+    '''
     def json_to_message(self, message_json) -> Message:
         """Convert agent message JSON into Message object"""
-        timestamp = message_json["timestamp"]
-        message = message_json["message"]
+
+        # get message
+        if "message" in message_json:
+            message = message_json["message"]
+        else:
+            message = message_json
+
+        # get timestamp
+        if "timestamp" in message_json:
+            timestamp = parse_formatted_time(message_json["timestamp"])
+        else:
+            timestamp = get_local_time()
 
         # TODO: change this when we fully migrate to tool calls API
         if "function_call" in message:
@@ -90,6 +103,9 @@ class LocalStateManager(PersistenceManager):
         else:
             tool_calls = None
 
+        # if message["role"] == "function":
+        # message["role"] = "tool"
+
         return Message(
             user_id=self.agent_state.user_id,
             agent_id=self.agent_state.id,
@@ -97,45 +113,46 @@ class LocalStateManager(PersistenceManager):
             text=message["content"],
             name=message["name"] if "name" in message else None,
             model=self.agent_state.llm_config.model,
-            created_at=parse_formatted_time(timestamp),
+            created_at=timestamp,
             tool_calls=tool_calls,
             tool_call_id=message["tool_call_id"] if "tool_call_id" in message else None,
             id=message["id"] if "id" in message else None,
         )
+    '''
 
     def trim_messages(self, num):
         # printd(f"InMemoryStateManager.trim_messages")
         self.messages = [self.messages[0]] + self.messages[num:]
 
-    def prepend_to_messages(self, added_messages):
+    def prepend_to_messages(self, added_messages: List[Message]):
         # first tag with timestamps
-        added_messages = [{"timestamp": get_local_time(), "message": msg} for msg in added_messages]
+        # added_messages = [{"timestamp": get_local_time(), "message": msg} for msg in added_messages]
 
         printd(f"{self.__class__.__name__}.prepend_to_message")
         self.messages = [self.messages[0]] + added_messages + self.messages[1:]
 
         # add to recall memory
-        self.recall_memory.insert_many([self.json_to_message(m) for m in added_messages])
+        self.recall_memory.insert_many([m for m in added_messages])
 
-    def append_to_messages(self, added_messages):
+    def append_to_messages(self, added_messages: List[Message]):
         # first tag with timestamps
-        added_messages = [{"timestamp": get_local_time(), "message": msg} for msg in added_messages]
+        # added_messages = [{"timestamp": get_local_time(), "message": msg} for msg in added_messages]
 
         printd(f"{self.__class__.__name__}.append_to_messages")
         self.messages = self.messages + added_messages
 
         # add to recall memory
-        self.recall_memory.insert_many([self.json_to_message(m) for m in added_messages])
+        self.recall_memory.insert_many([m for m in added_messages])
 
-    def swap_system_message(self, new_system_message):
+    def swap_system_message(self, new_system_message: Message):
         # first tag with timestamps
-        new_system_message = {"timestamp": get_local_time(), "message": new_system_message}
+        # new_system_message = {"timestamp": get_local_time(), "message": new_system_message}
 
         printd(f"{self.__class__.__name__}.swap_system_message")
         self.messages[0] = new_system_message
 
         # add to recall memory
-        self.recall_memory.insert(self.json_to_message(new_system_message))
+        self.recall_memory.insert(new_system_message)
 
     def update_memory(self, new_memory):
         printd(f"{self.__class__.__name__}.update_memory")

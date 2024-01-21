@@ -1,21 +1,18 @@
 import os
-import ast
-import psycopg
-
-
 from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, DateTime
-from sqlalchemy import func
+from sqlalchemy import func, or_, and_
+from sqlalchemy import desc, asc
 from sqlalchemy.orm import sessionmaker, mapped_column, declarative_base
 from sqlalchemy.orm.session import close_all_sessions
 from sqlalchemy.sql import func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy_json import mutable_json_type, MutableJson
 from sqlalchemy import TypeDecorator, CHAR
 import uuid
 
 import re
 from tqdm import tqdm
-from typing import Optional, List, Iterator, Dict
+from typing import Optional, List, Iterator, Dict, Tuple
 import numpy as np
 from tqdm import tqdm
 import pandas as pd
@@ -24,6 +21,7 @@ from memgpt.config import MemGPTConfig
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.utils import printd
+from memgpt.constants import MAX_EMBEDDING_DIM
 from memgpt.data_types import Record, Message, Passage, ToolCall
 from memgpt.metadata import MetadataStore
 
@@ -67,16 +65,13 @@ class CommonVector(TypeDecorator):
         if value:
             assert isinstance(value, np.ndarray) or isinstance(value, list), f"Value must be of type np.ndarray or list, got {type(value)}"
             assert isinstance(value[0], float), f"Value must be of type float, got {type(value[0])}"
-            # print("WRITE", np.array(value).tobytes())
             return np.array(value).tobytes()
         else:
-            # print("WRITE", value, type(value))
             return value
 
     def process_result_value(self, value, dialect):
         if not value:
             return value
-        # print("dialect", dialect, type(value))
         return np.frombuffer(value)
 
 
@@ -106,18 +101,14 @@ class ToolCallColumn(TypeDecorator):
 Base = declarative_base()
 
 
-def get_db_model(config: MemGPTConfig, table_name: str, table_type: TableType, user_id, agent_id=None, dialect="postgresql"):
-    # get embedding dimention info
-    ms = MetadataStore(config)
-    if agent_id and ms.get_agent(agent_id):
-        agent = ms.get_agent(agent_id)
-        embedding_dim = agent.embedding_config.embedding_dim
-    else:
-        user = ms.get_user(user_id)
-        if user is None:
-            raise ValueError(f"User {user_id} not found")
-        embedding_dim = user.default_embedding_config.embedding_dim
-
+def get_db_model(
+    config: MemGPTConfig,
+    table_name: str,
+    table_type: TableType,
+    user_id: uuid.UUID,
+    agent_id: Optional[uuid.UUID] = None,
+    dialect="postgresql",
+):
     # Define a helper function to create or get the model class
     def create_or_get_model(class_name, base_model, table_name):
         if class_name in globals():
@@ -149,7 +140,9 @@ def get_db_model(config: MemGPTConfig, table_name: str, table_type: TableType, u
             else:
                 from pgvector.sqlalchemy import Vector
 
-                embedding = mapped_column(Vector(embedding_dim))
+                embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
+            embedding_dim = Column(BIGINT)
+            embedding_model = Column(String)
 
             metadata_ = Column(MutableJson)
 
@@ -160,6 +153,8 @@ def get_db_model(config: MemGPTConfig, table_name: str, table_type: TableType, u
                 return Passage(
                     text=self.text,
                     embedding=self.embedding,
+                    embedding_dim=self.embedding_dim,
+                    embedding_model=self.embedding_model,
                     doc_id=self.doc_id,
                     user_id=self.user_id,
                     id=self.id,
@@ -189,7 +184,7 @@ def get_db_model(config: MemGPTConfig, table_name: str, table_type: TableType, u
             # openai info
             role = Column(String, nullable=False)
             text = Column(String)  # optional: can be null if function call
-            model = Column(String, nullable=False)
+            model = Column(String)  # optional: can be null if LLM backend doesn't require specifying
             name = Column(String)  # optional: multi-agent only
 
             # tool call request info
@@ -209,7 +204,9 @@ def get_db_model(config: MemGPTConfig, table_name: str, table_type: TableType, u
             else:
                 from pgvector.sqlalchemy import Vector
 
-                embedding = mapped_column(Vector(embedding_dim))
+                embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
+            embedding_dim = Column(BIGINT)
+            embedding_model = Column(String)
 
             # Add a datetime column, with default value as the current time
             created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -228,6 +225,8 @@ def get_db_model(config: MemGPTConfig, table_name: str, table_type: TableType, u
                     tool_calls=self.tool_calls,
                     tool_call_id=self.tool_call_id,
                     embedding=self.embedding,
+                    embedding_dim=self.embedding_dim,
+                    embedding_model=self.embedding_model,
                     created_at=self.created_at,
                     id=self.id,
                 )
@@ -253,8 +252,7 @@ class SQLStorageConnector(StorageConnector):
         all_filters = [getattr(self.db_model, key) == value for key, value in filter_conditions.items()]
         return all_filters
 
-    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000) -> Iterator[List[Record]]:
-        offset = 0
+    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000, offset=0) -> Iterator[List[Record]]:
         filters = self.get_filters(filters)
         while True:
             # Retrieve a chunk of records with the given page_size
@@ -270,6 +268,57 @@ class SQLStorageConnector(StorageConnector):
             # Increment the offset to get the next chunk in the next iteration
             offset += page_size
 
+    def get_all_cursor(
+        self,
+        filters: Optional[Dict] = {},
+        after: uuid.UUID = None,
+        before: uuid.UUID = None,
+        limit: Optional[int] = 1000,
+        order_by: str = "created_at",
+        reverse: bool = False,
+    ):
+        """Get all that returns a cursor (record.id) and records"""
+        filters = self.get_filters(filters)
+
+        # generate query
+        query = self.session.query(self.db_model).filter(*filters)
+        # query = query.order_by(asc(self.db_model.id))
+
+        # records are sorted by the order_by field first, and then by the ID if two fields are the same
+        if reverse:
+            query = query.order_by(desc(getattr(self.db_model, order_by)), asc(self.db_model.id))
+        else:
+            query = query.order_by(asc(getattr(self.db_model, order_by)), asc(self.db_model.id))
+
+        # cursor logic: filter records based on before/after ID
+        if after:
+            after_value = getattr(self.get(id=after), order_by)
+            if reverse:  # if reverse, then we want to get records that are less than the after_value
+                sort_exp = getattr(self.db_model, order_by) < after_value
+            else:  # otherwise, we want to get records that are greater than the after_value
+                sort_exp = getattr(self.db_model, order_by) > after_value
+            query = query.filter(
+                or_(sort_exp, and_(getattr(self.db_model, order_by) == after_value, self.db_model.id > after))  # tiebreaker case
+            )
+        if before:
+            before_value = getattr(self.get(id=before), order_by)
+            if reverse:
+                sort_exp = getattr(self.db_model, order_by) > before_value
+            else:
+                sort_exp = getattr(self.db_model, order_by) < before_value
+            query = query.filter(or_(sort_exp, and_(getattr(self.db_model, order_by) == before_value, self.db_model.id < before)))
+
+        # get records
+        db_record_chunk = query.limit(limit).all()
+        if not db_record_chunk:
+            return None
+        records = [record.to_record() for record in db_record_chunk]
+        next_cursor = db_record_chunk[-1].id
+        assert isinstance(next_cursor, uuid.UUID)
+
+        # return (cursor, list[records])
+        return (next_cursor, records)
+
     def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[Record]:
         filters = self.get_filters(filters)
         if limit:
@@ -278,8 +327,8 @@ class SQLStorageConnector(StorageConnector):
             db_records = self.session.query(self.db_model).filter(*filters).all()
         return [record.to_record() for record in db_records]
 
-    def get(self, id: str) -> Optional[Record]:
-        db_record = self.session.query(self.db_model).get(id)
+    def get(self, id: uuid.UUID) -> Optional[Record]:
+        db_record = self.session.get(self.db_model, id)
         if db_record is None:
             return None
         return db_record.to_record()
@@ -383,6 +432,7 @@ class PostgresStorageConnector(SQLStorageConnector):
         for c in self.db_model.__table__.columns:
             if c.name == "embedding":
                 assert isinstance(c.type, Vector), f"Embedding column must be of type Vector, got {c.type}"
+
         Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
 
         session_maker = sessionmaker(bind=self.engine)

@@ -1,5 +1,6 @@
 import os
-from typing import Dict, List, Union
+import uuid
+from typing import Dict, List, Union, Optional
 
 from memgpt.data_types import AgentState
 from memgpt.cli.cli import QuickstartChoice
@@ -57,7 +58,16 @@ class Client(object):
         if config is not None:
             set_config_with_dict(config)
 
-        self.user_id = MemGPTConfig.load().anon_clientid if user_id is None else user_id
+        if user_id is None:
+            # the default user_id
+            config = MemGPTConfig.load()
+            self.user_id = uuid.UUID(config.anon_clientid)
+        elif isinstance(user_id, str):
+            self.user_id = uuid.UUID(user_id)
+        elif isinstance(user_id, uuid.UUID):
+            self.user_id = user_id
+        else:
+            raise TypeError(user_id)
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface=self.interface)
 
@@ -65,31 +75,32 @@ class Client(object):
         self.interface.clear()
         return self.server.list_agents(user_id=self.user_id)
 
-    def agent_exists(self, agent_id: str) -> bool:
+    def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
+        if not (agent_id or agent_name):
+            raise ValueError(f"Either agent_id or agent_name must be provided")
+        if agent_id and agent_name:
+            raise ValueError(f"Only one of agent_id or agent_name can be provided")
         existing = self.list_agents()
-        return agent_id in existing["agent_names"]
+        if agent_id:
+            return agent_id in [agent["id"] for agent in existing["agents"]]
+        else:
+            return agent_name in [agent["name"] for agent in existing["agents"]]
 
     def create_agent(
         self,
         agent_config: dict,
-        # persistence_manager: Union[PersistenceManager, None] = None,
-        throw_if_exists: bool = False,
     ) -> AgentState:
         if isinstance(agent_config, dict):
             agent_name = agent_config.get("name")
         else:
             raise TypeError(f"agent_config must be of type dict")
 
-        if not self.agent_exists(agent_id=agent_name):
-            self.interface.clear()
-            agent_state = self.server.create_agent(user_id=self.user_id, agent_config=agent_config)
-            return agent_state
-        else:
-            if throw_if_exists:
-                self.server.delete_agent(user_id=self.user_id, agent_id=agent_name)
-                agent_state = self.server.create_agent(user_id=self.user_id, agent_config=agent_config)
-                return agent_state
-            # raise ValueError(f"Agent {agent_name} already exists")
+        if "name" in agent_config and self.agent_exists(agent_name=agent_config["name"]):
+            raise ValueError(f"Agent with name {agent_config['name']} already exists (user_id={self.user_id})")
+
+        self.interface.clear()
+        agent_state = self.server.create_agent(user_id=self.user_id, agent_config=agent_config)
+        return agent_state
 
     def get_agent_config(self, agent_id: str) -> Dict:
         self.interface.clear()
