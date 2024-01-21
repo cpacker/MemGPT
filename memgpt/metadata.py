@@ -64,7 +64,7 @@ class LLMConfigColumn(TypeDecorator):
         return value
 
     def process_result_value(self, value, dialect):
-        print("GET VALUE", value)
+        # print("GET VALUE", value)
         if value:
             return LLMConfig(**value)
         return value
