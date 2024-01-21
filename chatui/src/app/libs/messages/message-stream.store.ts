@@ -25,7 +25,17 @@ const useMessageStreamStore = create(
 		},
 		(set, get) => ({
 			actions: {
-				sendMessage: ({ agentId, message, role }: { agentId: string; message: string; role?: 'user' | 'system' }) => {
+				sendMessage: ({
+					userId,
+					agentId,
+					message,
+					role,
+				}: {
+					userId: string;
+					agentId: string;
+					message: string;
+					role?: 'user' | 'system';
+				}) => {
 					const abortController = new AbortController();
 					set((state) => ({ ...state, abortController, readyState: ReadyState.LOADING }));
 					const onMessageCallback = get().onMessageCallback;
@@ -41,7 +51,7 @@ const useMessageStreamStore = create(
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
 						body: JSON.stringify({
-							user_id: 'null',
+							user_id: userId,
 							agent_id: agentId,
 							message,
 							role: role ?? 'user',

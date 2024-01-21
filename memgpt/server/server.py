@@ -876,3 +876,7 @@ class SyncServer(LockingServer):
             "new_core_memory": new_core_memory,
             "modified": modified,
         }
+
+    def authenticate_user(self) -> uuid.UUID:
+        # TODO: Implement actual authentication to enable multi user setup
+        return uuid.UUID(int=uuid.getnode())

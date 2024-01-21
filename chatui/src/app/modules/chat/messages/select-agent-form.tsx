@@ -6,9 +6,11 @@ import { useState } from 'react';
 import { Agent } from '../../../libs/agents/agent';
 import { useAgentActions } from '../../../libs/agents/agent.store';
 import { useAgentsQuery } from '../../../libs/agents/use-agents.query';
+import { useAuthStoreState } from '../../../libs/auth/auth.store';
 
 const SelectAgentForm = () => {
-	const { data } = useAgentsQuery();
+	const { uuid } = useAuthStoreState();
+	const { data } = useAgentsQuery(uuid);
 	const [newAgent, setNewAgent] = useState<Agent | null>(null);
 	const { setAgent } = useAgentActions();
 	return (
