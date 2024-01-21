@@ -12,7 +12,6 @@ from memgpt.errors import LLMJSONParsingError
 from memgpt.benchmark.constants import TRIES, PERSONA, HUMAN, PROMPTS
 
 app = typer.Typer()
-client = MemGPT()
 
 
 def send_message(message: str, agent_id, turn: int, fn_type: str, print_msg: bool = False, n_tries: int = TRIES):
@@ -42,6 +41,7 @@ def bench(
     print_messages: bool = typer.Option(False, "--messages", help="Print functions calls and messages from the agent."),
     n_tries: int = typer.Option(TRIES, "--n-tries", help="Number of benchmark tries to perform for each function."),
 ):
+    client = MemGPT()
     print(f"\nDepending on your hardware, this may take up to 30 minutes. This will also create {n_tries * len(PROMPTS)} new agents.\n")
     config = MemGPTConfig.load()
     print(f"version = {config.memgpt_version}")
