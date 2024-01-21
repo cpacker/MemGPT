@@ -190,7 +190,7 @@ class Message(Record):
                 if "tool_call_id" in openai_message_dict:
                     assert openai_message_dict["tool_call_id"] is None, openai_message_dict
 
-            if "tool_calls" in openai_message_dict:
+            if "tool_calls" in openai_message_dict and openai_message_dict["tool_calls"] is not None:
                 assert openai_message_dict["role"] == "assistant", openai_message_dict
 
                 tool_calls = [

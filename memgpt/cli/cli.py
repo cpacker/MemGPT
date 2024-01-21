@@ -254,6 +254,19 @@ class ServerChoice(Enum):
     ws_api = "websocket"
 
 
+def create_default_user_or_exit(config: MemGPTConfig, ms: MetadataStore):
+    user_id = uuid.UUID(config.anon_clientid)
+    user = ms.get_user(user_id=user_id)
+    if user is None:
+        ms.create_user(User(id=user_id))
+        user = ms.get_user(user_id=user_id)
+        if user is None:
+            typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
+            sys.exit(1)
+        else:
+            return user
+
+
 def server(
     type: ServerChoice = typer.Option("rest", help="Server to run"),
     port: int = typer.Option(None, help="Port to run the server on"),
@@ -279,13 +292,21 @@ def server(
         import uvicorn
         from memgpt.server.rest_api.server import app
 
+        if MemGPTConfig.exists():
+            config = MemGPTConfig.load()
+            ms = MetadataStore(config)
+            create_default_user_or_exit(config, ms)
+        else:
+            typer.secho(f"No configuration exists. Run memgpt configure before starting the server.", fg=typer.colors.RED)
+            sys.exit(1)
+
         try:
             # Start the subprocess in a new session
             uvicorn.run(app, host=host or "localhost", port=port or REST_DEFAULT_PORT)
 
         except KeyboardInterrupt:
             # Handle CTRL-C
-            print("Terminating the server...")
+            typer.secho("Terminating the server...")
             sys.exit(0)
 
     elif type == ServerChoice.ws_api:
@@ -300,7 +321,7 @@ def server(
         command = f"python server.py {port}"
 
         # Run the command
-        print(f"Running WS (websockets) server: {command} (inside {server_directory})")
+        typer.secho(f"Running WS (websockets) server: {command} (inside {server_directory})")
 
         process = None
         try:
@@ -310,13 +331,13 @@ def server(
         except KeyboardInterrupt:
             # Handle CTRL-C
             if process is not None:
-                print("Terminating the server...")
+                typer.secho("Terminating the server...")
                 process.terminate()
                 try:
                     process.wait(timeout=5)
                 except subprocess.TimeoutExpired:
                     process.kill()
-                    print("Server terminated with kill()")
+                    typer.secho("Server terminated with kill()")
             sys.exit(0)
 
 
@@ -438,17 +459,7 @@ def run(
 
     # read user id from config
     ms = MetadataStore(config)
-    user_id = uuid.UUID(config.anon_clientid)
-    user = ms.get_user(user_id=user_id)
-    if user is None:
-        print("Creating user", user_id)
-        ms.create_user(User(id=user_id))
-        user = ms.get_user(user_id=user_id)
-        if user is None:
-            typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
-            sys.exit(1)
-    else:
-        print("existing user", user, user_id)
+    user = create_default_user_or_exit(config, ms)
 
     # determine agent to use, if not provided
     if not yes and not agent:
