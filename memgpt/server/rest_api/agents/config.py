@@ -54,8 +54,6 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
 
         This changes the name of the agent in the database but does NOT edit the agent's persona.
         """
-        request = AgentConfigRequest(user_id=user_id, agent_id=agent_id)
-
         # TODO remove once chatui adds user selection / pulls user from config
         request.user_id = None if request.user_id == "null" else request.user_id
 

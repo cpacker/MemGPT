@@ -645,6 +645,19 @@ class SyncServer(LockingServer):
         if agent is not None:
             self.ms.delete_agent(agent_id=agent_id)
 
+    def _agent_state_to_config(self, agent_state: AgentState) -> dict:
+        """Convert AgentState to a dict for a JSON response"""
+        assert agent_state is not None
+
+        agent_config = {
+            "id": agent_state.id,
+            "name": agent_state.name,
+            "human": agent_state.human,
+            "persona": agent_state.persona,
+            "created_at": agent_state.created_at.isoformat(),
+        }
+        return agent_config
+
     def list_agents(self, user_id: uuid.UUID) -> dict:
         """List all available agents to a user"""
         if self.ms.get_user(user_id=user_id) is None:
@@ -654,16 +667,7 @@ class SyncServer(LockingServer):
         logger.info(f"Retrieved {len(agents_states)} agents for user {user_id}:\n{[vars(s) for s in agents_states]}")
         return {
             "num_agents": len(agents_states),
-            "agents": [
-                {
-                    "id": state.id,
-                    "name": state.name,
-                    "human": state.human,
-                    "persona": state.persona,
-                    "created_at": state.created_at.isoformat(),
-                }
-                for state in agents_states
-            ],
+            "agents": [self._agent_state_to_config(state) for state in agents_states],
         }
 
     def get_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
@@ -904,7 +908,7 @@ class SyncServer(LockingServer):
             raise ValueError(f"Failed to update agent name in database")
 
         # return the new config (only the name should have been updated)
-        agent_config = vars(memgpt_agent.agent_state)
+        agent_config = self._agent_state_to_config(agent_state=memgpt_agent.agent_state)
         return agent_config
 
     def delete_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
