@@ -882,6 +882,31 @@ class SyncServer(LockingServer):
             "modified": modified,
         }
 
+    def rename_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_agent_name: str) -> dict:
+        """Update the name of the agent in the database"""
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        current_name = memgpt_agent.agent_state.name
+        if current_name == new_agent_name:
+            raise ValueError(f"New name ({new_agent_name}) is the same as the current name")
+
+        try:
+            memgpt_agent.agent_state.name = new_agent_name
+            self.ms.update_agent(agent=memgpt_agent.agent_state)
+        except Exception as e:
+            logger.exception(f"Failed to update agent name with:\n{str(e)}")
+            raise ValueError(f"Failed to update agent name in database")
+
+        # return the new config (only the name should have been updated)
+        agent_config = vars(memgpt_agent.agent_state)
+        return agent_config
+
     def authenticate_user(self) -> uuid.UUID:
         # TODO: Implement actual authentication to enable multi user setup
         return uuid.UUID(int=uuid.getnode())

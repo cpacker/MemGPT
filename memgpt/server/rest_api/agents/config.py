@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query, HTTPException
 from pydantic import BaseModel, Field
 
 from memgpt.server.rest_api.interface import QueuingInterface
@@ -11,6 +11,12 @@ router = APIRouter()
 class AgentConfigRequest(BaseModel):
     user_id: str = Field(..., description="Unique identifier of the user requesting the config.")
     agent_id: str = Field(..., description="Identifier of the agent whose config is requested.")
+
+
+class AgentRenameRequest(BaseModel):
+    user_id: str = Field(..., description="Unique identifier of the user requesting the config.")
+    agent_id: str = Field(..., description="Identifier of the agent whose config is requested.")
+    agent_name: str = Field(..., description="New name for the agent.")
 
 
 class AgentConfigResponse(BaseModel):
@@ -38,6 +44,30 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
 
         interface.clear()
         config = server.get_agent_config(user_id=user_id, agent_id=agent_id)
+        return AgentConfigResponse(config=config)
+
+    @router.patch("/agents/rename", tags=["agents"], response_model=AgentConfigResponse)
+    def update_agent_name(request: AgentRenameRequest = Body(...)):
+        """
+        Updates the name of a specific agent.
+
+        This changes the name of the agent in the database but does NOT edit the agent's persona.
+        """
+        request = AgentConfigRequest(user_id=user_id, agent_id=agent_id)
+
+        # TODO remove once chatui adds user selection / pulls user from config
+        request.user_id = None if request.user_id == "null" else request.user_id
+
+        user_id = uuid.UUID(request.user_id) if request.user_id else None
+        agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
+
+        interface.clear()
+        try:
+            config = server.rename_agent(user_id=user_id, agent_id=agent_id, new_agent_name=request.agent_name)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{e}")
         return AgentConfigResponse(config=config)
 
     return router
