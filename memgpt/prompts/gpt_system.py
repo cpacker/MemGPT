@@ -36,8 +36,7 @@ def get_system_text(key):
             with open(default_fields_yaml_file_path, "r") as file:
                 default_template_fields = yaml.safe_load(file)
         else:
-            raise FileNotFoundError(
-                f"No default template fields file found for key {key}, path={default_fields_yaml_file_path}")
+            raise FileNotFoundError(f"No default template fields file found for key {key}, path={default_fields_yaml_file_path}")
 
         yaml_filename = filename.replace("_templated.txt", "_templated.yaml")
         template_fields_yaml_file_path = file_path.replace(filename, yaml_filename)
