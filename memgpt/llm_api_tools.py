@@ -30,7 +30,6 @@ def is_context_overflow_error(exception):
     match_string = "maximum context length"
 
     # Backwards compatibility with openai python package/client v0.28 (pre-v1 client migration)
-    # Backwards compatibility with openai python package/client v0.28 (pre-v1 client migration)
     if match_string in str(exception):
         printd(f"Found '{match_string}' in str(exception)={(str(exception))}")
         return True
