@@ -96,9 +96,7 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
         agent_id: str = Query(..., description="Identifier of the agent whose config is requested."),
     ):
         """
-        Retrieve the configuration for a specific agent.
-
-        This endpoint fetches the configuration details for a given agent, identified by the user and agent IDs.
+        Delete an agent from the database.
         """
         request = AgentConfigRequest(user_id=user_id, agent_id=agent_id)
 
