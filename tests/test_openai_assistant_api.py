@@ -32,6 +32,12 @@ def test_list_messages():
 
     # list messages
     thread_id = str(agent_id)
-    response = client.get(f"/v1/threads/{thread_id}/messages")
-    assert response.status_code == 200
+    params = {
+        "limit": 10,
+        "order": "desc",
+        # "after": "",
+        "user_id": str(test_user_id),
+    }
+    response = client.get(f"/v1/threads/{thread_id}/messages", params=params)
+    assert response.status_code == 200, f"Error: {response.json()}"
     print(response.json())

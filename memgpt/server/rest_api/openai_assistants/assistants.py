@@ -16,7 +16,7 @@ from memgpt.server.server import SyncServer
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.rest_api.static_files import mount_static_files
-from memgpt.models.openai.messages import Message
+from memgpt.models.openai.messages import OpenAIMessage, Text
 from memgpt.data_types import LLMConfig, EmbeddingConfig
 from memgpt.constants import DEFAULT_PRESET
 
@@ -161,7 +161,7 @@ def create_thread(request: CreateThreadRequest = Body(...)):
     )
 
 
-@app.post("/v1/threads/{thread_id}/messages", tags=["assistants"], response_model=Message)
+@app.post("/v1/threads/{thread_id}/messages", tags=["assistants"], response_model=OpenAIMessage)
 def create_message(
     thread_id: str = Path(..., description="The unique identifier of the thread."),
     request: CreateMessageRequest = Body(...),
@@ -174,10 +174,10 @@ def create_message(
 @app.get("/v1/threads/{thread_id}/messages", tags=["assistants"], response_model=ListMessagesResponse)
 def list_messages(
     thread_id: str = Path(..., description="The unique identifier of the thread."),
-    limit: int = Query(..., description="How many messages to retrieve."),
-    order: str = Query(..., description="Order of messages to retrieve (either 'asc' or 'desc')."),
-    after: str = Query(..., description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
-    before: str = Query(..., description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
+    limit: int = Query(1000, description="How many messages to retrieve."),
+    order: str = Query("asc", description="Order of messages to retrieve (either 'asc' or 'desc')."),
+    after: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
+    before: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
     user_id: str = Query(..., description="The unique identifier of the user."),  # TODO: remove
 ):
     after_uuid = uuid.UUID(after) if before else None
@@ -185,15 +185,29 @@ def list_messages(
     user_id = uuid.UUID(user_id)
     agent_id = uuid.UUID(thread_id)
     reverse = True if (order == "desc") else False
-    messages = server.get_agent_recall_cursor(
+    cursor, json_messages = server.get_agent_recall_cursor(
         user_id=user_id,
         agent_id=agent_id,
         limit=limit,
-        order=order,
         after=after_uuid,
         before=before_uuid,
         order_by="created_at",
         reverse=reverse,
     )
+    print(json_messages[0]["text"])
+    # convert to openai style messages
+    openai_messages = [
+        OpenAIMessage(
+            id=str(message["id"]),
+            created_at=int(message["created_at"].timestamp()),
+            content=[Text(text=message["text"])],
+            role=message["role"],
+            thread_id=str(message["agent_id"]),
+            assistant_id=DEFAULT_PRESET  # TODO: update this
+            # file_ids=message.file_ids,
+            # metadata=message.metadata,
+        )
+        for message in json_messages
+    ]
     # TODO: cast back to message objects
-    return ListMessagesResponse(messages=messages)
+    return ListMessagesResponse(messages=openai_messages)

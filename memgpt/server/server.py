@@ -777,6 +777,7 @@ class SyncServer(LockingServer):
         before: Optional[uuid.UUID] = None,
         limit: Optional[int] = 100,
         order_by: Optional[str] = "created_at",
+        order: Optional[str] = "asc",
         reverse: Optional[bool] = False,
     ):
         if self.ms.get_user(user_id=user_id) is None:

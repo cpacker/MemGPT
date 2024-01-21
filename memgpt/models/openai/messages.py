@@ -9,28 +9,27 @@ class ImageFile(BaseModel):
 
 
 class Text(BaseModel):
-    type: str = "text"
-    text: str
+    object: str = "text"
+    text: str = Field(..., description="The text content to be processed by the agent.")
 
 
-class Message(BaseModel):
-    id: str
+class OpenAIMessage(BaseModel):
+    id: str = Field(..., description="The unique identifier of the message.")
     object: str = "thread.message"
-    created_at: int  # unix timestamp
-    thread_id: str
-    role: str
-    content: List[Union[ImageFile, Text]]
-    assistant_id: str
-    run_id: Optional[str] = None
-    file_ids: Optional[List[str]] = []
-    metadata: Optional[Dict] = {}
+    created_at: int = Field(..., description="The unix timestamp of when the message was created.")
+    thread_id: str = Field(..., description="The unique identifier of the thread.")
+    role: str = Field(..., description="Role of the message sender (either 'user' or 'system')")
+    content: List[Union[Text, ImageFile]] = Field(None, description="The message content to be processed by the agent.")
+    assistant_id: str = Field(..., description="The unique identifier of the assistant.")
+    run_id: Optional[str] = Field(None, description="The unique identifier of the run.")
+    file_ids: Optional[List[str]] = Field(None, description="List of file IDs associated with the message.")
+    metadata: Optional[Dict] = Field(None, description="Metadata associated with the message.")
 
 
 class MessageFile(BaseModel):
     id: str
     object: str = "thread.message.file"
     created_at: int  # unix timestamp
-    message_id: str
 
 
 class CreateMessageRequest(BaseModel):
@@ -45,4 +44,4 @@ class ModifyMessageRequest(BaseModel):
 
 
 class ListMessagesResponse(BaseModel):
-    messages: List[Message]
+    messages: List[OpenAIMessage]
