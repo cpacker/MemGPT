@@ -13,12 +13,12 @@ router = APIRouter()
 
 class AgentConfigRequest(BaseModel):
     user_id: str = Field(..., description="Unique identifier of the user requesting the config.")
-    agent_id: str = Field(..., description="Identifier of the agent whose config is requested.")
+    agent_id: str = Field(..., description="Unique identifier of the agent whose config is requested.")
 
 
 class AgentRenameRequest(BaseModel):
     user_id: str = Field(..., description="Unique identifier of the user requesting the config.")
-    agent_id: str = Field(..., description="Identifier of the agent whose config is requested.")
+    agent_id: str = Field(..., description="Unique identifier of the agent whose config is requested.")
     agent_name: str = Field(..., description="New name for the agent.")
 
 
@@ -47,7 +47,7 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
     @router.get("/agents/config", tags=["agents"], response_model=AgentConfigResponse)
     def get_agent_config(
         user_id: str = Query(..., description="Unique identifier of the user requesting the config."),
-        agent_id: str = Query(..., description="Identifier of the agent whose config is requested."),
+        agent_id: str = Query(..., description="Unique identifier of the agent whose config is requested."),
     ):
         """
         Retrieve the configuration for a specific agent.
@@ -92,8 +92,8 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
 
     @router.delete("/agents", tags=["agents"])
     def delete_agent(
-        user_id: str = Query(..., description="Unique identifier of the user requesting the config."),
-        agent_id: str = Query(..., description="Identifier of the agent whose config is requested."),
+        user_id: str = Query(..., description="Unique identifier of the user requesting the deletion."),
+        agent_id: str = Query(..., description="Unique identifier of the agent to be deleted."),
     ):
         """
         Delete an agent.
