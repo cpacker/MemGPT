@@ -482,7 +482,7 @@ def run(
     if agent and ms.get_agent(agent_name=agent, user_id=user.id):  # use existing agent
         typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
         # agent_config = AgentConfig.load(agent)
-        agent_state = ms.get_agent(agent_name=agent, user_id=user_id)
+        agent_state = ms.get_agent(agent_name=agent, user_id=user.id)
         printd("Loading agent state:", agent_state.id)
         printd("Agent state:", agent_state.state)
         # printd("State path:", agent_config.save_state_dir())
