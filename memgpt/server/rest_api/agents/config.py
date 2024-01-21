@@ -1,4 +1,6 @@
 import uuid
+import re
+
 from fastapi import APIRouter, Body, Depends, Query, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -22,6 +24,23 @@ class AgentRenameRequest(BaseModel):
 
 class AgentConfigResponse(BaseModel):
     config: dict = Field(..., description="The agent configuration object.")
+
+
+def validate_agent_name(name: str) -> str:
+    """Validate the requested new agent name (prevent bad inputs)"""
+
+    # Length check
+    if not (1 <= len(name) <= 50):
+        raise HTTPException(status_code=400, detail="Name length must be between 1 and 50 characters.")
+
+    # Regex for allowed characters (alphanumeric, spaces, hyphens, underscores)
+    if not re.match("^[A-Za-z0-9 _-]+$", name):
+        raise HTTPException(status_code=400, detail="Name contains invalid characters.")
+
+    # Further checks can be added here...
+    # TODO
+
+    return name
 
 
 def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
@@ -60,9 +79,11 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
         user_id = uuid.UUID(request.user_id) if request.user_id else None
         agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
+        valid_name = validate_agent_name(request.agent_name)
+
         interface.clear()
         try:
-            config = server.rename_agent(user_id=user_id, agent_id=agent_id, new_agent_name=request.agent_name)
+            config = server.rename_agent(user_id=user_id, agent_id=agent_id, new_agent_name=valid_name)
         except HTTPException:
             raise
         except Exception as e:
