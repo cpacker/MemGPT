@@ -29,7 +29,7 @@ def is_context_overflow_error(exception):
 
     match_string = "maximum context length"
 
-    # Backwards compatability with openai python package/client v0.28 (pre-v1 client migration)
+    # Backwards compatibility with openai python package/client v0.28 (pre-v1 client migration)
     if match_string in str(exception):
         printd(f"Found '{match_string}' in str(exception)={(str(exception))}")
         return True
@@ -40,21 +40,21 @@ def is_context_overflow_error(exception):
             try:
                 error_details = exception.response.json()
                 if "error" not in error_details:
-                    printd(f"HTTPError occured, but couldn't find error field: {error_details}")
+                    printd(f"HTTPError occurred, but couldn't find error field: {error_details}")
                     return False
                 else:
                     error_details = error_details["error"]
 
                 # Check for the specific error code
                 if error_details.get("code") == "context_length_exceeded":
-                    printd(f"HTTPError occured, caught error code {error_details.get('code')}")
+                    printd(f"HTTPError occurred, caught error code {error_details.get('code')}")
                     return True
                 # Soft-check for "maximum context length" inside of the message
                 elif error_details.get("message") and "maximum context length" in error_details.get("message"):
-                    printd(f"HTTPError occured, found '{match_string}' in error message contents ({error_details})")
+                    printd(f"HTTPError occurred, found '{match_string}' in error message contents ({error_details})")
                     return True
                 else:
-                    printd(f"HTTPError occured, but unknown error message: {error_details}")
+                    printd(f"HTTPError occurred, but unknown error message: {error_details}")
                     return False
             except ValueError:
                 # JSON decoding failed
