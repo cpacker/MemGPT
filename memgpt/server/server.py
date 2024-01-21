@@ -907,6 +907,35 @@ class SyncServer(LockingServer):
         agent_config = vars(memgpt_agent.agent_state)
         return agent_config
 
+    def delete_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
+        """Delete an agent in the database"""
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Verify that the agent exists and is owned by the user
+        agent_state = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
+        if not agent_state:
+            raise ValueError(f"Could not find agent_id={agent_id} under user_id={user_id}")
+        if agent_state.user_id != user_id:
+            raise ValueError(f"Could not authorize agent_id={agent_id} with user_id={user_id}")
+
+        # First, if the agent is in the in-memory cache we should remove it
+        # List of {'user_id': user_id, 'agent_id': agent_id, 'agent': agent_obj} dicts
+        try:
+            self.active_agents = [d for d in self.active_agents if str(d["agent_id"]) != str(agent_id)]
+        except Exception as e:
+            logger.exception(f"Failed to delete agent {agent_id} from cache via ID with:\n{str(e)}")
+            raise ValueError(f"Failed to delete agent {agent_id} from cache")
+
+        # Next, attempt to delete it from the actual database
+        try:
+            self.ms.delete_agent(agent_id=agent_id)
+        except Exception as e:
+            logger.exception(f"Failed to delete agent {agent_id} via ID with:\n{str(e)}")
+            raise ValueError(f"Failed to delete agent {agent_id} in database")
+
     def authenticate_user(self) -> uuid.UUID:
         # TODO: Implement actual authentication to enable multi user setup
         return uuid.UUID(int=uuid.getnode())

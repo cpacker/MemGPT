@@ -1,5 +1,6 @@
 import uuid
-from fastapi import APIRouter, Body, Depends, Query, HTTPException
+from fastapi import APIRouter, Body, Depends, Query, HTTPException, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from memgpt.server.rest_api.interface import QueuingInterface
@@ -69,5 +70,32 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
         return AgentConfigResponse(config=config)
+
+    @router.delete("/agents", tags=["agents"])
+    def delete_agent(
+        user_id: str = Query(..., description="Unique identifier of the user requesting the config."),
+        agent_id: str = Query(..., description="Identifier of the agent whose config is requested."),
+    ):
+        """
+        Retrieve the configuration for a specific agent.
+
+        This endpoint fetches the configuration details for a given agent, identified by the user and agent IDs.
+        """
+        request = AgentConfigRequest(user_id=user_id, agent_id=agent_id)
+
+        # TODO remove once chatui adds user selection / pulls user from config
+        request.user_id = None if request.user_id == "null" else request.user_id
+
+        user_id = uuid.UUID(request.user_id) if request.user_id else None
+        agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
+
+        interface.clear()
+        try:
+            server.delete_agent(user_id=user_id, agent_id=agent_id)
+            return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Agent agent_id={agent_id} successfully deleted"})
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{e}")
 
     return router
