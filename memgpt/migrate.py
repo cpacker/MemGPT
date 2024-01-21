@@ -33,19 +33,19 @@ VERSION_CUTOFF = "0.2.12"
 MIGRATION_BACKUP_FOLDER = "migration_backups"
 
 
-def wipe_config_and_reconfigure(run_configure=True):
+def wipe_config_and_reconfigure(data_dir: str = MEMGPT_DIR, run_configure=True):
     """Wipe (backup) the config file, and launch `memgpt configure`"""
 
-    if not os.path.exists(os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER)):
-        os.makedirs(os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER))
-        os.makedirs(os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER, "agents"))
+    if not os.path.exists(os.path.join(data_dir, MIGRATION_BACKUP_FOLDER)):
+        os.makedirs(os.path.join(data_dir, MIGRATION_BACKUP_FOLDER))
+        os.makedirs(os.path.join(data_dir, MIGRATION_BACKUP_FOLDER, "agents"))
 
     # Get the current timestamp in a readable format (e.g., YYYYMMDD_HHMMSS)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
     # Construct the new backup directory name with the timestamp
-    backup_filename = os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER, f"config_backup_{timestamp}")
-    existing_filename = os.path.join(MEMGPT_DIR, "config")
+    backup_filename = os.path.join(data_dir, MIGRATION_BACKUP_FOLDER, f"config_backup_{timestamp}")
+    existing_filename = os.path.join(data_dir, "config")
 
     # Check if the existing file exists before moving
     if os.path.exists(existing_filename):
@@ -63,11 +63,11 @@ def wipe_config_and_reconfigure(run_configure=True):
         MemGPTConfig.load()
 
 
-def config_is_compatible(allow_empty=False, echo=False) -> bool:
+def config_is_compatible(data_dir: str = MEMGPT_DIR, allow_empty=False, echo=False) -> bool:
     """Check if the config is OK to use with 0.2.12, or if it needs to be deleted"""
     # NOTE: don't use built-in load(), since that will apply defaults
     # memgpt_config = MemGPTConfig.load()
-    memgpt_config_file = os.path.join(MEMGPT_DIR, "config")
+    memgpt_config_file = os.path.join(data_dir, "config")
     if not os.path.exists(memgpt_config_file):
         return True if allow_empty else False
     parser = configparser.ConfigParser()
@@ -92,9 +92,9 @@ def config_is_compatible(allow_empty=False, echo=False) -> bool:
         return True
 
 
-def agent_is_migrateable(agent_name: str) -> bool:
+def agent_is_migrateable(agent_name: str, data_dir: str = MEMGPT_DIR) -> bool:
     """Determine whether or not the agent folder is a migration target"""
-    agent_folder = os.path.join(MEMGPT_DIR, "agents", agent_name)
+    agent_folder = os.path.join(data_dir, "agents", agent_name)
 
     if not os.path.exists(agent_folder):
         raise ValueError(f"Folder {agent_folder} does not exist")
@@ -115,14 +115,14 @@ def agent_is_migrateable(agent_name: str) -> bool:
         return False
 
 
-def migrate_source(source_name: str):
+def migrate_source(source_name: str, data_dir: str = MEMGPT_DIR):
     """
     Migrate an old source folder (`~/.memgpt/sources/{source_name}`).
     """
 
     # 1. Load the VectorIndex from ~/.memgpt/sources/{source_name}/index
     # TODO
-    source_path = os.path.join(MEMGPT_DIR, "archival", source_name, "nodes.pkl")
+    source_path = os.path.join(data_dir, "archival", source_name, "nodes.pkl")
     assert os.path.exists(source_path), f"Source {source_name} does not exist at {source_path}"
 
     # load state from old checkpoint file
@@ -179,7 +179,7 @@ def migrate_source(source_name: str):
     assert source is not None, f"Failed to load source {source_name} from database after migration"
 
 
-def migrate_agent(agent_name: str):
+def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR):
     """Migrate an old agent folder (`~/.memgpt/agents/{agent_name}`)
 
     Steps:
@@ -191,7 +191,7 @@ def migrate_agent(agent_name: str):
 
     # 1. Load the agent state JSON from the old folder
     # TODO
-    agent_folder = os.path.join(MEMGPT_DIR, "agents", agent_name)
+    agent_folder = os.path.join(data_dir, "agents", agent_name)
     # migration_file = os.path.join(agent_folder, MIGRATION_FILE_NAME)
 
     # load state from old checkpoint file
@@ -283,8 +283,8 @@ def migrate_agent(agent_name: str):
             functions=state_dict["functions"],  # this shouldn't matter, since Agent.__init__ will re-link
             messages=annotate_message_json_list_with_tool_calls(state_dict["messages"]),
         ),
-        llm_config=user.default_llm_config,
-        embedding_config=user.default_embedding_config,
+        llm_config=config.default_llm_config,
+        embedding_config=config.default_embedding_config,
     )
 
     # 3. Instantiate a new Agent by passing AgentState to Agent.__init__
@@ -350,7 +350,7 @@ def migrate_agent(agent_name: str):
         raise
 
     try:
-        new_agent_folder = os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER, "agents", agent_name)
+        new_agent_folder = os.path.join(data_dir, MIGRATION_BACKUP_FOLDER, "agents", agent_name)
         shutil.move(agent_folder, new_agent_folder)
     except Exception as e:
         print(f"Failed to move agent folder from {agent_folder} to {new_agent_folder}")
@@ -358,20 +358,20 @@ def migrate_agent(agent_name: str):
 
 
 # def migrate_all_agents(stop_on_fail=True):
-def migrate_all_agents(stop_on_fail: bool = False) -> dict:
-    """Scan over all agent folders in MEMGPT_DIR and migrate each agent."""
+def migrate_all_agents(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) -> dict:
+    """Scan over all agent folders in data_dir and migrate each agent."""
 
-    if not os.path.exists(os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER)):
-        os.makedirs(os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER))
-        os.makedirs(os.path.join(MEMGPT_DIR, MIGRATION_BACKUP_FOLDER, "agents"))
+    if not os.path.exists(os.path.join(data_dir, MIGRATION_BACKUP_FOLDER)):
+        os.makedirs(os.path.join(data_dir, MIGRATION_BACKUP_FOLDER))
+        os.makedirs(os.path.join(data_dir, MIGRATION_BACKUP_FOLDER, "agents"))
 
-    if not config_is_compatible(echo=True):
+    if not config_is_compatible(data_dir, echo=True):
         typer.secho(f"Your current config file is incompatible with MemGPT versions >= {VERSION_CUTOFF}", fg=typer.colors.RED)
         if questionary.confirm(
             "To migrate old MemGPT agents, you must delete your config file and run `memgpt configure`. Would you like to proceed?"
         ).ask():
             try:
-                wipe_config_and_reconfigure()
+                wipe_config_and_reconfigure(data_dir)
             except Exception as e:
                 typer.secho(f"Fresh config generation failed - error:\n{e}", fg=typer.colors.RED)
                 raise
@@ -379,7 +379,7 @@ def migrate_all_agents(stop_on_fail: bool = False) -> dict:
             typer.secho("Migration cancelled (to migrate old agents, run `memgpt migrate`)", fg=typer.colors.RED)
             raise KeyboardInterrupt()
 
-    agents_dir = os.path.join(MEMGPT_DIR, "agents")
+    agents_dir = os.path.join(data_dir, "agents")
 
     # Ensure the directory exists
     if not os.path.exists(agents_dir):
@@ -396,9 +396,9 @@ def migrate_all_agents(stop_on_fail: bool = False) -> dict:
         for agent_name in tqdm(agent_folders, desc="Migrating agents"):
             # Assuming migrate_agent is a function that takes the agent name and performs migration
             try:
-                if agent_is_migrateable(agent_name=agent_name):
+                if agent_is_migrateable(agent_name=agent_name, data_dir=data_dir):
                     candidates.append(agent_name)
-                    migrate_agent(agent_name)
+                    migrate_agent(agent_name, data_dir=data_dir)
                     count += 1
                 else:
                     continue
@@ -431,10 +431,10 @@ def migrate_all_agents(stop_on_fail: bool = False) -> dict:
     }
 
 
-def migrate_all_sources(stop_on_fail: bool = False) -> dict:
-    """Scan over all agent folders in MEMGPT_DIR and migrate each agent."""
+def migrate_all_sources(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) -> dict:
+    """Scan over all agent folders in data_dir and migrate each agent."""
 
-    sources_dir = os.path.join(MEMGPT_DIR, "archival")
+    sources_dir = os.path.join(data_dir, "archival")
 
     # Ensure the directory exists
     if not os.path.exists(sources_dir):
@@ -452,7 +452,7 @@ def migrate_all_sources(stop_on_fail: bool = False) -> dict:
             # Assuming migrate_agent is a function that takes the agent name and performs migration
             try:
                 candidates.append(source_name)
-                migrate_source(source_name)
+                migrate_source(source_name, data_dir)
                 count += 1
             except Exception as e:
                 failures.append({"name": source_name, "reason": str(e)})
