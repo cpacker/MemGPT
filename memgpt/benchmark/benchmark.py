@@ -43,6 +43,8 @@ def bench(
     n_tries: int = typer.Option(TRIES, "--n-tries", help="Number of benchmark tries to perform for each function."),
 ):
     print(f"\nDepending on your hardware, this may take up to 30 minutes. This will also create {n_tries * len(PROMPTS)} new agents.\n")
+    config = MemGPTConfig.load()
+    print(f"version = {config.memgpt_version}")
 
     total_score, total_tokens_accumulated, elapsed_time = 0, 0, 0
 
@@ -73,10 +75,9 @@ def bench(
         elapsed_time += elapsed_time_run
         total_score += score
 
-    config = MemGPTConfig.load()
     print(f"\nMEMGPT VERSION: {config.memgpt_version}")
-    print(f"CONTEXT WINDOW: {config.context_window}")
-    print(f"MODEL WRAPPER: {config.model_wrapper}")
+    print(f"CONTEXT WINDOW: {config.default_llm_config.context_window}")
+    print(f"MODEL WRAPPER: {config.default_llm_config.model_wrapper}")
     print(f"PRESET: {config.preset}")
     print(f"PERSONA: {config.persona}")
     print(f"HUMAN: {config.human}")
