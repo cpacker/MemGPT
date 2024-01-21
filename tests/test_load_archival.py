@@ -13,6 +13,7 @@ from memgpt.credentials import MemGPTCredentials
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import User, AgentState, EmbeddingConfig
 from memgpt import MemGPT
+from .utils import wipe_config
 
 
 @pytest.fixture(autouse=True)
@@ -180,4 +181,5 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
     ms.delete_source(sources[0].id)
 
     # revert to openai config
-    client = MemGPT(quickstart="openai", user_id=user.id)
+    # client = MemGPT(quickstart="openai", user_id=user.id)
+    wipe_config()

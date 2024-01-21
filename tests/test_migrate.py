@@ -1,11 +1,12 @@
 import os
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
 from memgpt import MemGPT
+from memgpt.config import MemGPTConfig
+from .utils import wipe_config
 
 
 def test_migrate_0211():
-    # set to oai config
-    client = MemGPT(quickstart="openai")
+    wipe_config()
 
     data_dir = "tests/data/memgpt-0.2.11"
     # os.environ["MEMGPT_CONFIG_PATH"] = os.path.join(data_dir, "config")
