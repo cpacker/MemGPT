@@ -264,6 +264,8 @@ def create_default_user_or_exit(config: MemGPTConfig, ms: MetadataStore):
             sys.exit(1)
         else:
             return user
+    else:
+        return user
 
 
 def server(
