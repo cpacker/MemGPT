@@ -9,7 +9,6 @@ import typer
 import questionary
 
 import memgpt
-from memgpt import __version__
 import memgpt.utils as utils
 from memgpt.utils import printd, get_schema_diff
 from memgpt.functions.functions import load_all_function_sets
@@ -76,7 +75,7 @@ class MemGPTConfig:
     persistence_manager_uri: str = None  # db URI
 
     # version (for backcompat)
-    memgpt_version: str = __version__
+    memgpt_version: str = None
 
     # user info
     policies_accepted: bool = False
