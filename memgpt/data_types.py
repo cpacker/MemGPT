@@ -267,16 +267,15 @@ class Document(Record):
         user_id: str,
         text: str,
         data_source: str,
-        document_id: Optional[str] = None,
+        id: Optional[uuid.UUID] = None,
         created_at: Optional[str] = None,
         metadata: Optional[dict] = None,
     ):
-        super().__init__(document_id)
+        super().__init__(id)
         if metadata is None:
             metadata = {}
         self.user_id = user_id
         self.text = text
-        self.document_id = document_id
         self.data_source = data_source
         self.metadata = metadata
         self.created_at = created_at

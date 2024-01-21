@@ -1,3 +1,4 @@
+import json
 import os
 from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, DateTime
 from sqlalchemy import func, or_, and_
@@ -22,7 +23,7 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.utils import printd
 from memgpt.constants import MAX_EMBEDDING_DIM
-from memgpt.data_types import Record, Message, Passage, ToolCall
+from memgpt.data_types import Record, Message, Passage, ToolCall, Document
 from memgpt.metadata import MetadataStore
 
 from datetime import datetime
@@ -234,7 +235,37 @@ def get_db_model(
         """Create database model for table_name"""
         class_name = f"{table_name.capitalize()}Model" + dialect
         return create_or_get_model(class_name, MessageModel, table_name)
+    elif table_type == TableType.DOCUMENTS:
 
+        class DocumentModel(Base):
+            """Defines data model for storing Document objects"""
+
+            __abstract__ = True  # this line is necessary
+
+            id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+            user_id = Column(CommonUUID, nullable=False)
+            text = Column(String)
+            data_source = Column(String)
+            document_metadata = Column(String)
+            # Add a datetime column, with default value as the current time
+            created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+            def __repr__(self):
+                return f"<Document(document_id='{self.id}', text='{self.text}')>"
+
+            def to_record(self):
+                return Document(
+                    user_id=self.user_id,
+                    text=self.text,
+                    data_source=self.data_source,
+                    id=self.id,
+                    created_at=str(self.created_at),
+                    metadata=json.loads(self.document_metadata),
+                )
+
+        """Create database model for table_name"""
+        class_name = f"{table_name.capitalize()}Model" + dialect
+        return create_or_get_model(class_name, DocumentModel, table_name)
     else:
         raise ValueError(f"Table type {table_type} not implemented")
 
@@ -457,7 +488,7 @@ class SQLLiteStorageConnector(SQLStorageConnector):
         # get storage URI
         if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
             raise ValueError(f"Table type {table_type} not implemented")
-        elif table_type == TableType.RECALL_MEMORY:
+        elif table_type == TableType.RECALL_MEMORY or table_type == TableType.DOCUMENTS:
             # TODO: eventually implement URI option
             self.path = self.config.recall_storage_path
             if self.path is None:
