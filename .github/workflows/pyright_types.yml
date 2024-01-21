@@ -1,11 +1,8 @@
 name: "Python Static Analysis"
 on:
-  push:
-    branches: [ main ]
-    paths: ["**.py"]
   pull_request:
-    branches: [ main ]
-    paths: ["**.py"]
+    paths:
+      - '**.py'
 
 permissions:
   contents: read
