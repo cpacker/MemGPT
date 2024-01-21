@@ -3,7 +3,6 @@ from memgpt.migrate import migrate_all_agents, migrate_all_sources
 
 
 def test_migrate_0211():
-
     data_dir = "tests/data/memgpt-0.2.11"
     os.environ["MEMGPT_CONFIG_PATH"] = os.path.join(data_dir, "config")
     print(f"MEMGPT_CONFIG_PATH={os.environ['MEMGPT_CONFIG_PATH']}")
