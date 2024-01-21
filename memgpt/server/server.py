@@ -316,7 +316,7 @@ class SyncServer(LockingServer):
             memgpt_agent = self._load_agent(user_id=user_id, agent_id=agent_id)
         return memgpt_agent
 
-    def _step(self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: str) -> None:
+    def _step(self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: str) -> int:
         """Send the input message through the agent"""
 
         logger.debug(f"Got input message: {input_message}")
@@ -360,7 +360,7 @@ class SyncServer(LockingServer):
         memgpt_agent.interface.step_yield()
         logger.debug(f"Finished agent step")
 
-        #return tokens_accumulated
+        return tokens_accumulated
 
     def _command(self, user_id: uuid.UUID, agent_id: uuid.UUID, command: str) -> Union[str, None]:
         """Process a CLI command"""

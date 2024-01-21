@@ -1,5 +1,5 @@
 # Basic
-TRIES = 3 
+TRIES = 3
 AGENT_NAME = "benchmark"
 PERSONA = "sam_pov"
 HUMAN = "cs_phd"
