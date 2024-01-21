@@ -3,12 +3,12 @@ from pydantic import BaseModel, Field, Json
 import uuid
 
 
-class ImageFile:
+class ImageFile(BaseModel):
     type: str = "image_file"
     file_id: str
 
 
-class Text:
+class Text(BaseModel):
     type: str = "text"
     text: str
 
@@ -19,7 +19,7 @@ class Message(BaseModel):
     created_at: int  # unix timestamp
     thread_id: str
     role: str
-    content: List[Union(ImageFile, Text)]
+    content: List[Union[ImageFile, Text]]
     assistant_id: str
     run_id: Optional[str] = None
     file_ids: Optional[List[str]] = []

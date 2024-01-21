@@ -17,6 +17,8 @@ from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.rest_api.static_files import mount_static_files
 from memgpt.models.openai.messages import Message
+from memgpt.data_types import LLMConfig, EmbeddingConfig
+from memgpt.constants import DEFAULT_PRESET
 
 """
 Basic REST API sitting on top of the internal MemGPT python server (SyncServer)
@@ -30,13 +32,74 @@ interface: QueuingInterface = QueuingInterface()
 server: SyncServer = SyncServer(default_interface=interface)
 
 
-router = APIRouter()
+# router = APIRouter()
 app = FastAPI()
 
 
 class MessageRoleType(str, Enum):
     user = "user"
     system = "system"
+
+
+class OpenAIAssistant(BaseModel):
+    """Represents an OpenAI assistant (equivalent to MemGPT preset)"""
+
+    id: str = Field(..., description="The unique identifier of the assistant.")
+    name: str = Field(..., description="The name of the assistant.")
+    object: str = "assistant"
+    description: str = Field(..., description="The description of the assistant.")
+    created_at: int = Field(..., description="The unix timestamp of when the assistant was created.")
+    model: str = Field(..., description="The model used by the assistant.")
+    instructions: str = Field(..., description="The instructions for the assistant.")
+    tools: List[str] = Field(..., description="The tools used by the assistant.")
+    file_ids: List[str] = Field(..., description="List of file IDs associated with the assistant.")
+    metadata: dict = Field(..., description="Metadata associated with the assistant.")
+
+
+class CreateAssistantRequest(BaseModel):
+    model: str = Field(..., description="The model to use for the assistant.")
+    name: str = Field(..., description="The name of the assistant.")
+    description: str = Field(..., description="The description of the assistant.")
+    instructions: str = Field(..., description="The instructions for the assistant.")
+    tools: List[str] = Field(..., description="The tools used by the assistant.")
+    file_ids: List[str] = Field(..., description="List of file IDs associated with the assistant.")
+    metadata: dict = Field(..., description="Metadata associated with the assistant.")
+
+    # memgpt-only (not openai)
+    embedding_model: str = Field(..., description="The model to use for the assistant.")
+
+    # TODO: remove
+    user_id: str = Field(..., description="The unique identifier of the user.")
+
+
+class OpenAIThread(BaseModel):
+    """Represents an OpenAI thread (equivalent to MemGPT agent)"""
+
+    id: str = Field(..., description="The unique identifier of the thread.")
+    object: str = "thread"
+    created_at: int = Field(..., description="The unix timestamp of when the thread was created.")
+    metadata: dict = Field(None, description="Metadata associated with the thread.")
+
+
+class CreateThreadRequest(BaseModel):
+    messages: List[str] = Field(None, description="List of message IDs associated with the thread.")
+    metadata: dict = Field(None, description="Metadata associated with the thread.")
+
+    # memgpt-only
+    assistant_name: str = Field(..., description="The name of the assistant (i.e. MemGPT preset)")
+
+    # TODO: remove
+    user_id: str = Field(..., description="The unique identifier of the user.")
+
+
+class CreateMessageRequest(BaseModel):
+    role: str = Field(..., description="Role of the message sender (either 'user' or 'system')")
+    content: str = Field(..., description="The message content to be processed by the agent.")
+    file_ids: Optional[List[str]] = Field(..., description="List of file IDs associated with the message.")
+    metadata: Optional[dict] = Field(..., description="Metadata associated with the message.")
+
+    # TODO: remove
+    user_id: str = Field(..., description="The unique identifier of the user.")
 
 
 class UserMessageRequest(BaseModel):
@@ -62,21 +125,53 @@ class ListMessagesResponse(BaseModel):
     messages: list = Field(..., description="List of message objects.")
 
 
-@router.post("/v1/threads/{thread_id}/messages", tags=["assistants"], response_model=Message)
+# TODO: implement mechanism for creating/authenticating users associated with a bearer token
+
+# create assistant (MemGPT agent)
+@app.post("/v1/assistants", tags=["assistants"], response_model=OpenAIAssistant)
+def create_assistant(request: CreateAssistantRequest = Body(...)):
+    # TODO: create preset
+    return OpenAIAssistant(id=DEFAULT_PRESET, name="default_preset")
+
+
+@app.post("/v1/threads/", tags=["assistants"], response_model=OpenAIThread)
+def create_thread(request: CreateThreadRequest = Body(...)):
+
+    print("threads", request)
+
+    # TODO: use requests.description and requests.metadata fields
+    # TODO: handle requests.file_ids and requests.tools
+    # TODO: eventually allow request to override embedding/llm model
+
+    # create a memgpt agent
+    user_id = uuid.UUID(request.user_id)
+    agent_state = server.create_agent(
+        user_id=user_id,
+        agent_config={
+            "user_id": user_id,
+            "preset": request.assistant_name,
+        },
+    )
+
+    # TODO: insert messages into recall memory
+
+    return OpenAIThread(
+        id=str(agent_state.id),
+        created_at=int(agent_state.created_at.timestamp()),
+    )
+
+
+@app.post("/v1/threads/{thread_id}/messages", tags=["assistants"], response_model=Message)
 def create_message(
     thread_id: str = Path(..., description="The unique identifier of the thread."),
-    role: MessageRoleType = Query(..., description="Role of the message sender (either 'user' or 'system')"),
-    content: str = Query(..., description="The message content to be processed by the agent."),
-    file_ids: Optional[List[str]] = Query(..., description="List of file IDs associated with the message."),
-    metadata: Optional[dict] = Query(..., description="Metadata associated with the message."),
-    user_id: str = Query(..., description="The unique identifier of the user."),  # TODO: remove
+    request: CreateMessageRequest = Body(...),
 ):
-    user_id = uuid.UUID(user_id)
-    agent_id = uuid.UUID(thread_id)
+    user_id = uuid.UUID(request.user_id)
+    agent_id = uuid.UUID(request.thread_id)
     # TODO: need to add a buffer/queue to server and pull on .step()
 
 
-@router.get("/v1/threads/{thread_id}/messages", tags=["assistants"], response_model=ListMessagesResponse)
+@app.get("/v1/threads/{thread_id}/messages", tags=["assistants"], response_model=ListMessagesResponse)
 def list_messages(
     thread_id: str = Path(..., description="The unique identifier of the thread."),
     limit: int = Query(..., description="How many messages to retrieve."),
