@@ -33,7 +33,7 @@ Once Poetry is installed, navigate to the MemGPT directory and install the MemGP
 ```sh
 cd MemGPT
 poetry shell
-poetry install -E dev -E postgres -E local
+poetry install --all-extras
 ```
 
 Now when you want to use `memgpt`, make sure you first activate the `poetry` environment using poetry shell:
