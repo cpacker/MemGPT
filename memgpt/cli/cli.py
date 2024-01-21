@@ -28,7 +28,7 @@ from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
 from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig, User
-from memgpt.metadata import MetadataStore
+from memgpt.metadata import MetadataStore, save_agent
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
 
 
@@ -264,6 +264,8 @@ def create_default_user_or_exit(config: MemGPTConfig, ms: MetadataStore):
             sys.exit(1)
         else:
             return user
+    else:
+        return user
 
 
 def server(
@@ -480,7 +482,7 @@ def run(
     if agent and ms.get_agent(agent_name=agent, user_id=user.id):  # use existing agent
         typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
         # agent_config = AgentConfig.load(agent)
-        agent_state = ms.get_agent(agent_name=agent, user_id=user_id)
+        agent_state = ms.get_agent(agent_name=agent, user_id=user.id)
         printd("Loading agent state:", agent_state.id)
         printd("Agent state:", agent_state.state)
         # printd("State path:", agent_config.save_state_dir())
@@ -602,6 +604,7 @@ def run(
                 agent_state=agent_state,
                 interface=interface,
             )
+            save_agent(agent=memgpt_agent, ms=ms)
         except ValueError as e:
             # TODO(swooders) what's the equivalent cleanup code for the new DB refactor?
             typer.secho(f"Failed to create agent from provided information:\n{e}", fg=typer.colors.RED)
@@ -621,7 +624,7 @@ def run(
             # except:
             #     typer.secho(f"Failed to delete agent directory during cleanup:\n{e}", fg=typer.colors.RED)
             sys.exit(1)
-        typer.secho(f"🎉 Created new agent '{agent_state.name}'", fg=typer.colors.GREEN)
+        typer.secho(f"🎉 Created new agent '{agent_state.name}' (id={agent_state.id})", fg=typer.colors.GREEN)
 
     # pretty print agent config
     # printd(json.dumps(vars(agent_config), indent=4, sort_keys=True, ensure_ascii=JSON_ENSURE_ASCII))
