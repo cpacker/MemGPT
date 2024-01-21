@@ -6,11 +6,7 @@ packages = [
 ]
 description = "Teaching LLMs memory management for unbounded context"
 authors = [
-    "Charles Packer <contact@charlespacker.com>",
-    "Vivian Fang <hi@vivi.sh>",
-    "Sarah Wooders <sarahwooders@gmail.com>",
-    "Shishir Patil <shishirpatil@berkeley.edu>",
-    "Kevin Lin <kevinlin@eecs.berkeley.edu>"
+    "MemGPT Team <hi@memgpt.ai>",
 ]
 license = "Apache License"
 readme = "README.md"
@@ -57,11 +53,12 @@ html2text = "^2020.1.16"
 docx2txt = "^0.8"
 sqlalchemy = "^2.0.25"
 pexpect = {version = "^4.9.0", optional = true}
+pyright = {version = "^1.1.347", optional = true}
 
 [tool.poetry.extras]
 local = ["torch", "huggingface-hub", "transformers"]
 postgres = ["pgvector", "pg8000"]
-dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets"]
+dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright"]
 server = ["websockets", "fastapi", "uvicorn"]
 autogen = ["pyautogen"]
 

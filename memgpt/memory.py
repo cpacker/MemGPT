@@ -7,7 +7,7 @@ from memgpt.utils import get_local_time, printd, count_tokens, validate_date_for
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
 from memgpt.llm_api_tools import create
 from memgpt.data_types import Message, Passage, AgentState
-from memgpt.embeddings import embedding_model
+from memgpt.embeddings import embedding_model, query_embedding
 from llama_index import Document
 from llama_index.node_parser import SimpleNodeParser
 
@@ -372,6 +372,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         # create embedding model
         self.embed_model = embedding_model(agent_state.embedding_config)
         self.embedding_chunk_size = agent_state.embedding_config.embedding_chunk_size
+        assert self.embedding_chunk_size, f"Must set {agent_state.embedding_config.embedding_chunk_size}"
 
         # create storage backend
         self.storage = StorageConnector.get_archival_storage_connector(user_id=agent_state.user_id, agent_id=agent_state.id)
@@ -384,6 +385,8 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             agent_id=self.agent_state.id,
             text=text,
             embedding=embedding,
+            embedding_dim=self.agent_state.embedding_config.embedding_dim,
+            embedding_model=self.agent_state.embedding_config.embedding_model,
         )
 
     def save(self):
@@ -432,7 +435,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         try:
             if query_string not in self.cache:
                 # self.cache[query_string] = self.retriever.retrieve(query_string)
-                query_vec = self.embed_model.get_text_embedding(query_string)
+                query_vec = query_embedding(self.embed_model, query_string)
                 self.cache[query_string] = self.storage.query(query_string, query_vec, top_k=self.top_k)
 
             start = int(start if start else 0)

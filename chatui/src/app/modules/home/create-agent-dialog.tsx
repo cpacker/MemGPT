@@ -11,26 +11,26 @@ import { Input } from '@memgpt/components/input';
 import { Label } from '@memgpt/components/label';
 import { Loader2 } from 'lucide-react';
 import { useAgentsCreateMutation } from '../../libs/agents/use-agents.mutation';
+import { useAuthStoreState } from '../../libs/auth/auth.store';
 
 const CreateAgentDialog = (props: { open: boolean; onOpenChange: (open: boolean) => void }) => {
-	const createAgent = useAgentsCreateMutation();
+	const auth = useAuthStoreState();
+	const createAgent = useAgentsCreateMutation(auth.uuid);
 	return (
 		<Dialog open={props.open} onOpenChange={props.onOpenChange}>
 			<DialogContent className="sm:max-w-[425px]">
 				<form
 					onSubmit={(event) => {
 						event.preventDefault();
+						if (!auth.uuid) return;
 						const formData = new FormData(event.currentTarget);
 						// ✅ mutation is invoked when the form is submitted
 						createAgent.mutate(
 							{
-								user_id: 'placeholder',
-								config: {
-									name: `${formData.get('name')}`,
-									human: `${formData.get('human')}`,
-									persona: `${formData.get('persona')}`,
-									model: `${formData.get('model')}`,
-								},
+								name: `${formData.get('name')}`,
+								human: `${formData.get('human')}`,
+								persona: `${formData.get('persona')}`,
+								model: `${formData.get('model')}`,
 							},
 							{
 								onSuccess: () => props.onOpenChange(false),

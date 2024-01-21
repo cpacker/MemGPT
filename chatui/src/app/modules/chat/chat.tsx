@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAgentActions, useCurrentAgent, useLastAgentInitMessage } from '../../libs/agents/agent.store';
+import { useAuthStoreState } from '../../libs/auth/auth.store';
 import { useMessageHistoryActions, useMessagesForKey } from '../../libs/messages/message-history.store';
 import {
 	ReadyState,
@@ -11,7 +12,7 @@ import UserInput from './user-input';
 
 const Chat = () => {
 	const initialized = useRef(false);
-
+	const auth = useAuthStoreState();
 	const currentAgent = useCurrentAgent();
 	const lastAgentInitMessage = useLastAgentInitMessage();
 	const messages = useMessagesForKey(currentAgent?.id ?? '');
@@ -21,12 +22,11 @@ const Chat = () => {
 	const { addMessage } = useMessageHistoryActions();
 	const { setLastAgentInitMessage } = useAgentActions();
 
-	// eslint-disable-next-line react-hooks/exhaustive-deps
 	const sendMessageAndAddToHistory = useCallback(
 		(message: string, role: 'user' | 'system' = 'user') => {
-			if (!currentAgent) return;
+			if (!currentAgent || !auth.uuid) return;
 			const date = new Date();
-			sendMessage({ agentId: currentAgent.id, message, role });
+			sendMessage({ userId: auth.uuid, agentId: currentAgent.id, message, role });
 			addMessage(currentAgent.id, {
 				type: role === 'user' ? 'user_message' : 'system_message',
 				message_type: 'user_message',
@@ -34,7 +34,7 @@ const Chat = () => {
 				date,
 			});
 		},
-		[currentAgent, sendMessage, addMessage]
+		[currentAgent, auth.uuid, sendMessage, addMessage]
 	);
 
 	useEffect(() => {
@@ -64,8 +64,8 @@ const Chat = () => {
 
 	return (
 		<div className="mx-auto max-w-screen-xl p-4">
-            <h1 className='text-center text-xl font-semibold'>{currentAgent?.name || 'No Agent Selected'}</h1>
-			<MessageContainer agentSet={!!currentAgent} readyState={readyState} messages={messages} />
+      <h1 className='text-center text-xl font-semibold'>{currentAgent?.name || 'No Agent Selected'}</h1>
+			<MessageContainer currentAgent={currentAgent} readyState={readyState} previousMessages={[]} messages={messages} />
 			<UserInput enabled={readyState !== ReadyState.LOADING} onSend={sendMessageAndAddToHistory} />
 		</div>
 	);

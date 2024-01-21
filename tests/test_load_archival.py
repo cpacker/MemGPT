@@ -88,13 +88,13 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
         persona=user.default_persona,
         human=user.default_human,
         llm_config=config.default_llm_config,
-        embedding_config=config.default_embedding_config,
+        embedding_config=embedding_config,
     )
     ms.delete_user(user.id)
     ms.create_user(user)
     ms.create_agent(agent)
     user = ms.get_user(user.id)
-    print("Got user:", user, config.default_embedding_config)
+    print("Got user:", user, embedding_config)
 
     # setup storage connectors
     print("Creating storage connectors...")
