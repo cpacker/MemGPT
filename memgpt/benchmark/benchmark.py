@@ -19,7 +19,7 @@ def send_message(message: str, agent_id, turn: int, fn_type: str, print_msg: boo
     try:
         print_msg = f"\t-> Now running {fn_type}. Progress: {turn}/{n_tries}"
         print(print_msg, end="\r", flush=True)
-        response, tokens_accumulated = client.user_message(agent_id=agent_id, message=message)
+        response, tokens_accumulated = client.user_message(agent_id=agent_id, message=message, return_token_count=True)
 
         if turn + 1 == n_tries:
             print("  " * len(print_msg), end="\r", flush=True)

@@ -1,6 +1,6 @@
 import os
 import uuid
-from typing import Dict, List, Union, Optional
+from typing import Dict, List, Union, Optional, Tuple
 
 from memgpt.data_types import AgentState
 from memgpt.cli.cli import QuickstartChoice
@@ -114,12 +114,15 @@ class Client(object):
         self.interface.clear()
         return self.server.update_agent_core_memory(user_id=self.user_id, agent_id=agent_id, new_memory_contents=new_memory_contents)
 
-    def user_message(self, agent_id: str, message: str) -> List[Dict]:
+    def user_message(self, agent_id: str, message: str, return_token_count: bool = False) -> Union[List[Dict], Tuple[List[Dict], int]]:
         self.interface.clear()
         tokens_accumulated = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
         if self.auto_save:
             self.save()
-        return self.interface.to_list(), tokens_accumulated
+        if return_token_count:
+            return self.interface.to_list(), tokens_accumulated
+        else:
+            return self.interface.to_list()
 
     def run_command(self, agent_id: str, command: str) -> Union[str, None]:
         self.interface.clear()
