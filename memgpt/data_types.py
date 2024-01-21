@@ -126,6 +126,9 @@ class Message(Record):
     ):
         """Convert a ChatCompletion message object into a Message object (synced to DB)"""
 
+        assert "role" in openai_message_dict, openai_message_dict
+        assert "content" in openai_message_dict, openai_message_dict
+
         # If we're going from deprecated function form
         if openai_message_dict["role"] == "function":
             if not allow_functions_style:

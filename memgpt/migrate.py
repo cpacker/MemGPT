@@ -8,6 +8,7 @@ import traceback
 import uuid
 import json
 import shutil
+from typing import Optional
 
 import typer
 from tqdm import tqdm
@@ -25,6 +26,7 @@ from memgpt.utils import MEMGPT_DIR, version_less_than, OpenAIBackcompatUnpickle
 from memgpt.config import MemGPTConfig
 from memgpt.cli.cli_config import configure
 from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.persistence_manager import PersistenceManager, LocalStateManager
 
 # This is the version where the breaking change was made
 VERSION_CUTOFF = "0.2.12"
@@ -115,7 +117,7 @@ def agent_is_migrateable(agent_name: str, data_dir: str = MEMGPT_DIR) -> bool:
         return False
 
 
-def migrate_source(source_name: str, data_dir: str = MEMGPT_DIR):
+def migrate_source(source_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[MetadataStore] = None):
     """
     Migrate an old source folder (`~/.memgpt/sources/{source_name}`).
     """
@@ -130,9 +132,10 @@ def migrate_source(source_name: str, data_dir: str = MEMGPT_DIR):
 
     # 2. Create a new AgentState using the agent config + agent internal state
     config = MemGPTConfig.load()
+    if ms is None:
+        ms = MetadataStore(config)
 
     # gets default user
-    ms = MetadataStore(config)
     user_id = uuid.UUID(config.anon_clientid)
     user = ms.get_user(user_id=user_id)
     if user is None:
@@ -179,7 +182,7 @@ def migrate_source(source_name: str, data_dir: str = MEMGPT_DIR):
     assert source is not None, f"Failed to load source {source_name} from database after migration"
 
 
-def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR):
+def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[MetadataStore] = None):
     """Migrate an old agent folder (`~/.memgpt/agents/{agent_name}`)
 
     Steps:
@@ -255,9 +258,10 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR):
 
     # 2. Create a new AgentState using the agent config + agent internal state
     config = MemGPTConfig.load()
+    if ms is None:
+        ms = MetadataStore(config)
 
     # gets default user
-    ms = MetadataStore(config)
     user_id = uuid.UUID(config.anon_clientid)
     user = ms.get_user(user_id=user_id)
     if user is None:
@@ -274,16 +278,17 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR):
     agent_id = uuid.uuid4()
 
     # create all the Messages in the database
-    message_ids = []
+    message_objs = []
     for message_dict in annotate_message_json_list_with_tool_calls(state_dict["messages"]):
         message_obj = Message.dict_to_message(
             user_id=user.id,
             agent_id=agent_id,
             openai_message_dict=message_dict,
             model=state_dict["model"] if "model" in state_dict else None,
-            allow_functions_style=False,
+            # allow_functions_style=False,
+            allow_functions_style=True,
         )
-        message_ids.append(message_obj.id)
+        message_objs.append(message_obj)
 
     agent_state = AgentState(
         id=agent_id,
@@ -297,11 +302,17 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR):
             persona=state_dict["memory"]["persona"],
             system=state_dict["system"],
             functions=state_dict["functions"],  # this shouldn't matter, since Agent.__init__ will re-link
-            messages=message_ids,  # this is a list of uuids, not message dicts
+            messages=[str(m.id) for m in message_objs],  # this is a list of uuids, not message dicts
         ),
         llm_config=config.default_llm_config,
         embedding_config=config.default_embedding_config,
     )
+
+    persistence_manager = LocalStateManager(agent_state=agent_state)
+
+    # insert the messages into the actual recall database
+    # now when we construct the agent from the state, they will be available
+    persistence_manager.recall_memory.insert_many(message_objs)
 
     # 3. Instantiate a new Agent by passing AgentState to Agent.__init__
     # NOTE: the Agent.__init__ will trigger a save, which will write to the DB
@@ -329,9 +340,18 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR):
         # all_messages in recall will have fields "timestamp" and "message"
         full_message_history_buffer = annotate_message_json_list_with_tool_calls([d["message"] for d in data["all_messages"]])
         # We want to keep the timestamp
-        for i in range(len(data["all_messages"])):
-            data["all_messages"][i]["message"] = full_message_history_buffer[i]
-        messages_to_insert = [Message.dict_to_message(msg, allow_functions_style=True) for msg in data["all_messages"]]
+        # for i in range(len(data["all_messages"])):
+        # data["all_messages"][i]["message"] = full_message_history_buffer[i]
+        messages_to_insert = [
+            Message.dict_to_message(
+                user_id=user.id,
+                agent_id=agent_id,
+                openai_message_dict=msg,
+                allow_functions_style=True,
+            )
+            # for msg in data["all_messages"]
+            for msg in full_message_history_buffer
+        ]
         agent.persistence_manager.recall_memory.insert_many(messages_to_insert)
         # print("Finished migrating recall memory")
 
@@ -408,13 +428,16 @@ def migrate_all_agents(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) -
     count = 0
     failures = []
     candidates = []
+    config = MemGPTConfig.load()
+    print(config)
+    ms = MetadataStore(config)
     try:
         for agent_name in tqdm(agent_folders, desc="Migrating agents"):
             # Assuming migrate_agent is a function that takes the agent name and performs migration
             try:
                 if agent_is_migrateable(agent_name=agent_name, data_dir=data_dir):
                     candidates.append(agent_name)
-                    migrate_agent(agent_name, data_dir=data_dir)
+                    migrate_agent(agent_name, data_dir=data_dir, ms=ms)
                     count += 1
                 else:
                     continue
@@ -439,6 +462,7 @@ def migrate_all_agents(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) -
         if count > 0:
             typer.secho(f"✅ {count}/{len(candidates)} agents were successfully migrated to the new database format", fg=typer.colors.GREEN)
 
+    del ms
     return {
         "agent_folders": len(agent_folders),
         "migration_candidates": len(candidates),
@@ -463,12 +487,14 @@ def migrate_all_sources(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) 
     count = 0
     failures = []
     candidates = []
+    config = MemGPTConfig.load()
+    ms = MetadataStore(config)
     try:
         for source_name in tqdm(source_folders, desc="Migrating data sources"):
             # Assuming migrate_agent is a function that takes the agent name and performs migration
             try:
                 candidates.append(source_name)
-                migrate_source(source_name, data_dir)
+                migrate_source(source_name, data_dir, ms=ms)
                 count += 1
             except Exception as e:
                 failures.append({"name": source_name, "reason": str(e)})
@@ -491,6 +517,7 @@ def migrate_all_sources(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) 
         if count > 0:
             typer.secho(f"✅ {count}/{len(candidates)} sources were successfully migrated to the new database format", fg=typer.colors.GREEN)
 
+    del ms
     return {
         "source_folders": len(source_folders),
         "migration_candidates": len(candidates),
