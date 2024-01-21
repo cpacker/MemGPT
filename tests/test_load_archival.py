@@ -12,6 +12,8 @@ from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import User, AgentState, EmbeddingConfig
+from memgpt import MemGPT
+from .utils import wipe_config
 
 
 @pytest.fixture(autouse=True)
@@ -63,24 +65,31 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
 
     # create metadata store
     ms = MetadataStore(config)
+    user = User(id=uuid.UUID(config.anon_clientid))
 
     # embedding config
     if os.getenv("OPENAI_API_KEY"):
+        credentials = MemGPTCredentials(
+            openai_key=os.getenv("OPENAI_API_KEY"),
+        )
+        credentials.save()
+        client = MemGPT(quickstart="openai", user_id=user.id)
         embedding_config = EmbeddingConfig(
             embedding_endpoint_type="openai",
             embedding_endpoint="https://api.openai.com/v1",
             embedding_dim=1536,
             # openai_key=os.getenv("OPENAI_API_KEY"),
         )
-        credentials = MemGPTCredentials(
-            openai_key=os.getenv("OPENAI_API_KEY"),
-        )
-        credentials.save()
+
     else:
-        embedding_config = EmbeddingConfig(embedding_endpoint_type="local", embedding_endpoint=None, embedding_dim=384)
+        client = MemGPT(quickstart="memgpt_hosted", user_id=user.id)
+        embedding_config = EmbeddingConfig(
+            embedding_endpoint_type="local",
+            embedding_endpoint=None,
+            embedding_dim=384,
+        )
 
     # create user and agent
-    user = User(id=uuid.UUID(config.anon_clientid))
     agent = AgentState(
         user_id=user.id,
         name="test_agent",
@@ -170,3 +179,7 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
     ms.delete_user(user.id)
     ms.delete_agent(agent.id)
     ms.delete_source(sources[0].id)
+
+    # revert to openai config
+    # client = MemGPT(quickstart="openai", user_id=user.id)
+    wipe_config()

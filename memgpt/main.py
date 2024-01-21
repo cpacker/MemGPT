@@ -30,6 +30,9 @@ from memgpt.cli.cli_load import app as load_app
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.metadata import MetadataStore, save_agent
 
+# import benchmark
+from memgpt.benchmark.benchmark import bench
+
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
 app.command(name="version")(version)
@@ -45,6 +48,8 @@ app.command(name="quickstart")(quickstart)
 app.add_typer(load_app, name="load")
 # migration command
 app.command(name="migrate")(migrate)
+# benchmark command
+app.command(name="benchmark")(bench)
 
 
 def clear_line(strip_ui=False):
@@ -320,7 +325,7 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
         skip_next_user_input = False
 
         def process_agent_step(user_message, no_verify):
-            new_messages, heartbeat_request, function_failed, token_warning = memgpt_agent.step(
+            new_messages, heartbeat_request, function_failed, token_warning, tokens_accumulated = memgpt_agent.step(
                 user_message, first_message=False, skip_verify=no_verify
             )
 

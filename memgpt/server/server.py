@@ -316,7 +316,7 @@ class SyncServer(LockingServer):
             memgpt_agent = self._load_agent(user_id=user_id, agent_id=agent_id)
         return memgpt_agent
 
-    def _step(self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: str) -> None:
+    def _step(self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: str) -> int:
         """Send the input message through the agent"""
 
         logger.debug(f"Got input message: {input_message}")
@@ -331,7 +331,7 @@ class SyncServer(LockingServer):
         next_input_message = input_message
         counter = 0
         while True:
-            new_messages, heartbeat_request, function_failed, token_warning = memgpt_agent.step(
+            new_messages, heartbeat_request, function_failed, token_warning, tokens_accumulated = memgpt_agent.step(
                 next_input_message, first_message=False, skip_verify=no_verify
             )
             counter += 1
@@ -359,6 +359,8 @@ class SyncServer(LockingServer):
 
         memgpt_agent.interface.step_yield()
         logger.debug(f"Finished agent step")
+
+        return tokens_accumulated
 
     def _command(self, user_id: uuid.UUID, agent_id: uuid.UUID, command: str) -> Union[str, None]:
         """Process a CLI command"""
@@ -510,7 +512,9 @@ class SyncServer(LockingServer):
             # Package the user message first
             packaged_user_message = system.package_user_message(user_message=message)
             # Run the agent state forward
-            self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
+            tokens_accumulated = self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
+
+        return tokens_accumulated
 
     @LockingServer.agent_lock_decorator
     def system_message(self, user_id: uuid.UUID, agent_id: uuid.UUID, message: str) -> None:
