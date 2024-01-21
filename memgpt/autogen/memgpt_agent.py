@@ -317,6 +317,7 @@ class MemGPTAgent(ConversableAgent):
                 heartbeat_request,
                 function_failed,
                 token_warning,
+                tokens_accumulated,
             ) = self.agent.step(user_message, first_message=False, skip_verify=self.skip_verify)
             # Skip user inputs if there's a memory warning, function execution failed, or the agent asked for control
             if token_warning:
