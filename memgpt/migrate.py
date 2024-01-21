@@ -270,7 +270,23 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR):
     #        typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
     #        sys.exit(1)
 
+    # create an agent_id ahead of time
+    agent_id = uuid.uuid4()
+
+    # create all the Messages in the database
+    message_ids = []
+    for message_dict in annotate_message_json_list_with_tool_calls(state_dict["messages"]):
+        message_obj = Message.dict_to_message(
+            user_id=user.id,
+            agent_id=agent_id,
+            openai_message_dict=message_dict,
+            model=state_dict["model"] if "model" in state_dict else None,
+            allow_functions_style=False,
+        )
+        message_ids.append(message_obj.id)
+
     agent_state = AgentState(
+        id=agent_id,
         name=agent_config["name"],
         user_id=user.id,
         persona=agent_config["persona"],  # eg 'sam_pov'
@@ -281,7 +297,7 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR):
             persona=state_dict["memory"]["persona"],
             system=state_dict["system"],
             functions=state_dict["functions"],  # this shouldn't matter, since Agent.__init__ will re-link
-            messages=annotate_message_json_list_with_tool_calls(state_dict["messages"]),
+            messages=message_ids,  # this is a list of uuids, not message dicts
         ),
         llm_config=config.default_llm_config,
         embedding_config=config.default_embedding_config,
