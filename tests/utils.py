@@ -15,6 +15,9 @@ def wipe_config():
             config_path = MemGPTConfig.config_path
         # TODO delete file config_path
         os.remove(config_path)
+        assert not MemGPTConfig.exists(), "Config should not exist after deletion"
+    else:
+        print("No config to wipe", MemGPTConfig.config_path)
 
 
 def wipe_memgpt_home():
