@@ -73,7 +73,6 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
         )
         credentials.save()
         client = MemGPT(quickstart="openai", user_id=user.id)
-
         embedding_config = EmbeddingConfig(
             embedding_endpoint_type="openai",
             embedding_endpoint="https://api.openai.com/v1",
@@ -179,3 +178,6 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
     ms.delete_user(user.id)
     ms.delete_agent(agent.id)
     ms.delete_source(sources[0].id)
+
+    # revert to openai config
+    client = MemGPT(quickstart="openai", user_id=user.id)
