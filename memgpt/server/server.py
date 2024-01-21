@@ -611,6 +611,7 @@ class SyncServer(LockingServer):
         logger.debug(f"Attempting to create agent from agent_state:\n{agent_state}")
         try:
             agent = presets.create_agent_from_preset(agent_state=agent_state, interface=interface)
+            save_agent(agent=agent, ms=self.ms)
 
             # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
             # self.ms.update_agent(agent.agent_state)
@@ -876,3 +877,7 @@ class SyncServer(LockingServer):
             "new_core_memory": new_core_memory,
             "modified": modified,
         }
+
+    def authenticate_user(self) -> uuid.UUID:
+        # TODO: Implement actual authentication to enable multi user setup
+        return uuid.UUID(int=uuid.getnode())

@@ -185,7 +185,7 @@ class Message(Record):
                 if "tool_call_id" in openai_message_dict:
                     assert openai_message_dict["tool_call_id"] is None, openai_message_dict
 
-            if "tool_calls" in openai_message_dict:
+            if "tool_calls" in openai_message_dict and openai_message_dict["tool_calls"] is not None:
                 assert openai_message_dict["role"] == "assistant", openai_message_dict
 
                 tool_calls = [
@@ -369,8 +369,6 @@ class EmbeddingConfig:
 
         # fields cannot be set to None
         assert self.embedding_endpoint_type
-        assert self.embedding_endpoint
-        assert self.embedding_model
         assert self.embedding_dim
         assert self.embedding_chunk_size
 
