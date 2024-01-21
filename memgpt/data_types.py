@@ -123,6 +123,7 @@ class Message(Record):
         openai_message_dict: dict,
         model: Optional[str] = None,  # model used to make function call
         allow_functions_style: bool = False,  # allow deprecated functions style?
+        created_at: Optional[datetime] = None,
     ):
         """Convert a ChatCompletion message object into a Message object (synced to DB)"""
 
@@ -138,6 +139,7 @@ class Message(Record):
             # Convert from 'function' response to a 'tool' response
             # NOTE: this does not conventionally include a tool_call_id, it's on the caster to provide it
             return Message(
+                created_at=created_at,
                 user_id=user_id,
                 agent_id=agent_id,
                 model=model,
@@ -169,6 +171,7 @@ class Message(Record):
             ]
 
             return Message(
+                created_at=created_at,
                 user_id=user_id,
                 agent_id=agent_id,
                 model=model,
@@ -200,6 +203,7 @@ class Message(Record):
 
             # If we're going from tool-call style
             return Message(
+                created_at=created_at,
                 user_id=user_id,
                 agent_id=agent_id,
                 model=model,
