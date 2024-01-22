@@ -17,7 +17,20 @@ from memgpt.server.server import SyncServer
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.rest_api.static_files import mount_static_files
-from memgpt.models.openai.messages import OpenAIMessage, Text
+from memgpt.models.openai import (
+    AssistantFile,
+    MessageFile,
+    OpenAIAssistant,
+    OpenAIThread,
+    OpenAIMessage,
+    OpenAIRun,
+    OpenAIRunStep,
+    MessageRoleType,
+    Text,
+    ImageFile,
+    ToolCall,
+    ToolCallOutput,
+)
 from memgpt.data_types import LLMConfig, EmbeddingConfig, Message
 from memgpt.constants import DEFAULT_PRESET
 
@@ -37,26 +50,6 @@ server: SyncServer = SyncServer(default_interface=interface)
 app = FastAPI()
 
 
-class MessageRoleType(str, Enum):
-    user = "user"
-    system = "system"
-
-
-class OpenAIAssistant(BaseModel):
-    """Represents an OpenAI assistant (equivalent to MemGPT preset)"""
-
-    id: str = Field(..., description="The unique identifier of the assistant.")
-    name: str = Field(..., description="The name of the assistant.")
-    object: str = "assistant"
-    description: str = Field(..., description="The description of the assistant.")
-    created_at: int = Field(..., description="The unix timestamp of when the assistant was created.")
-    model: str = Field(..., description="The model used by the assistant.")
-    instructions: str = Field(..., description="The instructions for the assistant.")
-    tools: List[str] = Field(..., description="The tools used by the assistant.")
-    file_ids: List[str] = Field(..., description="List of file IDs associated with the assistant.")
-    metadata: dict = Field(..., description="Metadata associated with the assistant.")
-
-
 class CreateAssistantRequest(BaseModel):
     model: str = Field(..., description="The model to use for the assistant.")
     name: str = Field(..., description="The name of the assistant.")
@@ -71,15 +64,6 @@ class CreateAssistantRequest(BaseModel):
 
     # TODO: remove
     user_id: str = Field(..., description="The unique identifier of the user.")
-
-
-class OpenAIThread(BaseModel):
-    """Represents an OpenAI thread (equivalent to MemGPT agent)"""
-
-    id: str = Field(..., description="The unique identifier of the thread.")
-    object: str = "thread"
-    created_at: int = Field(..., description="The unix timestamp of when the thread was created.")
-    metadata: dict = Field(None, description="Metadata associated with the thread.")
 
 
 class CreateThreadRequest(BaseModel):
@@ -138,6 +122,50 @@ class ListMessagesResponse(BaseModel):
     messages: list = Field(..., description="List of message objects.")
 
 
+class CreateAssistantFileRequest(BaseModel):
+    file_id: str = Field(..., description="The unique identifier of the file.")
+
+
+class CreateRunRequest(BaseModel):
+    assistant_id: str = Field(..., description="The unique identifier of the assistant.")
+    model: str = Field(..., description="The model used by the run.")
+    instructions: str = Field(..., description="The instructions for the run.")
+    additional_instructions: Optional[str] = Field(None, description="Additional instructions for the run.")
+    tools: Optional[List[ToolCall]] = Field(None, description="The tools used by the run (overrides assistant).")
+    metadata: Optional[dict] = Field(None, description="Metadata associated with the run.")
+
+
+class CreateThreadRunRequest(BaseModel):
+    assistant_id: str = Field(..., description="The unique identifier of the assistant.")
+    thread: OpenAIThread = Field(..., description="The thread to run.")
+    model: str = Field(..., description="The model used by the run.")
+    instructions: str = Field(..., description="The instructions for the run.")
+    tools: Optional[List[ToolCall]] = Field(None, description="The tools used by the run (overrides assistant).")
+    metadata: Optional[dict] = Field(None, description="Metadata associated with the run.")
+
+
+class DeleteAssistantResponse(BaseModel):
+    id: str = Field(..., description="The unique identifier of the agent.")
+    object: str = "assistant.deleted"
+    deleted: bool = Field(..., description="Whether the agent was deleted.")
+
+
+class DeleteAssistantFileResponse(BaseModel):
+    id: str = Field(..., description="The unique identifier of the file.")
+    object: str = "assistant.file.deleted"
+    deleted: bool = Field(..., description="Whether the file was deleted.")
+
+
+class DeleteThreadResponse(BaseModel):
+    id: str = Field(..., description="The unique identifier of the agent.")
+    object: str = "thread.deleted"
+    deleted: bool = Field(..., description="Whether the agent was deleted.")
+
+
+class SubmitToolOutputsToRunRequest(BaseModel):
+    tools_outputs: List[ToolCallOutput] = Field(..., description="The tool outputs to submit.")
+
+
 # TODO: implement mechanism for creating/authenticating users associated with a bearer token
 
 # create assistant (MemGPT agent)
@@ -145,24 +173,6 @@ class ListMessagesResponse(BaseModel):
 def create_assistant(request: CreateAssistantRequest = Body(...)):
     # TODO: create preset
     return OpenAIAssistant(id=DEFAULT_PRESET, name="default_preset")
-
-
-class CreateAssistantFileRequest(BaseModel):
-    file_id: str = Field(..., description="The unique identifier of the file.")
-
-
-class AssistantFile(BaseModel):
-    id: str = Field(..., description="The unique identifier of the file.")
-    object: str = "assistant.file"
-    created_at: int = Field(..., description="The unix timestamp of when the file was created.")
-    assistant_id: str = Field(..., description="The unique identifier of the assistant.")
-
-
-class MessageFile(BaseModel):
-    id: str = Field(..., description="The unique identifier of the file.")
-    object: str = "thread.message.file"
-    created_at: int = Field(..., description="The unix timestamp of when the file was created.")
-    message_id: str = Field(..., description="The unique identifier of the message.")
 
 
 @app.post("/v1/assistants/{assistant_id}/files", tags=["assistants"], response_model=AssistantFile)
@@ -227,18 +237,6 @@ def modify_assistant(
     pass
 
 
-class DeleteAssistantResponse(BaseModel):
-    id: str = Field(..., description="The unique identifier of the agent.")
-    object: str = "assistant.deleted"
-    deleted: bool = Field(..., description="Whether the agent was deleted.")
-
-
-class DeleteAssistantFileResponse(BaseModel):
-    id: str = Field(..., description="The unique identifier of the file.")
-    object: str = "assistant.file.deleted"
-    deleted: bool = Field(..., description="Whether the file was deleted.")
-
-
 @app.delete("/v1/assistants/{assistant_id}", tags=["assistants"], response_model=DeleteAssistantResponse)
 def delete_assistant(
     assistant_id: str = Path(..., description="The unique identifier of the assistant."),
@@ -297,12 +295,6 @@ def modify_thread(
 ):
     # TODO: add agent metadata so this can be modified
     pass
-
-
-class DeleteThreadResponse(BaseModel):
-    id: str = Field(..., description="The unique identifier of the agent.")
-    object: str = "thread.deleted"
-    deleted: bool = Field(..., description="Whether the agent was deleted.")
 
 
 @app.delete("/v1/threads/{thread_id}", tags=["assistants"], response_model=DeleteThreadResponse)
@@ -418,82 +410,6 @@ def retrieve_message_file(
     pass
 
 
-class Function(BaseModel):
-    name: str = Field(..., description="The name of the function.")
-    arguments: str = Field(..., description="The arguments of the function.")
-
-
-class ToolCall(BaseModel):
-    id: str = Field(..., description="The unique identifier of the tool call.")
-    type: str = "function"
-    function: Function = Field(..., description="The function call.")
-
-
-class RequiredAction(BaseModel):
-    type: str = "submit_tool_outputs"
-    submit_tool_outputs: List[ToolCall]
-
-
-class OpenAIError(BaseModel):
-    code: str = Field(..., description="The error code.")
-    message: str = Field(..., description="The error message.")
-
-
-class OpenAIUsage(BaseModel):
-    completion_tokens: int = Field(..., description="The number of tokens used for the run.")
-    prompt_tokens: int = Field(..., description="The number of tokens used for the prompt.")
-    total_tokens: int = Field(..., description="The total number of tokens used for the run.")
-
-
-class OpenAIMessageCreationStep(BaseModel):
-    type: str = "message_creation"
-    message_id: str = Field(..., description="The unique identifier of the message.")
-
-
-class OpenAIToolCallsStep(BaseModel):
-    type: str = "tool_calls"
-    tool_calls: List[ToolCall] = Field(..., description="The tool calls.")
-
-
-class OpenAIRun(BaseModel):
-    id: str = Field(..., description="The unique identifier of the run.")
-    object: str = "thread.run"
-    created_at: int = Field(..., description="The unix timestamp of when the run was created.")
-    thread_id: str = Field(..., description="The unique identifier of the thread.")
-    assistant_id: str = Field(..., description="The unique identifier of the assistant.")
-    status: str = Field(..., description="The status of the run.")
-    required_action: Optional[RequiredAction] = Field(None, description="The required action of the run.")
-    last_error: Optional[OpenAIError] = Field(None, description="The last error of the run.")
-    expires_at: int = Field(..., description="The unix timestamp of when the run expires.")
-    started_at: Optional[int] = Field(None, description="The unix timestamp of when the run started.")
-    cancelled_at: Optional[int] = Field(None, description="The unix timestamp of when the run was cancelled.")
-    failed_at: Optional[int] = Field(None, description="The unix timestamp of when the run failed.")
-    completed_at: Optional[int] = Field(None, description="The unix timestamp of when the run completed.")
-    model: str = Field(..., description="The model used by the run.")
-    instructions: str = Field(..., description="The instructions for the run.")
-    tools: List[ToolCall] = Field(..., description="The tools used by the run.")  # TODO: also add code interpreter / retrieval
-    file_ids: List[str] = Field(..., description="List of file IDs associated with the run.")
-    metadata: dict = Field(..., description="Metadata associated with the run.")
-    usage: Optional[OpenAIUsage] = Field(None, description="The usage of the run.")
-
-
-class OpenAIRunStep(BaseModel):
-    id: str = Field(..., description="The unique identifier of the run step.")
-    object: str = "thread.run.step"
-    created_at: int = Field(..., description="The unix timestamp of when the run step was created.")
-    assistant_id: str = Field(..., description="The unique identifier of the assistant.")
-    thread_id: str = Field(..., description="The unique identifier of the thread.")
-    run_id: str = Field(..., description="The unique identifier of the run.")
-    type: str = Field(..., description="The type of the run step.")  # message_creation, tool_calls
-    status: str = Field(..., description="The status of the run step.")
-    step_defaults: Union[OpenAIToolCallsStep, OpenAIMessageCreationStep] = Field(..., description="The step defaults.")
-    last_error: Optional[OpenAIError] = Field(None, description="The last error of the run step.")
-    expired_at: Optional[int] = Field(None, description="The unix timestamp of when the run step expired.")
-    failed_at: Optional[int] = Field(None, description="The unix timestamp of when the run failed.")
-    completed_at: Optional[int] = Field(None, description="The unix timestamp of when the run completed.")
-    usage: Optional[OpenAIUsage] = Field(None, description="The usage of the run.")
-
-
 @app.post("/v1/threads/{thread_id}/messages/{message_id}", tags=["assistants"], response_model=OpenAIMessage)
 def modify_message(
     thread_id: str = Path(..., description="The unique identifier of the thread."),
@@ -502,24 +418,6 @@ def modify_message(
 ):
     # TODO: add metada field to message so this can be modified
     pass
-
-
-class CreateRunRequest(BaseModel):
-    assistant_id: str = Field(..., description="The unique identifier of the assistant.")
-    model: str = Field(..., description="The model used by the run.")
-    instructions: str = Field(..., description="The instructions for the run.")
-    additional_instructions: Optional[str] = Field(None, description="Additional instructions for the run.")
-    tools: Optional[List[ToolCall]] = Field(None, description="The tools used by the run (overrides assistant).")
-    metadata: Optional[dict] = Field(None, description="Metadata associated with the run.")
-
-
-class CreateThreadRunRequest(BaseModel):
-    assistant_id: str = Field(..., description="The unique identifier of the assistant.")
-    thread: OpenAIThread = Field(..., description="The thread to run.")
-    model: str = Field(..., description="The model used by the run.")
-    instructions: str = Field(..., description="The instructions for the run.")
-    tools: Optional[List[ToolCall]] = Field(None, description="The tools used by the run (overrides assistant).")
-    metadata: Optional[dict] = Field(None, description="Metadata associated with the run.")
 
 
 @app.post("/v1/threads/{thread_id}/runs", tags=["assistants"], response_model=OpenAIMessage)
@@ -588,15 +486,6 @@ def modify_run(
     request: ModifyRunRequest = Body(...),
 ):
     pass
-
-
-class ToolCallOutput(BaseModel):
-    tool_call_id: str = Field(..., description="The unique identifier of the tool call.")
-    output: str = Field(..., description="The output of the tool call.")
-
-
-class SubmitToolOutputsToRunRequest(BaseModel):
-    tools_outputs: List[ToolCallOutput] = Field(..., description="The tool outputs to submit.")
 
 
 @app.post("/v1/threads/{thread_id}/runs/{run_id}/submit_tool_outputs", tags=["assistants"], response_model=OpenAIRun)
