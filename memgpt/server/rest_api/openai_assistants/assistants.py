@@ -168,6 +168,7 @@ class SubmitToolOutputsToRunRequest(BaseModel):
 
 # TODO: implement mechanism for creating/authenticating users associated with a bearer token
 
+
 # create assistant (MemGPT agent)
 @app.post("/v1/assistants", tags=["assistants"], response_model=OpenAIAssistant)
 def create_assistant(request: CreateAssistantRequest = Body(...)):
@@ -256,7 +257,6 @@ def delete_assistant_file(
 
 @app.post("/v1/threads/", tags=["assistants"], response_model=OpenAIThread)
 def create_thread(request: CreateThreadRequest = Body(...)):
-
     # TODO: use requests.description and requests.metadata fields
     # TODO: handle requests.file_ids and requests.tools
     # TODO: eventually allow request to override embedding/llm model
