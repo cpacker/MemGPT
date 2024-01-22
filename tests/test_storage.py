@@ -81,6 +81,7 @@ def generate_messages(embed_model):
         print(messages[-1].text)
     return messages
 
+
 # Data generation functions: Messages
 def generate_documents():
     """Generate list of 3 Document objects"""
@@ -89,6 +90,7 @@ def generate_documents():
         documents.append(Document(user_id=user_id, text=text, id=id, metadata={}, data_source="Test"))
         print(documents[-1].text)
     return documents
+
 
 @pytest.fixture(autouse=True)
 def clear_dynamically_created_models():
@@ -187,10 +189,14 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
     ms.create_agent(agent)
 
     # create storage connector
-    conn = StorageConnector.get_storage_connector(table_type, config=config, user_id=user_id, agent_id=agent.id if table_type != TableType.DOCUMENTS else None)
+    conn = StorageConnector.get_storage_connector(
+        table_type, config=config, user_id=user_id, agent_id=agent.id if table_type != TableType.DOCUMENTS else None
+    )
     # conn.client.delete_collection(conn.collection.name)  # clear out data
     conn.delete_table()
-    conn = StorageConnector.get_storage_connector(table_type, config=config, user_id=user_id, agent_id=agent.id if table_type != TableType.DOCUMENTS else None)
+    conn = StorageConnector.get_storage_connector(
+        table_type, config=config, user_id=user_id, agent_id=agent.id if table_type != TableType.DOCUMENTS else None
+    )
 
     # generate data
     if table_type == TableType.ARCHIVAL_MEMORY:
@@ -220,13 +226,9 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
     # test: insert_many
     conn.insert_many(records[1:])
     if table_type != TableType.DOCUMENTS:
-        assert (
-            conn.size() == 2
-        ), f"Expected 2 record, got {conn.size()}: {conn.get_all()}"
+        assert conn.size() == 2, f"Expected 2 record, got {conn.size()}: {conn.get_all()}"
     else:
-        assert (
-                conn.size() == 3
-        ), f"Expected 3 record, got {conn.size()}: {conn.get_all()}"
+        assert conn.size() == 3, f"Expected 3 record, got {conn.size()}: {conn.get_all()}"
     # test: list_loaded_data
     # TODO: add back
     # if table_type == TableType.ARCHIVAL_MEMORY:
@@ -250,7 +252,6 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
     else:
         all_records = conn.get_all()
         assert len(all_records) == 2, f"Expected 2 records, got {len(all_records)}"
-
 
     all_records = conn.get_all(limit=1)
     assert len(all_records) == 1, f"Expected 1 records, got {len(all_records)}"
