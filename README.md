@@ -213,6 +213,11 @@ send_message("Please introduce yourself and tell me about your abilities!")
 </details>
 
 
+## Best performing models
+Performances of different open-sourced models will be listed in [this spreadsheet](https://docs.google.com/spreadsheets/d/1fH-FdaO8BltTMa4kXiNCxmBCQ46PRBVp3Vn6WbPgsFs/edit?usp=sharing) upon your contribution via [this forms](https://forms.gle/XiBGKEEPFFLNSR348).
+
+To evaluate the performance of a model on MemGPT, simply configure the appropriate settings using `memgpt configure`, and then initiate the benchmark via `memgpt benchmark`. The duration will vary depending on your hardware. This will run through a predefined set of prompts through multiple iterations to test the function calling capabilities of a model.
+
 ## Support
 For issues and feature requests, please [open a GitHub issue](https://github.com/cpacker/MemGPT/issues) or message us on our `#support` channel on [Discord](https://discord.gg/9GEQrxmVyE).
 
