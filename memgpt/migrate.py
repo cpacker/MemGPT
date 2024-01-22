@@ -337,12 +337,22 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Meta
     recall_message_full = data["all_messages"]
 
     def messages_are_equal(msg1, msg2):
-        return msg1["role"] == msg2["role"] and msg1["content"] == msg2["content"]
+        if msg1["role"] != msg2["role"]:
+            return False
+        if msg1["content"] != msg2["content"]:
+            return False
+        if "function_call" in msg1 and "function_call" in msg2 and msg1["function_call"] != msg2["function_call"]:
+            return False
+        if "name" in msg1 and "name" in msg2 and msg1["name"] != msg2["name"]:
+            return False
+
+        # otherwise checks pass, ~= equal
+        return True
 
     in_context_messages = []
     out_of_context_messages = []
     assert len(agent_message_cache) <= len(recall_message_full), (len(agent_message_cache), len(recall_message_full))
-    for d in recall_message_full:
+    for i, d in enumerate(recall_message_full):
         # unpack into "timestamp" and "message"
         recall_message = d["message"]
         recall_timestamp = str(d["timestamp"])
@@ -361,12 +371,20 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Meta
         )
 
         # message is either in-context, or out-of-context
-        message_is_in_context = [messages_are_equal(recall_message, cache_message) for cache_message in agent_message_cache]
-        assert sum(message_is_in_context) <= 1, message_is_in_context
 
-        if any(message_is_in_context):
-            in_context_messages.append(message_obj)
+        if i >= (len(recall_message_full) - len(agent_message_cache)):
+            # there are len(agent_message_cache) total messages on the agent
+            # this will correspond to the last N messages in the recall memory (though possibly out-of-order)
+            message_is_in_context = [messages_are_equal(recall_message, cache_message) for cache_message in agent_message_cache]
+            assert sum(message_is_in_context) <= 1, message_is_in_context
+
+            if any(message_is_in_context):
+                in_context_messages.append(message_obj)
+            else:
+                out_of_context_messages.append(message_obj)
+
         else:
+            # if we're not in the final portion of the recall memory buffer, then it's 100% out-of-context
             out_of_context_messages.append(message_obj)
 
     assert len(in_context_messages) > 0
@@ -529,8 +547,10 @@ def migrate_all_agents(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) -
             for fail in failures:
                 typer.secho(f"{fail['name']}: {fail['reason']}", fg=typer.colors.RED)
             typer.secho(f"❌ {len(failures)}/{len(candidates)} migration targets failed (see reasons above)", fg=typer.colors.RED)
+            typer.secho(f"{[d['name'] for d in failures]}", fg=typer.colors.RED)
         if count > 0:
             typer.secho(f"✅ {count}/{len(candidates)} agents were successfully migrated to the new database format", fg=typer.colors.GREEN)
+            typer.secho(f"{candidates}", fg=typer.colors.GREEN)
 
     del ms
     return {
