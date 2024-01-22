@@ -16,7 +16,7 @@ def test_list_messages():
     server = SyncServer()
     server.create_user({"id": test_user_id})
 
-    # POST request to create agent
+    # test: create agent
     request_body = {
         "user_id": str(test_user_id),
         "assistant_name": DEFAULT_PRESET,
@@ -27,10 +27,17 @@ def test_list_messages():
     agent_id = response.json()["id"]
     print(response.json())
 
-    # insert messages
+    # test: insert messages
     # TODO: eventually implement the "run" functionality
+    request_body = {
+        "user_id": str(test_user_id),
+        "content": "Hello, world!",
+        "role": "user",
+    }
+    response = client.post(f"/v1/threads/{str(agent_id)}/messages", json=request_body)
+    assert response.status_code == 200, f"Error: {response.json()}"
 
-    # list messages
+    # test: list messages
     thread_id = str(agent_id)
     params = {
         "limit": 10,

@@ -5,6 +5,7 @@ from enum import Enum
 import json
 import uuid
 from typing import List, Optional
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, Body, HTTPException, Query, Path
 from pydantic import BaseModel, Field, constr, validator
@@ -95,8 +96,8 @@ class CreateThreadRequest(BaseModel):
 class CreateMessageRequest(BaseModel):
     role: str = Field(..., description="Role of the message sender (either 'user' or 'system')")
     content: str = Field(..., description="The message content to be processed by the agent.")
-    file_ids: Optional[List[str]] = Field(..., description="List of file IDs associated with the message.")
-    metadata: Optional[dict] = Field(..., description="Metadata associated with the message.")
+    file_ids: Optional[List[str]] = Field(None, description="List of file IDs associated with the message.")
+    metadata: Optional[dict] = Field(None, description="Metadata associated with the message.")
 
     # TODO: remove
     user_id: str = Field(..., description="The unique identifier of the user.")
@@ -152,9 +153,7 @@ def create_thread(request: CreateThreadRequest = Body(...)):
             "preset": request.assistant_name,
         },
     )
-
     # TODO: insert messages into recall memory
-
     return OpenAIThread(
         id=str(agent_state.id),
         created_at=int(agent_state.created_at.timestamp()),
@@ -167,8 +166,23 @@ def create_message(
     request: CreateMessageRequest = Body(...),
 ):
     user_id = uuid.UUID(request.user_id)
-    agent_id = uuid.UUID(request.thread_id)
+    agent_id = uuid.UUID(thread_id)
     # TODO: need to add a buffer/queue to server and pull on .step()
+    server.user_message(
+        user_id=user_id,
+        agent_id=agent_id,
+        message=request.content,
+    )
+    # TODO: this should eventually add and optionally run the .step()
+    # return openai message
+    return OpenAIMessage(
+        id=str(uuid.uuid4()),
+        created_at=int(datetime.now().timestamp()),
+        thread_id=str(agent_id),
+        assistant_id=DEFAULT_PRESET,
+        role="user",
+        content=[Text(text=request.content)],
+    )
 
 
 @app.get("/v1/threads/{thread_id}/messages", tags=["assistants"], response_model=ListMessagesResponse)

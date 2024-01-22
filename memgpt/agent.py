@@ -6,7 +6,7 @@ import os
 import json
 from pathlib import Path
 import traceback
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 from box import Box
 
@@ -538,7 +538,9 @@ class Agent(object):
 
         return messages, heartbeat_request, function_failed
 
-    def step(self, user_message, first_message=False, first_message_retry_limit=FIRST_MESSAGE_ATTEMPTS, skip_verify=False):
+    def step(
+        self, user_message: Union[Message, str], first_message=False, first_message_retry_limit=FIRST_MESSAGE_ATTEMPTS, skip_verify=False
+    ):
         """Top-level event message handler for the MemGPT agent"""
 
         try:
