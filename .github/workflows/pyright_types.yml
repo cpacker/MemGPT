@@ -1,0 +1,38 @@
+name: "Python Static Analysis"
+on:
+  pull_request:
+    paths:
+      - '**.py'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  pyright:
+    name: "Pyright types check"
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: "Setup Python, Poetry and Dependencies"
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: ${{matrix.python-version}}
+          poetry-version: "1.7.1"
+          install-args: "-E dev"  # TODO: change this to --group dev when PR #842 lands
+
+      - name: "Add Poetry venv to PATH"
+        run: 'echo "$(poetry env info --path)/bin" >> $GITHUB_PATH'
+
+      - name: "Run Pyright"
+        uses: jakebailey/pyright-action@v2
+        with:
+          python-version: ${{matrix.python-version}}
+          level: "error"
+        continue-on-error: true  # TODO: remove once the repo has been corrected for pyright
+

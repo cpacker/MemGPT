@@ -28,7 +28,7 @@ from memgpt.agent import Agent
 from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
 from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig, User
-from memgpt.metadata import MetadataStore
+from memgpt.metadata import MetadataStore, save_agent
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
 
 
@@ -67,6 +67,28 @@ def set_config_with_dict(new_config: dict) -> bool:
                 setattr(old_config, k, new_config[k])  # Set the new value using dot notation
             else:
                 printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+
+    # update embedding config
+    for k, v in vars(old_config.default_embedding_config).items():
+        if k in new_config:
+            if v != new_config[k]:
+                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
+                modified = True
+                # old_config[k] = new_config[k]
+                setattr(old_config.default_embedding_config, k, new_config[k])
+        else:
+            printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+
+    # update llm config
+    for k, v in vars(old_config.default_llm_config).items():
+        if k in new_config:
+            if v != new_config[k]:
+                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
+                modified = True
+                # old_config[k] = new_config[k]
+                setattr(old_config.default_llm_config, k, new_config[k])
+        else:
+            printd(f"Skipping new config {k}: {v} == {new_config[k]}")
 
     if modified:
         printd(f"Saving new config file.")
@@ -231,6 +253,21 @@ class ServerChoice(Enum):
     ws_api = "websocket"
 
 
+def create_default_user_or_exit(config: MemGPTConfig, ms: MetadataStore):
+    user_id = uuid.UUID(config.anon_clientid)
+    user = ms.get_user(user_id=user_id)
+    if user is None:
+        ms.create_user(User(id=user_id))
+        user = ms.get_user(user_id=user_id)
+        if user is None:
+            typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
+            sys.exit(1)
+        else:
+            return user
+    else:
+        return user
+
+
 def server(
     type: ServerChoice = typer.Option("rest", help="Server to run"),
     port: int = typer.Option(None, help="Port to run the server on"),
@@ -256,13 +293,21 @@ def server(
         import uvicorn
         from memgpt.server.rest_api.server import app
 
+        if MemGPTConfig.exists():
+            config = MemGPTConfig.load()
+            ms = MetadataStore(config)
+            create_default_user_or_exit(config, ms)
+        else:
+            typer.secho(f"No configuration exists. Run memgpt configure before starting the server.", fg=typer.colors.RED)
+            sys.exit(1)
+
         try:
             # Start the subprocess in a new session
             uvicorn.run(app, host=host or "localhost", port=port or REST_DEFAULT_PORT)
 
         except KeyboardInterrupt:
             # Handle CTRL-C
-            print("Terminating the server...")
+            typer.secho("Terminating the server...")
             sys.exit(0)
 
     elif type == ServerChoice.ws_api:
@@ -277,7 +322,7 @@ def server(
         command = f"python server.py {port}"
 
         # Run the command
-        print(f"Running WS (websockets) server: {command} (inside {server_directory})")
+        typer.secho(f"Running WS (websockets) server: {command} (inside {server_directory})")
 
         try:
             # Start the subprocess in a new session
@@ -285,13 +330,13 @@ def server(
             process.wait()
         except KeyboardInterrupt:
             # Handle CTRL-C
-            print("Terminating the server...")
+            typer.secho("Terminating the server...")
             process.terminate()
             try:
                 process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 process.kill()
-                print("Server terminated with kill()")
+                typer.secho("Server terminated with kill()")
             sys.exit(0)
 
 
@@ -413,14 +458,7 @@ def run(
 
     # read user id from config
     ms = MetadataStore(config)
-    user_id = uuid.UUID(config.anon_clientid)
-    user = ms.get_user(user_id=user_id)
-    if user is None:
-        ms.create_user(User(id=user_id))
-        user = ms.get_user(user_id=user_id)
-        if user is None:
-            typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
-            sys.exit(1)
+    user = create_default_user_or_exit(config, ms)
 
     # override with command line arguments
     if debug:
@@ -444,7 +482,7 @@ def run(
     if agent and ms.get_agent(agent_name=agent, user_id=user.id):  # use existing agent
         typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
         # agent_config = AgentConfig.load(agent)
-        agent_state = ms.get_agent(agent_name=agent, user_id=user_id)
+        agent_state = ms.get_agent(agent_name=agent, user_id=user.id)
         printd("Loading agent state:", agent_state.id)
         printd("Agent state:", agent_state.state)
         # printd("State path:", agent_config.save_state_dir())
@@ -566,6 +604,7 @@ def run(
                 agent_state=agent_state,
                 interface=interface,
             )
+            save_agent(agent=memgpt_agent, ms=ms)
         except ValueError as e:
             # TODO(swooders) what's the equivalent cleanup code for the new DB refactor?
             typer.secho(f"Failed to create agent from provided information:\n{e}", fg=typer.colors.RED)
@@ -585,7 +624,7 @@ def run(
             # except:
             #     typer.secho(f"Failed to delete agent directory during cleanup:\n{e}", fg=typer.colors.RED)
             sys.exit(1)
-        typer.secho(f"🎉 Created new agent '{agent_state.name}'", fg=typer.colors.GREEN)
+        typer.secho(f"🎉 Created new agent '{agent_state.name}' (id={agent_state.id})", fg=typer.colors.GREEN)
 
     # pretty print agent config
     # printd(json.dumps(vars(agent_config), indent=4, sort_keys=True, ensure_ascii=JSON_ENSURE_ASCII))

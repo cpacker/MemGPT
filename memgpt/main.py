@@ -30,6 +30,9 @@ from memgpt.cli.cli_load import app as load_app
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.metadata import MetadataStore, save_agent
 
+# import benchmark
+from memgpt.benchmark.benchmark import bench
+
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
 app.command(name="version")(version)
@@ -45,6 +48,8 @@ app.command(name="quickstart")(quickstart)
 app.add_typer(load_app, name="load")
 # migration command
 app.command(name="migrate")(migrate)
+# benchmark command
+app.command(name="benchmark")(bench)
 
 
 def clear_line(strip_ui=False):
@@ -111,6 +116,9 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                 elif user_input.lower() == "/attach":
                     # TODO: check if agent already has it
 
+                    # TODO: check to ensure source embedding dimentions/model match agents, and disallow attachment if not
+                    # TODO: alternatively, only list sources with compatible embeddings, and print warning about non-compatible sources
+
                     data_source_options = ms.list_sources(user_id=memgpt_agent.agent_state.user_id)
                     data_source_options = [s.name for s in data_source_options]
                     if len(data_source_options) == 0:
@@ -120,7 +128,24 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                             bold=True,
                         )
                         continue
-                    data_source = questionary.select("Select data source", choices=data_source_options).ask()
+
+                    # determine what sources are valid to be attached to this agent
+                    valid_options = []
+                    invalid_options = []
+                    for source in data_source_options:
+                        if source.embedding_model == memgpt_agent.embedding_model and source.embedding_dim == memgpt_agent.embedding_dim:
+                            valid_options.append(source.name)
+                        else:
+                            invalid_options.append(source.name)
+
+                    # print warning about invalid sources
+                    typer.secho(
+                        f"Warning: the following sources are not compatible with this agent's embedding model and dimension: {invalid_options}",
+                        fg=typer.colors.YELLOW,
+                    )
+
+                    # prompt user for data source selection
+                    data_source = questionary.select("Select data source", choices=valid_options).ask()
 
                     # attach new data
                     attach(memgpt_agent.config.name, data_source)
@@ -300,7 +325,7 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
         skip_next_user_input = False
 
         def process_agent_step(user_message, no_verify):
-            new_messages, heartbeat_request, function_failed, token_warning = memgpt_agent.step(
+            new_messages, heartbeat_request, function_failed, token_warning, tokens_accumulated = memgpt_agent.step(
                 user_message, first_message=False, skip_verify=no_verify
             )
 
@@ -327,12 +352,12 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                         new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                         break
             except KeyboardInterrupt:
-                print("User interrupt occured.")
+                print("User interrupt occurred.")
                 retry = questionary.confirm("Retry agent.step()?").ask()
                 if not retry:
                     break
             except Exception as e:
-                print("An exception ocurred when running agent.step(): ")
+                print("An exception occurred when running agent.step(): ")
                 traceback.print_exc()
                 retry = questionary.confirm("Retry agent.step()?").ask()
                 if not retry:

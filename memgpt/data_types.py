@@ -5,7 +5,7 @@ from abc import abstractmethod
 from typing import Optional, List, Dict
 import numpy as np
 
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
+from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS, MAX_EMBEDDING_DIM
 from memgpt.utils import get_local_time, format_datetime
 from memgpt.models import chat_completion_response
 
@@ -68,6 +68,8 @@ class Message(Record):
         tool_calls: Optional[List[ToolCall]] = None,  # list of tool calls requested
         tool_call_id: Optional[str] = None,
         embedding: Optional[np.ndarray] = None,
+        embedding_dim: Optional[int] = None,
+        embedding_model: Optional[str] = None,
         id: Optional[uuid.UUID] = None,
     ):
         super().__init__(id)
@@ -81,6 +83,20 @@ class Message(Record):
         assert role in ["system", "assistant", "user", "tool"]
         self.role = role  # role (agent/user/function)
         self.name = name
+
+        # pad and store embeddings
+        if isinstance(embedding, list):
+            embedding = np.array(embedding)
+        self.embedding = (
+            np.pad(embedding, (0, MAX_EMBEDDING_DIM - embedding.shape[0]), mode="constant").tolist() if embedding is not None else None
+        )
+        self.embedding_dim = embedding_dim
+        self.embedding_model = embedding_model
+
+        if self.embedding is not None:
+            assert self.embedding_dim, f"Must specify embedding_dim if providing an embedding"
+            assert self.embedding_model, f"Must specify embedding_model if providing an embedding"
+            assert len(self.embedding) == MAX_EMBEDDING_DIM, f"Embedding must be of length {MAX_EMBEDDING_DIM}"
 
         # tool (i.e. function) call info (optional)
 
@@ -97,9 +113,6 @@ class Message(Record):
             assert tool_call_id is None
         self.tool_call_id = tool_call_id
 
-        # embedding (optional)
-        self.embedding = embedding
-
     # def __repr__(self):
     #    pass
 
@@ -110,8 +123,12 @@ class Message(Record):
         openai_message_dict: dict,
         model: Optional[str] = None,  # model used to make function call
         allow_functions_style: bool = False,  # allow deprecated functions style?
+        created_at: Optional[datetime] = None,
     ):
         """Convert a ChatCompletion message object into a Message object (synced to DB)"""
+
+        assert "role" in openai_message_dict, openai_message_dict
+        assert "content" in openai_message_dict, openai_message_dict
 
         # If we're going from deprecated function form
         if openai_message_dict["role"] == "function":
@@ -122,6 +139,7 @@ class Message(Record):
             # Convert from 'function' response to a 'tool' response
             # NOTE: this does not conventionally include a tool_call_id, it's on the caster to provide it
             return Message(
+                created_at=created_at,
                 user_id=user_id,
                 agent_id=agent_id,
                 model=model,
@@ -153,6 +171,7 @@ class Message(Record):
             ]
 
             return Message(
+                created_at=created_at,
                 user_id=user_id,
                 agent_id=agent_id,
                 model=model,
@@ -184,6 +203,7 @@ class Message(Record):
 
             # If we're going from tool-call style
             return Message(
+                created_at=created_at,
                 user_id=user_id,
                 agent_id=agent_id,
                 model=model,
@@ -273,6 +293,8 @@ class Passage(Record):
         text: str,
         agent_id: Optional[uuid.UUID] = None,  # set if contained in agent memory
         embedding: Optional[np.ndarray] = None,
+        embedding_dim: Optional[int] = None,
+        embedding_model: Optional[str] = None,
         data_source: Optional[str] = None,  # None if created by agent
         doc_id: Optional[uuid.UUID] = None,
         id: Optional[uuid.UUID] = None,
@@ -283,9 +305,22 @@ class Passage(Record):
         self.agent_id = agent_id
         self.text = text
         self.data_source = data_source
-        self.embedding = embedding
         self.doc_id = doc_id
         self.metadata = metadata
+
+        # pad and store embeddings
+        if isinstance(embedding, list):
+            embedding = np.array(embedding)
+        self.embedding = (
+            np.pad(embedding, (0, MAX_EMBEDDING_DIM - embedding.shape[0]), mode="constant").tolist() if embedding is not None else None
+        )
+        self.embedding_dim = embedding_dim
+        self.embedding_model = embedding_model
+
+        if self.embedding is not None:
+            assert self.embedding_dim, f"Must specify embedding_dim if providing an embedding"
+            assert self.embedding_model, f"Must specify embedding_model if providing an embedding"
+            assert len(self.embedding) == MAX_EMBEDDING_DIM, f"Embedding must be of length {MAX_EMBEDDING_DIM}"
 
         assert isinstance(self.user_id, uuid.UUID), f"UUID {self.user_id} must be a UUID type"
         assert not agent_id or isinstance(self.agent_id, uuid.UUID), f"UUID {self.agent_id} must be a UUID type"
@@ -327,6 +362,11 @@ class EmbeddingConfig:
         self.embedding_model = embedding_model
         self.embedding_dim = embedding_dim
         self.embedding_chunk_size = embedding_chunk_size
+
+        # fields cannot be set to None
+        assert self.embedding_endpoint_type
+        assert self.embedding_dim
+        assert self.embedding_chunk_size
 
 
 class OpenAIEmbeddingConfig(EmbeddingConfig):
@@ -434,6 +474,9 @@ class Source:
         name: str,
         created_at: Optional[str] = None,
         id: Optional[uuid.UUID] = None,
+        # embedding info
+        embedding_model: Optional[str] = None,
+        embedding_dim: Optional[int] = None,
     ):
         if id is None:
             self.id = uuid.uuid4()
@@ -445,3 +488,7 @@ class Source:
         self.name = name
         self.user_id = user_id
         self.created_at = created_at
+
+        # embedding info (optional)
+        self.embedding_dim = embedding_dim
+        self.embedding_model = embedding_model

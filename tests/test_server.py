@@ -104,7 +104,14 @@ def test_server():
     for text in archival_memories:
         embedding = embed_model.get_text_embedding(text)
         agent.persistence_manager.archival_memory.storage.insert(
-            Passage(user_id=user.id, agent_id=agent_state.id, text=text, embedding=embedding)
+            Passage(
+                user_id=user.id,
+                agent_id=agent_state.id,
+                text=text,
+                embedding=embedding,
+                embedding_dim=agent.agent_state.embedding_config.embedding_dim,
+                embedding_model=agent.agent_state.embedding_config.embedding_model,
+            )
         )
 
     # add data into recall memory

@@ -10,7 +10,7 @@ from typing import List, Tuple
 
 from box import Box
 
-from memgpt.data_types import AgentState, Message
+from memgpt.data_types import AgentState, Message, EmbeddingConfig
 from memgpt.models import chat_completion_response
 from memgpt.interface import AgentInterface
 from memgpt.persistence_manager import PersistenceManager, LocalStateManager
@@ -644,7 +644,7 @@ class Agent(object):
 
             self._append_to_messages(all_new_messages)
             all_new_messages_dicts = [msg.to_openai_dict() for msg in all_new_messages]
-            return all_new_messages_dicts, heartbeat_request, function_failed, active_memory_warning
+            return all_new_messages_dicts, heartbeat_request, function_failed, active_memory_warning, response.usage.completion_tokens
 
         except Exception as e:
             printd(f"step() failed\nuser_message = {user_message}\nerror = {e}")
@@ -897,3 +897,10 @@ class Agent(object):
             state=updated_state,
         )
         return self.agent_state
+
+    def migrate_embedding(self, embedding_config: EmbeddingConfig):
+        """Migrate the agent to a new embedding"""
+        # TODO: archival memory
+
+        # TODO: recall memory
+        raise NotImplementedError()

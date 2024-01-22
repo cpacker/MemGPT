@@ -2,16 +2,46 @@ import typer
 import uuid
 from typing import Optional, List
 import os
+import numpy as np
 
-from memgpt.utils import is_valid_url
+from memgpt.utils import is_valid_url, printd
 from memgpt.data_types import EmbeddingConfig
 from memgpt.credentials import MemGPTCredentials
+from memgpt.constants import MAX_EMBEDDING_DIM, EMBEDDING_TO_TOKENIZER_MAP, EMBEDDING_TO_TOKENIZER_DEFAULT
 
 from llama_index.embeddings import OpenAIEmbedding, AzureOpenAIEmbedding
 from llama_index.bridge.pydantic import PrivateAttr
 from llama_index.embeddings.base import BaseEmbedding
 from llama_index.embeddings.huggingface_utils import format_text
 import tiktoken
+
+
+def check_and_split_text(text: str, embedding_model: str) -> List[str]:
+    """Split text into chunks of max_length tokens or less"""
+
+    if embedding_model in EMBEDDING_TO_TOKENIZER_MAP:
+        encoding = tiktoken.get_encoding(EMBEDDING_TO_TOKENIZER_MAP[embedding_model])
+    else:
+        print(f"Warning: couldn't find tokenizer for model {embedding_model}, using default tokenizer {EMBEDDING_TO_TOKENIZER_DEFAULT}")
+        encoding = tiktoken.get_encoding(EMBEDDING_TO_TOKENIZER_DEFAULT)
+
+    num_tokens = len(encoding.encode(text))
+
+    # determine max length
+    if hasattr(encoding, "max_length"):
+        max_length = encoding.max_length
+    else:
+        # TODO: figure out the real number
+        printd(f"Warning: couldn't find max_length for tokenizer {embedding_model}, using default max_length 8191")
+        max_length = 8191
+
+    # truncate text if too long
+    if num_tokens > max_length:
+        # TODO: split this into two pieces of text instead of truncating
+        print(f"Warning: text is too long ({num_tokens} tokens), truncating to {max_length} tokens.")
+        text = format_text(text, embedding_model, max_length=max_length)
+
+    return [text]
 
 
 class EmbeddingEndpoint(BaseEmbedding):
@@ -38,7 +68,6 @@ class EmbeddingEndpoint(BaseEmbedding):
         self._user = user
         self._base_url = base_url
         self._timeout = timeout
-        self._encoding = tiktoken.get_encoding(model)
         super().__init__(
             model_name=model,
         )
@@ -47,22 +76,12 @@ class EmbeddingEndpoint(BaseEmbedding):
     def class_name(cls) -> str:
         return "EmbeddingEndpoint"
 
-    def count_tokens(self, text: str) -> int:
-        """Count tokens using the embedding model's tokenizer"""
-        return len(self._encoding.encode(text))
-
     def _call_api(self, text: str) -> List[float]:
         if not is_valid_url(self._base_url):
             raise ValueError(
                 f"Embeddings endpoint does not have a valid URL (set to: '{self._base_url}'). Make sure embedding_endpoint is set correctly in your MemGPT config."
             )
         import httpx
-
-        # If necessary, truncate text to fit in the embedding model's max sequence length (usually 512)
-        num_tokens = self.count_tokens(text)
-        max_length = self._encoding.max_length
-        if num_tokens > max_length:
-            text = format_text(text, self.model_name, max_length=max_length)
 
         headers = {"Content-Type": "application/json"}
         json_data = {"input": text, "model": self.model_name, "user": self._user}
@@ -157,6 +176,14 @@ def default_embedding_model():
     return HuggingFaceEmbedding(model_name=model)
 
 
+def query_embedding(embedding_model, query_text: str):
+    """Generate padded embedding for querying database"""
+    query_vec = embedding_model.get_text_embedding(query_text)
+    query_vec = np.array(query_vec)
+    query_vec = np.pad(query_vec, (0, MAX_EMBEDDING_DIM - query_vec.shape[0]), mode="constant").tolist()
+    return query_vec
+
+
 def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None):
     """Return LlamaIndex embedding model to use for embeddings"""
 
@@ -181,11 +208,6 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
             api_version=credentials.azure_version,
         )
     elif endpoint_type == "hugging-face":
-        try:
-            return EmbeddingEndpoint(model=config.embedding_model, base_url=config.embedding_endpoint, user=user_id)
-        except Exception as e:
-            # TODO: remove, this is just to get passing tests
-            print(e)
-            return default_embedding_model()
+        return EmbeddingEndpoint(model=config.embedding_model, base_url=config.embedding_endpoint, user=user_id)
     else:
         return default_embedding_model()
