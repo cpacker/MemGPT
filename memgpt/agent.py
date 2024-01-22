@@ -888,7 +888,7 @@ class Agent(object):
     #        print(f"Agent.save {new_agent_state.id} :: preupdate:\n\tmessages={new_agent_state.state['messages']}")
     #        self.ms.update_agent(agent=new_agent_state)
 
-    def update_state(self):
+    def update_state(self) -> AgentState:
         updated_state = {
             "persona": self.memory.persona,
             "human": self.memory.human,

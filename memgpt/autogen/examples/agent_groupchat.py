@@ -12,7 +12,7 @@ Begin by doing:
 
 import os
 import autogen
-from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config
+from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config, load_autogen_memgpt_agent
 from memgpt.constants import LLM_MAX_TOKENS, DEFAULT_PRESET
 
 # LLM_BACKEND = "openai"
@@ -173,7 +173,17 @@ else:
         interface_kwargs=interface_kwargs,
         default_auto_reply="...",  # Set a default auto-reply message here (non-empty auto-reply is required for LM Studio)
         skip_verify=False,  # NOTE: you should set this to True if you expect your MemGPT AutoGen agent to call a function other than send_message on the first turn
+        auto_save=False,  # Set this to True if you want the MemGPT AutoGen agent to save its internal state after each reply - you can also save manually with .save()
     )
+
+    # If you'd like to save this agent at any point, you can do:
+    # coder.save()
+
+    # You can also autosave by setting auto_save=True, in which case coder.save() will be called automatically
+
+    # To load an AutoGen+MemGPT agent you previously created, you can use the load function:
+    # coder = load_autogen_memgpt_agent(agent_config={"name": "MemGPT_coder"})
+
 
 # Initialize the group chat between the user and two LLM agents (PM and coder)
 groupchat = autogen.GroupChat(agents=[user_proxy, pm, coder], messages=[], max_round=12, speaker_selection_method="round_robin")
