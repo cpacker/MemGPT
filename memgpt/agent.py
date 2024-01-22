@@ -186,11 +186,13 @@ class Agent(object):
             raise ValueError(f"'system' not found in provided AgentState")
         self.system = agent_state.state["system"]
         if "system_template" not in agent_state.state:
-            raise ValueError(f"'system_template' not found in provided AgentState")
-        self.system_template = agent_state.state["system_template"]
+            self.system_template = ""
+        else:
+            self.system_template = agent_state.state["system_template"]
         if "system_template_fields" not in agent_state.state:
-            raise ValueError(f"'system_template_fields' not found in provided AgentState")
-        self.system_template_fields = agent_state.state["system_template_fields"]
+            self.system_template_fields = {}
+        else:
+            self.system_template_fields = agent_state.state["system_template_fields"]
         if "functions" not in agent_state.state:
             raise ValueError(f"'functions' not found in provided AgentState")
         # Store the functions schemas (this is passed as an argument to ChatCompletion)
