@@ -345,11 +345,11 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Meta
     for d in recall_message_full:
         # unpack into "timestamp" and "message"
         recall_message = d["message"]
-        recall_timestamp = d["timestamp"]
+        recall_timestamp = str(d["timestamp"])
         try:
-            recall_datetime = parse_formatted_time(recall_timestamp).astimezone(pytz.utc)
+            recall_datetime = parse_formatted_time(recall_timestamp.strip()).astimezone(pytz.utc)
         except ValueError:
-            recall_datetime = datetime.strptime(recall_timestamp, "%Y-%m-%d %I:%M:%S %p").astimezone(pytz.utc)
+            recall_datetime = datetime.strptime(recall_timestamp.strip(), "%Y-%m-%d %I:%M:%S %p").astimezone(pytz.utc)
 
         # message object
         message_obj = Message.dict_to_message(
