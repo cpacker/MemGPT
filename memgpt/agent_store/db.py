@@ -246,7 +246,7 @@ def get_db_model(
             user_id = Column(CommonUUID, nullable=False)
             text = Column(String)
             data_source = Column(String)
-            document_metadata = Column(String)
+            metadata_ = Column(MutableJson)
             # Add a datetime column, with default value as the current time
             created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -260,7 +260,7 @@ def get_db_model(
                     data_source=self.data_source,
                     id=self.id,
                     created_at=str(self.created_at),
-                    metadata=json.loads(self.document_metadata),
+                    metadata=self.metadata_,
                 )
 
         """Create database model for table_name"""

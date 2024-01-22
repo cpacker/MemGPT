@@ -10,6 +10,7 @@ memgpt load <data-connector-type> --name <dataset-name> [ADDITIONAL ARGS]
 
 from typing import List
 
+import llama_index
 from llama_index.vector_stores import VectorStoreQuery, SimpleVectorStore
 from tqdm import tqdm
 import numpy as np
@@ -231,7 +232,12 @@ def load_directory(
             reader = SimpleDirectoryReader(input_files=input_files)
 
         # load docs
-        docs = reader.load_data()
+        docs = []
+        for data in reader.iter_data():
+            doc = ''.join([doc.text[2:] for doc in data])
+            doco = llama_index.Document()
+            doco.set_content(doc)
+            docs.append(doco)
         store_docs(name, docs, user_id)
 
     except ValueError as e:

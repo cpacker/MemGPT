@@ -147,6 +147,8 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
     assert [p.data_source == name for p in passages]
     print("Passages", passages)
 
+    assert [passages[0].doc_id == passage.doc_id for passage in passages], "Expected all passages to have the same doc id!"
+
     # test: listing sources
     print("Querying all...")
     sources = ms.list_sources(user_id=user_id)

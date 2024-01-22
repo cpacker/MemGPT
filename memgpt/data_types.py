@@ -276,7 +276,7 @@ class Document(Record):
         data_source: str,
         id: Optional[uuid.UUID] = None,
         created_at: Optional[str] = None,
-        metadata: Optional[dict] = None,
+        metadata: Optional[dict] = {},
     ):
         super().__init__(id)
         if metadata is None:
@@ -286,6 +286,8 @@ class Document(Record):
         self.data_source = data_source
         self.metadata = metadata
         self.created_at = created_at
+        self.metadata = metadata
+
 
     # def __repr__(self) -> str:
     #    pass
