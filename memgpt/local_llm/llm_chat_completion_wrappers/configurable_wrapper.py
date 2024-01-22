@@ -118,10 +118,11 @@ class ConfigurableJSONWrapper(LLMChatCompletionWrapper):
 
     def _compile_system_message(self, system_message, functions, function_documentation=None) -> str:
         """system prompt + memory + functions -> string"""
-        prompt = ""
-        prompt += system_message
+        prompt = system_message
         prompt += "\n"
         if function_documentation is not None:
+            prompt += f"Please select the most suitable function and parameters from the list of available functions below, based on the ongoing conversation. Provide your response in JSON format."
+            prompt += f"\nAvailable functions:"
             prompt += function_documentation
         else:
             prompt += self._compile_function_block(functions)
