@@ -1,4 +1,5 @@
 import { Button } from '@memgpt/components/button';
+import { Input } from '@memgpt/components/input';
 import {
 	Dialog,
 	DialogContent,
@@ -7,15 +8,69 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@memgpt/components/dialog';
-import { Input } from '@memgpt/components/input';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@memgpt/components/dropdown-menu'
 import { Label } from '@memgpt/components/label';
 import { Loader2 } from 'lucide-react';
 import { useAgentsCreateMutation } from '../../libs/agents/use-agents.mutation';
 import { useAuthStoreState } from '../../libs/auth/auth.store';
+import { useState, useEffect } from 'react';
+import { useModelsQuery } from '../../libs/models/use-models.query';
+import { usePersonasQuery } from '../../libs/personas/use-personas.query';
+import { useHumansQuery } from '../../libs/humans/use-humans.query';
+import { useModelStore } from '../../libs/models/model.store';
+import { usePersonaStore } from '../../libs/personas/persona.store';
+import { useHumanStore } from '../../libs/humans/human.store';
+
+type DropdownValues = {
+    name: string[];
+    human: string[];
+    persona: string[];
+    model: string[];
+};
 
 const CreateAgentDialog = (props: { open: boolean; onOpenChange: (open: boolean) => void }) => {
 	const auth = useAuthStoreState();
 	const createAgent = useAgentsCreateMutation(auth.uuid);
+
+    const [dropdownValues, setDropdownValues] = useState<DropdownValues>({ 
+		name: [], 
+		human: [], 
+		persona: [], 
+		model: [] 
+	});
+
+    // Fetch models, humans, and personas using the custom hooks
+    const { data: modelsData } = useModelsQuery(auth.uuid);
+    const { data: humansData } = useHumansQuery(auth.uuid);
+    const { data: personasData } = usePersonasQuery(auth.uuid);
+
+    // Zustand stores to manage the state
+    const { setModels } = useModelStore();
+    const { setHumans } = useHumanStore();
+    const { setPersonas } = usePersonaStore();
+
+    // Effect to update the dropdown values when the data is fetched
+    useEffect(() => {
+		if (Array.isArray(modelsData?.models)) {
+			setModels(modelsData.models);
+			setDropdownValues(prev => ({ ...prev, model: modelsData.models.map(m => m.name) }));
+		}
+		if (Array.isArray(humansData?.humans)) {
+			setHumans(humansData.humans);
+			setDropdownValues(prev => ({ ...prev, human: humansData.humans.map(h => h.name) }));
+		}
+		if (Array.isArray(personasData?.personas)) {
+			setPersonas(personasData.personas);
+			setDropdownValues(prev => ({ ...prev, persona: personasData.personas.map(p => p.name) }));
+		}
+	}, [modelsData, humansData, personasData, setModels, setHumans, setPersonas]);
+
+	const [selectedValues, setSelectedValues] = useState({ name: '', human: '', persona: '', model: '' });
+
+    const handleSelect = (fieldName: string, value: string) => {
+        setSelectedValues(prev => ({ ...prev, [fieldName]: value }));
+    };
+
 	return (
 		<Dialog open={props.open} onOpenChange={props.onOpenChange}>
 			<DialogContent className="sm:max-w-[425px]">
@@ -28,9 +83,9 @@ const CreateAgentDialog = (props: { open: boolean; onOpenChange: (open: boolean)
 						createAgent.mutate(
 							{
 								name: `${formData.get('name')}`,
-								human: `${formData.get('human')}`,
-								persona: `${formData.get('persona')}`,
-								model: `${formData.get('model')}`,
+								human: selectedValues.human || 'cs_phd',
+								persona: selectedValues.persona || 'sam_pov',
+								model: selectedValues.model || 'gpt-4',
 							},
 							{
 								onSuccess: () => props.onOpenChange(false),
@@ -53,19 +108,52 @@ const CreateAgentDialog = (props: { open: boolean; onOpenChange: (open: boolean)
 							<Label htmlFor="human" className="text-right">
 								Human
 							</Label>
-							<Input id="human" name="human" defaultValue="cs_phd" className="col-span-3" />
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<button className='col-span-3'>{selectedValues.human || dropdownValues.human[0]}</button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent>
+									{dropdownValues.human.map(value => (
+										<DropdownMenuItem key={value} onSelect={() => handleSelect('human', value)}>
+											{value}
+										</DropdownMenuItem>
+									))}
+								</DropdownMenuContent>
+							</DropdownMenu>
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
 							<Label htmlFor="persona" className="text-right">
 								Persona
 							</Label>
-							<Input id="persona" name="persona" defaultValue="sam_pov" className="col-span-3" />
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<button className='col-span-3'>{selectedValues.persona || dropdownValues.persona[0]}</button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent>
+									{dropdownValues.persona.map(value => (
+										<DropdownMenuItem key={value} onSelect={() => handleSelect('persona', value)}>
+											{value}
+										</DropdownMenuItem>
+									))}
+								</DropdownMenuContent>
+							</DropdownMenu>
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
 							<Label htmlFor="model" className="text-right">
 								Model
 							</Label>
-							<Input id="model" name="model" defaultValue="gpt-4" className="col-span-3" />
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<button className='col-span-3'>{selectedValues.model || dropdownValues.model[0]}</button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent>
+									{dropdownValues.model.map(value => (
+										<DropdownMenuItem key={value} onSelect={() => handleSelect('model', value)}>
+											{value}
+										</DropdownMenuItem>
+									))}
+								</DropdownMenuContent>
+							</DropdownMenu>
 						</div>
 					</div>
 					<DialogFooter>
