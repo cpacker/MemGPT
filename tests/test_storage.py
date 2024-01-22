@@ -296,6 +296,13 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
         print("DATE", res)
         assert len(res) == 1, f"Expected 1 result, got {len(res)}: {res}"
 
+    if table_type == TableType.DOCUMENTS:
+        # test: query_text
+        query = "CindereLLa"
+        res = conn.query_text(query)
+        assert len(res) == 1, f"Expected 1 result, got {len(res)}"
+        assert "Cinderella" in res[0].text, f"Expected 'Cinderella' in results, but got {res[0].text}"
+
     # test: delete
     conn.delete({"id": ids[0]})
     if table_type != TableType.DOCUMENTS:
