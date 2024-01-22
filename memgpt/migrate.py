@@ -48,6 +48,9 @@ def wipe_config_and_reconfigure(data_dir: str = MEMGPT_DIR, run_configure=True):
     if not os.path.exists(os.path.join(data_dir, MIGRATION_BACKUP_FOLDER)):
         os.makedirs(os.path.join(data_dir, MIGRATION_BACKUP_FOLDER))
         os.makedirs(os.path.join(data_dir, MIGRATION_BACKUP_FOLDER, "agents"))
+    if not os.path.exists(os.path.join(data_dir, MIGRATION_BACKUP_FOLDER)):
+        os.makedirs(os.path.join(data_dir, MIGRATION_BACKUP_FOLDER))
+        os.makedirs(os.path.join(data_dir, MIGRATION_BACKUP_FOLDER, "agents"))
 
     # Get the current timestamp in a readable format (e.g., YYYYMMDD_HHMMSS)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -124,7 +127,7 @@ def agent_is_migrateable(agent_name: str, data_dir: str = MEMGPT_DIR) -> bool:
         return False
 
 
-def migrate_source(source_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[MetadataStore] = None):
+def migrate_source(source_name: str, data_dir: str = MEMGPT_DIR):
     """
     Migrate an old source folder (`~/.memgpt/sources/{source_name}`).
     """
@@ -194,7 +197,7 @@ def migrate_source(source_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Me
     assert source is not None, f"Failed to load source {source_name} from database after migration"
 
 
-def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[MetadataStore] = None):
+def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR):
     """Migrate an old agent folder (`~/.memgpt/agents/{agent_name}`)
 
     Steps:
@@ -319,89 +322,11 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Meta
             persona=state_dict["memory"]["persona"],
             system=state_dict["system"],
             functions=state_dict["functions"],  # this shouldn't matter, since Agent.__init__ will re-link
-            # messages=[str(m.id) for m in message_objs],  # this is a list of uuids, not message dicts
+            messages=annotate_message_json_list_with_tool_calls(state_dict["messages"]),
         ),
         llm_config=config.default_llm_config,
         embedding_config=config.default_embedding_config,
     )
-
-    persistence_manager = LocalStateManager(agent_state=agent_state)
-
-    # First clean up the recall message history to add tool call ids
-    full_message_history_buffer = annotate_message_json_list_with_tool_calls([d["message"] for d in data["all_messages"]])
-    for i in range(len(data["all_messages"])):
-        data["all_messages"][i]["message"] = full_message_history_buffer[i]
-
-    # Figure out what messages in recall are in-context, and which are out-of-context
-    agent_message_cache = state_dict["messages"]
-    recall_message_full = data["all_messages"]
-
-    def messages_are_equal(msg1, msg2):
-        return msg1["role"] == msg2["role"] and msg1["content"] == msg2["content"]
-
-    in_context_messages = []
-    out_of_context_messages = []
-    assert len(agent_message_cache) <= len(recall_message_full), (len(agent_message_cache), len(recall_message_full))
-    for d in recall_message_full:
-        # unpack into "timestamp" and "message"
-        recall_message = d["message"]
-        recall_timestamp = d["timestamp"]
-        try:
-            recall_datetime = parse_formatted_time(recall_timestamp).astimezone(pytz.utc)
-        except ValueError:
-            recall_datetime = datetime.strptime(recall_timestamp, "%Y-%m-%d %I:%M:%S %p").astimezone(pytz.utc)
-
-        # message object
-        message_obj = Message.dict_to_message(
-            created_at=recall_datetime,
-            user_id=user.id,
-            agent_id=agent_id,
-            openai_message_dict=recall_message,
-            allow_functions_style=True,
-        )
-
-        # message is either in-context, or out-of-context
-        message_is_in_context = [messages_are_equal(recall_message, cache_message) for cache_message in agent_message_cache]
-        assert sum(message_is_in_context) <= 1, message_is_in_context
-
-        if any(message_is_in_context):
-            in_context_messages.append(message_obj)
-        else:
-            out_of_context_messages.append(message_obj)
-
-    assert len(in_context_messages) > 0
-    assert len(in_context_messages) == len(agent_message_cache), (len(in_context_messages), len(agent_message_cache))
-    # assert (
-    # len(in_context_messages) + len(out_of_context_messages) == state_dict["messages_total"]
-    # ), f"{len(in_context_messages)} + {len(out_of_context_messages)} != {state_dict['messages_total']}"
-
-    # Now we can insert the messages into the actual recall database
-    # So when we construct the agent from the state, they will be available
-    persistence_manager.recall_memory.insert_many(out_of_context_messages)
-    persistence_manager.recall_memory.insert_many(in_context_messages)
-
-    # Overwrite the agent_state message object
-    agent_state.state["messages"] = [str(m.id) for m in in_context_messages]  # this is a list of uuids, not message dicts
-
-    ## 4. Insert into recall
-    # TODO should this be 'messages', or 'all_messages'?
-    # all_messages in recall will have fields "timestamp" and "message"
-    # full_message_history_buffer = annotate_message_json_list_with_tool_calls([d["message"] for d in data["all_messages"]])
-    # We want to keep the timestamp
-    # for i in range(len(data["all_messages"])):
-    # data["all_messages"][i]["message"] = full_message_history_buffer[i]
-    # messages_to_insert = [
-    #     Message.dict_to_message(
-    #         user_id=user.id,
-    #         agent_id=agent_id,
-    #         openai_message_dict=msg,
-    #         allow_functions_style=True,
-    #     )
-    #     # for msg in data["all_messages"]
-    #     for msg in full_message_history_buffer
-    # ]
-    # agent.persistence_manager.recall_memory.insert_many(messages_to_insert)
-    # print("Finished migrating recall memory")
 
     # 3. Instantiate a new Agent by passing AgentState to Agent.__init__
     # NOTE: the Agent.__init__ will trigger a save, which will write to the DB
@@ -507,7 +432,7 @@ def migrate_all_agents(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) -
             try:
                 if agent_is_migrateable(agent_name=agent_name, data_dir=data_dir):
                     candidates.append(agent_name)
-                    migrate_agent(agent_name, data_dir=data_dir, ms=ms)
+                    migrate_agent(agent_name, data_dir=data_dir)
                     count += 1
                 else:
                     continue
@@ -564,7 +489,7 @@ def migrate_all_sources(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) 
             # Assuming migrate_agent is a function that takes the agent name and performs migration
             try:
                 candidates.append(source_name)
-                migrate_source(source_name, data_dir, ms=ms)
+                migrate_source(source_name, data_dir)
                 count += 1
             except Exception as e:
                 failures.append({"name": source_name, "reason": str(e)})
