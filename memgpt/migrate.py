@@ -514,6 +514,7 @@ def migrate_all_agents(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) -
 
     # Iterate over each folder with a tqdm progress bar
     count = 0
+    successes = []
     failures = []
     candidates = []
     config = MemGPTConfig.load()
@@ -526,6 +527,7 @@ def migrate_all_agents(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) -
                 if agent_is_migrateable(agent_name=agent_name, data_dir=data_dir):
                     candidates.append(agent_name)
                     migrate_agent(agent_name, data_dir=data_dir, ms=ms)
+                    successes.append(agent_name)
                     count += 1
                 else:
                     continue
@@ -550,7 +552,7 @@ def migrate_all_agents(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) -
             typer.secho(f"{[d['name'] for d in failures]}", fg=typer.colors.RED)
         if count > 0:
             typer.secho(f"✅ {count}/{len(candidates)} agents were successfully migrated to the new database format", fg=typer.colors.GREEN)
-            typer.secho(f"{candidates}", fg=typer.colors.GREEN)
+            typer.secho(f"{successes}", fg=typer.colors.GREEN)
 
     del ms
     return {
