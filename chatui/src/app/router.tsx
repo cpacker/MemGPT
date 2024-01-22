@@ -1,24 +1,26 @@
 import { createBrowserRouter, Outlet } from 'react-router-dom';
+import Auth from './auth';
 import { chatRoute } from './modules/chat/chat.routes';
 import Home from './modules/home/home';
 import { settingsRoute } from './modules/settings/settings.routes';
 import Footer from './shared/layout/footer';
 import Header from './shared/layout/header';
 
-const rootRoute = () => (
-	<>
-		<Header />
-		<div className="h-full">
-			<Outlet />
-		</div>
-		<Footer />
-	</>
-);
-
+const RootRoute = () => {
+	return (
+		<Auth>
+			<Header />
+			<div className="h-full">
+				<Outlet />
+			</div>
+			<Footer />
+		</Auth>
+	);
+};
 export const router = createBrowserRouter([
 	{
 		path: '/',
-		element: rootRoute(),
+		element: RootRoute(),
 		children: [
 			{
 				path: '',

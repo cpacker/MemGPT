@@ -301,7 +301,7 @@ class SyncServer(LockingServer):
             memgpt_agent = self._load_agent(user_id=user_id, agent_id=agent_id)
         return memgpt_agent
 
-    def _step(self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: str) -> None:
+    def _step(self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: str) -> int:
         """Send the input message through the agent"""
 
         logger.debug(f"Got input message: {input_message}")
@@ -316,7 +316,7 @@ class SyncServer(LockingServer):
         next_input_message = input_message
         counter = 0
         while True:
-            new_messages, heartbeat_request, function_failed, token_warning = memgpt_agent.step(
+            new_messages, heartbeat_request, function_failed, token_warning, tokens_accumulated = memgpt_agent.step(
                 next_input_message, first_message=False, skip_verify=no_verify
             )
             counter += 1
@@ -344,6 +344,8 @@ class SyncServer(LockingServer):
 
         memgpt_agent.interface.step_yield()
         logger.debug(f"Finished agent step")
+
+        return tokens_accumulated
 
     def _command(self, user_id: uuid.UUID, agent_id: uuid.UUID, command: str) -> Union[str, None]:
         """Process a CLI command"""
@@ -495,7 +497,9 @@ class SyncServer(LockingServer):
             # Package the user message first
             packaged_user_message = system.package_user_message(user_message=message)
             # Run the agent state forward
-            self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
+            tokens_accumulated = self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
+
+        return tokens_accumulated
 
     @LockingServer.agent_lock_decorator
     def system_message(self, user_id: uuid.UUID, agent_id: uuid.UUID, message: str) -> None:
@@ -596,6 +600,7 @@ class SyncServer(LockingServer):
         logger.debug(f"Attempting to create agent from agent_state:\n{agent_state}")
         try:
             agent = presets.create_agent_from_preset(agent_state=agent_state, interface=interface)
+            save_agent(agent=agent, ms=self.ms)
 
             # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
             # self.ms.update_agent(agent.agent_state)
@@ -625,6 +630,19 @@ class SyncServer(LockingServer):
         if agent is not None:
             self.ms.delete_agent(agent_id=agent_id)
 
+    def _agent_state_to_config(self, agent_state: AgentState) -> dict:
+        """Convert AgentState to a dict for a JSON response"""
+        assert agent_state is not None
+
+        agent_config = {
+            "id": agent_state.id,
+            "name": agent_state.name,
+            "human": agent_state.human,
+            "persona": agent_state.persona,
+            "created_at": agent_state.created_at.isoformat(),
+        }
+        return agent_config
+
     def list_agents(self, user_id: uuid.UUID) -> dict:
         """List all available agents to a user"""
         if self.ms.get_user(user_id=user_id) is None:
@@ -634,16 +652,7 @@ class SyncServer(LockingServer):
         logger.info(f"Retrieved {len(agents_states)} agents for user {user_id}:\n{[vars(s) for s in agents_states]}")
         return {
             "num_agents": len(agents_states),
-            "agents": [
-                {
-                    "id": state.id,
-                    "name": state.name,
-                    "human": state.human,
-                    "persona": state.persona,
-                    "created_at": state.created_at.isoformat(),
-                }
-                for state in agents_states
-            ],
+            "agents": [self._agent_state_to_config(state) for state in agents_states],
         }
 
     def get_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
@@ -862,3 +871,61 @@ class SyncServer(LockingServer):
             "new_core_memory": new_core_memory,
             "modified": modified,
         }
+
+    def rename_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_agent_name: str) -> dict:
+        """Update the name of the agent in the database"""
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        current_name = memgpt_agent.agent_state.name
+        if current_name == new_agent_name:
+            raise ValueError(f"New name ({new_agent_name}) is the same as the current name")
+
+        try:
+            memgpt_agent.agent_state.name = new_agent_name
+            self.ms.update_agent(agent=memgpt_agent.agent_state)
+        except Exception as e:
+            logger.exception(f"Failed to update agent name with:\n{str(e)}")
+            raise ValueError(f"Failed to update agent name in database")
+
+        # return the new config (only the name should have been updated)
+        agent_config = self._agent_state_to_config(agent_state=memgpt_agent.agent_state)
+        return agent_config
+
+    def delete_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
+        """Delete an agent in the database"""
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Verify that the agent exists and is owned by the user
+        agent_state = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
+        if not agent_state:
+            raise ValueError(f"Could not find agent_id={agent_id} under user_id={user_id}")
+        if agent_state.user_id != user_id:
+            raise ValueError(f"Could not authorize agent_id={agent_id} with user_id={user_id}")
+
+        # First, if the agent is in the in-memory cache we should remove it
+        # List of {'user_id': user_id, 'agent_id': agent_id, 'agent': agent_obj} dicts
+        try:
+            self.active_agents = [d for d in self.active_agents if str(d["agent_id"]) != str(agent_id)]
+        except Exception as e:
+            logger.exception(f"Failed to delete agent {agent_id} from cache via ID with:\n{str(e)}")
+            raise ValueError(f"Failed to delete agent {agent_id} from cache")
+
+        # Next, attempt to delete it from the actual database
+        try:
+            self.ms.delete_agent(agent_id=agent_id)
+        except Exception as e:
+            logger.exception(f"Failed to delete agent {agent_id} via ID with:\n{str(e)}")
+            raise ValueError(f"Failed to delete agent {agent_id} in database")
+
+    def authenticate_user(self) -> uuid.UUID:
+        # TODO: Implement actual authentication to enable multi user setup
+        return uuid.UUID(int=uuid.getnode())

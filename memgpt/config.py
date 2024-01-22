@@ -75,7 +75,7 @@ class MemGPTConfig:
     persistence_manager_uri: str = None  # db URI
 
     # version (for backcompat)
-    memgpt_version: str = None
+    memgpt_version: str = memgpt.__version__
 
     # user info
     policies_accepted: bool = False
