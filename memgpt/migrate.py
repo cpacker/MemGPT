@@ -376,19 +376,37 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Meta
             # there are len(agent_message_cache) total messages on the agent
             # this will correspond to the last N messages in the recall memory (though possibly out-of-order)
             message_is_in_context = [messages_are_equal(recall_message, cache_message) for cache_message in agent_message_cache]
-            assert sum(message_is_in_context) <= 1, message_is_in_context
+            # assert sum(message_is_in_context) <= 1, message_is_in_context
+            # if any(message_is_in_context):
+            #     in_context_messages.append(message_obj)
+            # else:
+            #     out_of_context_messages.append(message_obj)
 
-            if any(message_is_in_context):
-                in_context_messages.append(message_obj)
-            else:
+            if not any(message_is_in_context):
+                typer.secho(
+                    f"Warning: didn't find late buffer recall message (i={i}/{len(recall_message_full)-1}) inside agent context\n{recall_message}",
+                    fg=typer.colors.RED,
+                )
                 out_of_context_messages.append(message_obj)
+            else:
+                if sum(message_is_in_context) > 1:
+                    typer.secho(
+                        f"Warning: found multiple occurences of recall message (i={i}/{len(recall_message_full)-1}) inside agent context\n{recall_message}",
+                        fg=typer.colors.RED,
+                    )
+                in_context_messages.append(message_obj)
 
         else:
             # if we're not in the final portion of the recall memory buffer, then it's 100% out-of-context
             out_of_context_messages.append(message_obj)
 
     assert len(in_context_messages) > 0
-    assert len(in_context_messages) == len(agent_message_cache), (len(in_context_messages), len(agent_message_cache))
+    # assert len(in_context_messages) == len(agent_message_cache), (len(in_context_messages), len(agent_message_cache))
+    if len(in_context_messages) != len(agent_message_cache):
+        typer.secho(
+            f"Warning: uneven match of new in-context messages vs loaded cache ({len(in_context_messages)} != {len(agent_message_cache)})",
+            fg=typer.colors.RED,
+        )
     # assert (
     # len(in_context_messages) + len(out_of_context_messages) == state_dict["messages_total"]
     # ), f"{len(in_context_messages)} + {len(out_of_context_messages)} != {state_dict['messages_total']}"
