@@ -8,7 +8,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@memgpt/components/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@memgpt/components/dropdown-menu'
+import { Select, SelectContent, SelectValue, SelectTrigger, SelectGroup, SelectLabel, SelectItem } from '@memgpt/components/select';
 import { Label } from '@memgpt/components/label';
 import { Loader2 } from 'lucide-react';
 import { useAgentsCreateMutation } from '../../libs/agents/use-agents.mutation';
@@ -17,9 +17,6 @@ import { useState, useEffect } from 'react';
 import { useModelsQuery } from '../../libs/models/use-models.query';
 import { usePersonasQuery } from '../../libs/personas/use-personas.query';
 import { useHumansQuery } from '../../libs/humans/use-humans.query';
-import { useModelStore } from '../../libs/models/model.store';
-import { usePersonaStore } from '../../libs/personas/persona.store';
-import { useHumanStore } from '../../libs/humans/human.store';
 
 type DropdownValues = {
     name: string[];
@@ -44,26 +41,18 @@ const CreateAgentDialog = (props: { open: boolean; onOpenChange: (open: boolean)
     const { data: humansData } = useHumansQuery(auth.uuid);
     const { data: personasData } = usePersonasQuery(auth.uuid);
 
-    // Zustand stores to manage the state
-    const { setModels } = useModelStore();
-    const { setHumans } = useHumanStore();
-    const { setPersonas } = usePersonaStore();
-
     // Effect to update the dropdown values when the data is fetched
     useEffect(() => {
 		if (Array.isArray(modelsData?.models)) {
-			setModels(modelsData.models);
 			setDropdownValues(prev => ({ ...prev, model: modelsData.models.map(m => m.name) }));
 		}
 		if (Array.isArray(humansData?.humans)) {
-			setHumans(humansData.humans);
 			setDropdownValues(prev => ({ ...prev, human: humansData.humans.map(h => h.name) }));
 		}
 		if (Array.isArray(personasData?.personas)) {
-			setPersonas(personasData.personas);
 			setDropdownValues(prev => ({ ...prev, persona: personasData.personas.map(p => p.name) }));
 		}
-	}, [modelsData, humansData, personasData, setModels, setHumans, setPersonas]);
+	}, [modelsData, humansData, personasData]);
 
 	const [selectedValues, setSelectedValues] = useState({ name: '', human: '', persona: '', model: '' });
 
@@ -91,7 +80,7 @@ const CreateAgentDialog = (props: { open: boolean; onOpenChange: (open: boolean)
 								onSuccess: () => props.onOpenChange(false),
 							}
 						);
-					}}
+					}}			
 				>
 					<DialogHeader>
 						<DialogTitle>Create Agent</DialogTitle>
@@ -108,52 +97,61 @@ const CreateAgentDialog = (props: { open: boolean; onOpenChange: (open: boolean)
 							<Label htmlFor="human" className="text-right">
 								Human
 							</Label>
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<button className='col-span-3'>{selectedValues.human || dropdownValues.human[0]}</button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent>
-									{dropdownValues.human.map(value => (
-										<DropdownMenuItem key={value} onSelect={() => handleSelect('human', value)}>
-											{value}
-										</DropdownMenuItem>
-									))}
-								</DropdownMenuContent>
-							</DropdownMenu>
+							<Select>
+								<SelectTrigger className='col-span-3'>
+									<SelectValue placeholder="Select a human" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectGroup>
+										<SelectLabel>Humans</SelectLabel>
+										{dropdownValues.human.map(value => (
+											<SelectItem value={value} defaultValue={'cs_phd'} key={value} onSelect={() => handleSelect('human', value)}>
+												{value}
+											</SelectItem>
+										))}
+									</SelectGroup>
+								</SelectContent>
+							</Select>
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
 							<Label htmlFor="persona" className="text-right">
 								Persona
 							</Label>
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<button className='col-span-3'>{selectedValues.persona || dropdownValues.persona[0]}</button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent>
-									{dropdownValues.persona.map(value => (
-										<DropdownMenuItem key={value} onSelect={() => handleSelect('persona', value)}>
-											{value}
-										</DropdownMenuItem>
-									))}
-								</DropdownMenuContent>
-							</DropdownMenu>
+							<Select>
+								<SelectTrigger className='col-span-3'>
+									<SelectValue placeholder="Select a persona" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectGroup>
+										<SelectLabel>Personas</SelectLabel>
+										{dropdownValues.persona.map(value => (
+											<SelectItem value={value} defaultValue={'sam_pov'} key={value} onSelect={() => handleSelect('persona', value)}>
+												{value}
+											</SelectItem>
+										))}
+									</SelectGroup>
+								</SelectContent>
+							</Select>
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
 							<Label htmlFor="model" className="text-right">
 								Model
 							</Label>
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<button className='col-span-3'>{selectedValues.model || dropdownValues.model[0]}</button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent>
-									{dropdownValues.model.map(value => (
-										<DropdownMenuItem key={value} onSelect={() => handleSelect('model', value)}>
-											{value}
-										</DropdownMenuItem>
-									))}
-								</DropdownMenuContent>
-							</DropdownMenu>
+							<Select>
+								<SelectTrigger className='col-span-3'>
+									<SelectValue placeholder="Select a model" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectGroup>
+										<SelectLabel>Models</SelectLabel>
+										{dropdownValues.model.map(value => (
+											<SelectItem value={value} defaultValue={'gpt-4'} key={value} onSelect={() => handleSelect('model', value)}>
+												{value}
+											</SelectItem>
+										))}
+									</SelectGroup>
+								</SelectContent>
+							</Select>
 						</div>
 					</div>
 					<DialogFooter>

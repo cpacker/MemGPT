@@ -6,21 +6,7 @@ import { cn } from '@memgpt/utils';
 
 const DropdownMenu = DropdownMenuPrimitive.Root;
 
-const DropdownMenuTrigger = React.forwardRef<
-    React.ElementRef<typeof DropdownMenuPrimitive.Trigger>,
-    React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Trigger>
->(({ className, ...props }, ref) => (
-    <DropdownMenuPrimitive.Trigger
-        ref={ref}
-        className={cn(
-            'flex cursor-default select-none items-center rounded-md border p-2 text-sm outline-none focus:ring focus:ring-opacity-50',
-            className
-        )}
-        {...props}
-    />
-));
-DropdownMenuTrigger.displayName = DropdownMenuPrimitive.Trigger.displayName;
-
+const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 
 const DropdownMenuGroup = DropdownMenuPrimitive.Group;
 
