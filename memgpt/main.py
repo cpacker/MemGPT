@@ -290,7 +290,34 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                             bold=True,
                         )
                         continue
+                elif user_input.lower().startswith("/edit_template_field"):
+                    try:
+                        field_name = questionary.text(
+                            "Enter the template field name:",
+                            multiline=multiline_input,
+                            qmark=">",
+                        ).ask()
+                        clear_line(strip_ui)
 
+                        field_value = questionary.text(
+                            "Enter the template field name:",
+                            multiline=multiline_input,
+                            qmark=">",
+                        ).ask()
+                        memgpt_agent.edit_system_template_field(field_name, field_value)
+                        clear_line(strip_ui)
+                        typer.secho(
+                            f"/edit_template_field succeeded: {field_value} : {field_value}",
+                            fg=typer.colors.GREEN,
+                            bold=True,
+                        )
+                    except ValueError as e:
+                        typer.secho(
+                            f"/edit_template_field failed:\n{e}",
+                            fg=typer.colors.RED,
+                            bold=True,
+                        )
+                        continue
                 # No skip options
                 elif user_input.lower() == "/wipe":
                     memgpt_agent = agent.Agent(interface)

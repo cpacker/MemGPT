@@ -3,6 +3,7 @@ import os
 import yaml
 
 from memgpt.constants import MEMGPT_DIR
+from memgpt.prompts.prompt_template import PromptTemplate
 
 
 def get_system_text(key):
@@ -28,7 +29,7 @@ def get_system_text(key):
             raise FileNotFoundError(f"No file found for key {key}, path={file_path}")
 
     if not key.endswith("_templated"):
-        return system_message
+        return {"system_message": system_message, "template": "", "template_fields": {}}
     else:
         default_fields_yaml_filename = f"default_template_fields.yaml"
         default_fields_yaml_file_path = os.path.join(os.path.dirname(__file__), "system", default_fields_yaml_filename)
@@ -49,7 +50,5 @@ def get_system_text(key):
             if field not in template_fields:
                 template_fields[field] = content
 
-        for field, content in template_fields.items():
-            system_message = system_message.replace(f"{{{field}}}", content)
-        print(system_message)
-        return system_message
+        template = PromptTemplate.from_string(system_message)
+        return {"system_message": template.generate_prompt(template_fields), "template": system_message, "template_fields": template_fields}

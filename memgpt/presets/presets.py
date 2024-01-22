@@ -66,10 +66,13 @@ def create_agent_from_preset(agent_state: AgentState, interface: AgentInterface)
     #   system: str,  # system prompt (not required if initializing with a preset)
     #   functions: dict,  # schema definitions ONLY (function code linked at runtime)
     #   messages: List[dict],  # in-context messages
+    system_message_dict = gpt_system.get_system_text(preset_system_prompt)
     agent_state.state = {
         "persona": get_persona_text(persona_file),
         "human": get_human_text(human_file),
-        "system": gpt_system.get_system_text(preset_system_prompt),
+        "system": system_message_dict.get("system_message"),
+        "system_template": system_message_dict.get("template"),
+        "system_template_fields": system_message_dict.get("template_fields"),
         "functions": preset_function_set_schemas,
         "messages": None,
     }

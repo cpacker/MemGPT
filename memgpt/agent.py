@@ -6,7 +6,7 @@ import os
 import json
 from pathlib import Path
 import traceback
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 from box import Box
 
@@ -42,6 +42,7 @@ from memgpt.constants import (
 )
 from .errors import LLMError
 from .functions.functions import USER_FUNCTIONS_DIR, load_all_function_sets
+from .prompts.prompt_template import PromptTemplate
 
 
 def link_functions(function_schemas):
@@ -184,7 +185,12 @@ class Agent(object):
         if "system" not in agent_state.state:
             raise ValueError(f"'system' not found in provided AgentState")
         self.system = agent_state.state["system"]
-
+        if "system_template" not in agent_state.state:
+            raise ValueError(f"'system_template' not found in provided AgentState")
+        self.system_template = agent_state.state["system_template"]
+        if "system_template_fields" not in agent_state.state:
+            raise ValueError(f"'system_template_fields' not found in provided AgentState")
+        self.system_template_fields = agent_state.state["system_template_fields"]
         if "functions" not in agent_state.state:
             raise ValueError(f"'functions' not found in provided AgentState")
         # Store the functions schemas (this is passed as an argument to ChatCompletion)
@@ -790,6 +796,39 @@ class Agent(object):
             )
         )
 
+    def edit_system_template_field(self, field_name: str, field_value: Union[str, float, int], rebuild_system_template: bool = True):
+        """Edits a system template field"""
+        if field_name not in self.system_template_fields:
+            raise ValueError(f"'{field_name}' not found in system template fields")
+
+        self.system_template_fields[field_name] = field_value
+        if rebuild_system_template:
+            self.rebuild_system_template()
+
+    def rebuild_system_template(self):
+        """Rebuilds the system message with the latest template field values"""
+        curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
+
+        template = PromptTemplate.from_string(self.system_template)
+
+        new_system_message = initialize_message_sequence(
+            self.model,
+            template.generate_prompt(self.system_template_fields),
+            self.memory,
+            archival_memory=self.persistence_manager.archival_memory,
+            recall_memory=self.persistence_manager.recall_memory,
+        )[0]
+
+        diff = united_diff(curr_system_message["content"], new_system_message["content"])
+        printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
+
+        # Swap the system message out
+        self._swap_system_message(
+            Message.dict_to_message(
+                agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=new_system_message
+            )
+        )
+
     # def to_agent_state(self) -> AgentState:
     #    # The state may have change since the last time we wrote it
     #    updated_state = {
@@ -880,6 +919,7 @@ class Agent(object):
             "persona": self.memory.persona,
             "human": self.memory.human,
             "system": self.system,
+            "system_template": self.system_template,
             "functions": self.functions,
             "messages": [str(msg.id) for msg in self._messages],
         }
