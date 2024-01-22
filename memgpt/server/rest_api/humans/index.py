@@ -22,12 +22,12 @@ def setup_humans_index_router(server: SyncServer, interface: QueuingInterface):
 
         # Clear the interface
         interface.clear()
-        
+
         # TODO: Replace with actual data fetching logic once available
         humans_data = [
-            {"name": "Marco", "text": "About Me"}, 
+            {"name": "Marco", "text": "About Me"},
             {"name": "Sam", "text": "About Me 2"},
-            {"name": "Bruce", "text": "About Me 3"}
+            {"name": "Bruce", "text": "About Me 3"},
         ]
 
         return ListHumansResponse(humans=humans_data)

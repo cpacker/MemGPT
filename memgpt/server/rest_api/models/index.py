@@ -17,7 +17,6 @@ class Model(BaseModel):
     context_window: int = Field(..., description="Context window size for the model.")
 
 
-
 class ListModelsResponse(BaseModel):
     models: List[Model] = Field(..., description="List of model configurations.")
 
@@ -31,7 +30,7 @@ def setup_models_index_router(server: SyncServer, interface: QueuingInterface):
 
         # Clear the interface
         interface.clear()
-        
+
         # TODO: Replace with actual data fetching logic once available
         models_data = [
             Model(
@@ -39,14 +38,9 @@ def setup_models_index_router(server: SyncServer, interface: QueuingInterface):
                 endpoint="https://api.memgpt.ai",
                 endpoint_type="vllm",
                 wrapper="chatml",
-                context_window=16384
+                context_window=16384,
             ),
-            Model(
-                name="gpt-4", 
-                endpoint="https://api.openai.com/v1", 
-                endpoint_type="openai",
-                context_window=8192
-            )
+            Model(name="gpt-4", endpoint="https://api.openai.com/v1", endpoint_type="openai", context_window=8192),
         ]
 
         return ListModelsResponse(models=models_data)

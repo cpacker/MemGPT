@@ -22,12 +22,12 @@ def setup_personas_index_router(server: SyncServer, interface: QueuingInterface)
 
         # Clear the interface
         interface.clear()
-        
+
         # TODO: Replace with actual data fetching logic once available
         personas_data = [
-            {"name": "Persona 1", "text": "Details about Persona 1"}, 
+            {"name": "Persona 1", "text": "Details about Persona 1"},
             {"name": "Persona 2", "text": "Details about Persona 2"},
-            {"name": "Persona 3", "text": "Details about Persona 3"}
+            {"name": "Persona 3", "text": "Details about Persona 3"},
         ]
 
         return ListPersonasResponse(personas=personas_data)
