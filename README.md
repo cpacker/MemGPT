@@ -212,12 +212,12 @@ send_message("Please introduce yourself and tell me about your abilities!")
 
 </details>
 
-## Best performing models (benchmarking MemGPT performance on various LLMs)
+## What open LLMs work well with MemGPT?
 When using MemGPT with open LLMs (such as those downloaded from HuggingFace), the performance of MemGPT will be highly dependent on the LLMs function calling ability.
 
 You can find a list of LLMs/models that are known to work well with MemGPT on the [#model-chat channel on Discord](https://discord.gg/9GEQrxmVyE), as well as on [this spreadsheet](https://docs.google.com/spreadsheets/d/1fH-FdaO8BltTMa4kXiNCxmBCQ46PRBVp3Vn6WbPgsFs/edit?usp=sharing). You can help track what LLMs work well with MemGPT by contributing via [this form](https://forms.gle/XiBGKEEPFFLNSR348), which will be used to update the spreadsheet.
 
-### Benchmarking an LLM on MemGPT (`memgpt benchmark`)
+### Benchmarking an LLM on MemGPT (`memgpt benchmark` command)
 To evaluate the performance of a model on MemGPT, simply configure the appropriate model settings using `memgpt configure`, and then initiate the benchmark via `memgpt benchmark`. The duration will vary depending on your hardware. This will run through a predefined set of prompts through multiple iterations to test the function calling capabilities of a model.
 
 ## Support
