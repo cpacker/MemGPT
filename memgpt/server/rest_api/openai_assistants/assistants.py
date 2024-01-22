@@ -101,6 +101,10 @@ class ModifyMessageRequest(BaseModel):
     metadata: dict = Field(None, description="Metadata associated with the message.")
 
 
+class ModifyRunRequest(BaseModel):
+    metadata: dict = Field(None, description="Metadata associated with the run.")
+
+
 class CreateMessageRequest(BaseModel):
     role: str = Field(..., description="Role of the message sender (either 'user' or 'system')")
     content: str = Field(..., description="The message content to be processed by the agent.")
@@ -544,4 +548,69 @@ def list_runs(
     before: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
 ):
     # TODO: store run information in a DB so it can be returned here
+    pass
+
+
+@app.get("/v1/threads/{thread_id}/runs/{run_id}/steps", tags=["assistants"], response_model=List[OpenAIRunStep])
+def list_run_steps(
+    thread_id: str = Path(..., description="The unique identifier of the thread."),
+    run_id: str = Path(..., description="The unique identifier of the run."),
+    limit: int = Query(1000, description="How many run steps to retrieve."),
+    order: str = Query("asc", description="Order of run steps to retrieve (either 'asc' or 'desc')."),
+    after: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
+    before: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
+):
+    # TODO: store run information in a DB so it can be returned here
+    pass
+
+
+@app.get("/v1/threads/{thread_id}/runs/{run_id}", tags=["assistants"], response_model=OpenAIRun)
+def retrieve_run(
+    thread_id: str = Path(..., description="The unique identifier of the thread."),
+    run_id: str = Path(..., description="The unique identifier of the run."),
+):
+    pass
+
+
+@app.get("/v1/threads/{thread_id}/runs/{run_id}/steps/{step_id}", tags=["assistants"], response_model=OpenAIRunStep)
+def retrieve_run_step(
+    thread_id: str = Path(..., description="The unique identifier of the thread."),
+    run_id: str = Path(..., description="The unique identifier of the run."),
+    step_id: str = Path(..., description="The unique identifier of the run step."),
+):
+    pass
+
+
+@app.post("/v1/threads/{thread_id}/runs/{run_id}", tags=["assistants"], response_model=OpenAIRun)
+def modify_run(
+    thread_id: str = Path(..., description="The unique identifier of the thread."),
+    run_id: str = Path(..., description="The unique identifier of the run."),
+    request: ModifyRunRequest = Body(...),
+):
+    pass
+
+
+class ToolCallOutput(BaseModel):
+    tool_call_id: str = Field(..., description="The unique identifier of the tool call.")
+    output: str = Field(..., description="The output of the tool call.")
+
+
+class SubmitToolOutputsToRunRequest(BaseModel):
+    tools_outputs: List[ToolCallOutput] = Field(..., description="The tool outputs to submit.")
+
+
+@app.post("/v1/threads/{thread_id}/runs/{run_id}/submit_tool_outputs", tags=["assistants"], response_model=OpenAIRun)
+def submit_tool_outputs_to_run(
+    thread_id: str = Path(..., description="The unique identifier of the thread."),
+    run_id: str = Path(..., description="The unique identifier of the run."),
+    request: SubmitToolOutputsToRunRequest = Body(...),
+):
+    pass
+
+
+@app.post("/v1/threads/{thread_id}/runs/{run_id}/cancel", tags=["assistants"], response_model=OpenAIRun)
+def cancel_run(
+    thread_id: str = Path(..., description="The unique identifier of the thread."),
+    run_id: str = Path(..., description="The unique identifier of the run."),
+):
     pass
