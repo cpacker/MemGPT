@@ -545,12 +545,18 @@ class Agent(object):
 
         try:
             # Step 0: add user message
-            if user_message is not None:
-                self.interface.user_message(user_message)
-                packed_user_message = {"role": "user", "content": user_message}
+            if isinstance(user_message, Message):
+                user_message_text = user_message.text
+            elif isinstance(user_message, str):
+                user_message_text = user_message
+            else:
+                raise ValueError(f"Bad type for user_message: {type(user_message)}")
+            if user_message_text is not None:
+                self.interface.user_message(user_message_text)
+                packed_user_message = {"role": "user", "content": user_message_text}
                 # Special handling for AutoGen messages with 'name' field
                 try:
-                    user_message_json = json.loads(user_message)
+                    user_message_json = json.loads(user_message_text)
                     # Treat 'name' as a special field
                     # If it exists in the input message, elevate it to the 'message' level
                     if "name" in user_message_json:
@@ -583,6 +589,7 @@ class Agent(object):
                         raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
 
             else:
+                print("input message", [type(m) for m in input_message_sequence])
                 response = self._get_ai_reply(
                     message_sequence=input_message_sequence,
                 )
@@ -607,14 +614,17 @@ class Agent(object):
 
             # Step 4: extend the message history
             if user_message is not None:
-                all_new_messages = [
-                    Message.dict_to_message(
-                        agent_id=self.agent_state.id,
-                        user_id=self.agent_state.user_id,
-                        model=self.model,
-                        openai_message_dict=packed_user_message,
-                    )
-                ] + all_response_messages
+                if isinstance(user_message, Message):
+                    all_new_messages = [user_message] + all_response_messages
+                else:
+                    all_new_messages = [
+                        Message.dict_to_message(
+                            agent_id=self.agent_state.id,
+                            user_id=self.agent_state.user_id,
+                            model=self.model,
+                            openai_message_dict=packed_user_message,
+                        )
+                    ] + all_response_messages
             else:
                 all_new_messages = all_response_messages
 

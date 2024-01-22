@@ -301,7 +301,7 @@ class SyncServer(LockingServer):
             memgpt_agent = self._load_agent(user_id=user_id, agent_id=agent_id)
         return memgpt_agent
 
-    def _step(self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: str) -> int:
+    def _step(self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: Union[str, Message]) -> int:
         """Send the input message through the agent"""
 
         logger.debug(f"Got input message: {input_message}")
