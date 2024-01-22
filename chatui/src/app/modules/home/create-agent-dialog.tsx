@@ -13,74 +13,57 @@ import { Label } from '@memgpt/components/label';
 import { Loader2 } from 'lucide-react';
 import { useAgentsCreateMutation } from '../../libs/agents/use-agents.mutation';
 import { useAuthStoreState } from '../../libs/auth/auth.store';
-import { useState, useEffect } from 'react';
 import { useModelsQuery } from '../../libs/models/use-models.query';
 import { usePersonasQuery } from '../../libs/personas/use-personas.query';
 import { useHumansQuery } from '../../libs/humans/use-humans.query';
+import { useForm, Controller } from 'react-hook-form';
 
-type DropdownValues = {
-    name: string[];
-    human: string[];
-    persona: string[];
-    model: string[];
-};
+interface FormData {
+    name: string;
+    human: string;
+    persona: string;
+    model: string;
+}
 
 const CreateAgentDialog = (props: { open: boolean; onOpenChange: (open: boolean) => void }) => {
 	const auth = useAuthStoreState();
 	const createAgent = useAgentsCreateMutation(auth.uuid);
 
-    const [dropdownValues, setDropdownValues] = useState<DropdownValues>({ 
-		name: [], 
-		human: [], 
-		persona: [], 
-		model: [] 
-	});
+	const { register, handleSubmit, control } = useForm<FormData>({
+        defaultValues: {
+            name: 'James Bond',
+            human: 'cs_phd',
+            persona: 'sam_pov',
+            model: 'gpt-4',
+        },
+    });
 
     // Fetch models, humans, and personas using the custom hooks
     const { data: modelsData } = useModelsQuery(auth.uuid);
     const { data: humansData } = useHumansQuery(auth.uuid);
     const { data: personasData } = usePersonasQuery(auth.uuid);
 
-    // Effect to update the dropdown values when the data is fetched
-    useEffect(() => {
-		if (Array.isArray(modelsData?.models)) {
-			setDropdownValues(prev => ({ ...prev, model: modelsData.models.map(m => m.name) }));
-		}
-		if (Array.isArray(humansData?.humans)) {
-			setDropdownValues(prev => ({ ...prev, human: humansData.humans.map(h => h.name) }));
-		}
-		if (Array.isArray(personasData?.personas)) {
-			setDropdownValues(prev => ({ ...prev, persona: personasData.personas.map(p => p.name) }));
-		}
-	}, [modelsData, humansData, personasData]);
-
-	const [selectedValues, setSelectedValues] = useState({ name: '', human: '', persona: '', model: '' });
-
-    const handleSelect = (fieldName: string, value: string) => {
-        setSelectedValues(prev => ({ ...prev, [fieldName]: value }));
-    };
+	const onSubmit = (data: FormData) => {
+		if (!auth.uuid) return;
+		// The data parameter already contains the values from the form
+		createAgent.mutate(
+			{
+				name: data.name,
+				human: data.human,
+				persona: data.persona,
+				model: data.model,
+			},
+			{
+				onSuccess: () => props.onOpenChange(false),
+			}
+		);
+	};
 
 	return (
 		<Dialog open={props.open} onOpenChange={props.onOpenChange}>
 			<DialogContent className="sm:max-w-[425px]">
 				<form
-					onSubmit={(event) => {
-						event.preventDefault();
-						if (!auth.uuid) return;
-						const formData = new FormData(event.currentTarget);
-						// ✅ mutation is invoked when the form is submitted
-						createAgent.mutate(
-							{
-								name: `${formData.get('name')}`,
-								human: selectedValues.human || 'cs_phd',
-								persona: selectedValues.persona || 'sam_pov',
-								model: selectedValues.model || 'gpt-4',
-							},
-							{
-								onSuccess: () => props.onOpenChange(false),
-							}
-						);
-					}}			
+					onSubmit={handleSubmit(onSubmit)}			
 				>
 					<DialogHeader>
 						<DialogTitle>Create Agent</DialogTitle>
@@ -91,67 +74,109 @@ const CreateAgentDialog = (props: { open: boolean; onOpenChange: (open: boolean)
 							<Label htmlFor="name" className="text-right">
 								Name
 							</Label>
-							<Input id="name" name="name" defaultValue="James Bond" className="col-span-3" />
+							<Input id="name" { ... register('name')} className="col-span-3" />
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
 							<Label htmlFor="human" className="text-right">
 								Human
 							</Label>
-							<Select>
-								<SelectTrigger className='col-span-3'>
-									<SelectValue placeholder="Select a human" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectGroup>
-										<SelectLabel>Humans</SelectLabel>
-										{dropdownValues.human.map(value => (
-											<SelectItem value={value} defaultValue={'cs_phd'} key={value} onSelect={() => handleSelect('human', value)}>
+							<Controller
+								name="human"
+								control={control}
+								render={({ field: { onChange, value } }) => (
+									<Select 
+										value={value} 
+										onValueChange={(val) => onChange(val)} 
+									>
+										<SelectTrigger className='col-span-3'>
+											<SelectValue placeholder="Select a human">
 												{value}
-											</SelectItem>
-										))}
-									</SelectGroup>
-								</SelectContent>
-							</Select>
+											</SelectValue>
+										</SelectTrigger>
+										<SelectContent>
+											<SelectGroup>
+												<SelectLabel>Humans</SelectLabel>
+												{humansData?.humans.map(human => (
+													<SelectItem 
+														key={human.name} 
+														value={human.name}
+													>
+														{human.name}
+													</SelectItem>
+												))}
+											</SelectGroup>
+										</SelectContent>
+									</Select>
+								)}
+							/>
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
 							<Label htmlFor="persona" className="text-right">
 								Persona
 							</Label>
-							<Select>
-								<SelectTrigger className='col-span-3'>
-									<SelectValue placeholder="Select a persona" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectGroup>
-										<SelectLabel>Personas</SelectLabel>
-										{dropdownValues.persona.map(value => (
-											<SelectItem value={value} defaultValue={'sam_pov'} key={value} onSelect={() => handleSelect('persona', value)}>
+							<Controller
+								name="persona"
+								control={control}
+								render={({ field: { onChange, value } }) => (
+									<Select 
+										value={value} 
+										onValueChange={(val) => onChange(val)} 
+									>
+										<SelectTrigger className='col-span-3'>
+											<SelectValue placeholder="Select a persona">
 												{value}
-											</SelectItem>
-										))}
-									</SelectGroup>
-								</SelectContent>
-							</Select>
+											</SelectValue>
+										</SelectTrigger>
+										<SelectContent>
+											<SelectGroup>
+												<SelectLabel>Personas</SelectLabel>
+												{personasData?.personas.map(persona => (
+													<SelectItem 
+														key={persona.name} 
+														value={persona.name}
+													>
+														{persona.name}
+													</SelectItem>
+												))}
+											</SelectGroup>
+										</SelectContent>
+									</Select>
+								)}
+							/>
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
 							<Label htmlFor="model" className="text-right">
 								Model
 							</Label>
-							<Select>
-								<SelectTrigger className='col-span-3'>
-									<SelectValue placeholder="Select a model" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectGroup>
-										<SelectLabel>Models</SelectLabel>
-										{dropdownValues.model.map(value => (
-											<SelectItem value={value} defaultValue={'gpt-4'} key={value} onSelect={() => handleSelect('model', value)}>
+							<Controller
+								name="model"
+								control={control}
+								render={({ field: { onChange, value } }) => (
+									<Select 
+										value={value} 
+										onValueChange={(val) => onChange(val)} 
+									>
+										<SelectTrigger className='col-span-3'>
+											<SelectValue placeholder="Select a model">
 												{value}
-											</SelectItem>
-										))}
-									</SelectGroup>
-								</SelectContent>
-							</Select>
+											</SelectValue>
+										</SelectTrigger>
+										<SelectContent>
+											<SelectGroup>
+												<SelectLabel>Models</SelectLabel>
+												{modelsData?.models.map(model => (
+													<SelectItem 
+														key={model.name} 
+														value={model.name}
+													>
+														{model.name}
+													</SelectItem>
+												))}
+											</SelectGroup>
+										</SelectContent>
+									</Select>
+								)}
+							/>
 						</div>
 					</div>
 					<DialogFooter>
