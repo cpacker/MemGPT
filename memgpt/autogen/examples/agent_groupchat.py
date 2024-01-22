@@ -15,9 +15,9 @@ import autogen
 from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config
 from memgpt.constants import LLM_MAX_TOKENS, DEFAULT_PRESET
 
-LLM_BACKEND = "openai"
+# LLM_BACKEND = "openai"
 # LLM_BACKEND = "azure"
-# LLM_BACKEND = "local"
+LLM_BACKEND = "local"
 
 if LLM_BACKEND == "openai":
     # For demo purposes let's use gpt-4
@@ -110,7 +110,7 @@ elif LLM_BACKEND == "local":
             "preset": DEFAULT_PRESET,
             "model": None,  # only required for Ollama, see: https://memgpt.readme.io/docs/ollama
             "context_window": 8192,  # the context window of your model (for Mistral 7B-based models, it's likely 8192)
-            "model_wrapper": "airoboros-l2-70b-2.1",  # airoboros is the default wrapper and should work for most models
+            "model_wrapper": "chatml",  # chatml is the default wrapper
             "model_endpoint_type": "lmstudio",  # can use webui, ollama, llamacpp, etc.
             "model_endpoint": "http://localhost:1234",  # the IP address of your LLM backend
         },
@@ -176,7 +176,7 @@ else:
     )
 
 # Initialize the group chat between the user and two LLM agents (PM and coder)
-groupchat = autogen.GroupChat(agents=[user_proxy, pm, coder], messages=[], max_round=12)
+groupchat = autogen.GroupChat(agents=[user_proxy, pm, coder], messages=[], max_round=12, speaker_selection_method="round_robin")
 manager = autogen.GroupChatManager(groupchat=groupchat, llm_config=llm_config)
 
 # Begin the group chat with a message from the user

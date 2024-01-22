@@ -1,18 +1,21 @@
-from autogen.agentchat import Agent, ConversableAgent, UserProxyAgent, GroupChat, GroupChatManager
-from memgpt.agent import Agent as _Agent
-
+import uuid
 from typing import Callable, Optional, List, Dict, Union, Any, Tuple
 
+from autogen.agentchat import Agent, ConversableAgent, UserProxyAgent, GroupChat, GroupChatManager
+
+from memgpt.agent import Agent as MemGPTAgent
 from memgpt.autogen.interface import AutoGenInterface
-from memgpt.persistence_manager import LocalStateManager
 import memgpt.system as system
 import memgpt.constants as constants
 import memgpt.utils as utils
 import memgpt.presets.presets as presets
-from memgpt.config import AgentConfig, MemGPTConfig
+from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials
 from memgpt.cli.cli import attach
 from memgpt.cli.cli_load import load_directory, load_webpage, load_index, load_database, load_vector_database
 from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.metadata import MetadataStore, save_agent
+from memgpt.data_types import AgentState, User, LLMConfig, EmbeddingConfig
 
 
 def create_memgpt_autogen_agent_from_config(
@@ -51,38 +54,34 @@ def create_memgpt_autogen_agent_from_config(
 
     # If using azure or openai, save the credentials to the config
     config = MemGPTConfig.load()
-    # input(f"llm_config! {llm_config}")
-    # input(f"config! {config}")
-    if llm_config["model_endpoint_type"] in ["azure", "openai"] or llm_config["model_endpoint_type"] != config.model_endpoint_type:
+    credentials = MemGPTCredentials.load()
+
+    if (
+        llm_config["model_endpoint_type"] in ["azure", "openai"]
+        or llm_config["model_endpoint_type"] != config.default_llm_config.model_endpoint_type
+    ):
         # we load here to make sure we don't override existing values
         # all we want to do is add extra credentials
 
         if llm_config["model_endpoint_type"] == "azure":
-            config.azure_key = llm_config["azure_key"]
-            config.azure_endpoint = llm_config["azure_endpoint"]
-            config.azure_version = llm_config["azure_version"]
+            credentials.azure_key = llm_config["azure_key"]
+            credentials.azure_endpoint = llm_config["azure_endpoint"]
+            credentials.azure_version = llm_config["azure_version"]
             llm_config.pop("azure_key")
             llm_config.pop("azure_endpoint")
             llm_config.pop("azure_version")
 
         elif llm_config["model_endpoint_type"] == "openai":
-            config.openai_key = llm_config["openai_key"]
+            credentials.openai_key = llm_config["openai_key"]
             llm_config.pop("openai_key")
 
-        # else:
-        #     config.model_endpoint_type = llm_config["model_endpoint_type"]
-
-        config.save()
-
-    # if llm_config["model_endpoint"] != config.model_endpoint:
-    #     config.model_endpoint = llm_config["model_endpoint"]
-    #     config.save()
+        credentials.save()
 
     # Create an AgentConfig option from the inputs
     llm_config.pop("name", None)
     llm_config.pop("persona", None)
     llm_config.pop("human", None)
-    agent_config = AgentConfig(
+    agent_config = dict(
         name=name,
         persona=persona_desc,
         human=user_desc,
@@ -136,14 +135,30 @@ def create_memgpt_autogen_agent_from_config(
         return autogen_memgpt_agent
 
 
+def update_config_from_dict(config_object: Union[LLMConfig, EmbeddingConfig], config_dict: dict):
+    """
+    Update the attributes of a configuration object based on a dictionary.
+
+    :param config_object: The configuration object to be updated.
+    :param config_dict: The dictionary containing new values for the configuration.
+    """
+    for attr in dir(config_object):
+        # Filter out private attributes and methods
+        if not attr.startswith("_") and not callable(getattr(config_object, attr)):
+            if attr in config_dict:
+                # Cast the value to the type of the attribute in config_object
+                attr_type = type(getattr(config_object, attr))
+                try:
+                    setattr(config_object, attr, attr_type(config_dict[attr]))
+                except TypeError:
+                    print(f"Type mismatch for attribute {attr}, cannot cast {config_dict[attr]} to {attr_type}")
+
+
 def create_autogen_memgpt_agent(
-    agent_config,
-    # interface and persistence manager
-    skip_verify=False,
-    interface=None,
-    interface_kwargs={},
-    persistence_manager=None,
-    persistence_manager_kwargs=None,
+    agent_config: dict,
+    skip_verify: bool = False,
+    interface: bool = None,
+    interface_kwargs: dict = {},
     default_auto_reply: Optional[Union[str, Dict, None]] = "",
     is_termination_msg: Optional[Callable[[Dict], bool]] = None,
 ):
@@ -160,29 +175,54 @@ def create_autogen_memgpt_agent(
     }
     ```
     """
-    # TODO: more gracefully integrate reuse of MemGPT agents. Right now, we are creating a new MemGPT agent for
-    # every call to this function, because those scripts using create_autogen_memgpt_agent may contain calls
-    # to non-idempotent agent functions like `attach`.
-
     interface = AutoGenInterface(**interface_kwargs) if interface is None else interface
-    if persistence_manager_kwargs is None:
-        persistence_manager_kwargs = {
-            "agent_config": agent_config,
-        }
-    persistence_manager = LocalStateManager(**persistence_manager_kwargs) if persistence_manager is None else persistence_manager
 
-    memgpt_agent = presets.create_agent_from_preset(
-        agent_config.preset,
-        agent_config,
-        agent_config.model,
-        agent_config.persona,  # note: extracting the raw text, not pulling from a file
-        agent_config.human,  # note: extracting raw text, not pulling from a file
-        interface,
-        persistence_manager,
+    config = MemGPTConfig.load()
+    llm_config = config.default_llm_config
+    embedding_config = config.default_embedding_config
+
+    # Overwrite parts of the LLM and embedding configs that were passed into the config dicts
+    update_config_from_dict(llm_config, agent_config)
+    update_config_from_dict(embedding_config, agent_config)
+
+    # Create the default user, or load the specified user
+    ms = MetadataStore(config)
+    if "user_id" not in agent_config:
+        user_id = uuid.UUID(config.anon_clientid)
+        user = ms.get_user(user_id=user_id)
+        if user is None:
+            ms.create_user(User(id=user_id))
+            user = ms.get_user(user_id=user_id)
+            if user is None:
+                raise ValueError(f"Failed to create default user {str(user_id)} in database.")
+    else:
+        user_id = uuid.UUID(agent_config["user_id"])
+        user = ms.get_user(user_id=user_id)
+
+    agent_state = AgentState(
+        name=agent_config["name"],
+        user_id=user_id,
+        persona=agent_config["persona"],
+        human=agent_config["human"],
+        llm_config=llm_config,
+        embedding_config=embedding_config,
+        preset=agent_config["preset"],
     )
+    try:
+        memgpt_agent = presets.create_agent_from_preset(
+            agent_state=agent_state,
+            interface=interface,
+            persona_is_file=False,
+            human_is_file=False,
+        )
+        # Save agent in database immediately after writing
+        save_agent(agent=memgpt_agent, ms=ms)
+    except ValueError as e:
+        raise ValueError(f"Failed to create agent from provided information:\n{agent_config}\n\nError: {str(e)}")
 
-    autogen_memgpt_agent = MemGPTAgent(
-        name=agent_config.name,
+    # After creating the agent, we then need to wrap it in a ConversableAgent so that it can be plugged into AutoGen
+    autogen_memgpt_agent = MemGPTConversableAgent(
+        name=agent_state.name,
         agent=memgpt_agent,
         default_auto_reply=default_auto_reply,
         is_termination_msg=is_termination_msg,
@@ -191,28 +231,38 @@ def create_autogen_memgpt_agent(
     return autogen_memgpt_agent
 
 
-class MemGPTAgent(ConversableAgent):
+class MemGPTConversableAgent(ConversableAgent):
     def __init__(
         self,
         name: str,
-        agent: _Agent,
+        agent: MemGPTAgent,
         skip_verify=False,
         concat_other_agent_messages=False,
         is_termination_msg: Optional[Callable[[Dict], bool]] = None,
         default_auto_reply: Optional[Union[str, Dict, None]] = "",
         # TODO: pass in MemGPT config (needed to create DB connections)
     ):
-        super().__init__(name)
+        """A wrapper around a MemGPT agent that implements the AutoGen ConversibleAgent functions
+
+        This allows the MemGPT agent to be used in an AutoGen groupchat
+        """
+        super().__init__(name, llm_config=False)
         self.agent = agent
         self.skip_verify = skip_verify
         self.concat_other_agent_messages = concat_other_agent_messages
-        self.register_reply([Agent, None], MemGPTAgent._generate_reply_for_user_message)
+        self.register_reply([Agent, None], MemGPTConversableAgent._generate_reply_for_user_message)
         self.messages_processed_up_to_idx = 0
         self._default_auto_reply = default_auto_reply
 
         self._is_termination_msg = is_termination_msg if is_termination_msg is not None else (lambda x: x == "TERMINATE")
 
+    def save(self):
+        """Save the MemGPT agent to the database"""
+        raise NotImplementedError
+
     def load(self, name: str, type: str, **kwargs):
+        raise DeprecationWarning()
+
         # call load function based on type
         if type == "directory":
             load_directory(name=name, **kwargs)
@@ -228,6 +278,8 @@ class MemGPTAgent(ConversableAgent):
             raise ValueError(f"Invalid data source type {type}")
 
     def attach(self, data_source: str):
+        raise DeprecationWarning()
+
         # attach new data
         attach(self.agent.config.name, data_source)
 
@@ -241,6 +293,8 @@ class MemGPTAgent(ConversableAgent):
         )
 
     def load_and_attach(self, name: str, type: str, force=False, **kwargs):
+        raise DeprecationWarning()
+
         # check if data source already exists
         data_sources = StorageConnector.get_metadata_storage_connector(TableType.DATA_SOURCES).get_all()
         data_sources = [source.name for source in data_sources]
@@ -289,6 +343,9 @@ class MemGPTAgent(ConversableAgent):
         sender: Optional[Agent] = None,
         config: Optional[Any] = None,
     ) -> Tuple[bool, Union[str, Dict, None]]:
+        assert isinstance(
+            self.agent.interface, AutoGenInterface
+        ), f"MemGPT AutoGen Agent is using the wrong interface - {self.agent.interface}"
         self.agent.interface.reset_message_list()
 
         new_messages = self.find_new_messages(messages)
@@ -299,7 +356,7 @@ class MemGPTAgent(ConversableAgent):
                 user_message = "\n".join([self.format_other_agent_message(m) for m in new_messages])
             else:
                 # Extend the MemGPT message list with multiple 'user' messages, then push the last one with agent.step()
-                self.agent.messages.extend(new_messages[:-1])
+                self.agent.append_to_messages(new_messages[:-1])
                 user_message = new_messages[-1]
         elif new_messages_count == 1:
             user_message = new_messages[0]
@@ -334,7 +391,7 @@ class MemGPTAgent(ConversableAgent):
             return True, None
 
         # Pass back to AutoGen the pretty-printed calls MemGPT made to the interface
-        pretty_ret = MemGPTAgent.pretty_concat(self.agent.interface.message_list)
+        pretty_ret = MemGPTConversableAgent.pretty_concat(self.agent.interface.message_list)
         self.messages_processed_up_to_idx += new_messages_count
         return True, pretty_ret
 
