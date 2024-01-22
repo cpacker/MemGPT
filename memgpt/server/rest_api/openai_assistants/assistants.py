@@ -18,7 +18,7 @@ from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.rest_api.static_files import mount_static_files
 from memgpt.models.openai.messages import OpenAIMessage, Text
-from memgpt.data_types import LLMConfig, EmbeddingConfig
+from memgpt.data_types import LLMConfig, EmbeddingConfig, Message
 from memgpt.constants import DEFAULT_PRESET
 
 """
@@ -168,20 +168,26 @@ def create_message(
     user_id = uuid.UUID(request.user_id)
     agent_id = uuid.UUID(thread_id)
     # TODO: need to add a buffer/queue to server and pull on .step()
+    message = Message(
+        user_id=user_id,
+        agent_id=agent_id,
+        role=request.role,
+        text=request.content,
+    )
     server.user_message(
         user_id=user_id,
         agent_id=agent_id,
-        message=request.content,
+        message=message,
     )
-    # TODO: this should eventually add and optionally run the .step()
-    # return openai message
     return OpenAIMessage(
-        id=str(uuid.uuid4()),
-        created_at=int(datetime.now().timestamp()),
-        thread_id=str(agent_id),
-        assistant_id=DEFAULT_PRESET,
-        role="user",
-        content=[Text(text=request.content)],
+        id=str(message.id),
+        created_at=int(message.created_at.timestamp()),
+        content=[Text(text=message.text)],
+        role=message.role,
+        thread_id=str(message.agent_id),
+        assistant_id=DEFAULT_PRESET,  # TODO: update this
+        # file_ids=message.file_ids,
+        # metadata=message.metadata,
     )
 
 
