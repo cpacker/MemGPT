@@ -700,6 +700,19 @@ class SyncServer(LockingServer):
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
         return [m.id for m in memgpt_agent._messages]
 
+    def get_agent_message(self, agent_id: uuid.UUID, message_id: uuid.UUID) -> Message:
+        """Get message based on agent and message ID"""
+        agent_state = self.ms.get_agent(agent_id=agent_id)
+        if agent_state is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+        user_id = agent_state.user_id
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        message = memgpt_agent.persistence_manager.recall_memory.storage.get(message_id=message_id)
+        return message
+
     def get_agent_messages(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
         """Paginated query of all messages in agent message queue"""
         if self.ms.get_user(user_id=user_id) is None:
