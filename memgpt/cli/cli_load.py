@@ -234,7 +234,7 @@ def load_directory(
         # load docs
         docs = []
         for data in reader.iter_data():
-            doc = ''.join([doc.text[2:] for doc in data])
+            doc = "".join([doc.text[2:] for doc in data])
             doco = llama_index.Document()
             doco.set_content(doc)
             docs.append(doco)

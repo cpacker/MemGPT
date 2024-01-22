@@ -288,7 +288,6 @@ class Document(Record):
         self.created_at = created_at
         self.metadata = metadata
 
-
     # def __repr__(self) -> str:
     #    pass
 
