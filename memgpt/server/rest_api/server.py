@@ -15,6 +15,7 @@ from memgpt.server.rest_api.auth.index import setup_auth_router
 from memgpt.server.rest_api.config.index import setup_config_index_router
 from memgpt.server.rest_api.humans.index import setup_humans_index_router
 from memgpt.server.rest_api.personas.index import setup_personas_index_router
+from memgpt.server.rest_api.models.index import setup_models_index_router
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.rest_api.static_files import mount_static_files
@@ -61,6 +62,7 @@ app.include_router(setup_agents_memory_router(server, interface), prefix=API_PRE
 app.include_router(setup_agents_message_router(server, interface), prefix=API_PREFIX)
 app.include_router(setup_humans_index_router(server, interface), prefix=API_PREFIX)
 app.include_router(setup_personas_index_router(server, interface), prefix=API_PREFIX)
+app.include_router(setup_models_index_router(server, interface), prefix=API_PREFIX)
 # /api/config endpoints
 app.include_router(setup_config_index_router(server, interface), prefix=API_PREFIX)
 # / static files
