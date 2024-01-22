@@ -10,7 +10,7 @@ from box import Box
 from memgpt.credentials import MemGPTCredentials
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
 from memgpt.constants import CLI_WARNING_PREFIX
-from memgpt.models.chat_completion_response import ChatCompletionResponse
+from memgpt.models.chat_completion_response import ChatCompletionResponse, Choice, Message, ToolCall, FunctionCall
 
 from memgpt.data_types import AgentState
 
@@ -247,6 +247,70 @@ def openai_embeddings_request(url, api_key, data):
         raise e
 
 
+def _ensure_zhipu_message_format(messages):
+    zhipuai_messages = []
+    for message in messages:
+        role = message["role"]
+        if role == "system" or role == "user":
+            zhipuai_messages.append({"role": role, "content": message["content"]})
+        elif role == "assistant":
+            if "tool_calls" in message:
+                tool_calls = message["tool_calls"]
+                msg = {"role": role, "tool_calls": []}
+                for i, tool_call in enumerate(tool_calls):
+                    tool_call_type = tool_call["type"]
+                    assert tool_call_type == "function", f"unknown tool_call_type {tool_call_type}"
+                    msg["tool_calls"].append(
+                        {
+                            "id": tool_call["id"],
+                            "index": i,
+                            "type": tool_call_type,
+                            "function": {"name": tool_call["function"]["name"], "args": tool_call["function"]["arguments"]},
+                        }
+                    )
+                zhipuai_messages.append(msg)
+            else:
+                zhipuai_messages.append({"role": role, "content": message["content"]})
+        elif role == "tool":
+            zhipuai_messages.append({"role": role, "content": message["content"], "tool_call_id": message["tool_call_id"]})
+        else:
+            raise ValueError(f"unknown role {role}")
+    return zhipuai_messages
+
+
+def zhipuai_chat_completions_request(api_key, data):
+    data["messages"] = _ensure_zhipu_message_format(data["messages"])
+    try:
+        import zhipuai
+    except ImportError:
+        raise ImportError("zhipuai is not installed, please run `pip install zhipuai`")
+    client = zhipuai.ZhipuAI(api_key=api_key)
+    response = client.chat.completions.create(**data)
+    return ChatCompletionResponse(
+        id=response.id,
+        choices=[
+            Choice(
+                finish_reason=c.finish_reason,
+                index=c.index,
+                message=Message(
+                    content=c.message.content,
+                    role=c.message.role,
+                    tool_calls=None
+                    if c.message.tool_calls is None
+                    else [
+                        ToolCall(
+                            id=ct.id,
+                            function=FunctionCall(name=ct.function.name, arguments=ct.function.arguments),
+                        )
+                        for ct in c.message.tool_calls
+                    ],
+                ),
+            )
+            for c in response.choices
+        ],
+    )
+
+
 def azure_openai_chat_completions_request(resource_name, deployment_id, api_version, api_key, data):
     """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#chat-completions"""
     from memgpt.utils import printd
@@ -453,6 +517,25 @@ def create(
             deployment_id=azure_deployment,
             api_version=credentials.azure_version,
             api_key=credentials.azure_key,
+            data=data,
+        )
+    elif agent_state.llm_config.model_endpoint_type == "zhipuai":
+        assert function_call == "auto", "zhipuai does not support specifying function_call for now"
+        tools = [
+            {
+                "type": "function",
+                "function": f,
+            }
+            for f in functions
+        ]
+        data = dict(
+            model="glm-4",
+            tools=tools,
+            messages=messages,
+            tool_choice=function_call,
+        )
+        return zhipuai_chat_completions_request(
+            api_key=credentials.zhipuai_api_key,
             data=data,
         )
 

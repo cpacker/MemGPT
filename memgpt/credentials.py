@@ -38,6 +38,9 @@ class MemGPTCredentials:
     azure_deployment: str = None
     azure_embedding_deployment: str = None
 
+    # zhipuai config
+    zhipuai_api_key: str = None
+
     # custom llm API config
     openllm_auth_type: str = None
     openllm_key: str = None
@@ -66,6 +69,8 @@ class MemGPTCredentials:
                 "azure_version": get_field(config, "azure", "version"),
                 "azure_deployment": get_field(config, "azure", "deployment"),
                 "azure_embedding_deployment": get_field(config, "azure", "embedding_deployment"),
+                # zhipuai
+                "zhipuai_api_key": get_field(config, "zhipuai", "api_key"),
                 # open llm
                 "openllm_auth_type": get_field(config, "openllm", "auth_type"),
                 "openllm_key": get_field(config, "openllm", "key"),
