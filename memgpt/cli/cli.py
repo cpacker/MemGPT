@@ -581,9 +581,9 @@ def run(
         agent_state = AgentState(
             name=agent,
             user_id=user.id,
-            persona=persona if persona else user.default_persona,
-            human=human if human else user.default_human,
-            preset=preset if preset else user.default_preset,
+            persona=persona if persona else config.persona,
+            human=human if human else config.human,
+            preset=preset if preset else config.preset,
             llm_config=llm_config,
             embedding_config=embedding_config,
         )

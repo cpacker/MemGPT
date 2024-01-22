@@ -563,9 +563,6 @@ class SyncServer(LockingServer):
 
         user = User(
             id=user_config["id"] if "id" in user_config else None,
-            default_preset=user_config["default_preset"] if "default_preset" in user_config else "memgpt_chat",
-            default_persona=user_config["default_persona"] if "default_persona" in user_config else constants.DEFAULT_PERSONA,
-            default_human=user_config["default_human"] if "default_human" in user_config else constants.DEFAULT_HUMAN,
         )
         self.ms.create_user(user)
         logger.info(f"Created new user from config: {user}")
@@ -601,10 +598,10 @@ class SyncServer(LockingServer):
         agent_state = AgentState(
             user_id=user.id,
             name=agent_config["name"] if "name" in agent_config else utils.create_random_username(),
-            preset=agent_config["preset"] if "preset" in agent_config else user.default_preset,
+            preset=agent_config["preset"] if "preset" in agent_config else self.config.preset,
             # TODO we need to allow passing raw persona/human text via the server request
-            persona=agent_config["persona"] if "persona" in agent_config else user.default_persona,
-            human=agent_config["human"] if "human" in agent_config else user.default_human,
+            persona=agent_config["persona"] if "persona" in agent_config else self.config.persona,
+            human=agent_config["human"] if "human" in agent_config else self.config.human,
             llm_config=agent_config["llm_config"] if "llm_config" in agent_config else self.server_llm_config,
             embedding_config=agent_config["embedding_config"] if "embedding_config" in agent_config else self.server_embedding_config,
         )

@@ -93,9 +93,9 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
     agent = AgentState(
         user_id=user.id,
         name="test_agent",
-        preset=user.default_preset,
-        persona=user.default_persona,
-        human=user.default_human,
+        preset=config.preset,
+        persona=config.persona,
+        human=config.human,
         llm_config=config.default_llm_config,
         embedding_config=embedding_config,
     )
