@@ -196,7 +196,7 @@ def list_assistants(
     before: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
 ):
     # TODO: implement list assistants (i.e. list available MemGPT presets)
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.get("/v1/assistants/{assistant_id}/files", tags=["assistants"], response_model=List[AssistantFile])
@@ -208,7 +208,7 @@ def list_assistant_files(
     before: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
 ):
     # TODO: list attached data sources to preset
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.get("/v1/assistants/{assistant_id}", tags=["assistants"], response_model=OpenAIAssistant)
@@ -216,7 +216,7 @@ def retrieve_assistant(
     assistant_id: str = Path(..., description="The unique identifier of the assistant."),
 ):
     # TODO: get and return preset
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.get("/v1/assistants/{assistant_id}/files/{file_id}", tags=["assistants"], response_model=AssistantFile)
@@ -225,7 +225,7 @@ def retrieve_assistant_file(
     file_id: str = Path(..., description="The unique identifier of the file."),
 ):
     # TODO: return data source attached to preset
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.post("/v1/assistants/{assistant_id}", tags=["assistants"], response_model=OpenAIAssistant)
@@ -234,7 +234,7 @@ def modify_assistant(
     request: CreateAssistantRequest = Body(...),
 ):
     # TODO: modify preset
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.delete("/v1/assistants/{assistant_id}", tags=["assistants"], response_model=DeleteAssistantResponse)
@@ -242,7 +242,7 @@ def delete_assistant(
     assistant_id: str = Path(..., description="The unique identifier of the assistant."),
 ):
     # TODO: delete preset
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.delete("/v1/assistants/{assistant_id}/files/{file_id}", tags=["assistants"], response_model=DeleteAssistantFileResponse)
@@ -251,7 +251,7 @@ def delete_assistant_file(
     file_id: str = Path(..., description="The unique identifier of the file."),
 ):
     # TODO: delete source on preset
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.post("/v1/threads/", tags=["assistants"], response_model=OpenAIThread)
@@ -294,7 +294,7 @@ def modify_thread(
     request: ModifyThreadRequest = Body(...),
 ):
     # TODO: add agent metadata so this can be modified
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.delete("/v1/threads/{thread_id}", tags=["assistants"], response_model=DeleteThreadResponse)
@@ -302,7 +302,7 @@ def delete_thread(
     thread_id: str = Path(..., description="The unique identifier of the thread."),
 ):
     # TODO: delete agent
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.post("/v1/threads/{thread_id}/messages", tags=["assistants"], response_model=OpenAIMessage)
@@ -407,7 +407,7 @@ def retrieve_message_file(
     file_id: str = Path(..., description="The unique identifier of the file."),
 ):
     # TODO: implement?
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.post("/v1/threads/{thread_id}/messages/{message_id}", tags=["assistants"], response_model=OpenAIMessage)
@@ -417,7 +417,7 @@ def modify_message(
     request: ModifyMessageRequest = Body(...),
 ):
     # TODO: add metada field to message so this can be modified
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.post("/v1/threads/{thread_id}/runs", tags=["assistants"], response_model=OpenAIMessage)
@@ -426,7 +426,7 @@ def create_run(
     request: CreateRunRequest = Body(...),
 ):
     # TODO: need to implement lazy process of messages, then can use this to execute run
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.post("/v1/threads/runs", tags=["assistants"], response_model=OpenAIRun)
@@ -434,7 +434,7 @@ def create_thread_and_run(
     request: CreateThreadRunRequest = Body(...),
 ):
     # TODO: add a bunch of messages and execute
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.get("/v1/threads/{thread_id}/runs", tags=["assistants"], response_model=List[OpenAIRun])
@@ -446,7 +446,7 @@ def list_runs(
     before: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
 ):
     # TODO: store run information in a DB so it can be returned here
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.get("/v1/threads/{thread_id}/runs/{run_id}/steps", tags=["assistants"], response_model=List[OpenAIRunStep])
@@ -459,7 +459,7 @@ def list_run_steps(
     before: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
 ):
     # TODO: store run information in a DB so it can be returned here
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.get("/v1/threads/{thread_id}/runs/{run_id}", tags=["assistants"], response_model=OpenAIRun)
@@ -467,7 +467,7 @@ def retrieve_run(
     thread_id: str = Path(..., description="The unique identifier of the thread."),
     run_id: str = Path(..., description="The unique identifier of the run."),
 ):
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.get("/v1/threads/{thread_id}/runs/{run_id}/steps/{step_id}", tags=["assistants"], response_model=OpenAIRunStep)
@@ -476,7 +476,7 @@ def retrieve_run_step(
     run_id: str = Path(..., description="The unique identifier of the run."),
     step_id: str = Path(..., description="The unique identifier of the run step."),
 ):
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.post("/v1/threads/{thread_id}/runs/{run_id}", tags=["assistants"], response_model=OpenAIRun)
@@ -485,7 +485,7 @@ def modify_run(
     run_id: str = Path(..., description="The unique identifier of the run."),
     request: ModifyRunRequest = Body(...),
 ):
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.post("/v1/threads/{thread_id}/runs/{run_id}/submit_tool_outputs", tags=["assistants"], response_model=OpenAIRun)
@@ -494,7 +494,7 @@ def submit_tool_outputs_to_run(
     run_id: str = Path(..., description="The unique identifier of the run."),
     request: SubmitToolOutputsToRunRequest = Body(...),
 ):
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
 @app.post("/v1/threads/{thread_id}/runs/{run_id}/cancel", tags=["assistants"], response_model=OpenAIRun)
@@ -502,4 +502,4 @@ def cancel_run(
     thread_id: str = Path(..., description="The unique identifier of the thread."),
     run_id: str = Path(..., description="The unique identifier of the run."),
 ):
-    pass
+    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
