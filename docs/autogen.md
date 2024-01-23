@@ -53,6 +53,7 @@ memgpt_autogen_agent = create_memgpt_autogen_agent_from_config(
     interface_kwargs=interface_kwargs,
     default_auto_reply="...",
     skip_verify=False,  # NOTE: you should set this to True if you expect your MemGPT AutoGen agent to call a function other than send_message on the first turn
+    auto_save=False,  # NOTE: set this to True if you want the MemGPT AutoGen agent to save its internal state after each reply - you can also save manually with .save()
 )
 ```
 
@@ -62,10 +63,28 @@ Now this `memgpt_autogen_agent` can be used in standard AutoGen scripts:
 import autogen
 
 # ... assuming we have some other AutoGen agents other_agent_1 and 2
-groupchat = autogen.GroupChat(agents=[memgpt_autogen_agent, other_agent_1, other_agent_2], messages=[], max_round=12)
+groupchat = autogen.GroupChat(agents=[memgpt_autogen_agent, other_agent_1, other_agent_2], messages=[], max_round=12, speaker_selection_method="round_robin")
 ```
 
 [examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) contains an example of a groupchat where one of the agents is powered by MemGPT. If you are using OpenAI, you can also run the example using the [notebook](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/memgpt_coder_autogen.ipynb).
+
+### Saving and loading
+
+If you're using MemGPT AutoGen agents inside a Python script, you can save the internal state of the agent (message history, memory, etc.) by calling `.save()`:
+```python
+# You can also set auto_save = True in the creation function
+memgpt_autogen_agent.save()
+```
+
+To load an existing agent, you can use the `load_autogen_memgpt_agent` function:
+```python
+from memgpt.autogen.memgpt_agent import load_autogen_memgpt_agent
+
+# To load an AutoGen+MemGPT agent you previously created, you can use the load function:
+memgpt_autogen_agent = load_autogen_memgpt_agent(agent_config={"name": "MemGPT_agent"})
+```
+
+Because AutoGen MemGPT agents are really just MemGPT agents under-the-hood, you can interact with them via standard MemGPT interfaces such as the [MemGPT Python Client](https://memgpt.readme.io/docs/python_client) or [MemGPT API](https://memgpt.readme.io/reference/api). However, be careful when using AutoGen MemGPT agents outside of AutoGen scripts, since the context (chain of messages) may become confusing for the MemGPT agent to understand as you are mixing AutoGen groupchat conversations with regular user-agent 1-1 conversations.
 
 In the next section, we'll go through the example in depth to demonstrate how to set up MemGPT and AutoGen to run with a local LLM backend.
 
