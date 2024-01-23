@@ -8,7 +8,7 @@ memgpt load <data-connector-type> --name <dataset-name> [ADDITIONAL ARGS]
 
 """
 
-from typing import List, Optional
+from typing import List, Optional, Annotated
 from tqdm import tqdm
 import numpy as np
 import typer
@@ -172,9 +172,9 @@ def store_docs(name, docs, user_id=None, show_progress=True):
 
 @app.command("index")
 def load_index(
-    name: str = typer.Option(help="Name of dataset to load."),
-    dir: str = typer.Option(help="Path to directory containing index."),
-    user_id: uuid.UUID = None,
+    name: Annotated[str, typer.Option(help="Name of dataset to load.")],
+    dir: Annotated[Optional[str], typer.Option(help="Path to directory containing index.")] = None,
+    user_id: Annotated[Optional[uuid.UUID], typer.Option(help="User ID to associate with dataset.")] = None,
 ):
     """Load a LlamaIndex saved VectorIndex into MemGPT"""
     try:
@@ -221,12 +221,12 @@ default_extensions = ".txt,.md,.pdf"
 
 @app.command("directory")
 def load_directory(
-    name: str = typer.Option(help="Name of dataset to load."),
-    input_dir: Optional[str] = typer.Option(None, help="Path to directory containing dataset."),
-    input_files: Optional[List[str]] = typer.Option(None, help="List of paths to files containing dataset."),
-    recursive: bool = typer.Option(False, help="Recursively search for files in directory."),
-    extensions: str = typer.Option(default_extensions, help="Comma separated list of file extensions to load"),
-    user_id: Optional[str] = typer.Option(None, help="User ID to associate with dataset."),
+    name: Annotated[str, typer.Option(help="Name of dataset to load.")],
+    input_dir: Annotated[Optional[str], typer.Option(help="Path to directory containing dataset.")] = None,
+    input_files: Annotated[List[str], typer.Option(help="List of paths to files containing dataset.")] = [],
+    recursive: Annotated[bool, typer.Option(help="Recursively search for files in directory.")] = False,
+    extensions: Annotated[str, typer.Option(help="Comma separated list of file extensions to load")] = default_extensions,
+    user_id: Annotated[Optional[uuid.UUID], typer.Option(help="User ID to associate with dataset.")] = None,
 ):
     try:
         from llama_index import SimpleDirectoryReader
@@ -255,8 +255,8 @@ def load_directory(
 
 @app.command("webpage")
 def load_webpage(
-    name: str = typer.Option(help="Name of dataset to load."),
-    urls: Optional[List[str]] = typer.Option(None, help="List of urls to load."),
+    name: Annotated[str, typer.Option(help="Name of dataset to load.")],
+    urls: Annotated[List[str], typer.Option(help="List of urls to load.")],
 ):
     try:
         from llama_index import SimpleWebPageReader
@@ -270,15 +270,15 @@ def load_webpage(
 
 @app.command("database")
 def load_database(
-    name: str = typer.Option(help="Name of dataset to load."),
-    query: str = typer.Option(help="Database query."),
-    dump_path: str = typer.Option(None, help="Path to dump file."),
-    scheme: str = typer.Option(None, help="Database scheme."),
-    host: str = typer.Option(None, help="Database host."),
-    port: int = typer.Option(None, help="Database port."),
-    user: str = typer.Option(None, help="Database user."),
-    password: str = typer.Option(None, help="Database password."),
-    dbname: str = typer.Option(None, help="Database name."),
+    name: Annotated[str, typer.Option(help="Name of dataset to load.")],
+    query: Annotated[str, typer.Option(help="Database query.")],
+    dump_path: Annotated[Optional[str], typer.Option(help="Path to dump file.")] = None,
+    scheme: Annotated[Optional[str], typer.Option(help="Database scheme.")] = None,
+    host: Annotated[Optional[str], typer.Option(help="Database host.")] = None,
+    port: Annotated[Optional[int], typer.Option(help="Database port.")] = None,
+    user: Annotated[Optional[str], typer.Option(help="Database user.")] = None,
+    password: Annotated[Optional[str], typer.Option(help="Database password.")] = None,
+    dbname: Annotated[Optional[str], typer.Option(help="Database name.")] = None,
 ):
     try:
         from llama_index.readers.database import DatabaseReader
@@ -319,12 +319,12 @@ def load_database(
 
 @app.command("vector-database")
 def load_vector_database(
-    name: str = typer.Option(help="Name of dataset to load."),
-    uri: str = typer.Option(help="Database URI."),
-    table_name: str = typer.Option(help="Name of table containing data."),
-    text_column: str = typer.Option(help="Name of column containing text."),
-    embedding_column: str = typer.Option(help="Name of column containing embedding."),
-    user_id: uuid.UUID = None,
+    name: Annotated[str, typer.Option(help="Name of dataset to load.")],
+    uri: Annotated[str, typer.Option(help="Database URI.")],
+    table_name: Annotated[str, typer.Option(help="Name of table containing data.")],
+    text_column: Annotated[str, typer.Option(help="Name of column containing text.")],
+    embedding_column: Annotated[str, typer.Option(help="Name of column containing embedding.")],
+    user_id: Annotated[Optional[uuid.UUID], typer.Option(help="User ID to associate with dataset.")] = None,
 ):
     """Load pre-computed embeddings into MemGPT from a database."""
 
