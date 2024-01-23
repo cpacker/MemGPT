@@ -20,37 +20,13 @@ from memgpt.metadata import MetadataStore, save_agent
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
 import memgpt.server.utils as server_utils
-from memgpt.persistence_manager import PersistenceManager, LocalStateManager
 from memgpt.data_types import (
-    Source,
-    Passage,
-    Document,
     User,
     AgentState,
     LLMConfig,
     EmbeddingConfig,
-    Message,
-    ToolCall,
-    LLMConfig,
-    EmbeddingConfig,
-    Message,
-    ToolCall,
 )
-from memgpt.data_types import (
-    Source,
-    Passage,
-    Document,
-    User,
-    AgentState,
-    LLMConfig,
-    EmbeddingConfig,
-    Message,
-    ToolCall,
-    LLMConfig,
-    EmbeddingConfig,
-    Message,
-    ToolCall,
-)
+
 
 # TODO use custom interface
 from memgpt.interface import CLIInterface  # for printing to terminal

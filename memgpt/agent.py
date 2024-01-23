@@ -557,11 +557,12 @@ class Agent(object):
         try:
             # Step 0: add user message
             if user_message is not None:
+                # Create the user message dict
                 self.interface.user_message(user_message)
                 packed_user_message = {"role": "user", "content": user_message}
-                # Special handling for AutoGen messages with 'name' field
                 try:
                     user_message_json = json.loads(user_message)
+                    # Special handling for AutoGen messages with 'name' field
                     # Treat 'name' as a special field
                     # If it exists in the input message, elevate it to the 'message' level
                     if "name" in user_message_json:
@@ -570,6 +571,15 @@ class Agent(object):
                         packed_user_message["content"] = json.dumps(user_message_json, ensure_ascii=JSON_ENSURE_ASCII)
                 except Exception as e:
                     print(f"{CLI_WARNING_PREFIX}handling of 'name' field failed with: {e}")
+
+                # Create the associated Message object (in the database)
+                packed_user_message_obj = Message.dict_to_message(
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
+                    model=self.model,
+                    openai_message_dict=packed_user_message,
+                )
+
                 input_message_sequence = self.messages + [packed_user_message]
             else:
                 input_message_sequence = self.messages
@@ -618,14 +628,7 @@ class Agent(object):
 
             # Step 4: extend the message history
             if user_message is not None:
-                all_new_messages = [
-                    Message.dict_to_message(
-                        agent_id=self.agent_state.id,
-                        user_id=self.agent_state.user_id,
-                        model=self.model,
-                        openai_message_dict=packed_user_message,
-                    )
-                ] + all_response_messages
+                all_new_messages = [packed_user_message_obj] + all_response_messages
             else:
                 all_new_messages = all_response_messages
 
