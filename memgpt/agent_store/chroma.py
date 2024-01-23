@@ -105,7 +105,6 @@ class ChromaStorageConnector(StorageConnector):
             ]
 
     def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[Record]:
-        # copy filters
         ids, filters = self.get_filters(filters)
         if self.collection.count() == 0:
             return []
@@ -113,7 +112,6 @@ class ChromaStorageConnector(StorageConnector):
             results = self.collection.get(ids=ids, include=self.include, where=filters, limit=limit)
         else:
             results = self.collection.get(ids=ids, include=self.include, where=filters)
-
         return self.results_to_records(results)
 
     def get(self, id: str) -> Optional[Record]:
