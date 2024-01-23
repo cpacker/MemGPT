@@ -22,7 +22,7 @@ from llama_index import (
 
 from memgpt.agent import Agent
 from memgpt.data_types import AgentState, User, Passage, Source, Message
-from memgpt.metadata import MetadataStore
+from memgpt.metadata import MetadataStore, save_agent
 from memgpt.utils import (
     MEMGPT_DIR,
     version_less_than,
@@ -448,6 +448,7 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Meta
             messages_total=len(in_context_messages) + len(out_of_context_messages),
             interface=None,
         )
+        save_agent(agent, ms=ms)
     except Exception as e:
         # if "Agent with name" in str(e):
         #     print(e)
@@ -575,9 +576,10 @@ def migrate_all_agents(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) -
     del ms
     return {
         "agent_folders": len(agent_folders),
-        "migration_candidates": len(candidates),
+        "migration_candidates": candidates,
         "successful_migrations": count,
-        "failed_migrations": len(failures),
+        "failed_migrations": failures,
+        "user_id": uuid.UUID(MemGPTConfig.load().anon_clientid),
     }
 
 
@@ -630,7 +632,8 @@ def migrate_all_sources(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) 
     del ms
     return {
         "source_folders": len(source_folders),
-        "migration_candidates": len(candidates),
+        "migration_candidates": candidates,
         "successful_migrations": count,
-        "failed_migrations": len(failures),
+        "failed_migrations": failures,
+        "user_id": uuid.UUID(MemGPTConfig.load().anon_clientid),
     }
