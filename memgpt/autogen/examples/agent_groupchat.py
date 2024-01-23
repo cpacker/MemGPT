@@ -24,7 +24,7 @@ if LLM_BACKEND == "openai":
     model = "gpt-4"
 
     openai_api_key = os.getenv("OPENAI_API_KEY")
-    assert openai_api_key, "You must set OPENAI_API_KEY to run this example"
+    assert openai_api_key, "You must set OPENAI_API_KEY or set LLM_BACKEND to 'local' to run this example"
 
     # This config is for AutoGen agents that are not powered by MemGPT
     config_list = [

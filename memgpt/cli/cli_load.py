@@ -8,7 +8,7 @@ memgpt load <data-connector-type> --name <dataset-name> [ADDITIONAL ARGS]
 
 """
 
-from typing import List
+from typing import List, Optional
 from tqdm import tqdm
 import numpy as np
 import typer
@@ -222,39 +222,41 @@ default_extensions = ".txt,.md,.pdf"
 @app.command("directory")
 def load_directory(
     name: str = typer.Option(help="Name of dataset to load."),
-    input_dir: str = typer.Option(None, help="Path to directory containing dataset."),
-    input_files: List[str] = typer.Option(None, help="List of paths to files containing dataset."),
+    input_dir: Optional[str] = typer.Option(None, help="Path to directory containing dataset."),
+    input_files: Optional[List[str]] = typer.Option(None, help="List of paths to files containing dataset."),
     recursive: bool = typer.Option(False, help="Recursively search for files in directory."),
     extensions: str = typer.Option(default_extensions, help="Comma separated list of file extensions to load"),
-    user_id: str = typer.Option(None, help="User ID to associate with dataset."),
+    user_id: Optional[str] = typer.Option(None, help="User ID to associate with dataset."),
 ):
     try:
         from llama_index import SimpleDirectoryReader
 
-        if recursive:
+        if recursive == True:
             assert input_dir is not None, "Must provide input directory if recursive is True."
 
         if input_dir is not None:
             reader = SimpleDirectoryReader(
-                input_dir=input_dir,
+                input_dir=str(input_dir),
                 recursive=recursive,
-                required_exts=[ext.strip() for ext in extensions.split(",")],
+                required_exts=[ext.strip() for ext in str(extensions).split(",")],
             )
         else:
-            reader = SimpleDirectoryReader(input_files=input_files)
+            assert input_files is not None, "Must provide input files if input_dir is None"
+            reader = SimpleDirectoryReader(input_files=[str(f) for f in input_files])
 
         # load docs
         docs = reader.load_data()
-        store_docs(name, docs, user_id)
+        store_docs(str(name), docs, user_id)
 
     except ValueError as e:
         typer.secho(f"Failed to load directory from provided information.\n{e}", fg=typer.colors.RED)
+        raise
 
 
 @app.command("webpage")
 def load_webpage(
     name: str = typer.Option(help="Name of dataset to load."),
-    urls: List[str] = typer.Option(None, help="List of urls to load."),
+    urls: Optional[List[str]] = typer.Option(None, help="List of urls to load."),
 ):
     try:
         from llama_index import SimpleWebPageReader
