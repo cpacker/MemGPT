@@ -26,7 +26,7 @@ if LLM_BACKEND == "openai":
     model = "gpt-4"
 
     openai_api_key = os.getenv("OPENAI_API_KEY")
-    assert openai_api_key, "You must set OPENAI_API_KEY to run this example"
+    assert openai_api_key, "You must set OPENAI_API_KEY or set LLM_BACKEND to 'local' to run this example"
 
     # This config is for AutoGen agents that are not powered by MemGPT
     config_list = [
@@ -112,7 +112,7 @@ elif LLM_BACKEND == "local":
             "preset": DEFAULT_PRESET,
             "model": None,  # only required for Ollama, see: https://memgpt.readme.io/docs/ollama
             "context_window": 8192,  # the context window of your model (for Mistral 7B-based models, it's likely 8192)
-            "model_wrapper": "airoboros-l2-70b-2.1",  # airoboros is the default wrapper and should work for most models
+            "model_wrapper": "chatml",  # chatml is the default wrapper
             "model_endpoint_type": "lmstudio",  # can use webui, ollama, llamacpp, etc.
             "model_endpoint": "http://localhost:1234",  # the IP address of your LLM backend
         },
@@ -153,7 +153,13 @@ memgpt_agent = create_memgpt_autogen_agent_from_config(
     skip_verify=False,  # NOTE: you should set this to True if you expect your MemGPT AutoGen agent to call a function other than send_message on the first turn
 )
 # NOTE: you need to follow steps to load document first: see https://memgpt.readme.io/docs/autogen#part-4-attaching-documents-to-memgpt-autogen-agents
-memgpt_agent.load_and_attach("memgpt_research_paper", "directory")
+memgpt_agent.load_and_attach(
+    name="memgpt_research_paper",
+    type="directory",
+    input_dir=None,
+    input_files=["memgpt_research_paper.pdf"],
+    # force=True,
+)
 
 # Initialize the group chat between the agents
 groupchat = autogen.GroupChat(agents=[user_proxy, memgpt_agent], messages=[], max_round=12, speaker_selection_method="round_robin")

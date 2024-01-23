@@ -8,7 +8,7 @@ memgpt load <data-connector-type> --name <dataset-name> [ADDITIONAL ARGS]
 
 """
 
-from typing import List, Annotated
+from typing import List, Optional, Annotated
 from tqdm import tqdm
 import numpy as np
 import typer
@@ -231,24 +231,26 @@ def load_directory(
     try:
         from llama_index import SimpleDirectoryReader
 
-        if recursive:
+        if recursive == True:
             assert input_dir is not None, "Must provide input directory if recursive is True."
 
         if input_dir is not None:
             reader = SimpleDirectoryReader(
-                input_dir=input_dir,
+                input_dir=str(input_dir),
                 recursive=recursive,
-                required_exts=[ext.strip() for ext in extensions.split(",")],
+                required_exts=[ext.strip() for ext in str(extensions).split(",")],
             )
         else:
-            reader = SimpleDirectoryReader(input_files=input_files)
+            assert input_files is not None, "Must provide input files if input_dir is None"
+            reader = SimpleDirectoryReader(input_files=[str(f) for f in input_files])
 
         # load docs
         docs = reader.load_data()
-        store_docs(name, docs, user_id)
+        store_docs(str(name), docs, user_id)
 
     except ValueError as e:
         typer.secho(f"Failed to load directory from provided information.\n{e}", fg=typer.colors.RED)
+        raise
 
 
 @app.command("webpage")

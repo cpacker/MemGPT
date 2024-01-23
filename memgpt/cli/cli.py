@@ -581,9 +581,9 @@ def run(
         agent_state = AgentState(
             name=agent,
             user_id=user.id,
-            persona=persona if persona else user.default_persona,
-            human=human if human else user.default_human,
-            preset=preset if preset else user.default_preset,
+            persona=persona if persona else config.persona,
+            human=human if human else config.human,
+            preset=preset if preset else config.preset,
             llm_config=llm_config,
             embedding_config=embedding_config,
         )
@@ -647,8 +647,46 @@ def run(
     run_agent_loop(memgpt_agent, config, first, ms, no_verify)  # TODO: add back no_verify
 
 
+def delete_agent(
+    agent_name: str = typer.Option(help="Specify agent to delete"),
+    user_id: str = None,
+):
+    """Delete an agent from the database"""
+    # use client ID is no user_id provided
+    config = MemGPTConfig.load()
+    ms = MetadataStore(config)
+    if user_id is None:
+        user = create_default_user_or_exit(config, ms)
+    else:
+        user = ms.get_user(user_id=uuid.UUID(user_id))
+
+    try:
+        agent = ms.get_agent(agent_name=agent_name, user_id=user.id)
+    except Exception as e:
+        typer.secho(f"Failed to get agent {agent_name}\n{e}", fg=typer.colors.RED)
+        sys.exit(1)
+
+    if agent is None:
+        typer.secho(f"Couldn't find agent named '{agent_name}' to delete", fg=typer.colors.RED)
+        sys.exit(1)
+
+    confirm = questionary.confirm(f"Are you sure you want to delete agent '{agent_name}' (id={agent.id})?", default=False).ask()
+    if confirm is None:
+        raise KeyboardInterrupt
+    if not confirm:
+        typer.secho(f"Cancelled agent deletion '{agent_name}' (id={agent.id})", fg=typer.colors.GREEN)
+        return
+
+    try:
+        ms.delete_agent(agent_id=agent.id)
+        typer.secho(f"🕊️ Successfully deleted agent '{agent_name}' (id={agent.id})", fg=typer.colors.GREEN)
+    except Exception as e:
+        typer.secho(f"Failed to delete agent '{agent_name}' (id={agent.id})", fg=typer.colors.RED)
+        sys.exit(1)
+
+
 def attach(
-    agent: str = typer.Option(help="Specify agent to attach data to"),
+    agent_name: str = typer.Option(help="Specify agent to attach data to"),
     data_source: str = typer.Option(help="Data source to attach to avent"),
     user_id: uuid.UUID = None,
 ):
@@ -662,7 +700,8 @@ def attach(
         from tqdm import tqdm
 
         ms = MetadataStore(config)
-        agent = ms.get_agent(agent_name=agent, user_id=user_id)
+        agent = ms.get_agent(agent_name=agent_name, user_id=user_id)
+        print(agent.id, agent.user_id, user_id)
         source = ms.get_source(source_name=data_source, user_id=user_id)
         assert source is not None, f"Source {data_source} does not exist for user {user_id}"
 
@@ -675,10 +714,9 @@ def attach(
         typer.secho(f"Ingesting {size} passages into {agent.name}", fg=typer.colors.GREEN)
         page_size = 100
         generator = source_storage.get_all_paginated(filters={"data_source": data_source}, page_size=page_size)  # yields List[Passage]
-        passages = []
+        all_passages = []
         for i in tqdm(range(0, size, page_size)):
             passages = next(generator)
-            print("inserting", passages)
 
             # need to associated passage with agent (for filtering)
             for passage in passages:
@@ -686,6 +724,9 @@ def attach(
 
             # insert into agent archival memory
             dest_storage.insert_many(passages)
+            all_passages += passages
+
+        assert size == len(all_passages), f"Expected {size} passages, but only got {len(all_passages)}"
 
         # save destination storage
         dest_storage.save()
@@ -697,7 +738,7 @@ def attach(
         total_agent_passages = dest_storage.size()
 
         typer.secho(
-            f"Attached data source {data_source} to agent {agent}, consisting of {len(passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
+            f"Attached data source {data_source} to agent {agent_name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
             fg=typer.colors.GREEN,
         )
     except KeyboardInterrupt:
