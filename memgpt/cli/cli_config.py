@@ -1,33 +1,27 @@
 import builtins
-from tqdm import tqdm
-import uuid
-import questionary
-from prettytable import PrettyTable
-import typer
 import os
 import shutil
-from typing import Annotated
+import uuid
 from enum import Enum
+from typing import Annotated
 
-# from global logging configuration
-from memgpt.log import logger
+import questionary
+import typer
+from prettytable import PrettyTable
+from tqdm import tqdm
 
-# from memgpt.cli import app
 from memgpt import utils
-
+from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
-from memgpt.credentials import MemGPTCredentials, SUPPORTED_AUTH_TYPES
-from memgpt.constants import MEMGPT_DIR
-
-# from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.constants import LLM_MAX_TOKENS
+from memgpt.constants import MEMGPT_DIR
+from memgpt.credentials import MemGPTCredentials, SUPPORTED_AUTH_TYPES
+from memgpt.data_types import User, LLMConfig, EmbeddingConfig
+from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
-from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
-from memgpt.server.utils import shorten_key_middle
-from memgpt.data_types import User, LLMConfig, EmbeddingConfig
 from memgpt.metadata import MetadataStore
-from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.server.utils import shorten_key_middle
 
 app = typer.Typer()
 
@@ -651,9 +645,6 @@ def configure():
     user_id = uuid.UUID(config.anon_clientid)
     user = User(
         id=uuid.UUID(config.anon_clientid),
-        default_preset=default_preset,
-        default_persona=default_persona,
-        default_human=default_human,
         default_agent=default_agent,
     )
     if ms.get_user(user_id):
