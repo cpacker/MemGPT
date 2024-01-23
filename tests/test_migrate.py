@@ -28,7 +28,6 @@ def test_migrate_0211():
         server = SyncServer()
         for agent_name in agent_res["migration_candidates"]:
             if agent_name not in agent_res["failed_migrations"]:
-
                 # assert agent data exists
                 agent_state = server.ms.get_agent(agent_name=agent_name, user_id=agent_res["user_id"])
                 assert agent_state is not None, f"Missing agent {agent_name}"
@@ -43,7 +42,6 @@ def test_migrate_0211():
 
         for source_name in source_res["migration_candidates"]:
             if source_name not in source_res["failed_migrations"]:
-
                 # assert source data exists
                 source = server.ms.get_source(source_name=source_name, user_id=source_res["user_id"])
                 assert source is not None
