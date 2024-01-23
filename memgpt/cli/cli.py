@@ -714,10 +714,9 @@ def attach(
         typer.secho(f"Ingesting {size} passages into {agent.name}", fg=typer.colors.GREEN)
         page_size = 100
         generator = source_storage.get_all_paginated(filters={"data_source": data_source}, page_size=page_size)  # yields List[Passage]
-        passages = []
+        all_passages = []
         for i in tqdm(range(0, size, page_size)):
             passages = next(generator)
-            print("inserting", passages)
 
             # need to associated passage with agent (for filtering)
             for passage in passages:
@@ -725,6 +724,9 @@ def attach(
 
             # insert into agent archival memory
             dest_storage.insert_many(passages)
+            all_passages += passages
+
+        assert size == len(all_passages), f"Expected {size} passages, but only got {len(all_passages)}"
 
         # save destination storage
         dest_storage.save()
@@ -736,7 +738,7 @@ def attach(
         total_agent_passages = dest_storage.size()
 
         typer.secho(
-            f"Attached data source {data_source} to agent {agent_name}, consisting of {len(passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
+            f"Attached data source {data_source} to agent {agent_name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
             fg=typer.colors.GREEN,
         )
     except KeyboardInterrupt:
