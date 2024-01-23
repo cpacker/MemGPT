@@ -55,8 +55,6 @@ class MemGPTConversableAgent(ConversableAgent):
             raise
 
     def load(self, name: str, type: str, **kwargs):
-        raise DeprecationWarning()
-
         # call load function based on type
         if type == "directory":
             load_directory(name=name, **kwargs)
@@ -72,27 +70,17 @@ class MemGPTConversableAgent(ConversableAgent):
             raise ValueError(f"Invalid data source type {type}")
 
     def attach(self, data_source: str):
-        raise DeprecationWarning()
-
         # attach new data
-        attach(self.agent.config.name, data_source)
-
-        # update agent config
-        self.agent.config.attach_data_source(data_source)
-
-        # reload agent with new data source
-        # TODO: @charles we will need to pass in the MemGPT config here to get the DB URIs (not contained in agent)
-        self.agent.persistence_manager.archival_memory.storage = StorageConnector.get_archival_storage_connector(
-            agent_config=self.agent.config
-        )
+        attach(agent=self.agent.agent_state.name, data_source=data_source)
 
     def load_and_attach(self, name: str, type: str, force=False, **kwargs):
-        raise DeprecationWarning()
-
         # check if data source already exists
-        data_sources = StorageConnector.get_metadata_storage_connector(TableType.DATA_SOURCES).get_all()
-        data_sources = [source.name for source in data_sources]
-        if name in data_sources and not force:
+        config = MemGPTConfig.load()
+        ms = MetadataStore(config)
+        data_source_options = ms.list_sources(user_id=self.agent.agent_state.user_id)
+        data_source_options = [s.name for s in data_source_options]
+
+        if name in data_source_options and not force:
             print(f"Data source {name} already exists. Use force=True to overwrite.")
             self.attach(name)
         else:
