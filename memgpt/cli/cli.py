@@ -1,4 +1,3 @@
-import typer
 import uuid
 import json
 import requests
@@ -6,12 +5,14 @@ import sys
 import shutil
 import io
 import logging
-import questionary
 from pathlib import Path
 import os
 import subprocess
 from enum import Enum
+from typing import Annotated, Optional
 
+import typer
+import questionary
 from llama_index import set_global_service_context
 from llama_index import ServiceContext
 
@@ -119,9 +120,9 @@ def set_config_with_dict(new_config: dict) -> bool:
 
 
 def quickstart(
-    backend: QuickstartChoice = typer.Option("memgpt", help="Quickstart setup backend"),
-    latest: bool = typer.Option(False, "--latest", help="Use --latest to pull the latest config from online"),
-    debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
+    backend: Annotated[QuickstartChoice, typer.Option(help="Quickstart setup backend")] = "memgpt",
+    latest: Annotated[bool, typer.Option(help="Use --latest to pull the latest config from online")] = False,
+    debug: Annotated[bool, typer.Option(help="Use --debug to enable debugging output")] = False,
     terminal: bool = True,
 ):
     """Set the base config file with a single command"""
@@ -269,10 +270,10 @@ def create_default_user_or_exit(config: MemGPTConfig, ms: MetadataStore):
 
 
 def server(
-    type: ServerChoice = typer.Option("rest", help="Server to run"),
-    port: int = typer.Option(None, help="Port to run the server on"),
-    host: str = typer.Option(None, help="Host to run the server on (default to localhost)"),
-    debug: bool = typer.Option(True, help="Turn debugging output on"),
+    type: Annotated[ServerChoice, typer.Option(help="Server to run")] = "rest",
+    port: Annotated[Optional[int], typer.Option(help="Port to run the server on")] = None,
+    host: Annotated[Optional[str], typer.Option(help="Host to run the server on (default to localhost)")] = None,
+    debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = True,
 ):
     """Launch a MemGPT server process"""
 
@@ -341,22 +342,24 @@ def server(
 
 
 def run(
-    persona: str = typer.Option(None, help="Specify persona"),
-    agent: str = typer.Option(None, help="Specify agent save file"),
-    human: str = typer.Option(None, help="Specify human"),
-    preset: str = typer.Option(None, help="Specify preset"),
+    persona: Annotated[Optional[str], typer.Option(help="Specify persona")] = None,
+    agent: Annotated[Optional[str], typer.Option(help="Specify agent save file")] = None,
+    human: Annotated[Optional[str], typer.Option(help="Specify human")] = None,
+    preset: Annotated[Optional[str], typer.Option(help="Specify preset")] = None,
     # model flags
-    model: str = typer.Option(None, help="Specify the LLM model"),
-    model_wrapper: str = typer.Option(None, help="Specify the LLM model wrapper"),
-    model_endpoint: str = typer.Option(None, help="Specify the LLM model endpoint"),
-    model_endpoint_type: str = typer.Option(None, help="Specify the LLM model endpoint type"),
-    context_window: int = typer.Option(None, help="The context window of the LLM you are using (e.g. 8k for most Mistral 7B variants)"),
+    model: Annotated[Optional[str], typer.Option(help="Specify the LLM model")] = None,
+    model_wrapper: Annotated[Optional[str], typer.Option(help="Specify the LLM model wrapper")] = None,
+    model_endpoint: Annotated[Optional[str], typer.Option(help="Specify the LLM model endpoint")] = None,
+    model_endpoint_type: Annotated[Optional[str], typer.Option(help="Specify the LLM model endpoint type")] = None,
+    context_window: Annotated[
+        Optional[int], typer.Option(help="The context window of the LLM you are using (e.g. 8k for most Mistral 7B variants)")
+    ] = None,
     # other
-    first: bool = typer.Option(False, "--first", help="Use --first to send the first message in the sequence"),
-    strip_ui: bool = typer.Option(False, help="Remove all the bells and whistles in CLI output (helpful for testing)"),
-    debug: bool = typer.Option(False, "--debug", help="Use --debug to enable debugging output"),
-    no_verify: bool = typer.Option(False, help="Bypass message verification"),
-    yes: bool = typer.Option(False, "-y", help="Skip confirmation prompt and use defaults"),
+    first: Annotated[bool, typer.Option(help="Use --first to send the first message in the sequence")] = False,
+    strip_ui: Annotated[bool, typer.Option(help="Remove all the bells and whistles in CLI output (helpful for testing)")] = False,
+    debug: Annotated[bool, typer.Option(help="Use --debug to enable debugging output")] = False,
+    no_verify: Annotated[bool, typer.Option(help="Bypass message verification")] = False,
+    yes: Annotated[bool, typer.Option("-y", help="Skip confirmation prompt and use defaults")] = False,
 ):
     """Start chatting with an MemGPT agent
 
@@ -648,8 +651,8 @@ def run(
 
 
 def delete_agent(
-    agent_name: str = typer.Option(help="Specify agent to delete"),
-    user_id: str = None,
+    agent_name: Annotated[str, typer.Option(help="Specify agent to delete")],
+    user_id: Annotated[Optional[str], typer.Option(help="User ID to associate with the agent.")] = None,
 ):
     """Delete an agent from the database"""
     # use client ID is no user_id provided
@@ -686,8 +689,8 @@ def delete_agent(
 
 
 def attach(
-    agent_name: str = typer.Option(help="Specify agent to attach data to"),
-    data_source: str = typer.Option(help="Data source to attach to avent"),
+    agent_name: Annotated[str, typer.Option(help="Specify agent to attach data to")],
+    data_source: Annotated[str, typer.Option(help="Data source to attach to avent")],
     user_id: uuid.UUID = None,
 ):
     # use client ID is no user_id provided
