@@ -316,6 +316,19 @@ class Agent(object):
         self._messages = new_messages
         self.messages_total += len(added_messages)
 
+    def append_to_messages(self, added_messages: List[dict]):
+        """An external-facing message append, where dict-like messages are first converted to Message objects"""
+        added_messages_objs = [
+            Message.dict_to_message(
+                agent_id=self.agent_state.id,
+                user_id=self.agent_state.user_id,
+                model=self.model,
+                openai_message_dict=msg,
+            )
+            for msg in added_messages
+        ]
+        self._append_to_messages(added_messages_objs)
+
     def _swap_system_message(self, new_system_message: Message):
         assert isinstance(new_system_message, Message)
         assert new_system_message.role == "system", new_system_message
@@ -875,7 +888,7 @@ class Agent(object):
     #        print(f"Agent.save {new_agent_state.id} :: preupdate:\n\tmessages={new_agent_state.state['messages']}")
     #        self.ms.update_agent(agent=new_agent_state)
 
-    def update_state(self):
+    def update_state(self) -> AgentState:
         updated_state = {
             "persona": self.memory.persona,
             "human": self.memory.human,
