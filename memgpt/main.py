@@ -24,7 +24,7 @@ import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.constants as constants
 import memgpt.errors as errors
-from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, migrate
+from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, migrate, delete_agent
 from memgpt.cli.cli_config import configure, list, add, delete
 from memgpt.cli.cli_load import app as load_app
 from memgpt.agent_store.storage import StorageConnector, TableType
@@ -50,6 +50,8 @@ app.add_typer(load_app, name="load")
 app.command(name="migrate")(migrate)
 # benchmark command
 app.command(name="benchmark")(bench)
+# delete agents
+app.command(name="delete-agent")(delete_agent)
 
 
 def clear_line(strip_ui=False):
