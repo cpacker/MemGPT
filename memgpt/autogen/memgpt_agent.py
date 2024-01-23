@@ -80,6 +80,8 @@ class MemGPTConversableAgent(ConversableAgent):
         data_source_options = ms.list_sources(user_id=self.agent.agent_state.user_id)
         data_source_options = [s.name for s in data_source_options]
 
+        kwargs["user_id"] = self.agent.agent_state.user_id
+
         if name in data_source_options and not force:
             print(f"Data source {name} already exists. Use force=True to overwrite.")
             self.attach(name)
