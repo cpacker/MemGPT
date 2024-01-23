@@ -17,9 +17,9 @@ import autogen
 from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config
 from memgpt.constants import LLM_MAX_TOKENS, DEFAULT_PRESET
 
-# LLM_BACKEND = "openai"
+LLM_BACKEND = "openai"
 # LLM_BACKEND = "azure"
-LLM_BACKEND = "local"
+# LLM_BACKEND = "local"
 
 if LLM_BACKEND == "openai":
     # For demo purposes let's use gpt-4
@@ -153,7 +153,13 @@ memgpt_agent = create_memgpt_autogen_agent_from_config(
     skip_verify=False,  # NOTE: you should set this to True if you expect your MemGPT AutoGen agent to call a function other than send_message on the first turn
 )
 # NOTE: you need to follow steps to load document first: see https://memgpt.readme.io/docs/autogen#part-4-attaching-documents-to-memgpt-autogen-agents
-memgpt_agent.load_and_attach(name="memgpt_research_paper", type="directory", input_dir=None, input_files=["memgpt_research_paper.pdf"])
+memgpt_agent.load_and_attach(
+    name="memgpt_research_paper",
+    type="directory",
+    input_dir=None,
+    input_files=["memgpt_research_paper.pdf"],
+    # force=True,
+)
 
 # Initialize the group chat between the agents
 groupchat = autogen.GroupChat(agents=[user_proxy, memgpt_agent], messages=[], max_round=12, speaker_selection_method="round_robin")

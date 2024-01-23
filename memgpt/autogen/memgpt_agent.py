@@ -73,7 +73,7 @@ class MemGPTConversableAgent(ConversableAgent):
 
     def attach(self, data_source: str):
         # attach new data
-        attach(agent=self.agent.agent_state.name, data_source=data_source)
+        attach(agent_name=self.agent.agent_state.name, data_source=data_source)
 
     def load_and_attach(self, name: str, type: str, force=False, **kwargs):
         # check if data source already exists

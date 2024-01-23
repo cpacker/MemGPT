@@ -15,9 +15,9 @@ import autogen
 from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config, load_autogen_memgpt_agent
 from memgpt.constants import LLM_MAX_TOKENS, DEFAULT_PRESET
 
-# LLM_BACKEND = "openai"
+LLM_BACKEND = "openai"
 # LLM_BACKEND = "azure"
-LLM_BACKEND = "local"
+# LLM_BACKEND = "local"
 
 if LLM_BACKEND == "openai":
     # For demo purposes let's use gpt-4
