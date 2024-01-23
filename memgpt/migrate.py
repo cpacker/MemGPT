@@ -575,9 +575,10 @@ def migrate_all_agents(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) -
     del ms
     return {
         "agent_folders": len(agent_folders),
-        "migration_candidates": len(candidates),
+        "migration_candidates": candidates,
         "successful_migrations": count,
-        "failed_migrations": len(failures),
+        "failed_migrations": failures,
+        "user_id": uuid.UUID(MemGPTConfig.load().anon_clientid),
     }
 
 
@@ -630,7 +631,8 @@ def migrate_all_sources(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) 
     del ms
     return {
         "source_folders": len(source_folders),
-        "migration_candidates": len(candidates),
+        "migration_candidates": candidates,
         "successful_migrations": count,
-        "failed_migrations": len(failures),
+        "failed_migrations": failures,
+        "user_id": uuid.UUID(MemGPTConfig.load().anon_clientid),
     }
