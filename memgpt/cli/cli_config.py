@@ -6,7 +6,7 @@ from prettytable import PrettyTable
 import typer
 import os
 import shutil
-from typing import Annotated
+from typing import Annotated, Optional
 from enum import Enum
 
 # from global logging configuration
@@ -742,9 +742,9 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
 @app.command()
 def add(
     option: str,  # [human, persona]
-    name: str = typer.Option(help="Name of human/persona"),
-    text: str = typer.Option(None, help="Text of human/persona"),
-    filename: str = typer.Option(None, "-f", help="Specify filename"),
+    name: Annotated[str, typer.Option(help="Name of human/persona")],
+    text: Annotated[Optional[str], typer.Option(help="Text of human/persona")] = None,
+    filename: Annotated[Optional[str], typer.Option("-f", help="Specify filename")] = None,
 ):
     """Add a person/human"""
 
