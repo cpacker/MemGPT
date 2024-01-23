@@ -37,6 +37,7 @@ class MemGPTConversableAgent(ConversableAgent):
         self.agent = agent
         self.skip_verify = skip_verify
         self.auto_save = auto_save
+
         self.concat_other_agent_messages = concat_other_agent_messages
         self.register_reply([Agent, None], MemGPTConversableAgent._generate_reply_for_user_message)
         self.messages_processed_up_to_idx = 0
@@ -44,12 +45,13 @@ class MemGPTConversableAgent(ConversableAgent):
 
         self._is_termination_msg = is_termination_msg if is_termination_msg is not None else (lambda x: x == "TERMINATE")
 
+        config = MemGPTConfig.load()
+        self.ms = MetadataStore(config)
+
     def save(self):
         """Save the underlying MemGPT agent to the database"""
         try:
-            config = MemGPTConfig.load()
-            ms = MetadataStore(config)
-            save_agent(agent=self.agent, ms=ms)
+            save_agent(agent=self.agent, ms=self.ms)
         except Exception as e:
             print(f"Failed to save MemGPT AutoGen agent\n{self.agent}\nError: {str(e)}")
             raise
@@ -75,9 +77,7 @@ class MemGPTConversableAgent(ConversableAgent):
 
     def load_and_attach(self, name: str, type: str, force=False, **kwargs):
         # check if data source already exists
-        config = MemGPTConfig.load()
-        ms = MetadataStore(config)
-        data_source_options = ms.list_sources(user_id=self.agent.agent_state.user_id)
+        data_source_options = self.ms.list_sources(user_id=self.agent.agent_state.user_id)
         data_source_options = [s.name for s in data_source_options]
 
         kwargs["user_id"] = self.agent.agent_state.user_id
