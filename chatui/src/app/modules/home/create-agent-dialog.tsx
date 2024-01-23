@@ -1,5 +1,4 @@
 import { Button } from '@memgpt/components/button';
-import { Input } from '@memgpt/components/input';
 import {
 	Dialog,
 	DialogContent,
@@ -8,21 +7,22 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@memgpt/components/dialog';
-import { Select, SelectContent, SelectValue, SelectTrigger, SelectGroup, SelectLabel, SelectItem } from '@memgpt/components/select';
+import { Input } from '@memgpt/components/input';
 import { Label } from '@memgpt/components/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@memgpt/components/select';
 import { Loader2 } from 'lucide-react';
+import { Controller, useForm } from 'react-hook-form';
 import { useAgentsCreateMutation } from '../../libs/agents/use-agents.mutation';
 import { useAuthStoreState } from '../../libs/auth/auth.store';
+import { useHumansQuery } from '../../libs/humans/use-humans.query';
 import { useModelsQuery } from '../../libs/models/use-models.query';
 import { usePersonasQuery } from '../../libs/personas/use-personas.query';
-import { useHumansQuery } from '../../libs/humans/use-humans.query';
-import { useForm, Controller } from 'react-hook-form';
 
 interface FormData {
-    name: string;
-    human: string;
-    persona: string;
-    model: string;
+	name: string;
+	human: string;
+	persona: string;
+	model: string;
 }
 
 const CreateAgentDialog = (props: { open: boolean; onOpenChange: (open: boolean) => void }) => {
@@ -30,18 +30,18 @@ const CreateAgentDialog = (props: { open: boolean; onOpenChange: (open: boolean)
 	const createAgent = useAgentsCreateMutation(auth.uuid);
 
 	const { register, handleSubmit, control } = useForm<FormData>({
-        defaultValues: {
-            name: 'James Bond',
-            human: 'cs_phd',
-            persona: 'sam_pov',
-            model: 'gpt-4',
-        },
-    });
+		defaultValues: {
+			name: 'James Bond',
+			human: 'cs_phd',
+			persona: 'sam_pov',
+			model: 'gpt-4',
+		},
+	});
 
-    // Fetch models, humans, and personas using the custom hooks
-    const { data: modelsData } = useModelsQuery(auth.uuid);
-    const { data: humansData } = useHumansQuery(auth.uuid);
-    const { data: personasData } = usePersonasQuery(auth.uuid);
+	// Fetch models, humans, and personas using the custom hooks
+	const { data: modelsData } = useModelsQuery(auth.uuid);
+	const { data: humansData } = useHumansQuery(auth.uuid);
+	const { data: personasData } = usePersonasQuery(auth.uuid);
 
 	const onSubmit = (data: FormData) => {
 		if (!auth.uuid) return;
@@ -62,9 +62,7 @@ const CreateAgentDialog = (props: { open: boolean; onOpenChange: (open: boolean)
 	return (
 		<Dialog open={props.open} onOpenChange={props.onOpenChange}>
 			<DialogContent className="sm:max-w-[425px]">
-				<form
-					onSubmit={handleSubmit(onSubmit)}			
-				>
+				<form onSubmit={handleSubmit(onSubmit)}>
 					<DialogHeader>
 						<DialogTitle>Create Agent</DialogTitle>
 						<DialogDescription>Add a new agent here. Click create when you're done.</DialogDescription>
@@ -74,7 +72,7 @@ const CreateAgentDialog = (props: { open: boolean; onOpenChange: (open: boolean)
 							<Label htmlFor="name" className="text-right">
 								Name
 							</Label>
-							<Input id="name" { ... register('name')} className="col-span-3" />
+							<Input id="name" {...register('name')} className="col-span-3" />
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
 							<Label htmlFor="human" className="text-right">
@@ -84,27 +82,16 @@ const CreateAgentDialog = (props: { open: boolean; onOpenChange: (open: boolean)
 								name="human"
 								control={control}
 								render={({ field: { onChange, value } }) => (
-									<Select 
-										value={value} 
-										onValueChange={(val) => onChange(val)} 
-									>
-										<SelectTrigger className='col-span-3'>
-											<SelectValue placeholder="Select a human">
-												{value}
-											</SelectValue>
+									<Select value={value} onValueChange={(val) => onChange(val)}>
+										<SelectTrigger className="col-span-3">
+											<SelectValue placeholder="Select a human">{value}</SelectValue>
 										</SelectTrigger>
 										<SelectContent>
-											<SelectGroup>
-												<SelectLabel>Humans</SelectLabel>
-												{humansData?.humans.map(human => (
-													<SelectItem 
-														key={human.name} 
-														value={human.name}
-													>
-														{human.name}
-													</SelectItem>
-												))}
-											</SelectGroup>
+											{humansData?.humans.map((human) => (
+												<SelectItem key={human.name} value={human.name}>
+													{human.name}
+												</SelectItem>
+											))}
 										</SelectContent>
 									</Select>
 								)}
@@ -118,27 +105,16 @@ const CreateAgentDialog = (props: { open: boolean; onOpenChange: (open: boolean)
 								name="persona"
 								control={control}
 								render={({ field: { onChange, value } }) => (
-									<Select 
-										value={value} 
-										onValueChange={(val) => onChange(val)} 
-									>
-										<SelectTrigger className='col-span-3'>
-											<SelectValue placeholder="Select a persona">
-												{value}
-											</SelectValue>
+									<Select value={value} onValueChange={(val) => onChange(val)}>
+										<SelectTrigger className="col-span-3">
+											<SelectValue placeholder="Select a persona">{value}</SelectValue>
 										</SelectTrigger>
 										<SelectContent>
-											<SelectGroup>
-												<SelectLabel>Personas</SelectLabel>
-												{personasData?.personas.map(persona => (
-													<SelectItem 
-														key={persona.name} 
-														value={persona.name}
-													>
-														{persona.name}
-													</SelectItem>
-												))}
-											</SelectGroup>
+											{personasData?.personas.map((persona) => (
+												<SelectItem key={persona.name} value={persona.name}>
+													{persona.name}
+												</SelectItem>
+											))}
 										</SelectContent>
 									</Select>
 								)}
@@ -152,27 +128,16 @@ const CreateAgentDialog = (props: { open: boolean; onOpenChange: (open: boolean)
 								name="model"
 								control={control}
 								render={({ field: { onChange, value } }) => (
-									<Select 
-										value={value} 
-										onValueChange={(val) => onChange(val)} 
-									>
-										<SelectTrigger className='col-span-3'>
-											<SelectValue placeholder="Select a model">
-												{value}
-											</SelectValue>
+									<Select value={value} onValueChange={(val) => onChange(val)}>
+										<SelectTrigger className="col-span-3">
+											<SelectValue placeholder="Select a model">{value}</SelectValue>
 										</SelectTrigger>
 										<SelectContent>
-											<SelectGroup>
-												<SelectLabel>Models</SelectLabel>
-												{modelsData?.models.map(model => (
-													<SelectItem 
-														key={model.name} 
-														value={model.name}
-													>
-														{model.name}
-													</SelectItem>
-												))}
-											</SelectGroup>
+											{modelsData?.models.map((model) => (
+												<SelectItem key={model.name} value={model.name}>
+													{model.name}
+												</SelectItem>
+											))}
 										</SelectContent>
 									</Select>
 								)}
