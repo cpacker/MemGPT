@@ -126,7 +126,8 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
 
     # test: load directory
     print("Loading directory")
-    load_directory(name=name, input_dir=None, input_files=[cache_dir], recursive=False, user_id=user_id)  # cache_dir,
+    # load_directory(name=name, input_dir=None, input_files=[cache_dir], recursive=False, user_id=user_id)  # cache_dir,
+    load_directory(name=name, input_files=[cache_dir], recursive=False, user_id=user_id)  # cache_dir,
 
     # test to see if contained in storage
     print("Querying table...")
