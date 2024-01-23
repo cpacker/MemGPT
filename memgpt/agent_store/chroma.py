@@ -68,7 +68,6 @@ class ChromaStorageConnector(StorageConnector):
 
     def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000, offset=0) -> Iterator[List[Record]]:
         ids, filters = self.get_filters(filters)
-        print(self.table_name, "PAGINATED FILTERS", filters)
         while True:
             # Retrieve a chunk of records with the given page_size
             results = self.collection.get(ids=ids, offset=offset, limit=page_size, include=self.include, where=filters)
@@ -109,8 +108,6 @@ class ChromaStorageConnector(StorageConnector):
         # copy filters
         orig_filters = dict(filters)
         ids, filters = self.get_filters(filters)
-        print(self.table_name, "GET ALL FILTERS", filters)
-        print(self.table_name, "COLLECTION COUNT", self.collection.count())
         if self.collection.count() == 0:
             return []
         if limit:
@@ -118,11 +115,6 @@ class ChromaStorageConnector(StorageConnector):
         else:
             results = self.collection.get(ids=ids, include=self.include, where=filters)
 
-        paginated_results = []
-        for batch in self.get_all_paginated(filters=orig_filters, page_size=100):
-            print("batch", len(batch))
-            paginated_results += batch
-        assert len(paginated_results) == len(results["ids"]), f"Paginated results {len(paginated_results)} != {len(results['ids'])}"
         return self.results_to_records(results)
 
     def get(self, id: str) -> Optional[Record]:
@@ -170,7 +162,6 @@ class ChromaStorageConnector(StorageConnector):
         ids, documents, embeddings, metadatas = self.format_records(records)
         if not any(embeddings):
             raise ValueError("Embeddings must be provided to chroma")
-        print(self.table_name, "DOCUMENT", records[0].user_id, records[0].agent_id)
         self.collection.add(documents=documents, embeddings=embeddings, ids=ids, metadatas=metadatas)
 
     def delete(self, filters: Optional[Dict] = {}):
