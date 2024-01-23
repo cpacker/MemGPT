@@ -18,9 +18,9 @@ def test_migrate_0211():
     # os.environ["MEMGPT_CONFIG_PATH"] = os.path.join(data_dir, "config")
     # print(f"MEMGPT_CONFIG_PATH={os.environ['MEMGPT_CONFIG_PATH']}")
     try:
-        agent_res = migrate_all_agents(data_dir)
+        agent_res = migrate_all_agents(tmp_dir)
         assert len(agent_res["failed_migrations"]) == 0, f"Failed migrations: {agent_res}"
-        source_res = migrate_all_sources(data_dir)
+        source_res = migrate_all_sources(tmp_dir)
         assert (source_res["failed_migrations"]) == 0, f"Failed migrations: {source_res}"
 
         # TODO: assert everything is in the DB
