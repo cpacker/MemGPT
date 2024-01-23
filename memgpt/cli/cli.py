@@ -679,7 +679,7 @@ def delete_agent(
 
     try:
         ms.delete_agent(agent_id=agent.id)
-        typer.secho(f"🕊️🪦 Successfully deleted agent '{agent_name}' (id={agent.id})", fg=typer.colors.GREEN)
+        typer.secho(f"🕊️ Successfully deleted agent '{agent_name}' (id={agent.id})", fg=typer.colors.GREEN)
     except Exception as e:
         typer.secho(f"Failed to delete agent '{agent_name}' (id={agent.id})", fg=typer.colors.RED)
         sys.exit(1)
