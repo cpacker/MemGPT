@@ -1,12 +1,15 @@
-import chromadb
 import uuid
 import json
 import re
-from typing import Optional, List, Iterator, Dict
+from typing import Optional, List, Iterator, Dict, Tuple, cast, Type
+
+import chromadb
+from chromadb.api.types import Include, GetResult
+
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.utils import printd, datetime_to_timestamp, timestamp_to_datetime
 from memgpt.config import MemGPTConfig
-from memgpt.data_types import Record, Message, Passage
+from memgpt.data_types import Record, Message, Passage, RecordType
 
 
 class ChromaStorageConnector(StorageConnector):
@@ -31,12 +34,12 @@ class ChromaStorageConnector(StorageConnector):
 
         # get a collection or create if it doesn't exist already
         self.collection = self.client.get_or_create_collection(self.table_name)
-        self.include = ["documents", "embeddings", "metadatas"]
+        self.include: Include = ["documents", "embeddings", "metadatas"]
 
         # need to be converted to strings
         self.uuid_fields = ["id", "user_id", "agent_id", "source_id"]
 
-    def get_filters(self, filters: Optional[Dict] = {}):
+    def get_filters(self, filters: Optional[Dict] = {}) -> Tuple[list, dict]:
         # get all filters for query
         if filters is not None:
             filter_conditions = {**self.filters, **filters}
@@ -66,13 +69,14 @@ class ChromaStorageConnector(StorageConnector):
             chroma_filters = chroma_filters[0]
         return ids, chroma_filters
 
-    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000, offset=0) -> Iterator[List[Record]]:
+    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: int = 1000, offset: int = 0) -> Iterator[List[RecordType]]:
         ids, filters = self.get_filters(filters)
         while True:
             # Retrieve a chunk of records with the given page_size
             results = self.collection.get(ids=ids, offset=offset, limit=page_size, include=self.include, where=filters)
 
             # If the chunk is empty, we've retrieved all records
+            assert results["embeddings"] is not None, f"results['embeddings'] was None"
             if len(results["embeddings"]) == 0:
                 break
 
@@ -82,7 +86,7 @@ class ChromaStorageConnector(StorageConnector):
             # Increment the offset to get the next chunk in the next iteration
             offset += page_size
 
-    def results_to_records(self, results):
+    def results_to_records(self, results) -> List[RecordType]:
         # convert timestamps to datetime
         for metadata in results["metadatas"]:
             if "created_at" in metadata:
@@ -92,7 +96,7 @@ class ChromaStorageConnector(StorageConnector):
                     metadata[key] = uuid.UUID(value)
         if results["embeddings"]:  # may not be returned, depending on table type
             return [
-                self.type(text=text, embedding=embedding, id=uuid.UUID(record_id), **metadatas)
+                cast(RecordType, self.type(text=text, embedding=embedding, id=uuid.UUID(record_id), **metadatas))  # type: ignore
                 for (text, record_id, embedding, metadatas) in zip(
                     results["documents"], results["ids"], results["embeddings"], results["metadatas"]
                 )
@@ -100,11 +104,11 @@ class ChromaStorageConnector(StorageConnector):
         else:
             # no embeddings
             return [
-                self.type(text=text, id=uuid.UUID(id), **metadatas)
+                cast(RecordType, self.type(text=text, id=uuid.UUID(id), **metadatas))  # type: ignore
                 for (text, id, metadatas) in zip(results["documents"], results["ids"], results["metadatas"])
             ]
 
-    def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[Record]:
+    def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[RecordType]:
         ids, filters = self.get_filters(filters)
         if self.collection.count() == 0:
             return []
@@ -114,20 +118,22 @@ class ChromaStorageConnector(StorageConnector):
             results = self.collection.get(ids=ids, include=self.include, where=filters)
         return self.results_to_records(results)
 
-    def get(self, id: str) -> Optional[Record]:
+    def get(self, id: uuid.UUID) -> Optional[RecordType]:
         results = self.collection.get(ids=[str(id)])
         if len(results["ids"]) == 0:
             return None
         return self.results_to_records(results)[0]
 
-    def format_records(self, records: List[Record]):
+    def format_records(self, records: List[RecordType]):
+        assert all([isinstance(r, Passage) for r in records])
+        recs = [cast(Passage, r) for r in records]
         metadatas = []
-        ids = [str(record.id) for record in records]
-        documents = [record.text for record in records]
-        embeddings = [record.embedding for record in records]
+        ids = [str(record.id) for record in recs]
+        documents = [record.text for record in recs]
+        embeddings = [record.embedding for record in recs]
 
         # collect/format record metadata
-        for record in records:
+        for record in recs:
             metadata = vars(record)
             metadata.pop("id")
             metadata.pop("text")
@@ -151,15 +157,15 @@ class ChromaStorageConnector(StorageConnector):
 
     def insert(self, record: Record):
         ids, documents, embeddings, metadatas = self.format_records([record])
-        if not any(embeddings):
+        if any([e is None for e in embeddings]):
             raise ValueError("Embeddings must be provided to chroma")
-        self.collection.add(documents=documents, embeddings=embeddings, ids=ids, metadatas=metadatas)
+        self.collection.add(documents=documents, embeddings=[e for e in embeddings if e is not None], ids=ids, metadatas=metadatas)
 
-    def insert_many(self, records: List[Record], show_progress=False):
+    def insert_many(self, records: List[RecordType], show_progress=False):
         ids, documents, embeddings, metadatas = self.format_records(records)
-        if not any(embeddings):
+        if any([e is None for e in embeddings]):
             raise ValueError("Embeddings must be provided to chroma")
-        self.collection.add(documents=documents, embeddings=embeddings, ids=ids, metadatas=metadatas)
+        self.collection.add(documents=documents, embeddings=[e for e in embeddings if e is not None], ids=ids, metadatas=metadatas)
 
     def delete(self, filters: Optional[Dict] = {}):
         ids, filters = self.get_filters(filters)
@@ -181,7 +187,7 @@ class ChromaStorageConnector(StorageConnector):
     def list_data_sources(self):
         raise NotImplementedError
 
-    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         ids, filters = self.get_filters(filters)
         results = self.collection.query(query_embeddings=[query_vec], n_results=top_k, include=self.include, where=filters)
 
@@ -189,8 +195,9 @@ class ChromaStorageConnector(StorageConnector):
         flattened_results = {}
         for key, value in results.items():
             if value:
-                flattened_results[key] = value[0]
-                assert len(value) == 1, f"Value is size {len(value)}: {value}"
+                # value is an Optional[List] type according to chromadb.api.types
+                flattened_results[key] = value[0]  # type: ignore
+                assert len(value) == 1, f"Value is size {len(value)}: {value}"  # type: ignore
             else:
                 flattened_results[key] = value
 
