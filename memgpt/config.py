@@ -311,16 +311,34 @@ class AgentConfig:
         self.persona = config.persona if persona is None else persona
         self.human = config.human if human is None else human
         self.preset = config.preset if preset is None else preset
-        self.context_window = config.context_window if context_window is None else context_window
-        self.model = config.model if model is None else model
-        self.model_endpoint_type = config.model_endpoint_type if model_endpoint_type is None else model_endpoint_type
-        self.model_endpoint = config.model_endpoint if model_endpoint is None else model_endpoint
-        self.model_wrapper = config.model_wrapper if model_wrapper is None else model_wrapper
-        self.embedding_endpoint_type = config.embedding_endpoint_type if embedding_endpoint_type is None else embedding_endpoint_type
-        self.embedding_endpoint = config.embedding_endpoint if embedding_endpoint is None else embedding_endpoint
-        self.embedding_model = config.embedding_model if embedding_model is None else embedding_model
-        self.embedding_dim = config.embedding_dim if embedding_dim is None else embedding_dim
-        self.embedding_chunk_size = config.embedding_chunk_size if embedding_chunk_size is None else embedding_chunk_size
+        self.context_window = config.default_llm_config.context_window if context_window is None else context_window
+        self.model = config.default_llm_config.model if model is None else model
+        self.model_endpoint_type = config.default_llm_config.model_endpoint_type if model_endpoint_type is None else model_endpoint_type
+        self.model_endpoint = config.default_llm_config.model_endpoint if model_endpoint is None else model_endpoint
+        self.model_wrapper = config.default_llm_config.model_wrapper if model_wrapper is None else model_wrapper
+        self.llm_config = LLMConfig(
+            model=self.model,
+            model_endpoint_type=self.model_endpoint_type,
+            model_endpoint=self.model_endpoint,
+            model_wrapper=self.model_wrapper,
+            context_window=self.context_window,
+        )
+        self.embedding_endpoint_type = (
+            config.default_embedding_config.embedding_endpoint_type if embedding_endpoint_type is None else embedding_endpoint_type
+        )
+        self.embedding_endpoint = config.default_embedding_config.embedding_endpoint if embedding_endpoint is None else embedding_endpoint
+        self.embedding_model = config.default_embedding_config.embedding_model if embedding_model is None else embedding_model
+        self.embedding_dim = config.default_embedding_config.embedding_dim if embedding_dim is None else embedding_dim
+        self.embedding_chunk_size = (
+            config.default_embedding_config.embedding_chunk_size if embedding_chunk_size is None else embedding_chunk_size
+        )
+        self.embedding_config = EmbeddingConfig(
+            embedding_endpoint_type=self.embedding_endpoint_type,
+            embedding_endpoint=self.embedding_endpoint,
+            embedding_model=self.embedding_model,
+            embedding_dim=self.embedding_dim,
+            embedding_chunk_size=self.embedding_chunk_size,
+        )
 
         # agent metadata
         self.data_sources = data_sources if data_sources is not None else []

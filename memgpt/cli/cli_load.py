@@ -43,7 +43,7 @@ def insert_passages_into_source(passages: List[Passage], source_name: str, user_
     source = ms.get_source(user_id=user_id, source_name=source_name)
     if not source:
         # create new
-        source = Source(user_id=user_id, name=source_name, created_at=get_local_time())
+        source = Source(user_id=user_id, name=source_name)
         ms.create_source(source)
 
     # make sure user_id is set for passages
@@ -69,7 +69,7 @@ def insert_passages_into_source(passages: List[Passage], source_name: str, user_
     source = ms.get_source(user_id=user_id, source_name=source_name)
     if not source:
         # create new
-        source = Source(user_id=user_id, name=source_name, created_at=get_local_time())
+        source = Source(user_id=user_id, name=source_name)
         ms.create_source(source)
 
     # make sure user_id is set for passages
@@ -108,7 +108,6 @@ def store_docs(name, docs, user_id=None, show_progress=True):
     data_source = Source(
         user_id=user.id,
         name=name,
-        created_at=datetime.now(),
         embedding_model=config.default_embedding_config.embedding_model,
         embedding_dim=config.default_embedding_config.embedding_dim,
     )
@@ -345,7 +344,9 @@ def load_vector_database(
         config = MemGPTConfig.load()
 
         # Prepare a select statement
-        select_statement = select(table.c[text_column], table.c[embedding_column].cast(Vector(config.embedding_dim)))
+        select_statement = select(
+            table.c[text_column], table.c[embedding_column].cast(Vector(config.default_embedding_config.embedding_dim))
+        )
 
         # Execute the query and fetch the results
         with engine.connect() as connection:
@@ -356,9 +357,16 @@ def load_vector_database(
         for text, embedding in result:
             # assume that embeddings are the same model as in config
             passages.append(
-                Passage(text=text, embedding=embedding, embedding_dim=config.embedding_dim, embedding_model=config.embedding_model)
+                Passage(
+                    text=text,
+                    embedding=embedding,
+                    embedding_dim=config.default_embedding_config.embedding_dim,
+                    embedding_model=config.default_embedding_config.embedding_model,
+                )
             )
-            assert config.embedding_dim == len(embedding), f"Expected embedding dimension {config.embedding_dim}, got {len(embedding)}"
+            assert config.default_embedding_config.embedding_dim == len(
+                embedding
+            ), f"Expected embedding dimension {config.default_embedding_config.embedding_dim}, got {len(embedding)}"
 
         # create storage connector
         config = MemGPTConfig.load()

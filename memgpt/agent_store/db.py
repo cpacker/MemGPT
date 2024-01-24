@@ -433,10 +433,6 @@ class PostgresStorageConnector(SQLStorageConnector):
             self.uri = self.config.recall_storage_uri
             if self.config.recall_storage_uri is None:
                 raise ValueError(f"Must specifiy recall_storage_uri in config {self.config.config_path}")
-        elif table_type == TableType.DATA_SOURCES:
-            self.uri = self.config.metadata_storage_uri
-            if self.config.metadata_storage_uri is None:
-                raise ValueError(f"Must specifiy metadata_storage_uri in config {self.config.config_path}")
         else:
             raise ValueError(f"Table type {table_type} not implemented")
         # create table

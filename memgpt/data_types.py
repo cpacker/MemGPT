@@ -64,7 +64,7 @@ class Message(Record):
         text: str,
         model: Optional[str] = None,  # model used to make function call
         name: Optional[str] = None,  # optional participant name
-        created_at: Optional[str] = None,
+        created_at: Optional[datetime] = None,
         tool_calls: Optional[List[ToolCall]] = None,  # list of tool calls requested
         tool_call_id: Optional[str] = None,
         embedding: Optional[np.ndarray] = None,
@@ -77,7 +77,7 @@ class Message(Record):
         self.agent_id = agent_id
         self.text = text
         self.model = model  # model name (e.g. gpt-4)
-        self.created_at = datetime.now().astimezone() if created_at is None else created_at
+        self.created_at = created_at if created_at is not None else datetime.now()
 
         # openai info
         assert role in ["system", "assistant", "user", "tool"]
@@ -435,7 +435,7 @@ class AgentState:
         # messages: List[dict],  # in-context messages
         id: Optional[uuid.UUID] = None,
         state: Optional[dict] = None,
-        created_at: Optional[str] = None,
+        created_at: Optional[datetime] = None,
     ):
         if id is None:
             self.id = uuid.uuid4()
@@ -466,7 +466,7 @@ class Source:
         self,
         user_id: uuid.UUID,
         name: str,
-        created_at: Optional[str] = None,
+        created_at: Optional[datetime] = None,
         id: Optional[uuid.UUID] = None,
         # embedding info
         embedding_model: Optional[str] = None,
@@ -481,7 +481,7 @@ class Source:
 
         self.name = name
         self.user_id = user_id
-        self.created_at = created_at
+        self.created_at = created_at if created_at is not None else datetime.now()
 
         # embedding info (optional)
         self.embedding_dim = embedding_dim
