@@ -13,12 +13,13 @@ from tqdm import tqdm
 import numpy as np
 import typer
 import uuid
+
 from memgpt.embeddings import embedding_model, check_and_split_text
 from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import Source, Passage, Document, User
-from memgpt.utils import get_local_time, suppress_stdout
+from memgpt.utils import get_utc_time, suppress_stdout
 from memgpt.agent_store.storage import StorageConnector, TableType
 
 from datetime import datetime
@@ -43,7 +44,7 @@ def insert_passages_into_source(passages: List[Passage], source_name: str, user_
     source = ms.get_source(user_id=user_id, source_name=source_name)
     if not source:
         # create new
-        source = Source(user_id=user_id, name=source_name, created_at=get_local_time())
+        source = Source(user_id=user_id, name=source_name, created_at=get_utc_time())
         ms.create_source(source)
 
     # make sure user_id is set for passages
@@ -55,32 +56,7 @@ def insert_passages_into_source(passages: List[Passage], source_name: str, user_
 
     # add and save all passages
     storage.insert_many(passages)
-    assert orig_size + len(passages) == storage.size(), f"Expected {orig_size + len(passages)} passages, got {storage.size()}"
-    storage.save()
 
-
-def insert_passages_into_source(passages: List[Passage], source_name: str, user_id: uuid.UUID, config: MemGPTConfig):
-    """Insert a list of passages into a source by updating storage connectors and metadata store"""
-    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
-    orig_size = storage.size()
-
-    # insert metadata store
-    ms = MetadataStore(config)
-    source = ms.get_source(user_id=user_id, source_name=source_name)
-    if not source:
-        # create new
-        source = Source(user_id=user_id, name=source_name, created_at=get_local_time())
-        ms.create_source(source)
-
-    # make sure user_id is set for passages
-    for passage in passages:
-        # TODO: attach source IDs
-        # passage.source_id = source.id
-        passage.user_id = user_id
-        passage.data_source = source_name
-
-    # add and save all passages
-    storage.insert_many(passages)
     assert orig_size + len(passages) == storage.size(), f"Expected {orig_size + len(passages)} passages, got {storage.size()}"
     storage.save()
 
@@ -103,12 +79,11 @@ def store_docs(name, docs, user_id=None, show_progress=True):
     user = ms.get_user(user_id)
     if user is None:
         raise ValueError(f"Cannot find user {user_id} in metadata store. Please run 'memgpt configure'.")
-
     # create data source record
     data_source = Source(
         user_id=user.id,
         name=name,
-        created_at=datetime.now(),
+        created_at=get_utc_time(),
         embedding_model=config.default_embedding_config.embedding_model,
         embedding_dim=config.default_embedding_config.embedding_dim,
     )
@@ -177,6 +152,10 @@ def load_index(
     user_id: Annotated[Optional[uuid.UUID], typer.Option(help="User ID to associate with dataset.")] = None,
 ):
     """Load a LlamaIndex saved VectorIndex into MemGPT"""
+    if user_id is None:
+        config = MemGPTConfig.load()
+        user_id = uuid.UUID(config.anon_clientid)
+
     try:
         # load index data
         storage_context = StorageContext.from_defaults(persist_dir=dir)
@@ -259,7 +238,7 @@ def load_webpage(
     urls: Annotated[List[str], typer.Option(help="List of urls to load.")],
 ):
     try:
-        from llama_index import SimpleWebPageReader
+        from llama_index.readers.web import SimpleWebPageReader
 
         docs = SimpleWebPageReader(html_to_text=True).load_data(urls)
         store_docs(name, docs)
@@ -304,7 +283,7 @@ def load_database(
             db = DatabaseReader(
                 scheme=scheme,  # Database Scheme
                 host=host,  # Database Host
-                port=port,  # Database Port
+                port=str(port),  # Database Port
                 user=user,  # Database User
                 password=password,  # Database Password
                 dbname=dbname,  # Database Name
@@ -327,6 +306,9 @@ def load_vector_database(
     user_id: Annotated[Optional[uuid.UUID], typer.Option(help="User ID to associate with dataset.")] = None,
 ):
     """Load pre-computed embeddings into MemGPT from a database."""
+    if user_id is None:
+        config = MemGPTConfig.load()
+        user_id = uuid.UUID(config.anon_clientid)
 
     try:
         from sqlalchemy import create_engine, select, MetaData, Table, Inspector
@@ -345,7 +327,9 @@ def load_vector_database(
         config = MemGPTConfig.load()
 
         # Prepare a select statement
-        select_statement = select(table.c[text_column], table.c[embedding_column].cast(Vector(config.embedding_dim)))
+        select_statement = select(
+            table.c[text_column], table.c[embedding_column].cast(Vector(config.default_embedding_config.embedding_dim))
+        )
 
         # Execute the query and fetch the results
         with engine.connect() as connection:
@@ -356,9 +340,17 @@ def load_vector_database(
         for text, embedding in result:
             # assume that embeddings are the same model as in config
             passages.append(
-                Passage(text=text, embedding=embedding, embedding_dim=config.embedding_dim, embedding_model=config.embedding_model)
+                Passage(
+                    text=text,
+                    embedding=embedding,
+                    user_id=user_id,
+                    embedding_dim=config.default_embedding_config.embedding_dim,
+                    embedding_model=config.default_embedding_config.embedding_model,
+                )
             )
-            assert config.embedding_dim == len(embedding), f"Expected embedding dimension {config.embedding_dim}, got {len(embedding)}"
+            assert config.default_embedding_config.embedding_dim == len(
+                embedding
+            ), f"Expected embedding dimension {config.default_embedding_config.embedding_dim}, got {len(embedding)}"
 
         # create storage connector
         config = MemGPTConfig.load()
