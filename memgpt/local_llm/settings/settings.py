@@ -44,7 +44,7 @@ def get_completions_settings(defaults="simple") -> dict:
         # Load into a dict called "settings"
         printd(f"Found completion settings file '{settings_file}', loading it...")
         try:
-            with open(settings_file, "r") as file:
+            with open(settings_file, "r", encoding="utf-8") as file:
                 user_settings = json.load(file)
             if len(user_settings) > 0:
                 printd(
