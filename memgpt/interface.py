@@ -38,20 +38,20 @@ class AgentInterface(ABC):
         """MemGPT calls a function"""
         raise NotImplementedError
 
-    @abstractmethod
-    @staticmethod
-    def print_messages():
-        raise NotImplementedError
+    # @abstractmethod
+    # @staticmethod
+    # def print_messages():
+    #     raise NotImplementedError
 
-    @abstractmethod
-    @staticmethod
-    def print_messages_raw():
-        raise NotImplementedError
+    # @abstractmethod
+    # @staticmethod
+    # def print_messages_raw():
+    #     raise NotImplementedError
 
-    @abstractmethod
-    @staticmethod
-    def step_yield():
-        raise NotImplementedError
+    # @abstractmethod
+    # @staticmethod
+    # def step_yield():
+    #     raise NotImplementedError
 
 
 class CLIInterface(AgentInterface):
