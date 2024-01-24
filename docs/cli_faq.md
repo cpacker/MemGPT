@@ -26,6 +26,13 @@ If the LLM/model you're using for MemGPT is consistently failing the first messa
 
 You can disable first message verification by passing the `--no-verify` flag to `memgpt run` (do `memgpt run --no-verify` instead of `memgpt run`). Passing the additional `--debug` flag (`memgpt run --no-verify --debug`) can help you further identify any other issues on first messages that can cause long "Thinking..." loops, such as rate limiting.
 
+### What are personas and how they relate to agents and humans? 
+MemGPT has two core componenets: agents and humans. Each human contains information about the user that is constantly updated as MemGPT learns more about that user. Agents are what the human interacts with they chat with MemGPT. Each agent can be customized through presets which are basically the configuration for an agent and includes the following componenets:
+* system prompt (you usually don't change this)
+* persona (personality of your bot and their initial memories)
+* human (description of yourself / user details)
+* functions (the functions the agent can call during convo)
+
 ### I broke/corrupted my agent, how can I restore an earlier checkpoint?
 
 MemGPT saves agent checkpoints (`.json` files) inside the `~/.memgpt/agents/YOUR_AGENT_NAME/agent_state` directory (`C:\Users\YourUsername\.memgpt\YOUR_AGENT_NAME\agent_state` on Windows). By default, when you load an agent with `memgpt run` it will pull the latest checkpoint `.json` file to load (sorted by date).
