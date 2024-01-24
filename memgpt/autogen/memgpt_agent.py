@@ -387,6 +387,8 @@ def create_memgpt_autogen_agent_from_config(
 
     Construct AutoGen config workflow in a clean way.
     """
+    if not isinstance(llm_config, dict):
+        llm_config = None
     llm_config = llm_config["config_list"][0]
 
     if interface_kwargs is None:

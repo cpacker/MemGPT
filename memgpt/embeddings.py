@@ -29,6 +29,7 @@ def check_and_split_text(text: str, embedding_model: str) -> List[str]:
 
     # determine max length
     if hasattr(encoding, "max_length"):
+        # TODO(fix) this is broken
         max_length = encoding.max_length
     else:
         # TODO: figure out the real number

@@ -945,7 +945,7 @@ def get_schema_diff(schema_a, schema_b):
 def validate_date_format(date_str):
     """Validate the given date string in the format 'YYYY-MM-DD'."""
     try:
-        datetime.datetime.strptime(date_str, "%Y-%m-%d")
+        datetime.strptime(date_str, "%Y-%m-%d")
         return True
     except (ValueError, TypeError):
         return False
