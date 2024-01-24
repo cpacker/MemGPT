@@ -50,7 +50,7 @@ def wipe_config_and_reconfigure(data_dir: str = MEMGPT_DIR, run_configure=True):
         os.makedirs(os.path.join(data_dir, MIGRATION_BACKUP_FOLDER, "agents"))
 
     # Get the current timestamp in a readable format (e.g., YYYYMMDD_HHMMSS)
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     # Construct the new backup directory name with the timestamp
     backup_filename = os.path.join(data_dir, MIGRATION_BACKUP_FOLDER, f"config_backup_{timestamp}")

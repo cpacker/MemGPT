@@ -44,7 +44,7 @@ def insert_passages_into_source(passages: List[Passage], source_name: str, user_
     source = ms.get_source(user_id=user_id, source_name=source_name)
     if not source:
         # create new
-        source = Source(user_id=user_id, name=source_name, created_at=get_utc_time())
+        source = Source(user_id=user_id, name=source_name)
         ms.create_source(source)
 
     # make sure user_id is set for passages
@@ -83,7 +83,6 @@ def store_docs(name, docs, user_id=None, show_progress=True):
     data_source = Source(
         user_id=user.id,
         name=name,
-        created_at=get_utc_time(),
         embedding_model=config.default_embedding_config.embedding_model,
         embedding_dim=config.default_embedding_config.embedding_dim,
     )

@@ -362,24 +362,7 @@ class SyncServer(LockingServer):
             except:
                 raise ValueError(command)
 
-            # TODO: check if agent already has it
-            data_source_options = StorageConnector.list_loaded_data()
-            if len(data_source_options) == 0:
-                raise ValueError('No sources available. You must load a souce with "memgpt load ..." before running /attach.')
-            elif data_source not in data_source_options:
-                raise ValueError(f"Invalid data source name: {data_source} (options={data_source_options})")
-            else:
-                # attach new data
-                attach(memgpt_agent.agent_state.name, data_source)
-
-                # update agent config
-                memgpt_agent.agent_state.attach_data_source(data_source)
-
-                # reload agent with new data source
-                # TODO: maybe make this less ugly...
-                memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_storage_connector(
-                    agent_config=memgpt_agent.agent_state
-                )
+            attach(agent_name=memgpt_agent.agent_state.name, data_source=data_source, user_id=user_id)
 
         elif command.lower() == "dump" or command.lower().startswith("dump "):
             # Check if there's an additional argument that's an integer
