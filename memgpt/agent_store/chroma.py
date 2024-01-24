@@ -224,3 +224,14 @@ class ChromaStorageConnector(StorageConnector):
         # count = len(results) if count is None else count
         # results = results[start : start + count]
         # return self.results_to_records(results)
+
+    def get_all_cursor(
+        self,
+        filters: Optional[Dict] = {},
+        after: uuid.UUID = None,
+        before: uuid.UUID = None,
+        limit: Optional[int] = 1000,
+        order_by: str = "created_at",
+        reverse: bool = False,
+    ):
+        raise ValueError("Cannot run get_all_cursor with chroma")
