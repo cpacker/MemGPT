@@ -269,13 +269,24 @@ class Message(Record):
 class Document(Record):
     """A document represent a document loaded into MemGPT, which is broken down into passages."""
 
-    def __init__(self, user_id: str, text: str, data_source: str, document_id: Optional[str] = None):
+    def __init__(
+        self,
+        user_id: str,
+        text: str,
+        data_source: str,
+        id: Optional[uuid.UUID] = None,
+        created_at: Optional[str] = None,
+        metadata: Optional[dict] = {},
+    ):
         super().__init__(id)
+        if metadata is None:
+            metadata = {}
         self.user_id = user_id
         self.text = text
-        self.document_id = document_id
         self.data_source = data_source
-        # TODO: add optional embedding?
+        self.metadata = metadata
+        self.created_at = created_at
+        self.metadata = metadata
 
     # def __repr__(self) -> str:
     #    pass

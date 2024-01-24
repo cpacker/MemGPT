@@ -8,6 +8,10 @@ memgpt load <data-connector-type> --name <dataset-name> [ADDITIONAL ARGS]
 
 """
 
+from typing import List
+
+import llama_index
+from llama_index.vector_stores import VectorStoreQuery, SimpleVectorStore
 from typing import List, Optional, Annotated
 from tqdm import tqdm
 import numpy as np
@@ -59,44 +63,12 @@ def insert_passages_into_source(passages: List[Passage], source_name: str, user_
     storage.save()
 
 
-def insert_passages_into_source(passages: List[Passage], source_name: str, user_id: uuid.UUID, config: MemGPTConfig):
-    """Insert a list of passages into a source by updating storage connectors and metadata store"""
-    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
-    orig_size = storage.size()
-
-    # insert metadata store
-    ms = MetadataStore(config)
-    source = ms.get_source(user_id=user_id, source_name=source_name)
-    if not source:
-        # create new
-        source = Source(user_id=user_id, name=source_name, created_at=get_local_time())
-        ms.create_source(source)
-
-    # make sure user_id is set for passages
-    for passage in passages:
-        # TODO: attach source IDs
-        # passage.source_id = source.id
-        passage.user_id = user_id
-        passage.data_source = source_name
-
-    # add and save all passages
-    storage.insert_many(passages)
-    assert orig_size + len(passages) == storage.size(), f"Expected {orig_size + len(passages)} passages, got {storage.size()}"
-    storage.save()
-
-
 def store_docs(name, docs, user_id=None, show_progress=True):
     """Common function for embedding and storing documents"""
 
     config = MemGPTConfig.load()
     if user_id is None:  # assume running local with single user
         user_id = uuid.UUID(config.anon_clientid)
-
-    # ensure doc text is not too long
-    # TODO: replace this to instead split up docs that are too large
-    # (this is a temporary fix to avoid breaking the llama index)
-    for doc in docs:
-        doc.text = check_and_split_text(doc.text, config.default_embedding_config.embedding_model)[0]
 
     # record data source metadata
     ms = MetadataStore(config)
@@ -135,39 +107,56 @@ def store_docs(name, docs, user_id=None, show_progress=True):
     # compute and record passages
     embed_model = embedding_model(config.default_embedding_config)
 
+    storage = StorageConnector.get_storage_connector(TableType.DOCUMENTS, config, user_id)
+    docs_storage = []
+    for doc in docs:
+        doc_storage = Document(user_id=user_id, text=doc.text, id=uuid.UUID(doc.doc_id), data_source=data_source.name)
+        docs_storage.append(doc_storage)
+
     # use llama index to run embeddings code
     with suppress_stdout():
         service_context = ServiceContext.from_defaults(
             llm=None, embed_model=embed_model, chunk_size=config.default_embedding_config.embedding_chunk_size
         )
     index = VectorStoreIndex.from_documents(docs, service_context=service_context, show_progress=True)
-    embed_dict = index._vector_store._data.embedding_dict
-    node_dict = index._docstore.docs
-
-    # TODO: add document store
-
-    # gather passages
+    doc_info = index.ref_doc_info
     passages = []
-    for node_id, node in tqdm(node_dict.items()):
-        vector = embed_dict[node_id]
-        node.embedding = vector
-        text = node.text.replace("\x00", "\uFFFD")  # hacky fix for error on null characters
-        assert (
-            len(node.embedding) == config.default_embedding_config.embedding_dim
-        ), f"Expected embedding dimension {config.default_embedding_config.embedding_dim}, got {len(node.embedding)}: {node.embedding}"
-        passages.append(
-            Passage(
-                user_id=user.id,
-                text=text,
-                data_source=name,
-                embedding=node.embedding,
-                metadata=None,
-                embedding_dim=config.default_embedding_config.embedding_dim,
-                embedding_model=config.default_embedding_config.embedding_model,
-            )
-        )
+    doc_dict = {}
+    passages_dict = index.docstore.docs
 
+    # SimpleVectorStore has a get method and takes in the node id to retrieve the embedding.
+    if isinstance(index.vector_store, SimpleVectorStore):
+        simple_store = index.vector_store
+        for doc_id, data in doc_info.items():
+            nodes_dict = []
+            for node_id in data.node_ids:
+                nodes_dict.append((node_id, simple_store.get(node_id), passages_dict[node_id].to_dict()))
+            doc_dict[doc_id] = nodes_dict
+
+    for doc_id, doc_data in tqdm(doc_dict.items()):
+        for data in doc_data:
+            node = data[2]
+            text = node["text"].replace("\x00", "\uFFFD")  # hacky fix for error on null characters
+            assert (
+                len(data[1]) == config.default_embedding_config.embedding_dim
+            ), f"Expected embedding dimension {config.default_embedding_config.embedding_dim}, got {len(data[1])}: {data[1]}"
+            passages.append(
+                Passage(
+                    id=uuid.UUID(data[0]),
+                    user_id=user.id,
+                    text=text,
+                    data_source=name,
+                    embedding=data[1],
+                    metadata=None,
+                    doc_id=uuid.UUID(doc_id),
+                    embedding_dim=config.default_embedding_config.embedding_dim,
+                    embedding_model=config.default_embedding_config.embedding_model,
+                )
+            )
+
+    storage.insert_many(docs_storage)
     insert_passages_into_source(passages, name, user_id, config)
+    storage.save()
 
 
 @app.command("index")
@@ -245,8 +234,14 @@ def load_directory(
             reader = SimpleDirectoryReader(input_files=[str(f) for f in input_files])
 
         # load docs
-        docs = reader.load_data()
-        store_docs(str(name), docs, user_id)
+        docs = []
+        for data in reader.iter_data():
+            # Remove the first two new lines added by SimpleDirectoryReader
+            doc = "".join([doc.text[2:] for doc in data])
+            doco = llama_index.Document()
+            doco.set_content(doc)
+            docs.append(doco)
+        store_docs(name, docs, user_id)
 
     except ValueError as e:
         typer.secho(f"Failed to load directory from provided information.\n{e}", fg=typer.colors.RED)
@@ -259,7 +254,7 @@ def load_webpage(
     urls: Annotated[List[str], typer.Option(help="List of urls to load.")],
 ):
     try:
-        from llama_index import SimpleWebPageReader
+        from llama_index.readers.web import SimpleWebPageReader
 
         docs = SimpleWebPageReader(html_to_text=True).load_data(urls)
         store_docs(name, docs)

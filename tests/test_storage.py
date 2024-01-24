@@ -5,7 +5,7 @@ import pytest
 
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.embeddings import embedding_model, query_embedding
-from memgpt.data_types import Message, Passage, EmbeddingConfig, AgentState, OpenAIEmbeddingConfig
+from memgpt.data_types import Message, Passage, EmbeddingConfig, AgentState, OpenAIEmbeddingConfig, Document
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.agent_store.storage import StorageConnector, TableType
@@ -82,6 +82,16 @@ def generate_messages(embed_model):
     return messages
 
 
+# Data generation functions: Messages
+def generate_documents():
+    """Generate list of 3 Document objects"""
+    documents = []
+    for text, id in zip(texts, ids):
+        documents.append(Document(user_id=user_id, text=text, id=id, metadata={}, data_source="Test"))
+        print(documents[-1].text)
+    return documents
+
+
 @pytest.fixture(autouse=True)
 def clear_dynamically_created_models():
     """Wipe globals for SQLAlchemy"""
@@ -103,7 +113,7 @@ def recreate_declarative_base():
 @pytest.mark.parametrize("storage_connector", ["postgres", "chroma", "sqlite"])
 # @pytest.mark.parametrize("storage_connector", ["sqlite", "chroma"])
 # @pytest.mark.parametrize("storage_connector", ["postgres"])
-@pytest.mark.parametrize("table_type", [TableType.RECALL_MEMORY, TableType.ARCHIVAL_MEMORY])
+@pytest.mark.parametrize("table_type", [TableType.RECALL_MEMORY, TableType.ARCHIVAL_MEMORY, TableType.DOCUMENTS])
 def test_storage(storage_connector, table_type, clear_dynamically_created_models, recreate_declarative_base):
     # setup memgpt config
     # TODO: set env for different config path
@@ -179,22 +189,31 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
     ms.create_agent(agent)
 
     # create storage connector
-    conn = StorageConnector.get_storage_connector(table_type, config=config, user_id=user_id, agent_id=agent.id)
+    conn = StorageConnector.get_storage_connector(
+        table_type, config=config, user_id=user_id, agent_id=agent.id if table_type != TableType.DOCUMENTS else None
+    )
     # conn.client.delete_collection(conn.collection.name)  # clear out data
     conn.delete_table()
-    conn = StorageConnector.get_storage_connector(table_type, config=config, user_id=user_id, agent_id=agent.id)
+    conn = StorageConnector.get_storage_connector(
+        table_type, config=config, user_id=user_id, agent_id=agent.id if table_type != TableType.DOCUMENTS else None
+    )
 
     # generate data
     if table_type == TableType.ARCHIVAL_MEMORY:
         records = generate_passages(embed_model)
     elif table_type == TableType.RECALL_MEMORY:
         records = generate_messages(embed_model)
+    elif table_type == TableType.DOCUMENTS:
+        records = generate_documents()
     else:
         raise NotImplementedError(f"Table type {table_type} not implemented")
 
     # check record dimentions
-    print("TABLE TYPE", table_type, type(records[0]), len(records[0].embedding))
-    if embed_model:
+    if table_type != TableType.DOCUMENTS:
+        print("TABLE TYPE", table_type, type(records[0]), len(records[0].embedding))
+    else:
+        print("TABLE TYPE", table_type, type(records[0]))
+    if embed_model and table_type != TableType.DOCUMENTS:
         assert len(records[0].embedding) == MAX_EMBEDDING_DIM, f"Expected {MAX_EMBEDDING_DIM}, got {len(records[0].embedding)}"
         assert (
             records[0].embedding_dim == embedding_config.embedding_dim
@@ -206,10 +225,10 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
 
     # test: insert_many
     conn.insert_many(records[1:])
-    assert (
-        conn.size() == 2
-    ), f"Expected 1 record, got {conn.size()}: {conn.get_all()}"  # expect 2, since storage connector filters for agent1
-
+    if table_type != TableType.DOCUMENTS:
+        assert conn.size() == 2, f"Expected 2 record, got {conn.size()}: {conn.get_all()}"
+    else:
+        assert conn.size() == 3, f"Expected 3 record, got {conn.size()}: {conn.get_all()}"
     # test: list_loaded_data
     # TODO: add back
     # if table_type == TableType.ARCHIVAL_MEMORY:
@@ -221,11 +240,19 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
     paginated_total = 0
     for page in conn.get_all_paginated(page_size=1):
         paginated_total += len(page)
-    assert paginated_total == 2, f"Expected 2 records, got {paginated_total}"
+    if table_type == TableType.DOCUMENTS:
+        assert paginated_total == 3, f"Expected 3 records, got {paginated_total}"
+    else:
+        assert paginated_total == 2, f"Expected 2 records, got {paginated_total}"
 
     # test: get_all
-    all_records = conn.get_all()
-    assert len(all_records) == 2, f"Expected 2 records, got {len(all_records)}"
+    if table_type == TableType.DOCUMENTS:
+        all_records = conn.get_all()
+        assert len(all_records) == 3, f"Expected 3 records, got {len(all_records)}"
+    else:
+        all_records = conn.get_all()
+        assert len(all_records) == 2, f"Expected 2 records, got {len(all_records)}"
+
     all_records = conn.get_all(limit=1)
     assert len(all_records) == 1, f"Expected 1 records, got {len(all_records)}"
 
@@ -235,8 +262,11 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
     assert res.text == texts[0], f"Expected {texts[0]}, got {res.text}"
 
     # test: size
-    assert conn.size() == 2, f"Expected 2 records, got {conn.size()}"
-    assert conn.size(filters={"agent_id": agent.id}) == 2, f"Expected 2 records, got {conn.size(filters={'agent_id', agent.id})}"
+    if table_type == TableType.DOCUMENTS:
+        assert conn.size() == 3, f"Expected 3 records, got {conn.size()}"
+    else:
+        assert conn.size() == 2, f"Expected 2 records, got {conn.size()}"
+        assert conn.size(filters={"agent_id": agent.id}) == 2, f"Expected 2 records, got {conn.size(filters={'agent_id', agent.id})}"
     if table_type == TableType.RECALL_MEMORY:
         assert conn.size(filters={"role": "user"}) == 1, f"Expected 1 record, got {conn.size(filters={'role': 'user'})}"
 
@@ -266,9 +296,18 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
         print("DATE", res)
         assert len(res) == 1, f"Expected 1 result, got {len(res)}: {res}"
 
+    if table_type == TableType.DOCUMENTS:
+        # test: query_text
+        query = "CindereLLa"
+        res = conn.query_text(query)
+        assert len(res) == 1, f"Expected 1 result, got {len(res)}"
+        assert "Cinderella" in res[0].text, f"Expected 'Cinderella' in results, but got {res[0].text}"
+
     # test: delete
     conn.delete({"id": ids[0]})
-    assert conn.size() == 1, f"Expected 2 records, got {conn.size()}"
-
+    if table_type != TableType.DOCUMENTS:
+        assert conn.size() == 1, f"Expected 1 records, got {conn.size()}"
+    else:
+        assert conn.size() == 2, f"Expected 2 records, got {conn.size()}"
     # cleanup
     ms.delete_user(user_id)
