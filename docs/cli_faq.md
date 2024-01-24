@@ -18,6 +18,14 @@ Check out our [chat with your docs example](example_data) to get started.
 
 When you want to end a chat, run `/exit`, and MemGPT will save your current chat with your agent (make a note of the agent name, e.g. `agent_N`). Later, when you want to start a chat with that same agent, you can run `memgpt run --agent <NAME>`.
 
+### How do I implement MemGPT for multiple users?
+The REST API for [MemGPT](https://memgpt.readme.io/reference/api) is flexible and leverages PostgreSQL DB or SQLite for its backend. To implement a multi-user setup, first determine the user_id (either create a UUID or use the user_id from your own database). Then [create an agent](https://memgpt.readme.io/reference/create_agent_api_agents_post), and finally use the agent_id and user_id to post a message or run a command. Internally the following occurs: 
+* a user creates an agent
+* that agent is "owned" by a user
+* when the user sends the agent a message, that's stored in a message collection (messages are indexed by user and agent ids)
+* on the higher-level agents side (not talking about db implementation details), the agent can only see a few messages at a time, but has access to all the messages ever sent between it and the user via the recall memory search functions
+* the database is multi-user, and the REST endpoints function in a way where user data is not shared
+
 ### My MemGPT agent is stuck "Thinking..." on the first message?
 
 MemGPT has an extra verification procedure on the very first message to check that in the first message (1) the agent is sending a message to the user, and (2) that the agent is using internal monologue. This verification is meant to avoid the scenario where a bad initial agent message "poisons" the rest of a conversation. For example, a message missing internal monologue might cause all future messages to also omit internal monologue.
