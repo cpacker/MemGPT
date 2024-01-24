@@ -130,6 +130,8 @@ def store_docs(name, docs, user_id=None, show_progress=True):
         for doc_id, data in doc_info.items():
             nodes_dict = []
             for node_id in data.node_ids:
+                text_length = len(passages_dict[node_id].text)
+                assert text_length < config.default_embedding_config.embedding_chunk_size, "Chunk bigger than embedding chunk size!"
                 nodes_dict.append((node_id, simple_store.get(node_id), passages_dict[node_id].to_dict()))
             doc_dict[doc_id] = nodes_dict
 
