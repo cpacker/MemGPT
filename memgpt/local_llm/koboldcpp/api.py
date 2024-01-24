@@ -21,6 +21,7 @@ def get_koboldcpp_completion(endpoint, auth_type, auth_key, prompt, context_wind
     request = settings
     request["prompt"] = prompt
     request["max_context_length"] = context_window
+    request["max_length"] = 400  # if we don't set this, it'll default to 100 which is quite short
 
     # Set grammar
     if grammar is not None:
