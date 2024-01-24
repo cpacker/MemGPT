@@ -47,9 +47,9 @@ class AutoGenInterface(object):
     def __init__(
         self,
         message_list=None,
-        fancy=False,
+        fancy=True,  # only applies to the prints, not the appended messages
         show_user_message=False,
-        show_inner_thoughts=False,
+        show_inner_thoughts=True,
         show_function_outputs=False,
         debug=False,
     ):
@@ -65,34 +65,36 @@ class AutoGenInterface(object):
         self.message_list = []
 
     def internal_monologue(self, msg):
-        # ANSI escape code for italic is '\x1B[3m'
+        # NOTE: never gets appended
         if self.debug:
             print(f"inner thoughts :: {msg}")
         if not self.show_inner_thoughts:
             return
-        message = f"\x1B[3m{Fore.LIGHTBLACK_EX}💭 {msg}{Style.RESET_ALL}" if self.fancy else f"[inner thoughts] {msg}"
+        # ANSI escape code for italic is '\x1B[3m'
+        message = f"\x1B[3m{Fore.LIGHTBLACK_EX}💭 {msg}{Style.RESET_ALL}" if self.fancy else f"[MemGPT agent's inner thoughts] {msg}"
         print(message)
-        # self.message_list.append(message)
 
     def assistant_message(self, msg):
+        # NOTE: gets appended
         if self.debug:
             print(f"assistant :: {msg}")
-        message = f"{Fore.YELLOW}{Style.BRIGHT}🤖 {Fore.YELLOW}{msg}{Style.RESET_ALL}" if self.fancy else msg
-        self.message_list.append(message)
+        # message = f"{Fore.YELLOW}{Style.BRIGHT}🤖 {Fore.YELLOW}{msg}{Style.RESET_ALL}" if self.fancy else msg
+        self.message_list.append(msg)
 
     def memory_message(self, msg):
+        # NOTE: never gets appended
         if self.debug:
             print(f"memory :: {msg}")
         message = f"{Fore.LIGHTMAGENTA_EX}{Style.BRIGHT}🧠 {Fore.LIGHTMAGENTA_EX}{msg}{Style.RESET_ALL}" if self.fancy else f"[memory] {msg}"
-        # self.message_list.append(message)
         print(message)
 
     def system_message(self, msg):
+        # NOTE: gets appended
         if self.debug:
             print(f"system :: {msg}")
         message = f"{Fore.MAGENTA}{Style.BRIGHT}🖥️ [system] {Fore.MAGENTA}{msg}{Style.RESET_ALL}" if self.fancy else f"[system] {msg}"
-        self.message_list.append(message)
         print(message)
+        self.message_list.append(msg)
 
     def user_message(self, msg, raw=False):
         if self.debug:
@@ -129,6 +131,7 @@ class AutoGenInterface(object):
         else:
             message = f"{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg_json}{Style.RESET_ALL}" if self.fancy else f"[user] {msg}"
 
+        # TODO should we ever be appending this?
         self.message_list.append(message)
 
     def function_message(self, msg):
@@ -139,6 +142,7 @@ class AutoGenInterface(object):
 
         if isinstance(msg, dict):
             message = f"{Fore.RED}{Style.BRIGHT}⚡ [function] {Fore.RED}{msg}{Style.RESET_ALL}"
+            # TODO should we ever be appending this?
             self.message_list.append(message)
             return
 

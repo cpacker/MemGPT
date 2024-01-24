@@ -412,9 +412,6 @@ class User:
         self,
         # name: str,
         id: Optional[uuid.UUID] = None,
-        default_preset=DEFAULT_PRESET,
-        default_persona=DEFAULT_PERSONA,
-        default_human=DEFAULT_HUMAN,
         default_agent=None,
         # other
         policies_accepted=False,
@@ -425,9 +422,6 @@ class User:
             self.id = id
         assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
 
-        self.default_preset = default_preset
-        self.default_persona = default_persona
-        self.default_human = default_human
         self.default_agent = default_agent
 
         # misc

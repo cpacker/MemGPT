@@ -179,9 +179,9 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
         user_id=user_id,
         name="agent_1",
         id=agent_1_id,
-        preset=user.default_preset,
-        persona=user.default_persona,
-        human=user.default_human,
+        preset=config.preset,
+        persona=config.persona,
+        human=config.human,
         llm_config=config.default_llm_config,
         embedding_config=config.default_embedding_config,
     )

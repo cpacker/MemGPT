@@ -316,6 +316,19 @@ class Agent(object):
         self._messages = new_messages
         self.messages_total += len(added_messages)
 
+    def append_to_messages(self, added_messages: List[dict]):
+        """An external-facing message append, where dict-like messages are first converted to Message objects"""
+        added_messages_objs = [
+            Message.dict_to_message(
+                agent_id=self.agent_state.id,
+                user_id=self.agent_state.user_id,
+                model=self.model,
+                openai_message_dict=msg,
+            )
+            for msg in added_messages
+        ]
+        self._append_to_messages(added_messages_objs)
+
     def _swap_system_message(self, new_system_message: Message):
         assert isinstance(new_system_message, Message)
         assert new_system_message.role == "system", new_system_message
@@ -544,11 +557,12 @@ class Agent(object):
         try:
             # Step 0: add user message
             if user_message is not None:
+                # Create the user message dict
                 self.interface.user_message(user_message)
                 packed_user_message = {"role": "user", "content": user_message}
-                # Special handling for AutoGen messages with 'name' field
                 try:
                     user_message_json = json.loads(user_message)
+                    # Special handling for AutoGen messages with 'name' field
                     # Treat 'name' as a special field
                     # If it exists in the input message, elevate it to the 'message' level
                     if "name" in user_message_json:
@@ -557,6 +571,15 @@ class Agent(object):
                         packed_user_message["content"] = json.dumps(user_message_json, ensure_ascii=JSON_ENSURE_ASCII)
                 except Exception as e:
                     print(f"{CLI_WARNING_PREFIX}handling of 'name' field failed with: {e}")
+
+                # Create the associated Message object (in the database)
+                packed_user_message_obj = Message.dict_to_message(
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
+                    model=self.model,
+                    openai_message_dict=packed_user_message,
+                )
+
                 input_message_sequence = self.messages + [packed_user_message]
             else:
                 input_message_sequence = self.messages
@@ -605,14 +628,7 @@ class Agent(object):
 
             # Step 4: extend the message history
             if user_message is not None:
-                all_new_messages = [
-                    Message.dict_to_message(
-                        agent_id=self.agent_state.id,
-                        user_id=self.agent_state.user_id,
-                        model=self.model,
-                        openai_message_dict=packed_user_message,
-                    )
-                ] + all_response_messages
+                all_new_messages = [packed_user_message_obj] + all_response_messages
             else:
                 all_new_messages = all_response_messages
 
@@ -875,7 +891,7 @@ class Agent(object):
     #        print(f"Agent.save {new_agent_state.id} :: preupdate:\n\tmessages={new_agent_state.state['messages']}")
     #        self.ms.update_agent(agent=new_agent_state)
 
-    def update_state(self):
+    def update_state(self) -> AgentState:
         updated_state = {
             "persona": self.memory.persona,
             "human": self.memory.human,

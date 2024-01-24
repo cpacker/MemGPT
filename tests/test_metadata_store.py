@@ -1,4 +1,5 @@
 import os
+from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
 import pytest
 
 from memgpt.metadata import MetadataStore
@@ -29,9 +30,9 @@ def test_storage(storage_connector):
     agent_1 = AgentState(
         user_id=user_1.id,
         name="agent_1",
-        preset=user_1.default_preset,
-        persona=user_1.default_persona,
-        human=user_1.default_human,
+        preset=DEFAULT_PRESET,
+        persona=DEFAULT_PERSONA,
+        human=DEFAULT_HUMAN,
         llm_config=config.default_llm_config,
         embedding_config=config.default_embedding_config,
     )
