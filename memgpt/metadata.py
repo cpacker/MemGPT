@@ -64,7 +64,7 @@ class LLMConfigColumn(TypeDecorator):
         return value
 
     def process_result_value(self, value, dialect):
-        print("GET VALUE", value)
+        # print("GET VALUE", value)
         if value:
             return LLMConfig(**value)
         return value
@@ -96,9 +96,6 @@ class UserModel(Base):
 
     id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
     # name = Column(String, nullable=False)
-    default_preset = Column(String)
-    default_persona = Column(String)
-    default_human = Column(String)
     default_agent = Column(String)
 
     policies_accepted = Column(Boolean, nullable=False, default=False)
@@ -110,9 +107,6 @@ class UserModel(Base):
         return User(
             id=self.id,
             # name=self.name
-            default_preset=self.default_preset,
-            default_persona=self.default_persona,
-            default_human=self.default_human,
             default_agent=self.default_agent,
             policies_accepted=self.policies_accepted,
         )
