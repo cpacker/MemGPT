@@ -1,3 +1,5 @@
+# type: ignore
+
 import lancedb
 import uuid
 from datetime import datetime
@@ -149,7 +151,7 @@ class LanceDBConnector(StorageConnector):
         pass
 
     @abstractmethod
-    def get(self, id: str) -> Optional[Record]:
+    def get(self, id: uuid.UUID) -> Optional[Record]:
         # TODO
         pass
 

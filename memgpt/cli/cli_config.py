@@ -2,7 +2,7 @@ import builtins
 import os
 import shutil
 import uuid
-from typing import Annotated, Optional
+from typing import Annotated, Tuple, Optional
 from enum import Enum
 from typing import Annotated
 
@@ -21,6 +21,9 @@ from memgpt.data_types import User, LLMConfig, EmbeddingConfig
 from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
+from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
+from memgpt.server.utils import shorten_key_middle
+from memgpt.data_types import User, LLMConfig, EmbeddingConfig, Source
 from memgpt.metadata import MetadataStore
 from memgpt.server.utils import shorten_key_middle
 
@@ -183,15 +186,16 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
     if model_endpoint_type == "openai" or model_endpoint_type == "azure":
         # Get the model list from the openai / azure endpoint
         hardcoded_model_options = ["gpt-4", "gpt-4-32k", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
-        fetched_model_options = None
+        fetched_model_options = []
         try:
             if model_endpoint_type == "openai":
-                fetched_model_options = openai_get_model_list(url=model_endpoint, api_key=credentials.openai_key)
+                fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=credentials.openai_key)
             elif model_endpoint_type == "azure":
-                fetched_model_options = azure_openai_get_model_list(
+                assert credentials.azure_version is not None, f"Missing azure_version"
+                fetched_model_options_response = azure_openai_get_model_list(
                     url=model_endpoint, api_key=credentials.azure_key, api_version=credentials.azure_version
                 )
-            fetched_model_options = [obj["id"] for obj in fetched_model_options["data"] if obj["id"].startswith("gpt-")]
+            fetched_model_options = [obj["id"] for obj in fetched_model_options_response["data"] if obj["id"].startswith("gpt-")]
         except:
             # NOTE: if this fails, it means the user's key is probably bad
             typer.secho(
@@ -345,30 +349,30 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
             str(2**18),  # 262144
             "custom",  # enter yourself
         ]
-        context_window = questionary.select(
+        context_window_input = questionary.select(
             "Select your model's context window (for Mistral 7B models, this is probably 8k / 8192):",
             choices=context_length_options,
             default=str(LLM_MAX_TOKENS["DEFAULT"]),
         ).ask()
-        if context_window is None:
+        if context_window_input is None:
             raise KeyboardInterrupt
 
         # If custom, ask for input
-        if context_window == "custom":
+        if context_window_input == "custom":
             while True:
-                context_window = questionary.text("Enter context window (e.g. 8192)").ask()
-                if context_window is None:
+                context_window_input = questionary.text("Enter context window (e.g. 8192)").ask()
+                if context_window_input is None:
                     raise KeyboardInterrupt
                 try:
-                    context_window = int(context_window)
+                    context_window = int(context_window_input)
                     break
                 except ValueError:
                     print(f"Context window must be a valid integer")
         else:
-            context_window = int(context_window)
+            context_window = int(context_window_input)
     else:
         # Pull the context length from the models
-        context_window = LLM_MAX_TOKENS[model]
+        context_window = int(LLM_MAX_TOKENS[str(model)])
     return model, model_wrapper, context_window
 
 
@@ -578,8 +582,8 @@ def configure():
         model, model_wrapper, context_window = configure_model(
             config=config,
             credentials=credentials,
-            model_endpoint_type=model_endpoint_type,
-            model_endpoint=model_endpoint,
+            model_endpoint_type=str(model_endpoint_type),
+            model_endpoint=str(model_endpoint),
         )
         embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = configure_embedding_endpoint(
             config=config,
@@ -623,7 +627,6 @@ def configure():
         preset=default_preset,
         persona=default_persona,
         human=default_human,
-        agent=default_agent,
         # storage
         archival_storage_type=archival_storage_type,
         archival_storage_uri=archival_storage_uri,
@@ -673,7 +676,10 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         table.field_names = ["Name", "LLM Model", "Embedding Model", "Embedding Dim", "Persona", "Human", "Data Source", "Create Time"]
         for agent in tqdm(ms.list_agents(user_id=user_id)):
             source_ids = ms.list_attached_sources(agent_id=agent.id)
-            source_names = [ms.get_source(source_id=source_id).name for source_id in source_ids]
+            assert all([source_id is not None and isinstance(source_id, uuid.UUID) for source_id in source_ids])
+            sources = [ms.get_source(source_id=source_id) for source_id in source_ids]
+            assert all([source is not None and isinstance(source, Source)] for source in sources)
+            source_names = [source.name for source in sources if source is not None]
             table.add_row(
                 [
                     agent.name,
@@ -720,7 +726,8 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         for source in ms.list_sources(user_id=user_id):
             # get attached agents
             agent_ids = ms.list_attached_agents(source_id=source.id)
-            agent_names = [ms.get_agent(agent_id=agent_id).name for agent_id in agent_ids]
+            agent_states = [ms.get_agent(agent_id=agent_id) for agent_id in agent_ids]
+            agent_names = [agent_state.name for agent_state in agent_states if agent_state is not None]
 
             table.add_row(
                 [source.name, source.embedding_model, source.embedding_dim, utils.format_datetime(source.created_at), ",".join(agent_names)]
@@ -772,6 +779,7 @@ def delete(option: str, name: str):
         if option == "source":
             # delete metadata
             source = ms.get_source(source_name=name, user_id=user_id)
+            assert source is not None, f"Source {name} does not exist"
             ms.delete_source(source_id=source.id)
 
             # delete from passages
@@ -785,6 +793,7 @@ def delete(option: str, name: str):
             # TODO: should we also delete from agents?
         elif option == "agent":
             agent = ms.get_agent(agent_name=name, user_id=user_id)
+            assert agent is not None, f"Agent {name} for user_id {user_id} does not exist"
 
             # recall memory
             recall_conn = StorageConnector.get_storage_connector(TableType.RECALL_MEMORY, config, user_id=user_id, agent_id=agent.id)
