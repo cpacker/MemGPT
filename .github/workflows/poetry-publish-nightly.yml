@@ -52,8 +52,8 @@ jobs:
 
       - name: Configure poetry
         env:
-          PYPI_NIGHTLY_TOKEN: ${{ secrets.PYPI_NIGHTLY_TOKEN }}
-        run: poetry config pypi-token.pypi "$PYPI_NIGHTLY_TOKEN"
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN}}
+        run: poetry config pypi-token.pypi "$PYPI_TOKEN"
 
       - name: Build the Python package
         run: poetry build
