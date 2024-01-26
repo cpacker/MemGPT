@@ -51,7 +51,9 @@ class CommonUUID(TypeDecorator):
         else:
             return uuid.UUID(value)
 
+
 import base64
+
 
 class CommonVector(TypeDecorator):
     """Common type for representing vectors in SQLite"""
@@ -75,7 +77,7 @@ class CommonVector(TypeDecorator):
         if not value:
             return value
         # Check database type and deserialize accordingly
-        if dialect.name == 'sqlite':
+        if dialect.name == "sqlite":
             # Decode from base64 and convert back to numpy array
             value = base64.b64decode(value)
         # For PostgreSQL, value is already in bytes
