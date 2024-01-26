@@ -74,12 +74,17 @@ class CommonVector(TypeDecorator):
         if not value:
             return value
 
-        if isinstance(value, str):
-            # Convert the string of floats to a numpy array
-            # Split the string by commas, convert each part to a float, and then create a numpy array
-            value = np.array([float(x) for x in value.strip("[]").split(",")])
+        # Convert value to string if it's bytes
+        if isinstance(value, bytes):
+            value = value.decode()
 
-        return value
+        # Convert string representation of list to numpy array
+        try:
+            # Remove brackets and split by comma, then convert each element to float
+            float_values = [float(x.strip()) for x in value.strip("[]").split(",")]
+            return np.array(float_values)
+        except ValueError as e:
+            raise ValueError(f"Could not convert database value to numpy array: {e}")
 
 
 # Custom serialization / de-serialization for JSON columns
