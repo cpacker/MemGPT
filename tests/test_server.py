@@ -1,6 +1,7 @@
 import uuid
 import os
 import memgpt.utils as utils
+from dotenv import load_dotenv
 
 utils.DEBUG = True
 from memgpt.config import MemGPTConfig
@@ -12,13 +13,17 @@ from .utils import wipe_config, wipe_memgpt_home
 
 
 def test_server():
+    load_dotenv()
     wipe_memgpt_home()
+    
+    # Use os.getenv with a fallback to os.environ.get
+    db_url = os.getenv("PGVECTOR_TEST_DB_URL") or os.environ.get("PGVECTOR_TEST_DB_URL")
 
     if os.getenv("OPENAI_API_KEY"):
         config = MemGPTConfig(
-            archival_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
-            recall_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
-            metadata_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
+            archival_storage_uri=db_url,
+            recall_storage_uri=db_url,
+            metadata_storage_uri=db_url,
             archival_storage_type="postgres",
             recall_storage_type="postgres",
             metadata_storage_type="postgres",
@@ -40,9 +45,9 @@ def test_server():
         )
     else:  # hosted
         config = MemGPTConfig(
-            archival_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
-            recall_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
-            metadata_storage_uri=os.getenv("PGVECTOR_TEST_DB_URL"),
+            archival_storage_uri=db_url,
+            recall_storage_uri=db_url,
+            metadata_storage_uri=db_url,
             archival_storage_type="postgres",
             recall_storage_type="postgres",
             metadata_storage_type="postgres",
@@ -61,6 +66,7 @@ def test_server():
             ),
         )
         credentials = MemGPTCredentials()
+
     config.save()
     credentials.save()
 

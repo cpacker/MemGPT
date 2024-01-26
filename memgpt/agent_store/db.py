@@ -62,17 +62,24 @@ class CommonVector(TypeDecorator):
         return dialect.type_descriptor(BINARY())
 
     def process_bind_param(self, value, dialect):
-        if value:
-            assert isinstance(value, np.ndarray) or isinstance(value, list), f"Value must be of type np.ndarray or list, got {type(value)}"
-            assert isinstance(value[0], float), f"Value must be of type float, got {type(value[0])}"
-            return np.array(value).tobytes()
-        else:
-            return value
+        if value is not None:
+            assert isinstance(value, (np.ndarray, list)), f"Value must be an np.ndarray or list, got {type(value)}"
+            if isinstance(value, list):
+                value = np.array(value)
+            assert np.issubdtype(value.dtype, np.floating), f"Array elements must be floats, got {value.dtype}"
+            return value.tobytes()
+        return value
 
     def process_result_value(self, value, dialect):
         if not value:
             return value
-        return np.frombuffer(value)
+
+        if isinstance(value, str):
+            # Convert the string of floats to a numpy array
+            # Split the string by commas, convert each part to a float, and then create a numpy array
+            value = np.array([float(x) for x in value.strip("[]").split(",")])
+
+        return value
 
 
 # Custom serialization / de-serialization for JSON columns
