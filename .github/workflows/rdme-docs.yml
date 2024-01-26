@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repo 📚
+        if: github.repository == 'cpacker/MemGPT'  # TODO: if the repo org ever changes, this must be updated
         uses: actions/checkout@v4
 
       - name: Run `docs` command 🚀
