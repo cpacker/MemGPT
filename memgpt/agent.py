@@ -685,7 +685,7 @@ class Agent(object):
                 printd(f"step() failed with an unrecognized exception: '{str(e)}'")
                 raise e
 
-    def summarize_messages_inplace(self, cutoff=None, preserve_last_N_messages=True):
+    def summarize_messages_inplace(self, cutoff=None, preserve_last_N_messages=True, disallow_tool_as_first=True):
         assert self.messages[0]["role"] == "system", f"self.messages[0] should be system (instead got {self.messages[0]})"
 
         # Start at index 1 (past the system message),
@@ -696,9 +696,20 @@ class Agent(object):
         desired_token_count_to_summarize = int(message_buffer_token_count * MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC)
         candidate_messages_to_summarize = self.messages[1:]
         token_counts = token_counts[1:]
+
         if preserve_last_N_messages:
             candidate_messages_to_summarize = candidate_messages_to_summarize[:-MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST]
             token_counts = token_counts[:-MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST]
+
+        if disallow_tool_as_first:
+            # We have to make sure that a "tool" call is not sitting at the front (after system message),
+            # otherwise we'll get an error from OpenAI (if using the OpenAI API)
+            while len(candidate_messages_to_summarize) > 0:
+                if candidate_messages_to_summarize[0]['role'] == 'tool':
+                    candidate_messages_to_summarize.pop(0)
+                else:
+                    break
+
         printd(f"MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC={MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC}")
         printd(f"MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST={MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST}")
         printd(f"token_counts={token_counts}")
