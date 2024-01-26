@@ -52,9 +52,6 @@ class CommonUUID(TypeDecorator):
             return uuid.UUID(value)
 
 
-import base64
-
-
 class CommonVector(TypeDecorator):
     """Common type for representing vectors in SQLite"""
 
