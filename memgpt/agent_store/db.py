@@ -51,6 +51,7 @@ class CommonUUID(TypeDecorator):
         else:
             return uuid.UUID(value)
 
+import base64
 
 class CommonVector(TypeDecorator):
     """Common type for representing vectors in SQLite"""
@@ -62,29 +63,23 @@ class CommonVector(TypeDecorator):
         return dialect.type_descriptor(BINARY())
 
     def process_bind_param(self, value, dialect):
-        if value is not None:
-            assert isinstance(value, (np.ndarray, list)), f"Value must be an np.ndarray or list, got {type(value)}"
-            if isinstance(value, list):
-                value = np.array(value)
-            assert np.issubdtype(value.dtype, np.floating), f"Array elements must be floats, got {value.dtype}"
-            return value.tobytes()
-        return value
+        if value is None:
+            return value
+        # Ensure value is a numpy array
+        if isinstance(value, list):
+            value = np.array(value, dtype=np.float32)
+        # Serialize numpy array to bytes, then encode to base64 for universal compatibility
+        return base64.b64encode(value.tobytes())
 
     def process_result_value(self, value, dialect):
         if not value:
             return value
-
-        # Convert value to string if it's bytes
-        if isinstance(value, bytes):
-            value = value.decode()
-
-        # Convert string representation of list to numpy array
-        try:
-            # Remove brackets and split by comma, then convert each element to float
-            float_values = [float(x.strip()) for x in value.strip("[]").split(",")]
-            return np.array(float_values)
-        except ValueError as e:
-            raise ValueError(f"Could not convert database value to numpy array: {e}")
+        # Check database type and deserialize accordingly
+        if dialect.name == 'sqlite':
+            # Decode from base64 and convert back to numpy array
+            value = base64.b64decode(value)
+        # For PostgreSQL, value is already in bytes
+        return np.frombuffer(value, dtype=np.float32)
 
 
 # Custom serialization / de-serialization for JSON columns
