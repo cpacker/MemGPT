@@ -29,6 +29,7 @@ To run the Postgres backend, you will need a URI to a Postgres database that sup
 1. [Install Docker](https://docs.docker.com/get-docker/)
 
 2. Give the `run_postgres.sh` script permissions to execute:
+
   ```sh
   chmod +x db/run_postgres.sh
   ```
@@ -46,11 +47,11 @@ To run the Postgres backend, you will need a URI to a Postgres database that sup
       PGVECTOR_TEST_DB_URL=postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
       ```
 
-  4. Run the script from the root project directory:
+4. Run the script from the root project directory:
      
-    ```sh
-    bash db/run_postgres.sh
-    ```
+  ```sh
+  bash db/run_postgres.sh
+  ```
 
 Note: You can either use a [hosted provider](https://github.com/pgvector/pgvector/issues/54) or [install pgvector](https://github.com/pgvector/pgvector#installation). You do not need to do this manually if you use our Docker container, however.
 
