@@ -396,6 +396,10 @@ def create(
     # TODO eventually refactor so that credentials are passed through
     credentials = MemGPTCredentials.load()
 
+    if function_call and not functions:
+        printd("unsetting function_call because functions is None")
+        function_call = None
+
     # openai
     if agent_state.llm_config.model_endpoint_type == "openai":
         # TODO do the same for Azure?
@@ -405,7 +409,7 @@ def create(
             data = dict(
                 model=agent_state.llm_config.model,
                 messages=messages,
-                tools=[{"type": "function", "function": f} for f in functions],
+                tools=[{"type": "function", "function": f} for f in functions] if functions else None,
                 tool_choice=function_call,
                 user=str(agent_state.user_id),
             )
@@ -435,7 +439,7 @@ def create(
                 # NOTE: don't pass model to Azure calls, that is the deployment_id
                 # model=agent_config.model,
                 messages=messages,
-                tools=[{"type": "function", "function": f} for f in functions],
+                tools=[{"type": "function", "function": f} for f in functions] if functions else None,
                 tool_choice=function_call,
                 user=str(agent_state.user_id),
             )

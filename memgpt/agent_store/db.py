@@ -21,8 +21,8 @@ from memgpt.config import MemGPTConfig
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.utils import printd
+from memgpt.data_types import Record, Message, Passage, ToolCall, RecordType
 from memgpt.constants import MAX_EMBEDDING_DIM
-from memgpt.data_types import Record, Message, Passage, ToolCall
 from memgpt.metadata import MetadataStore
 
 from datetime import datetime
@@ -252,11 +252,12 @@ class SQLStorageConnector(StorageConnector):
         all_filters = [getattr(self.db_model, key) == value for key, value in filter_conditions.items()]
         return all_filters
 
-    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000, offset=0) -> Iterator[List[Record]]:
+    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000, offset=0) -> Iterator[List[RecordType]]:
         filters = self.get_filters(filters)
         while True:
             # Retrieve a chunk of records with the given page_size
-            db_record_chunk = self.session.query(self.db_model).filter(*filters).offset(offset).limit(page_size).all()
+            with self.session_maker() as session:
+                db_record_chunk = session.query(self.db_model).filter(*filters).offset(offset).limit(page_size).all()
 
             # If the chunk is empty, we've retrieved all records
             if not db_record_chunk:
@@ -281,35 +282,36 @@ class SQLStorageConnector(StorageConnector):
         filters = self.get_filters(filters)
 
         # generate query
-        query = self.session.query(self.db_model).filter(*filters)
-        # query = query.order_by(asc(self.db_model.id))
+        with self.session_maker() as session:
+            query = session.query(self.db_model).filter(*filters)
+            # query = query.order_by(asc(self.db_model.id))
 
-        # records are sorted by the order_by field first, and then by the ID if two fields are the same
-        if reverse:
-            query = query.order_by(desc(getattr(self.db_model, order_by)), asc(self.db_model.id))
-        else:
-            query = query.order_by(asc(getattr(self.db_model, order_by)), asc(self.db_model.id))
-
-        # cursor logic: filter records based on before/after ID
-        if after:
-            after_value = getattr(self.get(id=after), order_by)
-            if reverse:  # if reverse, then we want to get records that are less than the after_value
-                sort_exp = getattr(self.db_model, order_by) < after_value
-            else:  # otherwise, we want to get records that are greater than the after_value
-                sort_exp = getattr(self.db_model, order_by) > after_value
-            query = query.filter(
-                or_(sort_exp, and_(getattr(self.db_model, order_by) == after_value, self.db_model.id > after))  # tiebreaker case
-            )
-        if before:
-            before_value = getattr(self.get(id=before), order_by)
+            # records are sorted by the order_by field first, and then by the ID if two fields are the same
             if reverse:
-                sort_exp = getattr(self.db_model, order_by) > before_value
+                query = query.order_by(desc(getattr(self.db_model, order_by)), asc(self.db_model.id))
             else:
-                sort_exp = getattr(self.db_model, order_by) < before_value
-            query = query.filter(or_(sort_exp, and_(getattr(self.db_model, order_by) == before_value, self.db_model.id < before)))
+                query = query.order_by(asc(getattr(self.db_model, order_by)), asc(self.db_model.id))
 
-        # get records
-        db_record_chunk = query.limit(limit).all()
+            # cursor logic: filter records based on before/after ID
+            if after:
+                after_value = getattr(self.get(id=after), order_by)
+                if reverse:  # if reverse, then we want to get records that are less than the after_value
+                    sort_exp = getattr(self.db_model, order_by) < after_value
+                else:  # otherwise, we want to get records that are greater than the after_value
+                    sort_exp = getattr(self.db_model, order_by) > after_value
+                query = query.filter(
+                    or_(sort_exp, and_(getattr(self.db_model, order_by) == after_value, self.db_model.id > after))  # tiebreaker case
+                )
+            if before:
+                before_value = getattr(self.get(id=before), order_by)
+                if reverse:
+                    sort_exp = getattr(self.db_model, order_by) > before_value
+                else:
+                    sort_exp = getattr(self.db_model, order_by) < before_value
+                query = query.filter(or_(sort_exp, and_(getattr(self.db_model, order_by) == before_value, self.db_model.id < before)))
+
+            # get records
+            db_record_chunk = query.limit(limit).all()
         if not db_record_chunk:
             return None
         records = [record.to_record() for record in db_record_chunk]
@@ -319,16 +321,18 @@ class SQLStorageConnector(StorageConnector):
         # return (cursor, list[records])
         return (next_cursor, records)
 
-    def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[Record]:
+    def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[RecordType]:
         filters = self.get_filters(filters)
-        if limit:
-            db_records = self.session.query(self.db_model).filter(*filters).limit(limit).all()
-        else:
-            db_records = self.session.query(self.db_model).filter(*filters).all()
+        with self.session_maker() as session:
+            if limit:
+                db_records = session.query(self.db_model).filter(*filters).limit(limit).all()
+            else:
+                db_records = session.query(self.db_model).filter(*filters).all()
         return [record.to_record() for record in db_records]
 
     def get(self, id: uuid.UUID) -> Optional[Record]:
-        db_record = self.session.get(self.db_model, id)
+        with self.session_maker() as session:
+            db_record = session.get(self.db_model, id)
         if db_record is None:
             return None
         return db_record.to_record()
@@ -336,21 +340,24 @@ class SQLStorageConnector(StorageConnector):
     def size(self, filters: Optional[Dict] = {}) -> int:
         # return size of table
         filters = self.get_filters(filters)
-        return self.session.query(self.db_model).filter(*filters).count()
+        with self.session_maker() as session:
+            return session.query(self.db_model).filter(*filters).count()
 
     def insert(self, record: Record):
         db_record = self.db_model(**vars(record))
-        self.session.add(db_record)
-        self.session.commit()
+        with self.session_maker() as session:
+            session.add(db_record)
+            session.commit()
 
-    def insert_many(self, records: List[Record], show_progress=False):
+    def insert_many(self, records: List[RecordType], show_progress=False):
         iterable = tqdm(records) if show_progress else records
-        for record in iterable:
-            db_record = self.db_model(**vars(record))
-            self.session.add(db_record)
-        self.session.commit()
+        with self.session_maker() as session:
+            for record in iterable:
+                db_record = self.db_model(**vars(record))
+                session.add(db_record)
+            session.commit()
 
-    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         raise NotImplementedError("Vector query not implemented for SQLStorageConnector")
 
     def save(self):
@@ -358,47 +365,53 @@ class SQLStorageConnector(StorageConnector):
 
     def list_data_sources(self):
         assert self.table_type == TableType.ARCHIVAL_MEMORY, f"list_data_sources only implemented for ARCHIVAL_MEMORY"
-        unique_data_sources = self.session.query(self.db_model.data_source).filter(*self.filters).distinct().all()
+        with self.session_maker() as session:
+            unique_data_sources = session.query(self.db_model.data_source).filter(*self.filters).distinct().all()
         return unique_data_sources
 
     def query_date(self, start_date, end_date, offset=0, limit=None):
         filters = self.get_filters({})
-        query = (
-            self.session.query(self.db_model)
-            .filter(*filters)
-            .filter(self.db_model.created_at >= start_date)
-            .filter(self.db_model.created_at <= end_date)
-            .offset(offset)
-        )
-        if limit:
-            query = query.limit(limit)
-        results = query.all()
+        with self.session_maker() as session:
+            query = (
+                session.query(self.db_model)
+                .filter(*filters)
+                .filter(self.db_model.created_at >= start_date)
+                .filter(self.db_model.created_at <= end_date)
+                .offset(offset)
+            )
+            if limit:
+                query = query.limit(limit)
+            results = query.all()
         return [result.to_record() for result in results]
 
     def query_text(self, query, offset=0, limit=None):
         # todo: make fuzz https://stackoverflow.com/questions/42388956/create-a-full-text-search-index-with-sqlalchemy-on-postgresql/42390204#42390204
         filters = self.get_filters({})
-        query = (
-            self.session.query(self.db_model)
-            .filter(*filters)
-            .filter(func.lower(self.db_model.text).contains(func.lower(query)))
-            .offset(offset)
-        )
-        if limit:
-            query = query.limit(limit)
-        results = query.all()
+        with self.session_maker() as session:
+            query = (
+                session.query(self.db_model)
+                .filter(*filters)
+                .filter(func.lower(self.db_model.text).contains(func.lower(query)))
+                .offset(offset)
+            )
+            if limit:
+                query = query.limit(limit)
+            results = query.all()
         # return [self.type(**vars(result)) for result in results]
         return [result.to_record() for result in results]
 
+    # Should be used only in tests!
     def delete_table(self):
         close_all_sessions()
-        self.db_model.__table__.drop(self.session.bind)
-        self.session.commit()
+        with self.session_maker() as session:
+            self.db_model.__table__.drop(session.bind)
+            session.commit()
 
     def delete(self, filters: Optional[Dict] = {}):
         filters = self.get_filters(filters)
-        self.session.query(self.db_model).filter(*filters).delete()
-        self.session.commit()
+        with self.session_maker() as session:
+            session.query(self.db_model).filter(*filters).delete()
+            session.commit()
 
 
 class PostgresStorageConnector(SQLStorageConnector):
@@ -420,10 +433,6 @@ class PostgresStorageConnector(SQLStorageConnector):
             self.uri = self.config.recall_storage_uri
             if self.config.recall_storage_uri is None:
                 raise ValueError(f"Must specifiy recall_storage_uri in config {self.config.config_path}")
-        elif table_type == TableType.DATA_SOURCES:
-            self.uri = self.config.metadata_storage_uri
-            if self.config.metadata_storage_uri is None:
-                raise ValueError(f"Must specifiy metadata_storage_uri in config {self.config.config_path}")
         else:
             raise ValueError(f"Table type {table_type} not implemented")
         # create table
@@ -435,15 +444,16 @@ class PostgresStorageConnector(SQLStorageConnector):
 
         Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
 
-        session_maker = sessionmaker(bind=self.engine)
-        self.session = session_maker()
-        self.session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
+        self.session_maker = sessionmaker(bind=self.engine)
+        with self.session_maker() as session:
+            session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
 
-    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         filters = self.get_filters(filters)
-        results = self.session.scalars(
-            select(self.db_model).filter(*filters).order_by(self.db_model.embedding.l2_distance(query_vec)).limit(top_k)
-        ).all()
+        with self.session_maker() as session:
+            results = session.scalars(
+                select(self.db_model).filter(*filters).order_by(self.db_model.embedding.l2_distance(query_vec)).limit(top_k)
+            ).all()
 
         # Convert the results into Passage objects
         records = [result.to_record() for result in results]
@@ -465,14 +475,13 @@ class SQLLiteStorageConnector(SQLStorageConnector):
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 
-        self.path = os.path.join(self.path, f"{self.table_name}.db")
+        self.path = os.path.join(self.path, f"sqlite.db")
 
         # Create the SQLAlchemy engine
         self.db_model = get_db_model(config, self.table_name, table_type, user_id, agent_id, dialect="sqlite")
         self.engine = create_engine(f"sqlite:///{self.path}")
         Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
-        session_maker = sessionmaker(bind=self.engine)
-        self.session = session_maker()
+        self.session_maker = sessionmaker(bind=self.engine)
 
         import sqlite3
 

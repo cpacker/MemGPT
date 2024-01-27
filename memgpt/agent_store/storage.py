@@ -2,10 +2,11 @@
 
 We originally tried to use Llama Index VectorIndex, but their limited API was extremely problematic.
 """
-from typing import Any, Optional, List, Iterator
+from typing import Any, Optional, List, Iterator, Union, Tuple, Type
 import re
 import pickle
 import os
+import uuid
 from abc import abstractmethod
 
 from typing import List, Optional, Dict
@@ -13,7 +14,7 @@ from tqdm import tqdm
 
 
 from memgpt.config import MemGPTConfig
-from memgpt.data_types import Record, Passage, Document, Message, Source
+from memgpt.data_types import Record, Passage, Document, Message, Source, RecordType
 from memgpt.utils import printd
 
 
@@ -40,7 +41,15 @@ DOCUMENT_TABLE_NAME = "memgpt_documents"  # original documents (from source)
 class StorageConnector:
     """Defines a DB connection that is user-specific to access data: Documents, Passages, Archival/Recall Memory"""
 
-    def __init__(self, table_type: TableType, config: MemGPTConfig, user_id, agent_id=None):
+    type: Type[Record]
+
+    def __init__(
+        self,
+        table_type: Union[TableType.ARCHIVAL_MEMORY, TableType.RECALL_MEMORY, TableType.PASSAGES, TableType.DOCUMENTS],
+        config: MemGPTConfig,
+        user_id,
+        agent_id=None,
+    ):
         self.user_id = user_id
         self.agent_id = agent_id
         self.table_type = table_type
@@ -74,16 +83,13 @@ class StorageConnector:
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 
-    def get_filters(self, filters: Optional[Dict] = {}):
-        # get all filters for query
-        if filters is not None:
-            filter_conditions = {**self.filters, **filters}
-        else:
-            filter_conditions = self.filters
-        return filter_conditions
-
     @staticmethod
-    def get_storage_connector(table_type: TableType, config: MemGPTConfig, user_id, agent_id=None):
+    def get_storage_connector(
+        table_type: Union[TableType.ARCHIVAL_MEMORY, TableType.RECALL_MEMORY, TableType.PASSAGES, TableType.DOCUMENTS],
+        config: MemGPTConfig,
+        user_id,
+        agent_id=None,
+    ):
         if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
             storage_type = config.archival_storage_type
         elif table_type == TableType.RECALL_MEMORY:
@@ -125,19 +131,19 @@ class StorageConnector:
         return StorageConnector.get_storage_connector(TableType.RECALL_MEMORY, config, user_id, agent_id)
 
     @abstractmethod
-    def get_filters(self, filters: Optional[Dict] = {}):
+    def get_filters(self, filters: Optional[Dict] = {}) -> Union[Tuple[list, dict], dict]:
         pass
 
     @abstractmethod
-    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000) -> Iterator[List[Record]]:
+    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: int = 1000) -> Iterator[List[RecordType]]:
         pass
 
     @abstractmethod
-    def get_all(self, filters: Optional[Dict] = {}, limit=10) -> List[Record]:
+    def get_all(self, filters: Optional[Dict] = {}, limit=10) -> List[RecordType]:
         pass
 
     @abstractmethod
-    def get(self, id: str) -> Optional[Record]:
+    def get(self, id: uuid.UUID) -> Optional[RecordType]:
         pass
 
     @abstractmethod
@@ -145,15 +151,15 @@ class StorageConnector:
         pass
 
     @abstractmethod
-    def insert(self, record: Record):
+    def insert(self, record: RecordType):
         pass
 
     @abstractmethod
-    def insert_many(self, records: List[Record], show_progress=False):
+    def insert_many(self, records: List[RecordType], show_progress=False):
         pass
 
     @abstractmethod
-    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         pass
 
     @abstractmethod

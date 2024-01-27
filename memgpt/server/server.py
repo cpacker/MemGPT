@@ -20,37 +20,13 @@ from memgpt.metadata import MetadataStore, save_agent
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
 import memgpt.server.utils as server_utils
-from memgpt.persistence_manager import PersistenceManager, LocalStateManager
 from memgpt.data_types import (
-    Source,
-    Passage,
-    Document,
     User,
     AgentState,
     LLMConfig,
     EmbeddingConfig,
-    Message,
-    ToolCall,
-    LLMConfig,
-    EmbeddingConfig,
-    Message,
-    ToolCall,
 )
-from memgpt.data_types import (
-    Source,
-    Passage,
-    Document,
-    User,
-    AgentState,
-    LLMConfig,
-    EmbeddingConfig,
-    Message,
-    ToolCall,
-    LLMConfig,
-    EmbeddingConfig,
-    Message,
-    ToolCall,
-)
+
 
 # TODO use custom interface
 from memgpt.interface import CLIInterface  # for printing to terminal
@@ -386,24 +362,7 @@ class SyncServer(LockingServer):
             except:
                 raise ValueError(command)
 
-            # TODO: check if agent already has it
-            data_source_options = StorageConnector.list_loaded_data()
-            if len(data_source_options) == 0:
-                raise ValueError('No sources available. You must load a souce with "memgpt load ..." before running /attach.')
-            elif data_source not in data_source_options:
-                raise ValueError(f"Invalid data source name: {data_source} (options={data_source_options})")
-            else:
-                # attach new data
-                attach(memgpt_agent.agent_state.name, data_source)
-
-                # update agent config
-                memgpt_agent.agent_state.attach_data_source(data_source)
-
-                # reload agent with new data source
-                # TODO: maybe make this less ugly...
-                memgpt_agent.persistence_manager.archival_memory.storage = StorageConnector.get_storage_connector(
-                    agent_config=memgpt_agent.agent_state
-                )
+            attach(agent_name=memgpt_agent.agent_state.name, data_source=data_source, user_id=user_id)
 
         elif command.lower() == "dump" or command.lower().startswith("dump "):
             # Check if there's an additional argument that's an integer
@@ -563,9 +522,6 @@ class SyncServer(LockingServer):
 
         user = User(
             id=user_config["id"] if "id" in user_config else None,
-            default_preset=user_config["default_preset"] if "default_preset" in user_config else "memgpt_chat",
-            default_persona=user_config["default_persona"] if "default_persona" in user_config else constants.DEFAULT_PERSONA,
-            default_human=user_config["default_human"] if "default_human" in user_config else constants.DEFAULT_HUMAN,
         )
         self.ms.create_user(user)
         logger.info(f"Created new user from config: {user}")
@@ -601,10 +557,10 @@ class SyncServer(LockingServer):
         agent_state = AgentState(
             user_id=user.id,
             name=agent_config["name"] if "name" in agent_config else utils.create_random_username(),
-            preset=agent_config["preset"] if "preset" in agent_config else user.default_preset,
+            preset=agent_config["preset"] if "preset" in agent_config else self.config.preset,
             # TODO we need to allow passing raw persona/human text via the server request
-            persona=agent_config["persona"] if "persona" in agent_config else user.default_persona,
-            human=agent_config["human"] if "human" in agent_config else user.default_human,
+            persona=agent_config["persona"] if "persona" in agent_config else self.config.persona,
+            human=agent_config["human"] if "human" in agent_config else self.config.human,
             llm_config=agent_config["llm_config"] if "llm_config" in agent_config else self.server_llm_config,
             embedding_config=agent_config["embedding_config"] if "embedding_config" in agent_config else self.server_embedding_config,
         )

@@ -96,9 +96,6 @@ class UserModel(Base):
 
     id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
     # name = Column(String, nullable=False)
-    default_preset = Column(String)
-    default_persona = Column(String)
-    default_human = Column(String)
     default_agent = Column(String)
 
     policies_accepted = Column(Boolean, nullable=False, default=False)
@@ -110,9 +107,6 @@ class UserModel(Base):
         return User(
             id=self.id,
             # name=self.name
-            default_preset=self.default_preset,
-            default_persona=self.default_persona,
-            default_human=self.default_human,
             default_agent=self.default_agent,
             policies_accepted=self.policies_accepted,
         )
@@ -361,13 +355,13 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def list_attached_sources(self, agent_id: uuid.UUID) -> List[Column]:
+    def list_attached_sources(self, agent_id: uuid.UUID) -> List[uuid.UUID]:
         with self.session_maker() as session:
             results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
             return [r.source_id for r in results]
 
     @enforce_types
-    def list_attached_agents(self, source_id: uuid.UUID):
+    def list_attached_agents(self, source_id: uuid.UUID) -> List[uuid.UUID]:
         with self.session_maker() as session:
             results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).all()
             return [r.agent_id for r in results]

@@ -93,9 +93,9 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
     agent = AgentState(
         user_id=user.id,
         name="test_agent",
-        preset=user.default_preset,
-        persona=user.default_persona,
-        human=user.default_human,
+        preset=config.preset,
+        persona=config.persona,
+        human=config.human,
         llm_config=config.default_llm_config,
         embedding_config=embedding_config,
     )
@@ -126,7 +126,8 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
 
     # test: load directory
     print("Loading directory")
-    load_directory(name=name, input_dir=None, input_files=[cache_dir], recursive=False, user_id=user_id)  # cache_dir,
+    # load_directory(name=name, input_dir=None, input_files=[cache_dir], recursive=False, user_id=user_id)  # cache_dir,
+    load_directory(name=name, input_files=[cache_dir], recursive=False, user_id=user_id)  # cache_dir,
 
     # test to see if contained in storage
     print("Querying table...")
@@ -165,7 +166,7 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
 
     # attach data
     print("Attaching data...")
-    attach(agent=agent.name, data_source=name, user_id=user_id)
+    attach(agent_name=agent.name, data_source=name, user_id=user_id)
 
     # test to see if contained in storage
     assert len(passages) == conn.size()

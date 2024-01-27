@@ -776,11 +776,15 @@ def get_local_time(timezone=None):
     return time_str.strip()
 
 
+def get_utc_time() -> datetime:
+    return datetime.now(pytz.utc)
+
+
 def format_datetime(dt):
     return dt.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
 
 
-def parse_json(string):
+def parse_json(string) -> dict:
     """Parse JSON string into JSON with both json and demjson"""
     result = None
     try:
@@ -941,7 +945,7 @@ def get_schema_diff(schema_a, schema_b):
 def validate_date_format(date_str):
     """Validate the given date string in the format 'YYYY-MM-DD'."""
     try:
-        datetime.datetime.strptime(date_str, "%Y-%m-%d")
+        datetime.strptime(date_str, "%Y-%m-%d")
         return True
     except (ValueError, TypeError):
         return False

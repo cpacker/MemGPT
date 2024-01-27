@@ -2,11 +2,11 @@
 import uuid
 from datetime import datetime
 from abc import abstractmethod
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, TypeVar
 import numpy as np
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS, MAX_EMBEDDING_DIM
-from memgpt.utils import get_local_time, format_datetime
+from memgpt.utils import get_local_time, format_datetime, get_utc_time
 from memgpt.models import chat_completion_response
 
 
@@ -23,6 +23,11 @@ class Record:
             self.id = id
 
         assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
+
+
+# This allows type checking to work when you pass a Passage into a function expecting List[Record]
+# (just use List[RecordType] instead)
+RecordType = TypeVar("RecordType", bound="Record")
 
 
 class ToolCall(object):
@@ -64,7 +69,7 @@ class Message(Record):
         text: str,
         model: Optional[str] = None,  # model used to make function call
         name: Optional[str] = None,  # optional participant name
-        created_at: Optional[str] = None,
+        created_at: Optional[datetime] = None,
         tool_calls: Optional[List[ToolCall]] = None,  # list of tool calls requested
         tool_call_id: Optional[str] = None,
         embedding: Optional[np.ndarray] = None,
@@ -77,7 +82,7 @@ class Message(Record):
         self.agent_id = agent_id
         self.text = text
         self.model = model  # model name (e.g. gpt-4)
-        self.created_at = datetime.now().astimezone() if created_at is None else created_at
+        self.created_at = created_at if created_at is not None else datetime.now()
 
         # openai info
         assert role in ["system", "assistant", "user", "tool"]
@@ -401,9 +406,6 @@ class User:
         self,
         # name: str,
         id: Optional[uuid.UUID] = None,
-        default_preset=DEFAULT_PRESET,
-        default_persona=DEFAULT_PERSONA,
-        default_human=DEFAULT_HUMAN,
         default_agent=None,
         # other
         policies_accepted=False,
@@ -414,9 +416,6 @@ class User:
             self.id = id
         assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
 
-        self.default_preset = default_preset
-        self.default_persona = default_persona
-        self.default_human = default_human
         self.default_agent = default_agent
 
         # misc
@@ -441,7 +440,7 @@ class AgentState:
         # messages: List[dict],  # in-context messages
         id: Optional[uuid.UUID] = None,
         state: Optional[dict] = None,
-        created_at: Optional[str] = None,
+        created_at: Optional[datetime] = None,
     ):
         if id is None:
             self.id = uuid.uuid4()
@@ -472,7 +471,7 @@ class Source:
         self,
         user_id: uuid.UUID,
         name: str,
-        created_at: Optional[str] = None,
+        created_at: Optional[datetime] = None,
         id: Optional[uuid.UUID] = None,
         # embedding info
         embedding_model: Optional[str] = None,
@@ -487,7 +486,7 @@ class Source:
 
         self.name = name
         self.user_id = user_id
-        self.created_at = created_at
+        self.created_at = created_at if created_at is not None else datetime.now()
 
         # embedding info (optional)
         self.embedding_dim = embedding_dim

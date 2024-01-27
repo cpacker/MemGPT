@@ -11,7 +11,7 @@ preset_options = list(available_presets.keys())
 
 
 # def create_agent_from_preset(preset_name, agent_config, model, persona, human, interface, persistence_manager):
-def create_agent_from_preset(agent_state: AgentState, interface: AgentInterface):
+def create_agent_from_preset(agent_state: AgentState, interface: AgentInterface, persona_is_file: bool = True, human_is_file: bool = True):
     """Initialize a new agent from a preset (combination of system + function)"""
 
     # Input validation
@@ -25,8 +25,8 @@ def create_agent_from_preset(agent_state: AgentState, interface: AgentInterface)
         raise ValueError(f"'state' must be uninitialized (empty)")
 
     preset_name = agent_state.preset
-    persona_file = agent_state.persona
-    human_file = agent_state.human
+    persona = agent_state.persona
+    human = agent_state.human
     model = agent_state.llm_config.model
 
     from memgpt.agent import Agent
@@ -68,11 +68,12 @@ def create_agent_from_preset(agent_state: AgentState, interface: AgentInterface)
     #   messages: List[dict],  # in-context messages
     system_message_dict = gpt_system.get_system_text(preset_system_prompt)
     agent_state.state = {
-        "persona": get_persona_text(persona_file),
-        "human": get_human_text(human_file),
         "system": system_message_dict.get("system_message"),
         "system_template": system_message_dict.get("template"),
         "system_template_fields": system_message_dict.get("template_fields"),
+        "persona": get_persona_text(persona) if persona_is_file else persona,
+        "human": get_human_text(human) if human_is_file else human,
+        "system": gpt_system.get_system_text(preset_system_prompt),
         "functions": preset_function_set_schemas,
         "messages": None,
     }
