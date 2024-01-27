@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import datetime
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Any
 
 from memgpt.constants import MESSAGE_SUMMARY_WARNING_FRAC
 from memgpt.utils import get_local_time, printd, count_tokens, validate_date_format, extract_date_from_timestamp
@@ -20,7 +20,8 @@ class CoreMemory(object):
     and any other baseline data you deem necessary for the AI's basic functioning.
     """
 
-    def __init__(self, persona=None, human=None, persona_char_limit=None, human_char_limit=None, archival_memory_exists=True):
+    def __init__(self, persona=None, human=None, persona_char_limit=None, human_char_limit=None,
+                 archival_memory_exists=True):
         self.persona = persona
         self.human = human
         self.persona_char_limit = persona_char_limit
@@ -100,9 +101,82 @@ class CoreMemory(object):
             raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
 
 
+class CustomizableCoreMemory(object):
+    """Held in-context inside the system message
+
+    Customizable Core Memory
+    """
+
+    def __init__(self, core_memory_fields: dict[str, Any] = None, memory_field_limits: dict[str, int] = None,
+                 default_limit: int = 150, archival_memory_exists=True):
+        if core_memory_fields is None:
+            core_memory_fields = {}
+        if memory_field_limits is None:
+            memory_field_limits = {}
+
+        self.core_memory_fields = core_memory_fields
+        self.memory_field_limits = memory_field_limits
+        self.default_limit = default_limit
+
+        # affects the error message the AI will see on overflow inserts
+        self.archival_memory_exists = archival_memory_exists
+
+    def __repr__(self) -> str:
+        content = ""
+        for key, value in self.core_memory_fields:
+            content += f"=== {key} ===\n{value}\n"
+        return f"\n### CORE MEMORY ###" + content
+
+    def to_dict(self):
+        return self.core_memory_fields
+
+    @classmethod
+    def load(cls, state):
+        return cls(state["core_memory_fields"])
+
+    def edit(self, field, content):
+        if field in self.core_memory_fields:
+            if field in self.memory_field_limits:
+                if len(content) > self.memory_field_limits[field]:
+                    error_msg = f"Edit failed: Exceeds {self.memory_field_limits[field]} character limit (requested {len(content)})."
+                    if self.archival_memory_exists:
+                        error_msg = f"{error_msg} Consider summarizing existing core memories in 'human' and/or moving lower priority content to archival memory to free up space in core memory, then trying again."
+                    raise ValueError(error_msg)
+            else:
+                if len(content) > self.default_limit:
+                    error_msg = f"Edit failed: Exceeds {self.default_limit} character limit (requested {len(content)})."
+                    if self.archival_memory_exists:
+                        error_msg = f"{error_msg} Consider summarizing existing core memories in 'human' and/or moving lower priority content to archival memory to free up space in core memory, then trying again."
+                    raise ValueError(error_msg)
+            self.core_memory_fields[field] = content
+            return len(content)
+        else:
+            raise KeyError(f'No memory section named {field}!')
+
+    def edit_append(self, field, content, sep="\n"):
+        if field in self.core_memory_fields:
+            new_content = self.core_memory_fields[field] + sep + content
+            return self.edit(field, new_content)
+        else:
+            raise KeyError(f'No memory section named {field}!')
+
+    def edit_replace(self, field, old_content, new_content):
+        if len(old_content) == 0:
+            raise ValueError("old_content cannot be an empty string (must specify old_content to replace)")
+
+        if field in self.core_memory_fields:
+            if old_content in self.core_memory_fields[field]:
+                new_content = self.core_memory_fields[field].replace(old_content, new_content)
+                return self.edit(field, new_content)
+            else:
+                raise ValueError("Content not found in field (make sure to use exact string)")
+        else:
+            raise KeyError(f'No memory section named {field}!')
+
+
 def summarize_messages(
-    agent_state: AgentState,
-    message_sequence_to_summarize,
+        agent_state: AgentState,
+        message_sequence_to_summarize,
 ):
     """Summarize a message sequence using GPT"""
     # we need the context_window
@@ -220,18 +294,19 @@ class DummyRecallMemory(RecallMemory):
             else:
                 other_count += 1
         memory_str = (
-            f"Statistics:"
-            + f"\n{len(self._message_logs)} total messages"
-            + f"\n{system_count} system"
-            + f"\n{user_count} user"
-            + f"\n{assistant_count} assistant"
-            + f"\n{function_count} function"
-            + f"\n{other_count} other"
+                f"Statistics:"
+                + f"\n{len(self._message_logs)} total messages"
+                + f"\n{system_count} system"
+                + f"\n{user_count} user"
+                + f"\n{assistant_count} assistant"
+                + f"\n{function_count} function"
+                + f"\n{other_count} other"
         )
         return f"\n### RECALL MEMORY ###" + f"\n{memory_str}"
 
     def insert(self, message):
-        raise NotImplementedError("This should be handled by the PersistenceManager, recall memory is just a search layer on top")
+        raise NotImplementedError(
+            "This should be handled by the PersistenceManager, recall memory is just a search layer on top")
 
     def text_search(self, query_string, count=None, start=None):
         # in the dummy version, run an (inefficient) case-insensitive match search
@@ -241,13 +316,14 @@ class DummyRecallMemory(RecallMemory):
             f"recall_memory.text_search: searching for {query_string} (c={count}, s={start}) in {len(self._message_logs)} total messages"
         )
         matches = [
-            d for d in message_pool if d["message"]["content"] is not None and query_string.lower() in d["message"]["content"].lower()
+            d for d in message_pool if
+            d["message"]["content"] is not None and query_string.lower() in d["message"]["content"].lower()
         ]
-        printd(f"recall_memory - matches:\n{matches[start:start+count]}")
+        printd(f"recall_memory - matches:\n{matches[start:start + count]}")
 
         # start/count support paging through results
         if start is not None and count is not None:
-            return matches[start : start + count], len(matches)
+            return matches[start: start + count], len(matches)
         elif start is None and count is not None:
             return matches[:count], len(matches)
         elif start is not None and count is None:
@@ -270,14 +346,15 @@ class DummyRecallMemory(RecallMemory):
         matches = [
             d
             for d in message_pool
-            if start_date_dt <= datetime.datetime.strptime(extract_date_from_timestamp(d["timestamp"]), "%Y-%m-%d") <= end_date_dt
+            if start_date_dt <= datetime.datetime.strptime(extract_date_from_timestamp(d["timestamp"]),
+                                                           "%Y-%m-%d") <= end_date_dt
         ]
 
         # start/count support paging through results
         start = int(start) if start is None else start
         count = int(count) if count is None else count
         if start is not None and count is not None:
-            return matches[start : start + count], len(matches)
+            return matches[start: start + count], len(matches)
         elif start is None and count is not None:
             return matches[:count], len(matches)
         elif start is not None and count is None:
@@ -287,7 +364,6 @@ class DummyRecallMemory(RecallMemory):
 
 
 class BaseRecallMemory(RecallMemory):
-
     """Recall memory based on base functions implemented by storage connectors"""
 
     def __init__(self, agent_state, restrict_search_to_summaries=False):
@@ -303,7 +379,8 @@ class BaseRecallMemory(RecallMemory):
         self.embedding_chunk_size = agent_state.embedding_config.embedding_chunk_size
 
         # create storage backend
-        self.storage = StorageConnector.get_recall_storage_connector(user_id=agent_state.user_id, agent_id=agent_state.id)
+        self.storage = StorageConnector.get_recall_storage_connector(user_id=agent_state.user_id,
+                                                                     agent_id=agent_state.id)
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
 
@@ -331,13 +408,13 @@ class BaseRecallMemory(RecallMemory):
         other_count = total - (system_count + user_count + assistant_count + function_count)
 
         memory_str = (
-            f"Statistics:"
-            + f"\n{total} total messages"
-            + f"\n{system_count} system"
-            + f"\n{user_count} user"
-            + f"\n{assistant_count} assistant"
-            + f"\n{function_count} function"
-            + f"\n{other_count} other"
+                f"Statistics:"
+                + f"\n{total} total messages"
+                + f"\n{system_count} system"
+                + f"\n{user_count} user"
+                + f"\n{assistant_count} assistant"
+                + f"\n{function_count} function"
+                + f"\n{other_count} other"
         )
         return f"\n### RECALL MEMORY ###" + f"\n{memory_str}"
 
@@ -375,7 +452,8 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         assert self.embedding_chunk_size, f"Must set {agent_state.embedding_config.embedding_chunk_size}"
 
         # create storage backend
-        self.storage = StorageConnector.get_archival_storage_connector(user_id=agent_state.user_id, agent_id=agent_state.id)
+        self.storage = StorageConnector.get_archival_storage_connector(user_id=agent_state.user_id,
+                                                                       agent_id=agent_state.id)
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
 

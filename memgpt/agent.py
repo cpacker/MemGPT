@@ -6,7 +6,7 @@ import os
 import json
 from pathlib import Path
 import traceback
-from typing import List, Tuple, Optional, cast
+from typing import List, Tuple, Optional, cast, Union
 
 from box import Box
 
