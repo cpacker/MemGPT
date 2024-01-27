@@ -140,13 +140,13 @@ class CustomizableCoreMemory(object):
                 if len(content) > self.memory_field_limits[field]:
                     error_msg = f"Edit failed: Exceeds {self.memory_field_limits[field]} character limit (requested {len(content)})."
                     if self.archival_memory_exists:
-                        error_msg = f"{error_msg} Consider summarizing existing core memories in 'human' and/or moving lower priority content to archival memory to free up space in core memory, then trying again."
+                        error_msg = f"{error_msg} Consider summarizing existing core memories in '{field}' and/or moving lower priority content to archival memory to free up space in core memory, then trying again."
                     raise ValueError(error_msg)
             else:
                 if len(content) > self.default_limit:
                     error_msg = f"Edit failed: Exceeds {self.default_limit} character limit (requested {len(content)})."
                     if self.archival_memory_exists:
-                        error_msg = f"{error_msg} Consider summarizing existing core memories in 'human' and/or moving lower priority content to archival memory to free up space in core memory, then trying again."
+                        error_msg = f"{error_msg} Consider summarizing existing core memories in '{field}' and/or moving lower priority content to archival memory to free up space in core memory, then trying again."
                     raise ValueError(error_msg)
             self.core_memory_fields[field] = content
             return len(content)
