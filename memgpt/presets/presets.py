@@ -60,23 +60,35 @@ def create_agent_from_preset(agent_state: AgentState, interface: AgentInterface,
     preset_function_set_schemas = [f_dict["json_schema"] for f_name, f_dict in preset_function_set.items()]
     printd(f"Available functions:\n", list(preset_function_set.keys()))
 
-    # Override the following in the AgentState:
-    #   persona: str  # the current persona text
-    #   human: str  # the current human text
-    #   system: str,  # system prompt (not required if initializing with a preset)
-    #   functions: dict,  # schema definitions ONLY (function code linked at runtime)
-    #   messages: List[dict],  # in-context messages
-    system_message_dict = gpt_system.get_system_text(preset_system_prompt)
-    agent_state.state = {
-        "system": system_message_dict.get("system_message"),
-        "system_template": system_message_dict.get("template"),
-        "system_template_fields": system_message_dict.get("template_fields"),
-        "persona": get_persona_text(persona) if persona_is_file else persona,
-        "human": get_human_text(human) if human_is_file else human,
-        "system": gpt_system.get_system_text(preset_system_prompt),
-        "functions": preset_function_set_schemas,
-        "messages": None,
-    }
+    if "core_memory_type" in preset and preset["core_memory_type"] == "custom" and "core_memory_file" in preset:
+        system_message_dict = gpt_system.get_system_text(preset_system_prompt)
+        agent_state.state = {
+            "system": system_message_dict.get("system_message"),
+            "system_template": system_message_dict.get("template"),
+            "system_template_fields": system_message_dict.get("template_fields"),
+            "core_memory_type": "custom",
+            "core_memory": available_presets[preset["core_memory_file"]],
+            "functions": preset_function_set_schemas,
+            "messages": None,
+        }
+    else:
+        # Override the following in the AgentState:
+        #   persona: str  # the current persona text
+        #   human: str  # the current human text
+        #   system: str,  # system prompt (not required if initializing with a preset)
+        #   functions: dict,  # schema definitions ONLY (function code linked at runtime)
+        #   messages: List[dict],  # in-context messages
+        system_message_dict = gpt_system.get_system_text(preset_system_prompt)
+        agent_state.state = {
+            "system": system_message_dict.get("system_message"),
+            "system_template": system_message_dict.get("template"),
+            "system_template_fields": system_message_dict.get("template_fields"),
+            "core_memory_type": "default",
+            "persona": get_persona_text(persona) if persona_is_file else persona,
+            "human": get_human_text(human) if human_is_file else human,
+            "functions": preset_function_set_schemas,
+            "messages": None,
+        }
 
     return Agent(
         agent_state=agent_state,

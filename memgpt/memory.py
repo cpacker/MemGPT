@@ -108,17 +108,17 @@ class CustomizableCoreMemory(object):
 
     def __init__(
         self,
-        core_memory_fields: dict[str, Any] = None,
+        core_memory: dict[str, Any] = None,
         memory_field_limits: dict[str, int] = None,
         default_limit: int = 150,
         archival_memory_exists=True,
     ):
-        if core_memory_fields is None:
-            core_memory_fields = {}
+        if core_memory is None:
+            core_memory = {}
         if memory_field_limits is None:
             memory_field_limits = {}
 
-        self.core_memory_fields = core_memory_fields
+        self.core_memory = core_memory
         self.memory_field_limits = memory_field_limits
         self.default_limit = default_limit
 
@@ -127,19 +127,19 @@ class CustomizableCoreMemory(object):
 
     def __repr__(self) -> str:
         content = ""
-        for key, value in self.core_memory_fields:
-            content += f"=== {key} ===\n{value}\n"
-        return f"\n### CORE MEMORY ###" + content
+        for key, value in self.core_memory.items():
+            content += f"=== Section: {key} ===\n{value}\n"
+        return f"Core memory shown below (limited in size, additional information stored in archival / recall memory):\n" + content
 
     def to_dict(self):
-        return self.core_memory_fields
+        return self.core_memory
 
     @classmethod
     def load(cls, state):
-        return cls(state["core_memory_fields"])
+        return cls(state["core_memory"])
 
     def edit(self, field, content):
-        if field in self.core_memory_fields:
+        if field in self.core_memory:
             if field in self.memory_field_limits:
                 if len(content) > self.memory_field_limits[field]:
                     error_msg = f"Edit failed: Exceeds {self.memory_field_limits[field]} character limit (requested {len(content)})."
@@ -152,14 +152,14 @@ class CustomizableCoreMemory(object):
                     if self.archival_memory_exists:
                         error_msg = f"{error_msg} Consider summarizing existing core memories in '{field}' and/or moving lower priority content to archival memory to free up space in core memory, then trying again."
                     raise ValueError(error_msg)
-            self.core_memory_fields[field] = content
+            self.core_memory[field] = content
             return len(content)
         else:
             raise KeyError(f"No memory section named {field}!")
 
     def edit_append(self, field, content, sep="\n"):
-        if field in self.core_memory_fields:
-            new_content = self.core_memory_fields[field] + sep + content
+        if field in self.core_memory:
+            new_content = self.core_memory[field] + sep + content
             return self.edit(field, new_content)
         else:
             raise KeyError(f"No memory section named {field}!")
@@ -168,9 +168,9 @@ class CustomizableCoreMemory(object):
         if len(old_content) == 0:
             raise ValueError("old_content cannot be an empty string (must specify old_content to replace)")
 
-        if field in self.core_memory_fields:
-            if old_content in self.core_memory_fields[field]:
-                new_content = self.core_memory_fields[field].replace(old_content, new_content)
+        if field in self.core_memory:
+            if old_content in self.core_memory[field]:
+                new_content = self.core_memory[field].replace(old_content, new_content)
                 return self.edit(field, new_content)
             else:
                 raise ValueError("Content not found in field (make sure to use exact string)")

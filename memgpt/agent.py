@@ -16,7 +16,7 @@ from memgpt.interface import AgentInterface
 from memgpt.persistence_manager import PersistenceManager, LocalStateManager
 from memgpt.config import MemGPTConfig
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
-from memgpt.memory import CoreMemory as InContextMemory, summarize_messages
+from memgpt.memory import CoreMemory as InContextMemory, summarize_messages, CustomizableCoreMemory
 from memgpt.llm_api_tools import create, is_context_overflow_error
 from memgpt.utils import (
     get_tool_call_id,
@@ -93,6 +93,10 @@ def link_functions(function_schemas):
     return linked_function_set
 
 
+def initialize_custom_memory(core_memory: dict):
+    return CustomizableCoreMemory(core_memory)
+
+
 def initialize_memory(ai_notes, human_notes):
     if ai_notes is None:
         raise ValueError(ai_notes)
@@ -105,22 +109,34 @@ def initialize_memory(ai_notes, human_notes):
 
 
 def construct_system_with_memory(system, memory, memory_edit_timestamp, archival_memory=None, recall_memory=None, include_char_count=True):
-    full_system_message = "\n".join(
-        [
-            system,
-            "\n",
-            f"### Memory [last modified: {memory_edit_timestamp.strip()}]",
-            f"{len(recall_memory) if recall_memory else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
-            f"{len(archival_memory) if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
-            "\nCore memory shown below (limited in size, additional information stored in archival / recall memory):",
-            f'<persona characters="{len(memory.persona)}/{memory.persona_char_limit}">' if include_char_count else "<persona>",
-            memory.persona,
-            "</persona>",
-            f'<human characters="{len(memory.human)}/{memory.human_char_limit}">' if include_char_count else "<human>",
-            memory.human,
-            "</human>",
-        ]
-    )
+    if isinstance(memory, InContextMemory):
+        full_system_message = "\n".join(
+            [
+                system,
+                "\n",
+                f"### Memory [last modified: {memory_edit_timestamp.strip()}]",
+                f"{len(recall_memory) if recall_memory else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
+                f"{len(archival_memory) if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
+                "\nCore memory shown below (limited in size, additional information stored in archival / recall memory):",
+                f'<persona characters="{len(memory.persona)}/{memory.persona_char_limit}">' if include_char_count else "<persona>",
+                memory.persona,
+                "</persona>",
+                f'<human characters="{len(memory.human)}/{memory.human_char_limit}">' if include_char_count else "<human>",
+                memory.human,
+                "</human>",
+            ]
+        )
+    else:
+        full_system_message = "\n".join(
+            [
+                system,
+                "\n",
+                f"### Memory [last modified: {memory_edit_timestamp.strip()}]",
+                f"{len(recall_memory) if recall_memory else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
+                f"{len(archival_memory) if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
+                f"\n{str(memory)}",
+            ]
+        )
     return full_system_message
 
 
@@ -200,13 +216,17 @@ class Agent(object):
         # Link the actual python functions corresponding to the schemas
         self.functions_python = {k: v["python_function"] for k, v in link_functions(function_schemas=self.functions).items()}
         assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
-
-        # Initialize the memory object
-        if "persona" not in agent_state.state:
-            raise ValueError(f"'persona' not found in provided AgentState")
-        if "human" not in agent_state.state:
-            raise ValueError(f"'human' not found in provided AgentState")
-        self.memory = initialize_memory(ai_notes=agent_state.state["persona"], human_notes=agent_state.state["human"])
+        if "core_memory_type" in agent_state.state and agent_state.state["core_memory_type"] == "custom":
+            if "core_memory" not in agent_state.state:
+                raise ValueError(f"'core_memory' not found in provided AgentState")
+            self.memory = initialize_custom_memory(agent_state.state["core_memory"])
+        else:
+            # Initialize the memory object
+            if "persona" not in agent_state.state:
+                raise ValueError(f"'persona' not found in provided AgentState")
+            if "human" not in agent_state.state:
+                raise ValueError(f"'human' not found in provided AgentState")
+            self.memory = initialize_memory(ai_notes=agent_state.state["persona"], human_notes=agent_state.state["human"])
 
         # Interface must implement:
         # - internal_monologue
@@ -957,14 +977,27 @@ class Agent(object):
     #        self.ms.update_agent(agent=new_agent_state)
 
     def update_state(self) -> AgentState:
-        updated_state = {
-            "persona": self.memory.persona,
-            "human": self.memory.human,
-            "system": self.system,
-            "system_template": self.system_template,
-            "functions": self.functions,
-            "messages": [str(msg.id) for msg in self._messages],
-        }
+        if isinstance(self.memory, InContextMemory):
+            updated_state = {
+                "persona": self.memory.persona,
+                "human": self.memory.human,
+                "core_memory_type": "default",
+                "system": self.system,
+                "system_template": self.system_template,
+                "functions": self.functions,
+                "messages": [str(msg.id) for msg in self._messages],
+            }
+        elif isinstance(self.memory, CustomizableCoreMemory):
+            updated_state = {
+                "core_memory": self.memory.core_memory,
+                "core_memory_type": "custom",
+                "system": self.system,
+                "system_template": self.system_template,
+                "functions": self.functions,
+                "messages": [str(msg.id) for msg in self._messages],
+            }
+        else:
+            updated_state = {}
 
         self.agent_state = AgentState(
             name=self.agent_state.name,
