@@ -16,7 +16,7 @@ from memgpt.interface import AgentInterface
 from memgpt.persistence_manager import PersistenceManager, LocalStateManager
 from memgpt.config import MemGPTConfig
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
-from memgpt.memory import CoreMemory as InContextMemory, summarize_messages, CustomizableCoreMemory
+from memgpt.memory import CoreMemory as InContextMemory, summarize_messages, CustomizableCoreMemory as CustomizableInContextMemory
 from memgpt.llm_api_tools import create, is_context_overflow_error
 from memgpt.utils import (
     get_tool_call_id,
@@ -95,7 +95,7 @@ def link_functions(function_schemas):
 
 
 def initialize_custom_memory(core_memory: dict, core_memory_limits: dict):
-    return CustomizableCoreMemory(core_memory, core_memory_limits)
+    return CustomizableInContextMemory(core_memory, core_memory_limits)
 
 
 def initialize_memory(ai_notes, human_notes):
@@ -1033,7 +1033,7 @@ class Agent(object):
                 "functions": self.functions,
                 "messages": [str(msg.id) for msg in self._messages],
             }
-        elif isinstance(self.memory, CustomizableCoreMemory):
+        elif isinstance(self.memory, CustomizableInContextMemory):
             updated_state = {
                 "core_memory": self.memory.core_memory,
                 "core_memory_limits": self.memory.memory_field_limits,
