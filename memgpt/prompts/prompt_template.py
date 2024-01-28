@@ -93,7 +93,11 @@ class PromptTemplate:
         Returns:
             str: The generated prompt.
         """
+        cleaned_fields = {}
+        for key, value in template_fields.items():
+            cleaned_fields[key] = str(value) if not isinstance(value, str) else value
 
+        template_fields = cleaned_fields
         if not remove_empty_template_field:
 
             def replace_placeholder(match):
