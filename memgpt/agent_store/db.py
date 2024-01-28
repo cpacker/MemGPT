@@ -1,4 +1,5 @@
 import os
+import base64
 from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, DateTime
 from sqlalchemy import func, or_, and_
 from sqlalchemy import desc, asc
@@ -62,17 +63,23 @@ class CommonVector(TypeDecorator):
         return dialect.type_descriptor(BINARY())
 
     def process_bind_param(self, value, dialect):
-        if value:
-            assert isinstance(value, np.ndarray) or isinstance(value, list), f"Value must be of type np.ndarray or list, got {type(value)}"
-            assert isinstance(value[0], float), f"Value must be of type float, got {type(value[0])}"
-            return np.array(value).tobytes()
-        else:
+        if value is None:
             return value
+        # Ensure value is a numpy array
+        if isinstance(value, list):
+            value = np.array(value, dtype=np.float32)
+        # Serialize numpy array to bytes, then encode to base64 for universal compatibility
+        return base64.b64encode(value.tobytes())
 
     def process_result_value(self, value, dialect):
         if not value:
             return value
-        return np.frombuffer(value)
+        # Check database type and deserialize accordingly
+        if dialect.name == "sqlite":
+            # Decode from base64 and convert back to numpy array
+            value = base64.b64decode(value)
+        # For PostgreSQL, value is already in bytes
+        return np.frombuffer(value, dtype=np.float32)
 
 
 # Custom serialization / de-serialization for JSON columns
