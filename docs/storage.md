@@ -24,7 +24,36 @@ pip install 'pymemgpt[postgres]'
 
 ### Running Postgres
 
-You will need to have a URI to a Postgres database which support [pgvector](https://github.com/pgvector/pgvector). You can either use a [hosted provider](https://github.com/pgvector/pgvector/issues/54) or [install pgvector](https://github.com/pgvector/pgvector#installation).
+To run the Postgres backend, you will need a URI to a Postgres database that supports [pgvector](https://github.com/pgvector/pgvector). Follow these steps to set up and run your Postgres server easily with Docker:
+
+1. [Install Docker](https://docs.docker.com/get-docker/)
+
+2. Give the `run_postgres.sh` script permissions to execute:
+
+  ```sh
+  chmod +x db/run_postgres.sh
+  ```
+
+3. Configure the environment for `pgvector`. You can either:
+    - Add the following line to your shell profile (e.g., `~/.bashrc`, `~/.zshrc`):
+    
+      ```sh
+      export PGVECTOR_TEST_DB_URL=postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+      ```
+
+    - Or create a `.env` file in the root project directory with:
+    
+      ```sh
+      PGVECTOR_TEST_DB_URL=postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+      ```
+
+4. Run the script from the root project directory:
+     
+  ```sh
+  bash db/run_postgres.sh
+  ```
+
+Note: You can either use a [hosted provider](https://github.com/pgvector/pgvector/issues/54) or [install pgvector](https://github.com/pgvector/pgvector#installation). You do not need to do this manually if you use our Docker container, however.
 
 ## Chroma
 
