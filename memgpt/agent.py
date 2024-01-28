@@ -42,6 +42,7 @@ from memgpt.constants import (
 )
 from .errors import LLMError
 from .functions.functions import USER_FUNCTIONS_DIR, load_all_function_sets
+from .presets.default_templates import default_system_message_layout_template, default_core_memory_section_template
 from .prompts.prompt_template import PromptTemplate
 
 
@@ -93,8 +94,8 @@ def link_functions(function_schemas):
     return linked_function_set
 
 
-def initialize_custom_memory(core_memory: dict):
-    return CustomizableCoreMemory(core_memory)
+def initialize_custom_memory(core_memory: dict, core_memory_limits: dict):
+    return CustomizableCoreMemory(core_memory, core_memory_limits)
 
 
 def initialize_memory(ai_notes, human_notes):
@@ -108,35 +109,60 @@ def initialize_memory(ai_notes, human_notes):
     return memory
 
 
-def construct_system_with_memory(system, memory, memory_edit_timestamp, archival_memory=None, recall_memory=None, include_char_count=True):
+def construct_system_with_memory(
+    system,
+    memory,
+    memory_edit_timestamp,
+    system_message_layout_template,
+    core_memory_section_template,
+    archival_memory=None,
+    recall_memory=None,
+    include_char_count=True,
+):
+    system_template = PromptTemplate.from_string(system_message_layout_template)
+
     if isinstance(memory, InContextMemory):
-        full_system_message = "\n".join(
-            [
-                system,
-                "\n",
-                f"### Memory [last modified: {memory_edit_timestamp.strip()}]",
-                f"{len(recall_memory) if recall_memory else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
-                f"{len(archival_memory) if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
-                "\nCore memory shown below (limited in size, additional information stored in archival / recall memory):",
-                f'<persona characters="{len(memory.persona)}/{memory.persona_char_limit}">' if include_char_count else "<persona>",
-                memory.persona,
-                "</persona>",
-                f'<human characters="{len(memory.human)}/{memory.human_char_limit}">' if include_char_count else "<human>",
-                memory.human,
-                "</human>",
-            ]
+        core_memory_section_template = PromptTemplate.from_string(core_memory_section_template)
+        core_memory_content = (
+            core_memory_section_template.generate_prompt(
+                {
+                    "memory_key": "persona",
+                    "memory_value": memory.persona,
+                    "memory_value_length": len(memory.persona),
+                    "memory_value_limit": memory.persona_char_limit,
+                }
+            )
+            + "\n"
         )
+        core_memory_content += (
+            core_memory_section_template.generate_prompt(
+                {
+                    "memory_key": "human",
+                    "memory_value": memory.human,
+                    "memory_value_length": len(memory.human),
+                    "memory_value_limit": memory.human_char_limit,
+                }
+            )
+            + "\n"
+        )
+        template_fields = {
+            "system": system,
+            "len_recall_memory": len(recall_memory) if recall_memory else 0,
+            "len_archival_memory": len(archival_memory) if archival_memory else 0,
+            "core_memory_content": core_memory_content,
+            "memory_edit_timestamp": memory_edit_timestamp.strip(),
+        }
+        full_system_message = system_template.generate_prompt(template_fields)
     else:
-        full_system_message = "\n".join(
-            [
-                system,
-                "\n",
-                f"### Memory [last modified: {memory_edit_timestamp.strip()}]",
-                f"{len(recall_memory) if recall_memory else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
-                f"{len(archival_memory) if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
-                f"\n{str(memory)}",
-            ]
-        )
+        core_memory_content = memory.get_memory_view(core_memory_section_template)
+        template_fields = {
+            "system": system,
+            "len_recall_memory": f"{len(recall_memory) if recall_memory else 0}",
+            "len_archival_memory": f"{len(archival_memory) if archival_memory else 0}",
+            "core_memory_content": core_memory_content,
+            "memory_edit_timestamp": memory_edit_timestamp.strip(),
+        }
+        full_system_message = system_template.generate_prompt(template_fields)
     return full_system_message
 
 
@@ -144,6 +170,8 @@ def initialize_message_sequence(
     model,
     system,
     memory,
+    system_message_layout_template,
+    core_memory_section_template,
     archival_memory=None,
     recall_memory=None,
     memory_edit_timestamp=None,
@@ -153,7 +181,13 @@ def initialize_message_sequence(
         memory_edit_timestamp = get_local_time()
 
     full_system_message = construct_system_with_memory(
-        system, memory, memory_edit_timestamp, archival_memory=archival_memory, recall_memory=recall_memory
+        system,
+        memory,
+        memory_edit_timestamp,
+        system_message_layout_template,
+        core_memory_section_template,
+        archival_memory=archival_memory,
+        recall_memory=recall_memory,
     )
     first_user_message = get_login_event()  # event letting MemGPT know the user just logged in
 
@@ -205,6 +239,14 @@ class Agent(object):
             self.system_template = ""
         else:
             self.system_template = agent_state.state["system_template"]
+        if "system_message_layout_template" not in agent_state.state:
+            self.system_message_layout_template = default_system_message_layout_template
+        else:
+            self.system_message_layout_template = agent_state.state["system_message_layout_template"]
+        if "core_memory_section_template" not in agent_state.state:
+            self.core_memory_section_template = default_core_memory_section_template
+        else:
+            self.core_memory_section_template = agent_state.state["core_memory_section_template"]
         if "system_template_fields" not in agent_state.state:
             self.system_template_fields = {}
         else:
@@ -219,7 +261,7 @@ class Agent(object):
         if "core_memory_type" in agent_state.state and agent_state.state["core_memory_type"] == "custom":
             if "core_memory" not in agent_state.state:
                 raise ValueError(f"'core_memory' not found in provided AgentState")
-            self.memory = initialize_custom_memory(agent_state.state["core_memory"])
+            self.memory = initialize_custom_memory(agent_state.state["core_memory"], agent_state.state["core_memory_limits"])
         else:
             # Initialize the memory object
             if "persona" not in agent_state.state:
@@ -280,9 +322,7 @@ class Agent(object):
         else:
             # print(f"Agent.__init__ :: creating, state={agent_state.state['messages']}")
             init_messages = initialize_message_sequence(
-                self.model,
-                self.system,
-                self.memory,
+                self.model, self.system, self.memory, self.system_message_layout_template, self.core_memory_section_template
             )
             init_messages_objs = []
             for msg in init_messages:
@@ -844,6 +884,8 @@ class Agent(object):
             self.model,
             self.system,
             self.memory,
+            self.system_message_layout_template,
+            self.core_memory_section_template,
             archival_memory=self.persistence_manager.archival_memory,
             recall_memory=self.persistence_manager.recall_memory,
         )[0]
@@ -877,6 +919,8 @@ class Agent(object):
             self.model,
             template.generate_prompt(self.system_template_fields),
             self.memory,
+            self.system_message_layout_template,
+            self.core_memory_section_template,
             archival_memory=self.persistence_manager.archival_memory,
             recall_memory=self.persistence_manager.recall_memory,
         )[0]
@@ -982,6 +1026,8 @@ class Agent(object):
                 "persona": self.memory.persona,
                 "human": self.memory.human,
                 "core_memory_type": "default",
+                "system_message_layout_template": self.system_message_layout_template,
+                "core_memory_section_template": self.core_memory_section_template,
                 "system": self.system,
                 "system_template": self.system_template,
                 "functions": self.functions,
@@ -990,7 +1036,10 @@ class Agent(object):
         elif isinstance(self.memory, CustomizableCoreMemory):
             updated_state = {
                 "core_memory": self.memory.core_memory,
+                "core_memory_limits": self.memory.memory_field_limits,
                 "core_memory_type": "custom",
+                "system_message_layout_template": self.system_message_layout_template,
+                "core_memory_section_template": self.core_memory_section_template,
                 "system": self.system,
                 "system_template": self.system_template,
                 "functions": self.functions,

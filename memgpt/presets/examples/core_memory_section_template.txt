@@ -1,0 +1,3 @@
+<{memory_key} characters={memory_value_length}/{memory_value_limit}>
+{memory_value}
+</{memory_key}>

@@ -3,6 +3,7 @@ import datetime
 from typing import Optional, List, Tuple, Any
 
 from memgpt.constants import MESSAGE_SUMMARY_WARNING_FRAC
+from memgpt.prompts.prompt_template import PromptTemplate
 from memgpt.utils import get_local_time, printd, count_tokens, validate_date_format, extract_date_from_timestamp
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
 from memgpt.llm_api_tools import create
@@ -121,15 +122,32 @@ class CustomizableCoreMemory(object):
         self.core_memory = core_memory
         self.memory_field_limits = memory_field_limits
         self.default_limit = default_limit
-
         # affects the error message the AI will see on overflow inserts
         self.archival_memory_exists = archival_memory_exists
 
     def __repr__(self) -> str:
+        content = f"\n### CORE MEMORY ###"
+        for key, value in self.core_memory.items():
+            content += f"\n=== {key} ===\n{value}\n"
+        return content
+
+    def get_memory_view(self, core_memory_section_template):
+        template = PromptTemplate.from_string(core_memory_section_template)
         content = ""
         for key, value in self.core_memory.items():
-            content += f"=== Section: {key} ===\n{value}\n"
-        return f"Core memory shown below (limited in size, additional information stored in archival / recall memory):\n" + content
+            limit = self.default_limit if key not in self.memory_field_limits else self.memory_field_limits[key]
+            content += (
+                template.generate_prompt(
+                    {
+                        "memory_key": key,
+                        "memory_value": f"{value}",
+                        "memory_value_length": f"{len(value)}",
+                        "memory_value_limit": f"{limit}",
+                    }
+                )
+                + "\n"
+            )
+        return content
 
     def to_dict(self):
         return self.core_memory
