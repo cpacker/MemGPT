@@ -253,11 +253,20 @@ class CLIInterface(AgentInterface):
                     args = json.loads(msg["function_call"].get("arguments"))
                     CLIInterface.assistant_message(args.get("message"))
                     # assistant_message(content)
+                elif msg.get("tool_calls"):
+                    if content is not None:
+                        CLIInterface.internal_monologue(content)
+                    function_obj = msg["tool_calls"][0].get("function")
+                    if function_obj:
+                        args = json.loads(function_obj.get("arguments"))
+                        CLIInterface.assistant_message(args.get("message"))
                 else:
                     CLIInterface.internal_monologue(content)
             elif role == "user":
                 CLIInterface.user_message(content, dump=dump)
             elif role == "function":
+                CLIInterface.function_message(content, debug=dump)
+            elif role == "tool":
                 CLIInterface.function_message(content, debug=dump)
             else:
                 print(f"Unknown role: {content}")
