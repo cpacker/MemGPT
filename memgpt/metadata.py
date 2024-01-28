@@ -208,8 +208,11 @@ class MetadataStore:
         else:
             raise ValueError(f"Invalid metadata storage type: {config.metadata_storage_type}")
 
-        # TODO: check to see if table(s) need to be greated or not
+        # Ensure valid URI
+        if not self.uri:
+            raise ValueError("Database URI is not provided or is invalid.")
 
+        # Check if tables need to be created
         self.engine = create_engine(self.uri)
         Base.metadata.create_all(
             self.engine, tables=[UserModel.__table__, AgentModel.__table__, SourceModel.__table__, AgentSourceMappingModel.__table__]
