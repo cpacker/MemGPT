@@ -304,7 +304,7 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                         clear_line(strip_ui)
 
                         field_value = questionary.text(
-                            "Enter the template field name:",
+                            "Enter the template field value:",
                             multiline=multiline_input,
                             qmark=">",
                         ).ask()
