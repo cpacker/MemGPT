@@ -6,6 +6,7 @@ import memgpt.local_llm.llm_chat_completion_wrappers.airoboros as airoboros
 import memgpt.local_llm.llm_chat_completion_wrappers.dolphin as dolphin
 import memgpt.local_llm.llm_chat_completion_wrappers.zephyr as zephyr
 import memgpt.local_llm.llm_chat_completion_wrappers.chatml as chatml
+import memgpt.local_llm.llm_chat_completion_wrappers.configurable_wrapper as configurable_wrapper
 
 
 def post_json_auth_request(uri, json_payload, auth_type, auth_key):
@@ -75,6 +76,18 @@ def count_tokens(s: str, model: str = "gpt-4") -> int:
 
 def get_available_wrappers() -> dict:
     return {
+        "experimental-wrapper-neural-chat-grammar-noforce": configurable_wrapper.ConfigurableJSONWrapper(
+            post_prompt="### Assistant:",
+            sys_prompt_start="### System:\n",
+            sys_prompt_end="\n",
+            user_prompt_start="### User:\n",
+            user_prompt_end="\n",
+            assistant_prompt_start="### Assistant:\n",
+            assistant_prompt_end="\n",
+            tool_prompt_start="### User:\n",
+            tool_prompt_end="\n",
+            strip_prompt=True,
+        ),
         # New chatml-based wrappers
         "chatml": chatml.ChatMLInnerMonologueWrapper(),
         "chatml-grammar": chatml.ChatMLInnerMonologueWrapper(),
