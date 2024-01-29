@@ -160,7 +160,7 @@ def quickstart(
                 script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
                 backup_config_path = os.path.join(script_dir, "..", "configs", "memgpt_hosted.json")
                 try:
-                    with open(backup_config_path, "r") as file:
+                    with open(backup_config_path, "r", encoding="utf-8") as file:
                         backup_config = json.load(file)
                     printd("Loaded backup config file successfully.")
                     config_was_modified = set_config_with_dict(backup_config)
@@ -172,7 +172,7 @@ def quickstart(
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
             backup_config_path = os.path.join(script_dir, "..", "configs", "memgpt_hosted.json")
             try:
-                with open(backup_config_path, "r") as file:
+                with open(backup_config_path, "r", encoding="utf-8") as file:
                     backup_config = json.load(file)
                 printd("Loaded config file successfully.")
                 config_was_modified = set_config_with_dict(backup_config)
@@ -209,7 +209,7 @@ def quickstart(
                 script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
                 backup_config_path = os.path.join(script_dir, "..", "configs", "openai.json")
                 try:
-                    with open(backup_config_path, "r") as file:
+                    with open(backup_config_path, "r", encoding="utf-8") as file:
                         backup_config = json.load(file)
                     printd("Loaded backup config file successfully.")
                     config_was_modified = set_config_with_dict(backup_config)
@@ -221,7 +221,7 @@ def quickstart(
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
             backup_config_path = os.path.join(script_dir, "..", "configs", "openai.json")
             try:
-                with open(backup_config_path, "r") as file:
+                with open(backup_config_path, "r", encoding="utf-8") as file:
                     backup_config = json.load(file)
                 printd("Loaded config file successfully.")
                 config_was_modified = set_config_with_dict(backup_config)

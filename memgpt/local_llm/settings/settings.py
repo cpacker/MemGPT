@@ -62,7 +62,7 @@ def get_completions_settings(defaults="simple") -> dict:
         printd(f"No completion settings file '{settings_file}', skipping...")
         # Create the file settings_file to make it easy for the user to edit
         try:
-            with open(settings_file, "w") as file:
+            with open(settings_file, "w", encoding="utf-8") as file:
                 # We don't want to dump existing default settings in case we modify
                 # the default settings in the future
                 # json.dump(settings, file, indent=4)

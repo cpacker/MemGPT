@@ -113,7 +113,7 @@ def agent_is_migrateable(agent_name: str, data_dir: str = MEMGPT_DIR) -> bool:
         raise ValueError(f"Agent folder {agent_folder} does not have a config file")
 
     try:
-        with open(agent_config_file, "r") as fh:
+        with open(agent_config_file, "r", encoding="utf-8") as fh:
             agent_config = json.load(fh)
     except Exception as e:
         raise ValueError(f"Failed to load agent config file ({agent_config_file}), error = {e}")
@@ -265,7 +265,7 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Meta
     # manager.recall_memory = data["recall_memory"]
 
     agent_config_filename = os.path.join(agent_folder, "config.json")
-    with open(agent_config_filename, "r") as fh:
+    with open(agent_config_filename, "r", encoding="utf-8") as fh:
         agent_config = json.load(fh)
 
     # 2. Create a new AgentState using the agent config + agent internal state

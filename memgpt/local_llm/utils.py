@@ -62,7 +62,7 @@ def load_grammar_file(grammar):
         # If the file doesn't exist, raise a FileNotFoundError
         raise FileNotFoundError(f"The grammar file {grammar_file} does not exist.")
 
-    with open(grammar_file, "r") as file:
+    with open(grammar_file, "r", encoding="utf-8") as file:
         grammar_str = file.read()
 
     return grammar_str

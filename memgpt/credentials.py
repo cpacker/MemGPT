@@ -103,7 +103,7 @@ class MemGPTCredentials:
 
         if not os.path.exists(MEMGPT_DIR):
             os.makedirs(MEMGPT_DIR, exist_ok=True)
-        with open(self.credentials_path, "w") as f:
+        with open(self.credentials_path, "w", encoding="utf-8") as f:
             config.write(f)
 
     @staticmethod
