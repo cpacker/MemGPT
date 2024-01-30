@@ -507,7 +507,7 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Meta
                 )
             if len(passages) > 0:
                 agent.persistence_manager.archival_memory.storage.insert_many(passages)
-                print(f"Inserted {len(passages)} passages into archival memory")
+                # print(f"Inserted {len(passages)} passages into archival memory")
 
             if len(failed_inserts) > 0:
                 warnings.append(
