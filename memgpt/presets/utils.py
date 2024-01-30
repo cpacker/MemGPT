@@ -36,7 +36,7 @@ def load_yaml_file(file_path):
     :param file_path: Path to the YAML file.
     :return: Data from the YAML file.
     """
-    with open(file_path, "r") as file:
+    with open(file_path, "r", encoding="utf-8") as file:
         return yaml.safe_load(file)
 
 

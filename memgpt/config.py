@@ -239,7 +239,7 @@ class MemGPTConfig:
         # always make sure all directories are present
         self.create_config_dir()
 
-        with open(self.config_path, "w") as f:
+        with open(self.config_path, "w", encoding="utf-8") as f:
             config.write(f)
         logger.debug(f"Saved Config:  {self.config_path}")
 
@@ -392,7 +392,7 @@ class AgentConfig:
         os.makedirs(os.path.join(MEMGPT_DIR, "agents", self.name), exist_ok=True)
         # save version
         self.memgpt_version = memgpt.__version__
-        with open(self.agent_config_path, "w") as f:
+        with open(self.agent_config_path, "w", encoding="utf-8") as f:
             json.dump(vars(self), f, indent=4)
 
     def to_agent_state(self):
@@ -417,7 +417,7 @@ class AgentConfig:
         """Load agent config from JSON file"""
         agent_config_path = os.path.join(MEMGPT_DIR, "agents", name, "config.json")
         assert os.path.exists(agent_config_path), f"Agent config file does not exist at {agent_config_path}"
-        with open(agent_config_path, "r") as f:
+        with open(agent_config_path, "r", encoding="utf-8") as f:
             agent_config = json.load(f)
         # allow compatibility accross versions
         try:

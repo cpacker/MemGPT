@@ -56,7 +56,7 @@ def agent():
 
 @pytest.fixture(scope="module")
 def hello_world_function():
-    with open(os.path.join(USER_FUNCTIONS_DIR, "hello_world.py"), "w") as f:
+    with open(os.path.join(USER_FUNCTIONS_DIR, "hello_world.py"), "w", encoding="utf-8") as f:
         f.write(inspect.getsource(hello_world))
 
 
