@@ -761,7 +761,7 @@ def add(
     if text:
         assert filename is None, f"Cannot provide both filename and text"
         # write text to file
-        with open(os.path.join(directory, name), "w") as f:
+        with open(os.path.join(directory, name), "w", encoding="utf-8") as f:
             f.write(text)
 
 
