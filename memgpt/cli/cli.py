@@ -33,10 +33,12 @@ from memgpt.metadata import MetadataStore, save_agent
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
 
 
-def migrate():
+def migrate(
+    debug: Annotated[bool, typer.Option(help="Print extra tracebacks for failed migrations")] = False,
+):
     """Migrate old agents (pre 0.2.12) to the new database system"""
-    migrate_all_agents()
-    migrate_all_sources()
+    migrate_all_agents(debug=debug)
+    migrate_all_sources(debug=debug)
 
 
 class QuickstartChoice(Enum):

@@ -183,7 +183,7 @@ def migrate_source(source_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Me
         assert len(passages) > 0, f"Source {source_name} has no passages"
         conn = StorageConnector.get_storage_connector(TableType.PASSAGES, config=config, user_id=user_id)
         conn.insert_many(passages)
-        print(f"Inserted {len(passages)} to {source_name}")
+        # print(f"Inserted {len(passages)} to {source_name}")
     except Exception as e:
         # delete from metadata store
         ms.delete_source(source.id)
@@ -532,7 +532,7 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Meta
 
 
 # def migrate_all_agents(stop_on_fail=True):
-def migrate_all_agents(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) -> dict:
+def migrate_all_agents(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False, debug: bool = False) -> dict:
     """Scan over all agent folders in data_dir and migrate each agent."""
 
     if not os.path.exists(os.path.join(data_dir, MIGRATION_BACKUP_FOLDER)):
@@ -588,7 +588,8 @@ def migrate_all_agents(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) -
             except Exception as e:
                 failures.append({"name": agent_name, "reason": str(e)})
                 # typer.secho(f"Migrating {agent_name} failed with: {str(e)}", fg=typer.colors.RED)
-                traceback.print_exc()
+                if debug:
+                    traceback.print_exc()
                 if stop_on_fail:
                     raise
     except KeyboardInterrupt:
@@ -640,7 +641,7 @@ def migrate_all_agents(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) -
     }
 
 
-def migrate_all_sources(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) -> dict:
+def migrate_all_sources(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False, debug: bool = False) -> dict:
     """Scan over all agent folders in data_dir and migrate each agent."""
 
     sources_dir = os.path.join(data_dir, "archival")
@@ -667,7 +668,8 @@ def migrate_all_sources(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False) 
                 count += 1
             except Exception as e:
                 failures.append({"name": source_name, "reason": str(e)})
-                traceback.print_exc()
+                if debug:
+                    traceback.print_exc()
                 if stop_on_fail:
                     raise
                 # typer.secho(f"Migrating {agent_name} failed with: {str(e)}", fg=typer.colors.RED)
