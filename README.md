@@ -87,7 +87,7 @@ You can run the following commands in the MemGPT CLI prompt while chatting with 
 * `/pop`: Undo the last message in the conversation
 * `/pop <count>`: Undo the last messages in the conversation. It defaults to 3, which usually is one turn around in the conversation
 * `/retry`: Pops the last answer and tries to get another one
-* `/rethink <text>`: Will replace the inner dialog of the last assistant message with the <text> to help shaping the conversation
+* `/rethink <text>`: Will replace the inner dialog of the last assistant message with the `<text>` to help shaping the conversation
 * `/rewrite`: Will replace the last assistant answer with the given text to correct or force the answer
 * `/heartbeat`: Send a heartbeat system message to the agent
 * `/memorywarning`: Send a memory warning system message to the agent
