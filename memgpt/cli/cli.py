@@ -406,13 +406,16 @@ def run(
                 raise
         elif selection == choices[1]:
             try:
-                wipe_config_and_reconfigure(run_configure=False)
+                # Don't create a config, so that the next block of code asking about quickstart is run
+                wipe_config_and_reconfigure(run_configure=False, create_config=False)
             except Exception as e:
                 typer.secho(f"Fresh config generation failed - error:\n{e}", fg=typer.colors.RED)
                 raise
         else:
-            typer.secho("Migration cancelled (to migrate old agents, run `memgpt migrate`)", fg=typer.colors.RED)
+            typer.secho("MemGPT config regeneration cancelled", fg=typer.colors.RED)
             raise KeyboardInterrupt()
+
+        typer.secho("Note: if you would like to migrate old agents to the new release, please run `memgpt migrate`!", fg=typer.colors.GREEN)
 
     if not MemGPTConfig.exists():
         # if no config, ask about quickstart
