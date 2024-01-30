@@ -172,7 +172,6 @@ class Agent(object):
         # extras
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
-        memgpt_config: Optional[MemGPTConfig] = None,
     ):
         # Hold a copy of the state that was used to init the agent
         self.agent_state = agent_state
@@ -223,15 +222,6 @@ class Agent(object):
         # When an alert is sent in the message queue, set this to True (to avoid repeat alerts)
         # When the summarizer is run, set this back to False (to reset)
         self.agent_alerted_about_memory_pressure = False
-
-        # Read local config if not provided
-        if not memgpt_config:
-            self.memgpt_config = MemGPTConfig()
-        else:
-            self.memgpt_config = memgpt_config
-
-        # Initialize connection to metedata store
-        # self.ms = MetadataStore(self.memgpt_config)
 
         self._messages: List[Message] = []
 
