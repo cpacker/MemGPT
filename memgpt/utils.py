@@ -520,7 +520,7 @@ def enforce_types(func):
     return wrapper
 
 
-def annotate_message_json_list_with_tool_calls(messages: List[dict]):
+def annotate_message_json_list_with_tool_calls(messages: List[dict], allow_tool_roles: bool = False):
     """Add in missing tool_call_id fields to a list of messages using function call style
 
     Walk through the list forwards:
@@ -569,10 +569,62 @@ def annotate_message_json_list_with_tool_calls(messages: List[dict]):
                 message["tool_call_id"] = tool_call_id
                 tool_call_id = None  # wipe the buffer
 
+        elif message["role"] == "assistant" and "tool_calls" in message and message["tool_calls"] is not None:
+            if not allow_tool_roles:
+                raise NotImplementedError(
+                    f"tool_call_id annotation is meant for deprecated functions style, but got role 'assistant' with 'tool_calls' in message (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                )
+
+            if len(message["tool_calls"]) != 1:
+                raise NotImplementedError(
+                    f"Got unexpected format for tool_calls inside assistant message (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                )
+
+            assistant_tool_call = message["tool_calls"][0]
+            if "id" in assistant_tool_call and assistant_tool_call["id"] is not None:
+                printd(f"Message already has id (tool_call_id)")
+                tool_call_id = assistant_tool_call["id"]
+            else:
+                tool_call_id = str(uuid.uuid4())
+                message["tool_calls"][0]["id"] = tool_call_id
+                # also just put it at the top level for ease-of-access
+                # message["tool_call_id"] = tool_call_id
+            tool_call_index = i
+
         elif message["role"] == "tool":
-            raise NotImplementedError(
-                f"tool_call_id annotation is meant for deprecated functions style, but got role 'tool' in message (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
-            )
+            if not allow_tool_roles:
+                raise NotImplementedError(
+                    f"tool_call_id annotation is meant for deprecated functions style, but got role 'tool' in message (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                )
+
+            # if "tool_call_id" not in message or message["tool_call_id"] is None:
+            # raise ValueError(f"Got a tool call role, but there's no tool_call_id:\n{messages[:i]}\n{message}")
+
+            # We should have a new tool call id in the buffer
+            if tool_call_id is None:
+                # raise ValueError(
+                print(
+                    f"Got a tool call role, but did not have a saved tool_call_id ready to use (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                )
+                # allow a soft fail in this case
+                message["tool_call_id"] = str(uuid.uuid4())
+            elif "tool_call_id" in message and message["tool_call_id"] is not None:
+                if tool_call_id is not None and tool_call_id != message["tool_call_id"]:
+                    # just wipe it
+                    # raise ValueError(
+                    #     f"Got a tool call role, but it already had a saved tool_call_id (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                    # )
+                    message["tool_call_id"] = tool_call_id
+                    tool_call_id = None  # wipe the buffer
+                else:
+                    tool_call_id = None
+            elif i != tool_call_index + 1:
+                raise ValueError(
+                    f"Got a tool call role, saved tool_call_id came earlier than i-1 (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                )
+            else:
+                message["tool_call_id"] = tool_call_id
+                tool_call_id = None  # wipe the buffer
 
         else:
             # eg role == 'user', nothing to do here
