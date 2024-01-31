@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Union, Callable, Optional, Tuple, List
+from typing import Union, Callable, Optional, List
 import uuid
 import json
 import logging
@@ -7,9 +7,9 @@ from threading import Lock
 from functools import wraps
 from fastapi import HTTPException
 
-from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
+from memgpt.constants import JSON_LOADS_STRICT, JSON_ENSURE_ASCII
 from memgpt.agent import Agent
 import memgpt.system as system
 import memgpt.constants as constants
@@ -430,10 +430,10 @@ class SyncServer(LockingServer):
                 for x in range(len(memgpt_agent.messages) - 1, 0, -1):
                     if memgpt_agent.messages[x].get("role") == "assistant":
                         text = command[len("rewrite ") :].strip()
-                        args = json.loads(memgpt_agent.messages[x].get("function_call").get("arguments"))
+                        args = json.loads(memgpt_agent.messages[x].get("function_call").get("arguments"), strict=JSON_LOADS_STRICT)
                         args["message"] = text
                         memgpt_agent.messages[x].get("function_call").update(
-                            {"arguments": json.dumps(args, ensure_ascii=constants.JSON_ENSURE_ASCII)}
+                            {"arguments": json.dumps(args, ensure_ascii=JSON_ENSURE_ASCII)}
                         )
                         break
 

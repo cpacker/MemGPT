@@ -1,20 +1,16 @@
 import datetime
 import uuid
-import glob
 import inspect
-import os
 import json
 from pathlib import Path
 import traceback
 from typing import List, Tuple, Optional, cast
 
-from box import Box
 
 from memgpt.data_types import AgentState, Message, EmbeddingConfig
 from memgpt.models import chat_completion_response
 from memgpt.interface import AgentInterface
-from memgpt.persistence_manager import PersistenceManager, LocalStateManager
-from memgpt.config import MemGPTConfig
+from memgpt.persistence_manager import LocalStateManager
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from memgpt.memory import CoreMemory as InContextMemory, summarize_messages
 from memgpt.llm_api_tools import create, is_context_overflow_error
@@ -31,6 +27,7 @@ from memgpt.utils import (
 )
 from memgpt.constants import (
     FIRST_MESSAGE_ATTEMPTS,
+    JSON_LOADS_STRICT,
     MESSAGE_SUMMARY_WARNING_FRAC,
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
@@ -560,7 +557,7 @@ class Agent(object):
                 self.interface.user_message(user_message)
                 packed_user_message = {"role": "user", "content": user_message}
                 try:
-                    user_message_json = json.loads(user_message)
+                    user_message_json = json.loads(user_message, strict=JSON_LOADS_STRICT)
                     # Special handling for AutoGen messages with 'name' field
                     # Treat 'name' as a special field
                     # If it exists in the input message, elevate it to the 'message' level

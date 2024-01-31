@@ -4,7 +4,7 @@ from typing import List
 import yaml
 
 from .wrapper_base import LLMChatCompletionWrapper
-from ...constants import JSON_ENSURE_ASCII
+from ...constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
 from ..json_parser import clean_json
 from ...constants import JSON_ENSURE_ASCII
 from ...errors import LLMJSONParsingError
@@ -133,7 +133,7 @@ class ConfigurableJSONWrapper(LLMChatCompletionWrapper):
             "function": function_call["name"],
             "params": {
                 "inner_thoughts": inner_thoughts,
-                **json.loads(function_call["arguments"]),
+                **json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
             },
         }
         return json.dumps(airo_func_call, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
@@ -163,14 +163,14 @@ class ConfigurableJSONWrapper(LLMChatCompletionWrapper):
         if self.simplify_json_content:
             # Make user messages not JSON but plaintext instead
             try:
-                user_msg_json = json.loads(message["content"])
+                user_msg_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
                 user_msg_str = user_msg_json["message"]
             except:
                 user_msg_str = message["content"]
         else:
             # Otherwise just dump the full json
             try:
-                user_msg_json = json.loads(message["content"])
+                user_msg_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
                 user_msg_str = json.dumps(user_msg_json, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
             except:
                 user_msg_str = message["content"]
@@ -185,7 +185,7 @@ class ConfigurableJSONWrapper(LLMChatCompletionWrapper):
         prompt = ""
         try:
             # indent the function replies
-            function_return_dict = json.loads(message["content"])
+            function_return_dict = json.loads(message["content"], strict=JSON_LOADS_STRICT)
             function_return_str = json.dumps(function_return_dict, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
         except:
             function_return_str = message["content"]
