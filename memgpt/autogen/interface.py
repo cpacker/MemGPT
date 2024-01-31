@@ -3,7 +3,7 @@ import re
 
 from colorama import Fore, Style, init
 
-from memgpt.constants import CLI_WARNING_PREFIX
+from memgpt.constants import CLI_WARNING_PREFIX, JSON_LOADS_STRICT
 
 init(autoreset=True)
 
@@ -109,7 +109,7 @@ class AutoGenInterface(object):
                 return
             else:
                 try:
-                    msg_json = json.loads(msg)
+                    msg_json = json.loads(msg, strict=JSON_LOADS_STRICT)
                 except:
                     print(f"{CLI_WARNING_PREFIX}failed to parse user message into json")
                     message = f"{Fore.GREEN}{Style.BRIGHT}🧑 {Fore.GREEN}{msg}{Style.RESET_ALL}" if self.fancy else f"[user] {msg}"
@@ -197,7 +197,7 @@ class AutoGenInterface(object):
                     )
         else:
             try:
-                msg_dict = json.loads(msg)
+                msg_dict = json.loads(msg, strict=JSON_LOADS_STRICT)
                 if "status" in msg_dict and msg_dict["status"] == "OK":
                     message = (
                         f"{Fore.GREEN}{Style.BRIGHT}⚡ [function] {Fore.GREEN}{msg}{Style.RESET_ALL}" if self.fancy else f"[function] {msg}"

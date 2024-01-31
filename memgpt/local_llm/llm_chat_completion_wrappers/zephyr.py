@@ -77,7 +77,7 @@ class ZephyrMistralWrapper(LLMChatCompletionWrapper):
         def create_function_call(function_call):
             airo_func_call = {
                 "function": function_call["name"],
-                "params": json.loads(function_call["arguments"]),
+                "params": json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
             }
             return json.dumps(airo_func_call, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
 
@@ -87,7 +87,7 @@ class ZephyrMistralWrapper(LLMChatCompletionWrapper):
             if message["role"] == "user":
                 if self.simplify_json_content:
                     try:
-                        content_json = json.loads(message["content"])
+                        content_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
                         content_simple = content_json["message"]
                         prompt += f"\n<|user|>\n{content_simple}{IM_END_TOKEN}"
                         # prompt += f"\nUSER: {content_simple}"
@@ -241,7 +241,7 @@ class ZephyrMistralInnerMonologueWrapper(ZephyrMistralWrapper):
                 "function": function_call["name"],
                 "params": {
                     "inner_thoughts": inner_thoughts,
-                    **json.loads(function_call["arguments"]),
+                    **json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
                 },
             }
             return json.dumps(airo_func_call, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
@@ -257,7 +257,7 @@ class ZephyrMistralInnerMonologueWrapper(ZephyrMistralWrapper):
             if message["role"] == "user":
                 if self.simplify_json_content:
                     try:
-                        content_json = json.loads(message["content"])
+                        content_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
                         content_simple = content_json["message"]
                         prompt += f"\n<|user|>\n{content_simple}{IM_END_TOKEN}"
                     except:
