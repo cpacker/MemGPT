@@ -25,6 +25,7 @@ import tiktoken
 
 import memgpt
 from memgpt.constants import (
+    JSON_LOADS_STRICT,
     MEMGPT_DIR,
     FUNCTION_RETURN_CHAR_LIMIT,
     CLI_WARNING_PREFIX,
@@ -840,7 +841,7 @@ def parse_json(string) -> dict:
     """Parse JSON string into JSON with both json and demjson"""
     result = None
     try:
-        result = json.loads(string)
+        result = json.loads(string, strict=JSON_LOADS_STRICT)
         return result
     except Exception as e:
         print(f"Error parsing json with json package: {e}")
