@@ -379,7 +379,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
 
-    def create_passage(self, text, embedding):
+    def create_passage(self, text, embedding, metadata={}):
         return Passage(
             user_id=self.agent_state.user_id,
             agent_id=self.agent_state.id,
@@ -387,6 +387,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             embedding=embedding,
             embedding_dim=self.agent_state.embedding_config.embedding_dim,
             embedding_model=self.agent_state.embedding_config.embedding_model,
+            metadata=metadata
         )
 
     def save(self):
@@ -418,7 +419,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
                         raise TypeError(
                             f"Got back an unexpected payload from text embedding function, type={type(embedding)}, value={embedding}"
                         )
-                passages.append(self.create_passage(node.text, embedding))
+                passages.append(self.create_passage(node.text, embedding, node.metadata))
 
             # insert passages
             self.storage.insert_many(passages)
