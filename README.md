@@ -229,3 +229,6 @@ For issues and feature requests, please [open a GitHub issue](https://github.com
 
 ## Datasets
 Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded at [Hugging Face](https://huggingface.co/MemGPT).
+
+## Roadmap
+You can view (and comment on!) the MemGPT developer roadmap [here](https://docs.google.com/document/d/1NOJr5n8hfG1IZO_6c2HGfix1EVYq5rh8oNm7AWCrQPo/edit?usp=sharing).
