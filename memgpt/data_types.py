@@ -226,7 +226,7 @@ class Message(Record):
         # TODO change to pydantic casting, eg `return SystemMessageModel(self)`
 
         if self.role == "system":
-            assert all([v is not None for v in [self.text, self.role]]), vars(self)
+            assert all([v is not None for v in [self.role]]), vars(self)
             openai_message = {
                 "content": self.text,
                 "role": self.role,
@@ -258,13 +258,12 @@ class Message(Record):
                 openai_message["tool_calls"] = [tool_call.to_dict() for tool_call in self.tool_calls]
 
         elif self.role == "tool":
-            assert all([v is not None for v in [self.text, self.role, self.tool_call_id]]), vars(self)
+            assert all([v is not None for v in [self.role, self.tool_call_id]]), vars(self)
             openai_message = {
                 "content": self.text,
                 "role": self.role,
                 "tool_call_id": self.tool_call_id,
             }
-
         else:
             raise ValueError(self.role)
 
