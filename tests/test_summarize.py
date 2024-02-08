@@ -38,6 +38,9 @@ def create_test_agent():
 
 def test_summarize():
     """Test summarization via sending the summarize CLI command or via a direct call to the agent object"""
+    if agent_obj is None:
+        create_test_agent()
+
     assert agent_obj is not None, "Run create_agent test first"
     assert client is not None, "Run create_agent test first"
 
