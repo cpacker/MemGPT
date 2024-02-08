@@ -10,6 +10,7 @@ import subprocess
 import uuid
 import sys
 import io
+import hashlib
 from typing import List
 import inspect
 from functools import wraps
@@ -1009,3 +1010,12 @@ def extract_date_from_timestamp(timestamp):
     # Extracts the date (ignoring the time and timezone)
     match = re.match(r"(\d{4}-\d{2}-\d{2})", timestamp)
     return match.group(1) if match else None
+
+
+def create_uuid_from_string(val: str):
+    """
+    Generate consistent UUID from a string
+    from: https://samos-it.com/posts/python-create-uuid-from-random-string-of-words.html
+    """
+    hex_string = hashlib.md5(val.encode("UTF-8")).hexdigest()
+    return uuid.UUID(hex=hex_string)
