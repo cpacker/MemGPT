@@ -470,7 +470,6 @@ class PostgresStorageConnector(SQLStorageConnector):
         from sqlalchemy.dialects.postgresql import insert
 
         with self.engine.connect() as conn:
-            # db_records = [self.db_model(**vars(record)) for record in records]
             db_records = [vars(record) for record in records]
             stmt = insert(self.db_model.__table__).values(db_records)
             if exists_ok:
@@ -518,10 +517,7 @@ class SQLLiteStorageConnector(SQLStorageConnector):
         from sqlalchemy.dialects.sqlite import insert
 
         with self.engine.connect() as conn:
-            db_records = [self.db_model(**vars(record)) for record in records]
-            # db_records = [vars(record) for record in records]
-            for record in db_records:
-                del record["metadata"]
+            db_records = [vars(record) for record in records]
             stmt = insert(self.db_model.__table__).values(db_records)
             if exists_ok:
                 upsert_stmt = stmt.on_conflict_do_update(
