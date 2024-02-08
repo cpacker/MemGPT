@@ -246,7 +246,7 @@ class Message(Record):
                 openai_message["name"] = self.name
 
         elif self.role == "assistant":
-            assert all([v is not None for v in [self.text, self.role]]), vars(self)
+            assert self.tool_calls is not None or self.text is not None
             openai_message = {
                 "content": self.text,
                 "role": self.role,
