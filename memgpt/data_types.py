@@ -303,7 +303,7 @@ class Passage(Record):
         data_source: Optional[str] = None,  # None if created by agent
         doc_id: Optional[uuid.UUID] = None,
         id: Optional[uuid.UUID] = None,
-        metadata: Optional[dict] = {},
+        metadata_: Optional[dict] = {},
     ):
         if id is None:
             # by default, generate ID as a hash of the text (avoid duplicates)
@@ -316,7 +316,7 @@ class Passage(Record):
         self.text = text
         self.data_source = data_source
         self.doc_id = doc_id
-        self.metadata = metadata
+        self.metadata_ = metadata_
 
         # pad and store embeddings
         if isinstance(embedding, list):

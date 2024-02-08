@@ -167,7 +167,7 @@ def get_db_model(
                     id=self.id,
                     data_source=self.data_source,
                     agent_id=self.agent_id,
-                    metadata=self.metadata_,
+                    metadata_=self.metadata_,
                 )
 
         """Create database model for table_name"""
@@ -470,10 +470,8 @@ class PostgresStorageConnector(SQLStorageConnector):
         from sqlalchemy.dialects.postgresql import insert
 
         with self.engine.connect() as conn:
-            db_records = [self.db_model(**vars(record)) for record in records]
-            # db_records = [vars(record) for record in records]
-            for record in db_records:
-                del record["metadata"]
+            # db_records = [self.db_model(**vars(record)) for record in records]
+            db_records = [vars(record) for record in records]
             stmt = insert(self.db_model.__table__).values(db_records)
             if exists_ok:
                 upsert_stmt = stmt.on_conflict_do_update(
