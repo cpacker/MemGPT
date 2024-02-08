@@ -79,8 +79,8 @@ def set_config_with_dict(new_config: dict) -> bool:
                 modified = True
                 # old_config[k] = new_config[k]
                 setattr(old_config.default_embedding_config, k, new_config[k])
-        else:
-            printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+            else:
+                printd(f"Skipping new config {k}: {v} == {new_config[k]}")
 
     # update llm config
     for k, v in vars(old_config.default_llm_config).items():
@@ -90,8 +90,8 @@ def set_config_with_dict(new_config: dict) -> bool:
                 modified = True
                 # old_config[k] = new_config[k]
                 setattr(old_config.default_llm_config, k, new_config[k])
-        else:
-            printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+            else:
+                printd(f"Skipping new config {k}: {v} == {new_config[k]}")
 
     if modified:
         printd(f"Saving new config file.")
