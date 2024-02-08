@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, TypeVar
 import numpy as np
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS, MAX_EMBEDDING_DIM
-from memgpt.utils import get_local_time, format_datetime, get_utc_time, create_uuid_from_string
+from memgpt.utils import get_local_time, format_datetime, get_utc_time
 from memgpt.models import chat_completion_response
 
 
@@ -246,7 +246,7 @@ class Message(Record):
                 openai_message["name"] = self.name
 
         elif self.role == "assistant":
-            assert self.tool_calls is not None or self.text is not None
+            assert all([v is not None for v in [self.text, self.role]]), vars(self)
             openai_message = {
                 "content": self.text,
                 "role": self.role,
@@ -273,17 +273,16 @@ class Message(Record):
 class Document(Record):
     """A document represent a document loaded into MemGPT, which is broken down into passages."""
 
-    def __init__(self, user_id: uuid.UUID, text: str, data_source: str, id: Optional[uuid.UUID] = None):
-        if id is None:
-            # by default, generate ID as a hash of the text (avoid duplicates)
-            self.id = create_uuid_from_string(text)
-        else:
-            self.id = id
+    def __init__(self, user_id: str, text: str, data_source: str, document_id: Optional[str] = None):
         super().__init__(id)
         self.user_id = user_id
         self.text = text
+        self.document_id = document_id
         self.data_source = data_source
         # TODO: add optional embedding?
+
+    # def __repr__(self) -> str:
+    #    pass
 
 
 class Passage(Record):
@@ -305,12 +304,7 @@ class Passage(Record):
         id: Optional[uuid.UUID] = None,
         metadata: Optional[dict] = {},
     ):
-        if id is None:
-            # by default, generate ID as a hash of the text (avoid duplicates)
-            self.id = create_uuid_from_string(text)
-        else:
-            self.id = id
-        super().__init__(self.id)
+        super().__init__(id)
         self.user_id = user_id
         self.agent_id = agent_id
         self.text = text

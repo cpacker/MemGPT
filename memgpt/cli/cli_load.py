@@ -68,6 +68,12 @@ def store_docs(name, docs, user_id=None, show_progress=True):
     if user_id is None:  # assume running local with single user
         user_id = uuid.UUID(config.anon_clientid)
 
+    # ensure doc text is not too long
+    # TODO: replace this to instead split up docs that are too large
+    # (this is a temporary fix to avoid breaking the llama index)
+    for doc in docs:
+        doc.text = check_and_split_text(doc.text, config.default_embedding_config.embedding_model)[0]
+
     # record data source metadata
     ms = MetadataStore(config)
     user = ms.get_user(user_id)
