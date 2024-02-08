@@ -350,19 +350,19 @@ class SQLStorageConnector(StorageConnector):
         with self.session_maker() as session:
             return session.query(self.db_model).filter(*filters).count()
 
-    def insert(self, record: Record):
-        db_record = self.db_model(**vars(record))
-        with self.session_maker() as session:
-            session.add(db_record)
-            session.commit()
+    # def insert(self, record: Record):
+    #    db_record = self.db_model(**vars(record))
+    #    with self.session_maker() as session:
+    #        session.add(db_record)
+    #        session.commit()
 
-    def insert_many(self, records: List[RecordType], show_progress=False):
-        iterable = tqdm(records) if show_progress else records
-        with self.session_maker() as session:
-            for record in iterable:
-                db_record = self.db_model(**vars(record))
-                session.add(db_record)
-            session.commit()
+    # def insert_many(self, records: List[RecordType], show_progress=False):
+    #    iterable = tqdm(records) if show_progress else records
+    #    with self.session_maker() as session:
+    #        for record in iterable:
+    #            db_record = self.db_model(**vars(record))
+    #            session.add(db_record)
+    #        session.commit()
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         raise NotImplementedError("Vector query not implemented for SQLStorageConnector")
@@ -466,6 +466,27 @@ class PostgresStorageConnector(SQLStorageConnector):
         records = [result.to_record() for result in results]
         return records
 
+    def insert_many(self, records: List[RecordType], exists_ok=True, show_progress=False):
+        from sqlalchemy.dialects.postgresql import insert
+
+        with self.engine.connect() as conn:
+            db_records = [self.db_model(**vars(record)) for record in records]
+            # db_records = [vars(record) for record in records]
+            for record in db_records:
+                del record["metadata"]
+            stmt = insert(self.db_model.__table__).values(db_records)
+            if exists_ok:
+                upsert_stmt = stmt.on_conflict_do_update(
+                    index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
+                )
+                conn.execute(upsert_stmt)
+            else:
+                conn.execute(stmt)
+            conn.commit()
+
+    def insert(self, record: Record, exists_ok=True):
+        self.insert_many([record], exists_ok=exists_ok)
+
 
 class SQLLiteStorageConnector(SQLStorageConnector):
     def __init__(self, table_type: str, config: MemGPTConfig, user_id, agent_id=None):
@@ -494,3 +515,24 @@ class SQLLiteStorageConnector(SQLStorageConnector):
 
         sqlite3.register_adapter(uuid.UUID, lambda u: u.bytes_le)
         sqlite3.register_converter("UUID", lambda b: uuid.UUID(bytes_le=b))
+
+    def insert_many(self, records: List[RecordType], exists_ok=True, show_progress=False):
+        from sqlalchemy.dialects.sqlite import insert
+
+        with self.engine.connect() as conn:
+            db_records = [self.db_model(**vars(record)) for record in records]
+            # db_records = [vars(record) for record in records]
+            for record in db_records:
+                del record["metadata"]
+            stmt = insert(self.db_model.__table__).values(db_records)
+            if exists_ok:
+                upsert_stmt = stmt.on_conflict_do_update(
+                    index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
+                )
+                conn.execute(upsert_stmt)
+            else:
+                conn.execute(stmt)
+            conn.commit()
+
+    def insert(self, record: Record, exists_ok=True):
+        self.insert_many([record], exists_ok=exists_ok)

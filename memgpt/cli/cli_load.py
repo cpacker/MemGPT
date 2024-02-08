@@ -59,6 +59,8 @@ def insert_passages_into_source(passages: List[Passage], source_name: str, user_
 
     assert orig_size + len(passages) == storage.size(), f"Expected {orig_size + len(passages)} passages, got {storage.size()}"
     storage.save()
+    print("Inserted", len(passages), "passages into", source_name, "for user", user_id, "at", datetime.now())
+    print("Total passages in source:", storage.size())
 
 
 def store_docs(name, docs, user_id=None, show_progress=True):
@@ -136,6 +138,8 @@ def store_docs(name, docs, user_id=None, show_progress=True):
         )
 
     insert_passages_into_source(passages, name, user_id, config)
+
+    # get total number of passages
 
 
 @app.command("index")
