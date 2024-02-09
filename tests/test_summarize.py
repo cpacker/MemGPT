@@ -25,11 +25,12 @@ def create_test_agent():
         client = MemGPT(quickstart="memgpt_hosted")
 
     user = client.server.create_user({"id": test_user_id})
+    client.user_id = user.id
     assert user is not None
 
     agent_state = client.create_agent(
         agent_config={
-            "user_id": test_user_id,
+            "user_id": user.id,
             "name": test_agent_name,
             "persona": constants.DEFAULT_PERSONA,
             "human": constants.DEFAULT_HUMAN,
