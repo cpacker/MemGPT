@@ -60,8 +60,8 @@ def get_chat_completion(
     global has_shown_warning
     grammar = None
 
-    if function_call != "auto":
-        raise ValueError(f"function_call == {function_call} not supported (auto only)")
+    if function_call is not None and function_call != "auto":
+        raise ValueError(f"function_call == {function_call} not supported (auto or None only)")
 
     available_wrappers = get_available_wrappers()
     documentation = None
