@@ -5,12 +5,11 @@ import time
 from typing import Callable, TypeVar, Union
 import urllib
 
-from box import Box
-
 from memgpt.credentials import MemGPTCredentials
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
 from memgpt.constants import CLI_WARNING_PREFIX
 from memgpt.models.chat_completion_response import ChatCompletionResponse
+from memgpt.models.embedding_response import EmbeddingResponse
 
 from memgpt.data_types import AgentState
 
@@ -233,7 +232,7 @@ def openai_embeddings_request(url, api_key, data):
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
         response = response.json()  # convert to dict from string
         printd(f"response.json = {response}")
-        response = Box(response)  # convert to 'dot-dict' style which is the openai python client default
+        response = EmbeddingResponse(**response)  # convert to 'dot-dict' style which is the openai python client default
         return response
     except requests.exceptions.HTTPError as http_err:
         # Handle HTTP errors (e.g., response 4XX, 5XX)
@@ -281,7 +280,7 @@ def azure_openai_chat_completions_request(resource_name, deployment_id, api_vers
         # NOTE: azure openai does not include "content" in the response when it is None, so we need to add it
         if "content" not in response["choices"][0].get("message"):
             response["choices"][0]["message"]["content"] = None
-        response = Box(response)  # convert to 'dot-dict' style which is the openai python client default
+        response = ChatCompletionResponse(**response)  # convert to 'dot-dict' style which is the openai python client default
         return response
     except requests.exceptions.HTTPError as http_err:
         # Handle HTTP errors (e.g., response 4XX, 5XX)
@@ -312,7 +311,7 @@ def azure_openai_embeddings_request(resource_name, deployment_id, api_version, a
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
         response = response.json()  # convert to dict from string
         printd(f"response.json = {response}")
-        response = Box(response)  # convert to 'dot-dict' style which is the openai python client default
+        response = EmbeddingResponse(**response)  # convert to 'dot-dict' style which is the openai python client default
         return response
     except requests.exceptions.HTTPError as http_err:
         # Handle HTTP errors (e.g., response 4XX, 5XX)
