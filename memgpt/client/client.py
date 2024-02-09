@@ -73,13 +73,12 @@ class Client(object):
 
         # create user if does not exist
         ms = MetadataStore(config)
-        print("METADATA USER ID", self.user_id)
-        user = User(id=self.user_id)
-        if ms.get_user(user_id):
+        self.user = User(id=self.user_id)
+        if ms.get_user(self.user_id):
             # update user
-            ms.update_user(user)
+            ms.update_user(self.user)
         else:
-            ms.create_user(user)
+            ms.create_user(self.user)
 
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface=self.interface)
