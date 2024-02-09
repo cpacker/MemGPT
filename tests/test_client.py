@@ -109,6 +109,5 @@ def test_save_load():
 
 
 if __name__ == "__main__":
-    # test_create_user()
     test_create_agent()
     test_user_message()
