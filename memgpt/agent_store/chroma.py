@@ -140,9 +140,9 @@ class ChromaStorageConnector(StorageConnector):
             metadata.pop("embedding")
             if "created_at" in metadata:
                 metadata["created_at"] = datetime_to_timestamp(metadata["created_at"])
-            if "metadata" in metadata and metadata["metadata"] is not None:
-                record_metadata = dict(metadata["metadata"])
-                metadata.pop("metadata")
+            if "metadata_" in metadata and metadata["metadata_"] is not None:
+                record_metadata = dict(metadata["metadata_"])
+                metadata.pop("metadata_")
             else:
                 record_metadata = {}
             metadata = {key: value for key, value in metadata.items() if value is not None}  # null values not allowed

@@ -136,7 +136,7 @@ def get_db_model(
             id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
             # id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
             user_id = Column(CommonUUID, nullable=False)
-            text = Column(String, nullable=False)
+            text = Column(String)
             doc_id = Column(CommonUUID)
             agent_id = Column(CommonUUID)
             data_source = Column(String)  # agent_name if agent, data_source name if from data source
@@ -167,7 +167,7 @@ def get_db_model(
                     id=self.id,
                     data_source=self.data_source,
                     agent_id=self.agent_id,
-                    metadata=self.metadata_,
+                    metadata_=self.metadata_,
                 )
 
         """Create database model for table_name"""
@@ -351,18 +351,10 @@ class SQLStorageConnector(StorageConnector):
             return session.query(self.db_model).filter(*filters).count()
 
     def insert(self, record: Record):
-        db_record = self.db_model(**vars(record))
-        with self.session_maker() as session:
-            session.add(db_record)
-            session.commit()
+        raise NotImplementedError
 
     def insert_many(self, records: List[RecordType], show_progress=False):
-        iterable = tqdm(records) if show_progress else records
-        with self.session_maker() as session:
-            for record in iterable:
-                db_record = self.db_model(**vars(record))
-                session.add(db_record)
-            session.commit()
+        raise NotImplementedError
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         raise NotImplementedError("Vector query not implemented for SQLStorageConnector")
@@ -466,6 +458,38 @@ class PostgresStorageConnector(SQLStorageConnector):
         records = [result.to_record() for result in results]
         return records
 
+    def insert_many(self, records: List[RecordType], exists_ok=True, show_progress=False):
+        from sqlalchemy.dialects.postgresql import insert
+
+        # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
+        if len(records) == 0:
+            return
+        if isinstance(records[0], Passage):
+            with self.engine.connect() as conn:
+                db_records = [vars(record) for record in records]
+                # print("records", db_records)
+                stmt = insert(self.db_model.__table__).values(db_records)
+                # print(stmt)
+                if exists_ok:
+                    upsert_stmt = stmt.on_conflict_do_update(
+                        index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
+                    )
+                    print(upsert_stmt)
+                    conn.execute(upsert_stmt)
+                else:
+                    conn.execute(stmt)
+                conn.commit()
+        else:
+            with self.session_maker() as session:
+                iterable = tqdm(records) if show_progress else records
+                for record in iterable:
+                    db_record = self.db_model(**vars(record))
+                    session.add(db_record)
+                session.commit()
+
+    def insert(self, record: Record, exists_ok=True):
+        self.insert_many([record], exists_ok=exists_ok)
+
 
 class SQLLiteStorageConnector(SQLStorageConnector):
     def __init__(self, table_type: str, config: MemGPTConfig, user_id, agent_id=None):
@@ -494,3 +518,35 @@ class SQLLiteStorageConnector(SQLStorageConnector):
 
         sqlite3.register_adapter(uuid.UUID, lambda u: u.bytes_le)
         sqlite3.register_converter("UUID", lambda b: uuid.UUID(bytes_le=b))
+
+    def insert_many(self, records: List[RecordType], exists_ok=True, show_progress=False):
+        from sqlalchemy.dialects.sqlite import insert
+
+        # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
+        if len(records) == 0:
+            return
+        if isinstance(records[0], Passage):
+            with self.engine.connect() as conn:
+                db_records = [vars(record) for record in records]
+                # print("records", db_records)
+                stmt = insert(self.db_model.__table__).values(db_records)
+                # print(stmt)
+                if exists_ok:
+                    upsert_stmt = stmt.on_conflict_do_update(
+                        index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
+                    )
+                    print(upsert_stmt)
+                    conn.execute(upsert_stmt)
+                else:
+                    conn.execute(stmt)
+                conn.commit()
+        else:
+            with self.session_maker() as session:
+                iterable = tqdm(records) if show_progress else records
+                for record in iterable:
+                    db_record = self.db_model(**vars(record))
+                    session.add(db_record)
+                session.commit()
+
+    def insert(self, record: Record, exists_ok=True):
+        self.insert_many([record], exists_ok=exists_ok)
