@@ -32,6 +32,7 @@ def check_and_split_text(text: str, embedding_model: str) -> List[str]:
         encoding = tiktoken.get_encoding(EMBEDDING_TO_TOKENIZER_DEFAULT)
 
     num_tokens = len(encoding.encode(text))
+    print(f"num_tokens: {num_tokens}")
 
     # determine max length
     if hasattr(encoding, "max_length"):
