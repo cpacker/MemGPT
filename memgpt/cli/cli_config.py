@@ -196,11 +196,12 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
                     url=model_endpoint, api_key=credentials.azure_key, api_version=credentials.azure_version
                 )
             fetched_model_options = [obj["id"] for obj in fetched_model_options_response["data"] if obj["id"].startswith("gpt-")]
-        except:
+        except Exception as e:
             # NOTE: if this fails, it means the user's key is probably bad
             typer.secho(
                 f"Failed to get model list from {model_endpoint} - make sure your API key and endpoints are correct!", fg=typer.colors.RED
             )
+            raise e
 
         # First ask if the user wants to see the full model list (some may be incompatible)
         see_all_option_str = "[see all options]"
