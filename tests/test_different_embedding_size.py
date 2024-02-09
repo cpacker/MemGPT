@@ -51,9 +51,6 @@ def test_create_user():
     # create client
     client = MemGPT(quickstart="openai", user_id=test_user_id)
 
-    # create user
-    user = client.server.create_user({"id": test_user_id})
-
     # openai: create agent
     openai_agent = client.create_agent(
         {
@@ -66,8 +63,8 @@ def test_create_user():
     ), f"openai_agent.embedding_config.embedding_endpoint_type={openai_agent.embedding_config.embedding_endpoint_type}"
 
     # openai: add passages
-    passages, openai_embeddings = generate_passages(user, openai_agent)
-    openai_agent_run = client.server._get_or_load_agent(user_id=user.id, agent_id=openai_agent.id)
+    passages, openai_embeddings = generate_passages(client.user, openai_agent)
+    openai_agent_run = client.server._get_or_load_agent(user_id=client.user.id, agent_id=openai_agent.id)
     openai_agent_run.persistence_manager.archival_memory.storage.insert_many(passages)
 
     # hosted: create agent
@@ -89,13 +86,13 @@ def test_create_user():
     ), f"hosted_agent.embedding_config.embedding_endpoint_type={hosted_agent.embedding_config.embedding_endpoint_type}"
 
     # hosted: add passages
-    passages, hosted_embeddings = generate_passages(user, hosted_agent)
-    hosted_agent_run = client.server._get_or_load_agent(user_id=user.id, agent_id=hosted_agent.id)
+    passages, hosted_embeddings = generate_passages(client.user, hosted_agent)
+    hosted_agent_run = client.server._get_or_load_agent(user_id=client.user.id, agent_id=hosted_agent.id)
     hosted_agent_run.persistence_manager.archival_memory.storage.insert_many(passages)
 
     # test passage dimentionality
     config = MemGPTConfig.load()
-    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user.id)
+    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, client.user.id)
     storage.filters = {}  # clear filters to be able to get all passages
     passages = storage.get_all()
     for passage in passages:
