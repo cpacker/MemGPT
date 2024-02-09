@@ -56,9 +56,10 @@ def insert_passages_into_source(passages: List[Passage], source_name: str, user_
 
     # add and save all passages
     storage.insert_many(passages)
-
-    assert orig_size + len(passages) == storage.size(), f"Expected {orig_size + len(passages)} passages, got {storage.size()}"
     storage.save()
+    num_new_passages = storage.size() - orig_size
+    print(f"Updated {len(passages)}, inserted {num_new_passages} new passages into {source_name}")
+    print("Total passages in source:", storage.size())
 
 
 def store_docs(name, docs, user_id=None, show_progress=True):
@@ -129,7 +130,7 @@ def store_docs(name, docs, user_id=None, show_progress=True):
                 text=text,
                 data_source=name,
                 embedding=node.embedding,
-                metadata=None,
+                metadata_=None,
                 embedding_dim=config.default_embedding_config.embedding_dim,
                 embedding_model=config.default_embedding_config.embedding_model,
             )

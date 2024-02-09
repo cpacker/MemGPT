@@ -6,7 +6,8 @@ from typing import Optional, List, Dict, TypeVar
 import numpy as np
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS, MAX_EMBEDDING_DIM
-from memgpt.utils import get_local_time, format_datetime, get_utc_time
+from memgpt.utils import get_local_time, format_datetime, get_utc_time, create_uuid_from_string
+from memgpt.utils import get_local_time, format_datetime, get_utc_time, create_uuid_from_string
 from memgpt.models import chat_completion_response
 
 
@@ -117,9 +118,6 @@ class Message(Record):
         else:
             assert tool_call_id is None
         self.tool_call_id = tool_call_id
-
-    # def __repr__(self):
-    #    pass
 
     @staticmethod
     def dict_to_message(
@@ -273,16 +271,17 @@ class Message(Record):
 class Document(Record):
     """A document represent a document loaded into MemGPT, which is broken down into passages."""
 
-    def __init__(self, user_id: str, text: str, data_source: str, document_id: Optional[str] = None):
+    def __init__(self, user_id: uuid.UUID, text: str, data_source: str, id: Optional[uuid.UUID] = None):
+        if id is None:
+            # by default, generate ID as a hash of the text (avoid duplicates)
+            self.id = create_uuid_from_string("".join([text, str(user_id)]))
+        else:
+            self.id = id
         super().__init__(id)
         self.user_id = user_id
         self.text = text
-        self.document_id = document_id
         self.data_source = data_source
         # TODO: add optional embedding?
-
-    # def __repr__(self) -> str:
-    #    pass
 
 
 class Passage(Record):
@@ -302,15 +301,20 @@ class Passage(Record):
         data_source: Optional[str] = None,  # None if created by agent
         doc_id: Optional[uuid.UUID] = None,
         id: Optional[uuid.UUID] = None,
-        metadata: Optional[dict] = {},
+        metadata_: Optional[dict] = {},
     ):
-        super().__init__(id)
+        if id is None:
+            # by default, generate ID as a hash of the text (avoid duplicates)
+            self.id = create_uuid_from_string("".join([text, str(agent_id), str(user_id)]))
+        else:
+            self.id = id
+        super().__init__(self.id)
         self.user_id = user_id
         self.agent_id = agent_id
         self.text = text
         self.data_source = data_source
         self.doc_id = doc_id
-        self.metadata = metadata
+        self.metadata_ = metadata_
 
         # pad and store embeddings
         if isinstance(embedding, list):
