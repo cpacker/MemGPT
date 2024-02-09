@@ -1,12 +1,9 @@
 """Key idea: create drop-in replacement for agent's ChatCompletion call that runs on an OpenLLM backend"""
 
-import os
 from datetime import datetime
 import requests
 import json
 import uuid
-
-from box import Box
 
 from memgpt.local_llm.grammars.gbnf_grammar_generator import create_dynamic_model_from_function, generate_gbnf_grammar_and_documentation
 from memgpt.local_llm.webui.api import get_webui_completion

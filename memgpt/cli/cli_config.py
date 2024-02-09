@@ -117,9 +117,11 @@ def configure_llm_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials)
             )
         else:
             credentials.azure_key = azure_creds["azure_key"]
-            credentials.azure_endpoint = azure_creds["azure_endpoint"]
-            credentials.azure_version = azure_creds["azure_version"]
-            config.save()
+            credentials.azure_embedding_version = azure_creds["azure_embedding_version"]
+            credentials.azure_embedding_endpoint = azure_creds["azure_embedding_endpoint"]
+            if "azure_embedding_deployment" in azure_creds:
+                credentials.azure_embedding_deployment = azure_creds["azure_embedding_deployment"]
+            credentials.save()
 
         model_endpoint_type = "azure"
         model_endpoint = azure_creds["azure_endpoint"]
@@ -417,7 +419,12 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
             raise ValueError(
                 "Missing environment variables for Azure (see https://memgpt.readme.io/docs/endpoints#azure-openai). Please set then run `memgpt configure` again."
             )
-        # TODO we need to write these out to the config once we use them if we plan to ping for embedding lists with them
+        credentials.azure_key = azure_creds["azure_key"]
+        credentials.azure_version = azure_creds["azure_version"]
+        credentials.azure_embedding_endpoint = azure_creds["azure_embedding_endpoint"]
+        if "azure_deployment" in azure_creds:
+            credentials.azure_deployment = azure_creds["azure_deployment"]
+        credentials.save()
 
         embedding_endpoint_type = "azure"
         embedding_endpoint = azure_creds["azure_embedding_endpoint"]

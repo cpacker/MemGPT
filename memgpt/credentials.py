@@ -34,9 +34,13 @@ class MemGPTCredentials:
     # azure config
     azure_auth_type: str = "api_key"
     azure_key: Optional[str] = None
-    azure_endpoint: Optional[str] = None
+    # base llm / model
     azure_version: Optional[str] = None
+    azure_endpoint: Optional[str] = None
     azure_deployment: Optional[str] = None
+    # embeddings
+    azure_embedding_version: Optional[str] = None
+    azure_embedding_endpoint: Optional[str] = None
     azure_embedding_deployment: Optional[str] = None
 
     # custom llm API config
@@ -63,9 +67,11 @@ class MemGPTCredentials:
                 # azure
                 "azure_auth_type": get_field(config, "azure", "auth_type"),
                 "azure_key": get_field(config, "azure", "key"),
-                "azure_endpoint": get_field(config, "azure", "endpoint"),
                 "azure_version": get_field(config, "azure", "version"),
+                "azure_endpoint": get_field(config, "azure", "endpoint"),
                 "azure_deployment": get_field(config, "azure", "deployment"),
+                "azure_embedding_version": get_field(config, "azure", "embedding_version"),
+                "azure_embedding_endpoint": get_field(config, "azure", "embedding_endpoint"),
                 "azure_embedding_deployment": get_field(config, "azure", "embedding_deployment"),
                 # open llm
                 "openllm_auth_type": get_field(config, "openllm", "auth_type"),
@@ -92,9 +98,11 @@ class MemGPTCredentials:
         # azure config
         set_field(config, "azure", "auth_type", self.azure_auth_type)
         set_field(config, "azure", "key", self.azure_key)
-        set_field(config, "azure", "endpoint", self.azure_endpoint)
         set_field(config, "azure", "version", self.azure_version)
+        set_field(config, "azure", "endpoint", self.azure_endpoint)
         set_field(config, "azure", "deployment", self.azure_deployment)
+        set_field(config, "azure", "embedding_version", self.azure_embedding_version)
+        set_field(config, "azure", "embedding_endpoint", self.azure_embedding_endpoint)
         set_field(config, "azure", "embedding_deployment", self.azure_embedding_deployment)
 
         # openai config
