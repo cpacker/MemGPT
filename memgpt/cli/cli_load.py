@@ -138,8 +138,6 @@ def store_docs(name, docs, user_id=None, show_progress=True):
 
     insert_passages_into_source(passages, name, user_id, config)
 
-    # get total number of passages
-
 
 @app.command("index")
 def load_index(

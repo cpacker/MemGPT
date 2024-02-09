@@ -118,6 +118,25 @@ class Message(Record):
             assert tool_call_id is None
         self.tool_call_id = tool_call_id
 
+    @property
+    def __dict__(self):
+        print("CALL TO DICT")
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "agent_id": self.agent_id,
+            "role": self.role,
+            "text": self.text,
+            "model": self.model,
+            "name": self.name,
+            "created_at": self.created_at,
+            "tool_calls": [tool_call.to_dict() for tool_call in self.tool_calls] if self.tool_calls else None,
+            "tool_call_id": self.tool_call_id,
+            "embedding": self.embedding,
+            "embedding_dim": self.embedding_dim,
+            "embedding_model": self.embedding_model,
+        }
+
     # def __repr__(self):
     #    pass
 
@@ -276,7 +295,7 @@ class Document(Record):
     def __init__(self, user_id: uuid.UUID, text: str, data_source: str, id: Optional[uuid.UUID] = None):
         if id is None:
             # by default, generate ID as a hash of the text (avoid duplicates)
-            self.id = create_uuid_from_string(text)
+            self.id = create_uuid_from_string("".join([text, str(user_id)]))
         else:
             self.id = id
         super().__init__(id)
@@ -307,7 +326,7 @@ class Passage(Record):
     ):
         if id is None:
             # by default, generate ID as a hash of the text (avoid duplicates)
-            self.id = create_uuid_from_string(text)
+            self.id = create_uuid_from_string("".join([text, str(agent_id), str(user_id)]))
         else:
             self.id = id
         super().__init__(self.id)

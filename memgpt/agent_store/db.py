@@ -136,7 +136,7 @@ def get_db_model(
             id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
             # id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
             user_id = Column(CommonUUID, nullable=False)
-            text = Column(String, nullable=False)
+            text = Column(String)
             doc_id = Column(CommonUUID)
             agent_id = Column(CommonUUID)
             data_source = Column(String)  # agent_name if agent, data_source name if from data source
@@ -350,19 +350,11 @@ class SQLStorageConnector(StorageConnector):
         with self.session_maker() as session:
             return session.query(self.db_model).filter(*filters).count()
 
-    # def insert(self, record: Record):
-    #    db_record = self.db_model(**vars(record))
-    #    with self.session_maker() as session:
-    #        session.add(db_record)
-    #        session.commit()
+    def insert(self, record: Record):
+        raise NotImplementedError
 
-    # def insert_many(self, records: List[RecordType], show_progress=False):
-    #    iterable = tqdm(records) if show_progress else records
-    #    with self.session_maker() as session:
-    #        for record in iterable:
-    #            db_record = self.db_model(**vars(record))
-    #            session.add(db_record)
-    #        session.commit()
+    def insert_many(self, records: List[RecordType], show_progress=False):
+        raise NotImplementedError
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         raise NotImplementedError("Vector query not implemented for SQLStorageConnector")
@@ -516,13 +508,21 @@ class SQLLiteStorageConnector(SQLStorageConnector):
     def insert_many(self, records: List[RecordType], exists_ok=True, show_progress=False):
         from sqlalchemy.dialects.sqlite import insert
 
+        print(records)
+        for r in records:
+            if not r.user_id:
+                print(vars(r))
+                raise ValueError("User ID is required for all records")
         with self.engine.connect() as conn:
             db_records = [vars(record) for record in records]
+            # print("records", db_records)
             stmt = insert(self.db_model.__table__).values(db_records)
+            # print(stmt)
             if exists_ok:
                 upsert_stmt = stmt.on_conflict_do_update(
                     index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
                 )
+                print(upsert_stmt)
                 conn.execute(upsert_stmt)
             else:
                 conn.execute(stmt)
