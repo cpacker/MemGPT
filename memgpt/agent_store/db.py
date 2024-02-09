@@ -461,17 +461,31 @@ class PostgresStorageConnector(SQLStorageConnector):
     def insert_many(self, records: List[RecordType], exists_ok=True, show_progress=False):
         from sqlalchemy.dialects.postgresql import insert
 
-        with self.engine.connect() as conn:
-            db_records = [vars(record) for record in records]
-            stmt = insert(self.db_model.__table__).values(db_records)
-            if exists_ok:
-                upsert_stmt = stmt.on_conflict_do_update(
-                    index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
-                )
-                conn.execute(upsert_stmt)
-            else:
-                conn.execute(stmt)
-            conn.commit()
+        # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
+        if len(records) == 0:
+            return
+        if isinstance(records[0], Passage):
+            with self.engine.connect() as conn:
+                db_records = [vars(record) for record in records]
+                # print("records", db_records)
+                stmt = insert(self.db_model.__table__).values(db_records)
+                # print(stmt)
+                if exists_ok:
+                    upsert_stmt = stmt.on_conflict_do_update(
+                        index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
+                    )
+                    print(upsert_stmt)
+                    conn.execute(upsert_stmt)
+                else:
+                    conn.execute(stmt)
+                conn.commit()
+        else:
+            with self.session_maker() as session:
+                iterable = tqdm(records) if show_progress else records
+                for record in iterable:
+                    db_record = self.db_model(**vars(record))
+                    session.add(db_record)
+                session.commit()
 
     def insert(self, record: Record, exists_ok=True):
         self.insert_many([record], exists_ok=exists_ok)
@@ -508,25 +522,31 @@ class SQLLiteStorageConnector(SQLStorageConnector):
     def insert_many(self, records: List[RecordType], exists_ok=True, show_progress=False):
         from sqlalchemy.dialects.sqlite import insert
 
-        print(records)
-        for r in records:
-            if not r.user_id:
-                print(vars(r))
-                raise ValueError("User ID is required for all records")
-        with self.engine.connect() as conn:
-            db_records = [vars(record) for record in records]
-            # print("records", db_records)
-            stmt = insert(self.db_model.__table__).values(db_records)
-            # print(stmt)
-            if exists_ok:
-                upsert_stmt = stmt.on_conflict_do_update(
-                    index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
-                )
-                print(upsert_stmt)
-                conn.execute(upsert_stmt)
-            else:
-                conn.execute(stmt)
-            conn.commit()
+        # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
+        if len(records) == 0:
+            return
+        if isinstance(records[0], Passage):
+            with self.engine.connect() as conn:
+                db_records = [vars(record) for record in records]
+                # print("records", db_records)
+                stmt = insert(self.db_model.__table__).values(db_records)
+                # print(stmt)
+                if exists_ok:
+                    upsert_stmt = stmt.on_conflict_do_update(
+                        index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
+                    )
+                    print(upsert_stmt)
+                    conn.execute(upsert_stmt)
+                else:
+                    conn.execute(stmt)
+                conn.commit()
+        else:
+            with self.session_maker() as session:
+                iterable = tqdm(records) if show_progress else records
+                for record in iterable:
+                    db_record = self.db_model(**vars(record))
+                    session.add(db_record)
+                session.commit()
 
     def insert(self, record: Record, exists_ok=True):
         self.insert_many([record], exists_ok=exists_ok)
