@@ -74,6 +74,8 @@ def smart_urljoin(base_url, relative_url):
 
 def clean_azure_endpoint(raw_endpoint_name):
     """Make sure the endpoint is of format 'https://YOUR_RESOURCE_NAME.openai.azure.com'"""
+    if raw_endpoint_name is None:
+        raise ValueError(raw_endpoint_name)
     endpoint_address = raw_endpoint_name.strip("/").replace(".openai.azure.com", "")
     endpoint_address = endpoint_address.replace("http://", "")
     endpoint_address = endpoint_address.replace("https://", "")
@@ -250,6 +252,11 @@ def openai_embeddings_request(url, api_key, data):
 def azure_openai_chat_completions_request(resource_name, deployment_id, api_version, api_key, data):
     """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#chat-completions"""
     from memgpt.utils import printd
+
+    assert resource_name is not None, "Missing required field when calling Azure OpenAI"
+    assert deployment_id is not None, "Missing required field when calling Azure OpenAI"
+    assert api_version is not None, "Missing required field when calling Azure OpenAI"
+    assert api_key is not None, "Missing required field when calling Azure OpenAI"
 
     resource_name = clean_azure_endpoint(resource_name)
     url = f"https://{resource_name}.openai.azure.com/openai/deployments/{deployment_id}/chat/completions?api-version={api_version}"
