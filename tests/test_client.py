@@ -17,18 +17,6 @@ test_agent_state_post_message = None
 test_user_id = uuid.uuid4()
 
 
-# def test_create_user():
-#    wipe_config()
-#    global client
-#    if os.getenv("OPENAI_API_KEY"):
-#        client = MemGPT(quickstart="openai", user_id=test_user_id)
-#    else:
-#        client = MemGPT(quickstart="memgpt_hosted", user_id=test_user_id)
-#
-#    user = client.server.create_user({"id": test_user_id})
-#    assert user is not None
-
-
 def test_create_agent():
     wipe_config()
     global client
@@ -39,9 +27,9 @@ def test_create_agent():
 
     config = MemGPTConfig.load()
 
-    ## ensure user exists
-    # if not client.server.get_user(user_id=test_user_id):
-    #    raise ValueError("Run test_create_user first")
+    # ensure user exists
+    if not client.server.get_user(user_id=test_user_id):
+        raise ValueError("User failed to be created")
 
     global test_agent_state
     test_agent_state = client.create_agent(
