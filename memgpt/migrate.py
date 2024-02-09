@@ -372,7 +372,6 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Meta
             recall_datetime = datetime.strptime(recall_timestamp.strip(), "%Y-%m-%d %I:%M:%S %p").astimezone(pytz.utc)
 
         # message object
-        print("user", user.id)
         message_obj = Message.dict_to_message(
             created_at=recall_datetime,
             user_id=user.id,
