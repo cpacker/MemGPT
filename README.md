@@ -7,7 +7,7 @@
  <strong>MemGPT allows you to build LLM agents with self-editing memory</strong>
 
  <strong>Try out our MemGPT chatbot on <a href="https://discord.gg/9GEQrxmVyE">Discord</a>!</strong>
- 
+
  <strong>You can now run MemGPT with <a href="https://memgpt.readme.io/docs/local_llm">open/local LLMs</a> and <a href="https://memgpt.readme.io/docs/autogen">AutoGen</a>!</strong>
 
 
@@ -142,7 +142,7 @@ client = MemGPT(
 )
 
 # You can set many more parameters, this is just a basic example
-agent_id = client.create_agent(
+agent_state = client.create_agent(
   agent_config={
     "persona": "sam_pov",
     "human": "cs_phd",
@@ -152,7 +152,7 @@ agent_id = client.create_agent(
 # Now that we have an agent_name identifier, we can send it a message!
 # The response will have data from the MemGPT agent
 my_message = "Hi MemGPT! How's it going?"
-response = client.user_message(agent_id=agent_id, message=my_message)
+response = client.user_message(agent_id=agent_state.id, message=my_message)
 ```
 
 <details>
