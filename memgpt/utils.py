@@ -668,14 +668,14 @@ def verify_first_message_correctness(
     response_message = response.choices[0].message
 
     # First message should be a call to send_message with a non-empty content
-    if ("function_call" in response_message and response_message.function_call is not None) and (
-        "tool_calls" in response_message and response_message.tool_calls is not None
+    if (hasattr(response_message, "function_call") and response_message.function_call is not None) and (
+        hasattr(response_message, "tool_calls") and response_message.tool_calls is not None
     ):
         printd(f"First message includes both function call AND tool call: {response_message}")
         return False
-    elif "function_call" in response_message and response_message.function_call is not None:
+    elif hasattr(response_message, "function_call") and response_message.function_call is not None:
         function_call = response_message.function_call
-    elif "tool_calls" in response_message and response_message.tool_calls is not None:
+    elif hasattr(response_message, "tool_calls") and response_message.tool_calls is not None:
         function_call = response_message.tool_calls[0].function
     else:
         printd(f"First message didn't include function call: {response_message}")
