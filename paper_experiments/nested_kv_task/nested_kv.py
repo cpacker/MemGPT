@@ -91,7 +91,6 @@ def load_jsonl_to_list(filename):
 
 
 def run_nested_kv_task(config: MemGPTConfig, memgpt_client: MemGPT, kv_dict, user_message):
-
     utils.DEBUG = True
 
     # delete agent if exists
@@ -192,7 +191,6 @@ def run_baseline(model_id, query_key, kv_dict):
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description="Test script")
     parser.add_argument("--model", type=str, help="The model to use")
     parser.add_argument("--nesting_levels", default=1, type=int, help="Nesting levels")
@@ -226,7 +224,6 @@ if __name__ == "__main__":
         exit(0)
 
     if args.task in ["kv", "kv_nested"]:
-
         all_data = load_gzipped_file(args.kv_data)
         for example in all_data:
             data = example
@@ -318,7 +315,6 @@ if __name__ == "__main__":
             )
 
     if args.baseline == "memgpt":
-
         # craete config
         config = get_experiment_config(os.environ.get("PGVECTOR_TEST_DB_URL"), endpoint_type=provider, model=args.model)
         config.save()  # save config to file

@@ -85,7 +85,6 @@ def insert_lines(lines, conn, show_progress=False):
 def main(argv):
     # clear out existing source
     if FLAGS.drop_db:
-
         delete("source", source_name)
         try:
             passages_table = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
