@@ -336,7 +336,7 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
 
         # Last are the user/assistant messages
         for message in messages[1:]:
-            assert message["role"] in ["user", "assistant", "function"], message
+            assert message["role"] in ["user", "assistant", "tool"], message
 
             if message["role"] == "user":
                 # Support for AutoGen naming of agents
@@ -364,7 +364,7 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
                 inner_thoughts = message["content"]
                 if "function_call" in message and message["function_call"]:
                     prompt += f"\n{create_function_call(message['function_call'], inner_thoughts=inner_thoughts)}"
-            elif message["role"] == "function":
+            elif message["role"] == "tool":
                 # TODO find a good way to add this
                 # prompt += f"\nASSISTANT: (function return) {message['content']}"
                 prompt += f"\nFUNCTION RETURN: {message['content']}"
