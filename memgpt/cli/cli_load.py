@@ -48,15 +48,26 @@ def insert_passages_into_source(passages: List[Passage], source_name: str, user_
         ms.create_source(source)
 
     # make sure user_id is set for passages
+    passage_chunk = []
+    insert_chunk_size = 1000
     for passage in passages:
         # TODO: attach source IDs
         # passage.source_id = source.id
         passage.user_id = user_id
         passage.data_source = source_name
 
-    # add and save all passages
-    storage.insert_many(passages)
-    storage.save()
+        # add and save all passages
+        passage_chunk.append(passage)
+        if len(passage_chunk) >= insert_chunk_size:
+            storage.insert_many(passage_chunk)
+            storage.save()
+            passage_chunk = []
+
+    if len(passage_chunk) > 0:
+        storage.insert_many(passage_chunk)
+        storage.save()
+
+    # print info
     num_new_passages = storage.size() - orig_size
     print(f"Updated {len(passages)}, inserted {num_new_passages} new passages into {source_name}")
     print("Total passages in source:", storage.size())
