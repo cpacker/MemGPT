@@ -370,7 +370,10 @@ class Agent(object):
             if response_message.function_call:
                 raise DeprecationWarning(response_message)
             if response_message.tool_calls is not None and len(response_message.tool_calls) > 1:
-                raise NotImplementedError(f">1 tool call not supported")
+                # raise NotImplementedError(f">1 tool call not supported")
+                # TODO eventually support sequential tool calling
+                printd(f">1 tool call not supported, using index=0 only\n{response_message.tool_calls}")
+                response_message.tool_calls = [response_message.tool_calls[0]]
             assert response_message.tool_calls is not None and len(response_message.tool_calls) > 0
 
             # The content if then internal monologue, not chat
