@@ -11,7 +11,6 @@ Before running this example, make sure you start the OpenAI-compatible REST serv
 
 
 def main():
-
     client = OpenAI(base_url="http://127.0.0.1:8080/v1")
 
     # create assistant (creates a memgpt preset)
