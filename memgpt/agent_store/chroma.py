@@ -159,13 +159,13 @@ class ChromaStorageConnector(StorageConnector):
         ids, documents, embeddings, metadatas = self.format_records([record])
         if any([e is None for e in embeddings]):
             raise ValueError("Embeddings must be provided to chroma")
-        self.collection.add(documents=documents, embeddings=[e for e in embeddings if e is not None], ids=ids, metadatas=metadatas)
+        self.collection.upsert(documents=documents, embeddings=[e for e in embeddings if e is not None], ids=ids, metadatas=metadatas)
 
     def insert_many(self, records: List[RecordType], show_progress=False):
         ids, documents, embeddings, metadatas = self.format_records(records)
         if any([e is None for e in embeddings]):
             raise ValueError("Embeddings must be provided to chroma")
-        self.collection.add(documents=documents, embeddings=[e for e in embeddings if e is not None], ids=ids, metadatas=metadatas)
+        self.collection.upsert(documents=documents, embeddings=[e for e in embeddings if e is not None], ids=ids, metadatas=metadatas)
 
     def delete(self, filters: Optional[Dict] = {}):
         ids, filters = self.get_filters(filters)
