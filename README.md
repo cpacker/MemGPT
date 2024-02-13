@@ -1,12 +1,14 @@
-<a href="#user-content-memgpt"><img src="https://research.memgpt.ai/assets/img/memgpt_logo_circle.png" alt="MemGPT logo" width="75" align="right"></a>
-
-# [MemGPT](https://memgpt.ai)
+<p align="center">
+  <a href="https://memgpt.ai"><img src="https://github.com/cpacker/MemGPT/assets/5475622/80f2f418-ef92-4f7a-acab-5d642faa4991" alt="MemGPT logo"></a>
+</p>
 
 <div align="center">
 
+ <strong>MemGPT allows you to build LLM agents with self-editing memory</strong>
+
  <strong>Try out our MemGPT chatbot on <a href="https://discord.gg/9GEQrxmVyE">Discord</a>!</strong>
 
- <strong>⭐ NEW: You can now run MemGPT with <a href="https://memgpt.readme.io/docs/local_llm">open/local LLMs</a> and <a href="https://memgpt.readme.io/docs/autogen">AutoGen</a>! ⭐ </strong>
+ <strong>You can now run MemGPT with <a href="https://memgpt.readme.io/docs/local_llm">open/local LLMs</a> and <a href="https://memgpt.readme.io/docs/autogen">AutoGen</a>!</strong>
 
 
 [![Discord](https://img.shields.io/discord/1161736243340640419?label=Discord&logo=discord&logoColor=5865F2&style=flat-square&color=5865F2)](https://discord.gg/9GEQrxmVyE)
@@ -85,7 +87,7 @@ You can run the following commands in the MemGPT CLI prompt while chatting with 
 * `/pop`: Undo the last message in the conversation
 * `/pop <count>`: Undo the last messages in the conversation. It defaults to 3, which usually is one turn around in the conversation
 * `/retry`: Pops the last answer and tries to get another one
-* `/rethink <text>`: Will replace the inner dialog of the last assistant message with the <text> to help shaping the conversation
+* `/rethink <text>`: Will replace the inner dialog of the last assistant message with the `<text>` to help shaping the conversation
 * `/rewrite`: Will replace the last assistant answer with the given text to correct or force the answer
 * `/heartbeat`: Send a heartbeat system message to the agent
 * `/memorywarning`: Send a memory warning system message to the agent
@@ -140,7 +142,7 @@ client = MemGPT(
 )
 
 # You can set many more parameters, this is just a basic example
-agent_id = client.create_agent(
+agent_state = client.create_agent(
   agent_config={
     "persona": "sam_pov",
     "human": "cs_phd",
@@ -150,7 +152,7 @@ agent_id = client.create_agent(
 # Now that we have an agent_name identifier, we can send it a message!
 # The response will have data from the MemGPT agent
 my_message = "Hi MemGPT! How's it going?"
-response = client.user_message(agent_id=agent_id, message=my_message)
+response = client.user_message(agent_id=agent_state.id, message=my_message)
 ```
 
 <details>
@@ -227,3 +229,6 @@ For issues and feature requests, please [open a GitHub issue](https://github.com
 
 ## Datasets
 Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded at [Hugging Face](https://huggingface.co/MemGPT).
+
+## Roadmap
+You can view (and comment on!) the MemGPT developer roadmap [here](https://docs.google.com/document/d/1NOJr5n8hfG1IZO_6c2HGfix1EVYq5rh8oNm7AWCrQPo/edit?usp=sharing).

@@ -2,7 +2,7 @@ import json
 
 from .wrapper_base import LLMChatCompletionWrapper
 from ..json_parser import clean_json
-from ...constants import JSON_ENSURE_ASCII
+from ...constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
 from ...errors import LLMJSONParsingError
 
 
@@ -114,7 +114,7 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
             """
             airo_func_call = {
                 "function": function_call["name"],
-                "params": json.loads(function_call["arguments"]),
+                "params": json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
             }
             return json.dumps(airo_func_call, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
 
@@ -124,12 +124,12 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
 
         # Last are the user/assistant messages
         for message in messages[1:]:
-            assert message["role"] in ["user", "assistant", "function"], message
+            assert message["role"] in ["user", "assistant", "function", "tool"], message
 
             if message["role"] == "user":
                 if self.simplify_json_content:
                     try:
-                        content_json = json.loads(message["content"])
+                        content_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
                         content_simple = content_json["message"]
                         prompt += f"\nUSER: {content_simple}"
                     except:
@@ -139,7 +139,7 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
                 # need to add the function call if there was one
                 if "function_call" in message and message["function_call"]:
                     prompt += f"\n{create_function_call(message['function_call'])}"
-            elif message["role"] == "function":
+            elif message["role"] in ["function", "tool"]:
                 # TODO find a good way to add this
                 # prompt += f"\nASSISTANT: (function return) {message['content']}"
                 prompt += f"\nFUNCTION RETURN: {message['content']}"
@@ -325,7 +325,7 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
                 "function": function_call["name"],
                 "params": {
                     "inner_thoughts": inner_thoughts,
-                    **json.loads(function_call["arguments"]),
+                    **json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
                 },
             }
             return json.dumps(airo_func_call, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
@@ -336,7 +336,7 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
 
         # Last are the user/assistant messages
         for message in messages[1:]:
-            assert message["role"] in ["user", "assistant", "function"], message
+            assert message["role"] in ["user", "assistant", "function", "tool"], message
 
             if message["role"] == "user":
                 # Support for AutoGen naming of agents
@@ -347,7 +347,7 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
                     user_prefix = "USER"
                 if self.simplify_json_content:
                     try:
-                        content_json = json.loads(message["content"])
+                        content_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
                         content_simple = content_json["message"]
                         prompt += f"\n{user_prefix}: {content_simple}"
                     except:
@@ -364,7 +364,7 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
                 inner_thoughts = message["content"]
                 if "function_call" in message and message["function_call"]:
                     prompt += f"\n{create_function_call(message['function_call'], inner_thoughts=inner_thoughts)}"
-            elif message["role"] == "function":
+            elif message["role"] in ["function", "tool"]:
                 # TODO find a good way to add this
                 # prompt += f"\nASSISTANT: (function return) {message['content']}"
                 prompt += f"\nFUNCTION RETURN: {message['content']}"

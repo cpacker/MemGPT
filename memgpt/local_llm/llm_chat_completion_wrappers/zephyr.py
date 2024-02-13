@@ -77,17 +77,17 @@ class ZephyrMistralWrapper(LLMChatCompletionWrapper):
         def create_function_call(function_call):
             airo_func_call = {
                 "function": function_call["name"],
-                "params": json.loads(function_call["arguments"]),
+                "params": json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
             }
             return json.dumps(airo_func_call, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
 
         for message in messages[1:]:
-            assert message["role"] in ["user", "assistant", "function"], message
+            assert message["role"] in ["user", "assistant", "function", "tool"], message
 
             if message["role"] == "user":
                 if self.simplify_json_content:
                     try:
-                        content_json = json.loads(message["content"])
+                        content_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
                         content_simple = content_json["message"]
                         prompt += f"\n<|user|>\n{content_simple}{IM_END_TOKEN}"
                         # prompt += f"\nUSER: {content_simple}"
@@ -103,7 +103,7 @@ class ZephyrMistralWrapper(LLMChatCompletionWrapper):
                 if "function_call" in message and message["function_call"]:
                     prompt += f"\n{create_function_call(message['function_call'])}"
                 prompt += f"{IM_END_TOKEN}"
-            elif message["role"] == "function":
+            elif message["role"] in ["function", "tool"]:
                 # TODO find a good way to add this
                 # prompt += f"\nASSISTANT: (function return) {message['content']}"
                 prompt += f"\n<|assistant|>"
@@ -241,7 +241,7 @@ class ZephyrMistralInnerMonologueWrapper(ZephyrMistralWrapper):
                 "function": function_call["name"],
                 "params": {
                     "inner_thoughts": inner_thoughts,
-                    **json.loads(function_call["arguments"]),
+                    **json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
                 },
             }
             return json.dumps(airo_func_call, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
@@ -252,12 +252,12 @@ class ZephyrMistralInnerMonologueWrapper(ZephyrMistralWrapper):
 
         # Last are the user/assistant messages
         for message in messages[1:]:
-            assert message["role"] in ["user", "assistant", "function"], message
+            assert message["role"] in ["user", "assistant", "function", "tool"], message
 
             if message["role"] == "user":
                 if self.simplify_json_content:
                     try:
-                        content_json = json.loads(message["content"])
+                        content_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
                         content_simple = content_json["message"]
                         prompt += f"\n<|user|>\n{content_simple}{IM_END_TOKEN}"
                     except:
@@ -268,7 +268,7 @@ class ZephyrMistralInnerMonologueWrapper(ZephyrMistralWrapper):
                 inner_thoughts = message["content"]
                 if "function_call" in message and message["function_call"]:
                     prompt += f"\n{create_function_call(message['function_call'], inner_thoughts=inner_thoughts)}"
-            elif message["role"] == "function":
+            elif message["role"] in ["function", "tool"]:
                 # TODO find a good way to add this
                 # prompt += f"\nASSISTANT: (function return) {message['content']}"
                 prompt += f"\nFUNCTION RETURN: {message['content']}"

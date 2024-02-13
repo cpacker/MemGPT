@@ -4,7 +4,7 @@ excerpt: Developing using the MemGPT Python client
 category: 6580dab16cade8003f996d17
 ---
 
-The fastest way to integrate MemGPT with your own Python projects is through the `MemGPT` client class:
+The fastest way to integrate MemGPT with your own Python projects is through the `MemGPT` [client class](https://github.com/cpacker/MemGPT/blob/main/memgpt/client/client.py):
 
 ```python
 from memgpt import MemGPT

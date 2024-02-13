@@ -17,11 +17,13 @@ class SPAStaticFiles(StaticFiles):
 
 
 def mount_static_files(app: FastAPI):
-    app.mount(
-        "/",
-        SPAStaticFiles(
-            directory=os.path.join(os.getcwd(), "memgpt", "server", "static_files"),
-            html=True,
-        ),
-        name="spa-static-files",
-    )
+    static_files_path = os.path.join(os.getcwd(), "memgpt", "server", "static_files")
+    if os.path.exists(static_files_path):
+        app.mount(
+            "/",
+            SPAStaticFiles(
+                directory=static_files_path,
+                html=True,
+            ),
+            name="spa-static-files",
+        )

@@ -16,6 +16,12 @@ from llama_index.embeddings.huggingface_utils import format_text
 import tiktoken
 
 
+def truncate_text(text: str, max_length: int, encoding) -> str:
+    # truncate the text based on max_length and encoding
+    encoded_text = encoding.encode(text)[:max_length]
+    return encoding.decode(encoded_text)
+
+
 def check_and_split_text(text: str, embedding_model: str) -> List[str]:
     """Split text into chunks of max_length tokens or less"""
 
@@ -29,6 +35,7 @@ def check_and_split_text(text: str, embedding_model: str) -> List[str]:
 
     # determine max length
     if hasattr(encoding, "max_length"):
+        # TODO(fix) this is broken
         max_length = encoding.max_length
     else:
         # TODO: figure out the real number
@@ -37,9 +44,11 @@ def check_and_split_text(text: str, embedding_model: str) -> List[str]:
 
     # truncate text if too long
     if num_tokens > max_length:
-        # TODO: split this into two pieces of text instead of truncating
         print(f"Warning: text is too long ({num_tokens} tokens), truncating to {max_length} tokens.")
-        text = format_text(text, embedding_model, max_length=max_length)
+        # First, apply any necessary formatting
+        formatted_text = format_text(text, embedding_model)
+        # Then truncate
+        text = truncate_text(formatted_text, max_length, encoding)
 
     return [text]
 

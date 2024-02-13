@@ -2,7 +2,7 @@ import json
 
 from .wrapper_base import LLMChatCompletionWrapper
 from ..json_parser import clean_json
-from ...constants import JSON_ENSURE_ASCII
+from ...constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
 from ...errors import LLMJSONParsingError
 
 
@@ -131,7 +131,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
             "function": function_call["name"],
             "params": {
                 "inner_thoughts": inner_thoughts,
-                **json.loads(function_call["arguments"]),
+                **json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
             },
         }
         return json.dumps(airo_func_call, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
@@ -161,14 +161,14 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         if self.simplify_json_content:
             # Make user messages not JSON but plaintext instead
             try:
-                user_msg_json = json.loads(message["content"])
+                user_msg_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
                 user_msg_str = user_msg_json["message"]
             except:
                 user_msg_str = message["content"]
         else:
             # Otherwise just dump the full json
             try:
-                user_msg_json = json.loads(message["content"])
+                user_msg_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
                 user_msg_str = json.dumps(user_msg_json, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
             except:
                 user_msg_str = message["content"]
@@ -183,7 +183,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         prompt = ""
         try:
             # indent the function replies
-            function_return_dict = json.loads(message["content"])
+            function_return_dict = json.loads(message["content"], strict=JSON_LOADS_STRICT)
             function_return_str = json.dumps(function_return_dict, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
         except:
             function_return_str = message["content"]
@@ -204,7 +204,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
 
         # Last are the user/assistant messages
         for message in messages[1:]:
-            assert message["role"] in ["user", "assistant", "tool"], message
+            assert message["role"] in ["user", "assistant", "function", "tool"], message
 
             if message["role"] == "user":
                 # Support for AutoGen naming of agents
@@ -213,7 +213,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
 
                 if self.use_system_role_in_user:
                     try:
-                        msg_json = json.loads(message["content"])
+                        msg_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
                         if msg_json["type"] != "user_message":
                             role_str = "system"
                     except:
@@ -227,7 +227,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
 
                 prompt += f"\n<|im_start|>{role_str}\n{msg_str.strip()}<|im_end|>"
 
-            elif message["role"] == "tool":
+            elif message["role"] in ["tool", "function"]:
                 if self.allow_function_role:
                     role_str = message["role"]
                     msg_str = self._compile_function_response(message)
@@ -388,7 +388,7 @@ class ChatMLOuterInnerMonologueWrapper(ChatMLInnerMonologueWrapper):
             "function": function_call["name"],
             "params": {
                 # "inner_thoughts": inner_thoughts,
-                **json.loads(function_call["arguments"]),
+                **json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
             },
         }
         return json.dumps(airo_func_call, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
@@ -437,7 +437,7 @@ class ChatMLOuterInnerMonologueWrapper(ChatMLInnerMonologueWrapper):
         💭 : I've been observing our previous conversations. I remember that your name is Chad.
         🤖 I recall our previous interactions, Chad. How can I assist you today?
         > Enter your message: is that all you know about me?
-        💭 : I see you're curious about our connection. Let me do a quick search of my memory. 
+        💭 : I see you're curious about our connection. Let me do a quick search of my memory.
         """
 
         if function_name is not None and self.clean_func_args:

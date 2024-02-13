@@ -7,6 +7,7 @@ Running the Chat UI requires starting both the MemGPT API server, and the MemGPT
 Before attempting to run the MemGPT API server, make sure you have `memgpt` installed and have been able to run basic `memgpt` commands (e.g. `memgpt run`). See installation instructions here: https://memgpt.readme.io/docs/quickstart.
 
 Once you have MemGPT installed and running correctly, you can start the server with:
+
 ```sh
 memgpt server
 ```
@@ -18,6 +19,7 @@ Once the API server is running, you can launch the Chat UI web app (which will c
 If you don't already have Node.js installed, follow the installation instructions here: https://nodejs.org/en.
 
 Then, in your terminal navigate to the `chatui` directory in the MemGPT project, and run:
+
 ```sh
 npx nx serve
 ```

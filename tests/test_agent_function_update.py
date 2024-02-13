@@ -56,7 +56,7 @@ def agent():
 
 @pytest.fixture(scope="module")
 def hello_world_function():
-    with open(os.path.join(USER_FUNCTIONS_DIR, "hello_world.py"), "w") as f:
+    with open(os.path.join(USER_FUNCTIONS_DIR, "hello_world.py"), "w", encoding="utf-8") as f:
         f.write(inspect.getsource(hello_world))
 
 
@@ -85,7 +85,7 @@ def test_add_function_happy(agent, hello_world_function, ai_function_call):
     assert "hello_world" in agent.functions_python.keys()
 
     msgs, heartbeat_req, function_failed = agent._handle_ai_response(ai_function_call)
-    content = json.loads(msgs[-1].to_openai_dict()["content"])
+    content = json.loads(msgs[-1].to_openai_dict()["content"], strict=constants.JSON_LOADS_STRICT)
     assert content["message"] == "hello, world!"
     assert content["status"] == "OK"
     assert not function_failed

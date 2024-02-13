@@ -1,12 +1,9 @@
 """Key idea: create drop-in replacement for agent's ChatCompletion call that runs on an OpenLLM backend"""
 
-import os
 from datetime import datetime
 import requests
 import json
 import uuid
-
-from box import Box
 
 from memgpt.local_llm.grammars.gbnf_grammar_generator import create_dynamic_model_from_function, generate_gbnf_grammar_and_documentation
 from memgpt.local_llm.webui.api import get_webui_completion
@@ -60,8 +57,8 @@ def get_chat_completion(
     global has_shown_warning
     grammar = None
 
-    if function_call != "auto":
-        raise ValueError(f"function_call == {function_call} not supported (auto only)")
+    if function_call is not None and function_call != "auto":
+        raise ValueError(f"function_call == {function_call} not supported (auto or None only)")
 
     available_wrappers = get_available_wrappers()
     documentation = None

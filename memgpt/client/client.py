@@ -2,12 +2,13 @@ import os
 import uuid
 from typing import Dict, List, Union, Optional, Tuple
 
-from memgpt.data_types import AgentState
+from memgpt.data_types import AgentState, User
 from memgpt.cli.cli import QuickstartChoice
 from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func, str_to_quickstart_choice
 from memgpt.config import MemGPTConfig
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
+from memgpt.metadata import MetadataStore
 
 
 class Client(object):
@@ -58,9 +59,10 @@ class Client(object):
         if config is not None:
             set_config_with_dict(config)
 
+        # determine user_id
+        config = MemGPTConfig.load()
         if user_id is None:
             # the default user_id
-            config = MemGPTConfig.load()
             self.user_id = uuid.UUID(config.anon_clientid)
         elif isinstance(user_id, str):
             self.user_id = uuid.UUID(user_id)
@@ -68,6 +70,16 @@ class Client(object):
             self.user_id = user_id
         else:
             raise TypeError(user_id)
+
+        # create user if does not exist
+        ms = MetadataStore(config)
+        self.user = User(id=self.user_id)
+        if ms.get_user(self.user_id):
+            # update user
+            ms.update_user(self.user)
+        else:
+            ms.create_user(self.user)
+
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface=self.interface)
 

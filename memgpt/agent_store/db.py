@@ -1,4 +1,5 @@
 import os
+import base64
 from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, DateTime
 from sqlalchemy import func, or_, and_
 from sqlalchemy import desc, asc
@@ -21,8 +22,8 @@ from memgpt.config import MemGPTConfig
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.utils import printd
+from memgpt.data_types import Record, Message, Passage, ToolCall, RecordType
 from memgpt.constants import MAX_EMBEDDING_DIM
-from memgpt.data_types import Record, Message, Passage, ToolCall
 from memgpt.metadata import MetadataStore
 
 from datetime import datetime
@@ -62,17 +63,23 @@ class CommonVector(TypeDecorator):
         return dialect.type_descriptor(BINARY())
 
     def process_bind_param(self, value, dialect):
-        if value:
-            assert isinstance(value, np.ndarray) or isinstance(value, list), f"Value must be of type np.ndarray or list, got {type(value)}"
-            assert isinstance(value[0], float), f"Value must be of type float, got {type(value[0])}"
-            return np.array(value).tobytes()
-        else:
+        if value is None:
             return value
+        # Ensure value is a numpy array
+        if isinstance(value, list):
+            value = np.array(value, dtype=np.float32)
+        # Serialize numpy array to bytes, then encode to base64 for universal compatibility
+        return base64.b64encode(value.tobytes())
 
     def process_result_value(self, value, dialect):
         if not value:
             return value
-        return np.frombuffer(value)
+        # Check database type and deserialize accordingly
+        if dialect.name == "sqlite":
+            # Decode from base64 and convert back to numpy array
+            value = base64.b64decode(value)
+        # For PostgreSQL, value is already in bytes
+        return np.frombuffer(value, dtype=np.float32)
 
 
 # Custom serialization / de-serialization for JSON columns
@@ -129,7 +136,7 @@ def get_db_model(
             id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
             # id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
             user_id = Column(CommonUUID, nullable=False)
-            text = Column(String, nullable=False)
+            text = Column(String)
             doc_id = Column(CommonUUID)
             agent_id = Column(CommonUUID)
             data_source = Column(String)  # agent_name if agent, data_source name if from data source
@@ -160,7 +167,7 @@ def get_db_model(
                     id=self.id,
                     data_source=self.data_source,
                     agent_id=self.agent_id,
-                    metadata=self.metadata_,
+                    metadata_=self.metadata_,
                 )
 
         """Create database model for table_name"""
@@ -252,7 +259,7 @@ class SQLStorageConnector(StorageConnector):
         all_filters = [getattr(self.db_model, key) == value for key, value in filter_conditions.items()]
         return all_filters
 
-    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000, offset=0) -> Iterator[List[Record]]:
+    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000, offset=0) -> Iterator[List[RecordType]]:
         filters = self.get_filters(filters)
         while True:
             # Retrieve a chunk of records with the given page_size
@@ -321,7 +328,7 @@ class SQLStorageConnector(StorageConnector):
         # return (cursor, list[records])
         return (next_cursor, records)
 
-    def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[Record]:
+    def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[RecordType]:
         filters = self.get_filters(filters)
         with self.session_maker() as session:
             if limit:
@@ -344,20 +351,12 @@ class SQLStorageConnector(StorageConnector):
             return session.query(self.db_model).filter(*filters).count()
 
     def insert(self, record: Record):
-        db_record = self.db_model(**vars(record))
-        with self.session_maker() as session:
-            session.add(db_record)
-            session.commit()
+        raise NotImplementedError
 
-    def insert_many(self, records: List[Record], show_progress=False):
-        iterable = tqdm(records) if show_progress else records
-        with self.session_maker() as session:
-            for record in iterable:
-                db_record = self.db_model(**vars(record))
-                session.add(db_record)
-            session.commit()
+    def insert_many(self, records: List[RecordType], show_progress=False):
+        raise NotImplementedError
 
-    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         raise NotImplementedError("Vector query not implemented for SQLStorageConnector")
 
     def save(self):
@@ -433,10 +432,6 @@ class PostgresStorageConnector(SQLStorageConnector):
             self.uri = self.config.recall_storage_uri
             if self.config.recall_storage_uri is None:
                 raise ValueError(f"Must specifiy recall_storage_uri in config {self.config.config_path}")
-        elif table_type == TableType.DATA_SOURCES:
-            self.uri = self.config.metadata_storage_uri
-            if self.config.metadata_storage_uri is None:
-                raise ValueError(f"Must specifiy metadata_storage_uri in config {self.config.config_path}")
         else:
             raise ValueError(f"Table type {table_type} not implemented")
         # create table
@@ -452,7 +447,7 @@ class PostgresStorageConnector(SQLStorageConnector):
         with self.session_maker() as session:
             session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
 
-    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[Record]:
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         filters = self.get_filters(filters)
         with self.session_maker() as session:
             results = session.scalars(
@@ -462,6 +457,38 @@ class PostgresStorageConnector(SQLStorageConnector):
         # Convert the results into Passage objects
         records = [result.to_record() for result in results]
         return records
+
+    def insert_many(self, records: List[RecordType], exists_ok=True, show_progress=False):
+        from sqlalchemy.dialects.postgresql import insert
+
+        # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
+        if len(records) == 0:
+            return
+        if isinstance(records[0], Passage):
+            with self.engine.connect() as conn:
+                db_records = [vars(record) for record in records]
+                # print("records", db_records)
+                stmt = insert(self.db_model.__table__).values(db_records)
+                # print(stmt)
+                if exists_ok:
+                    upsert_stmt = stmt.on_conflict_do_update(
+                        index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
+                    )
+                    print(upsert_stmt)
+                    conn.execute(upsert_stmt)
+                else:
+                    conn.execute(stmt)
+                conn.commit()
+        else:
+            with self.session_maker() as session:
+                iterable = tqdm(records) if show_progress else records
+                for record in iterable:
+                    db_record = self.db_model(**vars(record))
+                    session.add(db_record)
+                session.commit()
+
+    def insert(self, record: Record, exists_ok=True):
+        self.insert_many([record], exists_ok=exists_ok)
 
 
 class SQLLiteStorageConnector(SQLStorageConnector):
@@ -479,7 +506,7 @@ class SQLLiteStorageConnector(SQLStorageConnector):
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 
-        self.path = os.path.join(self.path, f"{self.table_name}.db")
+        self.path = os.path.join(self.path, f"sqlite.db")
 
         # Create the SQLAlchemy engine
         self.db_model = get_db_model(config, self.table_name, table_type, user_id, agent_id, dialect="sqlite")
@@ -491,3 +518,35 @@ class SQLLiteStorageConnector(SQLStorageConnector):
 
         sqlite3.register_adapter(uuid.UUID, lambda u: u.bytes_le)
         sqlite3.register_converter("UUID", lambda b: uuid.UUID(bytes_le=b))
+
+    def insert_many(self, records: List[RecordType], exists_ok=True, show_progress=False):
+        from sqlalchemy.dialects.sqlite import insert
+
+        # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
+        if len(records) == 0:
+            return
+        if isinstance(records[0], Passage):
+            with self.engine.connect() as conn:
+                db_records = [vars(record) for record in records]
+                # print("records", db_records)
+                stmt = insert(self.db_model.__table__).values(db_records)
+                # print(stmt)
+                if exists_ok:
+                    upsert_stmt = stmt.on_conflict_do_update(
+                        index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
+                    )
+                    print(upsert_stmt)
+                    conn.execute(upsert_stmt)
+                else:
+                    conn.execute(stmt)
+                conn.commit()
+        else:
+            with self.session_maker() as session:
+                iterable = tqdm(records) if show_progress else records
+                for record in iterable:
+                    db_record = self.db_model(**vars(record))
+                    session.add(db_record)
+                session.commit()
+
+    def insert(self, record: Record, exists_ok=True):
+        self.insert_many([record], exists_ok=exists_ok)

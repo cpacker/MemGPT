@@ -9,7 +9,7 @@ def get_system_text(key):
 
     # first look in prompts/system/*.txt
     if os.path.exists(file_path):
-        with open(file_path, "r") as file:
+        with open(file_path, "r", encoding="utf-8") as file:
             return file.read().strip()
     else:
         # try looking in ~/.memgpt/system_prompts/*.txt
@@ -20,7 +20,7 @@ def get_system_text(key):
         # look inside for a matching system prompt
         file_path = os.path.join(user_system_prompts_dir, filename)
         if os.path.exists(file_path):
-            with open(file_path, "r") as file:
+            with open(file_path, "r", encoding="utf-8") as file:
                 return file.read().strip()
         else:
             raise FileNotFoundError(f"No file found for key {key}, path={file_path}")

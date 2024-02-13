@@ -1,11 +1,5 @@
-import shutil
-import configparser
-import uuid
-import logging
-import glob
 import os
 import sys
-import pickle
 import traceback
 import json
 
@@ -13,21 +7,18 @@ import questionary
 import typer
 
 from rich.console import Console
-from prettytable import PrettyTable
+from memgpt.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, JSON_ENSURE_ASCII, JSON_LOADS_STRICT, REQ_HEARTBEAT_MESSAGE
 
 console = Console()
 
-from memgpt.log import logger
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.config import MemGPTConfig
 import memgpt.agent as agent
 import memgpt.system as system
-import memgpt.constants as constants
 import memgpt.errors as errors
-from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, migrate
+from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, migrate, delete_agent
 from memgpt.cli.cli_config import configure, list, add, delete
 from memgpt.cli.cli_load import app as load_app
-from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.metadata import MetadataStore, save_agent
 
 # import benchmark
@@ -50,6 +41,8 @@ app.add_typer(load_app, name="load")
 app.command(name="migrate")(migrate)
 # benchmark command
 app.command(name="benchmark")(bench)
+# delete agents
+app.command(name="delete-agent")(delete_agent)
 
 
 def clear_line(strip_ui=False):
@@ -120,7 +113,6 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                     # TODO: alternatively, only list sources with compatible embeddings, and print warning about non-compatible sources
 
                     data_source_options = ms.list_sources(user_id=memgpt_agent.agent_state.user_id)
-                    data_source_options = [s.name for s in data_source_options]
                     if len(data_source_options) == 0:
                         typer.secho(
                             'No sources available. You must load a souce with "memgpt load ..." before running /attach.',
@@ -133,7 +125,10 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                     valid_options = []
                     invalid_options = []
                     for source in data_source_options:
-                        if source.embedding_model == memgpt_agent.embedding_model and source.embedding_dim == memgpt_agent.embedding_dim:
+                        if (
+                            source.embedding_model == memgpt_agent.agent_state.embedding_config.embedding_model
+                            and source.embedding_dim == memgpt_agent.agent_state.embedding_config.embedding_dim
+                        ):
                             valid_options.append(source.name)
                         else:
                             invalid_options.append(source.name)
@@ -148,7 +143,7 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                     data_source = questionary.select("Select data source", choices=valid_options).ask()
 
                     # attach new data
-                    attach(memgpt_agent.config.name, data_source)
+                    attach(memgpt_agent.agent_state.name, data_source)
 
                     continue
 
@@ -228,10 +223,10 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                     for x in range(len(memgpt_agent.messages) - 1, 0, -1):
                         if memgpt_agent.messages[x].get("role") == "assistant":
                             text = user_input[len("/rewrite ") :].strip()
-                            args = json.loads(memgpt_agent.messages[x].get("function_call").get("arguments"))
+                            args = json.loads(memgpt_agent.messages[x].get("function_call").get("arguments"), strict=JSON_LOADS_STRICT)
                             args["message"] = text
                             memgpt_agent.messages[x].get("function_call").update(
-                                {"arguments": json.dumps(args, ensure_ascii=constants.JSON_ENSURE_ASCII)}
+                                {"arguments": json.dumps(args, ensure_ascii=JSON_ENSURE_ASCII)}
                             )
                             break
                     continue
@@ -334,10 +329,10 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                 user_message = system.get_token_limit_warning()
                 skip_next_user_input = True
             elif function_failed:
-                user_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
+                user_message = system.get_heartbeat(FUNC_FAILED_HEARTBEAT_MESSAGE)
                 skip_next_user_input = True
             elif heartbeat_request:
-                user_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
+                user_message = system.get_heartbeat(REQ_HEARTBEAT_MESSAGE)
                 skip_next_user_input = True
 
             return new_messages, user_message, skip_next_user_input

@@ -24,6 +24,7 @@ jobs:
 
   build-and-publish-nightly:
     name: Build and Publish to PyPI (nightly)
+    if: github.repository == 'cpacker/MemGPT'  # TODO: if the repo org ever changes, this must be updated
     runs-on: ubuntu-latest
     needs: check-date
     steps:
@@ -51,8 +52,8 @@ jobs:
 
       - name: Configure poetry
         env:
-          PYPI_NIGHTLY_TOKEN: ${{ secrets.PYPI_NIGHTLY_TOKEN }}
-        run: poetry config pypi-token.pypi "$PYPI_NIGHTLY_TOKEN"
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN}}
+        run: poetry config pypi-token.pypi "$PYPI_TOKEN"
 
       - name: Build the Python package
         run: poetry build

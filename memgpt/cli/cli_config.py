@@ -1,33 +1,31 @@
 import builtins
-from tqdm import tqdm
-import uuid
-import questionary
-from prettytable import PrettyTable
-import typer
 import os
 import shutil
-from typing import Annotated
+import uuid
+from typing import Annotated, Tuple, Optional
 from enum import Enum
+from typing import Annotated
 
-# from global logging configuration
-from memgpt.log import logger
+import questionary
+import typer
+from prettytable import PrettyTable
+from tqdm import tqdm
 
-# from memgpt.cli import app
 from memgpt import utils
-
+from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
-from memgpt.credentials import MemGPTCredentials, SUPPORTED_AUTH_TYPES
-from memgpt.constants import MEMGPT_DIR
-
-# from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.constants import LLM_MAX_TOKENS
+from memgpt.constants import MEMGPT_DIR
+from memgpt.credentials import MemGPTCredentials, SUPPORTED_AUTH_TYPES
+from memgpt.data_types import User, LLMConfig, EmbeddingConfig
+from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.server.utils import shorten_key_middle
-from memgpt.data_types import User, LLMConfig, EmbeddingConfig
+from memgpt.data_types import User, LLMConfig, EmbeddingConfig, Source
 from memgpt.metadata import MetadataStore
-from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.server.utils import shorten_key_middle
 
 app = typer.Typer()
 
@@ -119,9 +117,11 @@ def configure_llm_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials)
             )
         else:
             credentials.azure_key = azure_creds["azure_key"]
-            credentials.azure_endpoint = azure_creds["azure_endpoint"]
-            credentials.azure_version = azure_creds["azure_version"]
-            config.save()
+            credentials.azure_embedding_version = azure_creds["azure_embedding_version"]
+            credentials.azure_embedding_endpoint = azure_creds["azure_embedding_endpoint"]
+            if "azure_embedding_deployment" in azure_creds:
+                credentials.azure_embedding_deployment = azure_creds["azure_embedding_deployment"]
+            credentials.save()
 
         model_endpoint_type = "azure"
         model_endpoint = azure_creds["azure_endpoint"]
@@ -188,15 +188,16 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
     if model_endpoint_type == "openai" or model_endpoint_type == "azure":
         # Get the model list from the openai / azure endpoint
         hardcoded_model_options = ["gpt-4", "gpt-4-32k", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
-        fetched_model_options = None
+        fetched_model_options = []
         try:
             if model_endpoint_type == "openai":
-                fetched_model_options = openai_get_model_list(url=model_endpoint, api_key=credentials.openai_key)
+                fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=credentials.openai_key)
             elif model_endpoint_type == "azure":
-                fetched_model_options = azure_openai_get_model_list(
+                assert credentials.azure_version is not None, f"Missing azure_version"
+                fetched_model_options_response = azure_openai_get_model_list(
                     url=model_endpoint, api_key=credentials.azure_key, api_version=credentials.azure_version
                 )
-            fetched_model_options = [obj["id"] for obj in fetched_model_options["data"] if obj["id"].startswith("gpt-")]
+            fetched_model_options = [obj["id"] for obj in fetched_model_options_response["data"] if obj["id"].startswith("gpt-")]
         except:
             # NOTE: if this fails, it means the user's key is probably bad
             typer.secho(
@@ -350,30 +351,30 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
             str(2**18),  # 262144
             "custom",  # enter yourself
         ]
-        context_window = questionary.select(
+        context_window_input = questionary.select(
             "Select your model's context window (for Mistral 7B models, this is probably 8k / 8192):",
             choices=context_length_options,
             default=str(LLM_MAX_TOKENS["DEFAULT"]),
         ).ask()
-        if context_window is None:
+        if context_window_input is None:
             raise KeyboardInterrupt
 
         # If custom, ask for input
-        if context_window == "custom":
+        if context_window_input == "custom":
             while True:
-                context_window = questionary.text("Enter context window (e.g. 8192)").ask()
-                if context_window is None:
+                context_window_input = questionary.text("Enter context window (e.g. 8192)").ask()
+                if context_window_input is None:
                     raise KeyboardInterrupt
                 try:
-                    context_window = int(context_window)
+                    context_window = int(context_window_input)
                     break
                 except ValueError:
                     print(f"Context window must be a valid integer")
         else:
-            context_window = int(context_window)
+            context_window = int(context_window_input)
     else:
         # Pull the context length from the models
-        context_window = LLM_MAX_TOKENS[model]
+        context_window = int(LLM_MAX_TOKENS[str(model)])
     return model, model_wrapper, context_window
 
 
@@ -418,7 +419,12 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
             raise ValueError(
                 "Missing environment variables for Azure (see https://memgpt.readme.io/docs/endpoints#azure-openai). Please set then run `memgpt configure` again."
             )
-        # TODO we need to write these out to the config once we use them if we plan to ping for embedding lists with them
+        credentials.azure_key = azure_creds["azure_key"]
+        credentials.azure_version = azure_creds["azure_version"]
+        credentials.azure_embedding_endpoint = azure_creds["azure_embedding_endpoint"]
+        if "azure_deployment" in azure_creds:
+            credentials.azure_deployment = azure_creds["azure_deployment"]
+        credentials.save()
 
         embedding_endpoint_type = "azure"
         embedding_endpoint = azure_creds["azure_embedding_endpoint"]
@@ -583,8 +589,8 @@ def configure():
         model, model_wrapper, context_window = configure_model(
             config=config,
             credentials=credentials,
-            model_endpoint_type=model_endpoint_type,
-            model_endpoint=model_endpoint,
+            model_endpoint_type=str(model_endpoint_type),
+            model_endpoint=str(model_endpoint),
         )
         embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = configure_embedding_endpoint(
             config=config,
@@ -628,7 +634,6 @@ def configure():
         preset=default_preset,
         persona=default_persona,
         human=default_human,
-        agent=default_agent,
         # storage
         archival_storage_type=archival_storage_type,
         archival_storage_uri=archival_storage_uri,
@@ -651,9 +656,6 @@ def configure():
     user_id = uuid.UUID(config.anon_clientid)
     user = User(
         id=uuid.UUID(config.anon_clientid),
-        default_preset=default_preset,
-        default_persona=default_persona,
-        default_human=default_human,
         default_agent=default_agent,
     )
     if ms.get_user(user_id):
@@ -681,7 +683,10 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         table.field_names = ["Name", "LLM Model", "Embedding Model", "Embedding Dim", "Persona", "Human", "Data Source", "Create Time"]
         for agent in tqdm(ms.list_agents(user_id=user_id)):
             source_ids = ms.list_attached_sources(agent_id=agent.id)
-            source_names = [ms.get_source(source_id=source_id).name for source_id in source_ids]
+            assert all([source_id is not None and isinstance(source_id, uuid.UUID) for source_id in source_ids])
+            sources = [ms.get_source(source_id=source_id) for source_id in source_ids]
+            assert all([source is not None and isinstance(source, Source)] for source in sources)
+            source_names = [source.name for source in sources if source is not None]
             table.add_row(
                 [
                     agent.name,
@@ -728,7 +733,8 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         for source in ms.list_sources(user_id=user_id):
             # get attached agents
             agent_ids = ms.list_attached_agents(source_id=source.id)
-            agent_names = [ms.get_agent(agent_id=agent_id).name for agent_id in agent_ids]
+            agent_states = [ms.get_agent(agent_id=agent_id) for agent_id in agent_ids]
+            agent_names = [agent_state.name for agent_state in agent_states if agent_state is not None]
 
             table.add_row(
                 [source.name, source.embedding_model, source.embedding_dim, utils.format_datetime(source.created_at), ",".join(agent_names)]
@@ -742,9 +748,9 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
 @app.command()
 def add(
     option: str,  # [human, persona]
-    name: str = typer.Option(help="Name of human/persona"),
-    text: str = typer.Option(None, help="Text of human/persona"),
-    filename: str = typer.Option(None, "-f", help="Specify filename"),
+    name: Annotated[str, typer.Option(help="Name of human/persona")],
+    text: Annotated[Optional[str], typer.Option(help="Text of human/persona")] = None,
+    filename: Annotated[Optional[str], typer.Option("-f", help="Specify filename")] = None,
 ):
     """Add a person/human"""
 
@@ -762,7 +768,7 @@ def add(
     if text:
         assert filename is None, f"Cannot provide both filename and text"
         # write text to file
-        with open(os.path.join(directory, name), "w") as f:
+        with open(os.path.join(directory, name), "w", encoding="utf-8") as f:
             f.write(text)
 
 
@@ -780,6 +786,7 @@ def delete(option: str, name: str):
         if option == "source":
             # delete metadata
             source = ms.get_source(source_name=name, user_id=user_id)
+            assert source is not None, f"Source {name} does not exist"
             ms.delete_source(source_id=source.id)
 
             # delete from passages
@@ -793,6 +800,7 @@ def delete(option: str, name: str):
             # TODO: should we also delete from agents?
         elif option == "agent":
             agent = ms.get_agent(agent_name=name, user_id=user_id)
+            assert agent is not None, f"Agent {name} for user_id {user_id} does not exist"
 
             # recall memory
             recall_conn = StorageConnector.get_storage_connector(TableType.RECALL_MEMORY, config, user_id=user_id, agent_id=agent.id)

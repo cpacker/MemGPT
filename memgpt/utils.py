@@ -10,6 +10,7 @@ import subprocess
 import uuid
 import sys
 import io
+import hashlib
 from typing import List
 import inspect
 from functools import wraps
@@ -25,6 +26,7 @@ import tiktoken
 
 import memgpt
 from memgpt.constants import (
+    JSON_LOADS_STRICT,
     MEMGPT_DIR,
     FUNCTION_RETURN_CHAR_LIMIT,
     CLI_WARNING_PREFIX,
@@ -520,7 +522,7 @@ def enforce_types(func):
     return wrapper
 
 
-def annotate_message_json_list_with_tool_calls(messages: List[dict]):
+def annotate_message_json_list_with_tool_calls(messages: List[dict], allow_tool_roles: bool = False):
     """Add in missing tool_call_id fields to a list of messages using function call style
 
     Walk through the list forwards:
@@ -569,10 +571,62 @@ def annotate_message_json_list_with_tool_calls(messages: List[dict]):
                 message["tool_call_id"] = tool_call_id
                 tool_call_id = None  # wipe the buffer
 
+        elif message["role"] == "assistant" and "tool_calls" in message and message["tool_calls"] is not None:
+            if not allow_tool_roles:
+                raise NotImplementedError(
+                    f"tool_call_id annotation is meant for deprecated functions style, but got role 'assistant' with 'tool_calls' in message (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                )
+
+            if len(message["tool_calls"]) != 1:
+                raise NotImplementedError(
+                    f"Got unexpected format for tool_calls inside assistant message (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                )
+
+            assistant_tool_call = message["tool_calls"][0]
+            if "id" in assistant_tool_call and assistant_tool_call["id"] is not None:
+                printd(f"Message already has id (tool_call_id)")
+                tool_call_id = assistant_tool_call["id"]
+            else:
+                tool_call_id = str(uuid.uuid4())
+                message["tool_calls"][0]["id"] = tool_call_id
+                # also just put it at the top level for ease-of-access
+                # message["tool_call_id"] = tool_call_id
+            tool_call_index = i
+
         elif message["role"] == "tool":
-            raise NotImplementedError(
-                f"tool_call_id annotation is meant for deprecated functions style, but got role 'tool' in message (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
-            )
+            if not allow_tool_roles:
+                raise NotImplementedError(
+                    f"tool_call_id annotation is meant for deprecated functions style, but got role 'tool' in message (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                )
+
+            # if "tool_call_id" not in message or message["tool_call_id"] is None:
+            # raise ValueError(f"Got a tool call role, but there's no tool_call_id:\n{messages[:i]}\n{message}")
+
+            # We should have a new tool call id in the buffer
+            if tool_call_id is None:
+                # raise ValueError(
+                print(
+                    f"Got a tool call role, but did not have a saved tool_call_id ready to use (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                )
+                # allow a soft fail in this case
+                message["tool_call_id"] = str(uuid.uuid4())
+            elif "tool_call_id" in message and message["tool_call_id"] is not None:
+                if tool_call_id is not None and tool_call_id != message["tool_call_id"]:
+                    # just wipe it
+                    # raise ValueError(
+                    #     f"Got a tool call role, but it already had a saved tool_call_id (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                    # )
+                    message["tool_call_id"] = tool_call_id
+                    tool_call_id = None  # wipe the buffer
+                else:
+                    tool_call_id = None
+            elif i != tool_call_index + 1:
+                raise ValueError(
+                    f"Got a tool call role, saved tool_call_id came earlier than i-1 (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
+                )
+            else:
+                message["tool_call_id"] = tool_call_id
+                tool_call_id = None  # wipe the buffer
 
         else:
             # eg role == 'user', nothing to do here
@@ -614,12 +668,19 @@ def verify_first_message_correctness(
     response_message = response.choices[0].message
 
     # First message should be a call to send_message with a non-empty content
-    if require_send_message and not (response_message.function_call or response_message.tool_calls):
+    if (hasattr(response_message, "function_call") and response_message.function_call is not None) and (
+        hasattr(response_message, "tool_calls") and response_message.tool_calls is not None
+    ):
+        printd(f"First message includes both function call AND tool call: {response_message}")
+        return False
+    elif hasattr(response_message, "function_call") and response_message.function_call is not None:
+        function_call = response_message.function_call
+    elif hasattr(response_message, "tool_calls") and response_message.tool_calls is not None:
+        function_call = response_message.tool_calls[0].function
+    else:
         printd(f"First message didn't include function call: {response_message}")
         return False
 
-    assert not (response_message.function_call and response_message.tool_calls), response_message
-    function_call = response_message.function_call if response_message.function_call else response_message.tool_calls[0].function
     function_name = function_call.name if function_call is not None else ""
     if require_send_message and function_name != "send_message" and function_name != "archival_memory_search":
         printd(f"First message function call wasn't send_message or archival_memory_search: {response_message}")
@@ -776,15 +837,19 @@ def get_local_time(timezone=None):
     return time_str.strip()
 
 
+def get_utc_time() -> datetime:
+    return datetime.now(pytz.utc)
+
+
 def format_datetime(dt):
     return dt.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
 
 
-def parse_json(string):
+def parse_json(string) -> dict:
     """Parse JSON string into JSON with both json and demjson"""
     result = None
     try:
-        result = json.loads(string)
+        result = json.loads(string, strict=JSON_LOADS_STRICT)
         return result
     except Exception as e:
         print(f"Error parsing json with json package: {e}")
@@ -941,7 +1006,7 @@ def get_schema_diff(schema_a, schema_b):
 def validate_date_format(date_str):
     """Validate the given date string in the format 'YYYY-MM-DD'."""
     try:
-        datetime.datetime.strptime(date_str, "%Y-%m-%d")
+        datetime.strptime(date_str, "%Y-%m-%d")
         return True
     except (ValueError, TypeError):
         return False
@@ -952,3 +1017,12 @@ def extract_date_from_timestamp(timestamp):
     # Extracts the date (ignoring the time and timezone)
     match = re.match(r"(\d{4}-\d{2}-\d{2})", timestamp)
     return match.group(1) if match else None
+
+
+def create_uuid_from_string(val: str):
+    """
+    Generate consistent UUID from a string
+    from: https://samos-it.com/posts/python-create-uuid-from-random-string-of-words.html
+    """
+    hex_string = hashlib.md5(val.encode("UTF-8")).hexdigest()
+    return uuid.UUID(hex=hex_string)

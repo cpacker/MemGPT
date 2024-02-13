@@ -2,11 +2,12 @@
 import uuid
 from datetime import datetime
 from abc import abstractmethod
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, TypeVar
 import numpy as np
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS, MAX_EMBEDDING_DIM
-from memgpt.utils import get_local_time, format_datetime
+from memgpt.utils import get_local_time, format_datetime, get_utc_time, create_uuid_from_string
+from memgpt.utils import get_local_time, format_datetime, get_utc_time, create_uuid_from_string
 from memgpt.models import chat_completion_response
 
 
@@ -23,6 +24,11 @@ class Record:
             self.id = id
 
         assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
+
+
+# This allows type checking to work when you pass a Passage into a function expecting List[Record]
+# (just use List[RecordType] instead)
+RecordType = TypeVar("RecordType", bound="Record")
 
 
 class ToolCall(object):
@@ -64,7 +70,7 @@ class Message(Record):
         text: str,
         model: Optional[str] = None,  # model used to make function call
         name: Optional[str] = None,  # optional participant name
-        created_at: Optional[str] = None,
+        created_at: Optional[datetime] = None,
         tool_calls: Optional[List[ToolCall]] = None,  # list of tool calls requested
         tool_call_id: Optional[str] = None,
         embedding: Optional[np.ndarray] = None,
@@ -77,7 +83,7 @@ class Message(Record):
         self.agent_id = agent_id
         self.text = text
         self.model = model  # model name (e.g. gpt-4)
-        self.created_at = datetime.now().astimezone() if created_at is None else created_at
+        self.created_at = created_at if created_at is not None else datetime.now()
 
         # openai info
         assert role in ["system", "assistant", "user", "tool"]
@@ -112,9 +118,6 @@ class Message(Record):
         else:
             assert tool_call_id is None
         self.tool_call_id = tool_call_id
-
-    # def __repr__(self):
-    #    pass
 
     @staticmethod
     def dict_to_message(
@@ -221,7 +224,7 @@ class Message(Record):
         # TODO change to pydantic casting, eg `return SystemMessageModel(self)`
 
         if self.role == "system":
-            assert all([v is not None for v in [self.text, self.role]]), vars(self)
+            assert all([v is not None for v in [self.role]]), vars(self)
             openai_message = {
                 "content": self.text,
                 "role": self.role,
@@ -241,7 +244,7 @@ class Message(Record):
                 openai_message["name"] = self.name
 
         elif self.role == "assistant":
-            assert all([v is not None for v in [self.text, self.role]]), vars(self)
+            assert self.tool_calls is not None or self.text is not None
             openai_message = {
                 "content": self.text,
                 "role": self.role,
@@ -253,13 +256,12 @@ class Message(Record):
                 openai_message["tool_calls"] = [tool_call.to_dict() for tool_call in self.tool_calls]
 
         elif self.role == "tool":
-            assert all([v is not None for v in [self.text, self.role, self.tool_call_id]]), vars(self)
+            assert all([v is not None for v in [self.role, self.tool_call_id]]), vars(self)
             openai_message = {
                 "content": self.text,
                 "role": self.role,
                 "tool_call_id": self.tool_call_id,
             }
-
         else:
             raise ValueError(self.role)
 
@@ -269,16 +271,17 @@ class Message(Record):
 class Document(Record):
     """A document represent a document loaded into MemGPT, which is broken down into passages."""
 
-    def __init__(self, user_id: str, text: str, data_source: str, document_id: Optional[str] = None):
+    def __init__(self, user_id: uuid.UUID, text: str, data_source: str, id: Optional[uuid.UUID] = None):
+        if id is None:
+            # by default, generate ID as a hash of the text (avoid duplicates)
+            self.id = create_uuid_from_string("".join([text, str(user_id)]))
+        else:
+            self.id = id
         super().__init__(id)
         self.user_id = user_id
         self.text = text
-        self.document_id = document_id
         self.data_source = data_source
         # TODO: add optional embedding?
-
-    # def __repr__(self) -> str:
-    #    pass
 
 
 class Passage(Record):
@@ -298,15 +301,20 @@ class Passage(Record):
         data_source: Optional[str] = None,  # None if created by agent
         doc_id: Optional[uuid.UUID] = None,
         id: Optional[uuid.UUID] = None,
-        metadata: Optional[dict] = {},
+        metadata_: Optional[dict] = {},
     ):
-        super().__init__(id)
+        if id is None:
+            # by default, generate ID as a hash of the text (avoid duplicates)
+            self.id = create_uuid_from_string("".join([text, str(agent_id), str(user_id)]))
+        else:
+            self.id = id
+        super().__init__(self.id)
         self.user_id = user_id
         self.agent_id = agent_id
         self.text = text
         self.data_source = data_source
         self.doc_id = doc_id
-        self.metadata = metadata
+        self.metadata_ = metadata_
 
         # pad and store embeddings
         if isinstance(embedding, list):
@@ -401,9 +409,6 @@ class User:
         self,
         # name: str,
         id: Optional[uuid.UUID] = None,
-        default_preset=DEFAULT_PRESET,
-        default_persona=DEFAULT_PERSONA,
-        default_human=DEFAULT_HUMAN,
         default_agent=None,
         # other
         policies_accepted=False,
@@ -414,9 +419,6 @@ class User:
             self.id = id
         assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
 
-        self.default_preset = default_preset
-        self.default_persona = default_persona
-        self.default_human = default_human
         self.default_agent = default_agent
 
         # misc
@@ -441,7 +443,7 @@ class AgentState:
         # messages: List[dict],  # in-context messages
         id: Optional[uuid.UUID] = None,
         state: Optional[dict] = None,
-        created_at: Optional[str] = None,
+        created_at: Optional[datetime] = None,
     ):
         if id is None:
             self.id = uuid.uuid4()
@@ -472,7 +474,7 @@ class Source:
         self,
         user_id: uuid.UUID,
         name: str,
-        created_at: Optional[str] = None,
+        created_at: Optional[datetime] = None,
         id: Optional[uuid.UUID] = None,
         # embedding info
         embedding_model: Optional[str] = None,
@@ -487,7 +489,7 @@ class Source:
 
         self.name = name
         self.user_id = user_id
-        self.created_at = created_at
+        self.created_at = created_at if created_at is not None else datetime.now()
 
         # embedding info (optional)
         self.embedding_dim = embedding_dim
