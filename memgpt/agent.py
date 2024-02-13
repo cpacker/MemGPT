@@ -555,13 +555,14 @@ class Agent(object):
 
         try:
             # Step 0: add user message
-            if isinstance(user_message, Message):
-                user_message_text = user_message.text
-            elif isinstance(user_message, str):
-                user_message_text = user_message
-            else:
-                raise ValueError(f"Bad type for user_message: {type(user_message)}")
-            if user_message_text is not None:
+            if user_message is not None:
+                if isinstance(user_message, Message):
+                    user_message_text = user_message.text
+                elif isinstance(user_message, str):
+                    user_message_text = user_message
+                else:
+                    raise ValueError(f"Bad type for user_message: {type(user_message)}")
+
                 self.interface.user_message(user_message_text)
                 packed_user_message = {"role": "user", "content": user_message_text}
                 # Special handling for AutoGen messages with 'name' field

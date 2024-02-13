@@ -25,13 +25,13 @@ class OpenAIAssistant(BaseModel):
     id: str = Field(..., description="The unique identifier of the assistant.")
     name: str = Field(..., description="The name of the assistant.")
     object: str = "assistant"
-    description: str = Field(..., description="The description of the assistant.")
+    description: Optional[str] = Field(None, description="The description of the assistant.")
     created_at: int = Field(..., description="The unix timestamp of when the assistant was created.")
     model: str = Field(..., description="The model used by the assistant.")
     instructions: str = Field(..., description="The instructions for the assistant.")
-    tools: List[str] = Field(..., description="The tools used by the assistant.")
-    file_ids: List[str] = Field(..., description="List of file IDs associated with the assistant.")
-    metadata: dict = Field(..., description="Metadata associated with the assistant.")
+    tools: Optional[List[str]] = Field(None, description="The tools used by the assistant.")
+    file_ids: Optional[List[str]] = Field(None, description="List of file IDs associated with the assistant.")
+    metadata: Optional[dict] = Field(None, description="Metadata associated with the assistant.")
 
 
 class OpenAIMessage(BaseModel):
@@ -134,9 +134,9 @@ class OpenAIRun(BaseModel):
     completed_at: Optional[int] = Field(None, description="The unix timestamp of when the run completed.")
     model: str = Field(..., description="The model used by the run.")
     instructions: str = Field(..., description="The instructions for the run.")
-    tools: List[ToolCall] = Field(..., description="The tools used by the run.")  # TODO: also add code interpreter / retrieval
-    file_ids: List[str] = Field(..., description="List of file IDs associated with the run.")
-    metadata: dict = Field(..., description="Metadata associated with the run.")
+    tools: Optional[List[ToolCall]] = Field(None, description="The tools used by the run.")  # TODO: also add code interpreter / retrieval
+    file_ids: Optional[List[str]] = Field(None, description="List of file IDs associated with the run.")
+    metadata: Optional[dict] = Field(None, description="Metadata associated with the run.")
     usage: Optional[OpenAIUsage] = Field(None, description="The usage of the run.")
 
 
