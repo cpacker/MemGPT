@@ -1,5 +1,6 @@
 from openai import OpenAI
 import time
+import uvicorn
 
 
 def test_openai_assistant():
@@ -35,6 +36,16 @@ def test_openai_assistant():
     # Store the run ID
     run_id = run.id
     print(run_id)
+
+    # NOTE: MemGPT does not support polling yet, so run status is always "completed"
+    # Retrieve all messages from the thread
+    messages = client.beta.threads.messages.list(thread_id=thread.id)
+
+    # Print all messages from the thread
+    for msg in messages.messages:
+        role = msg["role"]
+        content = msg["content"][0]
+        print(f"{role.capitalize()}: {content}")
 
     # TODO: add once polling works
     ## Polling for the run status

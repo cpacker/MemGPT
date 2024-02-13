@@ -119,7 +119,7 @@ class GetAgentMessagesRequest(BaseModel):
 
 
 class ListMessagesResponse(BaseModel):
-    messages: list = Field(..., description="List of message objects.")
+    messages: List[OpenAIMessage] = Field(..., description="List of message objects.")
 
 
 class CreateAssistantFileRequest(BaseModel):
@@ -270,12 +270,13 @@ def delete_assistant_file(
     raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
-@app.post("/v1/threads/", tags=["assistants"], response_model=OpenAIThread)
+@app.post("/v1/threads", tags=["assistants"], response_model=OpenAIThread)
 def create_thread(request: CreateThreadRequest = Body(...)):
     # TODO: use requests.description and requests.metadata fields
     # TODO: handle requests.file_ids and requests.tools
     # TODO: eventually allow request to override embedding/llm model
 
+    print("Create thread/agent", request)
     # create a memgpt agent
     agent_state = server.create_agent(
         user_id=user_id,
@@ -355,11 +356,9 @@ def list_messages(
     order: str = Query("asc", description="Order of messages to retrieve (either 'asc' or 'desc')."),
     after: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
     before: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
-    user_id: str = Query(..., description="The unique identifier of the user."),  # TODO: remove
 ):
     after_uuid = uuid.UUID(after) if before else None
     before_uuid = uuid.UUID(before) if before else None
-    user_id = uuid.UUID(user_id)
     agent_id = uuid.UUID(thread_id)
     reverse = True if (order == "desc") else False
     cursor, json_messages = server.get_agent_recall_cursor(
@@ -386,6 +385,7 @@ def list_messages(
         )
         for message in json_messages
     ]
+    print("MESSAGES", openai_messages)
     # TODO: cast back to message objects
     return ListMessagesResponse(messages=openai_messages)
 
