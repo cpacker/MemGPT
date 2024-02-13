@@ -10,8 +10,6 @@ from memgpt.utils import get_local_time, format_datetime, get_utc_time, create_u
 from memgpt.utils import get_local_time, format_datetime, get_utc_time, create_uuid_from_string
 from memgpt.models import chat_completion_response
 
-from pydantic import BaseModel, Field, Json
-
 
 class Record:
     """

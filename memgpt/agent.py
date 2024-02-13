@@ -612,7 +612,6 @@ class Agent(object):
                         raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
 
             else:
-                print("input message", [type(m) for m in input_message_sequence])
                 response = self._get_ai_reply(
                     message_sequence=input_message_sequence,
                 )
