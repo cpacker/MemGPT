@@ -16,6 +16,7 @@ from memgpt.server.rest_api.config.index import setup_config_index_router
 from memgpt.server.rest_api.humans.index import setup_humans_index_router
 from memgpt.server.rest_api.personas.index import setup_personas_index_router
 from memgpt.server.rest_api.models.index import setup_models_index_router
+from memgpt.server.rest_api.openai_assistants.assistants import setup_openai_assistant_router
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.rest_api.static_files import mount_static_files
@@ -33,6 +34,7 @@ server: SyncServer = SyncServer(default_interface=interface)
 
 
 API_PREFIX = "/api"
+OPENAI_API_PREFIX = "/v1"
 
 CORS_ORIGINS = [
     "http://localhost:4200",
@@ -65,6 +67,8 @@ app.include_router(setup_personas_index_router(server, interface), prefix=API_PR
 app.include_router(setup_models_index_router(server, interface), prefix=API_PREFIX)
 # /api/config endpoints
 app.include_router(setup_config_index_router(server, interface), prefix=API_PREFIX)
+# /v1/assistants endpoints
+app.include_router(setup_openai_assistant_router(server, interface), prefix=OPENAI_API_PREFIX)
 # / static files
 mount_static_files(app)
 
