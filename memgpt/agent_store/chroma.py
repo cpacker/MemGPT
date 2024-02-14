@@ -125,7 +125,6 @@ class ChromaStorageConnector(StorageConnector):
         return self.results_to_records(results)[0]
 
     def format_records(self, records: List[RecordType]):
-
         assert all([isinstance(r, Passage) for r in records])
 
         recs = []
