@@ -458,6 +458,26 @@ class PostgresStorageConnector(SQLStorageConnector):
         records = [result.to_record() for result in results]
         return records
 
+    def get_optimal_chunk_size(self, num_columns: int) -> int:
+        """
+        The optimal chunk size = (total %s - or limit of struct pack of PG8000) / total columns params
+
+        And then step down to the mod 100 number.
+
+        Currently, max of pg8000 is 32767 for %s
+
+        Usage:
+            get_optimal_chunk_size(4) # 8100
+            get_optimal_chunk_size(7) # 4600
+        """
+
+        PG8000_STRUCT_PACK_LIMIT = 32767
+        import math
+        hard_limit = math.ceil(PG8000_STRUCT_PACK_LIMIT / num_columns)
+        util_limit = hard_limit - (hard_limit % 100)
+        chunk_size = round(util_limit, -2)
+        return chunk_size
+
     def insert_many(self, records: List[RecordType], exists_ok=True, show_progress=False):
         from sqlalchemy.dialects.postgresql import insert
 
@@ -465,19 +485,25 @@ class PostgresStorageConnector(SQLStorageConnector):
         if len(records) == 0:
             return
         if isinstance(records[0], Passage):
+            # Get the number of columns in the table
+            num_columns = len(self.db_model.__table__.columns)
+            # Get the optimal chunk size for the number of columns
+            chunk_size = self.get_optimal_chunk_size(num_columns)
+            # Split the records into the largest possible chunks
+            chunks = [records[i:i+chunk_size] for i in range(0, len(records), chunk_size)]
+
             with self.engine.connect() as conn:
-                db_records = [vars(record) for record in records]
-                # print("records", db_records)
-                stmt = insert(self.db_model.__table__).values(db_records)
-                # print(stmt)
-                if exists_ok:
-                    upsert_stmt = stmt.on_conflict_do_update(
-                        index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
-                    )
-                    print(upsert_stmt)
-                    conn.execute(upsert_stmt)
-                else:
-                    conn.execute(stmt)
+                # Execute the insert statement for each chunk
+                for chunk in chunks:
+                    db_records = [vars(record) for record in chunk]
+                    stmt = insert(self.db_model.__table__).values(db_records)
+                    if exists_ok:
+                        upsert_stmt = stmt.on_conflict_do_update(
+                            index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
+                        )
+                        conn.execute(upsert_stmt)
+                    else:
+                        conn.execute(stmt)
                 conn.commit()
         else:
             with self.session_maker() as session:
