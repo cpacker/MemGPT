@@ -815,10 +815,8 @@ class SyncServer(LockingServer):
 
         return agent_config
 
-    def get_server_config(self) -> dict:
+    def get_server_config(self, include_defaults: bool = False) -> dict:
         """Return the base config"""
-        # TODO: do we need a seperate server config?
-        base_config = vars(self.config)
 
         def clean_keys(config):
             config_copy = config.copy()
@@ -827,8 +825,17 @@ class SyncServer(LockingServer):
                     config_copy[k] = server_utils.shorten_key_middle(v, chars_each_side=5)
             return config_copy
 
+        # TODO: do we need a seperate server config?
+        base_config = vars(self.config)
         clean_base_config = clean_keys(base_config)
-        return clean_base_config
+        response = {"config": base_config}
+
+        if include_defaults:
+            default_config = vars(MemGPTConfig())
+            clean_default_config = clean_keys(default_config)
+            response["defaults"] = clean_default_config
+
+        return response
 
     def update_agent_core_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_memory_contents: dict) -> dict:
         """Update the agents core memory block, return the new state"""

@@ -15,6 +15,7 @@ class ConfigRequest(BaseModel):
 
 class ConfigResponse(BaseModel):
     config: dict = Field(..., description="The server configuration object.")
+    defaults: dict = Field(..., description="The defaults for the configuration.")
 
 
 def setup_config_index_router(server: SyncServer, interface: QueuingInterface):
@@ -31,7 +32,7 @@ def setup_config_index_router(server: SyncServer, interface: QueuingInterface):
         user_id = uuid.UUID(request.user_id) if request.user_id else None
 
         interface.clear()
-        response = server.get_server_config(user_id=user_id)
-        return ConfigResponse(config=response)
+        response = server.get_server_config(user_id=user_id, include_defaults=True)
+        return ConfigResponse(config=response["config"], defaults=response["defaults"])
 
     return router
