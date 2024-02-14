@@ -25,6 +25,12 @@ from memgpt.data_types import (
     AgentState,
     LLMConfig,
     EmbeddingConfig,
+    Message,
+    ToolCall,
+    LLMConfig,
+    EmbeddingConfig,
+    Message,
+    ToolCall,
 )
 
 
@@ -292,7 +298,7 @@ class SyncServer(LockingServer):
             memgpt_agent = self._load_agent(user_id=user_id, agent_id=agent_id)
         return memgpt_agent
 
-    def _step(self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: str) -> int:
+    def _step(self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: Union[str, Message]) -> int:
         """Send the input message through the agent"""
 
         logger.debug(f"Got input message: {input_message}")
@@ -451,7 +457,7 @@ class SyncServer(LockingServer):
             self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
 
     @LockingServer.agent_lock_decorator
-    def user_message(self, user_id: uuid.UUID, agent_id: uuid.UUID, message: str) -> None:
+    def user_message(self, user_id: uuid.UUID, agent_id: uuid.UUID, message: Union[str, Message]) -> None:
         """Process an incoming user message and feed it through the MemGPT agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -459,21 +465,27 @@ class SyncServer(LockingServer):
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Basic input sanitization
-        if not isinstance(message, str) or len(message) == 0:
-            raise ValueError(f"Invalid input: '{message}'")
+        if isinstance(message, str):
+            if len(message) == 0:
+                raise ValueError(f"Invalid input: '{message}'")
 
-        # If the input begins with a command prefix, reject
-        elif message.startswith("/"):
-            raise ValueError(f"Invalid input: '{message}'")
-
-        # Else, process it as a user message to be fed to the agent
-        else:
-            # Package the user message first
+            # If the input begins with a command prefix, reject
+            elif message.startswith("/"):
+                raise ValueError(f"Invalid input: '{message}'")
             packaged_user_message = system.package_user_message(user_message=message)
-            # Run the agent state forward
-            tokens_accumulated = self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
+        elif isinstance(message, Message):
+            if len(message.text) == 0:
+                raise ValueError(f"Invalid input: '{message.text}'")
 
-        return tokens_accumulated
+            # If the input begins with a command prefix, reject
+            elif message.text.startswith("/"):
+                raise ValueError(f"Invalid input: '{message.text}'")
+            packaged_user_message = message
+        else:
+            raise ValueError(f"Invalid input: '{message}'")
+
+        # Run the agent state forward
+        self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
 
     @LockingServer.agent_lock_decorator
     def system_message(self, user_id: uuid.UUID, agent_id: uuid.UUID, message: str) -> None:
@@ -665,6 +677,19 @@ class SyncServer(LockingServer):
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
         return [m.id for m in memgpt_agent._messages]
 
+    def get_agent_message(self, agent_id: uuid.UUID, message_id: uuid.UUID) -> Message:
+        """Get message based on agent and message ID"""
+        agent_state = self.ms.get_agent(agent_id=agent_id)
+        if agent_state is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+        user_id = agent_state.user_id
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        message = memgpt_agent.persistence_manager.recall_memory.storage.get(message_id=message_id)
+        return message
+
     def get_agent_messages(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
         """Paginated query of all messages in agent message queue"""
         if self.ms.get_user(user_id=user_id) is None:
@@ -757,6 +782,7 @@ class SyncServer(LockingServer):
         before: Optional[uuid.UUID] = None,
         limit: Optional[int] = 100,
         order_by: Optional[str] = "created_at",
+        order: Optional[str] = "asc",
         reverse: Optional[bool] = False,
     ):
         if self.ms.get_user(user_id=user_id) is None:

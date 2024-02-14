@@ -4,7 +4,7 @@ import inspect
 import json
 from pathlib import Path
 import traceback
-from typing import List, Tuple, Optional, cast
+from typing import List, Tuple, Optional, cast, Union
 
 
 from memgpt.data_types import AgentState, Message, EmbeddingConfig
@@ -546,7 +546,7 @@ class Agent(object):
 
     def step(
         self,
-        user_message: Optional[str],  # NOTE: should be json.dump(dict)
+        user_message: Union[Message, str],  # NOTE: should be json.dump(dict)
         first_message: bool = False,
         first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
         skip_verify: bool = False,
@@ -556,11 +556,18 @@ class Agent(object):
         try:
             # Step 0: add user message
             if user_message is not None:
-                # Create the user message dict
-                self.interface.user_message(user_message)
-                packed_user_message = {"role": "user", "content": user_message}
+                if isinstance(user_message, Message):
+                    user_message_text = user_message.text
+                elif isinstance(user_message, str):
+                    user_message_text = user_message
+                else:
+                    raise ValueError(f"Bad type for user_message: {type(user_message)}")
+
+                self.interface.user_message(user_message_text)
+                packed_user_message = {"role": "user", "content": user_message_text}
+                # Special handling for AutoGen messages with 'name' field
                 try:
-                    user_message_json = json.loads(user_message, strict=JSON_LOADS_STRICT)
+                    user_message_json = json.loads(user_message_text, strict=JSON_LOADS_STRICT)
                     # Special handling for AutoGen messages with 'name' field
                     # Treat 'name' as a special field
                     # If it exists in the input message, elevate it to the 'message' level
@@ -629,7 +636,17 @@ class Agent(object):
 
             # Step 4: extend the message history
             if user_message is not None:
-                all_new_messages = [packed_user_message_obj] + all_response_messages
+                if isinstance(user_message, Message):
+                    all_new_messages = [user_message] + all_response_messages
+                else:
+                    all_new_messages = [
+                        Message.dict_to_message(
+                            agent_id=self.agent_state.id,
+                            user_id=self.agent_state.user_id,
+                            model=self.model,
+                            openai_message_dict=packed_user_message,
+                        )
+                    ] + all_response_messages
             else:
                 all_new_messages = all_response_messages
 
