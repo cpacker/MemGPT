@@ -1,6 +1,7 @@
 import asyncio
 from fastapi import FastAPI
 from asyncio import AbstractEventLoop
+from enum import Enum
 import json
 import uuid
 from typing import List, Optional, Union
@@ -12,6 +13,9 @@ from starlette.responses import StreamingResponse
 
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
+
+from memgpt.config import MemGPTConfig
+import uuid
 
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.interface import QueuingInterface
@@ -37,8 +41,8 @@ from memgpt.constants import DEFAULT_PRESET
 Basic REST API sitting on top of the internal MemGPT python server (SyncServer)
 
 Start the server with:
-  cd memgpt/server/rest_api
-  poetry run uvicorn server:app --reload
+  cd memgpt/server/rest_api/openai_assistants
+  poetry run uvicorn assistants:app --reload --port 8080
 """
 
 interface: QueuingInterface = QueuingInterface()
@@ -48,32 +52,32 @@ server: SyncServer = SyncServer(default_interface=interface)
 # router = APIRouter()
 app = FastAPI()
 
+user_id = uuid.UUID(MemGPTConfig.load().anon_clientid)
+print(f"User ID: {user_id}")
+
 
 class CreateAssistantRequest(BaseModel):
     model: str = Field(..., description="The model to use for the assistant.")
     name: str = Field(..., description="The name of the assistant.")
-    description: str = Field(..., description="The description of the assistant.")
+    description: str = Field(None, description="The description of the assistant.")
     instructions: str = Field(..., description="The instructions for the assistant.")
-    tools: List[str] = Field(..., description="The tools used by the assistant.")
-    file_ids: List[str] = Field(..., description="List of file IDs associated with the assistant.")
-    metadata: dict = Field(..., description="Metadata associated with the assistant.")
+    tools: List[str] = Field(None, description="The tools used by the assistant.")
+    file_ids: List[str] = Field(None, description="List of file IDs associated with the assistant.")
+    metadata: dict = Field(None, description="Metadata associated with the assistant.")
 
     # memgpt-only (not openai)
-    embedding_model: str = Field(..., description="The model to use for the assistant.")
+    embedding_model: str = Field(None, description="The model to use for the assistant.")
 
-    # TODO: remove
-    user_id: str = Field(..., description="The unique identifier of the user.")
+    ## TODO: remove
+    # user_id: str = Field(..., description="The unique identifier of the user.")
 
 
 class CreateThreadRequest(BaseModel):
-    messages: List[str] = Field(None, description="List of message IDs associated with the thread.")
-    metadata: dict = Field(None, description="Metadata associated with the thread.")
+    messages: Optional[List[str]] = Field(None, description="List of message IDs associated with the thread.")
+    metadata: Optional[dict] = Field(None, description="Metadata associated with the thread.")
 
     # memgpt-only
-    assistant_name: str = Field(..., description="The name of the assistant (i.e. MemGPT preset)")
-
-    # TODO: remove
-    user_id: str = Field(..., description="The unique identifier of the user.")
+    assistant_name: Optional[str] = Field(None, description="The name of the assistant (i.e. MemGPT preset)")
 
 
 class ModifyThreadRequest(BaseModel):
@@ -93,9 +97,6 @@ class CreateMessageRequest(BaseModel):
     content: str = Field(..., description="The message content to be processed by the agent.")
     file_ids: Optional[List[str]] = Field(None, description="List of file IDs associated with the message.")
     metadata: Optional[dict] = Field(None, description="Metadata associated with the message.")
-
-    # TODO: remove
-    user_id: str = Field(..., description="The unique identifier of the user.")
 
 
 class UserMessageRequest(BaseModel):
@@ -118,7 +119,7 @@ class GetAgentMessagesRequest(BaseModel):
 
 
 class ListMessagesResponse(BaseModel):
-    messages: list = Field(..., description="List of message objects.")
+    messages: List[OpenAIMessage] = Field(..., description="List of message objects.")
 
 
 class CreateAssistantFileRequest(BaseModel):
@@ -127,7 +128,7 @@ class CreateAssistantFileRequest(BaseModel):
 
 class CreateRunRequest(BaseModel):
     assistant_id: str = Field(..., description="The unique identifier of the assistant.")
-    model: str = Field(..., description="The model used by the run.")
+    model: Optional[str] = Field(None, description="The model used by the run.")
     instructions: str = Field(..., description="The instructions for the run.")
     additional_instructions: Optional[str] = Field(None, description="Additional instructions for the run.")
     tools: Optional[List[ToolCall]] = Field(None, description="The tools used by the run (overrides assistant).")
@@ -168,11 +169,26 @@ class SubmitToolOutputsToRunRequest(BaseModel):
 # TODO: implement mechanism for creating/authenticating users associated with a bearer token
 
 
+@app.get("/v1/health", tags=["assistant"])
+def get_health():
+    return {"status": "healthy"}
+
+
 # create assistant (MemGPT agent)
 @app.post("/v1/assistants", tags=["assistants"], response_model=OpenAIAssistant)
 def create_assistant(request: CreateAssistantRequest = Body(...)):
     # TODO: create preset
-    return OpenAIAssistant(id=DEFAULT_PRESET, name="default_preset")
+    return OpenAIAssistant(
+        id=DEFAULT_PRESET,
+        name="default_preset",
+        description=request.description,
+        created_at=int(datetime.now().timestamp()),
+        model=request.model,
+        instructions=request.instructions,
+        tools=request.tools,
+        file_ids=request.file_ids,
+        metadata=request.metadata,
+    )
 
 
 @app.post("/v1/assistants/{assistant_id}/files", tags=["assistants"], response_model=AssistantFile)
@@ -254,19 +270,18 @@ def delete_assistant_file(
     raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
-@app.post("/v1/threads/", tags=["assistants"], response_model=OpenAIThread)
+@app.post("/v1/threads", tags=["assistants"], response_model=OpenAIThread)
 def create_thread(request: CreateThreadRequest = Body(...)):
     # TODO: use requests.description and requests.metadata fields
     # TODO: handle requests.file_ids and requests.tools
     # TODO: eventually allow request to override embedding/llm model
 
+    print("Create thread/agent", request)
     # create a memgpt agent
-    user_id = uuid.UUID(request.user_id)
     agent_state = server.create_agent(
         user_id=user_id,
         agent_config={
             "user_id": user_id,
-            "preset": request.assistant_name,
         },
     )
     # TODO: insert messages into recall memory
@@ -309,21 +324,19 @@ def create_message(
     thread_id: str = Path(..., description="The unique identifier of the thread."),
     request: CreateMessageRequest = Body(...),
 ):
-    user_id = uuid.UUID(request.user_id)
     agent_id = uuid.UUID(thread_id)
-    # TODO: need to add a buffer/queue to server and pull on .step()
+    # create message object
     message = Message(
         user_id=user_id,
         agent_id=agent_id,
         role=request.role,
         text=request.content,
     )
-    server.user_message(
-        user_id=user_id,
-        agent_id=agent_id,
-        message=message,
-    )
-    return OpenAIMessage(
+    agent = server._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+    # add message to agent
+    agent._append_to_messages([message])
+
+    openai_message = OpenAIMessage(
         id=str(message.id),
         created_at=int(message.created_at.timestamp()),
         content=[Text(text=message.text)],
@@ -333,6 +346,7 @@ def create_message(
         # file_ids=message.file_ids,
         # metadata=message.metadata,
     )
+    return openai_message
 
 
 @app.get("/v1/threads/{thread_id}/messages", tags=["assistants"], response_model=ListMessagesResponse)
@@ -342,11 +356,9 @@ def list_messages(
     order: str = Query("asc", description="Order of messages to retrieve (either 'asc' or 'desc')."),
     after: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
     before: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
-    user_id: str = Query(..., description="The unique identifier of the user."),  # TODO: remove
 ):
     after_uuid = uuid.UUID(after) if before else None
     before_uuid = uuid.UUID(before) if before else None
-    user_id = uuid.UUID(user_id)
     agent_id = uuid.UUID(thread_id)
     reverse = True if (order == "desc") else False
     cursor, json_messages = server.get_agent_recall_cursor(
@@ -373,6 +385,7 @@ def list_messages(
         )
         for message in json_messages
     ]
+    print("MESSAGES", openai_messages)
     # TODO: cast back to message objects
     return ListMessagesResponse(messages=openai_messages)
 
@@ -419,13 +432,28 @@ def modify_message(
     raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
 
-@app.post("/v1/threads/{thread_id}/runs", tags=["assistants"], response_model=OpenAIMessage)
+@app.post("/v1/threads/{thread_id}/runs", tags=["assistants"], response_model=OpenAIRun)
 def create_run(
     thread_id: str = Path(..., description="The unique identifier of the thread."),
     request: CreateRunRequest = Body(...),
 ):
-    # TODO: need to implement lazy process of messages, then can use this to execute run
-    raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
+    # TODO: add request.instructions as a message?
+    agent_id = uuid.UUID(thread_id)
+    # TODO: override preset of agent with request.assistant_id
+    agent = server._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+    agent.step(user_message=None)  # already has messages added
+    run_id = str(uuid.uuid4())
+    create_time = int(datetime.now().timestamp())
+    return OpenAIRun(
+        id=run_id,
+        created_at=create_time,
+        thread_id=str(agent_id),
+        assistant_id=DEFAULT_PRESET,  # TODO: update this
+        status="completed",  # TODO: eventaully allow offline execution
+        expires_at=create_time,
+        model=agent.agent_state.llm_config.model,
+        instructions=request.instructions,
+    )
 
 
 @app.post("/v1/threads/runs", tags=["assistants"], response_model=OpenAIRun)
