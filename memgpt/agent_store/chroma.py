@@ -125,14 +125,28 @@ class ChromaStorageConnector(StorageConnector):
         return self.results_to_records(results)[0]
 
     def format_records(self, records: List[RecordType]):
+
         assert all([isinstance(r, Passage) for r in records])
-        recs = [cast(Passage, r) for r in records]
-        metadatas = []
-        ids = [str(record.id) for record in recs]
-        documents = [record.text for record in recs]
-        embeddings = [record.embedding for record in recs]
+
+        recs = []
+        ids = []
+        documents = []
+        embeddings = []
+
+        # de-duplication of ids
+        exist_ids = set()
+        for i in range(len(records)):
+            record = records[i]
+            if record.id in exist_ids:
+                continue
+            exist_ids.add(record.id)
+            recs.append(cast(Passage, record))
+            ids.append(str(record.id))
+            documents.append(record.text)
+            embeddings.append(record.embedding)
 
         # collect/format record metadata
+        metadatas = []
         for record in recs:
             metadata = vars(record)
             metadata.pop("id")
