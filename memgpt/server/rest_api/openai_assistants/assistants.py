@@ -160,7 +160,6 @@ class SubmitToolOutputsToRunRequest(BaseModel):
 
 # TODO: implement mechanism for creating/authenticating users associated with a bearer token
 def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterface):
-
     # TODO: remove this (when we have user auth)
     user_id = uuid.UUID(MemGPTConfig.load().anon_clientid)
     print(f"User ID: {user_id}")
