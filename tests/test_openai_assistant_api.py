@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 import uuid
 
 from memgpt.server.server import SyncServer
-from memgpt.server.rest_api.openai_assistants.assistants import app
+from memgpt.server.rest_api.server import app
 from memgpt.constants import DEFAULT_PRESET
 
 

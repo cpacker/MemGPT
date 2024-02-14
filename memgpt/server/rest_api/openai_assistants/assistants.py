@@ -160,12 +160,13 @@ class SubmitToolOutputsToRunRequest(BaseModel):
 
 # TODO: implement mechanism for creating/authenticating users associated with a bearer token
 def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterface):
+
     # TODO: remove this (when we have user auth)
     user_id = uuid.UUID(MemGPTConfig.load().anon_clientid)
     print(f"User ID: {user_id}")
 
     # create assistant (MemGPT agent)
-    @router.post("/v1/assistants", tags=["assistants"], response_model=OpenAIAssistant)
+    @router.post("/assistants", tags=["assistants"], response_model=OpenAIAssistant)
     def create_assistant(request: CreateAssistantRequest = Body(...)):
         # TODO: create preset
         return OpenAIAssistant(
@@ -180,7 +181,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
             metadata=request.metadata,
         )
 
-    @router.post("/v1/assistants/{assistant_id}/files", tags=["assistants"], response_model=AssistantFile)
+    @router.post("/assistants/{assistant_id}/files", tags=["assistants"], response_model=AssistantFile)
     def create_assistant_file(
         assistant_id: str = Path(..., description="The unique identifier of the assistant."),
         request: CreateAssistantFileRequest = Body(...),
@@ -192,7 +193,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
             assistant_id=assistant_id,
         )
 
-    @router.get("/v1/assistants", tags=["assistants"], response_model=List[OpenAIAssistant])
+    @router.get("/assistants", tags=["assistants"], response_model=List[OpenAIAssistant])
     def list_assistants(
         limit: int = Query(1000, description="How many assistants to retrieve."),
         order: str = Query("asc", description="Order of assistants to retrieve (either 'asc' or 'desc')."),
@@ -206,7 +207,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
         # TODO: implement list assistants (i.e. list available MemGPT presets)
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.get("/v1/assistants/{assistant_id}/files", tags=["assistants"], response_model=List[AssistantFile])
+    @router.get("/assistants/{assistant_id}/files", tags=["assistants"], response_model=List[AssistantFile])
     def list_assistant_files(
         assistant_id: str = Path(..., description="The unique identifier of the assistant."),
         limit: int = Query(1000, description="How many files to retrieve."),
@@ -221,14 +222,14 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
         # TODO: list attached data sources to preset
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.get("/v1/assistants/{assistant_id}", tags=["assistants"], response_model=OpenAIAssistant)
+    @router.get("/assistants/{assistant_id}", tags=["assistants"], response_model=OpenAIAssistant)
     def retrieve_assistant(
         assistant_id: str = Path(..., description="The unique identifier of the assistant."),
     ):
         # TODO: get and return preset
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.get("/v1/assistants/{assistant_id}/files/{file_id}", tags=["assistants"], response_model=AssistantFile)
+    @router.get("/assistants/{assistant_id}/files/{file_id}", tags=["assistants"], response_model=AssistantFile)
     def retrieve_assistant_file(
         assistant_id: str = Path(..., description="The unique identifier of the assistant."),
         file_id: str = Path(..., description="The unique identifier of the file."),
@@ -236,7 +237,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
         # TODO: return data source attached to preset
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.post("/v1/assistants/{assistant_id}", tags=["assistants"], response_model=OpenAIAssistant)
+    @router.post("/assistants/{assistant_id}", tags=["assistants"], response_model=OpenAIAssistant)
     def modify_assistant(
         assistant_id: str = Path(..., description="The unique identifier of the assistant."),
         request: CreateAssistantRequest = Body(...),
@@ -244,14 +245,14 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
         # TODO: modify preset
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.delete("/v1/assistants/{assistant_id}", tags=["assistants"], response_model=DeleteAssistantResponse)
+    @router.delete("/assistants/{assistant_id}", tags=["assistants"], response_model=DeleteAssistantResponse)
     def delete_assistant(
         assistant_id: str = Path(..., description="The unique identifier of the assistant."),
     ):
         # TODO: delete preset
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.delete("/v1/assistants/{assistant_id}/files/{file_id}", tags=["assistants"], response_model=DeleteAssistantFileResponse)
+    @router.delete("/assistants/{assistant_id}/files/{file_id}", tags=["assistants"], response_model=DeleteAssistantFileResponse)
     def delete_assistant_file(
         assistant_id: str = Path(..., description="The unique identifier of the assistant."),
         file_id: str = Path(..., description="The unique identifier of the file."),
@@ -259,7 +260,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
         # TODO: delete source on preset
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.post("/v1/threads", tags=["threads"], response_model=OpenAIThread)
+    @router.post("/threads", tags=["threads"], response_model=OpenAIThread)
     def create_thread(request: CreateThreadRequest = Body(...)):
         # TODO: use requests.description and requests.metadata fields
         # TODO: handle requests.file_ids and requests.tools
@@ -279,7 +280,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
             created_at=int(agent_state.created_at.timestamp()),
         )
 
-    @router.get("/v1/threads/{thread_id}", tags=["threads"], response_model=OpenAIThread)
+    @router.get("/threads/{thread_id}", tags=["threads"], response_model=OpenAIThread)
     def retrieve_thread(
         thread_id: str = Path(..., description="The unique identifier of the thread."),
     ):
@@ -289,7 +290,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
             created_at=int(agent.created_at.timestamp()),
         )
 
-    @router.get("/v1/threads/{thread_id}", tags=["threads"], response_model=OpenAIThread)
+    @router.get("/threads/{thread_id}", tags=["threads"], response_model=OpenAIThread)
     def modify_thread(
         thread_id: str = Path(..., description="The unique identifier of the thread."),
         request: ModifyThreadRequest = Body(...),
@@ -297,14 +298,14 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
         # TODO: add agent metadata so this can be modified
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.delete("/v1/threads/{thread_id}", tags=["threads"], response_model=DeleteThreadResponse)
+    @router.delete("/threads/{thread_id}", tags=["threads"], response_model=DeleteThreadResponse)
     def delete_thread(
         thread_id: str = Path(..., description="The unique identifier of the thread."),
     ):
         # TODO: delete agent
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.post("/v1/threads/{thread_id}/messages", tags=["messages"], response_model=OpenAIMessage)
+    @router.post("/threads/{thread_id}/messages", tags=["messages"], response_model=OpenAIMessage)
     def create_message(
         thread_id: str = Path(..., description="The unique identifier of the thread."),
         request: CreateMessageRequest = Body(...),
@@ -333,7 +334,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
         )
         return openai_message
 
-    @router.get("/v1/threads/{thread_id}/messages", tags=["messages"], response_model=ListMessagesResponse)
+    @router.get("/threads/{thread_id}/messages", tags=["messages"], response_model=ListMessagesResponse)
     def list_messages(
         thread_id: str = Path(..., description="The unique identifier of the thread."),
         limit: int = Query(1000, description="How many messages to retrieve."),
@@ -377,7 +378,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
         # TODO: cast back to message objects
         return ListMessagesResponse(messages=openai_messages)
 
-    router.get("/v1/threads/{thread_id}/messages/{message_id}", tags=["messages"], response_model=OpenAIMessage)
+    router.get("/threads/{thread_id}/messages/{message_id}", tags=["messages"], response_model=OpenAIMessage)
 
     def retrieve_message(
         thread_id: str = Path(..., description="The unique identifier of the thread."),
@@ -397,7 +398,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
             # metadata=message.metadata,
         )
 
-    @router.get("/v1/threads/{thread_id}/messages/{message_id}/files/{file_id}", tags=["messages"], response_model=MessageFile)
+    @router.get("/threads/{thread_id}/messages/{message_id}/files/{file_id}", tags=["messages"], response_model=MessageFile)
     def retrieve_message_file(
         thread_id: str = Path(..., description="The unique identifier of the thread."),
         message_id: str = Path(..., description="The unique identifier of the message."),
@@ -406,7 +407,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
         # TODO: implement?
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.post("/v1/threads/{thread_id}/messages/{message_id}", tags=["messages"], response_model=OpenAIMessage)
+    @router.post("/threads/{thread_id}/messages/{message_id}", tags=["messages"], response_model=OpenAIMessage)
     def modify_message(
         thread_id: str = Path(..., description="The unique identifier of the thread."),
         message_id: str = Path(..., description="The unique identifier of the message."),
@@ -415,7 +416,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
         # TODO: add metada field to message so this can be modified
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.post("/v1/threads/{thread_id}/runs", tags=["runs"], response_model=OpenAIRun)
+    @router.post("/threads/{thread_id}/runs", tags=["runs"], response_model=OpenAIRun)
     def create_run(
         thread_id: str = Path(..., description="The unique identifier of the thread."),
         request: CreateRunRequest = Body(...),
@@ -438,14 +439,14 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
             instructions=request.instructions,
         )
 
-    @router.post("/v1/threads/runs", tags=["runs"], response_model=OpenAIRun)
+    @router.post("/threads/runs", tags=["runs"], response_model=OpenAIRun)
     def create_thread_and_run(
         request: CreateThreadRunRequest = Body(...),
     ):
         # TODO: add a bunch of messages and execute
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.get("/v1/threads/{thread_id}/runs", tags=["runs"], response_model=List[OpenAIRun])
+    @router.get("/threads/{thread_id}/runs", tags=["runs"], response_model=List[OpenAIRun])
     def list_runs(
         thread_id: str = Path(..., description="The unique identifier of the thread."),
         limit: int = Query(1000, description="How many runs to retrieve."),
@@ -460,7 +461,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
         # TODO: store run information in a DB so it can be returned here
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.get("/v1/threads/{thread_id}/runs/{run_id}/steps", tags=["runs"], response_model=List[OpenAIRunStep])
+    @router.get("/threads/{thread_id}/runs/{run_id}/steps", tags=["runs"], response_model=List[OpenAIRunStep])
     def list_run_steps(
         thread_id: str = Path(..., description="The unique identifier of the thread."),
         run_id: str = Path(..., description="The unique identifier of the run."),
@@ -476,14 +477,14 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
         # TODO: store run information in a DB so it can be returned here
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.get("/v1/threads/{thread_id}/runs/{run_id}", tags=["runs"], response_model=OpenAIRun)
+    @router.get("/threads/{thread_id}/runs/{run_id}", tags=["runs"], response_model=OpenAIRun)
     def retrieve_run(
         thread_id: str = Path(..., description="The unique identifier of the thread."),
         run_id: str = Path(..., description="The unique identifier of the run."),
     ):
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.get("/v1/threads/{thread_id}/runs/{run_id}/steps/{step_id}", tags=["runs"], response_model=OpenAIRunStep)
+    @router.get("/threads/{thread_id}/runs/{run_id}/steps/{step_id}", tags=["runs"], response_model=OpenAIRunStep)
     def retrieve_run_step(
         thread_id: str = Path(..., description="The unique identifier of the thread."),
         run_id: str = Path(..., description="The unique identifier of the run."),
@@ -491,7 +492,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
     ):
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.post("/v1/threads/{thread_id}/runs/{run_id}", tags=["runs"], response_model=OpenAIRun)
+    @router.post("/threads/{thread_id}/runs/{run_id}", tags=["runs"], response_model=OpenAIRun)
     def modify_run(
         thread_id: str = Path(..., description="The unique identifier of the thread."),
         run_id: str = Path(..., description="The unique identifier of the run."),
@@ -499,7 +500,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
     ):
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.post("/v1/threads/{thread_id}/runs/{run_id}/submit_tool_outputs", tags=["runs"], response_model=OpenAIRun)
+    @router.post("/threads/{thread_id}/runs/{run_id}/submit_tool_outputs", tags=["runs"], response_model=OpenAIRun)
     def submit_tool_outputs_to_run(
         thread_id: str = Path(..., description="The unique identifier of the thread."),
         run_id: str = Path(..., description="The unique identifier of the run."),
@@ -507,7 +508,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
     ):
         raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
-    @router.post("/v1/threads/{thread_id}/runs/{run_id}/cancel", tags=["runs"], response_model=OpenAIRun)
+    @router.post("/threads/{thread_id}/runs/{run_id}/cancel", tags=["runs"], response_model=OpenAIRun)
     def cancel_run(
         thread_id: str = Path(..., description="The unique identifier of the thread."),
         run_id: str = Path(..., description="The unique identifier of the run."),
