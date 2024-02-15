@@ -6,6 +6,7 @@ from memgpt.utils import get_human_text, get_persona_text, printd
 from memgpt.prompts import gpt_system
 from memgpt.functions.functions import load_all_function_sets
 from memgpt.metadata import MetadataStore
+from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
 
 import uuid
 
@@ -22,7 +23,7 @@ def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
         preset_function_set_names = preset_config["functions"]
         functions_schema = generate_functions_json(preset_function_set_names)
 
-        if ms.get_preset(user_id, preset_name) is not None:
+        if ms.get_preset(user_id=user_id, preset_name=preset_name) is not None:
             printd(f"Preset '{preset_name}' already exists for user '{user_id}'")
             continue
 
@@ -30,8 +31,8 @@ def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
             user_id=user_id,
             name=preset_name,
             system=gpt_system.get_system_text(preset_system_prompt),
-            persona="",  # TODO: read default persona
-            human="",  # TODO: read default human
+            persona=get_persona_text(DEFAULT_PERSONA),
+            human=get_human_text(DEFAULT_HUMAN),
             functions_schema=functions_schema,
         )
         ms.create_preset(preset)

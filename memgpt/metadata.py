@@ -276,7 +276,15 @@ class MetadataStore:
         # Check if tables need to be created
         self.engine = create_engine(self.uri)
         Base.metadata.create_all(
-            self.engine, tables=[UserModel.__table__, AgentModel.__table__, SourceModel.__table__, AgentSourceMappingModel.__table__]
+            self.engine,
+            tables=[
+                UserModel.__table__,
+                AgentModel.__table__,
+                SourceModel.__table__,
+                AgentSourceMappingModel.__table__,
+                PresetModel.__table__,
+                PresetSourceMapping.__table__,
+            ],
         )
         self.session_maker = sessionmaker(bind=self.engine)
 
@@ -316,7 +324,9 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def get_preset(self, preset_id: uuid.UUID, preset_name: str, user_id: uuid.UUID) -> Optional[Preset]:
+    def get_preset(
+        self, preset_id: Optional[uuid.UUID] = None, preset_name: Optional[str] = None, user_id: Optional[uuid.UUID] = None
+    ) -> Optional[Preset]:
         with self.session_maker() as session:
             if preset_id:
                 results = session.query(PresetModel).filter(PresetModel.id == preset_id).all()

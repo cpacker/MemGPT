@@ -664,6 +664,11 @@ def configure():
     else:
         ms.create_user(user)
 
+    # create preset records in metadata store
+    from memgpt.presets.presets import add_default_presets
+
+    add_default_presets(user_id, ms)
+
 
 class ListChoice(str, Enum):
     agents = "agents"

@@ -80,6 +80,11 @@ class Client(object):
         else:
             ms.create_user(self.user)
 
+        # create preset records in metadata store
+        from memgpt.presets.presets import add_default_presets
+
+        add_default_presets(self.user_id, ms)
+
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface=self.interface)
 
