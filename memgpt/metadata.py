@@ -426,6 +426,12 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
+    def list_presets(self, user_id: uuid.UUID) -> List[Preset]:
+        with self.session_maker() as session:
+            results = session.query(PresetModel).filter(PresetModel.user_id == user_id).all()
+            return [r.to_record() for r in results]
+
+    @enforce_types
     def list_agents(self, user_id: uuid.UUID) -> List[AgentState]:
         with self.session_maker() as session:
             results = session.query(AgentModel).filter(AgentModel.user_id == user_id).all()

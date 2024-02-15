@@ -1,4 +1,5 @@
 import builtins
+import json
 import os
 import shutil
 import uuid
@@ -675,6 +676,7 @@ class ListChoice(str, Enum):
     humans = "humans"
     personas = "personas"
     sources = "sources"
+    presets = "presets"
 
 
 @app.command()
@@ -745,6 +747,22 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
                 [source.name, source.embedding_model, source.embedding_dim, utils.format_datetime(source.created_at), ",".join(agent_names)]
             )
 
+        print(table)
+    elif arg == ListChoice.presets:
+        """List all available presets"""
+        table = PrettyTable()
+        table.field_names = ["Name", "Description", "Sources", "Functions"]
+        for preset in ms.list_presets(user_id=user_id):
+            sources = ms.get_preset_sources(preset_id=preset.id)
+            table.add_row(
+                [
+                    preset.name,
+                    preset.description,
+                    ",".join([source.name for source in sources]),
+                    # json.dumps(preset.functions_schema, indent=4)
+                    ",\n".join([f["name"] for f in preset.functions_schema]),
+                ]
+            )
         print(table)
     else:
         raise ValueError(f"Unknown argument {arg}")
