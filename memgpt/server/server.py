@@ -584,6 +584,8 @@ class SyncServer(LockingServer):
         logger.debug(f"Attempting to create agent from agent_state:\n{agent_state}")
         try:
             preset = self.ms.get_preset(preset_name=agent_state.preset, user_id=user_id)
+            assert preset is not None, f"preset {agent_state.preset} does not exist"
+
             agent = presets.create_agent_from_preset(agent_state=agent_state, preset=preset, interface=interface)
             save_agent(agent=agent, ms=self.ms)
 
