@@ -10,6 +10,8 @@ from memgpt.utils import get_local_time, format_datetime, get_utc_time, create_u
 from memgpt.utils import get_local_time, format_datetime, get_utc_time, create_uuid_from_string
 from memgpt.models import chat_completion_response
 
+from pydantic import BaseModel, Field, Json
+
 
 class Record:
     """
@@ -494,3 +496,24 @@ class Source:
         # embedding info (optional)
         self.embedding_dim = embedding_dim
         self.embedding_model = embedding_model
+
+
+class Preset(BaseModel):
+    name: str = Field(..., description="The name of the preset.")
+    id: uuid.UUID = Field(..., description="The unique identifier of the preset.")
+    user_id: uuid.UUID = Field(..., description="The unique identifier of the user who created the preset.")
+    description: Optional[str] = Field(None, description="The description of the preset.")
+    created_at: int = Field(..., description="The unix timestamp of when the preset was created.")
+    system: str = Field(..., description="The system prompt of the preset.")
+    persona: str = Field(..., description="The persona of the preset.")
+    human: str = Field(..., description="The human of the preset.")
+    functions_schema: Dict = Field(..., description="The functions schema of the preset.")
+    # functions: List[str] = Field(..., description="The functions of the preset.") # TODO: convert to ID
+    # sources: List[str] = Field(..., description="The sources of the preset.") # TODO: convert to ID
+
+
+class Function(BaseModel):
+    name: str = Field(..., description="The name of the function.")
+    id: uuid.UUID = Field(..., description="The unique identifier of the function.")
+    user_id: uuid.UUID = Field(..., description="The unique identifier of the user who created the function.")
+    # TODO: figure out how represent functions
