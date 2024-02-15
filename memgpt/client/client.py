@@ -2,7 +2,7 @@ import os
 import uuid
 from typing import Dict, List, Union, Optional, Tuple
 
-from memgpt.data_types import AgentState, User
+from memgpt.data_types import AgentState, User, Preset
 from memgpt.cli.cli import QuickstartChoice
 from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func, str_to_quickstart_choice
 from memgpt.config import MemGPTConfig
@@ -118,6 +118,10 @@ class Client(object):
         self.interface.clear()
         agent_state = self.server.create_agent(user_id=self.user_id, agent_config=agent_config)
         return agent_state
+
+    def create_preset(self, preset: Preset):
+        preset = self.server.create_preset(preset=preset)
+        return preset
 
     def get_agent_config(self, agent_id: str) -> Dict:
         self.interface.clear()
