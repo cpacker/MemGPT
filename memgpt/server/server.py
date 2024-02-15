@@ -15,6 +15,9 @@ import memgpt.system as system
 import memgpt.constants as constants
 from memgpt.cli.cli import attach
 
+# from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
+from memgpt.cli.cli_config import get_model_options
+
 # from memgpt.agent_store.storage import StorageConnector
 from memgpt.metadata import MetadataStore, save_agent
 import memgpt.presets.presets as presets
@@ -828,7 +831,7 @@ class SyncServer(LockingServer):
         # TODO: do we need a seperate server config?
         base_config = vars(self.config)
         clean_base_config = clean_keys(base_config)
-        response = {"config": base_config}
+        response = {"config": clean_base_config}
 
         if include_defaults:
             default_config = vars(MemGPTConfig())
@@ -836,6 +839,23 @@ class SyncServer(LockingServer):
             response["defaults"] = clean_default_config
 
         return response
+
+    def get_available_models(self) -> list:
+        """Poll the LLM endpoint for a list of available models"""
+
+        credentials = MemGPTCredentials().load()
+
+        try:
+            model_options = get_model_options(
+                credentials=credentials,
+                model_endpoint_type=self.config.default_llm_config.model_endpoint_type,
+                model_endpoint=self.config.default_llm_config.model_endpoint,
+            )
+            return model_options
+
+        except Exception as e:
+            logger.exception(f"Failed to get list of available models from LLM endpoint:\n{str(e)}")
+            raise
 
     def update_agent_core_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_memory_contents: dict) -> dict:
         """Update the agents core memory block, return the new state"""
