@@ -37,14 +37,6 @@ from memgpt.models.openai import (
 from memgpt.data_types import LLMConfig, EmbeddingConfig, Message
 from memgpt.constants import DEFAULT_PRESET
 
-"""
-Basic REST API sitting on top of the internal MemGPT python server (SyncServer)
-
-Start the server with:
-  cd memgpt/server/rest_api/openai_assistants
-  poetry run uvicorn assistants:app --reload --port 8080
-"""
-
 router = APIRouter()
 
 
