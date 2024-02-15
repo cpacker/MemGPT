@@ -9,6 +9,7 @@ from memgpt.credentials import MemGPTCredentials
 from memgpt.server.server import SyncServer
 from memgpt.data_types import EmbeddingConfig, AgentState, LLMConfig, Message, Passage, User
 from memgpt.embeddings import embedding_model
+from memgpt.presets.presets import add_default_presets
 from .utils import wipe_config, wipe_memgpt_home
 
 
@@ -86,6 +87,10 @@ def test_server():
     except:
         raise
 
+    # create presets
+    add_default_presets(user.id, server.ms)
+
+    # create agent
     agent_state = server.create_agent(
         user_id=user.id,
         agent_config=dict(name="test_agent", user_id=user.id, preset="memgpt_chat", human="cs_phd", persona="sam_pov"),
