@@ -63,7 +63,9 @@ def generate_functions_json(preset_functions: List[str]):
 
 
 # def create_agent_from_preset(preset_name, agent_config, model, persona, human, interface, persistence_manager):
-def create_agent_from_preset(agent_state: AgentState, interface: AgentInterface, persona_is_file: bool = True, human_is_file: bool = True):
+def create_agent_from_preset(
+    agent_state: AgentState, preset: Preset, interface: AgentInterface, persona_is_file: bool = True, human_is_file: bool = True
+):
     """Initialize a new agent from a preset (combination of system + function)"""
 
     # Input validation
@@ -77,20 +79,21 @@ def create_agent_from_preset(agent_state: AgentState, interface: AgentInterface,
         raise ValueError(f"'state' must be uninitialized (empty)")
 
     preset_name = agent_state.preset
+    assert preset_name == preset.name, f"AgentState preset '{preset_name}' does not match preset name '{preset.name}'"
     persona = agent_state.persona
     human = agent_state.human
     model = agent_state.llm_config.model
 
     from memgpt.agent import Agent
 
-    available_presets = load_all_presets()
-    if preset_name not in available_presets:
-        raise ValueError(f"Preset '{preset_name}.yaml' not found")
+    # available_presets = load_all_presets()
+    # if preset_name not in available_presets:
+    #    raise ValueError(f"Preset '{preset_name}.yaml' not found")
 
-    preset = available_presets[preset_name]
-    preset_system_prompt = preset["system_prompt"]
-    preset_function_set_names = preset["functions"]
-    preset_function_set_schemas = generate_functions_json(preset_function_set_names)
+    # preset = available_presets[preset_name]
+    # preset_system_prompt = preset["system_prompt"]
+    # preset_function_set_names = preset["functions"]
+    # preset_function_set_schemas = generate_functions_json(preset_function_set_names)
 
     # Override the following in the AgentState:
     #   persona: str  # the current persona text
@@ -101,8 +104,8 @@ def create_agent_from_preset(agent_state: AgentState, interface: AgentInterface,
     agent_state.state = {
         "persona": get_persona_text(persona) if persona_is_file else persona,
         "human": get_human_text(human) if human_is_file else human,
-        "system": gpt_system.get_system_text(preset_system_prompt),
-        "functions": preset_function_set_schemas,
+        "system": preset.system,
+        "functions": preset.functions_schema,
         "messages": None,
     }
 
