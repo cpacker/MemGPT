@@ -606,8 +606,10 @@ def run(
 
         # create agent
         try:
+            preset = ms.get_preset(preset_name=agent_state.preset, user_id=user.id)
             memgpt_agent = presets.create_agent_from_preset(
                 agent_state=agent_state,
+                preset=preset,
                 interface=interface(),
             )
             save_agent(agent=memgpt_agent, ms=ms)

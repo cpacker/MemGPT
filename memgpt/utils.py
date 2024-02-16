@@ -937,8 +937,11 @@ def list_human_files():
     memgpt_defaults = os.listdir(defaults_dir)
     memgpt_defaults = [os.path.join(defaults_dir, f) for f in memgpt_defaults if f.endswith(".txt")]
 
-    user_added = os.listdir(user_dir)
-    user_added = [os.path.join(user_dir, f) for f in user_added]
+    if os.path.exists(user_dir):
+        user_added = os.listdir(user_dir)
+        user_added = [os.path.join(user_dir, f) for f in user_added]
+    else:
+        user_added = []
     return memgpt_defaults + user_added
 
 
@@ -950,8 +953,11 @@ def list_persona_files():
     memgpt_defaults = os.listdir(defaults_dir)
     memgpt_defaults = [os.path.join(defaults_dir, f) for f in memgpt_defaults if f.endswith(".txt")]
 
-    user_added = os.listdir(user_dir)
-    user_added = [os.path.join(user_dir, f) for f in user_added]
+    if os.path.exists(user_dir):
+        user_added = os.listdir(user_dir)
+        user_added = [os.path.join(user_dir, f) for f in user_added]
+    else:
+        user_added = []
     return memgpt_defaults + user_added
 
 
