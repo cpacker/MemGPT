@@ -8,7 +8,7 @@ from datetime import datetime
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
 from memgpt.utils import get_local_time, enforce_types
-from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig, Token
+from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig, Token, Preset
 from memgpt.config import MemGPTConfig
 from memgpt.agent import Agent
 
@@ -231,6 +231,67 @@ class AgentSourceMappingModel(Base):
         return f"<AgentSourceMapping(user_id='{self.user_id}', agent_id='{self.agent_id}', source_id='{self.source_id}')>"
 
 
+class PresetSourceMapping(Base):
+    __tablename__ = "preset_source_mapping"
+
+    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+    user_id = Column(CommonUUID, nullable=False)
+    preset_id = Column(CommonUUID, nullable=False)
+    source_id = Column(CommonUUID, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<PresetSourceMapping(user_id='{self.user_id}', preset_id='{self.preset_id}', source_id='{self.source_id}')>"
+
+
+# class PresetFunctionMapping(Base):
+#    __tablename__ = "preset_function_mapping"
+#
+#    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+#    user_id = Column(CommonUUID, nullable=False)
+#    preset_id = Column(CommonUUID, nullable=False)
+#    #function_id = Column(CommonUUID, nullable=False)
+#    function = Column(String, nullable=False) # TODO: convert to ID eventually
+#
+#    def __repr__(self) -> str:
+#        return f"<PresetFunctionMapping(user_id='{self.user_id}', preset_id='{self.preset_id}', function_id='{self.function_id}')>"
+
+
+class PresetModel(Base):
+    """Defines data model for storing Preset objects"""
+
+    __tablename__ = "presets"
+    __table_args__ = {"extend_existing": True}
+
+    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+    user_id = Column(CommonUUID, nullable=False)
+    name = Column(String, nullable=False)
+    description = Column(String)
+    system = Column(String)
+    human = Column(String)
+    persona = Column(String)
+    preset = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    functions_schema = Column(JSON)
+
+    def __repr__(self) -> str:
+        return f"<Preset(id='{self.id}', name='{self.name}')>"
+
+    def to_record(self) -> Preset:
+        return Preset(
+            id=self.id,
+            user_id=self.user_id,
+            name=self.name,
+            description=self.description,
+            system=self.system,
+            human=self.human,
+            persona=self.persona,
+            preset=self.preset,
+            created_at=self.created_at,
+            functions_schema=self.functions_schema,
+        )
+
+
 class MetadataStore:
     def __init__(self, config: MemGPTConfig):
         # TODO: get DB URI or path
@@ -256,6 +317,8 @@ class MetadataStore:
                 SourceModel.__table__,
                 AgentSourceMappingModel.__table__,
                 TokenModel.__table__,
+                PresetModel.__table__,
+                PresetSourceMapping.__table__,
             ],
         )
         self.session_maker = sessionmaker(bind=self.engine)
@@ -327,6 +390,64 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
+    def create_preset(self, preset: Preset):
+        with self.session_maker() as session:
+            if session.query(PresetModel).filter(PresetModel.id == preset.id).count() > 0:
+                raise ValueError(f"User with id {preset.id} already exists")
+            session.add(PresetModel(**vars(preset)))
+            session.commit()
+
+    @enforce_types
+    def get_preset(
+        self, preset_id: Optional[uuid.UUID] = None, preset_name: Optional[str] = None, user_id: Optional[uuid.UUID] = None
+    ) -> Optional[Preset]:
+        with self.session_maker() as session:
+            if preset_id:
+                results = session.query(PresetModel).filter(PresetModel.id == preset_id).all()
+            elif preset_name and user_id:
+                results = session.query(PresetModel).filter(PresetModel.name == preset_name).filter(PresetModel.user_id == user_id).all()
+            else:
+                raise ValueError("Must provide either preset_id or (preset_name and user_id)")
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0].to_record()
+
+    # @enforce_types
+    # def set_preset_functions(self, preset_id: uuid.UUID, functions: List[str]):
+    #    preset = self.get_preset(preset_id)
+    #    if preset is None:
+    #        raise ValueError(f"Preset with id {preset_id} does not exist")
+    #    user_id = preset.user_id
+    #    with self.session_maker() as session:
+    #        for function in functions:
+    #            session.add(PresetFunctionMapping(user_id=user_id, preset_id=preset_id, function=function))
+    #        session.commit()
+
+    @enforce_types
+    def set_preset_sources(self, preset_id: uuid.UUID, sources: List[uuid.UUID]):
+        preset = self.get_preset(preset_id)
+        if preset is None:
+            raise ValueError(f"Preset with id {preset_id} does not exist")
+        user_id = preset.user_id
+        with self.session_maker() as session:
+            for source_id in sources:
+                session.add(PresetSourceMapping(user_id=user_id, preset_id=preset_id, source_id=source_id))
+            session.commit()
+
+    # @enforce_types
+    # def get_preset_functions(self, preset_id: uuid.UUID) -> List[str]:
+    #    with self.session_maker() as session:
+    #        results = session.query(PresetFunctionMapping).filter(PresetFunctionMapping.preset_id == preset_id).all()
+    #        return [r.function for r in results]
+
+    @enforce_types
+    def get_preset_sources(self, preset_id: uuid.UUID) -> List[uuid.UUID]:
+        with self.session_maker() as session:
+            results = session.query(PresetSourceMapping).filter(PresetSourceMapping.preset_id == preset_id).all()
+            return [r.source_id for r in results]
+
+    @enforce_types
     def update_agent(self, agent: AgentState):
         with self.session_maker() as session:
             session.query(AgentModel).filter(AgentModel.id == agent.id).update(vars(agent))
@@ -377,6 +498,12 @@ class MetadataStore:
             session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.user_id == user_id).delete()
 
             session.commit()
+
+    @enforce_types
+    def list_presets(self, user_id: uuid.UUID) -> List[Preset]:
+        with self.session_maker() as session:
+            results = session.query(PresetModel).filter(PresetModel.user_id == user_id).all()
+            return [r.to_record() for r in results]
 
     @enforce_types
     def list_agents(self, user_id: uuid.UUID) -> List[AgentState]:

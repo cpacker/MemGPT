@@ -344,8 +344,10 @@ def create_autogen_memgpt_agent(
         preset=agent_config["preset"],
     )
     try:
+        preset = ms.get_preset(preset_name=agent_state.preset, user_id=user_id)
         memgpt_agent = presets.create_agent_from_preset(
             agent_state=agent_state,
+            preset=preset,
             interface=interface,
             persona_is_file=False,
             human_is_file=False,
