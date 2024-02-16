@@ -8,7 +8,6 @@ import numpy as np
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS, MAX_EMBEDDING_DIM
 from memgpt.utils import get_local_time, format_datetime, get_utc_time, create_uuid_from_string
-from memgpt.utils import get_local_time, format_datetime, get_utc_time, create_uuid_from_string
 from memgpt.models import chat_completion_response
 
 
