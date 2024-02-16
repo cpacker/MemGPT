@@ -22,6 +22,7 @@ import memgpt.utils as utils
 import memgpt.server.utils as server_utils
 from memgpt.data_types import (
     User,
+    Passage,
     AgentState,
     LLMConfig,
     EmbeddingConfig,
@@ -943,3 +944,16 @@ class SyncServer(LockingServer):
     def authenticate_user(self) -> uuid.UUID:
         # TODO: Implement actual authentication to enable multi user setup
         return uuid.UUID(int=uuid.getnode())
+
+    def create_source(self, name: str):  # TODO: add other fields
+        # craete a data source
+        pass
+
+    def load_passages(self, source_id: uuid.UUID, passages: List[Passage]):
+        # load a list of passages into a data source
+        pass
+
+    def attach_source_to_agent(self, agent_id: uuid.UUID, source_id: uuid.UUID):
+        # attach a data source to an agent
+        # TODO: insert passages into agent archival memory
+        pass
