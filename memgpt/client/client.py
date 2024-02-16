@@ -2,7 +2,7 @@ import os
 import uuid
 from typing import Dict, List, Union, Optional, Tuple
 
-from memgpt.data_types import AgentState, User
+from memgpt.data_types import AgentState, User, Preset
 from memgpt.cli.cli import QuickstartChoice
 from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func, str_to_quickstart_choice
 from memgpt.config import MemGPTConfig
@@ -28,7 +28,6 @@ class Client(object):
         :param debug: indicates whether to display debug messages.
         """
         self.auto_save = auto_save
-
         # make sure everything is set up properly
         # TODO: remove this eventually? for multi-user, we can't have a shared config directory
         MemGPTConfig.create_config_dir()
@@ -80,6 +79,11 @@ class Client(object):
         else:
             ms.create_user(self.user)
 
+        # create preset records in metadata store
+        from memgpt.presets.presets import add_default_presets
+
+        add_default_presets(self.user_id, ms)
+
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface=self.interface)
 
@@ -113,6 +117,10 @@ class Client(object):
         self.interface.clear()
         agent_state = self.server.create_agent(user_id=self.user_id, agent_config=agent_config)
         return agent_state
+
+    def create_preset(self, preset: Preset):
+        preset = self.server.create_preset(preset=preset)
+        return preset
 
     def get_agent_config(self, agent_id: str) -> Dict:
         self.interface.clear()

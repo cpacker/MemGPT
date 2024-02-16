@@ -31,6 +31,7 @@ from memgpt.data_types import (
     EmbeddingConfig,
     Message,
     ToolCall,
+    Preset,
 )
 
 
@@ -582,7 +583,10 @@ class SyncServer(LockingServer):
 
         logger.debug(f"Attempting to create agent from agent_state:\n{agent_state}")
         try:
-            agent = presets.create_agent_from_preset(agent_state=agent_state, interface=interface)
+            preset = self.ms.get_preset(preset_name=agent_state.preset, user_id=user_id)
+            assert preset is not None, f"preset {agent_state.preset} does not exist"
+
+            agent = presets.create_agent_from_preset(agent_state=agent_state, preset=preset, interface=interface)
             save_agent(agent=agent, ms=self.ms)
 
             # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
@@ -612,6 +616,20 @@ class SyncServer(LockingServer):
         agent = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
         if agent is not None:
             self.ms.delete_agent(agent_id=agent_id)
+
+    def create_preset(self, preset: Preset):
+        """Create a new preset using a config"""
+        if self.ms.get_user(user_id=preset.user_id) is None:
+            raise ValueError(f"User user_id={preset.user_id} does not exist")
+
+        self.ms.create_preset(preset)
+        return preset
+
+    def get_preset(
+        self, preset_id: Optional[uuid.UUID] = None, preset_name: Optional[uuid.UUID] = None, user_id: Optional[uuid.UUID] = None
+    ) -> Preset:
+        """Get the preset"""
+        return self.ms.get_preset(preset_id=preset_id, preset_name=preset_name, user_id=user_id)
 
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:
         """Convert AgentState to a dict for a JSON response"""

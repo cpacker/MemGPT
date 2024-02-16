@@ -20,17 +20,13 @@ def create_test_agent():
     wipe_config()
     global client
     if os.getenv("OPENAI_API_KEY"):
-        client = MemGPT(quickstart="openai")
+        client = MemGPT(quickstart="openai", user_id=test_user_id)
     else:
-        client = MemGPT(quickstart="memgpt_hosted")
-
-    user = client.server.create_user({"id": test_user_id})
-    client.user_id = user.id
-    assert user is not None
+        client = MemGPT(quickstart="memgpt_hosted", user_id=test_user_id)
 
     agent_state = client.create_agent(
         agent_config={
-            "user_id": user.id,
+            "user_id": test_user_id,
             "name": test_agent_name,
             "persona": constants.DEFAULT_PERSONA,
             "human": constants.DEFAULT_HUMAN,
