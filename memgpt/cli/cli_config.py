@@ -188,9 +188,7 @@ def get_model_options(
     filter_list: bool = True,
     filter_prefix: str = "gpt-",
 ) -> list:
-
     try:
-
         if model_endpoint_type == "openai":
             if credentials.openai_key is None:
                 raise ValueError("Missing OpenAI API key")

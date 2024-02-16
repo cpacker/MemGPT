@@ -503,7 +503,6 @@ class Token:
         name: Optional[str] = None,
         id: Optional[uuid.UUID] = None,
     ):
-
         if id is None:
             self.id = uuid.uuid4()
         else:
