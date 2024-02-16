@@ -1,4 +1,5 @@
 import json
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -17,6 +18,7 @@ from memgpt.server.rest_api.humans.index import setup_humans_index_router
 from memgpt.server.rest_api.personas.index import setup_personas_index_router
 from memgpt.server.rest_api.models.index import setup_models_index_router
 from memgpt.server.rest_api.openai_assistants.assistants import setup_openai_assistant_router
+from memgpt.server.rest_api.admin.users import setup_admin_router
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.rest_api.static_files import mount_static_files
@@ -32,7 +34,11 @@ Start the server with:
 interface: QueuingInterface = QueuingInterface()
 server: SyncServer = SyncServer(default_interface=interface)
 
+# TODO remove, hack for now to set up an init API key for testing
+# new_key = server.create_api_key_for_user(user_id=uuid.UUID("00000000000000000000a61b692e9d3d"))
+# print(f"new_key = {new_key.token}")
 
+ADMIN_PREFIX = "/admin"
 API_PREFIX = "/api"
 OPENAI_API_PREFIX = "/v1"
 
@@ -56,6 +62,8 @@ app.add_middleware(
 )
 # /api/auth endpoints
 app.include_router(setup_auth_router(server, interface), prefix=API_PREFIX)
+# /admin/users endpoints
+app.include_router(setup_admin_router(server, interface), prefix=ADMIN_PREFIX)
 # /api/agents endpoints
 app.include_router(setup_agents_command_router(server, interface), prefix=API_PREFIX)
 app.include_router(setup_agents_config_router(server, interface), prefix=API_PREFIX)

@@ -1,37 +1,31 @@
 import uuid
+from functools import partial
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel, Field
 
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
+from memgpt.server.rest_api.auth_token import get_current_user
 
 router = APIRouter()
 
 
-class ConfigRequest(BaseModel):
-    user_id: str = Field(..., description="Unique identifier of the user requesting the config.")
-
-
 class ConfigResponse(BaseModel):
     config: dict = Field(..., description="The server configuration object.")
+    defaults: dict = Field(..., description="The defaults for the configuration.")
 
 
 def setup_config_index_router(server: SyncServer, interface: QueuingInterface):
+    get_current_user_with_server = partial(get_current_user, server)
+
     @router.get("/config", tags=["config"], response_model=ConfigResponse)
-    def get_server_config(user_id: str = Query(..., description="Unique identifier of the user requesting the config.")):
+    def get_server_config(user_id: uuid.UUID = Depends(get_current_user_with_server)):
         """
         Retrieve the base configuration for the server.
         """
-        request = ConfigRequest(user_id=user_id)
-
-        # TODO remove once chatui adds user selection / pulls user from config
-        request.user_id = None if request.user_id == "null" else request.user_id
-
-        user_id = uuid.UUID(request.user_id) if request.user_id else None
-
         interface.clear()
-        response = server.get_server_config(user_id=user_id)
-        return ConfigResponse(config=response)
+        response = server.get_server_config(include_defaults=True)
+        return ConfigResponse(config=response["config"], defaults=response["defaults"])
 
     return router

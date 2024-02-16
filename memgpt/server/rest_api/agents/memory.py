@@ -1,11 +1,13 @@
 import uuid
 from typing import Optional
+from functools import partial
 
 from fastapi import APIRouter, Depends, Body, Query
 from pydantic import BaseModel, Field
 
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
+from memgpt.server.rest_api.auth_token import get_current_user
 
 router = APIRouter()
 
@@ -16,7 +18,6 @@ class CoreMemory(BaseModel):
 
 
 class GetAgentMemoryRequest(BaseModel):
-    user_id: str = Field(..., description="The unique identifier of the user.")
     agent_id: str = Field(..., description="The unique identifier of the agent.")
 
 
@@ -28,7 +29,6 @@ class GetAgentMemoryResponse(BaseModel):
 
 # NOTE not subclassing CoreMemory since in the request both field are optional
 class UpdateAgentMemoryRequest(BaseModel):
-    user_id: str = Field(..., description="The unique identifier of the user.")
     agent_id: str = Field(..., description="The unique identifier of the agent.")
     human: str = Field(None, description="Human element of the core memory.")
     persona: str = Field(None, description="Persona element of the core memory.")
@@ -40,10 +40,12 @@ class UpdateAgentMemoryResponse(BaseModel):
 
 
 def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface):
+    get_current_user_with_server = partial(get_current_user, server)
+
     @router.get("/agents/memory", tags=["agents"], response_model=GetAgentMemoryResponse)
     def get_agent_memory(
-        user_id: str = Query(..., description="The unique identifier of the user."),
         agent_id: str = Query(..., description="The unique identifier of the agent."),
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
         Retrieve the memory state of a specific agent.
@@ -51,12 +53,8 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface):
         This endpoint fetches the current memory state of the agent identified by the user ID and agent ID.
         """
         # Validate with the Pydantic model (optional)
-        request = GetAgentMemoryRequest(user_id=user_id, agent_id=agent_id)
+        request = GetAgentMemoryRequest(agent_id=agent_id)
 
-        # TODO remove once chatui adds user selection / pulls user from config
-        request.user_id = None if request.user_id == "null" else request.user_id
-
-        user_id = uuid.UUID(request.user_id) if request.user_id else None
         agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         interface.clear()
@@ -64,16 +62,15 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface):
         return GetAgentMemoryResponse(**memory)
 
     @router.post("/agents/memory", tags=["agents"], response_model=UpdateAgentMemoryResponse)
-    def update_agent_memory(request: UpdateAgentMemoryRequest = Body(...)):
+    def update_agent_memory(
+        request: UpdateAgentMemoryRequest = Body(...),
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
         """
         Update the core memory of a specific agent.
 
         This endpoint accepts new memory contents (human and persona) and updates the core memory of the agent identified by the user ID and agent ID.
         """
-        # TODO remove once chatui adds user selection / pulls user from config
-        request.user_id = None if request.user_id == "null" else request.user_id
-
-        user_id = uuid.UUID(request.user_id) if request.user_id else None
         agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         interface.clear()

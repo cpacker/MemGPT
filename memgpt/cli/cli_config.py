@@ -22,7 +22,6 @@ from memgpt.data_types import User, LLMConfig, EmbeddingConfig
 from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
-from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.server.utils import shorten_key_middle
 from memgpt.data_types import User, LLMConfig, EmbeddingConfig, Source
 from memgpt.metadata import MetadataStore
@@ -183,6 +182,54 @@ def configure_llm_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials)
     return model_endpoint_type, model_endpoint
 
 
+def get_model_options(
+    credentials: MemGPTCredentials,
+    model_endpoint_type: str,
+    model_endpoint: str,
+    filter_list: bool = True,
+    filter_prefix: str = "gpt-",
+) -> list:
+    try:
+        if model_endpoint_type == "openai":
+            if credentials.openai_key is None:
+                raise ValueError("Missing OpenAI API key")
+            fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=credentials.openai_key)
+
+            # Filter the list for "gpt" models only
+            if filter_list:
+                model_options = [obj["id"] for obj in fetched_model_options_response["data"] if obj["id"].startswith(filter_prefix)]
+            else:
+                model_options = [obj["id"] for obj in fetched_model_options_response["data"]]
+
+        elif model_endpoint_type == "azure":
+            if credentials.azure_version is None:
+                raise ValueError("Missing Azure key")
+            if credentials.azure_version is None:
+                raise ValueError("Missing Azure version")
+            fetched_model_options_response = azure_openai_get_model_list(
+                url=model_endpoint, api_key=credentials.azure_key, api_version=credentials.azure_version
+            )
+
+            # Filter the list for "gpt" models only
+            if filter_list:
+                model_options = [obj["id"] for obj in fetched_model_options_response["data"] if obj["id"].startswith(filter_prefix)]
+            else:
+                model_options = [obj["id"] for obj in fetched_model_options_response["data"]]
+
+        else:
+            # Attempt to do OpenAI endpoint style model fetching
+            # TODO support local auth
+            fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=None)
+            model_options = [obj["id"] for obj in fetched_model_options_response["data"]]
+            # NOTE no filtering of local model options
+
+        # list
+        return model_options
+
+    except:
+        raise Exception(f"Failed to get model list from {model_endpoint}")
+
+
 def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_endpoint_type: str, model_endpoint: str):
     # set: model, model_wrapper
     model, model_wrapper = None, None
@@ -191,14 +238,9 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
         hardcoded_model_options = ["gpt-4", "gpt-4-32k", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
         fetched_model_options = []
         try:
-            if model_endpoint_type == "openai":
-                fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=credentials.openai_key)
-            elif model_endpoint_type == "azure":
-                assert credentials.azure_version is not None, f"Missing azure_version"
-                fetched_model_options_response = azure_openai_get_model_list(
-                    url=model_endpoint, api_key=credentials.azure_key, api_version=credentials.azure_version
-                )
-            fetched_model_options = [obj["id"] for obj in fetched_model_options_response["data"] if obj["id"].startswith("gpt-")]
+            fetched_model_options = get_model_options(
+                credentials=credentials, model_endpoint_type=model_endpoint_type, model_endpoint=model_endpoint
+            )
         except:
             # NOTE: if this fails, it means the user's key is probably bad
             typer.secho(
@@ -267,8 +309,10 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
             try:
                 # Don't filter model list for vLLM since model list is likely much smaller than OpenAI/Azure endpoint
                 # + probably has custom model names
-                model_options = openai_get_model_list(url=smart_urljoin(model_endpoint, "v1"), api_key=None)
-                model_options = [obj["id"] for obj in model_options["data"]]
+                # TODO support local auth
+                model_options = get_model_options(
+                    credentials=credentials, model_endpoint_type=model_endpoint_type, model_endpoint=model_endpoint
+                )
             except:
                 print(f"Failed to get model list from {model_endpoint}, using defaults")
                 model_options = None
@@ -445,6 +489,8 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
         while not utils.is_valid_url(embedding_endpoint):
             typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
             embedding_endpoint = questionary.text("Enter default endpoint:").ask()
+            if embedding_endpoint is None:
+                raise KeyboardInterrupt
 
         # get model type
         default_embedding_model = (

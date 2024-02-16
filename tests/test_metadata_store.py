@@ -76,7 +76,18 @@ def test_storage(storage_connector):
     ms.get_agent(agent_1.id)
     ms.get_source(source_1.id)
 
-    # text deletion
+    # test api keys
+    api_key = ms.create_api_key(user_id=user_1.id)
+    print("api_key=", api_key.token, api_key.user_id)
+    api_key_result = ms.get_api_key(api_key=api_key.token)
+    assert api_key.token == api_key_result.token, (api_key, api_key_result)
+    user_result = ms.get_user_from_api_key(api_key=api_key.token)
+    assert user_1.id == user_result.id, (user_1, user_result)
+    all_keys_for_user = ms.get_all_api_keys_for_user(user_id=user_1.id)
+    assert len(all_keys_for_user) > 0, all_keys_for_user
+    ms.delete_api_key(api_key=api_key.token)
+
+    # test deletion
     ms.delete_user(user_1.id)
     ms.delete_user(user_2.id)
     ms.delete_agent(agent_1.id)
