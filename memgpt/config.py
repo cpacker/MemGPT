@@ -185,7 +185,6 @@ class MemGPTConfig:
         anon_clientid = MemGPTConfig.generate_uuid()
         config = cls(anon_clientid=anon_clientid, config_path=config_path)
         config.create_config_dir()  # create dirs
-        config.save()  # save updated config
 
         return config
 
