@@ -354,6 +354,12 @@ class MetadataStore:
             return results[0].to_record()
 
     @enforce_types
+    def get_all_api_keys_for_user(self, user_id: uuid.UUID) -> List[Token]:
+        with self.session_maker() as session:
+            results = session.query(TokenModel).filter(TokenModel.user_id == user_id).all()
+            return [r.to_record() for r in results]
+
+    @enforce_types
     def get_user_from_api_key(self, api_key: str) -> Optional[User]:
         """Get the user associated with a given API key"""
         token = self.get_api_key(api_key=api_key)
@@ -541,6 +547,13 @@ class MetadataStore:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0].to_record()
+
+    @enforce_types
+    def get_all_users(self) -> List[User]:
+        # TODO make paginated
+        with self.session_maker() as session:
+            results = session.query(UserModel).all()
+            return [r.to_record() for r in results]
 
     @enforce_types
     def get_source(

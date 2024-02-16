@@ -83,6 +83,8 @@ def test_storage(storage_connector):
     assert api_key.token == api_key_result.token, (api_key, api_key_result)
     user_result = ms.get_user_from_api_key(api_key=api_key.token)
     assert user_1.id == user_result.id, (user_1, user_result)
+    all_keys_for_user = ms.get_all_api_keys_for_user(user_id=user_1.id)
+    assert len(all_keys_for_user) > 0, all_keys_for_user
     ms.delete_api_key(api_key=api_key.token)
 
     # test deletion
