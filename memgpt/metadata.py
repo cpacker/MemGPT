@@ -1,9 +1,14 @@
 """ Metadata store for user/agent/data_source information"""
+
 import os
+import uuid
+import secrets
 from typing import Optional, List, Dict
+from datetime import datetime
+
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
 from memgpt.utils import get_local_time, enforce_types
-from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig
+from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig, Token
 from memgpt.config import MemGPTConfig
 from memgpt.agent import Agent
 
@@ -16,9 +21,6 @@ from sqlalchemy import Column, BIGINT, String, DateTime
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy_json import mutable_json_type, MutableJson
 from sqlalchemy import TypeDecorator, CHAR
-import uuid
-
-
 from sqlalchemy.orm import sessionmaker, mapped_column, declarative_base
 
 
@@ -112,6 +114,39 @@ class UserModel(Base):
         )
 
 
+class TokenModel(Base):
+    """Data model for authentication tokens. One-to-many relationship with UserModel (1 User - N tokens)."""
+
+    __tablename__ = "tokens"
+
+    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+    # each api key is tied to a user account (that it validates access for)
+    user_id = Column(CommonUUID, nullable=False)
+    # the api key
+    token = Column(String, nullable=False)
+    # extra (optional) metadata
+    name = Column(String)
+
+    def __repr__(self) -> str:
+        return f"<Token(id='{self.id}', token='{self.token}', name='{self.name}')>"
+
+    def to_record(self) -> User:
+        return Token(
+            id=self.id,
+            user_id=self.user_id,
+            token=self.token,
+            name=self.name,
+        )
+
+
+def generate_api_key(prefix="sk-", length=51) -> str:
+    # Generate 'length // 2' bytes because each byte becomes two hex digits. Adjust length for prefix.
+    actual_length = max(length - len(prefix), 1) // 2  # Ensure at least 1 byte is generated
+    random_bytes = secrets.token_bytes(actual_length)
+    new_key = prefix + random_bytes.hex()
+    return new_key
+
+
 class AgentModel(Base):
     """Defines data model for storing Passages (consisting of text, embedding)"""
 
@@ -183,7 +218,6 @@ class SourceModel(Base):
 
 
 class AgentSourceMappingModel(Base):
-
     """Stores mapping between agent -> source"""
 
     __tablename__ = "agent_source_mapping"
@@ -215,9 +249,55 @@ class MetadataStore:
         # Check if tables need to be created
         self.engine = create_engine(self.uri)
         Base.metadata.create_all(
-            self.engine, tables=[UserModel.__table__, AgentModel.__table__, SourceModel.__table__, AgentSourceMappingModel.__table__]
+            self.engine,
+            tables=[
+                UserModel.__table__,
+                AgentModel.__table__,
+                SourceModel.__table__,
+                AgentSourceMappingModel.__table__,
+                TokenModel.__table__,
+            ],
         )
         self.session_maker = sessionmaker(bind=self.engine)
+
+    @enforce_types
+    def create_api_key(self, user_id: uuid.UUID, name: Optional[str] = None) -> Token:
+        """Create an API key for a user"""
+        new_api_key = generate_api_key()
+        with self.session_maker() as session:
+            if session.query(TokenModel).filter(TokenModel.token == new_api_key).count() > 0:
+                # NOTE duplicate API keys / tokens should never happen, but if it does don't allow it
+                raise ValueError(f"Token {new_api_key} already exists")
+            # TODO store the API keys as hashed
+            token = Token(user_id=user_id, token=new_api_key, name=name)
+            session.add(TokenModel(**vars(token)))
+            session.commit()
+        return self.get_api_key(api_key=new_api_key)
+
+    @enforce_types
+    def delete_api_key(self, api_key: str):
+        """Delete an API key from the database"""
+        with self.session_maker() as session:
+            session.query(TokenModel).filter(TokenModel.token == api_key).delete()
+            session.commit()
+
+    @enforce_types
+    def get_api_key(self, api_key: str) -> Optional[Token]:
+        with self.session_maker() as session:
+            results = session.query(TokenModel).filter(TokenModel.token == api_key).all()
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"  # should only be one result
+            return results[0].to_record()
+
+    @enforce_types
+    def get_user_from_api_key(self, api_key: str) -> Optional[User]:
+        """Get the user associated with a given API key"""
+        token = self.get_api_key(api_key=api_key)
+        if token is None:
+            raise ValueError(f"Token {api_key} does not exist")
+        else:
+            return self.get_user(user_id=token.user_id)
 
     @enforce_types
     def create_agent(self, agent: AgentState):

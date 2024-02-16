@@ -1,4 +1,5 @@
 import json
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -31,6 +32,9 @@ Start the server with:
 interface: QueuingInterface = QueuingInterface()
 server: SyncServer = SyncServer(default_interface=interface)
 
+# TODO remove, hack for now to set up an init API key for testing
+new_key = server.create_api_key_for_user(user_id=uuid.UUID("00000000000000000000a61b692e9d3d"))
+print(f"new_key = {new_key.token}")
 
 API_PREFIX = "/api"
 
