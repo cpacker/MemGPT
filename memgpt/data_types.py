@@ -1,4 +1,5 @@
 """ This module contains the data types used by MemGPT. Each data type must include a function to create a DB model. """
+
 import uuid
 from datetime import datetime
 from abc import abstractmethod
@@ -6,7 +7,6 @@ from typing import Optional, List, Dict, TypeVar
 import numpy as np
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS, MAX_EMBEDDING_DIM
-from memgpt.utils import get_local_time, format_datetime, get_utc_time, create_uuid_from_string
 from memgpt.utils import get_local_time, format_datetime, get_utc_time, create_uuid_from_string
 from memgpt.models import chat_completion_response
 from memgpt.utils import get_human_text, get_persona_text, printd
@@ -403,7 +403,6 @@ class AzureEmbeddingConfig(EmbeddingConfig):
 
 
 class User:
-
     """Defines user and default configurations"""
 
     # TODO: make sure to encrypt/decrypt keys before storing in DB
@@ -497,6 +496,26 @@ class Source:
         # embedding info (optional)
         self.embedding_dim = embedding_dim
         self.embedding_model = embedding_model
+
+
+class Token:
+    def __init__(
+        self,
+        user_id: uuid.UUID,
+        token: str,
+        name: Optional[str] = None,
+        id: Optional[uuid.UUID] = None,
+    ):
+        if id is None:
+            self.id = uuid.uuid4()
+        else:
+            self.id = id
+        assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
+        assert isinstance(user_id, uuid.UUID), f"UUID {user_id} must be a UUID type"
+
+        self.token = token
+        self.user_id = user_id
+        self.name = name
 
 
 class Preset(BaseModel):

@@ -1,10 +1,12 @@
 import uuid
 from typing import List
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from pydantic import BaseModel, Field
+from functools import partial
 
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.interface import QueuingInterface
+from memgpt.server.rest_api.auth_token import get_current_user
 
 router = APIRouter()
 
@@ -14,12 +16,12 @@ class ListHumansResponse(BaseModel):
 
 
 def setup_humans_index_router(server: SyncServer, interface: QueuingInterface):
-    @router.get("/humans", tags=["humans"], response_model=ListHumansResponse)
-    async def list_humans(user_id: str = Query(..., description="Unique identifier of the user.")):
-        # Validate and parse the user ID
-        user_id = None if user_id == "null" else user_id
-        user_id = uuid.UUID(user_id) if user_id else None
+    get_current_user_with_server = partial(get_current_user, server)
 
+    @router.get("/humans", tags=["humans"], response_model=ListHumansResponse)
+    async def list_humans(
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
         # Clear the interface
         interface.clear()
 

@@ -1,17 +1,15 @@
 import uuid
 from typing import List
+from functools import partial
 
 from fastapi import APIRouter, Depends, Body, Query, HTTPException
 from pydantic import BaseModel, Field
 
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
+from memgpt.server.rest_api.auth_token import get_current_user
 
 router = APIRouter()
-
-
-class ListAgentsRequest(BaseModel):
-    user_id: str = Field(..., description="Unique identifier of the user.")
 
 
 class ListAgentsResponse(BaseModel):
@@ -20,7 +18,6 @@ class ListAgentsResponse(BaseModel):
 
 
 class CreateAgentRequest(BaseModel):
-    user_id: str = Field(..., description="Unique identifier of the user issuing the command.")
     config: dict = Field(..., description="The agent configuration object.")
 
 
@@ -29,36 +26,32 @@ class CreateAgentResponse(BaseModel):
 
 
 def setup_agents_index_router(server: SyncServer, interface: QueuingInterface):
+    get_current_user_with_server = partial(get_current_user, server)
+
     @router.get("/agents", tags=["agents"], response_model=ListAgentsResponse)
-    def list_agents(user_id: str = Query(..., description="Unique identifier of the user.")):
+    def list_agents(
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
         """
         List all agents associated with a given user.
 
         This endpoint retrieves a list of all agents and their configurations associated with the specified user ID.
         """
-        request = ListAgentsRequest(user_id=user_id)
-
-        # TODO remove once chatui adds user selection / pulls user from config
-        request.user_id = None if request.user_id == "null" else request.user_id
-
-        user_id = uuid.UUID(request.user_id) if request.user_id else None
-
         interface.clear()
         agents_data = server.list_agents(user_id=user_id)
         return ListAgentsResponse(**agents_data)
 
     @router.post("/agents", tags=["agents"], response_model=CreateAgentResponse)
-    def create_agent(request: CreateAgentRequest = Body(...)):
+    def create_agent(
+        request: CreateAgentRequest = Body(...),
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
         """
         Create a new agent with the specified configuration.
         """
         interface.clear()
 
-        # TODO remove once chatui adds user selection / pulls user from config
-        request.user_id = None if request.user_id == "null" else request.user_id
-
         try:
-            user_id = uuid.UUID(request.user_id) if request.user_id else None
             agent_state = server.create_agent(user_id=user_id, agent_config=request.config)
             return CreateAgentResponse(agent_id=agent_state.id)
         except Exception as e:
