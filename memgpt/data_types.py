@@ -497,7 +497,7 @@ class Source:
         self.embedding_dim = embedding_dim
         self.embedding_model = embedding_model
 
-        
+
 class Token:
     def __init__(
         self,
@@ -517,7 +517,7 @@ class Token:
         self.user_id = user_id
         self.name = name
 
-        
+
 class Preset(BaseModel):
     name: str = Field(..., description="The name of the preset.")
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the preset.")
