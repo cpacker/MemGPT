@@ -84,6 +84,8 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
             raise HTTPException(status_code=500, detail=f"{e}")
         return CreateUserResponse(user_id=new_user_ret.id)
 
+    # TODO add delete_user route
+
     @router.post("/users/keys", tags=["users"], response_model=CreateAPIKeyResponse)
     def create_new_api_key(request: CreateAPIKeyRequest = Body(...)):
         """
