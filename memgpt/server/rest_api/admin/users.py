@@ -47,7 +47,6 @@ class DeleteAPIKeyResponse(BaseModel):
 
 
 def setup_admin_router(server: SyncServer, interface: QueuingInterface):
-
     @router.get("/users", tags=["users"], response_model=GetAllUsersResponse)
     def get_all_users():
         """
