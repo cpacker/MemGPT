@@ -571,7 +571,10 @@ def configure_recall_storage(config: MemGPTConfig, credentials: MemGPTCredential
 
 @app.command()
 def configure():
-    """Updates default MemGPT configurations"""
+    """Updates default MemGPT configurations
+
+    This function and quickstart should be the ONLY place where MemGPTConfig.save() is called
+    """
 
     # check credentials
     credentials = MemGPTCredentials.load()
