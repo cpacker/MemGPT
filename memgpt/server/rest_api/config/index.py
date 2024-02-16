@@ -11,10 +11,6 @@ from memgpt.server.rest_api.auth_token import get_current_user
 router = APIRouter()
 
 
-# class ConfigRequest(BaseModel):
-# user_id: str = Field(..., description="Unique identifier of the user requesting the config.")
-
-
 class ConfigResponse(BaseModel):
     config: dict = Field(..., description="The server configuration object.")
     defaults: dict = Field(..., description="The defaults for the configuration.")

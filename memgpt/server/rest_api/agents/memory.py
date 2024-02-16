@@ -18,7 +18,6 @@ class CoreMemory(BaseModel):
 
 
 class GetAgentMemoryRequest(BaseModel):
-    # user_id: str = Field(..., description="The unique identifier of the user.")
     agent_id: str = Field(..., description="The unique identifier of the agent.")
 
 
@@ -30,7 +29,6 @@ class GetAgentMemoryResponse(BaseModel):
 
 # NOTE not subclassing CoreMemory since in the request both field are optional
 class UpdateAgentMemoryRequest(BaseModel):
-    # user_id: str = Field(..., description="The unique identifier of the user.")
     agent_id: str = Field(..., description="The unique identifier of the agent.")
     human: str = Field(None, description="Human element of the core memory.")
     persona: str = Field(None, description="Persona element of the core memory.")
@@ -46,7 +44,6 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface):
 
     @router.get("/agents/memory", tags=["agents"], response_model=GetAgentMemoryResponse)
     def get_agent_memory(
-        # user_id: str = Query(..., description="The unique identifier of the user."),
         agent_id: str = Query(..., description="The unique identifier of the agent."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
@@ -56,13 +53,8 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface):
         This endpoint fetches the current memory state of the agent identified by the user ID and agent ID.
         """
         # Validate with the Pydantic model (optional)
-        # request = GetAgentMemoryRequest(user_id=user_id, agent_id=agent_id)
         request = GetAgentMemoryRequest(agent_id=agent_id)
 
-        # TODO remove once chatui adds user selection / pulls user from config
-        # request.user_id = None if request.user_id == "null" else request.user_id
-
-        # user_id = uuid.UUID(request.user_id) if request.user_id else None
         agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         interface.clear()
@@ -79,10 +71,6 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface):
 
         This endpoint accepts new memory contents (human and persona) and updates the core memory of the agent identified by the user ID and agent ID.
         """
-        # TODO remove once chatui adds user selection / pulls user from config
-        # request.user_id = None if request.user_id == "null" else request.user_id
-
-        # user_id = uuid.UUID(request.user_id) if request.user_id else None
         agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         interface.clear()

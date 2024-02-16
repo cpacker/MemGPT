@@ -24,7 +24,6 @@ class MessageRoleType(str, Enum):
 
 
 class UserMessageRequest(BaseModel):
-    # user_id: str = Field(..., description="The unique identifier of the user.")
     agent_id: str = Field(..., description="The unique identifier of the agent.")
     message: str = Field(..., description="The message content to be processed by the agent.")
     stream: bool = Field(default=False, description="Flag to determine if the response should be streamed. Set to True for streaming.")
@@ -36,7 +35,6 @@ class UserMessageResponse(BaseModel):
 
 
 class GetAgentMessagesRequest(BaseModel):
-    # user_id: str = Field(..., description="The unique identifier of the user.")
     agent_id: str = Field(..., description="The unique identifier of the agent.")
     start: int = Field(..., description="Message index to start on (reverse chronological).")
     count: int = Field(..., description="How many messages to retrieve.")
@@ -51,7 +49,6 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface)
 
     @router.get("/agents/message", tags=["agents"], response_model=GetAgentMessagesResponse)
     def get_agent_messages(
-        # user_id: str = Query(..., description="The unique identifier of the user."),
         agent_id: str = Query(..., description="The unique identifier of the agent."),
         start: int = Query(..., description="Message index to start on (reverse chronological)."),
         count: int = Query(..., description="How many messages to retrieve."),
@@ -61,13 +58,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface)
         Retrieve the in-context messages of a specific agent. Paginated, provide start and count to iterate.
         """
         # Validate with the Pydantic model (optional)
-        # request = GetAgentMessagesRequest(user_id=user_id, agent_id=agent_id, start=start, count=count)
         request = GetAgentMessagesRequest(agent_id=agent_id, start=start, count=count)
-
-        # TODO remove once chatui adds user selection / pulls user from config
-        # request.user_id = None if request.user_id == "null" else request.user_id
-
-        # user_id = uuid.UUID(request.user_id) if request.user_id else None
         agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         interface.clear()
@@ -85,10 +76,6 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface)
         This endpoint accepts a message from a user and processes it through the agent.
         It can optionally stream the response if 'stream' is set to True.
         """
-        # TODO remove once chatui adds user selection / pulls user from config
-        # request.user_id = None if request.user_id == "null" else request.user_id
-
-        # user_id = uuid.UUID(request.user_id) if request.user_id else None
         agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         if request.role == "user" or request.role is None:

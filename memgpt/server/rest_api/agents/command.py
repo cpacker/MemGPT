@@ -12,7 +12,6 @@ router = APIRouter()
 
 
 class CommandRequest(BaseModel):
-    # user_id: str = Field(..., description="Unique identifier of the user issuing the command.")
     agent_id: str = Field(..., description="Identifier of the agent on which the command will be executed.")
     command: str = Field(..., description="The command to be executed by the agent.")
 
@@ -35,10 +34,6 @@ def setup_agents_command_router(server: SyncServer, interface: QueuingInterface)
         """
         interface.clear()
         try:
-            # TODO remove once chatui adds user selection / pulls user from config
-            # request.user_id = None if request.user_id == "null" else request.user_id
-
-            # user_id = uuid.UUID(request.user_id) if request.user_id else None
             agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
             response = server.run_command(user_id=user_id, agent_id=agent_id, command=request.command)
         except HTTPException:

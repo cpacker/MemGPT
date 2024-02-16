@@ -14,12 +14,10 @@ router = APIRouter()
 
 
 class AgentConfigRequest(BaseModel):
-    # user_id: str = Field(..., description="Unique identifier of the user requesting the config.")
     agent_id: str = Field(..., description="Unique identifier of the agent whose config is requested.")
 
 
 class AgentRenameRequest(BaseModel):
-    # user_id: str = Field(..., description="Unique identifier of the user requesting the config.")
     agent_id: str = Field(..., description="Unique identifier of the agent whose config is requested.")
     agent_name: str = Field(..., description="New name for the agent.")
 
@@ -50,7 +48,6 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
 
     @router.get("/agents/config", tags=["agents"], response_model=AgentConfigResponse)
     def get_agent_config(
-        # user_id: str = Query(..., description="Unique identifier of the user requesting the config."),
         agent_id: str = Query(..., description="Unique identifier of the agent whose config is requested."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
@@ -59,13 +56,8 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
 
         This endpoint fetches the configuration details for a given agent, identified by the user and agent IDs.
         """
-        # request = AgentConfigRequest(user_id=user_id, agent_id=agent_id)
         request = AgentConfigRequest(agent_id=agent_id)
 
-        # TODO remove once chatui adds user selection / pulls user from config
-        # request.user_id = None if request.user_id == "null" else request.user_id
-
-        # user_id = uuid.UUID(request.user_id) if request.user_id else None
         agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         interface.clear()
@@ -82,10 +74,6 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
 
         This changes the name of the agent in the database but does NOT edit the agent's persona.
         """
-        # TODO remove once chatui adds user selection / pulls user from config
-        # request.user_id = None if request.user_id == "null" else request.user_id
-
-        # user_id = uuid.UUID(request.user_id) if request.user_id else None
         agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         valid_name = validate_agent_name(request.agent_name)
@@ -101,20 +89,14 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
 
     @router.delete("/agents", tags=["agents"])
     def delete_agent(
-        # user_id: str = Query(..., description="Unique identifier of the user requesting the deletion."),
         agent_id: str = Query(..., description="Unique identifier of the agent to be deleted."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
         Delete an agent.
         """
-        # request = AgentConfigRequest(user_id=user_id, agent_id=agent_id)
         request = AgentConfigRequest(agent_id=agent_id)
 
-        # TODO remove once chatui adds user selection / pulls user from config
-        # request.user_id = None if request.user_id == "null" else request.user_id
-
-        # user_id = uuid.UUID(request.user_id) if request.user_id else None
         agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         interface.clear()

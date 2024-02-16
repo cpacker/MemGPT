@@ -22,10 +22,6 @@ def setup_humans_index_router(server: SyncServer, interface: QueuingInterface):
     async def list_humans(
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
-        # Validate and parse the user ID
-        # user_id = None if user_id == "null" else user_id
-        # user_id = uuid.UUID(user_id) if user_id else None
-
         # Clear the interface
         interface.clear()
 
