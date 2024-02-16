@@ -15,6 +15,8 @@ from memgpt.constants import MAX_EMBEDDING_DIM
 
 from datetime import datetime, timedelta
 
+from tests import TEST_TMP_DIR
+
 
 # Note: the database will filter out rows that do not correspond to agent1 and test_user by default.
 texts = ["This is a test passage", "This is another test passage", "Cinderella wept"]
@@ -137,7 +139,7 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
             print("Skipping test, chroma only supported for archival memory")
             return
         config.archival_storage_type = "chroma"
-        config.archival_storage_path = "./test_chroma"
+        config.archival_storage_path = os.path.join(TEST_TMP_DIR, "test_chroma")
     if storage_connector == "sqlite":
         if table_type == TableType.ARCHIVAL_MEMORY:
             print("Skipping test, sqlite only supported for recall memory")

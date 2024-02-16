@@ -7,10 +7,10 @@ utils.DEBUG = True
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.server.server import SyncServer
-from memgpt.data_types import EmbeddingConfig, AgentState, LLMConfig, Message, Passage, User
+from memgpt.data_types import EmbeddingConfig, LLMConfig, Passage
 from memgpt.embeddings import embedding_model
 from memgpt.presets.presets import add_default_presets
-from .utils import wipe_config, wipe_memgpt_home
+from .utils import wipe_memgpt_home
 
 
 def test_server():

@@ -1,23 +1,29 @@
 import datetime
+import functools
 import os
+from tempfile import NamedTemporaryFile
 
 from memgpt.config import MemGPTConfig
+from tests import TEST_TMP_DIR
 
 from .constants import TIMEOUT
 
 
-def wipe_config():
-    if MemGPTConfig.exists():
-        # delete
-        if os.getenv("MEMGPT_CONFIG_PATH"):
-            config_path = os.getenv("MEMGPT_CONFIG_PATH")
-        else:
-            config_path = MemGPTConfig.config_path
-        # TODO delete file config_path
-        os.remove(config_path)
-        assert not MemGPTConfig.exists(), "Config should not exist after deletion"
-    else:
-        print("No config to wipe", MemGPTConfig.config_path)
+def wipe_config(func):
+    """Creates a temporary file, and sets it was the config path.
+
+    This file is automatically removed at the end of function execution,
+    however if there's a SIGINT during execution this might not happen.
+    """
+
+    @functools.wraps(func)
+    def wrapper_decorator(*args, **kwargs):
+        os.makedirs(TEST_TMP_DIR, exist_ok=True)
+        with NamedTemporaryFile(dir=TEST_TMP_DIR) as temp_file:
+            os.environ["MEMGPT_CONFIG_PATH"] = temp_file.name
+            return func(*args, **kwargs)
+
+    return wrapper_decorator
 
 
 def wipe_memgpt_home():
@@ -36,10 +42,10 @@ def wipe_memgpt_home():
     MemGPTConfig.create_config_dir()
 
 
+@wipe_config
 def configure_memgpt_localllm():
     import pexpect
 
-    wipe_config()
     child = pexpect.spawn("memgpt configure")
 
     child.expect("Select LLM inference provider", timeout=TIMEOUT)

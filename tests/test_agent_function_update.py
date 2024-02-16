@@ -1,4 +1,3 @@
-from collections import UserDict
 import json
 import os
 import inspect
@@ -7,7 +6,6 @@ import uuid
 from memgpt import MemGPT
 from memgpt.config import MemGPTConfig
 from memgpt import constants
-import memgpt.functions.function_sets.base as base_functions
 from memgpt.functions.functions import USER_FUNCTIONS_DIR
 from memgpt.utils import assistant_function_to_tool
 from memgpt.models import chat_completion_response
@@ -26,10 +24,10 @@ def hello_world(self) -> str:
     return "hello, world!"
 
 
+@wipe_config
 @pytest.fixture(scope="module")
 def agent():
     """Create a test agent that we can call functions on"""
-    wipe_config()
     global client
     if os.getenv("OPENAI_API_KEY"):
         client = MemGPT(quickstart="openai")

@@ -652,7 +652,7 @@ def configure():
         metadata_storage_path=recall_storage_path,
     )
 
-    typer.secho(f"📖 Saving config to {config.config_path}", fg=typer.colors.GREEN)
+    typer.secho(f"📖 Saving config to {MemGPTConfig.get_config_path()}", fg=typer.colors.GREEN)
     config.save()
 
     # create user records

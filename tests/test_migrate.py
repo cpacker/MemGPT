@@ -1,16 +1,12 @@
-import os
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
-from memgpt import MemGPT
-from memgpt.config import MemGPTConfig
 from .utils import wipe_config
 from memgpt.server.server import SyncServer
 import shutil
 import uuid
 
 
+@wipe_config
 def test_migrate_0211():
-    wipe_config()
-
     data_dir = "tests/data/memgpt-0.2.11"
     tmp_dir = f"tmp_{str(uuid.uuid4())}"
     shutil.copytree(data_dir, tmp_dir)
@@ -45,7 +41,5 @@ def test_migrate_0211():
                 # assert source data exists
                 source = server.ms.get_source(source_name=source_name, user_id=source_res["user_id"])
                 assert source is not None
-    except Exception as e:
-        raise e
     finally:
         shutil.rmtree(tmp_dir)

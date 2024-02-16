@@ -3,8 +3,7 @@ import os
 
 from memgpt import MemGPT
 from memgpt.config import MemGPTConfig
-from memgpt import constants
-from memgpt.data_types import LLMConfig, EmbeddingConfig, AgentState, Passage
+from memgpt.data_types import EmbeddingConfig, Passage
 from memgpt.embeddings import embedding_model
 from memgpt.agent_store.storage import StorageConnector, TableType
 from .utils import wipe_config
@@ -41,12 +40,11 @@ def generate_passages(user, agent):
     return passages, orig_embeddings
 
 
+@wipe_config
 def test_create_user():
     if not os.getenv("OPENAI_API_KEY"):
         print("Skipping test, missing OPENAI_API_KEY")
         return
-
-    wipe_config()
 
     # create client
     client = MemGPT(quickstart="openai", user_id=test_user_id)

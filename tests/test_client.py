@@ -3,7 +3,6 @@ import os
 
 from memgpt import MemGPT
 from memgpt.config import MemGPTConfig
-from memgpt import constants
 from memgpt.data_types import LLMConfig, EmbeddingConfig, Preset
 from memgpt.functions.functions import load_all_function_sets
 from memgpt.prompts import gpt_system
@@ -23,8 +22,8 @@ test_agent_state_post_message = None
 test_user_id = uuid.uuid4()
 
 
+@wipe_config
 def test_create_preset():
-    wipe_config()
     global client
     if os.getenv("OPENAI_API_KEY"):
         client = MemGPT(quickstart="openai", user_id=test_user_id)
@@ -43,8 +42,8 @@ def test_create_preset():
     client.create_preset(preset)
 
 
+@wipe_config
 def test_create_agent():
-    wipe_config()
     config = MemGPTConfig.load()
 
     # ensure user exists

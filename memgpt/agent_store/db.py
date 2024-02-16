@@ -427,11 +427,11 @@ class PostgresStorageConnector(SQLStorageConnector):
         if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
             self.uri = self.config.archival_storage_uri
             if self.config.archival_storage_uri is None:
-                raise ValueError(f"Must specifiy archival_storage_uri in config {self.config.config_path}")
+                raise ValueError(f"Must specifiy archival_storage_uri in config {MemGPTConfig.get_config_path()}")
         elif table_type == TableType.RECALL_MEMORY:
             self.uri = self.config.recall_storage_uri
             if self.config.recall_storage_uri is None:
-                raise ValueError(f"Must specifiy recall_storage_uri in config {self.config.config_path}")
+                raise ValueError(f"Must specifiy recall_storage_uri in config {MemGPTConfig.get_config_path()}")
         else:
             raise ValueError(f"Table type {table_type} not implemented")
         # create table

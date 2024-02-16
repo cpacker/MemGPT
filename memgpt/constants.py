@@ -2,6 +2,7 @@ import os
 from logging import CRITICAL, ERROR, WARN, WARNING, INFO, DEBUG, NOTSET
 
 MEMGPT_DIR = os.path.join(os.path.expanduser("~"), ".memgpt")
+DEFAULT_MEMGPT_CONFIG_PATH = os.path.join(MEMGPT_DIR, "config")
 
 # embeddings
 MAX_EMBEDDING_DIM = 4096  # maximum supported embeding size - do NOT change or else DBs will need to be reset

@@ -6,7 +6,7 @@ from sqlalchemy.ext.declarative import declarative_base
 
 # import memgpt
 from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.cli.cli_load import load_directory, load_database, load_webpage
+from memgpt.cli.cli_load import load_directory
 from memgpt.cli.cli import attach
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
@@ -34,6 +34,7 @@ def recreate_declarative_base():
     Base.metadata.clear()
 
 
+@wipe_config
 @pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
 @pytest.mark.parametrize("passage_storage_connector", ["chroma", "postgres"])
 def test_load_directory(metadata_storage_connector, passage_storage_connector, clear_dynamically_created_models, recreate_declarative_base):
@@ -180,7 +181,3 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
     ms.delete_user(user.id)
     ms.delete_agent(agent.id)
     ms.delete_source(sources[0].id)
-
-    # revert to openai config
-    # client = MemGPT(quickstart="openai", user_id=user.id)
-    wipe_config()

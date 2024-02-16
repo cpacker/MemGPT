@@ -5,17 +5,12 @@ import os
 import uuid
 from dataclasses import dataclass, field
 import configparser
-import typer
-import questionary
-from typing import Optional
 
 import memgpt
 import memgpt.utils as utils
-from memgpt.utils import printd, get_schema_diff
-from memgpt.functions.functions import load_all_function_sets
 
-from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS, DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
-from memgpt.data_types import AgentState, User, LLMConfig, EmbeddingConfig
+from memgpt.constants import DEFAULT_MEMGPT_CONFIG_PATH, MEMGPT_DIR, DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
+from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig
 
 
 # helper functions for writing to configs
@@ -38,8 +33,7 @@ def set_field(config, section, field, value):
 
 @dataclass
 class MemGPTConfig:
-    config_path: str = os.path.join(MEMGPT_DIR, "config")
-    anon_clientid: str = None
+    anon_clientid: str = uuid.UUID(int=uuid.getnode()).hex
 
     # preset
     preset: str = DEFAULT_PRESET
@@ -87,10 +81,6 @@ class MemGPTConfig:
         # self.context_window = int(self.context_window)
         pass
 
-    @staticmethod
-    def generate_uuid() -> str:
-        return uuid.UUID(int=uuid.getnode()).hex
-
     @classmethod
     def load(cls) -> "MemGPTConfig":
         # avoid circular import
@@ -107,11 +97,7 @@ class MemGPTConfig:
 
         config = configparser.ConfigParser()
 
-        # allow overriding with env variables
-        if os.getenv("MEMGPT_CONFIG_PATH"):
-            config_path = os.getenv("MEMGPT_CONFIG_PATH")
-        else:
-            config_path = MemGPTConfig.config_path
+        config_path = MemGPTConfig.get_config_path()
 
         # insure all configuration directories exist
         cls.create_config_dir()
@@ -140,11 +126,11 @@ class MemGPTConfig:
             llm_config_dict = {k: v for k, v in llm_config_dict.items() if v is not None}
             embedding_config_dict = {k: v for k, v in embedding_config_dict.items() if v is not None}
             # Correct the types that aren't strings
-            if llm_config_dict["context_window"] is not None:
+            if llm_config_dict.get("context_window"):
                 llm_config_dict["context_window"] = int(llm_config_dict["context_window"])
-            if embedding_config_dict["embedding_dim"] is not None:
+            if embedding_config_dict.get("embedding_dim"):
                 embedding_config_dict["embedding_dim"] = int(embedding_config_dict["embedding_dim"])
-            if embedding_config_dict["embedding_chunk_size"] is not None:
+            if embedding_config_dict.get("embedding_chunk_size"):
                 embedding_config_dict["embedding_chunk_size"] = int(embedding_config_dict["embedding_chunk_size"])
             # Construct the inner properties
             llm_config = LLMConfig(**llm_config_dict)
@@ -172,7 +158,6 @@ class MemGPTConfig:
                 "metadata_storage_uri": get_field(config, "metadata_storage", "uri"),
                 # Misc
                 "anon_clientid": get_field(config, "client", "anon_clientid"),
-                "config_path": config_path,
                 "memgpt_version": get_field(config, "version", "memgpt_version"),
             }
 
@@ -182,8 +167,7 @@ class MemGPTConfig:
             return cls(**config_dict)
 
         # create new config
-        anon_clientid = MemGPTConfig.generate_uuid()
-        config = cls(anon_clientid=anon_clientid, config_path=config_path)
+        config = cls()
         config.create_config_dir()  # create dirs
 
         return config
@@ -230,26 +214,27 @@ class MemGPTConfig:
         # set version
         set_field(config, "version", "memgpt_version", memgpt.__version__)
 
-        # client
-        if not self.anon_clientid:
-            self.anon_clientid = self.generate_uuid()
         set_field(config, "client", "anon_clientid", self.anon_clientid)
 
         # always make sure all directories are present
         self.create_config_dir()
 
-        with open(self.config_path, "w", encoding="utf-8") as f:
+        config_path = MemGPTConfig.get_config_path()
+        with open(config_path, "w", encoding="utf-8") as f:
             config.write(f)
-        logger.debug(f"Saved Config:  {self.config_path}")
+        logger.debug(f"Saved Config:  {config_path}")
+
+    @staticmethod
+    def get_config_path():
+        # allow overriding with env variables
+        if os.getenv("MEMGPT_CONFIG_PATH"):
+            return os.getenv("MEMGPT_CONFIG_PATH")
+        else:
+            return DEFAULT_MEMGPT_CONFIG_PATH
 
     @staticmethod
     def exists():
-        # allow overriding with env variables
-        if os.getenv("MEMGPT_CONFIG_PATH"):
-            config_path = os.getenv("MEMGPT_CONFIG_PATH")
-        else:
-            config_path = MemGPTConfig.config_path
-
+        config_path = MemGPTConfig.get_config_path()
         assert not os.path.isdir(config_path), f"Config path {config_path} cannot be set to a directory."
         return os.path.exists(config_path)
 
