@@ -13,7 +13,9 @@ from memgpt.credentials import MemGPTCredentials
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import User, AgentState, EmbeddingConfig
 from memgpt import MemGPT
-from .utils import wipe_config
+from .utils import wipe_config, get_passage_storage
+
+GET_ALL_LIMIT = 1000
 
 
 @pytest.fixture(autouse=True)
@@ -35,7 +37,7 @@ def recreate_declarative_base():
 
 
 @pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
-@pytest.mark.parametrize("passage_storage_connector", ["chroma", "postgres"])
+@pytest.mark.parametrize("passage_storage_connector", get_passage_storage())
 def test_load_directory(metadata_storage_connector, passage_storage_connector, clear_dynamically_created_models, recreate_declarative_base):
     # setup config
     config = MemGPTConfig()
@@ -59,6 +61,9 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
     elif passage_storage_connector == "chroma":
         print("testing chroma passage storage")
         # nothing to do (should be config defaults)
+    elif passage_storage_connector == "qdrant":
+        print("Testing Qdrant passage storage")
+        config.archival_storage_uri = "localhost:6333"
     else:
         raise NotImplementedError(f"Storage type {passage_storage_connector} not implemented")
     config.save()
@@ -122,7 +127,9 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
     passages_conn.delete_table()
     print("Re-creating tables...")
     passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
-    assert passages_conn.size() == 0, f"Expected 0 records, got {passages_conn.size()}: {[vars(r) for r in passages_conn.get_all()]}"
+    assert (
+        passages_conn.size() == 0
+    ), f"Expected 0 records, got {passages_conn.size()}: {[vars(r) for r in passages_conn.get_all(limit=GET_ALL_LIMIT)]}"
 
     # test: load directory
     print("Loading directory")
@@ -138,11 +145,11 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
 
     # test to see if contained in storage
     assert (
-        len(passages_conn.get_all()) == passages_conn.size()
-    ), f"Expected {passages_conn.size()} passages, but got {len(passages_conn.get_all())}"
-    passages = passages_conn.get_all({"data_source": name})
+        len(passages_conn.get_all(limit=GET_ALL_LIMIT)) == passages_conn.size()
+    ), f"Expected {passages_conn.size()} passages, but got {len(passages_conn.get_all(limit=GET_ALL_LIMIT))}"
+    passages = passages_conn.get_all({"data_source": name}, limit=GET_ALL_LIMIT)
     print("Source", [p.data_source for p in passages])
-    print("All sources", [p.data_source for p in passages_conn.get_all()])
+    print("All sources", [p.data_source for p in passages_conn.get_all(limit=GET_ALL_LIMIT)])
     assert len(passages) > 0, f"Expected >0 passages, but got {len(passages)}"
     assert len(passages) == passages_conn.size(), f"Expected {passages_conn.size()} passages, but got {len(passages)}"
     assert [p.data_source == name for p in passages]
@@ -162,7 +169,7 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
     print("Deleting agent archival table...")
     conn.delete_table()
     conn = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config=config, user_id=user_id, agent_id=agent_id)
-    assert conn.size() == 0, f"Expected 0 records, got {conn.size()}: {[vars(r) for r in conn.get_all()]}"
+    assert conn.size() == 0, f"Expected 0 records, got {conn.size()}: {[vars(r) for r in conn.get_all(limit=GET_ALL_LIMIT)]}"
 
     # attach data
     print("Attaching data...")
@@ -170,11 +177,11 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
 
     # test to see if contained in storage
     assert len(passages) == conn.size()
-    assert len(passages) == len(conn.get_all({"data_source": name}))
+    assert len(passages) == len(conn.get_all({"data_source": name}, limit=GET_ALL_LIMIT))
 
     # test: delete source
     passages_conn.delete({"data_source": name})
-    assert len(passages_conn.get_all({"data_source": name})) == 0
+    assert len(passages_conn.get_all({"data_source": name}, limit=GET_ALL_LIMIT)) == 0
 
     # cleanup
     ms.delete_user(user.id)

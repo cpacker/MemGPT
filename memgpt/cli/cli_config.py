@@ -552,7 +552,7 @@ def configure_cli(config: MemGPTConfig, credentials: MemGPTCredentials):
 
 def configure_archival_storage(config: MemGPTConfig, credentials: MemGPTCredentials):
     # Configure archival storage backend
-    archival_storage_options = ["postgres", "chroma"]
+    archival_storage_options = ["postgres", "chroma", "qdrant"]
     archival_storage_type = questionary.select(
         "Select storage backend for archival data:", archival_storage_options, default=config.archival_storage_type
     ).ask()
@@ -588,6 +588,20 @@ def configure_archival_storage(config: MemGPTConfig, credentials: MemGPTCredenti
                 raise KeyboardInterrupt
         if chroma_type == "persistent":
             archival_storage_path = os.path.join(MEMGPT_DIR, "chroma")
+
+        # configure qdrant
+    if archival_storage_type == "qdrant":
+        qdrant_type = questionary.select("Select Qdrant backend:", ["local", "server"], default="local").ask()
+        if qdrant_type is None:
+            raise KeyboardInterrupt
+        if qdrant_type == "server":
+            archival_storage_uri = questionary.text(
+                "Enter the Qdrant instance URI (Default: localhost:6333):", default="localhost:6333"
+            ).ask()
+            if archival_storage_uri is None:
+                raise KeyboardInterrupt
+        if qdrant_type == "local":
+            archival_storage_path = os.path.join(MEMGPT_DIR, "qdrant")
 
     return archival_storage_type, archival_storage_uri, archival_storage_path
 
