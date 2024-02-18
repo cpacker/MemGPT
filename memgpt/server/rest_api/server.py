@@ -60,8 +60,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# /api/auth endpoints
-app.include_router(setup_auth_router(server, interface), prefix=API_PREFIX)
 # /admin/users endpoints
 app.include_router(setup_admin_router(server, interface), prefix=ADMIN_PREFIX)
 # /api/agents endpoints
