@@ -46,6 +46,11 @@ class DeleteAPIKeyResponse(BaseModel):
     api_key_deleted: str
 
 
+class DeleteUserResponse(BaseModel):
+    message: str
+    user_id_deleted: str
+
+
 def setup_admin_router(server: SyncServer, interface: QueuingInterface):
     @router.get("/users", tags=["admin"], response_model=GetAllUsersResponse)
     def get_all_users():
@@ -83,7 +88,22 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
             raise HTTPException(status_code=500, detail=f"{e}")
         return CreateUserResponse(user_id=new_user_ret.id)
 
-    # TODO add delete_user route
+    @router.delete("/users", tags=["admin"], response_model=DeleteUserResponse)
+    def delete_user(
+        user_id: str = Query(..., description="The ID of the user to be deleted."),
+    ):
+        # TODO make a soft deletion, instead of a hard deletion
+        try:
+            user_id_uuid = uuid.UUID(user_id)
+            user = server.ms.get_user(user_id=user_id_uuid)
+            if user is None:
+                raise HTTPException(status_code=404, detail=f"User does not exist")
+            server.ms.delete_user(user_id=user_id_uuid)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{e}")
+        return DeleteUserResponse(message="User successfully deleted.", user_id_deleted=user_id)
 
     @router.post("/users/keys", tags=["admin"], response_model=CreateAPIKeyResponse)
     def create_new_api_key(request: CreateAPIKeyRequest = Body(...)):
