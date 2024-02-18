@@ -23,7 +23,6 @@ import tiktoken
 
 
 def parse_and_chunk_text(text: str, chunk_size: int) -> List[str]:
-
     parser = SentenceSplitter(chunk_size=chunk_size)
     llama_index_docs = [LlamaIndexDocument(text=text)]
     nodes = parser.get_nodes_from_documents(llama_index_docs)

@@ -213,7 +213,6 @@ def load_directory(
     extensions: Annotated[str, typer.Option(help="Comma separated list of file extensions to load")] = default_extensions,
     user_id: Annotated[Optional[uuid.UUID], typer.Option(help="User ID to associate with dataset.")] = None,  # TODO: remove
 ):
-
     try:
         connector = DirectoryConnector(input_files=input_files, input_directory=input_dir, recursive=recursive, extensions=extensions)
         config = MemGPTConfig.load()

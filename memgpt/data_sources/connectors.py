@@ -94,7 +94,6 @@ class DirectoryConnector:
             assert self.input_dir is not None, "Must provide input directory if recursive is True."
 
     def generate_documents(self) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Document]:
-
         from llama_index.core import SimpleDirectoryReader
 
         if self.input_directory is not None:
