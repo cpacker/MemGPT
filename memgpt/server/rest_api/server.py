@@ -81,9 +81,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 # /admin/users endpoints
-# TODO if password protection is on, then these routes should be behind password auth
 app.include_router(setup_admin_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
+
 # /api/agents endpoints
 app.include_router(setup_agents_command_router(server, interface), prefix=API_PREFIX)
 app.include_router(setup_agents_config_router(server, interface), prefix=API_PREFIX)
@@ -93,10 +94,13 @@ app.include_router(setup_agents_message_router(server, interface), prefix=API_PR
 app.include_router(setup_humans_index_router(server, interface), prefix=API_PREFIX)
 app.include_router(setup_personas_index_router(server, interface), prefix=API_PREFIX)
 app.include_router(setup_models_index_router(server, interface), prefix=API_PREFIX)
+
 # /api/config endpoints
 app.include_router(setup_config_index_router(server, interface), prefix=API_PREFIX)
+
 # /v1/assistants endpoints
 app.include_router(setup_openai_assistant_router(server, interface), prefix=OPENAI_API_PREFIX)
+
 # / static files
 mount_static_files(app)
 
