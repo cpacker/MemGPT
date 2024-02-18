@@ -10,13 +10,12 @@ from fastapi import HTTPException
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.constants import JSON_LOADS_STRICT, JSON_ENSURE_ASCII
-from memgpt.agent import Agent
+from memgpt.agent import Agent, save_agent
 import memgpt.system as system
 import memgpt.constants as constants
-from memgpt.cli.cli import attach
 
 # from memgpt.agent_store.storage import StorageConnector
-from memgpt.metadata import MetadataStore, save_agent
+from memgpt.metadata import MetadataStore
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
 import memgpt.server.utils as server_utils
@@ -370,7 +369,9 @@ class SyncServer(LockingServer):
             except:
                 raise ValueError(command)
 
-            attach(agent_name=memgpt_agent.agent_state.name, data_source=data_source, user_id=user_id)
+            # attach data to agent from source
+            source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+            memgpt_agent.attach_source(data_source, source_connector, self.ms)
 
         elif command.lower() == "dump" or command.lower().startswith("dump "):
             # Check if there's an additional argument that's an integer

@@ -1,5 +1,3 @@
-from memgpt.data_sources.connectors import DataConnector
-from memgpt.agent import Agent
 from memgpt.data_types import Passage, Document, EmbeddingConfig, Source
 from memgpt.utils import create_uuid_from_string
 from memgpt.agent_store.storage import StorageConnector, TableType
@@ -7,7 +5,7 @@ from memgpt.embeddings import embedding_model
 from memgpt.data_types import Document, Passage
 
 import uuid
-from typing import List, Iterator
+from typing import List, Iterator, Dict, Tuple, Optional
 from llama_index.core import Document as LlamaIndexDocument
 
 
@@ -23,12 +21,11 @@ class DataConnector:
 
 
 def load_data(
-    self,
     connector: DataConnector,
     source: Source,
     embedding_config: EmbeddingConfig,
-    document_store: StorageConnector,
     passage_store: StorageConnector,
+    document_store: Optional[StorageConnector] = None,
     chunk_size: int = 1000,
 ):
     """Load data from a connector (generates documents and passages) into a specified source_id, associatedw with a user_id."""
@@ -40,22 +37,34 @@ def load_data(
     passages = []
     passage_count = 0
     document_count = 0
-    for document in connector.generate_documents():
+    for document_text, document_metadata in connector.generate_documents():
         # insert document into storage
-        document.user_id = source.user_id
-        document.id = create_uuid_from_string(f"{str(source.id)}_{document.text}")
+        document = Document(
+            id=create_uuid_from_string(f"{str(source.id)}_{document_text}"),
+            text=document_text,
+            metadata=document_metadata,
+            data_source=source.name,
+            user_id=source.user_id,
+        )
         document_count += 1
-        document_store.insert(document)
+        if document_store:
+            document_store.insert(document)
 
         # generate passages
-        for passage in connector.generate_passages([document]):
-            passage.id = create_uuid_from_string(f"{str(source.id)}_{passage.text}")
-            passage.user_id = source.user_id
-            passage.embedding_dim = embedding_config.embedding_dim
-            passage.embedding_model = embedding_config.embedding_model
-
-            # compute passage embeddings
-            passage.embedding = embed_model.get_text_embedding(passage.text)
+        for passage_text, passage_metadata in connector.generate_passages([document]):
+            print("passage", passage_text, passage_metadata)
+            embedding = embed_model.get_text_embedding(passage_text)
+            passage = Passage(
+                id=create_uuid_from_string(f"{str(source.id)}_{passage_text}"),
+                text=passage_text,
+                doc_id=document.id,
+                metadata_=passage_metadata,
+                user_id=source.user_id,
+                data_source=source.name,
+                embedding_dim=embedding_config.embedding_dim,
+                embedding_model=embedding_config.embedding_model,
+                embedding=embedding,
+            )
 
             passages.append(passage)
             if len(passages) >= chunk_size:
@@ -74,21 +83,21 @@ def load_data(
 
 
 class DirectoryConnector:
-    def __init__(self, input_files: List[str] = None, input_directory: str = None, recursive: bool = False):
+    def __init__(self, input_files: List[str] = None, input_directory: str = None, recursive: bool = False, extensions: List[str] = None):
         self.connector_type = "directory"
         self.input_files = input_files
         self.input_directory = input_directory
         self.recursive = recursive
-        self.extensions = None  # TODO: fix
+        self.extensions = extensions
 
         if self.recursive == True:
             assert self.input_dir is not None, "Must provide input directory if recursive is True."
 
-    def generate_documents(self) -> Iterator[Document]:
+    def generate_documents(self) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Document]:
 
-        from llama_index import SimpleDirectoryReader
+        from llama_index.core import SimpleDirectoryReader
 
-        if self.input_dir is not None:
+        if self.input_directory is not None:
             reader = SimpleDirectoryReader(
                 input_dir=self.input_directory,
                 recursive=self.recursive,
@@ -102,10 +111,11 @@ class DirectoryConnector:
         docs = []
         for llama_index_doc in llama_index_docs:
             # TODO: add additional metadata?
-            doc = Document(text=llama_index_doc.text, metadata=llama_index_doc.metadata)
-            docs.append(doc)
+            # doc = Document(text=llama_index_doc.text, metadata=llama_index_doc.metadata)
+            # docs.append(doc)
+            yield llama_index_doc.text, llama_index_doc.metadata
 
-    def generate_passages(self, documents: List[Document], chunk_size: int = 1024) -> Iterator[Passage]:
+    def generate_passages(self, documents: List[Document], chunk_size: int = 1024) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Passage]:
         # use llama index to run embeddings code
         from llama_index.core.node_parser import SentenceSplitter
 
@@ -114,8 +124,8 @@ class DirectoryConnector:
             llama_index_docs = [LlamaIndexDocument(text=document.text, metadata=document.metadata)]
             nodes = parser.get_nodes_from_documents(llama_index_docs)
             for node in nodes:
-                passage = Passage(
-                    text=node.text,
-                    doc_id=document.id,
-                )
-                yield passage
+                # passage = Passage(
+                #    text=node.text,
+                #    doc_id=document.id,
+                # )
+                yield node.text, None

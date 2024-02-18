@@ -15,14 +15,10 @@ import typer
 from tqdm import tqdm
 import questionary
 
-from llama_index import (
-    StorageContext,
-    load_index_from_storage,
-)
 
-from memgpt.agent import Agent
+from memgpt.agent import Agent, save_agent
 from memgpt.data_types import AgentState, User, Passage, Source, Message
-from memgpt.metadata import MetadataStore, save_agent
+from memgpt.metadata import MetadataStore
 from memgpt.utils import (
     MEMGPT_DIR,
     version_less_than,

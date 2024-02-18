@@ -25,12 +25,12 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 
 from datetime import datetime
 
-from llama_index import (
-    VectorStoreIndex,
-    ServiceContext,
-    StorageContext,
-    load_index_from_storage,
-)
+# from llama_index import (
+#    VectorStoreIndex,
+#    ServiceContext,
+#    StorageContext,
+#    load_index_from_storage,
+# )
 
 app = typer.Typer()
 

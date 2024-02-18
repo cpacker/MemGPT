@@ -274,7 +274,7 @@ class Message(Record):
 class Document(Record):
     """A document represent a document loaded into MemGPT, which is broken down into passages."""
 
-    def __init__(self, user_id: uuid.UUID, text: str, data_source: str, id: Optional[uuid.UUID] = None):
+    def __init__(self, user_id: uuid.UUID, text: str, data_source: str, id: Optional[uuid.UUID] = None, metadata: Optional[Dict] = {}):
         if id is None:
             # by default, generate ID as a hash of the text (avoid duplicates)
             self.id = create_uuid_from_string("".join([text, str(user_id)]))
@@ -284,6 +284,7 @@ class Document(Record):
         self.user_id = user_id
         self.text = text
         self.data_source = data_source
+        self.metadata = metadata
         # TODO: add optional embedding?
 
 
@@ -323,6 +324,7 @@ class Passage(Record):
         self.data_source = data_source
         self.doc_id = doc_id
         self.metadata_ = metadata_
+        print("METADATA", self.metadata_)
 
         # pad and store embeddings
         if isinstance(embedding, list):

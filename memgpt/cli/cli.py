@@ -13,8 +13,6 @@ from typing import Annotated, Optional
 
 import typer
 import questionary
-from llama_index import set_global_service_context
-from llama_index import ServiceContext
 
 from memgpt.log import logger
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
@@ -25,11 +23,11 @@ from memgpt.utils import printd, open_folder_in_explorer, suppress_stdout
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
-from memgpt.agent import Agent
+from memgpt.agent import Agent, save_agent
 from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
 from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig, User, Passage
-from memgpt.metadata import MetadataStore, save_agent
+from memgpt.metadata import MetadataStore
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
 
 
@@ -637,16 +635,6 @@ def run(
     # pretty print agent config
     # printd(json.dumps(vars(agent_config), indent=4, sort_keys=True, ensure_ascii=JSON_ENSURE_ASCII))
     # printd(json.dumps(agent_init_state), indent=4, sort_keys=True, ensure_ascii=JSON_ENSURE_ASCII))
-
-    # configure llama index
-    original_stdout = sys.stdout  # unfortunate hack required to suppress confusing print statements from llama index
-    sys.stdout = io.StringIO()
-    embed_model = embedding_model(config=agent_state.embedding_config, user_id=user.id)
-    service_context = ServiceContext.from_defaults(
-        llm=None, embed_model=embed_model, chunk_size=agent_state.embedding_config.embedding_chunk_size
-    )
-    set_global_service_context(service_context)
-    sys.stdout = original_stdout
 
     # start event loop
     from memgpt.main import run_agent_loop

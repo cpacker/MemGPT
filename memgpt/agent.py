@@ -996,3 +996,15 @@ class Agent(object):
         printd(
             f"Attached data source {source_name} to agent {self.agent_state.name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
         )
+
+
+def save_agent(agent: Agent, ms: MetadataStore):
+    """Save agent to metadata store"""
+
+    agent.update_state()
+    agent_state = agent.agent_state
+
+    if ms.get_agent(agent_id=agent_state.id):
+        ms.update_agent(agent_state)
+    else:
+        ms.create_agent(agent_state)
