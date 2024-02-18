@@ -89,13 +89,10 @@ class EmbeddingEndpoint:
             raise ValueError(
                 f"Embeddings endpoint was provided an invalid URL (set to: '{base_url}'). Make sure embedding_endpoint is set correctly in your MemGPT config."
             )
+        self.model_name = model
         self._user = user
         self._base_url = base_url
         self._timeout = timeout
-
-    @classmethod
-    def class_name(cls) -> str:
-        return "EmbeddingEndpoint"
 
     def _call_api(self, text: str) -> List[float]:
         if not is_valid_url(self._base_url):
@@ -132,61 +129,7 @@ class EmbeddingEndpoint:
 
         return embedding
 
-    async def _acall_api(self, text: str) -> List[float]:
-        if not is_valid_url(self._base_url):
-            raise ValueError(
-                f"Embeddings endpoint does not have a valid URL (set to: '{self._base_url}'). Make sure embedding_endpoint is set correctly in your MemGPT config."
-            )
-        import httpx
-
-        headers = {"Content-Type": "application/json"}
-        json_data = {"input": text, "model": self.model_name, "user": self._user}
-
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self._base_url}/embeddings",
-                headers=headers,
-                json=json_data,
-                timeout=self._timeout,
-            )
-        response_json = response.json()
-
-        if isinstance(response_json, list):
-            # embedding directly in response
-            embedding = response_json
-        elif isinstance(response_json, dict):
-            # TEI embedding packaged inside openai-style response
-            try:
-                embedding = response_json["data"][0]["embedding"]
-            except (KeyError, IndexError):
-                raise TypeError(f"Got back an unexpected payload from text embedding function, response=\n{response_json}")
-        else:
-            # unknown response, can't parse
-            raise TypeError(f"Got back an unexpected payload from text embedding function, response=\n{response_json}")
-
-        return embedding
-
-    def _get_query_embedding(self, query: str) -> list[float]:
-        """get query embedding."""
-        embedding = self._call_api(query)
-        return embedding
-
-    def _get_text_embedding(self, text: str) -> list[float]:
-        """get text embedding."""
-        embedding = self._call_api(text)
-        return embedding
-
-    def _get_text_embeddings(self, texts: List[str]) -> List[List[float]]:
-        embeddings = [self._get_text_embedding(text) for text in texts]
-        return embeddings
-
-    async def _aget_query_embedding(self, query: str) -> List[float]:
-        return self._get_query_embedding(query)
-
-    async def _aget_text_embedding(self, text: str) -> List[float]:
-        return self._get_text_embedding(text)
-
-    def get_text_embeddine(self, text: str) -> List[float]:
+    def get_text_embedding(self, text: str) -> List[float]:
         return self._call_api(text)
 
 
