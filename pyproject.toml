@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pymemgpt"
-version = "0.3.2"
+version = "0.3.3"
 packages = [
     {include = "memgpt"}
 ]
@@ -38,7 +38,6 @@ httpx = "^0.25.2"
 numpy = "^1.26.2"
 demjson3 = "^3.0.6"
 tiktoken = "^0.5.1"
-python-box = "^7.1.1"
 pypdf = "^3.17.1"
 pyyaml = "^6.0.1"
 chromadb = "^0.4.18"

@@ -4,14 +4,12 @@ import time
 """
 This script provides an example of how you can use OpenAI's python client with a MemGPT server.
 
-Before running this example, make sure you start the OpenAI-compatible REST server:
-  cd memgpt/server/rest_api/openai_assistants
-  poetry run uvicorn assistants:app --reload --port 8080
+Before running this example, make sure you start the OpenAI-compatible REST server with `memgpt server`.
 """
 
 
 def main():
-    client = OpenAI(base_url="http://127.0.0.1:8080/v1")
+    client = OpenAI(base_url="http://localhost:8283/v1")
 
     # create assistant (creates a memgpt preset)
     assistant = client.beta.assistants.create(

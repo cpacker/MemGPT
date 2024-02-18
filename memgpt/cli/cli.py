@@ -53,8 +53,15 @@ def str_to_quickstart_choice(choice_str: str) -> QuickstartChoice:
         raise ValueError(f"{choice_str} is not a valid QuickstartChoice. Valid options are: {valid_options}")
 
 
-def set_config_with_dict(new_config: dict) -> bool:
-    """Set the base config using a dict"""
+def set_config_with_dict(new_config: dict) -> (MemGPTConfig, bool):
+    """_summary_
+
+    Args:
+        new_config (dict): Dict of new config values
+
+    Returns:
+        new_config MemGPTConfig, modified (bool): Returns the new config and a boolean indicating if the config was modified
+    """
     from memgpt.utils import printd
 
     old_config = MemGPTConfig.load()
@@ -91,32 +98,7 @@ def set_config_with_dict(new_config: dict) -> bool:
             else:
                 printd(f"Skipping new config {k}: {v} == {new_config[k]}")
 
-    if modified:
-        printd(f"Saving new config file.")
-        old_config.save()
-        typer.secho(f"📖 MemGPT configuration file updated!", fg=typer.colors.GREEN)
-        typer.secho(
-            "\n".join(
-                [
-                    f"🧠 model\t-> {old_config.default_llm_config.model}",
-                    f"🖥️  endpoint\t-> {old_config.default_llm_config.model_endpoint}",
-                ]
-            ),
-            fg=typer.colors.GREEN,
-        )
-        return True
-    else:
-        typer.secho(f"📖 MemGPT configuration file unchanged.", fg=typer.colors.WHITE)
-        typer.secho(
-            "\n".join(
-                [
-                    f"🧠 model\t-> {old_config.default_llm_config.model}",
-                    f"🖥️  endpoint\t-> {old_config.default_llm_config.model_endpoint}",
-                ]
-            ),
-            fg=typer.colors.WHITE,
-        )
-        return False
+    return (old_config, modified)
 
 
 def quickstart(
@@ -125,7 +107,10 @@ def quickstart(
     debug: Annotated[bool, typer.Option(help="Use --debug to enable debugging output")] = False,
     terminal: bool = True,
 ):
-    """Set the base config file with a single command"""
+    """Set the base config file with a single command
+
+    This function and `configure` should be the ONLY places where MemGPTConfig.save() is called.
+    """
 
     # setup logger
     utils.DEBUG = debug
@@ -152,7 +137,7 @@ def quickstart(
                 config = response.json()
                 # Output a success message and the first few items in the dictionary as a sample
                 printd("JSON config file downloaded successfully.")
-                config_was_modified = set_config_with_dict(config)
+                new_config, config_was_modified = set_config_with_dict(config)
             else:
                 typer.secho(f"Failed to download config from {url}. Status code: {response.status_code}", fg=typer.colors.RED)
 
@@ -163,7 +148,7 @@ def quickstart(
                     with open(backup_config_path, "r", encoding="utf-8") as file:
                         backup_config = json.load(file)
                     printd("Loaded backup config file successfully.")
-                    config_was_modified = set_config_with_dict(backup_config)
+                    new_config, config_was_modified = set_config_with_dict(backup_config)
                 except FileNotFoundError:
                     typer.secho(f"Backup config file not found at {backup_config_path}", fg=typer.colors.RED)
                     return
@@ -175,7 +160,7 @@ def quickstart(
                 with open(backup_config_path, "r", encoding="utf-8") as file:
                     backup_config = json.load(file)
                 printd("Loaded config file successfully.")
-                config_was_modified = set_config_with_dict(backup_config)
+                new_config, config_was_modified = set_config_with_dict(backup_config)
             except FileNotFoundError:
                 typer.secho(f"Config file not found at {backup_config_path}", fg=typer.colors.RED)
                 return
@@ -201,7 +186,7 @@ def quickstart(
                 config = response.json()
                 # Output a success message and the first few items in the dictionary as a sample
                 print("JSON config file downloaded successfully.")
-                config_was_modified = set_config_with_dict(config)
+                new_config, config_was_modified = set_config_with_dict(config)
             else:
                 typer.secho(f"Failed to download config from {url}. Status code: {response.status_code}", fg=typer.colors.RED)
 
@@ -212,7 +197,7 @@ def quickstart(
                     with open(backup_config_path, "r", encoding="utf-8") as file:
                         backup_config = json.load(file)
                     printd("Loaded backup config file successfully.")
-                    config_was_modified = set_config_with_dict(backup_config)
+                    new_config, config_was_modified = set_config_with_dict(backup_config)
                 except FileNotFoundError:
                     typer.secho(f"Backup config file not found at {backup_config_path}", fg=typer.colors.RED)
                     return
@@ -224,13 +209,38 @@ def quickstart(
                 with open(backup_config_path, "r", encoding="utf-8") as file:
                     backup_config = json.load(file)
                 printd("Loaded config file successfully.")
-                config_was_modified = set_config_with_dict(backup_config)
+                new_config, config_was_modified = set_config_with_dict(backup_config)
             except FileNotFoundError:
                 typer.secho(f"Config file not found at {backup_config_path}", fg=typer.colors.RED)
                 return
 
     else:
         raise NotImplementedError(backend)
+
+    if config_was_modified:
+        printd(f"Saving new config file.")
+        new_config.save()
+        typer.secho(f"📖 MemGPT configuration file updated!", fg=typer.colors.GREEN)
+        typer.secho(
+            "\n".join(
+                [
+                    f"🧠 model\t-> {new_config.default_llm_config.model}",
+                    f"🖥️  endpoint\t-> {new_config.default_llm_config.model_endpoint}",
+                ]
+            ),
+            fg=typer.colors.GREEN,
+        )
+    else:
+        typer.secho(f"📖 MemGPT configuration file unchanged.", fg=typer.colors.WHITE)
+        typer.secho(
+            "\n".join(
+                [
+                    f"🧠 model\t-> {new_config.default_llm_config.model}",
+                    f"🖥️  endpoint\t-> {new_config.default_llm_config.model_endpoint}",
+                ]
+            ),
+            fg=typer.colors.WHITE,
+        )
 
     # 'terminal' = quickstart was run alone, in which case we should guide the user on the next command
     if terminal:
