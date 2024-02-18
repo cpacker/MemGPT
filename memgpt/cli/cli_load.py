@@ -14,6 +14,7 @@ import numpy as np
 import typer
 import uuid
 
+from memgpt.data_sources.connectors import load_data, DirectoryConnector
 from memgpt.embeddings import embedding_model, check_and_split_text
 from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
@@ -34,120 +35,120 @@ from llama_index import (
 app = typer.Typer()
 
 
-def insert_passages_into_source(passages: List[Passage], source_name: str, user_id: uuid.UUID, config: MemGPTConfig):
-    """Insert a list of passages into a source by updating storage connectors and metadata store"""
-    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
-    orig_size = storage.size()
-
-    # insert metadata store
-    ms = MetadataStore(config)
-    source = ms.get_source(user_id=user_id, source_name=source_name)
-    if not source:
-        # create new
-        source = Source(user_id=user_id, name=source_name)
-        ms.create_source(source)
-
-    # make sure user_id is set for passages
-    passage_chunk = []
-    insert_chunk_size = 1000
-    for passage in passages:
-        # TODO: attach source IDs
-        # passage.source_id = source.id
-        passage.user_id = user_id
-        passage.data_source = source_name
-
-        # add and save all passages
-        passage_chunk.append(passage)
-        if len(passage_chunk) >= insert_chunk_size:
-            storage.insert_many(passage_chunk)
-            storage.save()
-            passage_chunk = []
-
-    if len(passage_chunk) > 0:
-        storage.insert_many(passage_chunk)
-        storage.save()
-
-    # print info
-    num_new_passages = storage.size() - orig_size
-    print(f"Updated {len(passages)}, inserted {num_new_passages} new passages into {source_name}")
-    print("Total passages in source:", storage.size())
-
-
-def store_docs(name, docs, user_id=None, show_progress=True):
-    """Common function for embedding and storing documents"""
-
-    config = MemGPTConfig.load()
-    if user_id is None:  # assume running local with single user
-        user_id = uuid.UUID(config.anon_clientid)
-
-    # record data source metadata
-    ms = MetadataStore(config)
-    user = ms.get_user(user_id)
-    if user is None:
-        raise ValueError(f"Cannot find user {user_id} in metadata store. Please run 'memgpt configure'.")
-    # create data source record
-    data_source = Source(
-        user_id=user.id,
-        name=name,
-        embedding_model=config.default_embedding_config.embedding_model,
-        embedding_dim=config.default_embedding_config.embedding_dim,
-    )
-    existing_source = ms.get_source(user_id=user.id, source_name=name)
-    if not existing_source:
-        ms.create_source(data_source)
-    else:
-        print(f"Source {name} for user {user.id} already exists.")
-        if existing_source.embedding_model != data_source.embedding_model:
-            print(
-                f"Warning: embedding model for existing source {existing_source.embedding_model} does not match default {data_source.embedding_model}"
-            )
-            print("Cannot import data into this source without a compatible embedding endpoint.")
-            print("Please run 'memgpt configure' to update the default embedding settings.")
-            return False
-        if existing_source.embedding_dim != data_source.embedding_dim:
-            print(
-                f"Warning: embedding dimension for existing source {existing_source.embedding_dim} does not match default {data_source.embedding_dim}"
-            )
-            print("Cannot import data into this source without a compatible embedding endpoint.")
-            print("Please run 'memgpt configure' to update the default embedding settings.")
-            return False
-
-    # compute and record passages
-    embed_model = embedding_model(config.default_embedding_config)
-
-    # use llama index to run embeddings code
-    with suppress_stdout():
-        service_context = ServiceContext.from_defaults(
-            llm=None, embed_model=embed_model, chunk_size=config.default_embedding_config.embedding_chunk_size
-        )
-    index = VectorStoreIndex.from_documents(docs, service_context=service_context, show_progress=True)
-    embed_dict = index._vector_store._data.embedding_dict
-    node_dict = index._docstore.docs
-
-    # TODO: add document store
-
-    # gather passages
-    passages = []
-    for node_id, node in tqdm(node_dict.items()):
-        vector = embed_dict[node_id]
-        node.embedding = vector
-        text = node.text.replace("\x00", "\uFFFD")  # hacky fix for error on null characters
-        assert (
-            len(node.embedding) == config.default_embedding_config.embedding_dim
-        ), f"Expected embedding dimension {config.default_embedding_config.embedding_dim}, got {len(node.embedding)}: {node.embedding}"
-        passages.append(
-            Passage(
-                user_id=user.id,
-                text=text,
-                data_source=name,
-                embedding=node.embedding,
-                metadata_=None,
-                embedding_dim=config.default_embedding_config.embedding_dim,
-                embedding_model=config.default_embedding_config.embedding_model,
-            )
-        )
-
-    insert_passages_into_source(passages, name, user_id, config)
+# def insert_passages_into_source(passages: List[Passage], source_name: str, user_id: uuid.UUID, config: MemGPTConfig):
+#    """Insert a list of passages into a source by updating storage connectors and metadata store"""
+#    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
+#    orig_size = storage.size()
+#
+#    # insert metadata store
+#    ms = MetadataStore(config)
+#    source = ms.get_source(user_id=user_id, source_name=source_name)
+#    if not source:
+#        # create new
+#        source = Source(user_id=user_id, name=source_name)
+#        ms.create_source(source)
+#
+#    # make sure user_id is set for passages
+#    passage_chunk = []
+#    insert_chunk_size = 1000
+#    for passage in passages:
+#        # TODO: attach source IDs
+#        # passage.source_id = source.id
+#        passage.user_id = user_id
+#        passage.data_source = source_name
+#
+#        # add and save all passages
+#        passage_chunk.append(passage)
+#        if len(passage_chunk) >= insert_chunk_size:
+#            storage.insert_many(passage_chunk)
+#            storage.save()
+#            passage_chunk = []
+#
+#    if len(passage_chunk) > 0:
+#        storage.insert_many(passage_chunk)
+#        storage.save()
+#
+#    # print info
+#    num_new_passages = storage.size() - orig_size
+#    print(f"Updated {len(passages)}, inserted {num_new_passages} new passages into {source_name}")
+#    print("Total passages in source:", storage.size())
+#
+#
+# def store_docs(name, docs, user_id=None, show_progress=True):
+#    """Common function for embedding and storing documents"""
+#
+#    config = MemGPTConfig.load()
+#    if user_id is None:  # assume running local with single user
+#        user_id = uuid.UUID(config.anon_clientid)
+#
+#    # record data source metadata
+#    ms = MetadataStore(config)
+#    user = ms.get_user(user_id)
+#    if user is None:
+#        raise ValueError(f"Cannot find user {user_id} in metadata store. Please run 'memgpt configure'.")
+#    # create data source record
+#    data_source = Source(
+#        user_id=user.id,
+#        name=name,
+#        embedding_model=config.default_embedding_config.embedding_model,
+#        embedding_dim=config.default_embedding_config.embedding_dim,
+#    )
+#    existing_source = ms.get_source(user_id=user.id, source_name=name)
+#    if not existing_source:
+#        ms.create_source(data_source)
+#    else:
+#        print(f"Source {name} for user {user.id} already exists.")
+#        if existing_source.embedding_model != data_source.embedding_model:
+#            print(
+#                f"Warning: embedding model for existing source {existing_source.embedding_model} does not match default {data_source.embedding_model}"
+#            )
+#            print("Cannot import data into this source without a compatible embedding endpoint.")
+#            print("Please run 'memgpt configure' to update the default embedding settings.")
+#            return False
+#        if existing_source.embedding_dim != data_source.embedding_dim:
+#            print(
+#                f"Warning: embedding dimension for existing source {existing_source.embedding_dim} does not match default {data_source.embedding_dim}"
+#            )
+#            print("Cannot import data into this source without a compatible embedding endpoint.")
+#            print("Please run 'memgpt configure' to update the default embedding settings.")
+#            return False
+#
+#    # compute and record passages
+#    embed_model = embedding_model(config.default_embedding_config)
+#
+#    # use llama index to run embeddings code
+#    with suppress_stdout():
+#        service_context = ServiceContext.from_defaults(
+#            llm=None, embed_model=embed_model, chunk_size=config.default_embedding_config.embedding_chunk_size
+#        )
+#    index = VectorStoreIndex.from_documents(docs, service_context=service_context, show_progress=True)
+#    embed_dict = index._vector_store._data.embedding_dict
+#    node_dict = index._docstore.docs
+#
+#    # TODO: add document store
+#
+#    # gather passages
+#    passages = []
+#    for node_id, node in tqdm(node_dict.items()):
+#        vector = embed_dict[node_id]
+#        node.embedding = vector
+#        text = node.text.replace("\x00", "\uFFFD")  # hacky fix for error on null characters
+#        assert (
+#            len(node.embedding) == config.default_embedding_config.embedding_dim
+#        ), f"Expected embedding dimension {config.default_embedding_config.embedding_dim}, got {len(node.embedding)}: {node.embedding}"
+#        passages.append(
+#            Passage(
+#                user_id=user.id,
+#                text=text,
+#                data_source=name,
+#                embedding=node.embedding,
+#                metadata_=None,
+#                embedding_dim=config.default_embedding_config.embedding_dim,
+#                embedding_model=config.default_embedding_config.embedding_model,
+#            )
+#        )
+#
+#    insert_passages_into_source(passages, name, user_id, config)
 
 
 @app.command("index")
@@ -210,27 +211,48 @@ def load_directory(
     input_files: Annotated[List[str], typer.Option(help="List of paths to files containing dataset.")] = [],
     recursive: Annotated[bool, typer.Option(help="Recursively search for files in directory.")] = False,
     extensions: Annotated[str, typer.Option(help="Comma separated list of file extensions to load")] = default_extensions,
-    user_id: Annotated[Optional[uuid.UUID], typer.Option(help="User ID to associate with dataset.")] = None,
+    # user_id: Annotated[Optional[uuid.UUID], typer.Option(help="User ID to associate with dataset.")] = None,
 ):
+
     try:
-        from llama_index import SimpleDirectoryReader
+        connector = DirectoryConnector(input_files=input_files, input_directory=input_dir, recursive=recursive, extensions=extensions)
+        config = MemGPTConfig.load()
+        ms = MetadataStore(config)
+        user = ms.get_user(uuid.UUID(config.anon_clientid))
+        source = Source(name=name, user_id=user.id)
+        ms.create_source(source)
+        passage_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user.id)
+        # TODO: also get document store
 
-        if recursive == True:
-            assert input_dir is not None, "Must provide input directory if recursive is True."
+        # ingest data into passage/document store
+        num_passages, num_documents = load_data(
+            connector=connector,
+            source=source,
+            embedding_config=config.default_embedding_config,
+            document_store=None,
+            passage_store=passage_storage,
+            chunk_size=1000,
+        )
+        print(f"Loaded {num_passages} passages and {num_documents} documents from {name}")
 
-        if input_dir is not None:
-            reader = SimpleDirectoryReader(
-                input_dir=str(input_dir),
-                recursive=recursive,
-                required_exts=[ext.strip() for ext in str(extensions).split(",")],
-            )
-        else:
-            assert input_files is not None, "Must provide input files if input_dir is None"
-            reader = SimpleDirectoryReader(input_files=[str(f) for f in input_files])
+        # from llama_index import SimpleDirectoryReader
 
-        # load docs
-        docs = reader.load_data()
-        store_docs(str(name), docs, user_id)
+        # if recursive == True:
+        #    assert input_dir is not None, "Must provide input directory if recursive is True."
+
+        # if input_dir is not None:
+        #    reader = SimpleDirectoryReader(
+        #        input_dir=str(input_dir),
+        #        recursive=recursive,
+        #        required_exts=[ext.strip() for ext in str(extensions).split(",")],
+        #    )
+        # else:
+        #    assert input_files is not None, "Must provide input files if input_dir is None"
+        #    reader = SimpleDirectoryReader(input_files=[str(f) for f in input_files])
+
+        ## load docs
+        # docs = reader.load_data()
+        # store_docs(str(name), docs, user_id)
 
     except ValueError as e:
         typer.secho(f"Failed to load directory from provided information.\n{e}", fg=typer.colors.RED)

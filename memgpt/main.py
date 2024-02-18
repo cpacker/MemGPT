@@ -11,6 +11,7 @@ from memgpt.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, JSON_ENSURE_ASCII, J
 
 console = Console()
 
+from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.config import MemGPTConfig
 import memgpt.agent as agent
@@ -143,7 +144,11 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                     data_source = questionary.select("Select data source", choices=valid_options).ask()
 
                     # attach new data
-                    attach(memgpt_agent.agent_state.name, data_source)
+                    # attach(memgpt_agent.agent_state.name, data_source)
+                    source_connector = StorageConnector.get_storage_connector(
+                        TableType.PASSAGES, config, user_id=memgpt_agent.agent_state.user_id
+                    )
+                    memgpt_agent.attach_source(data_source, source_connector, ms)
 
                     continue
 

@@ -693,67 +693,67 @@ def delete_agent(
         sys.exit(1)
 
 
-def attach(
-    agent_name: Annotated[str, typer.Option(help="Specify agent to attach data to")],
-    data_source: Annotated[str, typer.Option(help="Data source to attach to agent")],
-    user_id: uuid.UUID = None,
-):
-    # use client ID is no user_id provided
-    config = MemGPTConfig.load()
-    if user_id is None:
-        user_id = uuid.UUID(config.anon_clientid)
-    try:
-        # loads the data contained in data source into the agent's memory
-        from memgpt.agent_store.storage import StorageConnector, TableType
-        from tqdm import tqdm
-
-        ms = MetadataStore(config)
-        agent = ms.get_agent(agent_name=agent_name, user_id=user_id)
-        assert agent is not None, f"No agent found under agent_name={agent_name}, user_id={user_id}"
-        source = ms.get_source(source_name=data_source, user_id=user_id)
-        assert source is not None, f"Source {data_source} does not exist for user {user_id}"
-
-        # get storage connectors
-        with suppress_stdout():
-            source_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id=user_id)
-            dest_storage = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config, user_id=user_id, agent_id=agent.id)
-
-        size = source_storage.size({"data_source": data_source})
-        typer.secho(f"Ingesting {size} passages into {agent.name}", fg=typer.colors.GREEN)
-        page_size = 100
-        generator = source_storage.get_all_paginated(filters={"data_source": data_source}, page_size=page_size)  # yields List[Passage]
-        all_passages = []
-        for i in tqdm(range(0, size, page_size)):
-            passages = next(generator)
-
-            # need to associated passage with agent (for filtering)
-            for passage in passages:
-                assert isinstance(passage, Passage), f"Generate yielded bad non-Passage type: {type(passage)}"
-                passage.agent_id = agent.id
-
-            # insert into agent archival memory
-            dest_storage.insert_many(passages)
-            all_passages += passages
-
-        assert size == len(all_passages), f"Expected {size} passages, but only got {len(all_passages)}"
-
-        # save destination storage
-        dest_storage.save()
-
-        # attach to agent
-        source = ms.get_source(source_name=data_source, user_id=user_id)
-        assert source is not None, f"source does not exist for source_name={data_source}, user_id={user_id}"
-        source_id = source.id
-        ms.attach_source(agent_id=agent.id, source_id=source_id, user_id=user_id)
-
-        total_agent_passages = dest_storage.size()
-
-        typer.secho(
-            f"Attached data source {data_source} to agent {agent_name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
-            fg=typer.colors.GREEN,
-        )
-    except KeyboardInterrupt:
-        typer.secho("Operation interrupted by KeyboardInterrupt.", fg=typer.colors.YELLOW)
+# def attach(
+#    agent_name: Annotated[str, typer.Option(help="Specify agent to attach data to")],
+#    data_source: Annotated[str, typer.Option(help="Data source to attach to agent")],
+#    user_id: uuid.UUID = None,
+# ):
+#    # use client ID is no user_id provided
+#    config = MemGPTConfig.load()
+#    if user_id is None:
+#        user_id = uuid.UUID(config.anon_clientid)
+#    try:
+#        # loads the data contained in data source into the agent's memory
+#        from memgpt.agent_store.storage import StorageConnector, TableType
+#        from tqdm import tqdm
+#
+#        ms = MetadataStore(config)
+#        agent = ms.get_agent(agent_name=agent_name, user_id=user_id)
+#        assert agent is not None, f"No agent found under agent_name={agent_name}, user_id={user_id}"
+#        source = ms.get_source(source_name=data_source, user_id=user_id)
+#        assert source is not None, f"Source {data_source} does not exist for user {user_id}"
+#
+#        # get storage connectors
+#        with suppress_stdout():
+#            source_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id=user_id)
+#            dest_storage = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config, user_id=user_id, agent_id=agent.id)
+#
+#        size = source_storage.size({"data_source": data_source})
+#        typer.secho(f"Ingesting {size} passages into {agent.name}", fg=typer.colors.GREEN)
+#        page_size = 100
+#        generator = source_storage.get_all_paginated(filters={"data_source": data_source}, page_size=page_size)  # yields List[Passage]
+#        all_passages = []
+#        for i in tqdm(range(0, size, page_size)):
+#            passages = next(generator)
+#
+#            # need to associated passage with agent (for filtering)
+#            for passage in passages:
+#                assert isinstance(passage, Passage), f"Generate yielded bad non-Passage type: {type(passage)}"
+#                passage.agent_id = agent.id
+#
+#            # insert into agent archival memory
+#            dest_storage.insert_many(passages)
+#            all_passages += passages
+#
+#        assert size == len(all_passages), f"Expected {size} passages, but only got {len(all_passages)}"
+#
+#        # save destination storage
+#        dest_storage.save()
+#
+#        # attach to agent
+#        source = ms.get_source(source_name=data_source, user_id=user_id)
+#        assert source is not None, f"source does not exist for source_name={data_source}, user_id={user_id}"
+#        source_id = source.id
+#        ms.attach_source(agent_id=agent.id, source_id=source_id, user_id=user_id)
+#
+#        total_agent_passages = dest_storage.size()
+#
+#        typer.secho(
+#            f"Attached data source {data_source} to agent {agent_name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
+#            fg=typer.colors.GREEN,
+#        )
+#    except KeyboardInterrupt:
+#        typer.secho("Operation interrupted by KeyboardInterrupt.", fg=typer.colors.YELLOW)
 
 
 def version():
