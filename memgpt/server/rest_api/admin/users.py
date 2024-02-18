@@ -47,7 +47,7 @@ class DeleteAPIKeyResponse(BaseModel):
 
 
 def setup_admin_router(server: SyncServer, interface: QueuingInterface):
-    @router.get("/users", tags=["users"], response_model=GetAllUsersResponse)
+    @router.get("/users", tags=["admin"], response_model=GetAllUsersResponse)
     def get_all_users():
         """
         Get a list of all users in the database
@@ -61,7 +61,7 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
             raise HTTPException(status_code=500, detail=f"{e}")
         return GetAllUsersResponse(user_list=processed_users)
 
-    @router.post("/users", tags=["users"], response_model=CreateUserResponse)
+    @router.post("/users", tags=["admin"], response_model=CreateUserResponse)
     def create_user(request: CreateUserRequest = Body(...)):
         """
         Create a new user in the database
@@ -85,7 +85,7 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
 
     # TODO add delete_user route
 
-    @router.post("/users/keys", tags=["users"], response_model=CreateAPIKeyResponse)
+    @router.post("/users/keys", tags=["admin"], response_model=CreateAPIKeyResponse)
     def create_new_api_key(request: CreateAPIKeyRequest = Body(...)):
         """
         Create a new API key for a user
@@ -99,7 +99,7 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
             raise HTTPException(status_code=500, detail=f"{e}")
         return CreateAPIKeyResponse(api_key=token.token)
 
-    @router.get("/users/keys", tags=["users"], response_model=GetAPIKeysResponse)
+    @router.get("/users/keys", tags=["admin"], response_model=GetAPIKeysResponse)
     def get_api_keys(
         user_id: str = Query(..., description="The unique identifier of the user."),
     ):
@@ -116,7 +116,7 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
             raise HTTPException(status_code=500, detail=f"{e}")
         return CreateAPIKeyResponse(api_key=processed_tokens)
 
-    @router.delete("/users/keys", tags=["users"], response_model=DeleteAPIKeyResponse)
+    @router.delete("/users/keys", tags=["admin"], response_model=DeleteAPIKeyResponse)
     def delete_api_key(
         api_key: str = Query(..., description="The API key to be deleted."),
     ):
