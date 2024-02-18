@@ -1,8 +1,12 @@
+import os
 import json
+import secrets
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
 
 from starlette.middleware.cors import CORSMiddleware
 
@@ -34,9 +38,26 @@ Start the server with:
 interface: QueuingInterface = QueuingInterface()
 server: SyncServer = SyncServer(default_interface=interface)
 
-# TODO remove, hack for now to set up an init API key for testing
-# new_key = server.create_api_key_for_user(user_id=uuid.UUID("00000000000000000000a61b692e9d3d"))
-# print(f"new_key = {new_key.token}")
+
+SERVER_PASS_VAR = "MEMGPT_SERVER_PASS"
+password = os.getenv(SERVER_PASS_VAR)
+
+if password:
+    # if the pass was specified in the environment, use it
+    print(f"Using existing admin server password from environment.")
+else:
+    # Autogenerate a password for this session and dump it to stdout
+    password = secrets.token_urlsafe(16)
+    print(f"Generated admin server password for this session: {password}")
+
+security = HTTPBearer()
+
+
+def verify_password(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """REST requests going to /admin are protected with a bearer token (that must match the password)"""
+    if credentials.credentials != password:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
 
 ADMIN_PREFIX = "/admin"
 API_PREFIX = "/api"
@@ -60,10 +81,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# /api/auth endpoints
-app.include_router(setup_auth_router(server, interface), prefix=API_PREFIX)
 # /admin/users endpoints
-app.include_router(setup_admin_router(server, interface), prefix=ADMIN_PREFIX)
+# TODO if password protection is on, then these routes should be behind password auth
+app.include_router(setup_admin_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
 # /api/agents endpoints
 app.include_router(setup_agents_command_router(server, interface), prefix=API_PREFIX)
 app.include_router(setup_agents_config_router(server, interface), prefix=API_PREFIX)
