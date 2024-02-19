@@ -1,5 +1,7 @@
 import uuid
+import time
 import os
+import threading
 
 from memgpt import MemGPT
 from memgpt.config import MemGPTConfig
@@ -8,6 +10,10 @@ from memgpt.data_types import LLMConfig, EmbeddingConfig, Preset
 from memgpt.functions.functions import load_all_function_sets
 from memgpt.prompts import gpt_system
 from memgpt.constants import DEFAULT_PRESET
+
+import memgpt.client
+from memgpt.client.admin import Admin
+import pytest
 
 
 from .utils import wipe_config
@@ -22,14 +28,61 @@ client = None
 test_agent_state_post_message = None
 test_user_id = uuid.uuid4()
 
+test_base_url = "http://localhost:8283"
 
-def test_create_preset():
-    wipe_config()
-    global client
-    if os.getenv("OPENAI_API_KEY"):
-        client = MemGPT(quickstart="openai", user_id=test_user_id)
+# admin credentials
+test_server_token = "test_server_token"
+
+
+def run_server():
+    import uvicorn
+    from memgpt.server.rest_api.server import app
+
+    os.environ["MEMGPT_SERVER_PASS"] = test_server_token
+
+    uvicorn.run(app, host="localhost", port=8283, log_level="info")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def start_uvicorn_server():
+    """Starts Uvicorn server in a background thread."""
+
+    thread = threading.Thread(target=run_server, daemon=True)
+    thread.start()
+    print("Starting server...")
+    time.sleep(5)
+    yield
+
+
+@pytest.fixture(scope="module")
+def user_token():
+    # Setup: Create a user via the client before the tests
+
+    admin = Admin(test_base_url, test_server_token)
+    response = admin.create_user(test_user_id)  # Adjust as per your client's method
+    print(response)
+
+    yield response["api_key"]  # This yields control back to the test function
+
+    # Teardown: Delete the user after the test (or after all tests if fixture scope is module/class)
+    admin.delete_user(test_user_id)  # Adjust as per your client's method
+
+
+# Fixture to create clients with different configurations
+@pytest.fixture(params=[{"base_url": test_base_url}, {"base_url": None}], scope="module")
+def client(request, user_token):
+
+    # use token or not
+    if request.param["base_url"]:
+        token = user_token
     else:
-        client = MemGPT(quickstart="memgpt_hosted", user_id=test_user_id)
+        token = None
+
+    client = memgpt.client.client.client(**request.param, token=token)  # This yields control back to the test function
+    yield client
+
+
+def test_create_preset(client):
 
     available_functions = load_all_function_sets(merge=True)
     functions_schema = [f_dict["json_schema"] for f_name, f_dict in available_functions.items()]
@@ -43,9 +96,7 @@ def test_create_preset():
     client.create_preset(preset)
 
 
-def test_create_agent():
-    wipe_config()
-    config = MemGPTConfig.load()
+def test_create_agent(client):
 
     # ensure user exists
     if not client.server.get_user(user_id=test_user_id):
@@ -63,7 +114,7 @@ def test_create_agent():
     assert test_agent_state is not None
 
 
-def test_user_message():
+def test_user_message(client):
     """Test that we can send a message through the client"""
     assert client is not None, "Run create_agent test first"
     print(f"\n\n[2] SENDING MESSAGE TO AGENT {test_agent_state.id}!!!\n\tmessages={test_agent_state.state['messages']}")
@@ -78,7 +129,7 @@ def test_user_message():
     )
 
 
-def test_save_load():
+def test_save_load(client):
     """Test that state is being persisted correctly after an /exit
 
     Create a new agent, and request a message

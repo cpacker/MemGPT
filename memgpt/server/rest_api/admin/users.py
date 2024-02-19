@@ -93,7 +93,7 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
-        return CreateUserResponse(user_id=new_user_ret.id, api_key=token.token)
+        return CreateUserResponse(user_id=str(new_user_ret.id), api_key=token.token)
 
     @router.delete("/users", tags=["admin"], response_model=DeleteUserResponse)
     def delete_user(

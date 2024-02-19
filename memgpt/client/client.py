@@ -1,4 +1,5 @@
 import os
+import requests
 import uuid
 from typing import Dict, List, Union, Optional, Tuple
 
@@ -11,13 +12,116 @@ from memgpt.server.server import SyncServer
 from memgpt.metadata import MetadataStore
 
 
+def client(base_url: Optional[str] = None, token: Optional[str] = None):
+    if base_url is None:
+        return LocalClient()
+    else:
+        return RESTClient(base_url, token)
+
+
 class Client(object):
     def __init__(
         self,
-        user_id: str = None,
         auto_save: bool = False,
-        quickstart: Union[QuickstartChoice, str, None] = None,
-        config: Union[Dict, MemGPTConfig] = None,  # not the same thing as AgentConfig
+        debug: bool = False,
+    ):
+        self.auto_save = auto_save
+        self.debug = debug
+        self.initialize_user()
+
+    def initialize_user(self):
+        raise NotImplementedError
+
+    def list_agents(self):
+        raise NotImplementedError
+
+    def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
+        raise NotImplementedError
+
+    def create_agent(
+        self,
+        agent_config: dict,
+    ) -> AgentState:
+        raise NotImplementedError
+
+    def create_preset(self, preset: Preset):
+        raise NotImplementedError
+
+    def get_agent_config(self, agent_id: str) -> Dict:
+        raise NotImplementedError
+
+    def get_agent_memory(self, agent_id: str) -> Dict:
+        raise NotImplementedError
+
+    def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Dict:
+        raise NotImplementedError
+
+    def user_message(self, agent_id: str, message: str, return_token_count: bool = False) -> Union[List[Dict], Tuple[List[Dict], int]]:
+        raise NotImplementedError
+
+    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
+        raise NotImplementedError
+
+    def save(self):
+        raise NotImplementedError
+
+
+class RESTClient(Client):
+    def __init__(
+        self,
+        base_url: str,
+        token: str,
+        auto_save: bool = False,
+        debug: bool = False,
+    ):
+        super().__init__(auto_save=auto_save, debug=debug)
+        self.base_url = base_url
+        self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
+
+    def list_agents(self):
+        response = requests.get(f"{self.base_url}/agents", headers=self.headers)
+        print(response.text)
+
+    def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
+        response = requests.get(f"{self.base_url}/agents/config?agent_id={str(agent_id)}", headers=self.headers)
+        print(response.text)
+
+    def create_agent(
+        self,
+        agent_config: dict,
+    ) -> AgentState:
+        raise NotImplementedError
+
+    def create_preset(self, preset: Preset):
+        raise NotImplementedError
+
+    def get_agent_config(self, agent_id: str) -> Dict:
+        raise NotImplementedError
+
+    def get_agent_memory(self, agent_id: str) -> Dict:
+        raise NotImplementedError
+
+    def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Dict:
+        raise NotImplementedError
+
+    def user_message(self, agent_id: str, message: str, return_token_count: bool = False) -> Union[List[Dict], Tuple[List[Dict], int]]:
+        raise NotImplementedError
+
+    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
+        raise NotImplementedError
+
+    def save(self):
+        raise NotImplementedError
+
+
+class LocalClient(object):
+    def __init__(
+        self,
+        # base_url: Optional[str] = None,
+        # user_id: str = None, # TODO: change to token?
+        auto_save: bool = False,
+        # quickstart: Union[QuickstartChoice, str, None] = None,
+        # config: Union[Dict, MemGPTConfig] = None,  # not the same thing as AgentConfig
         debug: bool = False,
     ):
         """
@@ -28,47 +132,40 @@ class Client(object):
         :param debug: indicates whether to display debug messages.
         """
         self.auto_save = auto_save
-        # make sure everything is set up properly
-        # TODO: remove this eventually? for multi-user, we can't have a shared config directory
-        MemGPTConfig.create_config_dir()
 
-        # If this is the first ever start, do basic initialization
-        if not MemGPTConfig.exists() and config is None and quickstart is None:
-            # Default to openai
-            print("Detecting uninitialized MemGPT, defaulting to quickstart == openai")
-            quickstart = "openai"
+        ## make sure everything is set up properly
+        ## TODO: remove this eventually? for multi-user, we can't have a shared config directory
+        # MemGPTConfig.create_config_dir()
 
-        if quickstart:
-            # api key passed in config has priority over env var
-            if isinstance(config, dict) and "openai_api_key" in config:
-                openai_key = config["openai_api_key"]
-            else:
-                openai_key = os.environ.get("OPENAI_API_KEY", None)
+        ## If this is the first ever start, do basic initialization
+        # if not MemGPTConfig.exists() and config is None and quickstart is None:
+        #    # Default to openai
+        #    print("Detecting uninitialized MemGPT, defaulting to quickstart == openai")
+        #    quickstart = "openai"
 
-            # throw an error if we can't resolve the key
-            if openai_key:
-                os.environ["OPENAI_API_KEY"] = openai_key
-            elif quickstart == QuickstartChoice.openai or quickstart == "openai":
-                raise ValueError("Please set OPENAI_API_KEY or pass 'openai_api_key' in config dict")
+        # if quickstart:
+        #    # api key passed in config has priority over env var
+        #    if isinstance(config, dict) and "openai_api_key" in config:
+        #        openai_key = config["openai_api_key"]
+        #    else:
+        #        openai_key = os.environ.get("OPENAI_API_KEY", None)
 
-            if isinstance(quickstart, str):
-                quickstart = str_to_quickstart_choice(quickstart)
-            quickstart_func(backend=quickstart, debug=debug)
+        #    # throw an error if we can't resolve the key
+        #    if openai_key:
+        #        os.environ["OPENAI_API_KEY"] = openai_key
+        #    elif quickstart == QuickstartChoice.openai or quickstart == "openai":
+        #        raise ValueError("Please set OPENAI_API_KEY or pass 'openai_api_key' in config dict")
 
-        if config is not None:
-            set_config_with_dict(config)
+        #    if isinstance(quickstart, str):
+        #        quickstart = str_to_quickstart_choice(quickstart)
+        #    quickstart_func(backend=quickstart, debug=debug)
+
+        # if config is not None:
+        #    set_config_with_dict(config)
 
         # determine user_id
         config = MemGPTConfig.load()
-        if user_id is None:
-            # the default user_id
-            self.user_id = uuid.UUID(config.anon_clientid)
-        elif isinstance(user_id, str):
-            self.user_id = uuid.UUID(user_id)
-        elif isinstance(user_id, uuid.UUID):
-            self.user_id = user_id
-        else:
-            raise TypeError(user_id)
+        self.user_id = uuid.UUID(config.anon_clientid)
 
         # create user if does not exist
         ms = MetadataStore(config)
