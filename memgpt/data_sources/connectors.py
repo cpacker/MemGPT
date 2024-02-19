@@ -128,7 +128,6 @@ class DirectoryConnector(DataConnector):
 
 
 class WebConnector(DataConnector):
-
     # TODO
 
     def __init__(self):
@@ -142,7 +141,6 @@ class WebConnector(DataConnector):
 
 
 class VectorDBConnector(DataConnector):
-
     # NOTE: this class has not been properly tested, so is unlikely to work
     # TODO: allow loading multiple tables (1:1 mapping between Document and Table)
 
