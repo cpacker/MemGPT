@@ -15,14 +15,10 @@ import typer
 from tqdm import tqdm
 import questionary
 
-from llama_index import (
-    StorageContext,
-    load_index_from_storage,
-)
 
-from memgpt.agent import Agent
+from memgpt.agent import Agent, save_agent
 from memgpt.data_types import AgentState, User, Passage, Source, Message
-from memgpt.metadata import MetadataStore, save_agent
+from memgpt.metadata import MetadataStore
 from memgpt.utils import (
     MEMGPT_DIR,
     version_less_than,
@@ -160,7 +156,17 @@ def migrate_source(source_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Me
     ms.create_source(source)
 
     try:
-        nodes = pickle.load(open(source_path, "rb"))
+        try:
+            nodes = pickle.load(open(source_path, "rb"))
+        except ModuleNotFoundError as e:
+            if "No module named 'llama_index.schema'" in str(e):
+                # cannot load source at all, so throw error
+                raise ValueError(
+                    "Failed to load archival memory due thanks to llama_index's breaking changes. Please downgrade to MemGPT version 0.3.3 or earlier to migrate this agent."
+                )
+            else:
+                raise e
+
         passages = []
         for node in nodes:
             # print(len(node.embedding))
@@ -485,7 +491,17 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Meta
 
         # 5. Insert into archival
         if os.path.exists(archival_filename):
-            nodes = pickle.load(open(archival_filename, "rb"))
+            try:
+                nodes = pickle.load(open(archival_filename, "rb"))
+            except ModuleNotFoundError as e:
+                if "No module named 'llama_index.schema'" in str(e):
+                    print(
+                        "Failed to load archival memory due thanks to llama_index's breaking changes. Please downgrade to MemGPT version 0.3.3 or earlier to migrate this agent."
+                    )
+                    nodes = []
+                else:
+                    raise e
+
             passages = []
             failed_inserts = []
             for node in nodes:

@@ -11,15 +11,16 @@ from memgpt.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, JSON_ENSURE_ASCII, J
 
 console = Console()
 
+from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.config import MemGPTConfig
 import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.errors as errors
-from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, migrate, delete_agent
+from memgpt.cli.cli import run, version, server, open_folder, quickstart, migrate, delete_agent
 from memgpt.cli.cli_config import configure, list, add, delete
 from memgpt.cli.cli_load import app as load_app
-from memgpt.metadata import MetadataStore, save_agent
+from memgpt.metadata import MetadataStore
 
 # import benchmark
 from memgpt.benchmark.benchmark import bench
@@ -27,7 +28,6 @@ from memgpt.benchmark.benchmark import bench
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
 app.command(name="version")(version)
-app.command(name="attach")(attach)
 app.command(name="configure")(configure)
 app.command(name="list")(list)
 app.command(name="add")(add)
@@ -100,11 +100,11 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                 # updated agent save functions
                 if user_input.lower() == "/exit":
                     # memgpt_agent.save()
-                    save_agent(memgpt_agent, ms)
+                    agent.save_agent(memgpt_agent, ms)
                     break
                 elif user_input.lower() == "/save" or user_input.lower() == "/savechat":
                     # memgpt_agent.save()
-                    save_agent(memgpt_agent, ms)
+                    agent.save_agent(memgpt_agent, ms)
                     continue
                 elif user_input.lower() == "/attach":
                     # TODO: check if agent already has it
@@ -143,7 +143,11 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                     data_source = questionary.select("Select data source", choices=valid_options).ask()
 
                     # attach new data
-                    attach(memgpt_agent.agent_state.name, data_source)
+                    # attach(memgpt_agent.agent_state.name, data_source)
+                    source_connector = StorageConnector.get_storage_connector(
+                        TableType.PASSAGES, config, user_id=memgpt_agent.agent_state.user_id
+                    )
+                    memgpt_agent.attach_source(data_source, source_connector, ms)
 
                     continue
 

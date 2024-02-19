@@ -7,9 +7,10 @@ from memgpt.utils import get_local_time, printd, count_tokens, validate_date_for
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
 from memgpt.llm_api_tools import create
 from memgpt.data_types import Message, Passage, AgentState
-from memgpt.embeddings import embedding_model, query_embedding
-from llama_index import Document
-from llama_index.node_parser import SimpleNodeParser
+from memgpt.embeddings import embedding_model, query_embedding, parse_and_chunk_text
+
+# from llama_index import Document
+# from llama_index.node_parser import SimpleNodeParser
 
 
 class CoreMemory(object):
@@ -402,12 +403,9 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         try:
             passages = []
 
-            # create parser
-            parser = SimpleNodeParser.from_defaults(chunk_size=self.embedding_chunk_size)
-
             # breakup string into passages
-            for node in parser.get_nodes_from_documents([Document(text=memory_string)]):
-                embedding = self.embed_model.get_text_embedding(node.text)
+            for text in parse_and_chunk_text(memory_string, self.embedding_chunk_size):
+                embedding = self.embed_model.get_text_embedding(text)
                 # fixing weird bug where type returned isn't a list, but instead is an object
                 # eg: embedding={'object': 'list', 'data': [{'object': 'embedding', 'embedding': [-0.0071973633, -0.07893023,
                 if isinstance(embedding, dict):
@@ -418,7 +416,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
                         raise TypeError(
                             f"Got back an unexpected payload from text embedding function, type={type(embedding)}, value={embedding}"
                         )
-                passages.append(self.create_passage(node.text, embedding))
+                passages.append(self.create_passage(text, embedding))
 
             # insert passages
             self.storage.insert_many(passages)
