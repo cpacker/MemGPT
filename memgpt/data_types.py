@@ -310,24 +310,22 @@ class Passage(Record):
         id: Optional[uuid.UUID] = None,
         metadata_: Optional[dict] = {},
     ):
-        # if id is None:
-        #    # by default, generate ID as a hash of the text (avoid duplicates)
-        #    # TODO: use source-id instead?
-        #    if agent_id:
-        #        self.id = create_uuid_from_string("".join([text, str(agent_id), str(user_id)]))
-        #    else:
-        #        self.id = create_uuid_from_string("".join([text, str(user_id)]))
-        # else:
-        #    self.id = id
-        # super().__init__(self.id)
-        self.id = id
+        if id is None:
+            # by default, generate ID as a hash of the text (avoid duplicates)
+            # TODO: use source-id instead?
+            if agent_id:
+                self.id = create_uuid_from_string("".join([text, str(agent_id), str(user_id)]))
+            else:
+                self.id = create_uuid_from_string("".join([text, str(user_id)]))
+        else:
+            self.id = id
+        super().__init__(self.id)
         self.user_id = user_id
         self.agent_id = agent_id
         self.text = text
         self.data_source = data_source
         self.doc_id = doc_id
         self.metadata_ = metadata_
-        print("METADATA", self.metadata_)
 
         # pad and store embeddings
         if isinstance(embedding, list):
@@ -343,7 +341,8 @@ class Passage(Record):
             assert self.embedding_model, f"Must specify embedding_model if providing an embedding"
             assert len(self.embedding) == MAX_EMBEDDING_DIM, f"Embedding must be of length {MAX_EMBEDDING_DIM}"
 
-        # assert isinstance(self.user_id, uuid.UUID), f"UUID {self.user_id} must be a UUID type"
+        assert isinstance(self.user_id, uuid.UUID), f"UUID {self.user_id} must be a UUID type"
+        assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
         assert not agent_id or isinstance(self.agent_id, uuid.UUID), f"UUID {self.agent_id} must be a UUID type"
         assert not doc_id or isinstance(self.doc_id, uuid.UUID), f"UUID {self.doc_id} must be a UUID type"
 
