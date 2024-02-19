@@ -601,7 +601,7 @@ def run(
             llm_config=llm_config,
             embedding_config=embedding_config,
         )
-        ms.create_agent(agent_state)
+        # ms.create_agent(agent_state)
 
         typer.secho(f"->  🤖 Using persona profile '{agent_state.persona}'", fg=typer.colors.WHITE)
         typer.secho(f"->  🧑 Using human profile '{agent_state.human}'", fg=typer.colors.WHITE)

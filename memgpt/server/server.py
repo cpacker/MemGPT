@@ -606,7 +606,7 @@ class SyncServer(LockingServer):
         )
         # NOTE: you MUST add to the metadata store before creating the agent, otherwise the storage connectors will error on creation
         # TODO: fix this db dependency and remove
-        self.ms.create_agent(agent_state)
+        # self.ms.create_agent(agent_state)
 
         logger.debug(f"Attempting to create agent from agent_state:\n{agent_state}")
         try:
