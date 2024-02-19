@@ -644,6 +644,10 @@ class SyncServer(LockingServer):
         if agent is not None:
             self.ms.delete_agent(agent_id=agent_id)
 
+    def initialize_default_presets(self, user_id: uuid.UUID):
+        """Add default preset options into the metadata store"""
+        presets.add_default_presets(user_id, self.ms)
+
     def create_preset(self, preset: Preset):
         """Create a new preset using a config"""
         if self.ms.get_user(user_id=preset.user_id) is None:

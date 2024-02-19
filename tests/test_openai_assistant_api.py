@@ -5,16 +5,21 @@ import uuid
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.server import app
 from memgpt.constants import DEFAULT_PRESET
+from memgpt.config import MemGPTConfig
 
 
 def test_list_messages():
     client = TestClient(app)
 
-    test_user_id = uuid.uuid4()
+    test_user_id = uuid.UUID(MemGPTConfig.load().anon_clientid)
 
     # create user
     server = SyncServer()
-    server.create_user({"id": test_user_id})
+    if not server.get_user(test_user_id):
+        server.create_user({"id": test_user_id})
+
+    # write default presets to DB
+    server.initialize_default_presets(test_user_id)
 
     # test: create agent
     request_body = {
