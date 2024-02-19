@@ -184,9 +184,9 @@ client = MemGPT(
 # In this case, assume we wrote a custom persona file "my_persona.txt", located at ~/.memgpt/personas/my_persona.txt
 # Same for a custom user file "my_user.txt", located at ~/.memgpt/humans/my_user.txt
 agent_config = AgentConfig(
-    name="CustomAgent",
-    persona="my_persona",
-    human="my_user",
+    "name": "CustomAgent",
+    "persona": "my_persona",
+    "human": "my_user",
 )
 
 # Create the agent according to AgentConfig we set up. If an agent with
