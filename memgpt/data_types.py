@@ -12,6 +12,9 @@ from memgpt.models import chat_completion_response
 from memgpt.utils import get_human_text, get_persona_text, printd
 
 from pydantic import BaseModel, Field, Json
+from memgpt.utils import get_human_text, get_persona_text, printd
+
+from pydantic import BaseModel, Field, Json
 
 
 class Record:
@@ -274,7 +277,7 @@ class Message(Record):
 class Document(Record):
     """A document represent a document loaded into MemGPT, which is broken down into passages."""
 
-    def __init__(self, user_id: uuid.UUID, text: str, data_source: str, id: Optional[uuid.UUID] = None):
+    def __init__(self, user_id: uuid.UUID, text: str, data_source: str, id: Optional[uuid.UUID] = None, metadata: Optional[Dict] = {}):
         if id is None:
             # by default, generate ID as a hash of the text (avoid duplicates)
             self.id = create_uuid_from_string("".join([text, str(user_id)]))
@@ -284,6 +287,7 @@ class Document(Record):
         self.user_id = user_id
         self.text = text
         self.data_source = data_source
+        self.metadata = metadata
         # TODO: add optional embedding?
 
 
@@ -295,8 +299,8 @@ class Passage(Record):
 
     def __init__(
         self,
-        user_id: uuid.UUID,
         text: str,
+        user_id: Optional[uuid.UUID] = None,
         agent_id: Optional[uuid.UUID] = None,  # set if contained in agent memory
         embedding: Optional[np.ndarray] = None,
         embedding_dim: Optional[int] = None,
@@ -308,7 +312,11 @@ class Passage(Record):
     ):
         if id is None:
             # by default, generate ID as a hash of the text (avoid duplicates)
-            self.id = create_uuid_from_string("".join([text, str(agent_id), str(user_id)]))
+            # TODO: use source-id instead?
+            if agent_id:
+                self.id = create_uuid_from_string("".join([text, str(agent_id), str(user_id)]))
+            else:
+                self.id = create_uuid_from_string("".join([text, str(user_id)]))
         else:
             self.id = id
         super().__init__(self.id)
@@ -334,6 +342,7 @@ class Passage(Record):
             assert len(self.embedding) == MAX_EMBEDDING_DIM, f"Embedding must be of length {MAX_EMBEDDING_DIM}"
 
         assert isinstance(self.user_id, uuid.UUID), f"UUID {self.user_id} must be a UUID type"
+        assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
         assert not agent_id or isinstance(self.agent_id, uuid.UUID), f"UUID {self.agent_id} must be a UUID type"
         assert not doc_id or isinstance(self.doc_id, uuid.UUID), f"UUID {self.doc_id} must be a UUID type"
 

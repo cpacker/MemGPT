@@ -10,7 +10,6 @@ from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSON
 from memgpt.utils import get_local_time, enforce_types
 from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig, Token, Preset
 from memgpt.config import MemGPTConfig
-from memgpt.agent import Agent
 
 from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, Boolean
 from sqlalchemy import func
@@ -379,12 +378,16 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def create_source(self, source: Source):
+    def create_source(self, source: Source, exists_ok=False):
         # make sure source.name does not already exist for user
         with self.session_maker() as session:
             if session.query(SourceModel).filter(SourceModel.name == source.name).filter(SourceModel.user_id == source.user_id).count() > 0:
-                raise ValueError(f"Source with name {source.name} already exists")
-            session.add(SourceModel(**vars(source)))
+                if not exists_ok:
+                    raise ValueError(f"Source with name {source.name} already exists")
+                else:
+                    session.update(SourceModel(**vars(source)))
+            else:
+                session.add(SourceModel(**vars(source)))
             session.commit()
 
     @enforce_types
@@ -596,15 +599,3 @@ class MetadataStore:
                 AgentSourceMappingModel.agent_id == agent_id, AgentSourceMappingModel.source_id == source_id
             ).delete()
             session.commit()
-
-
-def save_agent(agent: Agent, ms: MetadataStore):
-    """Save agent to metadata store"""
-
-    agent.update_state()
-    agent_state = agent.agent_state
-
-    if ms.get_agent(agent_id=agent_state.id):
-        ms.update_agent(agent_state)
-    else:
-        ms.create_agent(agent_state)

@@ -11,21 +11,21 @@ from fastapi import HTTPException
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.constants import JSON_LOADS_STRICT, JSON_ENSURE_ASCII
-from memgpt.agent import Agent
+from memgpt.agent import Agent, save_agent
 import memgpt.system as system
 import memgpt.constants as constants
-from memgpt.cli.cli import attach
 
 # from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.cli.cli_config import get_model_options
 
 # from memgpt.agent_store.storage import StorageConnector
-from memgpt.metadata import MetadataStore, save_agent
+from memgpt.metadata import MetadataStore
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
 import memgpt.server.utils as server_utils
 from memgpt.data_types import (
     User,
+    Passage,
     AgentState,
     LLMConfig,
     EmbeddingConfig,
@@ -394,7 +394,9 @@ class SyncServer(LockingServer):
             except:
                 raise ValueError(command)
 
-            attach(agent_name=memgpt_agent.agent_state.name, data_source=data_source, user_id=user_id)
+            # attach data to agent from source
+            source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+            memgpt_agent.attach_source(data_source, source_connector, self.ms)
 
         elif command.lower() == "dump" or command.lower().startswith("dump "):
             # Check if there's an additional argument that's an integer
@@ -641,6 +643,10 @@ class SyncServer(LockingServer):
         agent = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
         if agent is not None:
             self.ms.delete_agent(agent_id=agent_id)
+
+    def initialize_default_presets(self, user_id: uuid.UUID):
+        """Add default preset options into the metadata store"""
+        presets.add_default_presets(user_id, self.ms)
 
     def create_preset(self, preset: Preset):
         """Create a new preset using a config"""
@@ -1009,3 +1015,16 @@ class SyncServer(LockingServer):
         """Create a new API key for a user"""
         token = self.ms.create_api_key(user_id=user_id)
         return token
+
+    def create_source(self, name: str):  # TODO: add other fields
+        # craete a data source
+        pass
+
+    def load_passages(self, source_id: uuid.UUID, passages: List[Passage]):
+        # load a list of passages into a data source
+        pass
+
+    def attach_source_to_agent(self, agent_id: uuid.UUID, source_id: uuid.UUID):
+        # attach a data source to an agent
+        # TODO: insert passages into agent archival memory
+        pass
