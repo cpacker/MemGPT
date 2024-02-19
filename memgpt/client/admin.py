@@ -18,3 +18,7 @@ class Admin:
         payload = {"user_id": str(user_id)}
         response = requests.post(f"{self.base_url}/admin/users", headers=self.headers, json=payload)
         return response.json()
+
+    def delete_user(self, user_id: str):
+        response = requests.delete(f"{self.base_url}/admin/users/{user_id}", headers=self.headers)
+        return response.json()

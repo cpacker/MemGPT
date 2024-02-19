@@ -1,9 +1,10 @@
 import os
+import datetime
 import requests
 import uuid
 from typing import Dict, List, Union, Optional, Tuple
 
-from memgpt.data_types import AgentState, User, Preset
+from memgpt.data_types import AgentState, User, Preset, LLMConfig, EmbeddingConfig
 from memgpt.cli.cli import QuickstartChoice
 from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func, str_to_quickstart_choice
 from memgpt.config import MemGPTConfig
@@ -27,10 +28,6 @@ class Client(object):
     ):
         self.auto_save = auto_save
         self.debug = debug
-        self.initialize_user()
-
-    def initialize_user(self):
-        raise NotImplementedError
 
     def list_agents(self):
         raise NotImplementedError
@@ -90,9 +87,29 @@ class RESTClient(Client):
         self,
         agent_config: dict,
     ) -> AgentState:
-        raise NotImplementedError
+        payload = {"config": agent_config}
+        response = requests.post(f"{self.base_url}/api/agents", json=payload, headers=self.headers)
+        response_json = response.json()
+        print(response_json)
+        llm_config = LLMConfig(**response_json["agent_state"]["llm_config"])
+        embedding_config = EmbeddingConfig(**response_json["agent_state"]["embedding_config"])
+        agent_state = AgentState(
+            id=uuid.UUID(response_json["agent_state"]["id"]),
+            name=response_json["agent_state"]["name"],
+            user_id=uuid.UUID(response_json["agent_state"]["user_id"]),
+            preset=response_json["agent_state"]["preset"],
+            persona=response_json["agent_state"]["persona"],
+            human=response_json["agent_state"]["human"],
+            llm_config=llm_config,
+            embedding_config=embedding_config,
+            state=response_json["agent_state"]["state"],
+            # load datetime from timestampe
+            created_at=datetime.datetime.fromtimestamp(response_json["agent_state"]["created_at"]),
+        )
+        return agent_state
 
     def create_preset(self, preset: Preset):
+
         raise NotImplementedError
 
     def get_agent_config(self, agent_id: str) -> Dict:

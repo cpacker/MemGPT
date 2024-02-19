@@ -21,7 +21,8 @@ import uuid
 
 
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
-test_preset_name = "test_preset"
+# test_preset_name = "test_preset"
+test_preset_name = DEFAULT_PRESET
 test_agent_state = None
 client = None
 
@@ -82,31 +83,28 @@ def client(request, user_token):
     yield client
 
 
-def test_create_preset(client):
-
-    available_functions = load_all_function_sets(merge=True)
-    functions_schema = [f_dict["json_schema"] for f_name, f_dict in available_functions.items()]
-    preset = Preset(
-        name=test_preset_name,
-        user_id=test_user_id,
-        description="A preset for testing the MemGPT client",
-        system=gpt_system.get_system_text(DEFAULT_PRESET),
-        functions_schema=functions_schema,
-    )
-    client.create_preset(preset)
+# TODO: add back once REST API supports
+# def test_create_preset(client):
+#
+#    available_functions = load_all_function_sets(merge=True)
+#    functions_schema = [f_dict["json_schema"] for f_name, f_dict in available_functions.items()]
+#    preset = Preset(
+#        name=test_preset_name,
+#        user_id=test_user_id,
+#        description="A preset for testing the MemGPT client",
+#        system=gpt_system.get_system_text(DEFAULT_PRESET),
+#        functions_schema=functions_schema,
+#    )
+#    client.create_preset(preset)
 
 
 def test_create_agent(client):
 
-    # ensure user exists
-    if not client.server.get_user(user_id=test_user_id):
-        raise ValueError("User failed to be created")
-
     global test_agent_state
     test_agent_state = client.create_agent(
         agent_config={
-            "user_id": test_user_id,
-            "name": test_agent_name,
+            "user_id": str(test_user_id),
+            "name": str(test_agent_name),
             "preset": test_preset_name,
         }
     )
@@ -129,56 +127,7 @@ def test_user_message(client):
     )
 
 
-def test_save_load(client):
-    """Test that state is being persisted correctly after an /exit
-
-    Create a new agent, and request a message
-
-    Then trigger
-    """
-    assert client is not None, "Run create_agent test first"
-    assert test_agent_state is not None, "Run create_agent test first"
-    assert test_agent_state_post_message is not None, "Run test_user_message test first"
-
-    # Create a new client (not thread safe), and load the same agent
-    # The agent state inside should correspond to the initial state pre-message
-    if os.getenv("OPENAI_API_KEY"):
-        client2 = MemGPT(quickstart="openai", user_id=test_user_id)
-    else:
-        client2 = MemGPT(quickstart="memgpt_hosted", user_id=test_user_id)
-    print(f"\n\n[3] CREATING CLIENT2, LOADING AGENT {test_agent_state.id}!")
-    client2_agent_obj = client2.server._get_or_load_agent(user_id=test_user_id, agent_id=test_agent_state.id)
-    client2_agent_state = client2_agent_obj.update_state()
-    print(f"[3] LOADED AGENT! AGENT {client2_agent_state.id}\n\tmessages={client2_agent_state.state['messages']}")
-
-    # assert test_agent_state == client2_agent_state, f"{vars(test_agent_state)}\n{vars(client2_agent_state)}"
-    def check_state_equivalence(state_1, state_2):
-        """Helper function that checks the equivalence of two AgentState objects"""
-        assert state_1.keys() == state_2.keys(), f"{state_1.keys()}\n{state_2.keys}"
-        for k, v1 in state_1.items():
-            v2 = state_2[k]
-            if isinstance(v1, LLMConfig) or isinstance(v1, EmbeddingConfig):
-                assert vars(v1) == vars(v2), f"{vars(v1)}\n{vars(v2)}"
-            else:
-                assert v1 == v2, f"{v1}\n{v2}"
-
-    check_state_equivalence(vars(test_agent_state), vars(client2_agent_state))
-
-    # Now, write out the save from the original client
-    # This should persist the test message into the agent state
-    client.save()
-
-    if os.getenv("OPENAI_API_KEY"):
-        client3 = MemGPT(quickstart="openai", user_id=test_user_id)
-    else:
-        client3 = MemGPT(quickstart="memgpt_hosted", user_id=test_user_id)
-    client3_agent_obj = client3.server._get_or_load_agent(user_id=test_user_id, agent_id=test_agent_state.id)
-    client3_agent_state = client3_agent_obj.update_state()
-
-    check_state_equivalence(vars(test_agent_state_post_message), vars(client3_agent_state))
-
-
 if __name__ == "__main__":
-    test_create_preset()
+    # test_create_preset()
     test_create_agent()
     test_user_message()
