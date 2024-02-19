@@ -119,12 +119,13 @@ def test_user_message(client):
     response = client.user_message(agent_id=test_agent_state.id, message="Hello my name is Test, Client Test")
     assert response is not None and len(response) > 0
 
-    global test_agent_state_post_message
-    client.server.active_agents[0]["agent"].update_state()
-    test_agent_state_post_message = client.server.active_agents[0]["agent"].agent_state
-    print(
-        f"[2] MESSAGE SEND SUCCESS!!! AGENT {test_agent_state_post_message.id}\n\tmessages={test_agent_state_post_message.state['messages']}"
-    )
+    # TODO: add get_agent_state test
+    # global test_agent_state_post_message
+    # client.server.active_agents[0]["agent"].update_state()
+    # test_agent_state_post_message = client.server.active_agents[0]["agent"].agent_state
+    # print(
+    #    f"[2] MESSAGE SEND SUCCESS!!! AGENT {test_agent_state_post_message.id}\n\tmessages={test_agent_state_post_message.state['messages']}"
+    # )
 
 
 if __name__ == "__main__":

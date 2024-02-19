@@ -122,7 +122,12 @@ class RESTClient(Client):
         raise NotImplementedError
 
     def user_message(self, agent_id: str, message: str, return_token_count: bool = False) -> Union[List[Dict], Tuple[List[Dict], int]]:
-        raise NotImplementedError
+        # TODO: support role? what is return_token_count?
+        payload = {"agent_id": str(agent_id), "message": message}
+        response = requests.post(f"{self.base_url}/api/agents/message", json=payload, headers=self.headers)
+        response_json = response.json()
+        print(response_json)
+        return response_json
 
     def run_command(self, agent_id: str, command: str) -> Union[str, None]:
         raise NotImplementedError
