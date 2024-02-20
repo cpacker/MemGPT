@@ -231,7 +231,6 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                             # The rewrite target is the output of send_message
                             message_obj = memgpt_agent._messages[x]
                             if message_obj.tool_calls is not None and len(message_obj.tool_calls) > 0:
-
                                 # Check that we hit an assistant send_message call
                                 name_string = message_obj.tool_calls[0].function.get("name")
                                 if name_string is None or name_string != "send_message":
@@ -252,8 +251,6 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                                 message_obj.tool_calls[0].function["arguments"] = new_args_string
 
                                 # To persist to the database, all we need to do is "re-insert" into recall memory
-                                # memgpt_agent.persistence_manager.recall_memory.storage.insert(record=message_obj, exists_ok=True)
-                                # memgpt_agent.persistence_manager.recall_memory.storage.update(record_id=message_obj.id, updates={})
                                 memgpt_agent.persistence_manager.recall_memory.storage.update(record=message_obj)
                                 break
                     continue
