@@ -75,6 +75,7 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface):
             #    agent_state=AgentStateModel(
             # )
         except Exception as e:
+            print(str(e))
             raise HTTPException(status_code=500, detail=str(e))
 
     return router

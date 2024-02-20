@@ -105,7 +105,6 @@ class RESTClient(AbstractClient):
         }
         response = requests.post(f"{self.base_url}/api/agents", json=payload, headers=self.headers)
         response_json = response.json()
-        print(response_json)
         llm_config = LLMConfig(**response_json["agent_state"]["llm_config"])
         embedding_config = EmbeddingConfig(**response_json["agent_state"]["embedding_config"])
         agent_state = AgentState(
@@ -122,6 +121,10 @@ class RESTClient(AbstractClient):
             created_at=datetime.datetime.fromtimestamp(response_json["agent_state"]["created_at"]),
         )
         return agent_state
+
+    def delete_agent(self, agent_id: str):
+        response = requests.delete(f"{self.base_url}/api/agents/{agent_id}", headers=self.headers)
+        return agent_id
 
     def create_preset(self, preset: Preset):
 

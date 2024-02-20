@@ -73,8 +73,9 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
         """
         Create a new user in the database
         """
+        print("REQUEST ID", request.user_id, request.user_id is None, type(request.user_id))
         new_user = User(
-            id=uuid.UUID(request.user_id) if request.user_id is not None else None,
+            id=None if not request.user_id else uuid.UUID(request.user_id),
             # TODO can add more fields (name? metadata?)
         )
 
