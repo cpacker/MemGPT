@@ -490,23 +490,22 @@ class PostgresStorageConnector(SQLStorageConnector):
     def insert(self, record: Record, exists_ok=True):
         self.insert_many([record], exists_ok=exists_ok)
 
+    def update(self, record: RecordType):
+        """
+        Updates a record in the database based on the provided Record object.
+        """
+        with self.session_maker() as session:
+            # Find the record by its ID
+            db_record = session.query(self.db_model).filter_by(id=record.id).first()
+            if not db_record:
+                raise ValueError(f"Record with id {record.id} does not exist.")
 
-def update(self, record: RecordType):
-    """
-    Updates a record in the database based on the provided Record object.
-    """
-    with self.session_maker() as session:
-        # Find the record by its ID
-        db_record = session.query(self.db_model).filter_by(id=record.id).first()
-        if not db_record:
-            raise ValueError(f"Record with id {record.id} does not exist.")
+            # Update the record with new values from the provided Record object
+            for attr, value in vars(record).items():
+                setattr(db_record, attr, value)
 
-        # Update the record with new values from the provided Record object
-        for attr, value in vars(record).items():
-            setattr(db_record, attr, value)
-
-        # Commit the changes to the database
-        session.commit()
+            # Commit the changes to the database
+            session.commit()
 
 
 class SQLLiteStorageConnector(SQLStorageConnector):
