@@ -13,8 +13,8 @@ from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import User, AgentState, EmbeddingConfig
-from memgpt import MemGPT
-from .utils import wipe_config
+from memgpt import create_client
+from .utils import wipe_config, create_config
 
 
 @pytest.fixture(autouse=True)
@@ -38,6 +38,7 @@ def recreate_declarative_base():
 @pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
 @pytest.mark.parametrize("passage_storage_connector", ["chroma", "postgres"])
 def test_load_directory(metadata_storage_connector, passage_storage_connector, clear_dynamically_created_models, recreate_declarative_base):
+    wipe_config()
     # setup config
     config = MemGPTConfig()
     if metadata_storage_connector == "postgres":
@@ -74,7 +75,6 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
             openai_key=os.getenv("OPENAI_API_KEY"),
         )
         credentials.save()
-        client = MemGPT(quickstart="openai", user_id=user.id)
         embedding_config = EmbeddingConfig(
             embedding_endpoint_type="openai",
             embedding_endpoint="https://api.openai.com/v1",
@@ -83,7 +83,6 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
         )
 
     else:
-        client = MemGPT(quickstart="memgpt_hosted", user_id=user.id)
         embedding_config = EmbeddingConfig(
             embedding_endpoint_type="local",
             embedding_endpoint=None,

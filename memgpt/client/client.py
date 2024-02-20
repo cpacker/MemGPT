@@ -43,6 +43,8 @@ class AbstractClient(object):
         preset: Optional[str] = None,
         persona: Optional[str] = None,
         human: Optional[str] = None,
+        embedding_config: Optional[EmbeddingConfig] = None,
+        llm_config: Optional[LLMConfig] = None,
     ) -> AgentState:
         """Create a new agent with the specified configuration."""
         raise NotImplementedError
@@ -94,7 +96,11 @@ class RESTClient(AbstractClient):
         preset: Optional[str] = None,
         persona: Optional[str] = None,
         human: Optional[str] = None,
+        embedding_config: Optional[EmbeddingConfig] = None,
+        llm_config: Optional[LLMConfig] = None,
     ) -> AgentState:
+        if embedding_config or llm_config:
+            raise ValueError("Cannot override embedding_config or llm_config when creating agent via REST API")
         payload = {
             "config": {
                 "name": name,
@@ -214,12 +220,22 @@ class LocalClient(AbstractClient):
         preset: Optional[str] = None,
         persona: Optional[str] = None,
         human: Optional[str] = None,
+        embedding_config: Optional[EmbeddingConfig] = None,
+        llm_config: Optional[LLMConfig] = None,
     ) -> AgentState:
         if name and self.agent_exists(agent_name=name):
             raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
 
         self.interface.clear()
-        agent_state = self.server.create_agent(user_id=self.user_id, name=name, preset=preset, persona=persona, human=human)
+        agent_state = self.server.create_agent(
+            user_id=self.user_id,
+            name=name,
+            preset=preset,
+            persona=persona,
+            human=human,
+            embedding_config=embedding_config,
+            llm_config=llm_config,
+        )
         return agent_state
 
     def create_preset(self, preset: Preset):

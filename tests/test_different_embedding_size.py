@@ -1,13 +1,13 @@
 import uuid
 import os
 
-from memgpt import MemGPT
+from memgpt import create_client
 from memgpt.config import MemGPTConfig
 from memgpt import constants
 from memgpt.data_types import LLMConfig, EmbeddingConfig, AgentState, Passage
 from memgpt.embeddings import embedding_model
 from memgpt.agent_store.storage import StorageConnector, TableType
-from .utils import wipe_config
+from .utils import wipe_config, create_config
 import uuid
 
 
@@ -49,14 +49,12 @@ def test_create_user():
     wipe_config()
 
     # create client
-    client = MemGPT(quickstart="openai", user_id=test_user_id)
+    create_config("openai")
+    client = create_client()
 
     # openai: create agent
     openai_agent = client.create_agent(
-        {
-            "user_id": test_user_id,
-            "name": "openai_agent",
-        }
+        name="openai_agent",
     )
     assert (
         openai_agent.embedding_config.embedding_endpoint_type == "openai"
@@ -69,16 +67,13 @@ def test_create_user():
 
     # hosted: create agent
     hosted_agent = client.create_agent(
-        {
-            "user_id": test_user_id,
-            "name": "hosted_agent",
-            "embedding_config": EmbeddingConfig(
-                embedding_endpoint_type="hugging-face",
-                embedding_model="BAAI/bge-large-en-v1.5",
-                embedding_endpoint="https://embeddings.memgpt.ai",
-                embedding_dim=1024,
-            ),
-        }
+        name="hosted_agent",
+        embedding_config=EmbeddingConfig(
+            embedding_endpoint_type="hugging-face",
+            embedding_model="BAAI/bge-large-en-v1.5",
+            embedding_endpoint="https://embeddings.memgpt.ai",
+            embedding_dim=1024,
+        ),
     )
     # check to make sure endpoint overriden
     assert (

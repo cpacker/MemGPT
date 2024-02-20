@@ -383,7 +383,7 @@ class MetadataStore:
         with self.session_maker() as session:
             if session.query(SourceModel).filter(SourceModel.name == source.name).filter(SourceModel.user_id == source.user_id).count() > 0:
                 if not exists_ok:
-                    raise ValueError(f"Source with name {source.name} already exists")
+                    raise ValueError(f"Source with name {source.name} already exists for user {source.user_id}")
                 else:
                     session.update(SourceModel(**vars(source)))
             else:
