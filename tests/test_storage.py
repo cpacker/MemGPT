@@ -210,6 +210,23 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
         conn.size() == 2
     ), f"Expected 1 record, got {conn.size()}: {conn.get_all()}"  # expect 2, since storage connector filters for agent1
 
+    # test: update
+    # NOTE: only testing with messages
+    if table_type == TableType.RECALL_MEMORY:
+        TEST_STRING = "hello world"
+
+        updated_record = records[1]
+        updated_record.text = TEST_STRING
+
+        current_record = conn.get(id=updated_record.id)
+        assert current_record is not None, f"Couldn't find {updated_record.id}"
+        assert current_record.text != TEST_STRING, (current_record.text, TEST_STRING)
+
+        conn.update(updated_record)
+        new_record = conn.get(id=updated_record.id)
+        assert new_record is not None, f"Couldn't find {updated_record.id}"
+        assert new_record.text == TEST_STRING, (new_record.text, TEST_STRING)
+
     # test: list_loaded_data
     # TODO: add back
     # if table_type == TableType.ARCHIVAL_MEMORY:
