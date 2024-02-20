@@ -550,3 +550,26 @@ class SQLLiteStorageConnector(SQLStorageConnector):
 
     def insert(self, record: Record, exists_ok=True):
         self.insert_many([record], exists_ok=exists_ok)
+
+    def update(self, record: Record):
+        """
+        Updates an existing record in the database with values from the provided record object.
+        """
+        if not record.id:
+            raise ValueError("Record must have an id.")
+
+        with self.session_maker() as session:
+            # Fetch the existing record from the database
+            db_record = session.query(self.db_model).filter_by(id=record.id).first()
+            if not db_record:
+                raise ValueError(f"Record with id {record.id} does not exist.")
+
+            # Update the database record with values from the provided record object
+            for column in self.db_model.__table__.columns:
+                column_name = column.name
+                if hasattr(record, column_name):
+                    new_value = getattr(record, column_name)
+                    setattr(db_record, column_name, new_value)
+
+            # Commit the changes to the database
+            session.commit()

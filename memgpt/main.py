@@ -252,7 +252,9 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                                 message_obj.tool_calls[0].function["arguments"] = new_args_string
 
                                 # To persist to the database, all we need to do is "re-insert" into recall memory
-                                memgpt_agent.persistence_manager.recall_memory.storage.insert(record=message_obj, exists_ok=True)
+                                # memgpt_agent.persistence_manager.recall_memory.storage.insert(record=message_obj, exists_ok=True)
+                                # memgpt_agent.persistence_manager.recall_memory.storage.update(record_id=message_obj.id, updates={})
+                                memgpt_agent.persistence_manager.recall_memory.storage.update(record=message_obj)
                                 break
                     continue
 
