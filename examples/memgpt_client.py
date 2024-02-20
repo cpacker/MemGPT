@@ -12,7 +12,6 @@ memgpt server
 
 
 def main():
-
     # Create an admin client
     admin = Admin(base_url="http://localhost:8283", token="your_token")
 

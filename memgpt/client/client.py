@@ -127,7 +127,6 @@ class RESTClient(AbstractClient):
         return agent_id
 
     def create_preset(self, preset: Preset):
-
         raise NotImplementedError
 
     def get_agent_config(self, agent_id: str) -> AgentState:
@@ -246,7 +245,6 @@ class LocalClient(AbstractClient):
         persona: Optional[str] = None,
         human: Optional[str] = None,
     ) -> AgentState:
-
         if name and self.agent_exists(agent_name=name):
             raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
 

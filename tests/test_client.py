@@ -70,7 +70,6 @@ def user_token():
 # Fixture to create clients with different configurations
 @pytest.fixture(params=[{"base_url": test_base_url}, {"base_url": None}], scope="module")
 def client(request, user_token):
-
     # use token or not
     if request.param["base_url"]:
         token = user_token
@@ -97,7 +96,6 @@ def client(request, user_token):
 
 
 def test_create_agent(client):
-
     global test_agent_state
     test_agent_state = client.create_agent(
         name=test_agent_name,
