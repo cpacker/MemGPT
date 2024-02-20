@@ -37,8 +37,6 @@ def run_server():
     import uvicorn
     from memgpt.server.rest_api.server import app
 
-    os.environ["MEMGPT_SERVER_PASS"] = test_server_token
-
     uvicorn.run(app, host="localhost", port=8283, log_level="info")
 
 
