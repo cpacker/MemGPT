@@ -58,10 +58,10 @@ def user_token():
     # Setup: Create a user via the client before the tests
 
     admin = Admin(test_base_url, test_server_token)
-    response = admin.create_user(test_user_id)  # Adjust as per your client's method
-    print(response)
+    user_id, token = admin.create_user(test_user_id)  # Adjust as per your client's method
+    print(user_id, token)
 
-    yield response["api_key"]  # This yields control back to the test function
+    yield token
 
     # Teardown: Delete the user after the test (or after all tests if fixture scope is module/class)
     admin.delete_user(test_user_id)  # Adjust as per your client's method
