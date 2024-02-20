@@ -156,11 +156,8 @@ class RESTClient(AbstractClient):
 class LocalClient(AbstractClient):
     def __init__(
         self,
-        # base_url: Optional[str] = None,
-        # user_id: str = None, # TODO: change to token?
         auto_save: bool = False,
-        # quickstart: Union[QuickstartChoice, str, None] = None,
-        # config: Union[Dict, MemGPTConfig] = None,  # not the same thing as AgentConfig
+        user_id: Optional[str] = None,
         debug: bool = False,
     ):
         """
@@ -172,39 +169,12 @@ class LocalClient(AbstractClient):
         """
         self.auto_save = auto_save
 
-        ## make sure everything is set up properly
-        ## TODO: remove this eventually? for multi-user, we can't have a shared config directory
-        # MemGPTConfig.create_config_dir()
-
-        ## If this is the first ever start, do basic initialization
-        # if not MemGPTConfig.exists() and config is None and quickstart is None:
-        #    # Default to openai
-        #    print("Detecting uninitialized MemGPT, defaulting to quickstart == openai")
-        #    quickstart = "openai"
-
-        # if quickstart:
-        #    # api key passed in config has priority over env var
-        #    if isinstance(config, dict) and "openai_api_key" in config:
-        #        openai_key = config["openai_api_key"]
-        #    else:
-        #        openai_key = os.environ.get("OPENAI_API_KEY", None)
-
-        #    # throw an error if we can't resolve the key
-        #    if openai_key:
-        #        os.environ["OPENAI_API_KEY"] = openai_key
-        #    elif quickstart == QuickstartChoice.openai or quickstart == "openai":
-        #        raise ValueError("Please set OPENAI_API_KEY or pass 'openai_api_key' in config dict")
-
-        #    if isinstance(quickstart, str):
-        #        quickstart = str_to_quickstart_choice(quickstart)
-        #    quickstart_func(backend=quickstart, debug=debug)
-
-        # if config is not None:
-        #    set_config_with_dict(config)
-
-        # determine user_id
+        # determine user_id (pulled from local config)
         config = MemGPTConfig.load()
-        self.user_id = uuid.UUID(config.anon_clientid)
+        if user_id:
+            self.user_id = uuid.UUID(user_id)
+        else:
+            self.user_id = uuid.UUID(config.anon_clientid)
 
         # create user if does not exist
         ms = MetadataStore(config)
