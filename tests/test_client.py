@@ -3,7 +3,7 @@ import time
 import os
 import threading
 
-from memgpt import MemGPT
+from memgpt import Admin, create_client
 from memgpt.config import MemGPTConfig
 from memgpt import constants
 from memgpt.data_types import LLMConfig, EmbeddingConfig, Preset
@@ -11,8 +11,6 @@ from memgpt.functions.functions import load_all_function_sets
 from memgpt.prompts import gpt_system
 from memgpt.constants import DEFAULT_PRESET
 
-import memgpt.client
-from memgpt.client.admin import Admin
 import pytest
 
 
@@ -79,7 +77,7 @@ def client(request, user_token):
     else:
         token = None
 
-    client = memgpt.client.client.client(**request.param, token=token)  # This yields control back to the test function
+    client = create_client(**request.param, token=token)  # This yields control back to the test function
     yield client
 
 
@@ -102,11 +100,8 @@ def test_create_agent(client):
 
     global test_agent_state
     test_agent_state = client.create_agent(
-        agent_config={
-            "user_id": str(test_user_id),
-            "name": str(test_agent_name),
-            "preset": test_preset_name,
-        }
+        name=test_agent_name,
+        preset=test_preset_name,
     )
     print(f"\n\n[1] CREATED AGENT {test_agent_state.id}!!!\n\tmessages={test_agent_state.state['messages']}")
     assert test_agent_state is not None
@@ -119,7 +114,6 @@ def test_user_message(client):
     response = client.user_message(agent_id=test_agent_state.id, message="Hello my name is Test, Client Test")
     assert response is not None and len(response) > 0
 
-    # TODO: add get_agent_state test
     # global test_agent_state_post_message
     # client.server.active_agents[0]["agent"].update_state()
     # test_agent_state_post_message = client.server.active_agents[0]["agent"].agent_state

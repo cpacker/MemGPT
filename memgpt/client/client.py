@@ -13,14 +13,14 @@ from memgpt.server.server import SyncServer
 from memgpt.metadata import MetadataStore
 
 
-def client(base_url: Optional[str] = None, token: Optional[str] = None):
+def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
     if base_url is None:
         return LocalClient()
     else:
         return RESTClient(base_url, token)
 
 
-class Client(object):
+class AbstractClient(object):
     def __init__(
         self,
         auto_save: bool = False,
@@ -30,27 +30,33 @@ class Client(object):
         self.debug = debug
 
     def list_agents(self):
+        """List all agents associated with a given user."""
         raise NotImplementedError
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
+        """Check if an agent with the specified ID or name exists."""
         raise NotImplementedError
 
     def create_agent(
         self,
-        agent_config: dict,
+        name: Optional[str] = None,
+        preset: Optional[str] = None,
+        persona: Optional[str] = None,
+        human: Optional[str] = None,
     ) -> AgentState:
+        """Create a new agent with the specified configuration."""
         raise NotImplementedError
 
     def create_preset(self, preset: Preset):
         raise NotImplementedError
 
-    def get_agent_config(self, agent_id: str) -> Dict:
+    def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
         raise NotImplementedError
 
     def get_agent_memory(self, agent_id: str) -> Dict:
         raise NotImplementedError
 
-    def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Dict:
+    def update_agent_core_memory(self, agent_id: str, human: Optional[str] = None, persona: Optional[str] = None) -> Dict:
         raise NotImplementedError
 
     def user_message(self, agent_id: str, message: str, return_token_count: bool = False) -> Union[List[Dict], Tuple[List[Dict], int]]:
@@ -63,15 +69,14 @@ class Client(object):
         raise NotImplementedError
 
 
-class RESTClient(Client):
+class RESTClient(AbstractClient):
     def __init__(
         self,
         base_url: str,
         token: str,
-        auto_save: bool = False,
         debug: bool = False,
     ):
-        super().__init__(auto_save=auto_save, debug=debug)
+        super().__init__(debug=debug)
         self.base_url = base_url
         self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
 
@@ -85,9 +90,19 @@ class RESTClient(Client):
 
     def create_agent(
         self,
-        agent_config: dict,
+        name: Optional[str] = None,
+        preset: Optional[str] = None,
+        persona: Optional[str] = None,
+        human: Optional[str] = None,
     ) -> AgentState:
-        payload = {"config": agent_config}
+        payload = {
+            "config": {
+                "name": name,
+                "preset": preset,
+                "persona": persona,
+                "human": human,
+            }
+        }
         response = requests.post(f"{self.base_url}/api/agents", json=payload, headers=self.headers)
         response_json = response.json()
         print(response_json)
@@ -112,7 +127,7 @@ class RESTClient(Client):
 
         raise NotImplementedError
 
-    def get_agent_config(self, agent_id: str) -> Dict:
+    def get_agent_config(self, agent_id: str) -> AgentState:
         raise NotImplementedError
 
     def get_agent_memory(self, agent_id: str) -> Dict:
@@ -136,7 +151,7 @@ class RESTClient(Client):
         raise NotImplementedError
 
 
-class LocalClient(object):
+class LocalClient(AbstractClient):
     def __init__(
         self,
         # base_url: Optional[str] = None,
@@ -223,25 +238,24 @@ class LocalClient(object):
 
     def create_agent(
         self,
-        agent_config: dict,
+        name: Optional[str] = None,
+        preset: Optional[str] = None,
+        persona: Optional[str] = None,
+        human: Optional[str] = None,
     ) -> AgentState:
-        if isinstance(agent_config, dict):
-            agent_name = agent_config.get("name")
-        else:
-            raise TypeError(f"agent_config must be of type dict")
 
-        if "name" in agent_config and self.agent_exists(agent_name=agent_config["name"]):
-            raise ValueError(f"Agent with name {agent_config['name']} already exists (user_id={self.user_id})")
+        if name and self.agent_exists(agent_name=name):
+            raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
 
         self.interface.clear()
-        agent_state = self.server.create_agent(user_id=self.user_id, agent_config=agent_config)
+        agent_state = self.server.create_agent(user_id=self.user_id, name=name, preset=preset, persona=persona, human=human)
         return agent_state
 
     def create_preset(self, preset: Preset):
         preset = self.server.create_preset(preset=preset)
         return preset
 
-    def get_agent_config(self, agent_id: str) -> Dict:
+    def get_agent_config(self, agent_id: str) -> AgentState:
         self.interface.clear()
         return self.server.get_agent_config(user_id=self.user_id, agent_id=agent_id)
 
@@ -253,13 +267,11 @@ class LocalClient(object):
         self.interface.clear()
         return self.server.update_agent_core_memory(user_id=self.user_id, agent_id=agent_id, new_memory_contents=new_memory_contents)
 
-    def user_message(self, agent_id: str, message: str, return_token_count: bool = False) -> Union[List[Dict], Tuple[List[Dict], int]]:
+    def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         self.interface.clear()
-        tokens_accumulated = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
+        self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
         if self.auto_save:
             self.save()
-        if return_token_count:
-            return self.interface.to_list(), tokens_accumulated
         else:
             return self.interface.to_list()
 

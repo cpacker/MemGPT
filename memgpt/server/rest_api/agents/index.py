@@ -54,7 +54,7 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface):
         interface.clear()
 
         try:
-            agent_state = server.create_agent(user_id=user_id, agent_config=request.config)
+            agent_state = server.create_agent(user_id=user_id, **request.config)
             llm_config = LLMConfigModel(**vars(agent_state.llm_config))
             embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
             return CreateAgentResponse(
