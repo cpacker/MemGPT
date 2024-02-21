@@ -16,14 +16,16 @@ def test_list_messages():
     # create user
     server = SyncServer()
     if not server.get_user(test_user_id):
+        print("Creating user in test_list_messages", test_user_id)
         server.create_user({"id": test_user_id})
+    else:
+        print("User already exists in test_list_messages", test_user_id)
 
     # write default presets to DB
     server.initialize_default_presets(test_user_id)
 
     # test: create agent
     request_body = {
-        "user_id": str(test_user_id),
         "assistant_name": DEFAULT_PRESET,
     }
     print(request_body)
@@ -35,7 +37,6 @@ def test_list_messages():
     # test: insert messages
     # TODO: eventually implement the "run" functionality
     request_body = {
-        "user_id": str(test_user_id),
         "content": "Hello, world!",
         "role": "user",
     }
@@ -47,8 +48,6 @@ def test_list_messages():
     params = {
         "limit": 10,
         "order": "desc",
-        # "after": "",
-        "user_id": str(test_user_id),
     }
     response = client.get(f"/v1/threads/{thread_id}/messages", params=params)
     assert response.status_code == 200, f"Error: {response.json()}"
