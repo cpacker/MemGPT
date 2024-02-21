@@ -93,7 +93,10 @@ def test_server():
     # create agent
     agent_state = server.create_agent(
         user_id=user.id,
-        agent_config=dict(name="test_agent", user_id=user.id, preset="memgpt_chat", human="cs_phd", persona="sam_pov"),
+        name="test_agent",
+        preset="memgpt_chat",
+        human="cs_phd",
+        persona="sam_pov",
     )
     print(f"Created agent\n{agent_state}")
 
