@@ -15,6 +15,7 @@ from .utils import wipe_config, wipe_memgpt_home
 
 def test_server():
     load_dotenv()
+    wipe_config()
     wipe_memgpt_home()
 
     # Use os.getenv with a fallback to os.environ.get
