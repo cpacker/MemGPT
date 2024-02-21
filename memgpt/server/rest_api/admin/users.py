@@ -141,7 +141,7 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
-        return CreateAPIKeyResponse(api_key=processed_tokens)
+        return GetAPIKeyResponse(api_key=processed_tokens)
 
     @router.delete("/users/keys", tags=["admin"], response_model=DeleteAPIKeyResponse)
     def delete_api_key(
