@@ -1,13 +1,12 @@
 import uuid
 from typing import List, Optional
 
-from fastapi import APIRouter, Body, HTTPException, Depends, Query
+from fastapi import APIRouter, Body, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from memgpt.data_types import User
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
-from memgpt.server.rest_api.auth_token import get_current_user
 
 router = APIRouter()
 
@@ -145,7 +144,7 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
-        return GetAPIKeyResponse(api_key=processed_tokens)
+        return GetAPIKeysResponse(api_key=processed_tokens)
 
     @router.delete("/users/keys", tags=["admin"], response_model=DeleteAPIKeyResponse)
     def delete_api_key(
