@@ -490,6 +490,23 @@ class PostgresStorageConnector(SQLStorageConnector):
     def insert(self, record: Record, exists_ok=True):
         self.insert_many([record], exists_ok=exists_ok)
 
+    def update(self, record: RecordType):
+        """
+        Updates a record in the database based on the provided Record object.
+        """
+        with self.session_maker() as session:
+            # Find the record by its ID
+            db_record = session.query(self.db_model).filter_by(id=record.id).first()
+            if not db_record:
+                raise ValueError(f"Record with id {record.id} does not exist.")
+
+            # Update the record with new values from the provided Record object
+            for attr, value in vars(record).items():
+                setattr(db_record, attr, value)
+
+            # Commit the changes to the database
+            session.commit()
+
 
 class SQLLiteStorageConnector(SQLStorageConnector):
     def __init__(self, table_type: str, config: MemGPTConfig, user_id, agent_id=None):
@@ -550,3 +567,26 @@ class SQLLiteStorageConnector(SQLStorageConnector):
 
     def insert(self, record: Record, exists_ok=True):
         self.insert_many([record], exists_ok=exists_ok)
+
+    def update(self, record: Record):
+        """
+        Updates an existing record in the database with values from the provided record object.
+        """
+        if not record.id:
+            raise ValueError("Record must have an id.")
+
+        with self.session_maker() as session:
+            # Fetch the existing record from the database
+            db_record = session.query(self.db_model).filter_by(id=record.id).first()
+            if not db_record:
+                raise ValueError(f"Record with id {record.id} does not exist.")
+
+            # Update the database record with values from the provided record object
+            for column in self.db_model.__table__.columns:
+                column_name = column.name
+                if hasattr(record, column_name):
+                    new_value = getattr(record, column_name)
+                    setattr(db_record, column_name, new_value)
+
+            # Commit the changes to the database
+            session.commit()

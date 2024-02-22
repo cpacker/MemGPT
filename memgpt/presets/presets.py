@@ -79,6 +79,7 @@ def create_agent_from_preset(
     if not (agent_state.state == {} or agent_state.state is None):
         raise ValueError(f"'state' must be uninitialized (empty)")
 
+    assert preset is not None, "preset cannot be none"
     preset_name = agent_state.preset
     assert preset_name == preset.name, f"AgentState preset '{preset_name}' does not match preset name '{preset.name}'"
     persona = agent_state.persona
