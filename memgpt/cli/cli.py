@@ -615,6 +615,15 @@ def run(
         # create agent
         try:
             preset = ms.get_preset(preset_name=agent_state.preset, user_id=user.id)
+            if preset is None:
+                # create preset records in metadata store
+                from memgpt.presets.presets import add_default_presets
+
+                add_default_presets(user.id, ms)
+                # try again
+                preset = ms.get_preset(preset_name=agent_state.preset, user_id=user.id)
+                assert preset is not None, "Couldn't find presets in database, please run `memgpt configure`"
+
             memgpt_agent = presets.create_agent_from_preset(
                 agent_state=agent_state,
                 preset=preset,
