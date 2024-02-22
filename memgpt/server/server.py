@@ -206,6 +206,8 @@ class SyncServer(LockingServer):
 
         # Initialize the connection to the DB
         self.config = MemGPTConfig.load()
+        assert self.config.persona is not None, "Persona must be set in the config"
+        assert self.config.human is not None, "Human must be set in the config"
 
         # TODO figure out how to handle credentials for the server
         self.credentials = MemGPTCredentials.load()
@@ -570,17 +572,18 @@ class SyncServer(LockingServer):
     def create_agent(
         self,
         user_id: uuid.UUID,
-        agent_config: Union[dict, AgentState],
+        name: Optional[str] = None,
+        preset: Optional[str] = None,
+        persona: Optional[str] = None,
+        human: Optional[str] = None,
+        llm_config: Optional[LLMConfig] = None,
+        embedding_config: Optional[EmbeddingConfig] = None,
         interface: Union[AgentInterface, None] = None,
         # persistence_manager: Union[PersistenceManager, None] = None,
     ) -> AgentState:
         """Create a new agent using a config"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
-
-        # Initialize the agent based on the provided configuration
-        if not isinstance(agent_config, dict):
-            raise ValueError(f"agent_config must be provided as a dictionary")
 
         if interface is None:
             # interface = self.default_interface_cls()
@@ -596,13 +599,13 @@ class SyncServer(LockingServer):
 
         agent_state = AgentState(
             user_id=user.id,
-            name=agent_config["name"] if "name" in agent_config else utils.create_random_username(),
-            preset=agent_config["preset"] if "preset" in agent_config else self.config.preset,
+            name=name if name else utils.create_random_username(),
+            preset=preset if preset else self.config.preset,
             # TODO we need to allow passing raw persona/human text via the server request
-            persona=agent_config["persona"] if "persona" in agent_config else self.config.persona,
-            human=agent_config["human"] if "human" in agent_config else self.config.human,
-            llm_config=agent_config["llm_config"] if "llm_config" in agent_config else self.server_llm_config,
-            embedding_config=agent_config["embedding_config"] if "embedding_config" in agent_config else self.server_embedding_config,
+            persona=persona if persona else self.config.persona,
+            human=human if human else self.config.human,
+            llm_config=llm_config if llm_config else self.server_llm_config,
+            embedding_config=embedding_config if embedding_config else self.server_embedding_config,
         )
         # NOTE: you MUST add to the metadata store before creating the agent, otherwise the storage connectors will error on creation
         # TODO: fix this db dependency and remove
@@ -851,7 +854,7 @@ class SyncServer(LockingServer):
         # TODO: mark what is in-context versus not
         return cursor, json_records
 
-    def get_agent_config(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> dict:
+    def get_agent_config(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> AgentState:
         """Return the config of an agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -860,9 +863,7 @@ class SyncServer(LockingServer):
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-        agent_config = vars(memgpt_agent.agent_state)
-
-        return agent_config
+        return memgpt_agent.agent_state
 
     def get_server_config(self, include_defaults: bool = False) -> dict:
         """Return the base config"""
@@ -966,9 +967,7 @@ class SyncServer(LockingServer):
             logger.exception(f"Failed to update agent name with:\n{str(e)}")
             raise ValueError(f"Failed to update agent name in database")
 
-        # return the new config (only the name should have been updated)
-        agent_config = self._agent_state_to_config(agent_state=memgpt_agent.agent_state)
-        return agent_config
+        return memgpt_agent.agent_state
 
     def delete_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
         """Delete an agent in the database"""

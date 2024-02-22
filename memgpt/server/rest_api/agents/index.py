@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.auth_token import get_current_user
+from memgpt.data_types import AgentState
+from memgpt.models.pydantic_models import LLMConfigModel, EmbeddingConfigModel, AgentStateModel
 
 router = APIRouter()
 
@@ -22,7 +24,7 @@ class CreateAgentRequest(BaseModel):
 
 
 class CreateAgentResponse(BaseModel):
-    agent_id: uuid.UUID = Field(..., description="Unique identifier of the newly created agent.")
+    agent_state: AgentStateModel = Field(..., description="The state of the newly created agent.")
 
 
 def setup_agents_index_router(server: SyncServer, interface: QueuingInterface):
@@ -52,9 +54,28 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface):
         interface.clear()
 
         try:
-            agent_state = server.create_agent(user_id=user_id, agent_config=request.config)
-            return CreateAgentResponse(agent_id=agent_state.id)
+            agent_state = server.create_agent(user_id=user_id, **request.config)
+            llm_config = LLMConfigModel(**vars(agent_state.llm_config))
+            embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
+            return CreateAgentResponse(
+                agent_state=AgentStateModel(
+                    id=agent_state.id,
+                    name=agent_state.name,
+                    user_id=agent_state.user_id,
+                    preset=agent_state.preset,
+                    persona=agent_state.persona,
+                    human=agent_state.human,
+                    llm_config=llm_config,
+                    embedding_config=embedding_config,
+                    state=agent_state.state,
+                    created_at=int(agent_state.created_at.timestamp()),
+                )
+            )
+            # return CreateAgentResponse(
+            #    agent_state=AgentStateModel(
+            # )
         except Exception as e:
+            print(str(e))
             raise HTTPException(status_code=500, detail=str(e))
 
     return router

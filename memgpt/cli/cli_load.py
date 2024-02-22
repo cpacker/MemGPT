@@ -99,6 +99,8 @@ def load_directory(
         ms = MetadataStore(config)
         source = Source(name=name, user_id=user_id)
         ms.create_source(source)
+        print("created source", name, str(user_id))
+        print("listing source", user_id, ms.list_sources(user_id=user_id))
         passage_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
         # TODO: also get document store
 

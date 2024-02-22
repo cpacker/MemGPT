@@ -2,8 +2,20 @@ import datetime
 import os
 
 from memgpt.config import MemGPTConfig
+from memgpt.cli.cli import quickstart, QuickstartChoice
+from memgpt import Admin
 
 from .constants import TIMEOUT
+
+
+def create_config(endpoint="openai"):
+    """Create config file matching quickstart option"""
+    if endpoint == "openai":
+        quickstart(QuickstartChoice.openai)
+    elif endpoint == "memgpt_hosted":
+        quickstart(QuickstartChoice.memgpt_hosted)
+    else:
+        raise ValueError(f"Invalid endpoint {endpoint}")
 
 
 def wipe_config():

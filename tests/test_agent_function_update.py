@@ -4,15 +4,15 @@ import os
 import inspect
 import uuid
 
-from memgpt import MemGPT
 from memgpt.config import MemGPTConfig
+from memgpt import create_client
 from memgpt import constants
 import memgpt.functions.function_sets.base as base_functions
 from memgpt.functions.functions import USER_FUNCTIONS_DIR
 from memgpt.utils import assistant_function_to_tool
 from memgpt.models import chat_completion_response
 
-from tests.utils import wipe_config
+from tests.utils import wipe_config, create_config
 
 import pytest
 
@@ -32,9 +32,12 @@ def agent():
     wipe_config()
     global client
     if os.getenv("OPENAI_API_KEY"):
-        client = MemGPT(quickstart="openai")
+        create_config("openai")
     else:
-        client = MemGPT(quickstart="memgpt_hosted")
+        create_config("memgpt_hosted")
+
+    # create memgpt client
+    client = create_client()
 
     config = MemGPTConfig.load()
 
@@ -44,11 +47,8 @@ def agent():
         client.server.create_user({"id": user_id})
 
     agent_state = client.create_agent(
-        agent_config={
-            # "name": test_agent_id,
-            "persona": constants.DEFAULT_PERSONA,
-            "human": constants.DEFAULT_HUMAN,
-        }
+        persona=constants.DEFAULT_PERSONA,
+        human=constants.DEFAULT_HUMAN,
     )
 
     return client.server._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)

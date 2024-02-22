@@ -73,13 +73,17 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
         """
         Create a new user in the database
         """
+        print("REQUEST ID", request.user_id, request.user_id is None, type(request.user_id))
         new_user = User(
-            id=uuid.UUID(request.user_id) if request.user_id is not None else None,
+            id=None if not request.user_id else uuid.UUID(request.user_id),
             # TODO can add more fields (name? metadata?)
         )
 
         try:
             server.ms.create_user(new_user)
+
+            # initialize default presets automatically for user
+            server.initialize_default_presets(new_user.id)
 
             # make sure we can retrieve the user from the DB too
             new_user_ret = server.ms.get_user(new_user.id)
@@ -93,7 +97,7 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
-        return CreateUserResponse(user_id=new_user_ret.id, api_key=token.token)
+        return CreateUserResponse(user_id=str(new_user_ret.id), api_key=token.token)
 
     @router.delete("/users", tags=["admin"], response_model=DeleteUserResponse)
     def delete_user(
