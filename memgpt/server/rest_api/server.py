@@ -42,13 +42,13 @@ server: SyncServer = SyncServer(default_interface=interface)
 SERVER_PASS_VAR = "MEMGPT_SERVER_PASS"
 password = os.getenv(SERVER_PASS_VAR)
 
-if password:
-    # if the pass was specified in the environment, use it
-    print(f"Using existing admin server password from environment.")
-else:
+if not password:
     # Autogenerate a password for this session and dump it to stdout
     password = secrets.token_urlsafe(16)
     print(f"Generated admin server password for this session: {password}")
+else:
+    print(f"Using existing admin server password from environment.")
+
 
 security = HTTPBearer()
 
