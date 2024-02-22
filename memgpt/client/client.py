@@ -1,5 +1,5 @@
 import os
-import uuid
+from uuid import UUID
 from typing import Dict, List, Union, Optional, Tuple
 
 from memgpt.data_types import AgentState, User, Preset
@@ -14,10 +14,10 @@ from memgpt.metadata import MetadataStore
 class Client(object):
     def __init__(
         self,
-        user_id: str = None,
+        user_id: Optional[str] = None,
         auto_save: bool = False,
         quickstart: Union[QuickstartChoice, str, None] = None,
-        config: Union[Dict, MemGPTConfig] = None,  # not the same thing as AgentConfig
+        config: Union[Dict, MemGPTConfig, None] = None,  # not the same thing as AgentConfig
         debug: bool = False,
     ):
         """
@@ -56,16 +56,19 @@ class Client(object):
             quickstart_func(backend=quickstart, debug=debug)
 
         if config is not None:
-            set_config_with_dict(config)
+            if isinstance(config, MemGPTConfig):
+                set_config_with_dict(vars(config))
+            else:
+                set_config_with_dict(config)
 
         # determine user_id
         config = MemGPTConfig.load()
         if user_id is None:
             # the default user_id
-            self.user_id = uuid.UUID(config.anon_clientid)
+            self.user_id = UUID(config.anon_clientid)
         elif isinstance(user_id, str):
-            self.user_id = uuid.UUID(user_id)
-        elif isinstance(user_id, uuid.UUID):
+            self.user_id = UUID(user_id)
+        elif isinstance(user_id, UUID):
             self.user_id = user_id
         else:
             raise TypeError(user_id)
@@ -122,19 +125,19 @@ class Client(object):
         preset = self.server.create_preset(preset=preset)
         return preset
 
-    def get_agent_config(self, agent_id: str) -> Dict:
+    def get_agent_config(self, agent_id: UUID) -> Dict:
         self.interface.clear()
         return self.server.get_agent_config(user_id=self.user_id, agent_id=agent_id)
 
-    def get_agent_memory(self, agent_id: str) -> Dict:
+    def get_agent_memory(self, agent_id: UUID) -> Dict:
         self.interface.clear()
         return self.server.get_agent_memory(user_id=self.user_id, agent_id=agent_id)
 
-    def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Dict:
+    def update_agent_core_memory(self, agent_id: UUID, new_memory_contents: Dict) -> Dict:
         self.interface.clear()
         return self.server.update_agent_core_memory(user_id=self.user_id, agent_id=agent_id, new_memory_contents=new_memory_contents)
 
-    def user_message(self, agent_id: str, message: str, return_token_count: bool = False) -> Union[List[Dict], Tuple[List[Dict], int]]:
+    def user_message(self, agent_id: UUID, message: str, return_token_count: bool = False) -> Union[List[Dict], Tuple[List[Dict], int]]:
         self.interface.clear()
         tokens_accumulated = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
         if self.auto_save:
@@ -144,7 +147,7 @@ class Client(object):
         else:
             return self.interface.to_list()
 
-    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
+    def run_command(self, agent_id: UUID, command: str) -> Union[str, None]:
         self.interface.clear()
         return self.server.run_command(user_id=self.user_id, agent_id=agent_id, command=command)
 
