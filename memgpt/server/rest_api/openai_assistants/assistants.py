@@ -261,9 +261,6 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
         # create a memgpt agent
         agent_state = server.create_agent(
             user_id=user_id,
-            agent_config={
-                "user_id": user_id,
-            },
         )
         # TODO: insert messages into recall memory
         return OpenAIThread(

@@ -15,6 +15,7 @@ from .utils import wipe_config, wipe_memgpt_home
 
 def test_server():
     load_dotenv()
+    wipe_config()
     wipe_memgpt_home()
 
     # Use os.getenv with a fallback to os.environ.get
@@ -93,7 +94,10 @@ def test_server():
     # create agent
     agent_state = server.create_agent(
         user_id=user.id,
-        agent_config=dict(name="test_agent", user_id=user.id, preset="memgpt_chat", human="cs_phd", persona="sam_pov"),
+        name="test_agent",
+        preset="memgpt_chat",
+        human="cs_phd",
+        persona="sam_pov",
     )
     print(f"Created agent\n{agent_state}")
 
