@@ -1,8 +1,10 @@
 import os
+import datetime
+import requests
 import uuid
 from typing import Dict, List, Union, Optional, Tuple
 
-from memgpt.data_types import AgentState, User, Preset
+from memgpt.data_types import AgentState, User, Preset, LLMConfig, EmbeddingConfig
 from memgpt.cli.cli import QuickstartChoice
 from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func, str_to_quickstart_choice
 from memgpt.config import MemGPTConfig
@@ -11,13 +13,157 @@ from memgpt.server.server import SyncServer
 from memgpt.metadata import MetadataStore
 
 
-class Client(object):
+def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
+    if base_url is None:
+        return LocalClient()
+    else:
+        return RESTClient(base_url, token)
+
+
+class AbstractClient(object):
     def __init__(
         self,
-        user_id: str = None,
         auto_save: bool = False,
-        quickstart: Union[QuickstartChoice, str, None] = None,
-        config: Union[Dict, MemGPTConfig] = None,  # not the same thing as AgentConfig
+        debug: bool = False,
+    ):
+        self.auto_save = auto_save
+        self.debug = debug
+
+    def list_agents(self):
+        """List all agents associated with a given user."""
+        raise NotImplementedError
+
+    def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
+        """Check if an agent with the specified ID or name exists."""
+        raise NotImplementedError
+
+    def create_agent(
+        self,
+        name: Optional[str] = None,
+        preset: Optional[str] = None,
+        persona: Optional[str] = None,
+        human: Optional[str] = None,
+        embedding_config: Optional[EmbeddingConfig] = None,
+        llm_config: Optional[LLMConfig] = None,
+    ) -> AgentState:
+        """Create a new agent with the specified configuration."""
+        raise NotImplementedError
+
+    def create_preset(self, preset: Preset):
+        raise NotImplementedError
+
+    def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
+        raise NotImplementedError
+
+    def get_agent_memory(self, agent_id: str) -> Dict:
+        raise NotImplementedError
+
+    def update_agent_core_memory(self, agent_id: str, human: Optional[str] = None, persona: Optional[str] = None) -> Dict:
+        raise NotImplementedError
+
+    def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
+        raise NotImplementedError
+
+    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
+        raise NotImplementedError
+
+    def save(self):
+        raise NotImplementedError
+
+
+class RESTClient(AbstractClient):
+    def __init__(
+        self,
+        base_url: str,
+        token: str,
+        debug: bool = False,
+    ):
+        super().__init__(debug=debug)
+        self.base_url = base_url
+        self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
+
+    def list_agents(self):
+        response = requests.get(f"{self.base_url}/agents", headers=self.headers)
+        print(response.text)
+
+    def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
+        response = requests.get(f"{self.base_url}/agents/config?agent_id={str(agent_id)}", headers=self.headers)
+        print(response.text)
+
+    def create_agent(
+        self,
+        name: Optional[str] = None,
+        preset: Optional[str] = None,
+        persona: Optional[str] = None,
+        human: Optional[str] = None,
+        embedding_config: Optional[EmbeddingConfig] = None,
+        llm_config: Optional[LLMConfig] = None,
+    ) -> AgentState:
+        if embedding_config or llm_config:
+            raise ValueError("Cannot override embedding_config or llm_config when creating agent via REST API")
+        payload = {
+            "config": {
+                "name": name,
+                "preset": preset,
+                "persona": persona,
+                "human": human,
+            }
+        }
+        response = requests.post(f"{self.base_url}/api/agents", json=payload, headers=self.headers)
+        response_json = response.json()
+        llm_config = LLMConfig(**response_json["agent_state"]["llm_config"])
+        embedding_config = EmbeddingConfig(**response_json["agent_state"]["embedding_config"])
+        agent_state = AgentState(
+            id=uuid.UUID(response_json["agent_state"]["id"]),
+            name=response_json["agent_state"]["name"],
+            user_id=uuid.UUID(response_json["agent_state"]["user_id"]),
+            preset=response_json["agent_state"]["preset"],
+            persona=response_json["agent_state"]["persona"],
+            human=response_json["agent_state"]["human"],
+            llm_config=llm_config,
+            embedding_config=embedding_config,
+            state=response_json["agent_state"]["state"],
+            # load datetime from timestampe
+            created_at=datetime.datetime.fromtimestamp(response_json["agent_state"]["created_at"]),
+        )
+        return agent_state
+
+    def delete_agent(self, agent_id: str):
+        response = requests.delete(f"{self.base_url}/api/agents/{agent_id}", headers=self.headers)
+        return agent_id
+
+    def create_preset(self, preset: Preset):
+        raise NotImplementedError
+
+    def get_agent_config(self, agent_id: str) -> AgentState:
+        raise NotImplementedError
+
+    def get_agent_memory(self, agent_id: str) -> Dict:
+        raise NotImplementedError
+
+    def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Dict:
+        raise NotImplementedError
+
+    def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
+        # TODO: support role? what is return_token_count?
+        payload = {"agent_id": str(agent_id), "message": message}
+        response = requests.post(f"{self.base_url}/api/agents/message", json=payload, headers=self.headers)
+        response_json = response.json()
+        print(response_json)
+        return response_json
+
+    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
+        raise NotImplementedError
+
+    def save(self):
+        raise NotImplementedError
+
+
+class LocalClient(AbstractClient):
+    def __init__(
+        self,
+        auto_save: bool = False,
+        user_id: Optional[str] = None,
         debug: bool = False,
     ):
         """
@@ -28,47 +174,13 @@ class Client(object):
         :param debug: indicates whether to display debug messages.
         """
         self.auto_save = auto_save
-        # make sure everything is set up properly
-        # TODO: remove this eventually? for multi-user, we can't have a shared config directory
-        MemGPTConfig.create_config_dir()
 
-        # If this is the first ever start, do basic initialization
-        if not MemGPTConfig.exists() and config is None and quickstart is None:
-            # Default to openai
-            print("Detecting uninitialized MemGPT, defaulting to quickstart == openai")
-            quickstart = "openai"
-
-        if quickstart:
-            # api key passed in config has priority over env var
-            if isinstance(config, dict) and "openai_api_key" in config:
-                openai_key = config["openai_api_key"]
-            else:
-                openai_key = os.environ.get("OPENAI_API_KEY", None)
-
-            # throw an error if we can't resolve the key
-            if openai_key:
-                os.environ["OPENAI_API_KEY"] = openai_key
-            elif quickstart == QuickstartChoice.openai or quickstart == "openai":
-                raise ValueError("Please set OPENAI_API_KEY or pass 'openai_api_key' in config dict")
-
-            if isinstance(quickstart, str):
-                quickstart = str_to_quickstart_choice(quickstart)
-            quickstart_func(backend=quickstart, debug=debug)
-
-        if config is not None:
-            set_config_with_dict(config)
-
-        # determine user_id
+        # determine user_id (pulled from local config)
         config = MemGPTConfig.load()
-        if user_id is None:
-            # the default user_id
-            self.user_id = uuid.UUID(config.anon_clientid)
-        elif isinstance(user_id, str):
+        if user_id:
             self.user_id = uuid.UUID(user_id)
-        elif isinstance(user_id, uuid.UUID):
-            self.user_id = user_id
         else:
-            raise TypeError(user_id)
+            self.user_id = uuid.UUID(config.anon_clientid)
 
         # create user if does not exist
         ms = MetadataStore(config)
@@ -104,25 +216,33 @@ class Client(object):
 
     def create_agent(
         self,
-        agent_config: dict,
+        name: Optional[str] = None,
+        preset: Optional[str] = None,
+        persona: Optional[str] = None,
+        human: Optional[str] = None,
+        embedding_config: Optional[EmbeddingConfig] = None,
+        llm_config: Optional[LLMConfig] = None,
     ) -> AgentState:
-        if isinstance(agent_config, dict):
-            agent_name = agent_config.get("name")
-        else:
-            raise TypeError(f"agent_config must be of type dict")
-
-        if "name" in agent_config and self.agent_exists(agent_name=agent_config["name"]):
-            raise ValueError(f"Agent with name {agent_config['name']} already exists (user_id={self.user_id})")
+        if name and self.agent_exists(agent_name=name):
+            raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
 
         self.interface.clear()
-        agent_state = self.server.create_agent(user_id=self.user_id, agent_config=agent_config)
+        agent_state = self.server.create_agent(
+            user_id=self.user_id,
+            name=name,
+            preset=preset,
+            persona=persona,
+            human=human,
+            embedding_config=embedding_config,
+            llm_config=llm_config,
+        )
         return agent_state
 
     def create_preset(self, preset: Preset):
         preset = self.server.create_preset(preset=preset)
         return preset
 
-    def get_agent_config(self, agent_id: str) -> Dict:
+    def get_agent_config(self, agent_id: str) -> AgentState:
         self.interface.clear()
         return self.server.get_agent_config(user_id=self.user_id, agent_id=agent_id)
 
@@ -134,13 +254,11 @@ class Client(object):
         self.interface.clear()
         return self.server.update_agent_core_memory(user_id=self.user_id, agent_id=agent_id, new_memory_contents=new_memory_contents)
 
-    def user_message(self, agent_id: str, message: str, return_token_count: bool = False) -> Union[List[Dict], Tuple[List[Dict], int]]:
+    def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         self.interface.clear()
-        tokens_accumulated = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
+        self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
         if self.auto_save:
             self.save()
-        if return_token_count:
-            return self.interface.to_list(), tokens_accumulated
         else:
             return self.interface.to_list()
 

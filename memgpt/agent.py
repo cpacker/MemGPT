@@ -5,9 +5,11 @@ import json
 from pathlib import Path
 import traceback
 from typing import List, Tuple, Optional, cast, Union
+from tqdm import tqdm
 
-
-from memgpt.data_types import AgentState, Message, EmbeddingConfig
+from memgpt.metadata import MetadataStore
+from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.data_types import AgentState, Message, EmbeddingConfig, Passage
 from memgpt.models import chat_completion_response
 from memgpt.interface import AgentInterface
 from memgpt.persistence_manager import LocalStateManager
@@ -24,6 +26,7 @@ from memgpt.utils import (
     get_schema_diff,
     validate_function_response,
     verify_first_message_correctness,
+    create_uuid_from_string,
 )
 from memgpt.constants import (
     FIRST_MESSAGE_ATTEMPTS,
@@ -951,3 +954,57 @@ class Agent(object):
 
         # TODO: recall memory
         raise NotImplementedError()
+
+    def attach_source(self, source_name, source_connector: StorageConnector, ms: MetadataStore):
+        """Attach data with name `source_name` to the agent from source_connector."""
+        # TODO: eventually, adding a data source should just give access to the retriever the source table, rather than modifying archival memory
+
+        filters = {"user_id": self.agent_state.user_id, "data_source": source_name}
+        size = source_connector.size(filters)
+        # typer.secho(f"Ingesting {size} passages into {agent.name}", fg=typer.colors.GREEN)
+        page_size = 100
+        generator = source_connector.get_all_paginated(filters=filters, page_size=page_size)  # yields List[Passage]
+        all_passages = []
+        for i in tqdm(range(0, size, page_size)):
+            passages = next(generator)
+
+            # need to associated passage with agent (for filtering)
+            for passage in passages:
+                assert isinstance(passage, Passage), f"Generate yielded bad non-Passage type: {type(passage)}"
+                passage.agent_id = self.agent_state.id
+
+                # regenerate passage ID (avoid duplicates)
+                passage.id = create_uuid_from_string(f"{source_name}_{str(passage.agent_id)}_{passage.text}")
+
+            # insert into agent archival memory
+            self.persistence_manager.archival_memory.storage.insert_many(passages)
+            all_passages += passages
+
+        assert size == len(all_passages), f"Expected {size} passages, but only got {len(all_passages)}"
+
+        # save destination storage
+        self.persistence_manager.archival_memory.storage.save()
+
+        # attach to agent
+        source = ms.get_source(source_name=source_name, user_id=self.agent_state.user_id)
+        assert source is not None, f"source does not exist for source_name={source_name}, user_id={self.agent_state.user_id}"
+        source_id = source.id
+        ms.attach_source(agent_id=self.agent_state.id, source_id=source_id, user_id=self.agent_state.user_id)
+
+        total_agent_passages = self.persistence_manager.archival_memory.storage.size()
+
+        printd(
+            f"Attached data source {source_name} to agent {self.agent_state.name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
+        )
+
+
+def save_agent(agent: Agent, ms: MetadataStore):
+    """Save agent to metadata store"""
+
+    agent.update_state()
+    agent_state = agent.agent_state
+
+    if ms.get_agent(agent_id=agent_state.id):
+        ms.update_agent(agent_state)
+    else:
+        ms.create_agent(agent_state)

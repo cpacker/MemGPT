@@ -4,6 +4,7 @@ from typing import Callable, Optional, List, Dict, Union, Any, Tuple
 from autogen.agentchat import Agent, ConversableAgent, UserProxyAgent, GroupChat, GroupChatManager
 
 from memgpt.agent import Agent as MemGPTAgent
+from memgpt.agent import save_agent
 from memgpt.autogen.interface import AutoGenInterface
 import memgpt.system as system
 import memgpt.constants as constants
@@ -14,7 +15,6 @@ from memgpt.credentials import MemGPTCredentials
 from memgpt.cli.cli import attach
 from memgpt.cli.cli_load import load_directory, load_webpage, load_index, load_database, load_vector_database
 from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.metadata import MetadataStore, save_agent
 from memgpt.data_types import AgentState, User, LLMConfig, EmbeddingConfig
 
 

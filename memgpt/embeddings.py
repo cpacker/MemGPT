@@ -1,6 +1,6 @@
 import typer
 import uuid
-from typing import Optional, List
+from typing import Optional, List, Any
 import os
 import numpy as np
 
@@ -9,11 +9,24 @@ from memgpt.data_types import EmbeddingConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.constants import MAX_EMBEDDING_DIM, EMBEDDING_TO_TOKENIZER_MAP, EMBEDDING_TO_TOKENIZER_DEFAULT
 
-from llama_index.embeddings import OpenAIEmbedding, AzureOpenAIEmbedding
-from llama_index.bridge.pydantic import PrivateAttr
-from llama_index.embeddings.base import BaseEmbedding
-from llama_index.embeddings.huggingface_utils import format_text
+# from llama_index.core.base.embeddings import BaseEmbedding
+from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core import Document as LlamaIndexDocument
+
+# from llama_index.core.base.embeddings import BaseEmbedding
+# from llama_index.core.embeddings import BaseEmbedding
+# from llama_index.core.base.embeddings.base import BaseEmbedding
+# from llama_index.bridge.pydantic import PrivateAttr
+# from llama_index.embeddings.base import BaseEmbedding
+# from llama_index.embeddings.huggingface_utils import format_text
 import tiktoken
+
+
+def parse_and_chunk_text(text: str, chunk_size: int) -> List[str]:
+    parser = SentenceSplitter(chunk_size=chunk_size)
+    llama_index_docs = [LlamaIndexDocument(text=text)]
+    nodes = parser.get_nodes_from_documents(llama_index_docs)
+    return [n.text for n in nodes]
 
 
 def truncate_text(text: str, max_length: int, encoding) -> str:
@@ -53,15 +66,15 @@ def check_and_split_text(text: str, embedding_model: str) -> List[str]:
     return [text]
 
 
-class EmbeddingEndpoint(BaseEmbedding):
+class EmbeddingEndpoint:
 
     """Implementation for OpenAI compatible endpoint"""
 
-    """ Based off llama index https://github.com/run-llama/llama_index/blob/a98bdb8ecee513dc2e880f56674e7fd157d1dc3a/llama_index/embeddings/text_embeddings_inference.py """
+    # """ Based off llama index https://github.com/run-llama/llama_index/blob/a98bdb8ecee513dc2e880f56674e7fd157d1dc3a/llama_index/embeddings/text_embeddings_inference.py """
 
-    _user: str = PrivateAttr()
-    _timeout: float = PrivateAttr()
-    _base_url: str = PrivateAttr()
+    # _user: str = PrivateAttr()
+    # _timeout: float = PrivateAttr()
+    # _base_url: str = PrivateAttr()
 
     def __init__(
         self,
@@ -69,21 +82,16 @@ class EmbeddingEndpoint(BaseEmbedding):
         base_url: str,
         user: str,
         timeout: float = 60.0,
+        **kwargs: Any,
     ):
         if not is_valid_url(base_url):
             raise ValueError(
                 f"Embeddings endpoint was provided an invalid URL (set to: '{base_url}'). Make sure embedding_endpoint is set correctly in your MemGPT config."
             )
+        self.model_name = model
         self._user = user
         self._base_url = base_url
         self._timeout = timeout
-        super().__init__(
-            model_name=model,
-        )
-
-    @classmethod
-    def class_name(cls) -> str:
-        return "EmbeddingEndpoint"
 
     def _call_api(self, text: str) -> List[float]:
         if not is_valid_url(self._base_url):
@@ -120,59 +128,8 @@ class EmbeddingEndpoint(BaseEmbedding):
 
         return embedding
 
-    async def _acall_api(self, text: str) -> List[float]:
-        if not is_valid_url(self._base_url):
-            raise ValueError(
-                f"Embeddings endpoint does not have a valid URL (set to: '{self._base_url}'). Make sure embedding_endpoint is set correctly in your MemGPT config."
-            )
-        import httpx
-
-        headers = {"Content-Type": "application/json"}
-        json_data = {"input": text, "model": self.model_name, "user": self._user}
-
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self._base_url}/embeddings",
-                headers=headers,
-                json=json_data,
-                timeout=self._timeout,
-            )
-        response_json = response.json()
-
-        if isinstance(response_json, list):
-            # embedding directly in response
-            embedding = response_json
-        elif isinstance(response_json, dict):
-            # TEI embedding packaged inside openai-style response
-            try:
-                embedding = response_json["data"][0]["embedding"]
-            except (KeyError, IndexError):
-                raise TypeError(f"Got back an unexpected payload from text embedding function, response=\n{response_json}")
-        else:
-            # unknown response, can't parse
-            raise TypeError(f"Got back an unexpected payload from text embedding function, response=\n{response_json}")
-
-        return embedding
-
-    def _get_query_embedding(self, query: str) -> list[float]:
-        """get query embedding."""
-        embedding = self._call_api(query)
-        return embedding
-
-    def _get_text_embedding(self, text: str) -> list[float]:
-        """get text embedding."""
-        embedding = self._call_api(text)
-        return embedding
-
-    def _get_text_embeddings(self, texts: List[str]) -> List[List[float]]:
-        embeddings = [self._get_text_embedding(text) for text in texts]
-        return embeddings
-
-    async def _aget_query_embedding(self, query: str) -> List[float]:
-        return self._get_query_embedding(query)
-
-    async def _aget_text_embedding(self, text: str) -> List[float]:
-        return self._get_text_embedding(text)
+    def get_text_embedding(self, text: str) -> List[float]:
+        return self._call_api(text)
 
 
 def default_embedding_model():
@@ -202,10 +159,14 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
     credentials = MemGPTCredentials.load()
 
     if endpoint_type == "openai":
+        from llama_index.embeddings.openai import OpenAIEmbedding
+
         additional_kwargs = {"user_id": user_id} if user_id else {}
         model = OpenAIEmbedding(api_base=config.embedding_endpoint, api_key=credentials.openai_key, additional_kwargs=additional_kwargs)
         return model
     elif endpoint_type == "azure":
+        from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
+
         # https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings
         model = "text-embedding-ada-002"
         deployment = credentials.azure_embedding_deployment if credentials.azure_embedding_deployment is not None else model

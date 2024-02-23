@@ -37,7 +37,7 @@ class ChromaStorageConnector(StorageConnector):
         self.include: Include = ["documents", "embeddings", "metadatas"]
 
         # need to be converted to strings
-        self.uuid_fields = ["id", "user_id", "agent_id", "source_id"]
+        self.uuid_fields = ["id", "user_id", "agent_id", "source_id", "doc_id"]
 
     def get_filters(self, filters: Optional[Dict] = {}) -> Tuple[list, dict]:
         # get all filters for query

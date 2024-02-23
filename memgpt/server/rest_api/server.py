@@ -1,8 +1,12 @@
+import os
 import json
+import secrets
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
 
 from starlette.middleware.cors import CORSMiddleware
 
@@ -34,9 +38,26 @@ Start the server with:
 interface: QueuingInterface = QueuingInterface()
 server: SyncServer = SyncServer(default_interface=interface)
 
-# TODO remove, hack for now to set up an init API key for testing
-# new_key = server.create_api_key_for_user(user_id=uuid.UUID("00000000000000000000a61b692e9d3d"))
-# print(f"new_key = {new_key.token}")
+
+SERVER_PASS_VAR = "MEMGPT_SERVER_PASS"
+password = os.getenv(SERVER_PASS_VAR)
+
+if password:
+    # if the pass was specified in the environment, use it
+    print(f"Using existing admin server password from environment.")
+else:
+    # Autogenerate a password for this session and dump it to stdout
+    password = secrets.token_urlsafe(16)
+    print(f"Generated admin server password for this session: {password}")
+
+security = HTTPBearer()
+
+
+def verify_password(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """REST requests going to /admin are protected with a bearer token (that must match the password)"""
+    if credentials.credentials != password:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
 
 ADMIN_PREFIX = "/admin"
 API_PREFIX = "/api"
@@ -60,10 +81,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# /api/auth endpoints
-app.include_router(setup_auth_router(server, interface), prefix=API_PREFIX)
+
 # /admin/users endpoints
-app.include_router(setup_admin_router(server, interface), prefix=ADMIN_PREFIX)
+app.include_router(setup_admin_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
+
 # /api/agents endpoints
 app.include_router(setup_agents_command_router(server, interface), prefix=API_PREFIX)
 app.include_router(setup_agents_config_router(server, interface), prefix=API_PREFIX)
@@ -73,10 +94,13 @@ app.include_router(setup_agents_message_router(server, interface), prefix=API_PR
 app.include_router(setup_humans_index_router(server, interface), prefix=API_PREFIX)
 app.include_router(setup_personas_index_router(server, interface), prefix=API_PREFIX)
 app.include_router(setup_models_index_router(server, interface), prefix=API_PREFIX)
+
 # /api/config endpoints
 app.include_router(setup_config_index_router(server, interface), prefix=API_PREFIX)
+
 # /v1/assistants endpoints
 app.include_router(setup_openai_assistant_router(server, interface), prefix=OPENAI_API_PREFIX)
+
 # / static files
 mount_static_files(app)
 
@@ -92,9 +116,28 @@ def on_startup():
         app.openapi_schema["info"]["title"] = "MemGPT API"
 
     # Write out the OpenAPI schema to a file
-    with open("openapi.json", "w") as file:
-        print(f"Writing out openapi.json file")
-        json.dump(app.openapi_schema, file, indent=2)
+    # with open("openapi.json", "w") as file:
+    #     print(f"Writing out openapi.json file")
+    #     json.dump(app.openapi_schema, file, indent=2)
+
+    # Split the API docs into MemGPT API, and OpenAI Assisstants compatible API
+    memgpt_api = app.openapi_schema.copy()
+    memgpt_api["paths"] = {key: value for key, value in memgpt_api["paths"].items() if not key.startswith(OPENAI_API_PREFIX)}
+    memgpt_api["info"]["title"] = "MemGPT API"
+    with open("openapi_memgpt.json", "w") as file:
+        print(f"Writing out openapi_memgpt.json file")
+        json.dump(memgpt_api, file, indent=2)
+
+    openai_assistants_api = app.openapi_schema.copy()
+    openai_assistants_api["paths"] = {
+        key: value
+        for key, value in openai_assistants_api["paths"].items()
+        if not (key.startswith(API_PREFIX) or key.startswith(ADMIN_PREFIX))
+    }
+    openai_assistants_api["info"]["title"] = "OpenAI Assistants API"
+    with open("openapi_assistants.json", "w") as file:
+        print(f"Writing out openapi_assistants.json file")
+        json.dump(openai_assistants_api, file, indent=2)
 
 
 @app.on_event("shutdown")

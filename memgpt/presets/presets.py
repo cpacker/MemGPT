@@ -23,6 +23,7 @@ def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
         preset_function_set_names = preset_config["functions"]
         functions_schema = generate_functions_json(preset_function_set_names)
 
+        print("PRESET", preset_name, user_id)
         if ms.get_preset(user_id=user_id, preset_name=preset_name) is not None:
             printd(f"Preset '{preset_name}' already exists for user '{user_id}'")
             continue
@@ -78,6 +79,7 @@ def create_agent_from_preset(
     if not (agent_state.state == {} or agent_state.state is None):
         raise ValueError(f"'state' must be uninitialized (empty)")
 
+    assert preset is not None, "preset cannot be none"
     preset_name = agent_state.preset
     assert preset_name == preset.name, f"AgentState preset '{preset_name}' does not match preset name '{preset.name}'"
     persona = agent_state.persona
