@@ -23,7 +23,6 @@ def load_data(
     embedding_config: EmbeddingConfig,
     passage_store: StorageConnector,
     document_store: Optional[StorageConnector] = None,
-    chunk_size: int = 1000,
 ):
     """Load data from a connector (generates documents and passages) into a specified source_id, associatedw with a user_id."""
 
@@ -64,7 +63,7 @@ def load_data(
             )
 
             passages.append(passage)
-            if len(passages) >= chunk_size:
+            if len(passages) >= embedding_config.embedding_chunk_size:
                 # insert passages into passage store
                 passage_store.insert_many(passages)
 
