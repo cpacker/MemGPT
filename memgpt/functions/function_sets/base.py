@@ -69,7 +69,7 @@ def core_memory_append(self, name: str, content: str) -> Optional[str]:
 
 def core_memory_replace(self, name: str, old_content: str, new_content: str) -> Optional[str]:
     """
-    Replace to the contents of core memory. To delete memories, use an empty string for new_content.
+    Replace the contents of core memory. To delete memories, use an empty string for new_content.
 
     Args:
         name (str): Section of the memory to be edited (persona or human).
