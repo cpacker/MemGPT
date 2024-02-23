@@ -227,12 +227,32 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                     for x in range(len(memgpt_agent.messages) - 1, 0, -1):
                         if memgpt_agent.messages[x].get("role") == "assistant":
                             text = user_input[len("/rewrite ") :].strip()
-                            args = json.loads(memgpt_agent.messages[x].get("function_call").get("arguments"), strict=JSON_LOADS_STRICT)
-                            args["message"] = text
-                            memgpt_agent.messages[x].get("function_call").update(
-                                {"arguments": json.dumps(args, ensure_ascii=JSON_ENSURE_ASCII)}
-                            )
-                            break
+                            # Get the current message content
+                            # The rewrite target is the output of send_message
+                            message_obj = memgpt_agent._messages[x]
+                            if message_obj.tool_calls is not None and len(message_obj.tool_calls) > 0:
+                                # Check that we hit an assistant send_message call
+                                name_string = message_obj.tool_calls[0].function.get("name")
+                                if name_string is None or name_string != "send_message":
+                                    print("Assistant missing send_message function call")
+                                    break  # cancel op
+                                args_string = message_obj.tool_calls[0].function.get("arguments")
+                                if args_string is None:
+                                    print("Assistant missing send_message function arguments")
+                                    break  # cancel op
+                                args_json = json.loads(args_string, strict=JSON_LOADS_STRICT)
+                                if "message" not in args_json:
+                                    print("Assistant missing send_message message argument")
+                                    break  # cancel op
+
+                                # Once we found our target, rewrite it
+                                args_json["message"] = text
+                                new_args_string = json.dumps(args_json, ensure_ascii=JSON_ENSURE_ASCII)
+                                message_obj.tool_calls[0].function["arguments"] = new_args_string
+
+                                # To persist to the database, all we need to do is "re-insert" into recall memory
+                                memgpt_agent.persistence_manager.recall_memory.storage.update(record=message_obj)
+                                break
                     continue
 
                 elif user_input.lower() == "/summarize":

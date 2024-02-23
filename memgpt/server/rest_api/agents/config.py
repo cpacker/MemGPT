@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.auth_token import get_current_user
+from memgpt.models.pydantic_models import AgentStateModel
 
 router = APIRouter()
 
@@ -23,7 +24,8 @@ class AgentRenameRequest(BaseModel):
 
 
 class AgentConfigResponse(BaseModel):
-    config: dict = Field(..., description="The agent configuration object.")
+    # config: dict = Field(..., description="The agent configuration object.")
+    agent_state: AgentStateModel = Field(..., description="The state of the agent.")
 
 
 def validate_agent_name(name: str) -> str:
@@ -61,8 +63,8 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
         agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         interface.clear()
-        config = server.get_agent_config(user_id=user_id, agent_id=agent_id)
-        return AgentConfigResponse(config=config)
+        agent_state = server.get_agent_config(user_id=user_id, agent_id=agent_id)
+        return AgentConfigResponse(agent_state=agent_state)
 
     @router.patch("/agents/rename", tags=["agents"], response_model=AgentConfigResponse)
     def update_agent_name(
@@ -80,12 +82,12 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
 
         interface.clear()
         try:
-            config = server.rename_agent(user_id=user_id, agent_id=agent_id, new_agent_name=valid_name)
+            agent_state = server.rename_agent(user_id=user_id, agent_id=agent_id, new_agent_name=valid_name)
         except HTTPException:
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
-        return AgentConfigResponse(config=config)
+        return AgentConfigResponse(agent_state=agent_state)
 
     @router.delete("/agents", tags=["agents"])
     def delete_agent(
