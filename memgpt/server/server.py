@@ -970,6 +970,11 @@ class SyncServer(LockingServer):
 
         return memgpt_agent.agent_state
 
+    def delete_user(self, user_id: uuid.UUID):
+
+        # TODO: delete user
+        pass
+
     def delete_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
         """Delete an agent in the database"""
         if self.ms.get_user(user_id=user_id) is None:
@@ -1016,9 +1021,9 @@ class SyncServer(LockingServer):
         token = self.ms.create_api_key(user_id=user_id)
         return token
 
-    def create_source(self, name: str) -> Source:  # TODO: add other fields
+    def create_source(self, name: str, user_id: uuid.UUID) -> Source:  # TODO: add other fields
         """Create a new data source"""
-        source = Source(name=name)
+        source = Source(name=name, user_id=user_id)
         self.ms.create_source(source)
         return source
 

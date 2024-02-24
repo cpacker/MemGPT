@@ -1,11 +1,35 @@
 import datetime
+from typing import Dict, List, Tuple, Iterator
 import os
 
 from memgpt.config import MemGPTConfig
 from memgpt.cli.cli import quickstart, QuickstartChoice
+from memgpt.data_sources.connectors import DataConnector
 from memgpt import Admin
+from memgpt.data_types import Document
 
 from .constants import TIMEOUT
+
+
+class DummyDataConnector(DataConnector):
+
+    """Fake data connector for texting which yields document/passage texts from a provided list"""
+
+    def __init__(self, texts: List[str]):
+        self.texts = texts
+        self.i = 0
+
+    def generate_documents(self) -> Iterator[Tuple[str, Dict]]:
+        if self.i < len(self.texts):
+            yield self.texts[self.i], {"metadata": "dummy", "field": self.i}
+            self.i += 1
+        else:
+            # stop iteration
+            raise StopIteration
+
+    def generate_passages(self, documents: List[Document], chunk_size: int = 1024) -> Iterator[Tuple[str | Dict]]:
+        for doc in documents:
+            yield doc.text, doc.metadata
 
 
 def create_config(endpoint="openai"):
