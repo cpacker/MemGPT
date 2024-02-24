@@ -122,6 +122,7 @@ def test_error_on_nonexistent_agent(server, user_id, agent_id):
         raise
 
 
+@pytest.mark.order(1)
 def test_user_message(server, user_id, agent_id):
 
     try:
@@ -136,6 +137,7 @@ def test_user_message(server, user_id, agent_id):
     server.run_command(user_id=user_id, agent_id=agent_id, command="/memory")
 
 
+@pytest.mark.order(3)
 def test_load_data(server, user_id, agent_id):
 
     # create source
@@ -147,11 +149,27 @@ def test_load_data(server, user_id, agent_id):
     server.load_data(user_id, connector, source.name)
 
 
+@pytest.mark.order(3)
+def test_attach_source_to_agent(server, user_id, agent_id):
+
+    # check archival memory size
+    passages_before = server.get_agent_archival(user_id=user_id, agent_id=agent_id, start=0, count=10000)
+    assert len(passages_before) == 0
+
+    # attach source
+    server.attach_source_to_agent(user_id, agent_id, "test_source")
+
+    # check archival memory size
+    passages_after = server.get_agent_archival(user_id=user_id, agent_id=agent_id, start=0, count=10000)
+    assert len(passages_after) == 5
+
+
 def test_save_archival_memory(server, user_id, agent_id):
     # TODO: insert into archival memory
     pass
 
 
+@pytest.mark.order(4)
 def test_user_message(server, user_id, agent_id):
     # add data into recall memory
     server.user_message(user_id=user_id, agent_id=agent_id, message="Hello?")
@@ -161,86 +179,80 @@ def test_user_message(server, user_id, agent_id):
     server.user_message(user_id=user_id, agent_id=agent_id, message="Hello?")
 
 
-# def test_get_recall_memory(server, user_id, agent_id):
-#    # test recall memory cursor pagination
-#    cursor1, messages_1 = server.get_agent_recall_cursor(user_id=user.id, agent_id=agent_state.id, reverse=True, limit=2)
-#    cursor2, messages_2 = server.get_agent_recall_cursor(user_id=user.id, agent_id=agent_state.id, reverse=True, after=cursor1, limit=1000)
-#    cursor3, messages_3 = server.get_agent_recall_cursor(user_id=user.id, agent_id=agent_state.id, reverse=True, limit=1000)
-#    ids3 = [m["id"] for m in messages_3]
-#    ids2 = [m["id"] for m in messages_2]
-#    timestamps = [m["created_at"] for m in messages_3]
-#    print("timestamps", timestamps)
-#    assert messages_3[-1]["created_at"] < messages_3[0]["created_at"]
-#    assert len(messages_3) == len(messages_1) + len(messages_2)
-#    cursor4, messages_4 = server.get_agent_recall_cursor(user_id=user.id, agent_id=agent_state.id, reverse=True, before=cursor1)
-#    assert len(messages_4) == 1
-#
-#    # test in-context message ids
-#    in_context_ids = server.get_in_context_message_ids(user_id=user.id, agent_id=agent_state.id)
-#    assert len(in_context_ids) == len(messages_3)
-#    assert isinstance(in_context_ids[0], uuid.UUID)
-#    message_ids = [m["id"] for m in messages_3]
-#    for message_id in message_ids:
-#        assert message_id in in_context_ids, f"{message_id} not in {in_context_ids}"
-#
-#
-#
-#    ## add data into archival memory
-#    #agent = server._load_agent(user_id=user_id, agent_id=agent_id)
-#
-#    #embed_model = embedding_model(agent.agent_state.embedding_config)
-#    #for text in archival_memories:
-#    #    embedding = embed_model.get_text_embedding(text)
-#    #    agent.persistence_manager.archival_memory.storage.insert(
-#    #        Passage(
-#    #            user_id=user.id,
-#    #            agent_id=agent_state.id,
-#    #            text=text,
-#    #            embedding=embedding,
-#    #            embedding_dim=agent.agent_state.embedding_config.embedding_dim,
-#    #            embedding_model=agent.agent_state.embedding_config.embedding_model,
-#    #        )
-#    #    )
-#
-#
-#
-#
-#
-#
-#
-#    # test archival memory cursor pagination
-#    cursor1, passages_1 = server.get_agent_archival_cursor(
-#        user_id=user.id, agent_id=agent_state.id, reverse=False, limit=2, order_by="text"
-#    )
-#    cursor2, passages_2 = server.get_agent_archival_cursor(
-#        user_id=user.id, agent_id=agent_state.id, reverse=False, after=cursor1, order_by="text"
-#    )
-#    cursor3, passages_3 = server.get_agent_archival_cursor(
-#        user_id=user.id, agent_id=agent_state.id, reverse=False, before=cursor2, limit=1000, order_by="text"
-#    )
-#    print("p1", [p["text"] for p in passages_1])
-#    print("p2", [p["text"] for p in passages_2])
-#    print("p3", [p["text"] for p in passages_3])
-#    assert passages_1[0]["text"] == "alpha"
-#    assert len(passages_2) == 3
-#    assert len(passages_3) == 4
-#
-#    # test recall memory
-#    messages_1 = server.get_agent_messages(user_id=user.id, agent_id=agent_state.id, start=0, count=1)
-#    assert len(messages_1) == 1
-#    messages_2 = server.get_agent_messages(user_id=user.id, agent_id=agent_state.id, start=1, count=1000)
-#    messages_3 = server.get_agent_messages(user_id=user.id, agent_id=agent_state.id, start=1, count=5)
-#    # not sure exactly how many messages there should be
-#    assert len(messages_2) > len(messages_3)
-#    # test safe empty return
-#    messages_none = server.get_agent_messages(user_id=user.id, agent_id=agent_state.id, start=1000, count=1000)
-#    assert len(messages_none) == 0
-#
-#    # test archival memory
-#    passage_1 = server.get_agent_archival(user_id=user.id, agent_id=agent_state.id, start=0, count=1)
-#    assert len(passage_1) == 1
-#    passage_2 = server.get_agent_archival(user_id=user.id, agent_id=agent_state.id, start=1, count=1000)
-#    assert len(passage_2) == 4
-#    # test safe empty return
-#    passage_none = server.get_agent_archival(user_id=user.id, agent_id=agent_state.id, start=1000, count=1000)
-#    assert len(passage_none) == 0
+@pytest.mark.order5
+def test_get_recall_memory(server, user_id, agent_id):
+    # test recall memory cursor pagination
+    cursor1, messages_1 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, reverse=True, limit=2)
+    cursor2, messages_2 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, reverse=True, after=cursor1, limit=1000)
+    cursor3, messages_3 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, reverse=True, limit=1000)
+    ids3 = [m["id"] for m in messages_3]
+    ids2 = [m["id"] for m in messages_2]
+    timestamps = [m["created_at"] for m in messages_3]
+    print("timestamps", timestamps)
+    assert messages_3[-1]["created_at"] < messages_3[0]["created_at"]
+    assert len(messages_3) == len(messages_1) + len(messages_2)
+    cursor4, messages_4 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, reverse=True, before=cursor1)
+    assert len(messages_4) == 1
+
+    # test in-context message ids
+    in_context_ids = server.get_in_context_message_ids(user_id=user_id, agent_id=agent_id)
+    assert len(in_context_ids) == len(messages_3)
+    assert isinstance(in_context_ids[0], uuid.UUID)
+    message_ids = [m["id"] for m in messages_3]
+    for message_id in message_ids:
+        assert message_id in in_context_ids, f"{message_id} not in {in_context_ids}"
+
+    # test recall memory
+    messages_1 = server.get_agent_messages(user_id=user_id, agent_id=agent_id, start=0, count=1)
+    assert len(messages_1) == 1
+    messages_2 = server.get_agent_messages(user_id=user_id, agent_id=agent_id, start=1, count=1000)
+    messages_3 = server.get_agent_messages(user_id=user_id, agent_id=agent_id, start=1, count=5)
+    # not sure exactly how many messages there should be
+    assert len(messages_2) > len(messages_3)
+    # test safe empty return
+    messages_none = server.get_agent_messages(user_id=user_id, agent_id=agent_id, start=1000, count=1000)
+    assert len(messages_none) == 0
+
+
+@pytest.mark.order6
+def test_get_archival_memory(server, user_id, agent_id):
+    # test archival memory cursor pagination
+    cursor1, passages_1 = server.get_agent_archival_cursor(user_id=user_id, agent_id=agent_id, reverse=False, limit=2, order_by="text")
+    cursor2, passages_2 = server.get_agent_archival_cursor(
+        user_id=user_id, agent_id=agent_id, reverse=False, after=cursor1, order_by="text"
+    )
+    cursor3, passages_3 = server.get_agent_archival_cursor(
+        user_id=user_id, agent_id=agent_id, reverse=False, before=cursor2, limit=1000, order_by="text"
+    )
+    print("p1", [p["text"] for p in passages_1])
+    print("p2", [p["text"] for p in passages_2])
+    print("p3", [p["text"] for p in passages_3])
+    assert passages_1[0]["text"] == "alpha"
+    assert len(passages_2) == 3
+    assert len(passages_3) == 4
+
+    # test archival memory
+    passage_1 = server.get_agent_archival(user_id=user_id, agent_id=agent_id, start=0, count=1)
+    assert len(passage_1) == 1
+    passage_2 = server.get_agent_archival(user_id=user_id, agent_id=agent_id, start=1, count=1000)
+    assert len(passage_2) == 4
+    # test safe empty return
+    passage_none = server.get_agent_archival(user_id=user_id, agent_id=agent_id, start=1000, count=1000)
+    assert len(passage_none) == 0
+
+    ## add data into archival memory
+    # agent = server._load_agent(user_id=user_id, agent_id=agent_id)
+
+    # embed_model = embedding_model(agent.agent_state.embedding_config)
+    # for text in archival_memories:
+    #    embedding = embed_model.get_text_embedding(text)
+    #    agent.persistence_manager.archival_memory.storage.insert(
+    #        Passage(
+    #            user_id=user.id,
+    #            agent_id=agent_state.id,
+    #            text=text,
+    #            embedding=embedding,
+    #            embedding_dim=agent.agent_state.embedding_config.embedding_dim,
+    #            embedding_model=agent.agent_state.embedding_config.embedding_model,
+    #        )
+    #    )

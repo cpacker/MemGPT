@@ -17,15 +17,10 @@ class DummyDataConnector(DataConnector):
 
     def __init__(self, texts: List[str]):
         self.texts = texts
-        self.i = 0
 
     def generate_documents(self) -> Iterator[Tuple[str, Dict]]:
-        if self.i < len(self.texts):
-            yield self.texts[self.i], {"metadata": "dummy", "field": self.i}
-            self.i += 1
-        else:
-            # stop iteration
-            raise StopIteration
+        for text in self.texts:
+            yield text, {"metadata": "dummy"}
 
     def generate_passages(self, documents: List[Document], chunk_size: int = 1024) -> Iterator[Tuple[str | Dict]]:
         for doc in documents:

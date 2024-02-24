@@ -55,6 +55,7 @@ pyright = {version = "^1.1.347", optional = true}
 llama-index = "^0.10.6"
 llama-index-embeddings-openai = "^0.1.1"
 python-box = "^7.1.1"
+pytest-order = "^1.2.0"
 
 [tool.poetry.extras]
 local = ["torch", "huggingface-hub", "transformers"]

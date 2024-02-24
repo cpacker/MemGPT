@@ -48,7 +48,6 @@ def load_data(
 
         # generate passages
         for passage_text, passage_metadata in connector.generate_passages([document]):
-            print("passage", passage_text, passage_metadata)
             embedding = embed_model.get_text_embedding(passage_text)
             passage = Passage(
                 id=create_uuid_from_string(f"{str(source.id)}_{passage_text}"),

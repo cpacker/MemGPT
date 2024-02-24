@@ -1049,11 +1049,11 @@ class SyncServer(LockingServer):
         # load data into the document store
         load_data(connector, source, self.config.default_embedding_config, passage_store, document_store)
 
-    def attach_source_to_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_id: uuid.UUID):
+    def attach_source_to_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_name: str):
         # attach a data source to an agent
-        data_source = self.ms.get_source(source_id=source_id)
+        data_source = self.ms.get_source(source_name=source_name, user_id=user_id)
         if data_source is None:
-            raise ValueError(f"Data source {source_id} does not exist")
+            raise ValueError(f"Data source {source_name} does not exist")
 
         # get connection to data source storage
         source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
@@ -1062,4 +1062,4 @@ class SyncServer(LockingServer):
         agent = self._get_or_load_agent(user_id, agent_id)
 
         # attach source to agent
-        agent.attach_source(data_source, source_connector, self.ms)
+        agent.attach_source(data_source.name, source_connector, self.ms)
