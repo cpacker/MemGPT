@@ -235,20 +235,3 @@ def test_get_archival_memory(server, user_id, agent_id):
     # test safe empty return
     passage_none = server.get_agent_archival(user_id=user_id, agent_id=agent_id, start=1000, count=1000)
     assert len(passage_none) == 0
-
-    ## add data into archival memory
-    # agent = server._load_agent(user_id=user_id, agent_id=agent_id)
-
-    # embed_model = embedding_model(agent.agent_state.embedding_config)
-    # for text in archival_memories:
-    #    embedding = embed_model.get_text_embedding(text)
-    #    agent.persistence_manager.archival_memory.storage.insert(
-    #        Passage(
-    #            user_id=user.id,
-    #            agent_id=agent_state.id,
-    #            text=text,
-    #            embedding=embedding,
-    #            embedding_dim=agent.agent_state.embedding_config.embedding_dim,
-    #            embedding_model=agent.agent_state.embedding_config.embedding_model,
-    #        )
-    #    )
