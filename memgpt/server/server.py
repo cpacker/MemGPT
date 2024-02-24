@@ -971,7 +971,6 @@ class SyncServer(LockingServer):
         return memgpt_agent.agent_state
 
     def delete_user(self, user_id: uuid.UUID):
-
         # TODO: delete user
         pass
 

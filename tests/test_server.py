@@ -110,7 +110,6 @@ def agent_id(server, user_id):
 
 
 def test_error_on_nonexistent_agent(server, user_id, agent_id):
-
     try:
         fake_agent_id = uuid.uuid4()
         server.user_message(user_id=user_id, agent_id=fake_agent_id, message="Hello?")
@@ -124,7 +123,6 @@ def test_error_on_nonexistent_agent(server, user_id, agent_id):
 
 @pytest.mark.order(1)
 def test_user_message(server, user_id, agent_id):
-
     try:
         server.user_message(user_id=user_id, agent_id=agent_id, message="/memory")
         raise Exception("user_message call should have failed")
@@ -139,7 +137,6 @@ def test_user_message(server, user_id, agent_id):
 
 @pytest.mark.order(3)
 def test_load_data(server, user_id, agent_id):
-
     # create source
     source = server.create_source("test_source", user_id)
 
@@ -151,7 +148,6 @@ def test_load_data(server, user_id, agent_id):
 
 @pytest.mark.order(3)
 def test_attach_source_to_agent(server, user_id, agent_id):
-
     # check archival memory size
     passages_before = server.get_agent_archival(user_id=user_id, agent_id=agent_id, start=0, count=10000)
     assert len(passages_before) == 0
