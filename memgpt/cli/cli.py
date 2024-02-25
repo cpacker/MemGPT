@@ -312,6 +312,7 @@ def server(
     host: Annotated[Optional[str], typer.Option(help="Host to run the server on (default to localhost)")] = None,
     use_ssl: Annotated[bool, typer.Option(help="Run the server using HTTPS?")] = False,
     ssl_cert: Annotated[Optional[str], typer.Option(help="Path to SSL certificate (if use_ssl is True)")] = None,
+    ssl_key: Annotated[Optional[str], typer.Option(help="Path to SSL key file (if use_ssl is True)")] = None,
     debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = True,
 ):
     """Launch a MemGPT server process"""
@@ -347,7 +348,7 @@ def server(
                     ssl_certfile, ssl_keyfile = generate_self_signed_cert()
                     print(f"Running server with self-signed SSL cert: {ssl_certfile}, {ssl_keyfile}")
                 else:
-                    ssl_certfile, ssl_keyfile = ssl_cert, ssl_cert  # Assuming cert includes both
+                    ssl_certfile, ssl_keyfile = ssl_cert, ssl_key  # Assuming cert includes both
                     print(f"Running server with provided SSL cert: {ssl_certfile}, {ssl_keyfile}")
 
                 # This will start the server on HTTPS
