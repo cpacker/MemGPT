@@ -1,19 +1,19 @@
 import asyncio
-from asyncio import AbstractEventLoop
-from enum import Enum
 import json
 import uuid
-from typing import List
+from asyncio import AbstractEventLoop
+from enum import Enum
 from functools import partial
+from typing import List
 
 from fastapi import APIRouter, Body, HTTPException, Query, Depends
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
 from memgpt.constants import JSON_ENSURE_ASCII
+from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
-from memgpt.server.rest_api.auth_token import get_current_user
 
 router = APIRouter()
 
@@ -44,8 +44,8 @@ class GetAgentMessagesResponse(BaseModel):
     messages: list = Field(..., description="List of message objects.")
 
 
-def setup_agents_message_router(server: SyncServer, interface: QueuingInterface):
-    get_current_user_with_server = partial(get_current_user, server)
+def setup_agents_message_router(server: SyncServer, interface: QueuingInterface, password: str):
+    get_current_user_with_server = partial(partial(get_current_user, server), password)
 
     @router.get("/agents/message", tags=["agents"], response_model=GetAgentMessagesResponse)
     def get_agent_messages(
