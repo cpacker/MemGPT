@@ -111,7 +111,6 @@ def load_directory(
             embedding_config=config.default_embedding_config,
             document_store=None,
             passage_store=passage_storage,
-            chunk_size=1000,
         )
         print(f"Loaded {num_passages} passages and {num_documents} documents from {name}")
 
