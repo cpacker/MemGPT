@@ -17,14 +17,15 @@ import memgpt.constants as constants
 
 # from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.cli.cli_config import get_model_options
-
-# from memgpt.agent_store.storage import StorageConnector
+from memgpt.data_sources.connectors import DataConnector, load_data
+from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.metadata import MetadataStore
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
 import memgpt.server.utils as server_utils
 from memgpt.data_types import (
     User,
+    Source,
     Passage,
     AgentState,
     LLMConfig,
@@ -969,6 +970,10 @@ class SyncServer(LockingServer):
 
         return memgpt_agent.agent_state
 
+    def delete_user(self, user_id: uuid.UUID):
+        # TODO: delete user
+        pass
+
     def delete_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
         """Delete an agent in the database"""
         if self.ms.get_user(user_id=user_id) is None:
@@ -1015,15 +1020,45 @@ class SyncServer(LockingServer):
         token = self.ms.create_api_key(user_id=user_id)
         return token
 
-    def create_source(self, name: str):  # TODO: add other fields
-        # craete a data source
-        pass
+    def create_source(self, name: str, user_id: uuid.UUID) -> Source:  # TODO: add other fields
+        """Create a new data source"""
+        source = Source(name=name, user_id=user_id)
+        self.ms.create_source(source)
+        return source
 
-    def load_passages(self, source_id: uuid.UUID, passages: List[Passage]):
-        # load a list of passages into a data source
-        pass
+    def load_data(
+        self,
+        user_id: uuid.UUID,
+        connector: DataConnector,
+        source_name: Source,
+    ):
+        """Load data from a DataConnector into a source for a specified user_id"""
+        # TODO: this should be implemented as a batch job or at least async, since it may take a long time
 
-    def attach_source_to_agent(self, agent_id: uuid.UUID, source_id: uuid.UUID):
+        # load data from a data source into the document store
+        source = self.ms.get_source(source_name=source_name, user_id=user_id)
+        if source is None:
+            raise ValueError(f"Data source {source_name} does not exist for user {user_id}")
+
+        # get the data connectors
+        passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+        # TODO: add document store support
+        document_store = None  # StorageConnector.get_storage_connector(TableType.DOCUMENTS, self.config, user_id=user_id)
+
+        # load data into the document store
+        load_data(connector, source, self.config.default_embedding_config, passage_store, document_store)
+
+    def attach_source_to_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_name: str):
         # attach a data source to an agent
-        # TODO: insert passages into agent archival memory
-        pass
+        data_source = self.ms.get_source(source_name=source_name, user_id=user_id)
+        if data_source is None:
+            raise ValueError(f"Data source {source_name} does not exist")
+
+        # get connection to data source storage
+        source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+
+        # load agent
+        agent = self._get_or_load_agent(user_id, agent_id)
+
+        # attach source to agent
+        agent.attach_source(data_source.name, source_connector, self.ms)
