@@ -1,15 +1,15 @@
-import uuid
 import re
+import uuid
 from functools import partial
 
 from fastapi import APIRouter, Body, Depends, Query, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from memgpt.models.pydantic_models import AgentStateModel
+from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
-from memgpt.server.rest_api.auth_token import get_current_user
-from memgpt.models.pydantic_models import AgentStateModel
 
 router = APIRouter()
 
@@ -45,8 +45,8 @@ def validate_agent_name(name: str) -> str:
     return name
 
 
-def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
-    get_current_user_with_server = partial(get_current_user, server)
+def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, password: str):
+    get_current_user_with_server = partial(partial(get_current_user, server), password)
 
     @router.get("/agents/config", tags=["agents"], response_model=AgentConfigResponse)
     def get_agent_config(

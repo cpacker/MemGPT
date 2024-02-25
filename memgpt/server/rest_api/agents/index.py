@@ -1,8 +1,8 @@
 import uuid
-from typing import List
 from functools import partial
+from typing import List
 
-from fastapi import APIRouter, Depends, Body, Query, HTTPException
+from fastapi import APIRouter, Depends, Body, HTTPException
 from pydantic import BaseModel, Field
 
 from memgpt.server.rest_api.interface import QueuingInterface
@@ -27,8 +27,8 @@ class CreateAgentResponse(BaseModel):
     agent_state: AgentStateModel = Field(..., description="The state of the newly created agent.")
 
 
-def setup_agents_index_router(server: SyncServer, interface: QueuingInterface):
-    get_current_user_with_server = partial(get_current_user, server)
+def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, password: str):
+    get_current_user_with_server = partial(partial(get_current_user, server), password)
 
     @router.get("/agents", tags=["agents"], response_model=ListAgentsResponse)
     def list_agents(
