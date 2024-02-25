@@ -1,31 +1,26 @@
-import os
 import json
+import os
 import secrets
-import uuid
-from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-
 from starlette.middleware.cors import CORSMiddleware
 
-from memgpt.constants import JSON_ENSURE_ASCII
-from memgpt.server.rest_api.agents.index import setup_agents_index_router
+from memgpt.server.rest_api.admin.users import setup_admin_router
 from memgpt.server.rest_api.agents.command import setup_agents_command_router
 from memgpt.server.rest_api.agents.config import setup_agents_config_router
+from memgpt.server.rest_api.agents.index import setup_agents_index_router
 from memgpt.server.rest_api.agents.memory import setup_agents_memory_router
 from memgpt.server.rest_api.agents.message import setup_agents_message_router
 from memgpt.server.rest_api.auth.index import setup_auth_router
 from memgpt.server.rest_api.config.index import setup_config_index_router
 from memgpt.server.rest_api.humans.index import setup_humans_index_router
-from memgpt.server.rest_api.personas.index import setup_personas_index_router
+from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.rest_api.models.index import setup_models_index_router
 from memgpt.server.rest_api.openai_assistants.assistants import setup_openai_assistant_router
-from memgpt.server.rest_api.admin.users import setup_admin_router
-from memgpt.server.server import SyncServer
-from memgpt.server.rest_api.interface import QueuingInterface
+from memgpt.server.rest_api.personas.index import setup_personas_index_router
 from memgpt.server.rest_api.static_files import mount_static_files
+from memgpt.server.server import SyncServer
 
 """
 Basic REST API sitting on top of the internal MemGPT python server (SyncServer)
@@ -82,21 +77,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# /api/auth endpoints
+app.include_router(setup_auth_router(server, interface, password), prefix=API_PREFIX)
+
 # /admin/users endpoints
 app.include_router(setup_admin_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
 
 # /api/agents endpoints
-app.include_router(setup_agents_command_router(server, interface), prefix=API_PREFIX)
-app.include_router(setup_agents_config_router(server, interface), prefix=API_PREFIX)
-app.include_router(setup_agents_index_router(server, interface), prefix=API_PREFIX)
-app.include_router(setup_agents_memory_router(server, interface), prefix=API_PREFIX)
-app.include_router(setup_agents_message_router(server, interface), prefix=API_PREFIX)
-app.include_router(setup_humans_index_router(server, interface), prefix=API_PREFIX)
-app.include_router(setup_personas_index_router(server, interface), prefix=API_PREFIX)
-app.include_router(setup_models_index_router(server, interface), prefix=API_PREFIX)
+app.include_router(setup_agents_command_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(setup_agents_config_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(setup_agents_index_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(setup_agents_memory_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(setup_agents_message_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(setup_humans_index_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(setup_personas_index_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(setup_models_index_router(server, interface, password), prefix=API_PREFIX)
 
 # /api/config endpoints
-app.include_router(setup_config_index_router(server, interface), prefix=API_PREFIX)
+app.include_router(setup_config_index_router(server, interface, password), prefix=API_PREFIX)
 
 # /v1/assistants endpoints
 app.include_router(setup_openai_assistant_router(server, interface), prefix=OPENAI_API_PREFIX)
@@ -120,7 +118,7 @@ def on_startup():
     #     print(f"Writing out openapi.json file")
     #     json.dump(app.openapi_schema, file, indent=2)
 
-    # Split the API docs into MemGPT API, and OpenAI Assisstants compatible API
+    # Split the API docs into MemGPT API, and OpenAI Assistants compatible API
     memgpt_api = app.openapi_schema.copy()
     memgpt_api["paths"] = {key: value for key, value in memgpt_api["paths"].items() if not key.startswith(OPENAI_API_PREFIX)}
     memgpt_api["info"]["title"] = "MemGPT API"
