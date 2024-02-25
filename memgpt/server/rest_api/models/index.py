@@ -1,12 +1,13 @@
 import uuid
-from typing import List
-from fastapi import APIRouter, Query, Depends
-from pydantic import BaseModel, Field
 from functools import partial
+from typing import List
 
-from memgpt.server.server import SyncServer
-from memgpt.server.rest_api.interface import QueuingInterface
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
+
 from memgpt.server.rest_api.auth_token import get_current_user
+from memgpt.server.rest_api.interface import QueuingInterface
+from memgpt.server.server import SyncServer
 
 router = APIRouter()
 
@@ -23,8 +24,8 @@ class ListModelsResponse(BaseModel):
     models: List[Model] = Field(..., description="List of model configurations.")
 
 
-def setup_models_index_router(server: SyncServer, interface: QueuingInterface):
-    get_current_user_with_server = partial(get_current_user, server)
+def setup_models_index_router(server: SyncServer, interface: QueuingInterface, password: str):
+    get_current_user_with_server = partial(partial(get_current_user, server), password)
 
     @router.get("/models", tags=["models"], response_model=ListModelsResponse)
     async def list_models(

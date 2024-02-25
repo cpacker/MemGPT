@@ -1,13 +1,12 @@
 import uuid
 from typing import List, Optional
 
-from fastapi import APIRouter, Body, HTTPException, Depends, Query
+from fastapi import APIRouter, Body, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from memgpt.data_types import User
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
-from memgpt.server.rest_api.auth_token import get_current_user
 
 router = APIRouter()
 

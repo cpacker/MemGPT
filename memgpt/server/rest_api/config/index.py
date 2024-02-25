@@ -1,12 +1,12 @@
 import uuid
 from functools import partial
 
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
-from memgpt.server.rest_api.auth_token import get_current_user
 
 router = APIRouter()
 
@@ -16,8 +16,8 @@ class ConfigResponse(BaseModel):
     defaults: dict = Field(..., description="The defaults for the configuration.")
 
 
-def setup_config_index_router(server: SyncServer, interface: QueuingInterface):
-    get_current_user_with_server = partial(get_current_user, server)
+def setup_config_index_router(server: SyncServer, interface: QueuingInterface, password: str):
+    get_current_user_with_server = partial(partial(get_current_user, server), password)
 
     @router.get("/config", tags=["config"], response_model=ConfigResponse)
     def get_server_config(user_id: uuid.UUID = Depends(get_current_user_with_server)):

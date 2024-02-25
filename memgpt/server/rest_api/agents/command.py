@@ -4,9 +4,9 @@ from functools import partial
 from fastapi import APIRouter, Body, HTTPException, Depends
 from pydantic import BaseModel, Field
 
+from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
-from memgpt.server.rest_api.auth_token import get_current_user
 
 router = APIRouter()
 
@@ -20,8 +20,8 @@ class CommandResponse(BaseModel):
     response: str = Field(..., description="The result of the executed command.")
 
 
-def setup_agents_command_router(server: SyncServer, interface: QueuingInterface):
-    get_current_user_with_server = partial(get_current_user, server)
+def setup_agents_command_router(server: SyncServer, interface: QueuingInterface, password: str):
+    get_current_user_with_server = partial(partial(get_current_user, server), password)
 
     @router.post("/agents/command", tags=["agents"], response_model=CommandResponse)
     def run_command(request: CommandRequest = Body(...), user_id: uuid.UUID = Depends(get_current_user_with_server)):
