@@ -280,7 +280,10 @@ def create_default_user_or_exit(config: MemGPTConfig, ms: MetadataStore):
 
 
 def generate_self_signed_cert(cert_path="selfsigned.crt", key_path="selfsigned.key"):
-    """Generate a self-signed SSL certificate."""
+    """Generate a self-signed SSL certificate.
+
+    NOTE: intended to be used for development only.
+    """
     subprocess.run(
         [
             "openssl",
@@ -300,71 +303,6 @@ def generate_self_signed_cert(cert_path="selfsigned.crt", key_path="selfsigned.k
         ],
         check=True,
     )
-    return cert_path, key_path
-
-
-from cryptography import x509
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives.serialization import BestAvailableEncryption, NoEncryption, Encoding, PrivateFormat
-from cryptography.x509.oid import NameOID
-import datetime
-
-
-def generate_self_signed_cert(cert_path="selfsigned.crt", key_path="selfsigned.key", passphrase=None):
-    """Generate a self-signed SSL certificate using the cryptography library."""
-    # Generate a private key
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-    )
-
-    # Generate a self-signed certificate
-    subject = issuer = x509.Name(
-        [
-            x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
-            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "State"),
-            x509.NameAttribute(NameOID.LOCALITY_NAME, "City"),
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "My Organization"),
-            x509.NameAttribute(NameOID.COMMON_NAME, "localhost"),
-        ]
-    )
-    cert = (
-        x509.CertificateBuilder()
-        .subject_name(subject)
-        .issuer_name(issuer)
-        .public_key(private_key.public_key())
-        .serial_number(x509.random_serial_number())
-        .not_valid_before(datetime.datetime.utcnow())
-        .not_valid_after(
-            # Our certificate will be valid for 10 days
-            datetime.datetime.utcnow()
-            + datetime.timedelta(days=10)
-        )
-        .add_extension(
-            x509.SubjectAlternativeName([x509.DNSName("localhost")]),
-            critical=False,
-        )
-        .sign(private_key, hashes.SHA256())
-    )
-
-    # Write out the certificate
-    with open(cert_path, "wb") as f:
-        f.write(cert.public_bytes(Encoding.PEM))
-
-    # Write out the private key
-    encryption_algorithm = NoEncryption()
-    if passphrase:
-        encryption_algorithm = BestAvailableEncryption(passphrase.encode())
-    with open(key_path, "wb") as f:
-        f.write(
-            private_key.private_bytes(
-                encoding=Encoding.PEM,
-                format=PrivateFormat.TraditionalOpenSSL,
-                encryption_algorithm=encryption_algorithm,
-            )
-        )
-
     return cert_path, key_path
 
 
@@ -407,11 +345,17 @@ def server(
             if use_ssl:
                 if ssl_cert is None:  # No certificate path provided, generate a self-signed certificate
                     ssl_certfile, ssl_keyfile = generate_self_signed_cert()
-                    print(f"Running server with self-signed SSL cert")
+                    print(f"Running server with self-signed SSL cert: {ssl_certfile}, {ssl_keyfile}")
                 else:
                     ssl_certfile, ssl_keyfile = ssl_cert, ssl_cert  # Assuming cert includes both
-                    print(f"Running server with provided SSL cert")
+                    print(f"Running server with provided SSL cert: {ssl_certfile}, {ssl_keyfile}")
+
                 # This will start the server on HTTPS
+                assert isinstance(ssl_certfile, str) and os.path.exists(ssl_certfile), ssl_certfile
+                assert isinstance(ssl_keyfile, str) and os.path.exists(ssl_keyfile), ssl_keyfile
+                print(
+                    f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT} --ssl-keyfile {ssl_keyfile} --ssl-certfile {ssl_certfile}"
+                )
                 uvicorn.run(
                     app,
                     host=host or "localhost",
@@ -421,6 +365,7 @@ def server(
                 )
             else:
                 # Start the subprocess in a new session
+                print(f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT}")
                 uvicorn.run(
                     app,
                     host=host or "localhost",
