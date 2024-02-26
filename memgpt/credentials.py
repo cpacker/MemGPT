@@ -30,6 +30,7 @@ class MemGPTCredentials:
     # openai config
     openai_auth_type: str = "bearer_token"
     openai_key: Optional[str] = None
+    openai_embedding_key: Optional[str] = None
 
     # azure config
     azure_auth_type: str = "api_key"
@@ -39,6 +40,7 @@ class MemGPTCredentials:
     azure_endpoint: Optional[str] = None
     azure_deployment: Optional[str] = None
     # embeddings
+    azure_embedding_key: Optional[str] = None
     azure_embedding_version: Optional[str] = None
     azure_embedding_endpoint: Optional[str] = None
     azure_embedding_deployment: Optional[str] = None
@@ -64,12 +66,14 @@ class MemGPTCredentials:
                 # openai
                 "openai_auth_type": get_field(config, "openai", "auth_type"),
                 "openai_key": get_field(config, "openai", "key"),
+                "openai_embedding_key": get_field(config, "openai", "embedding_key"),
                 # azure
                 "azure_auth_type": get_field(config, "azure", "auth_type"),
                 "azure_key": get_field(config, "azure", "key"),
                 "azure_version": get_field(config, "azure", "version"),
                 "azure_endpoint": get_field(config, "azure", "endpoint"),
                 "azure_deployment": get_field(config, "azure", "deployment"),
+                "azure_embedding_key": get_field(config, "azure", "embedding_key"),
                 "azure_embedding_version": get_field(config, "azure", "embedding_version"),
                 "azure_embedding_endpoint": get_field(config, "azure", "embedding_endpoint"),
                 "azure_embedding_deployment": get_field(config, "azure", "embedding_deployment"),
@@ -94,6 +98,7 @@ class MemGPTCredentials:
         # openai config
         set_field(config, "openai", "auth_type", self.openai_auth_type)
         set_field(config, "openai", "key", self.openai_key)
+        set_field(config, "openai", "embedding_key", self.openai_embedding_key)
 
         # azure config
         set_field(config, "azure", "auth_type", self.azure_auth_type)
@@ -101,6 +106,7 @@ class MemGPTCredentials:
         set_field(config, "azure", "version", self.azure_version)
         set_field(config, "azure", "endpoint", self.azure_endpoint)
         set_field(config, "azure", "deployment", self.azure_deployment)
+        set_field(config, "azure", "embedding_key", self.azure_embedding_key)
         set_field(config, "azure", "embedding_version", self.azure_embedding_version)
         set_field(config, "azure", "embedding_endpoint", self.azure_embedding_endpoint)
         set_field(config, "azure", "embedding_deployment", self.azure_embedding_deployment)

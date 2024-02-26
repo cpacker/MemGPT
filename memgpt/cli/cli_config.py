@@ -30,7 +30,7 @@ from memgpt.server.utils import shorten_key_middle
 app = typer.Typer()
 
 
-def get_azure_credentials():
+def get_azure_credentials() -> dict:
     creds = dict(
         azure_key=os.getenv("AZURE_OPENAI_KEY"),
         azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
@@ -41,12 +41,17 @@ def get_azure_credentials():
     # embedding endpoint and version default to non-embedding
     creds["azure_embedding_endpoint"] = os.getenv("AZURE_OPENAI_EMBEDDING_ENDPOINT", creds["azure_endpoint"])
     creds["azure_embedding_version"] = os.getenv("AZURE_OPENAI_EMBEDDING_VERSION", creds["azure_version"])
+    creds["azure_embedding_key"] = os.getenv("AZURE_OPENAI_EMBEDDING_KEY", creds["azure_key"])
     return creds
 
 
-def get_openai_credentials():
+def get_openai_credentials() -> dict:
     openai_key = os.getenv("OPENAI_API_KEY")
-    return openai_key
+    openai_embedding_key = os.getenv("OPENAI_API_EMBEDDING_KEY", openai_key)
+    return {
+        "openai_key": openai_key,
+        "openai_embedding_key": openai_embedding_key,
+    }
 
 
 def configure_llm_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials):
@@ -117,6 +122,7 @@ def configure_llm_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials)
             )
         else:
             credentials.azure_key = azure_creds["azure_key"]
+            credentials.azure_embedding_key = azure_creds["azure_embedding_key"]
             credentials.azure_embedding_version = azure_creds["azure_embedding_version"]
             credentials.azure_embedding_endpoint = azure_creds["azure_embedding_endpoint"]
             if "azure_embedding_deployment" in azure_creds:
@@ -460,7 +466,14 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
     elif embedding_provider == "azure":
         # check for necessary vars
         azure_creds = get_azure_credentials()
-        if not all([azure_creds["azure_key"], azure_creds["azure_embedding_endpoint"], azure_creds["azure_embedding_version"]]):
+        if not all(
+            [
+                azure_creds["azure_key"],
+                azure_creds["azure_embedding_endpoint"],
+                azure_creds["azure_embedding_version"],
+                azure_creds["azure_embedding_key"],
+            ]
+        ):
             raise ValueError(
                 "Missing environment variables for Azure (see https://memgpt.readme.io/docs/endpoints#azure-openai). Please set then run `memgpt configure` again."
             )
@@ -624,7 +637,7 @@ def configure():
 
     # check credentials
     credentials = MemGPTCredentials.load()
-    openai_key = get_openai_credentials()
+    openai_creds = get_openai_credentials()
     azure_creds = get_azure_credentials()
 
     MemGPTConfig.create_config_dir()
@@ -663,7 +676,7 @@ def configure():
         return
 
     # openai key might have gotten added along the way
-    openai_key = credentials.openai_key if credentials.openai_key is not None else openai_key
+    openai_key = credentials.openai_key if credentials.openai_key is not None else openai_creds["openai_key"]
 
     # TODO: remove most of this (deplicated with User table)
     config = MemGPTConfig(
