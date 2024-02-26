@@ -11,7 +11,7 @@ from memgpt.constants import MAX_EMBEDDING_DIM, EMBEDDING_TO_TOKENIZER_MAP, EMBE
 
 # from llama_index.core.base.embeddings import BaseEmbedding
 from llama_index.core.node_parser import SentenceSplitter
-from llama_index.core import Document as LlamaIndexDocument
+from llama_index.core.schema import Document as LlamaIndexDocument
 
 # from llama_index.core.base.embeddings import BaseEmbedding
 # from llama_index.core.embeddings import BaseEmbedding
