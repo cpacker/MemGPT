@@ -170,6 +170,11 @@ class MemGPTConfig:
                 "config_path": config_path,
                 "memgpt_version": get_field(config, "version", "memgpt_version"),
             }
+            
+            if os.environ.get("POSTGRES_URL"):
+                config_dict["recall_storage_uri"] = os.environ.get("POSTGRES_URL")
+                config_dict["metadata_storage_uri"] = os.environ.get("POSTGRES_URL")
+                config_dict["archival_storage_uri"] = os.environ.get("POSTGRES_URL")
 
             # Don't include null values
             config_dict = {k: v for k, v in config_dict.items() if v is not None}
