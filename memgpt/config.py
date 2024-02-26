@@ -3,19 +3,15 @@ import inspect
 import json
 import os
 import uuid
-from dataclasses import dataclass, field
+from pydantic.dataclasses import dataclass
+from dataclasses import field
 import configparser
-import typer
-import questionary
-from typing import Optional
 
 import memgpt
 import memgpt.utils as utils
-from memgpt.utils import printd, get_schema_diff
-from memgpt.functions.functions import load_all_function_sets
 
-from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS, DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
-from memgpt.data_types import AgentState, User, LLMConfig, EmbeddingConfig
+from memgpt.constants import MEMGPT_DIR, DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
+from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig
 
 
 # helper functions for writing to configs
