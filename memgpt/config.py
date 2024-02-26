@@ -57,22 +57,22 @@ class MemGPTConfig:
     # database configs: archival
     archival_storage_type: str = "chroma"  # local, db
     archival_storage_path: str = os.path.join(MEMGPT_DIR, "chroma")
-    archival_storage_uri: str = None  # TODO: eventually allow external vector DB
+    archival_storage_uri: str = os.environ['POSTGRES_URL'] # TODO: eventually allow external vector DB
 
     # database configs: recall
     recall_storage_type: str = "sqlite"  # local, db
     recall_storage_path: str = MEMGPT_DIR
-    recall_storage_uri: str = None  # TODO: eventually allow external vector DB
+    recall_storage_uri: str = os.environ['POSTGRES_URL'] # TODO: eventually allow external vector DB
 
     # database configs: metadata storage (sources, agents, data sources)
     metadata_storage_type: str = "sqlite"
     metadata_storage_path: str = MEMGPT_DIR
-    metadata_storage_uri: str = None
+    metadata_storage_uri: str = os.environ['POSTGRES_URL']
 
     # database configs: agent state
     persistence_manager_type: str = None  # in-memory, db
     persistence_manager_save_file: str = None  # local file
-    persistence_manager_uri: str = None  # db URI
+    persistence_manager_uri: str = os.environ['POSTGRES_URL']  # db URI
 
     # version (for backcompat)
     memgpt_version: str = memgpt.__version__
