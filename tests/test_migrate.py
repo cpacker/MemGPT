@@ -1,6 +1,4 @@
-import os
-from memgpt.migrate import migrate_all_agents, migrate_all_sources
-from memgpt.config import MemGPTConfig
+from memgpt.migrate import migrate_all_agents
 from .utils import wipe_config
 from memgpt.server.server import SyncServer
 import shutil
@@ -38,7 +36,12 @@ def test_migrate_0211():
                 assert len(message_ids) > 0
 
                 # assert recall memories exist
-                messages = server.get_agent_messages(user_id=agent_state.user_id, agent_id=agent_state.id, start=0, count=1000)
+                messages = server.get_agent_messages(
+                    user_id=agent_state.user_id,
+                    agent_id=agent_state.id,
+                    start=0,
+                    count=1000,
+                )
                 assert len(messages) > 0
 
         # for source_name in source_res["migration_candidates"]:

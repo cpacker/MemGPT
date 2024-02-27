@@ -181,7 +181,6 @@ class Agent(object):
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
     ):
-
         # An agent can be created from a Preset object
         if preset is not None:
             assert agent_state is None, "Can create an agent from a Preset or AgentState (but both were provided)"

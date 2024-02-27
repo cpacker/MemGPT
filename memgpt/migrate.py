@@ -702,9 +702,7 @@ def migrate_all_sources(data_dir: str = MEMGPT_DIR, stop_on_fail: bool = False, 
                 typer.secho(f"{fail['name']}: {fail['reason']}", fg=typer.colors.RED)
             typer.secho(f"❌ {len(failures)}/{len(candidates)} migration targets failed (see reasons above)", fg=typer.colors.RED)
         if count > 0:
-            typer.secho(
-                f"✅ {count}/{len(candidates)} sources were successfully migrated to the new database format", fg=typer.colors.GREEN
-            )
+            typer.secho(f"✅ {count}/{len(candidates)} sources were successfully migrated to the new database format", fg=typer.colors.GREEN)
 
     del ms
     return {

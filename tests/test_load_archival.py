@@ -9,12 +9,11 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.cli.cli_load import load_directory
 
 # from memgpt.data_sources.connectors import DirectoryConnector, load_data
-from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import User, AgentState, EmbeddingConfig
-from memgpt import create_client
-from .utils import wipe_config, create_config
+from tests import TEST_MEMGPT_CONFIG
+from .utils import wipe_config
 
 
 @pytest.fixture(autouse=True)
@@ -37,16 +36,20 @@ def recreate_declarative_base():
 
 @pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
 @pytest.mark.parametrize("passage_storage_connector", ["chroma", "postgres"])
-def test_load_directory(metadata_storage_connector, passage_storage_connector, clear_dynamically_created_models, recreate_declarative_base):
+def test_load_directory(
+    metadata_storage_connector,
+    passage_storage_connector,
+    clear_dynamically_created_models,
+    recreate_declarative_base,
+):
     wipe_config()
     # setup config
-    config = MemGPTConfig()
     if metadata_storage_connector == "postgres":
         if not os.getenv("PGVECTOR_TEST_DB_URL"):
             print("Skipping test, missing PG URI")
             return
-        config.metadata_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")
-        config.metadata_storage_type = "postgres"
+        TEST_MEMGPT_CONFIG.metadata_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")
+        TEST_MEMGPT_CONFIG.metadata_storage_type = "postgres"
     elif metadata_storage_connector == "sqlite":
         print("testing  sqlite metadata")
         # nothing to do (should be config defaults)
@@ -56,18 +59,18 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
         if not os.getenv("PGVECTOR_TEST_DB_URL"):
             print("Skipping test, missing PG URI")
             return
-        config.archival_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")
-        config.archival_storage_type = "postgres"
+        TEST_MEMGPT_CONFIG.archival_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")
+        TEST_MEMGPT_CONFIG.archival_storage_type = "postgres"
     elif passage_storage_connector == "chroma":
         print("testing chroma passage storage")
         # nothing to do (should be config defaults)
     else:
         raise NotImplementedError(f"Storage type {passage_storage_connector} not implemented")
-    config.save()
+    TEST_MEMGPT_CONFIG.save()
 
     # create metadata store
-    ms = MetadataStore(config)
-    user = User(id=uuid.UUID(config.anon_clientid))
+    ms = MetadataStore(TEST_MEMGPT_CONFIG)
+    user = User(id=uuid.UUID(TEST_MEMGPT_CONFIG.anon_clientid))
 
     # embedding config
     if os.getenv("OPENAI_API_KEY"):
@@ -93,10 +96,10 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
     agent = AgentState(
         user_id=user.id,
         name="test_agent",
-        preset=config.preset,
-        persona=config.persona,
-        human=config.human,
-        llm_config=config.default_llm_config,
+        preset=TEST_MEMGPT_CONFIG.preset,
+        persona=TEST_MEMGPT_CONFIG.persona,
+        human=TEST_MEMGPT_CONFIG.human,
+        llm_config=TEST_MEMGPT_CONFIG.default_llm_config,
         embedding_config=embedding_config,
     )
     ms.delete_user(user.id)
@@ -109,7 +112,7 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
     print("Creating storage connectors...")
     user_id = user.id
     print("User ID", user_id)
-    passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
+    passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, TEST_MEMGPT_CONFIG, user_id)
 
     # load data
     name = "test_dataset"
@@ -121,7 +124,7 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
     print("Resetting tables with delete_table...")
     passages_conn.delete_table()
     print("Re-creating tables...")
-    passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
+    passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, TEST_MEMGPT_CONFIG, user_id)
     assert passages_conn.size() == 0, f"Expected 0 records, got {passages_conn.size()}: {[vars(r) for r in passages_conn.get_all()]}"
 
     # test: load directory
