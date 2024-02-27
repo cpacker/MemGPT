@@ -1,13 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthBearerToken } from '../auth/auth.store';
 import { API_BASE_URL } from '../constants';
-import { Agent } from './agent';
+import { Persona } from './persona';
 
-export const useAgentsCreateMutation = (userId: string | null | undefined) => {
+export const usePersonasCreateMutation = (userId: string | null | undefined) => {
 	const queryClient = useQueryClient();
 	const bearerToken = useAuthBearerToken();
 	return useMutation({
-		mutationFn: async (params: { name: string; human: string; persona: string; model: string }): Promise<Agent> => {
+		mutationFn: async (params: { name: string; text: string }): Promise<Persona> => {
 			const response = await fetch(API_BASE_URL + '/agents', {
 				method: 'POST',
 				headers: { 'Content-Type': ' application/json', Authorization: bearerToken },
@@ -17,11 +17,11 @@ export const useAgentsCreateMutation = (userId: string | null | undefined) => {
 			if (!response.ok) {
 				// Throw an error if the response is not OK
 				const errorBody = await response.text();
-				throw new Error(errorBody || 'Error creating agent');
+				throw new Error(errorBody || 'Error creating persona');
 			}
 
 			return await response.json();
 		},
-		onSuccess: () => queryClient.invalidateQueries({ queryKey: [userId, 'agents', 'list'] }),
+		onSuccess: () => queryClient.invalidateQueries({ queryKey: [userId, 'personas', 'list'] }),
 	});
 };
