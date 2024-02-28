@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAgentActions, useCurrentAgent, useLastAgentInitMessage } from '../../libs/agents/agent.store';
-import { useAuthStoreState } from '../../libs/auth/auth.store';
+import { useAuthBearerToken, useAuthStoreState } from '../../libs/auth/auth.store';
 import { useMessageHistoryActions, useMessagesForKey } from '../../libs/messages/message-history.store';
 import {
 	ReadyState,
@@ -21,12 +21,13 @@ const Chat = () => {
 	const { sendMessage } = useMessageSocketActions();
 	const { addMessage } = useMessageHistoryActions();
 	const { setLastAgentInitMessage } = useAgentActions();
+	const bearerToken = useAuthBearerToken();
 
 	const sendMessageAndAddToHistory = useCallback(
 		(message: string, role: 'user' | 'system' = 'user') => {
 			if (!currentAgent || !auth.uuid) return;
 			const date = new Date();
-			sendMessage({ userId: auth.uuid, agentId: currentAgent.id, message, role });
+			sendMessage({ userId: auth.uuid, agentId: currentAgent.id, message, role, bearerToken });
 			addMessage(currentAgent.id, {
 				type: role === 'user' ? 'user_message' : 'system_message',
 				message_type: 'user_message',
