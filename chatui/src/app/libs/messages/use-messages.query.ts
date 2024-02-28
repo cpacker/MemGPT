@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useAuthBearerToken } from '../auth/auth.store';
 import { API_BASE_URL } from '../constants';
 
 export const useMessagesQuery = (
@@ -6,14 +7,21 @@ export const useMessagesQuery = (
 	agentId: string | null | undefined,
 	start = 0,
 	count = 10
-) =>
-	useQuery({
+) => {
+	const bearerToken = useAuthBearerToken();
+	return useQuery({
 		queryKey: [userId, 'agents', 'item', agentId, 'messages', 'list', start, count],
 		queryFn: async () =>
 			(await fetch(
-				API_BASE_URL + `/agents/message?agent_id=${agentId}&user_id=${userId}&start=${start}&count=${count}`
+				API_BASE_URL + `/agents/message?agent_id=${agentId}&user_id=${userId}&start=${start}&count=${count}`,
+				{
+					headers: {
+						Authorization: bearerToken,
+					},
+				}
 			).then((res) => res.json())) as Promise<{
 				messages: { role: string; name: string; content: string }[];
 			}>,
 		enabled: !!userId && !!agentId,
 	});
+};

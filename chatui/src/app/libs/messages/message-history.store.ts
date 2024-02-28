@@ -13,7 +13,7 @@ export type MessageHistory = {
 
 const useMessageHistoryStore = create(
 	persist<{ history: MessageHistory; actions: { addMessage: (key: string, message: Message) => void } }>(
-		(set, get) => ({
+		(set) => ({
 			history: {},
 			actions: {
 				addMessage: (key: string, message: Message) =>
