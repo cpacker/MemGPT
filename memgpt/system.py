@@ -1,3 +1,4 @@
+import uuid
 import json
 
 from .utils import get_local_time
@@ -6,6 +7,7 @@ from .constants import (
     INITIAL_BOOT_MESSAGE_SEND_MESSAGE_THOUGHT,
     INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG,
     MESSAGE_SUMMARY_WARNING_STR,
+    JSON_ENSURE_ASCII,
 )
 
 
@@ -17,30 +19,64 @@ def get_initial_boot_messages(version="startup"):
         ]
 
     elif version == "startup_with_send_message":
+        tool_call_id = str(uuid.uuid4())
         messages = [
             # first message includes both inner monologue and function call to send_message
             {
                 "role": "assistant",
                 "content": INITIAL_BOOT_MESSAGE_SEND_MESSAGE_THOUGHT,
-                "function_call": {
-                    "name": "send_message",
-                    "arguments": '{\n  "message": "' + f"{INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG}" + '"\n}',
-                },
+                # "function_call": {
+                #     "name": "send_message",
+                #     "arguments": '{\n  "message": "' + f"{INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG}" + '"\n}',
+                # },
+                "tool_calls": [
+                    {
+                        "id": tool_call_id,
+                        "type": "function",
+                        "function": {
+                            "name": "send_message",
+                            "arguments": '{\n  "message": "' + f"{INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG}" + '"\n}',
+                        },
+                    }
+                ],
             },
             # obligatory function return message
-            {"role": "function", "name": "send_message", "content": package_function_response(True, None)},
+            {
+                # "role": "function",
+                "role": "tool",
+                "name": "send_message",  # NOTE: technically not up to spec, this is old functions style
+                "content": package_function_response(True, None),
+                "tool_call_id": tool_call_id,
+            },
         ]
 
     elif version == "startup_with_send_message_gpt35":
+        tool_call_id = str(uuid.uuid4())
         messages = [
             # first message includes both inner monologue and function call to send_message
             {
                 "role": "assistant",
                 "content": "*inner thoughts* Still waiting on the user. Sending a message with function.",
-                "function_call": {"name": "send_message", "arguments": '{\n  "message": "' + f"Hi, is anyone there?" + '"\n}'},
+                # "function_call": {"name": "send_message", "arguments": '{\n  "message": "' + f"Hi, is anyone there?" + '"\n}'},
+                "tool_calls": [
+                    {
+                        "id": tool_call_id,
+                        "type": "function",
+                        "function": {
+                            "name": "send_message",
+                            "arguments": '{\n  "message": "' + f"Hi, is anyone there?" + '"\n}',
+                        },
+                    }
+                ],
             },
             # obligatory function return message
-            {"role": "function", "name": "send_message", "content": package_function_response(True, None)},
+            {
+                # "role": "function",
+                "role": "tool",
+                "name": "send_message",
+                "content": package_function_response(True, None),
+                "tool_call_id": tool_call_id,
+            },
         ]
 
     else:
@@ -61,7 +97,7 @@ def get_heartbeat(reason="Automated timer", include_location=False, location_nam
     if include_location:
         packaged_message["location"] = location_name
 
-    return json.dumps(packaged_message)
+    return json.dumps(packaged_message, ensure_ascii=JSON_ENSURE_ASCII)
 
 
 def get_login_event(last_login="Never (first login)", include_location=False, location_name="San Francisco, CA, USA"):
@@ -76,7 +112,7 @@ def get_login_event(last_login="Never (first login)", include_location=False, lo
     if include_location:
         packaged_message["location"] = location_name
 
-    return json.dumps(packaged_message)
+    return json.dumps(packaged_message, ensure_ascii=JSON_ENSURE_ASCII)
 
 
 def package_user_message(user_message, time=None, include_location=False, location_name="San Francisco, CA, USA", name=None):
@@ -94,7 +130,7 @@ def package_user_message(user_message, time=None, include_location=False, locati
     if name:
         packaged_message["name"] = name
 
-    return json.dumps(packaged_message)
+    return json.dumps(packaged_message, ensure_ascii=JSON_ENSURE_ASCII)
 
 
 def package_function_response(was_success, response_string, timestamp=None):
@@ -102,6 +138,17 @@ def package_function_response(was_success, response_string, timestamp=None):
     packaged_message = {
         "status": "OK" if was_success else "Failed",
         "message": response_string,
+        "time": formatted_time,
+    }
+
+    return json.dumps(packaged_message, ensure_ascii=JSON_ENSURE_ASCII)
+
+
+def package_system_message(system_message, message_type="system_alert", time=None):
+    formatted_time = time if time else get_local_time()
+    packaged_message = {
+        "type": message_type,
+        "message": system_message,
         "time": formatted_time,
     }
 
@@ -121,7 +168,7 @@ def package_summarize_message(summary, summary_length, hidden_message_count, tot
         "time": formatted_time,
     }
 
-    return json.dumps(packaged_message)
+    return json.dumps(packaged_message, ensure_ascii=JSON_ENSURE_ASCII)
 
 
 def package_summarize_message_no_summary(hidden_message_count, timestamp=None, message=None):
@@ -140,7 +187,7 @@ def package_summarize_message_no_summary(hidden_message_count, timestamp=None, m
         "time": formatted_time,
     }
 
-    return json.dumps(packaged_message)
+    return json.dumps(packaged_message, ensure_ascii=JSON_ENSURE_ASCII)
 
 
 def get_token_limit_warning():
@@ -151,4 +198,4 @@ def get_token_limit_warning():
         "time": formatted_time,
     }
 
-    return json.dumps(packaged_message)
+    return json.dumps(packaged_message, ensure_ascii=JSON_ENSURE_ASCII)

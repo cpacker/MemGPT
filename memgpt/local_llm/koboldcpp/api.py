@@ -3,12 +3,12 @@ from urllib.parse import urljoin
 import requests
 
 from memgpt.local_llm.settings.settings import get_completions_settings
-from memgpt.local_llm.utils import load_grammar_file, count_tokens
+from memgpt.local_llm.utils import count_tokens, post_json_auth_request
 
 KOBOLDCPP_API_SUFFIX = "/api/v1/generate"
 
 
-def get_koboldcpp_completion(endpoint, prompt, context_window, grammar=None):
+def get_koboldcpp_completion(endpoint, auth_type, auth_key, prompt, context_window, grammar=None):
     """See https://lite.koboldai.net/koboldcpp_api for API spec"""
     from memgpt.utils import printd
 
@@ -21,10 +21,11 @@ def get_koboldcpp_completion(endpoint, prompt, context_window, grammar=None):
     request = settings
     request["prompt"] = prompt
     request["max_context_length"] = context_window
+    request["max_length"] = 400  # if we don't set this, it'll default to 100 which is quite short
 
     # Set grammar
     if grammar is not None:
-        request["grammar"] = load_grammar_file(grammar)
+        request["grammar"] = grammar
 
     if not endpoint.startswith(("http://", "https://")):
         raise ValueError(f"Provided OPENAI_API_BASE value ({endpoint}) must begin with http:// or https://")
@@ -33,7 +34,7 @@ def get_koboldcpp_completion(endpoint, prompt, context_window, grammar=None):
         # NOTE: llama.cpp server returns the following when it's out of context
         # curl: (52) Empty reply from server
         URI = urljoin(endpoint.strip("/") + "/", KOBOLDCPP_API_SUFFIX.strip("/"))
-        response = requests.post(URI, json=request)
+        response = post_json_auth_request(uri=URI, json_payload=request, auth_type=auth_type, auth_key=auth_key)
         if response.status_code == 200:
             result_full = response.json()
             printd(f"JSON API response:\n{result_full}")

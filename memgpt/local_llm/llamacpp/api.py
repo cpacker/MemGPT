@@ -3,13 +3,13 @@ from urllib.parse import urljoin
 import requests
 
 from memgpt.local_llm.settings.settings import get_completions_settings
-from memgpt.local_llm.utils import count_tokens, load_grammar_file
+from memgpt.local_llm.utils import count_tokens, post_json_auth_request
 
 
 LLAMACPP_API_SUFFIX = "/completion"
 
 
-def get_llamacpp_completion(endpoint, prompt, context_window, grammar=None):
+def get_llamacpp_completion(endpoint, auth_type, auth_key, prompt, context_window, grammar=None):
     """See https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md for instructions on how to run the LLM web server"""
     from memgpt.utils import printd
 
@@ -24,7 +24,7 @@ def get_llamacpp_completion(endpoint, prompt, context_window, grammar=None):
 
     # Set grammar
     if grammar is not None:
-        request["grammar"] = load_grammar_file(grammar)
+        request["grammar"] = grammar
 
     if not endpoint.startswith(("http://", "https://")):
         raise ValueError(f"Provided OPENAI_API_BASE value ({endpoint}) must begin with http:// or https://")
@@ -33,7 +33,7 @@ def get_llamacpp_completion(endpoint, prompt, context_window, grammar=None):
         # NOTE: llama.cpp server returns the following when it's out of context
         # curl: (52) Empty reply from server
         URI = urljoin(endpoint.strip("/") + "/", LLAMACPP_API_SUFFIX.strip("/"))
-        response = requests.post(URI, json=request)
+        response = post_json_auth_request(uri=URI, json_payload=request, auth_type=auth_type, auth_key=auth_key)
         if response.status_code == 200:
             result_full = response.json()
             printd(f"JSON API response:\n{result_full}")

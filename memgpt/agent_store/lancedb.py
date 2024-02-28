@@ -1,3 +1,5 @@
+# type: ignore
+
 import lancedb
 import uuid
 from datetime import datetime
@@ -32,7 +34,7 @@ def get_db_model(table_name: str, table_type: TableType):
             doc_id: str
             agent_id: str
             data_source: str
-            embedding: Vector(config.embedding_dim)
+            embedding: Vector(config.default_embedding_config.embedding_dim)
             metadata_: Dict
 
             def __repr__(self):
@@ -65,6 +67,7 @@ def get_db_model(table_name: str, table_type: TableType):
 
             # openai info
             role: str
+            name: str
             text: str
             model: str
             user: str
@@ -74,7 +77,7 @@ def get_db_model(table_name: str, table_type: TableType):
             function_args: str
             function_response: str
 
-            embedding = Vector(config.embedding_dim)
+            embedding = Vector(config.default_embedding_config.embedding_dim)
 
             # Add a datetime column, with default value as the current time
             created_at = datetime
@@ -100,25 +103,7 @@ def get_db_model(table_name: str, table_type: TableType):
 
         """Create database model for table_name"""
         return MessageModel
-    elif table_type == TableType.DATA_SOURCES:
 
-        class SourceModel(LanceModel):
-            """Defines data model for storing Passages (consisting of text, embedding)"""
-
-            # Assuming passage_id is the primary key
-            id: uuid.UUID
-            user_id: str
-            name: str
-            created_at: datetime
-
-            def __repr__(self):
-                return f"<Source(passage_id='{self.id}', name='{self.name}')>"
-
-            def to_record(self):
-                return Source(id=self.id, user_id=self.user_id, name=self.name, created_at=self.created_at)
-
-        """Create database model for table_name"""
-        return SourceModel
     else:
         raise ValueError(f"Table type {table_type} not implemented")
 
@@ -149,7 +134,7 @@ class LanceDBConnector(StorageConnector):
         pass
 
     @abstractmethod
-    def get(self, id: str) -> Optional[Record]:
+    def get(self, id: uuid.UUID) -> Optional[Record]:
         # TODO
         pass
 

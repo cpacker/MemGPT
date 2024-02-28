@@ -1,21 +1,23 @@
 import datetime
 import uuid
-import glob
 import inspect
-import os
 import json
 from pathlib import Path
 import traceback
+from typing import List, Tuple, Optional, cast, Union
+from tqdm import tqdm
 
-from memgpt.data_types import AgentState
 from memgpt.metadata import MetadataStore
+from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.data_types import AgentState, Message, EmbeddingConfig, Passage
+from memgpt.models import chat_completion_response
 from memgpt.interface import AgentInterface
-from memgpt.persistence_manager import PersistenceManager, LocalStateManager
-from memgpt.config import MemGPTConfig
+from memgpt.persistence_manager import LocalStateManager
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from memgpt.memory import CoreMemory as InContextMemory, summarize_messages
-from memgpt.openai_tools import create, is_context_overflow_error
+from memgpt.llm_api_tools import create, is_context_overflow_error
 from memgpt.utils import (
+    get_tool_call_id,
     get_local_time,
     parse_json,
     united_diff,
@@ -24,9 +26,11 @@ from memgpt.utils import (
     get_schema_diff,
     validate_function_response,
     verify_first_message_correctness,
+    create_uuid_from_string,
 )
 from memgpt.constants import (
     FIRST_MESSAGE_ATTEMPTS,
+    JSON_LOADS_STRICT,
     MESSAGE_SUMMARY_WARNING_FRAC,
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
@@ -34,6 +38,7 @@ from memgpt.constants import (
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
     LLM_MAX_TOKENS,
     CLI_WARNING_PREFIX,
+    JSON_ENSURE_ASCII,
 )
 from .errors import LLMError
 from .functions.functions import USER_FUNCTIONS_DIR, load_all_function_sets
@@ -66,11 +71,13 @@ def link_functions(function_schemas):
                 f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
             )
         # Once we find a matching function, make sure the schema is identical
-        if json.dumps(f_schema) != json.dumps(linked_function["json_schema"]):
+        if json.dumps(f_schema, ensure_ascii=JSON_ENSURE_ASCII) != json.dumps(
+            linked_function["json_schema"], ensure_ascii=JSON_ENSURE_ASCII
+        ):
             # error_message = (
             #     f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different."
-            #     + f"\n>>>agent.state.functions\n{json.dumps(f_schema, indent=2)}"
-            #     + f"\n>>>function library\n{json.dumps(linked_function['json_schema'], indent=2)}"
+            #     + f"\n>>>agent.state.functions\n{json.dumps(f_schema, indent=2, ensure_ascii=JSON_ENSURE_ASCII)}"
+            #     + f"\n>>>function library\n{json.dumps(linked_function['json_schema'], indent=2, ensure_ascii=JSON_ENSURE_ASCII)}"
             # )
             schema_diff = get_schema_diff(f_schema, linked_function["json_schema"])
             error_message = (
@@ -163,12 +170,10 @@ class Agent(object):
         agent_state: AgentState,
         interface: AgentInterface,
         # extras
-        messages_total=None,  # TODO remove?
-        first_message_verify_mono=True,  # TODO move to config?
-        memgpt_config: MemGPTConfig = None,
+        messages_total: Optional[int] = None,  # TODO remove?
+        first_message_verify_mono: bool = True,  # TODO move to config?
     ):
         # Hold a copy of the state that was used to init the agent
-        self.config = agent_state  # TODO: remove
         self.agent_state = agent_state
 
         # gpt-4, gpt-3.5-turbo, ...
@@ -193,17 +198,6 @@ class Agent(object):
         if "human" not in agent_state.state:
             raise ValueError(f"'human' not found in provided AgentState")
         self.memory = initialize_memory(ai_notes=agent_state.state["persona"], human_notes=agent_state.state["human"])
-        # Once the memory object is initialize, use it to "bake" the system message
-        if "messages" in agent_state.state and agent_state.state["messages"] is not None:
-            if not isinstance(agent_state.state["messages"], list):
-                raise ValueError(f"'messages' in AgentState was bad type: {type(agent_state.state['messages'])}")
-            self._messages = agent_state.state["messages"]
-        else:
-            self._messages = initialize_message_sequence(
-                self.model,
-                self.system,
-                self.memory,
-            )
 
         # Interface must implement:
         # - internal_monologue
@@ -218,12 +212,6 @@ class Agent(object):
         # TODO
         self.persistence_manager = LocalStateManager(agent_state=agent_state)
 
-        # Keep track of the total number of messages throughout all time
-        self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
-        # self.messages_total_init = self.messages_total
-        self.messages_total_init = len(self._messages) - 1
-        printd(f"Agent initialized, self.messages_total={self.messages_total}")
-
         # State needed for heartbeat pausing
         self.pause_heartbeats_start = None
         self.pause_heartbeats_minutes = 0
@@ -235,21 +223,54 @@ class Agent(object):
         # When the summarizer is run, set this back to False (to reset)
         self.agent_alerted_about_memory_pressure = False
 
-        # Read local config if not provided
-        if not memgpt_config:
-            self.memgpt_config = MemGPTConfig()
-        else:
-            self.memgpt_config = memgpt_config
+        self._messages: List[Message] = []
 
-        # Initialize connection to metedata store
-        self.ms = MetadataStore(self.memgpt_config)
+        # Once the memory object is initialized, use it to "bake" the system message
+        if "messages" in agent_state.state and agent_state.state["messages"] is not None:
+            # print(f"Agent.__init__ :: loading, state={agent_state.state['messages']}")
+            if not isinstance(agent_state.state["messages"], list):
+                raise ValueError(f"'messages' in AgentState was bad type: {type(agent_state.state['messages'])}")
+            assert all([isinstance(msg, str) for msg in agent_state.state["messages"]])
+
+            # Convert to IDs, and pull from the database
+            raw_messages = [
+                self.persistence_manager.recall_memory.storage.get(id=uuid.UUID(msg_id)) for msg_id in agent_state.state["messages"]
+            ]
+            assert all([isinstance(msg, Message) for msg in raw_messages]), (raw_messages, agent_state.state["messages"])
+            self._messages.extend([cast(Message, msg) for msg in raw_messages if msg is not None])
+
+        else:
+            # print(f"Agent.__init__ :: creating, state={agent_state.state['messages']}")
+            init_messages = initialize_message_sequence(
+                self.model,
+                self.system,
+                self.memory,
+            )
+            init_messages_objs = []
+            for msg in init_messages:
+                init_messages_objs.append(
+                    Message.dict_to_message(
+                        agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=msg
+                    )
+                )
+            assert all([isinstance(msg, Message) for msg in init_messages_objs]), (init_messages_objs, init_messages)
+            self.messages_total = 0
+            self._append_to_messages(added_messages=[cast(Message, msg) for msg in init_messages_objs if msg is not None])
+
+        # Keep track of the total number of messages throughout all time
+        self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
+        # self.messages_total_init = self.messages_total
+        self.messages_total_init = len(self._messages) - 1
+        printd(f"Agent initialized, self.messages_total={self.messages_total}")
 
         # Create the agent in the DB
-        self.save()
+        # self.save()
+        self.update_state()
 
     @property
-    def messages(self):
-        return self._messages
+    def messages(self) -> List[dict]:
+        """Getter method that converts the internal Message list into OpenAI-style dicts"""
+        return [msg.to_openai_dict() for msg in self._messages]
 
     @messages.setter
     def messages(self, value):
@@ -259,50 +280,70 @@ class Agent(object):
         """Trim messages from the front, not including the system message"""
         self.persistence_manager.trim_messages(num)
 
-        new_messages = [self.messages[0]] + self.messages[num:]
+        new_messages = [self._messages[0]] + self._messages[num:]
         self._messages = new_messages
 
-    def _prepend_to_messages(self, added_messages):
+    def _prepend_to_messages(self, added_messages: List[Message]):
         """Wrapper around self.messages.prepend to allow additional calls to a state/persistence manager"""
+        assert all([isinstance(msg, Message) for msg in added_messages])
+
         self.persistence_manager.prepend_to_messages(added_messages)
 
-        new_messages = [self.messages[0]] + added_messages + self.messages[1:]  # prepend (no system)
+        new_messages = [self._messages[0]] + added_messages + self._messages[1:]  # prepend (no system)
         self._messages = new_messages
         self.messages_total += len(added_messages)  # still should increment the message counter (summaries are additions too)
 
-    def _append_to_messages(self, added_messages):
+    def _append_to_messages(self, added_messages: List[Message]):
         """Wrapper around self.messages.append to allow additional calls to a state/persistence manager"""
+        assert all([isinstance(msg, Message) for msg in added_messages])
+
         self.persistence_manager.append_to_messages(added_messages)
 
         # strip extra metadata if it exists
-        for msg in added_messages:
-            msg.pop("api_response", None)
-            msg.pop("api_args", None)
-        new_messages = self.messages + added_messages  # append
+        # for msg in added_messages:
+        # msg.pop("api_response", None)
+        # msg.pop("api_args", None)
+        new_messages = self._messages + added_messages  # append
 
         self._messages = new_messages
         self.messages_total += len(added_messages)
 
-    def _swap_system_message(self, new_system_message):
-        assert new_system_message["role"] == "system", new_system_message
-        assert self.messages[0]["role"] == "system", self.messages
+    def append_to_messages(self, added_messages: List[dict]):
+        """An external-facing message append, where dict-like messages are first converted to Message objects"""
+        added_messages_objs = [
+            Message.dict_to_message(
+                agent_id=self.agent_state.id,
+                user_id=self.agent_state.user_id,
+                model=self.model,
+                openai_message_dict=msg,
+            )
+            for msg in added_messages
+        ]
+        self._append_to_messages(added_messages_objs)
+
+    def _swap_system_message(self, new_system_message: Message):
+        assert isinstance(new_system_message, Message)
+        assert new_system_message.role == "system", new_system_message
+        assert self._messages[0].role == "system", self._messages
+
         self.persistence_manager.swap_system_message(new_system_message)
 
-        new_messages = [new_system_message] + self.messages[1:]  # swap index 0 (system)
+        new_messages = [new_system_message] + self._messages[1:]  # swap index 0 (system)
         self._messages = new_messages
 
     def _get_ai_reply(
         self,
-        message_sequence,
-        function_call="auto",
-        first_message=False,  # hint
-    ):
+        message_sequence: List[dict],
+        function_call: str = "auto",
+        first_message: bool = False,  # hint
+    ) -> chat_completion_response.ChatCompletionResponse:
         """Get response from LLM API"""
         try:
             response = create(
-                agent_state=self.config,
+                agent_state=self.agent_state,
                 messages=message_sequence,
                 functions=self.functions,
+                functions_python=self.functions_python,
                 function_call=function_call,
                 # hint
                 first_message=first_message,
@@ -312,7 +353,7 @@ class Agent(object):
                 raise Exception("Finish reason was length (maximum context length)")
 
             # catches for soft errors
-            if response.choices[0].finish_reason not in ["stop", "function_call"]:
+            if response.choices[0].finish_reason not in ["stop", "function_call", "tool_calls"]:
                 raise Exception(f"API call finish with bad finish reason: {response}")
 
             # unpack with response.choices[0].message.content
@@ -320,27 +361,58 @@ class Agent(object):
         except Exception as e:
             raise e
 
-    def _handle_ai_response(self, response_message):
+    def _handle_ai_response(
+        self, response_message: chat_completion_response.Message, override_tool_call_id: bool = True
+    ) -> Tuple[List[Message], bool, bool]:
         """Handles parsing and function execution"""
+
         messages = []  # append these to the history when done
 
         # Step 2: check if LLM wanted to call a function
-        if response_message.get("function_call"):
+        if response_message.function_call or (response_message.tool_calls is not None and len(response_message.tool_calls) > 0):
+            if response_message.function_call:
+                raise DeprecationWarning(response_message)
+            if response_message.tool_calls is not None and len(response_message.tool_calls) > 1:
+                # raise NotImplementedError(f">1 tool call not supported")
+                # TODO eventually support sequential tool calling
+                printd(f">1 tool call not supported, using index=0 only\n{response_message.tool_calls}")
+                response_message.tool_calls = [response_message.tool_calls[0]]
+            assert response_message.tool_calls is not None and len(response_message.tool_calls) > 0
+
             # The content if then internal monologue, not chat
             self.interface.internal_monologue(response_message.content)
 
             # generate UUID for tool call
-            tool_call_id = str(uuid.uuid4())  # needs to be a string for JSON
-            response_message["tool_call_id"] = tool_call_id
+            if override_tool_call_id or response_message.function_call:
+                tool_call_id = get_tool_call_id()  # needs to be a string for JSON
+                response_message.tool_calls[0].id = tool_call_id
+            else:
+                tool_call_id = response_message.tool_calls[0].id
+                assert tool_call_id is not None  # should be defined
+
+            # only necessary to add the tool_cal_id to a function call (antipattern)
+            # response_message_dict = response_message.model_dump()
+            # response_message_dict["tool_call_id"] = tool_call_id
+
             # role: assistant (requesting tool call, set tool call ID)
-            messages.append(response_message)  # extend conversation with assistant's reply
+            messages.append(
+                Message.dict_to_message(
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
+                    model=self.model,
+                    openai_message_dict=response_message.model_dump(),
+                )
+            )  # extend conversation with assistant's reply
             printd(f"Function call message: {messages[-1]}")
 
             # Step 3: call the function
             # Note: the JSON response may not always be valid; be sure to handle errors
 
             # Failure case 1: function name is wrong
-            function_name = response_message["function_call"]["name"]
+            function_call = (
+                response_message.function_call if response_message.function_call is not None else response_message.tool_calls[0].function
+            )
+            function_name = function_call.name
             printd(f"Request to call function {function_name} with tool_call_id: {tool_call_id}")
             try:
                 function_to_call = self.functions_python[function_name]
@@ -348,27 +420,43 @@ class Agent(object):
                 error_msg = f"No function named {function_name}"
                 function_response = package_function_response(False, error_msg)
                 messages.append(
-                    {"role": "function", "name": function_name, "content": function_response, "tool_call_id": tool_call_id}
+                    Message.dict_to_message(
+                        agent_id=self.agent_state.id,
+                        user_id=self.agent_state.user_id,
+                        model=self.model,
+                        openai_message_dict={
+                            "role": "tool",
+                            "name": function_name,
+                            "content": function_response,
+                            "tool_call_id": tool_call_id,
+                        },
+                    )
                 )  # extend conversation with function response
                 self.interface.function_message(f"Error: {error_msg}")
-                return messages, None, True  # force a heartbeat to allow agent to handle error
+                return messages, False, True  # force a heartbeat to allow agent to handle error
 
             # Failure case 2: function name is OK, but function args are bad JSON
             try:
-                raw_function_args = response_message["function_call"]["arguments"]
+                raw_function_args = function_call.arguments
                 function_args = parse_json(raw_function_args)
             except Exception as e:
-                error_msg = f"Error parsing JSON for function '{function_name}' arguments: {raw_function_args}"
+                error_msg = f"Error parsing JSON for function '{function_name}' arguments: {function_call.arguments}"
                 function_response = package_function_response(False, error_msg)
                 messages.append(
-                    {
-                        "role": "function",
-                        "name": function_name,
-                        "content": function_response,
-                    }
+                    Message.dict_to_message(
+                        agent_id=self.agent_state.id,
+                        user_id=self.agent_state.user_id,
+                        model=self.model,
+                        openai_message_dict={
+                            "role": "tool",
+                            "name": function_name,
+                            "content": function_response,
+                            "tool_call_id": tool_call_id,
+                        },
+                    )
                 )  # extend conversation with function response
                 self.interface.function_message(f"Error: {error_msg}")
-                return messages, None, True  # force a heartbeat to allow agent to handle error
+                return messages, False, True  # force a heartbeat to allow agent to handle error
 
             # (Still parsing function args)
             # Handle requests for immediate heartbeat
@@ -377,12 +465,19 @@ class Agent(object):
                 printd(
                     f"{CLI_WARNING_PREFIX}'request_heartbeat' arg parsed was not a bool or None, type={type(heartbeat_request)}, value={heartbeat_request}"
                 )
-                heartbeat_request = None
+                heartbeat_request = False
 
             # Failure case 3: function failed during execution
             self.interface.function_message(f"Running {function_name}({function_args})")
             try:
+                spec = inspect.getfullargspec(function_to_call).annotations
+
+                for name, arg in function_args.items():
+                    if isinstance(function_args[name], dict):
+                        function_args[name] = spec[name](**function_args[name])
+
                 function_args["self"] = self  # need to attach self to arg since it's dynamically linked
+
                 function_response = function_to_call(**function_args)
                 if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search"]:
                     # with certain functions we rely on the paging mechanism to handle overflow
@@ -404,49 +499,101 @@ class Agent(object):
                 printd(error_msg_user)
                 function_response = package_function_response(False, error_msg)
                 messages.append(
-                    {"role": "function", "name": function_name, "content": function_response, "tool_call_id": tool_call_id}
+                    Message.dict_to_message(
+                        agent_id=self.agent_state.id,
+                        user_id=self.agent_state.user_id,
+                        model=self.model,
+                        openai_message_dict={
+                            "role": "tool",
+                            "name": function_name,
+                            "content": function_response,
+                            "tool_call_id": tool_call_id,
+                        },
+                    )
                 )  # extend conversation with function response
                 self.interface.function_message(f"Error: {error_msg}")
-                return messages, None, True  # force a heartbeat to allow agent to handle error
+                return messages, False, True  # force a heartbeat to allow agent to handle error
 
             # If no failures happened along the way: ...
             # Step 4: send the info on the function call and function response to GPT
             self.interface.function_message(f"Success: {function_response_string}")
             messages.append(
-                {"role": "function", "name": function_name, "content": function_response, "tool_call_id": tool_call_id}
+                Message.dict_to_message(
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
+                    model=self.model,
+                    openai_message_dict={
+                        "role": "tool",
+                        "name": function_name,
+                        "content": function_response,
+                        "tool_call_id": tool_call_id,
+                    },
+                )
             )  # extend conversation with function response
 
         else:
             # Standard non-function reply
             self.interface.internal_monologue(response_message.content)
-            messages.append(response_message)  # extend conversation with assistant's reply
-            heartbeat_request = None
-            function_failed = None
+            messages.append(
+                Message.dict_to_message(
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
+                    model=self.model,
+                    openai_message_dict=response_message.model_dump(),
+                )
+            )  # extend conversation with assistant's reply
+            heartbeat_request = False
+            function_failed = False
 
         return messages, heartbeat_request, function_failed
 
-    def step(self, user_message, first_message=False, first_message_retry_limit=FIRST_MESSAGE_ATTEMPTS, skip_verify=False):
+    def step(
+        self,
+        user_message: Union[Message, str],  # NOTE: should be json.dump(dict)
+        first_message: bool = False,
+        first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
+        skip_verify: bool = False,
+    ) -> Tuple[List[dict], bool, bool, bool]:
         """Top-level event message handler for the MemGPT agent"""
 
         try:
             # Step 0: add user message
             if user_message is not None:
-                self.interface.user_message(user_message)
-                packed_user_message = {"role": "user", "content": user_message}
+                if isinstance(user_message, Message):
+                    user_message_text = user_message.text
+                elif isinstance(user_message, str):
+                    user_message_text = user_message
+                else:
+                    raise ValueError(f"Bad type for user_message: {type(user_message)}")
+
+                self.interface.user_message(user_message_text)
+                packed_user_message = {"role": "user", "content": user_message_text}
                 # Special handling for AutoGen messages with 'name' field
                 try:
-                    user_message_json = json.loads(user_message)
+                    user_message_json = json.loads(user_message_text, strict=JSON_LOADS_STRICT)
+                    # Special handling for AutoGen messages with 'name' field
                     # Treat 'name' as a special field
                     # If it exists in the input message, elevate it to the 'message' level
                     if "name" in user_message_json:
                         packed_user_message["name"] = user_message_json["name"]
                         user_message_json.pop("name", None)
-                        packed_user_message["content"] = json.dumps(user_message_json)
+                        packed_user_message["content"] = json.dumps(user_message_json, ensure_ascii=JSON_ENSURE_ASCII)
                 except Exception as e:
                     print(f"{CLI_WARNING_PREFIX}handling of 'name' field failed with: {e}")
+
+                # Create the associated Message object (in the database)
+                packed_user_message_obj = Message.dict_to_message(
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
+                    model=self.model,
+                    openai_message_dict=packed_user_message,
+                )
+
                 input_message_sequence = self.messages + [packed_user_message]
+            # Alternatively, the requestor can send an empty user message
             else:
                 input_message_sequence = self.messages
+                packed_user_message = None
 
             if len(input_message_sequence) > 1 and input_message_sequence[-1]["role"] != "user":
                 printd(f"{CLI_WARNING_PREFIX}Attempting to run ChatCompletion without user as the last message in the queue")
@@ -481,37 +628,45 @@ class Agent(object):
 
             # Add the extra metadata to the assistant response
             # (e.g. enough metadata to enable recreating the API call)
-            assert "api_response" not in all_response_messages[0]
-            all_response_messages[0]["api_response"] = response_message_copy
-            assert "api_args" not in all_response_messages[0]
-            all_response_messages[0]["api_args"] = {
-                "model": self.model,
-                "messages": input_message_sequence,
-                "functions": self.functions,
-            }
+            # assert "api_response" not in all_response_messages[0]
+            # all_response_messages[0]["api_response"] = response_message_copy
+            # assert "api_args" not in all_response_messages[0]
+            # all_response_messages[0]["api_args"] = {
+            #     "model": self.model,
+            #     "messages": input_message_sequence,
+            #     "functions": self.functions,
+            # }
 
             # Step 4: extend the message history
             if user_message is not None:
-                all_new_messages = [packed_user_message] + all_response_messages
+                if isinstance(user_message, Message):
+                    all_new_messages = [user_message] + all_response_messages
+                else:
+                    all_new_messages = [
+                        Message.dict_to_message(
+                            agent_id=self.agent_state.id,
+                            user_id=self.agent_state.user_id,
+                            model=self.model,
+                            openai_message_dict=packed_user_message,
+                        )
+                    ] + all_response_messages
             else:
                 all_new_messages = all_response_messages
 
             # Check the memory pressure and potentially issue a memory pressure warning
-            current_total_tokens = response["usage"]["total_tokens"]
+            current_total_tokens = response.usage.total_tokens
             active_memory_warning = False
             # We can't do summarize logic properly if context_window is undefined
-            if self.config.llm_config.context_window is None:
+            if self.agent_state.llm_config.context_window is None:
                 # Fallback if for some reason context_window is missing, just set to the default
                 print(f"{CLI_WARNING_PREFIX}could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
-                print(f"{self.config}")
-                self.config.llm_config.context_window = (
-                    str(LLM_MAX_TOKENS[self.model])
-                    if (self.model is not None and self.model in LLM_MAX_TOKENS)
-                    else str(LLM_MAX_TOKENS["DEFAULT"])
+                print(f"{self.agent_state}")
+                self.agent_state.llm_config.context_window = (
+                    LLM_MAX_TOKENS[self.model] if (self.model is not None and self.model in LLM_MAX_TOKENS) else LLM_MAX_TOKENS["DEFAULT"]
                 )
-            if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.llm_config.context_window):
+            if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * int(self.agent_state.llm_config.context_window):
                 printd(
-                    f"{CLI_WARNING_PREFIX}last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.llm_config.context_window)}"
+                    f"{CLI_WARNING_PREFIX}last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * int(self.agent_state.llm_config.context_window)}"
                 )
                 # Only deliver the alert if we haven't already (this period)
                 if not self.agent_alerted_about_memory_pressure:
@@ -519,11 +674,12 @@ class Agent(object):
                     self.agent_alerted_about_memory_pressure = True  # it's up to the outer loop to handle this
             else:
                 printd(
-                    f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * int(self.config.llm_config.context_window)}"
+                    f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * int(self.agent_state.llm_config.context_window)}"
                 )
 
             self._append_to_messages(all_new_messages)
-            return all_new_messages, heartbeat_request, function_failed, active_memory_warning
+            all_new_messages_dicts = [msg.to_openai_dict() for msg in all_new_messages]
+            return all_new_messages_dicts, heartbeat_request, function_failed, active_memory_warning, response.usage.completion_tokens
 
         except Exception as e:
             printd(f"step() failed\nuser_message = {user_message}\nerror = {e}")
@@ -539,7 +695,7 @@ class Agent(object):
                 printd(f"step() failed with an unrecognized exception: '{str(e)}'")
                 raise e
 
-    def summarize_messages_inplace(self, cutoff=None, preserve_last_N_messages=True):
+    def summarize_messages_inplace(self, cutoff=None, preserve_last_N_messages=True, disallow_tool_as_first=True):
         assert self.messages[0]["role"] == "system", f"self.messages[0] should be system (instead got {self.messages[0]})"
 
         # Start at index 1 (past the system message),
@@ -550,9 +706,20 @@ class Agent(object):
         desired_token_count_to_summarize = int(message_buffer_token_count * MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC)
         candidate_messages_to_summarize = self.messages[1:]
         token_counts = token_counts[1:]
+
         if preserve_last_N_messages:
             candidate_messages_to_summarize = candidate_messages_to_summarize[:-MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST]
             token_counts = token_counts[:-MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST]
+
+        # if disallow_tool_as_first:
+        #     # We have to make sure that a "tool" call is not sitting at the front (after system message),
+        #     # otherwise we'll get an error from OpenAI (if using the OpenAI API)
+        #     while len(candidate_messages_to_summarize) > 0:
+        #         if candidate_messages_to_summarize[0]["role"] in ["tool", "function"]:
+        #             candidate_messages_to_summarize.pop(0)
+        #         else:
+        #             break
+
         printd(f"MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC={MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC}")
         printd(f"MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST={MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST}")
         printd(f"token_counts={token_counts}")
@@ -588,8 +755,14 @@ class Agent(object):
         except IndexError:
             pass
 
+        # Make sure the cutoff isn't on a 'tool' or 'function'
+        if disallow_tool_as_first:
+            while self.messages[cutoff]["role"] in ["tool", "function"] and cutoff < len(self.messages):
+                printd(f"Selected cutoff {cutoff} was a 'tool', shifting one...")
+                cutoff += 1
+
         message_sequence_to_summarize = self.messages[1:cutoff]  # do NOT get rid of the system message
-        if len(message_sequence_to_summarize) == 1:
+        if len(message_sequence_to_summarize) <= 1:
             # This prevents a potential infinite loop of summarizing the same message over and over
             raise LLMError(
                 f"Summarize error: tried to run summarize, but couldn't find enough messages to compress [len={len(message_sequence_to_summarize)} <= 1]"
@@ -598,14 +771,12 @@ class Agent(object):
             printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
 
         # We can't do summarize logic properly if context_window is undefined
-        if self.config.llm_config.context_window is None:
+        if self.agent_state.llm_config.context_window is None:
             # Fallback if for some reason context_window is missing, just set to the default
             print(f"{CLI_WARNING_PREFIX}could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
-            print(f"{self.config}")
-            self.config.llm_config.context_window = (
-                str(LLM_MAX_TOKENS[self.model])
-                if (self.model is not None and self.model in LLM_MAX_TOKENS)
-                else str(LLM_MAX_TOKENS["DEFAULT"])
+            print(f"{self.agent_state}")
+            self.agent_state.llm_config.context_window = (
+                LLM_MAX_TOKENS[self.model] if (self.model is not None and self.model in LLM_MAX_TOKENS) else LLM_MAX_TOKENS["DEFAULT"]
             )
         summary = summarize_messages(agent_state=self.agent_state, message_sequence_to_summarize=message_sequence_to_summarize)
         printd(f"Got summary: {summary}")
@@ -621,7 +792,16 @@ class Agent(object):
         prior_len = len(self.messages)
         self._trim_messages(cutoff)
         packed_summary_message = {"role": "user", "content": summary_message}
-        self._prepend_to_messages([packed_summary_message])
+        self._prepend_to_messages(
+            [
+                Message.dict_to_message(
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
+                    model=self.model,
+                    openai_message_dict=packed_summary_message,
+                )
+            ]
+        )
 
         # reset alert
         self.agent_alerted_about_memory_pressure = False
@@ -654,32 +834,36 @@ class Agent(object):
         printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
 
         # Swap the system message out
-        self._swap_system_message(new_system_message)
-
-    def to_agent_state(self):
-        # The state may have change since the last time we wrote it
-        updated_state = {
-            "persona": self.memory.persona,
-            "human": self.memory.human,
-            "system": self.system,
-            "functions": self.functions,
-            "messages": self.messages,
-        }
-
-        agent_state = AgentState(
-            name=self.config.name,
-            user_id=self.config.user_id,
-            persona=self.config.persona,
-            human=self.config.human,
-            llm_config=self.config.llm_config,
-            embedding_config=self.config.embedding_config,
-            preset=self.config.preset,
-            id=self.config.id,
-            created_at=self.config.created_at,
-            state=updated_state,
+        self._swap_system_message(
+            Message.dict_to_message(
+                agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=new_system_message
+            )
         )
 
-        return agent_state
+    # def to_agent_state(self) -> AgentState:
+    #    # The state may have change since the last time we wrote it
+    #    updated_state = {
+    #        "persona": self.memory.persona,
+    #        "human": self.memory.human,
+    #        "system": self.system,
+    #        "functions": self.functions,
+    #        "messages": [str(msg.id) for msg in self._messages],
+    #    }
+
+    #    agent_state = AgentState(
+    #        name=self.agent_state.name,
+    #        user_id=self.agent_state.user_id,
+    #        persona=self.agent_state.persona,
+    #        human=self.agent_state.human,
+    #        llm_config=self.agent_state.llm_config,
+    #        embedding_config=self.agent_state.embedding_config,
+    #        preset=self.agent_state.preset,
+    #        id=self.agent_state.id,
+    #        created_at=self.agent_state.created_at,
+    #        state=updated_state,
+    #    )
+
+    #    return agent_state
 
     def add_function(self, function_name: str) -> str:
         if function_name in self.functions_python.keys():
@@ -695,7 +879,8 @@ class Agent(object):
         self.functions_python[function_name] = available_functions[function_name]["python_function"]
 
         msg = f"Added function {function_name}"
-        self.save()
+        # self.save()
+        self.update_state()
         printd(msg)
         return msg
 
@@ -717,21 +902,109 @@ class Agent(object):
         self.functions_python.pop(function_name)
 
         msg = f"Removed function {function_name}"
-        self.save()
+        # self.save()
+        self.update_state()
         printd(msg)
         return msg
 
-    def save(self):
-        """Save agent state locally"""
+    # def save(self):
+    #    """Save agent state locally"""
 
-        agent_state = self.to_agent_state()
-        # TODO(swooders) does this make sense?
-        # without this, even after Agent.__init__, agent.config.state["messages"] will be None
-        self.config = agent_state
+    #    new_agent_state = self.to_agent_state()
 
-        # Check if we need to create the agent
-        if not self.ms.get_agent(agent_id=agent_state.id, user_id=agent_state.user_id, agent_name=agent_state.name):
-            self.ms.create_agent(agent=agent_state)
-        else:
-            # Otherwise, we should update the agent
-            self.ms.update_agent(agent=agent_state)
+    #    # without this, even after Agent.__init__, agent.config.state["messages"] will be None
+    #    self.agent_state = new_agent_state
+
+    #    # Check if we need to create the agent
+    #    if not self.ms.get_agent(agent_id=new_agent_state.id, user_id=new_agent_state.user_id, agent_name=new_agent_state.name):
+    #        # print(f"Agent.save {new_agent_state.id} :: agent does not exist, creating...")
+    #        self.ms.create_agent(agent=new_agent_state)
+    #    # Otherwise, we should update the agent
+    #    else:
+    #        # print(f"Agent.save {new_agent_state.id} :: agent already exists, updating...")
+    #        print(f"Agent.save {new_agent_state.id} :: preupdate:\n\tmessages={new_agent_state.state['messages']}")
+    #        self.ms.update_agent(agent=new_agent_state)
+
+    def update_state(self) -> AgentState:
+        updated_state = {
+            "persona": self.memory.persona,
+            "human": self.memory.human,
+            "system": self.system,
+            "functions": self.functions,
+            "messages": [str(msg.id) for msg in self._messages],
+        }
+
+        self.agent_state = AgentState(
+            name=self.agent_state.name,
+            user_id=self.agent_state.user_id,
+            persona=self.agent_state.persona,
+            human=self.agent_state.human,
+            llm_config=self.agent_state.llm_config,
+            embedding_config=self.agent_state.embedding_config,
+            preset=self.agent_state.preset,
+            id=self.agent_state.id,
+            created_at=self.agent_state.created_at,
+            state=updated_state,
+        )
+        return self.agent_state
+
+    def migrate_embedding(self, embedding_config: EmbeddingConfig):
+        """Migrate the agent to a new embedding"""
+        # TODO: archival memory
+
+        # TODO: recall memory
+        raise NotImplementedError()
+
+    def attach_source(self, source_name, source_connector: StorageConnector, ms: MetadataStore):
+        """Attach data with name `source_name` to the agent from source_connector."""
+        # TODO: eventually, adding a data source should just give access to the retriever the source table, rather than modifying archival memory
+
+        filters = {"user_id": self.agent_state.user_id, "data_source": source_name}
+        size = source_connector.size(filters)
+        # typer.secho(f"Ingesting {size} passages into {agent.name}", fg=typer.colors.GREEN)
+        page_size = 100
+        generator = source_connector.get_all_paginated(filters=filters, page_size=page_size)  # yields List[Passage]
+        all_passages = []
+        for i in tqdm(range(0, size, page_size)):
+            passages = next(generator)
+
+            # need to associated passage with agent (for filtering)
+            for passage in passages:
+                assert isinstance(passage, Passage), f"Generate yielded bad non-Passage type: {type(passage)}"
+                passage.agent_id = self.agent_state.id
+
+                # regenerate passage ID (avoid duplicates)
+                passage.id = create_uuid_from_string(f"{source_name}_{str(passage.agent_id)}_{passage.text}")
+
+            # insert into agent archival memory
+            self.persistence_manager.archival_memory.storage.insert_many(passages)
+            all_passages += passages
+
+        assert size == len(all_passages), f"Expected {size} passages, but only got {len(all_passages)}"
+
+        # save destination storage
+        self.persistence_manager.archival_memory.storage.save()
+
+        # attach to agent
+        source = ms.get_source(source_name=source_name, user_id=self.agent_state.user_id)
+        assert source is not None, f"source does not exist for source_name={source_name}, user_id={self.agent_state.user_id}"
+        source_id = source.id
+        ms.attach_source(agent_id=self.agent_state.id, source_id=source_id, user_id=self.agent_state.user_id)
+
+        total_agent_passages = self.persistence_manager.archival_memory.storage.size()
+
+        printd(
+            f"Attached data source {source_name} to agent {self.agent_state.name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
+        )
+
+
+def save_agent(agent: Agent, ms: MetadataStore):
+    """Save agent to metadata store"""
+
+    agent.update_state()
+    agent_state = agent.agent_state
+
+    if ms.get_agent(agent_id=agent_state.id):
+        ms.update_agent(agent_state)
+    else:
+        ms.create_agent(agent_state)

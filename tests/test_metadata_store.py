@@ -1,4 +1,5 @@
 import os
+from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
 import pytest
 
 from memgpt.metadata import MetadataStore
@@ -24,16 +25,16 @@ def test_storage(storage_connector):
     ms = MetadataStore(config)
 
     # generate data
-    user_1 = User(default_llm_config=LLMConfig(model="gpt-4"))
+    user_1 = User()
     user_2 = User()
     agent_1 = AgentState(
         user_id=user_1.id,
         name="agent_1",
-        preset=user_1.default_preset,
-        persona=user_1.default_persona,
-        human=user_1.default_human,
-        llm_config=user_1.default_llm_config,
-        embedding_config=user_1.default_embedding_config,
+        preset=DEFAULT_PRESET,
+        persona=DEFAULT_PERSONA,
+        human=DEFAULT_HUMAN,
+        llm_config=config.default_llm_config,
+        embedding_config=config.default_embedding_config,
     )
     source_1 = Source(user_id=user_1.id, name="source_1")
 
@@ -52,7 +53,7 @@ def test_storage(storage_connector):
     # test: updating
 
     # test: update JSON-stored LLMConfig class
-    print(agent_1.llm_config, user_1.default_llm_config)
+    print(agent_1.llm_config, config.default_llm_config)
     llm_config = ms.get_agent(agent_1.id).llm_config
     assert isinstance(llm_config, LLMConfig), f"LLMConfig is {type(llm_config)}"
     assert llm_config.model == "gpt-4", f"LLMConfig model is {llm_config.model}"
@@ -75,7 +76,18 @@ def test_storage(storage_connector):
     ms.get_agent(agent_1.id)
     ms.get_source(source_1.id)
 
-    # text deletion
+    # test api keys
+    api_key = ms.create_api_key(user_id=user_1.id)
+    print("api_key=", api_key.token, api_key.user_id)
+    api_key_result = ms.get_api_key(api_key=api_key.token)
+    assert api_key.token == api_key_result.token, (api_key, api_key_result)
+    user_result = ms.get_user_from_api_key(api_key=api_key.token)
+    assert user_1.id == user_result.id, (user_1, user_result)
+    all_keys_for_user = ms.get_all_api_keys_for_user(user_id=user_1.id)
+    assert len(all_keys_for_user) > 0, all_keys_for_user
+    ms.delete_api_key(api_key=api_key.token)
+
+    # test deletion
     ms.delete_user(user_1.id)
     ms.delete_user(user_2.id)
     ms.delete_agent(agent_1.id)

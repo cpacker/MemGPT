@@ -2,6 +2,7 @@ import json
 
 from .wrapper_base import LLMChatCompletionWrapper
 from ..json_parser import clean_json
+from ...constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
 from ...errors import LLMJSONParsingError
 
 
@@ -94,12 +95,17 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         return prompt
 
     # NOTE: BOS/EOS chatml tokens are NOT inserted here
-    def _compile_system_message(self, system_message, functions) -> str:
+    def _compile_system_message(self, system_message, functions, function_documentation=None) -> str:
         """system prompt + memory + functions -> string"""
         prompt = ""
         prompt += system_message
         prompt += "\n"
-        prompt += self._compile_function_block(functions)
+        if function_documentation is not None:
+            prompt += f"Please select the most suitable function and parameters from the list of available functions below, based on the ongoing conversation. Provide your response in JSON format."
+            prompt += f"\nAvailable functions:\n"
+            prompt += function_documentation
+        else:
+            prompt += self._compile_function_block(functions)
         return prompt
 
     def _compile_function_call(self, function_call, inner_thoughts=None):
@@ -125,10 +131,10 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
             "function": function_call["name"],
             "params": {
                 "inner_thoughts": inner_thoughts,
-                **json.loads(function_call["arguments"]),
+                **json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
             },
         }
-        return json.dumps(airo_func_call, indent=self.json_indent)
+        return json.dumps(airo_func_call, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
 
     # NOTE: BOS/EOS chatml tokens are NOT inserted here
     def _compile_assistant_message(self, message) -> str:
@@ -139,6 +145,9 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         inner_thoughts = message["content"]
         if "function_call" in message and message["function_call"]:
             prompt += f"\n{self._compile_function_call(message['function_call'], inner_thoughts=inner_thoughts)}"
+        elif "tool_calls" in message and message["tool_calls"]:
+            for tool_call in message["tool_calls"]:
+                prompt += f"\n{self._compile_function_call(tool_call['function'], inner_thoughts=inner_thoughts)}"
         else:
             # TODO should we format this into JSON somehow?
             prompt += inner_thoughts
@@ -152,15 +161,15 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         if self.simplify_json_content:
             # Make user messages not JSON but plaintext instead
             try:
-                user_msg_json = json.loads(message["content"])
+                user_msg_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
                 user_msg_str = user_msg_json["message"]
             except:
                 user_msg_str = message["content"]
         else:
             # Otherwise just dump the full json
             try:
-                user_msg_json = json.loads(message["content"])
-                user_msg_str = json.dumps(user_msg_json, indent=self.json_indent)
+                user_msg_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
+                user_msg_str = json.dumps(user_msg_json, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
             except:
                 user_msg_str = message["content"]
 
@@ -174,26 +183,28 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         prompt = ""
         try:
             # indent the function replies
-            function_return_dict = json.loads(message["content"])
-            function_return_str = json.dumps(function_return_dict, indent=self.json_indent)
+            function_return_dict = json.loads(message["content"], strict=JSON_LOADS_STRICT)
+            function_return_str = json.dumps(function_return_dict, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
         except:
             function_return_str = message["content"]
 
         prompt += function_return_str
         return prompt
 
-    def chat_completion_to_prompt(self, messages, functions, first_message=False):
+    def chat_completion_to_prompt(self, messages, functions, first_message=False, function_documentation=None):
         """chatml-style prompt formatting, with implied support for multi-role"""
         prompt = ""
 
         # System insturctions go first
         assert messages[0]["role"] == "system"
-        system_block = self._compile_system_message(system_message=messages[0]["content"], functions=functions)
+        system_block = self._compile_system_message(
+            system_message=messages[0]["content"], functions=functions, function_documentation=function_documentation
+        )
         prompt += f"<|im_start|>system\n{system_block.strip()}<|im_end|>"
 
         # Last are the user/assistant messages
         for message in messages[1:]:
-            assert message["role"] in ["user", "assistant", "function"], message
+            assert message["role"] in ["user", "assistant", "function", "tool"], message
 
             if message["role"] == "user":
                 # Support for AutoGen naming of agents
@@ -202,7 +213,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
 
                 if self.use_system_role_in_user:
                     try:
-                        msg_json = json.loads(message["content"])
+                        msg_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
                         if msg_json["type"] != "user_message":
                             role_str = "system"
                     except:
@@ -216,7 +227,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
 
                 prompt += f"\n<|im_start|>{role_str}\n{msg_str.strip()}<|im_end|>"
 
-            elif message["role"] == "function":
+            elif message["role"] in ["tool", "function"]:
                 if self.allow_function_role:
                     role_str = message["role"]
                     msg_str = self._compile_function_response(message)
@@ -312,7 +323,7 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
             "content": inner_thoughts,
             "function_call": {
                 "name": function_name,
-                "arguments": json.dumps(function_parameters),
+                "arguments": json.dumps(function_parameters, ensure_ascii=JSON_ENSURE_ASCII),
             },
         }
         return message
@@ -377,10 +388,10 @@ class ChatMLOuterInnerMonologueWrapper(ChatMLInnerMonologueWrapper):
             "function": function_call["name"],
             "params": {
                 # "inner_thoughts": inner_thoughts,
-                **json.loads(function_call["arguments"]),
+                **json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
             },
         }
-        return json.dumps(airo_func_call, indent=self.json_indent)
+        return json.dumps(airo_func_call, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
 
     def output_to_chat_completion_response(self, raw_llm_output, first_message=False):
         """NOTE: Modified to expect "inner_thoughts" outside the function
@@ -426,7 +437,7 @@ class ChatMLOuterInnerMonologueWrapper(ChatMLInnerMonologueWrapper):
         💭 : I've been observing our previous conversations. I remember that your name is Chad.
         🤖 I recall our previous interactions, Chad. How can I assist you today?
         > Enter your message: is that all you know about me?
-        💭 : I see you're curious about our connection. Let me do a quick search of my memory. 
+        💭 : I see you're curious about our connection. Let me do a quick search of my memory.
         """
 
         if function_name is not None and self.clean_func_args:
@@ -441,7 +452,7 @@ class ChatMLOuterInnerMonologueWrapper(ChatMLInnerMonologueWrapper):
             "content": inner_thoughts,
             # "function_call": {
             #     "name": function_name,
-            #     "arguments": json.dumps(function_parameters),
+            #     "arguments": json.dumps(function_parameters, ensure_ascii=JSON_ENSURE_ASCII),
             # },
         }
 
@@ -449,7 +460,7 @@ class ChatMLOuterInnerMonologueWrapper(ChatMLInnerMonologueWrapper):
         if function_name is not None:
             message["function_call"] = {
                 "name": function_name,
-                "arguments": json.dumps(function_parameters),
+                "arguments": json.dumps(function_parameters, ensure_ascii=JSON_ENSURE_ASCII),
             }
 
         return message

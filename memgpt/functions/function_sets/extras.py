@@ -4,8 +4,14 @@ import json
 import requests
 
 
-from memgpt.constants import MESSAGE_CHATGPT_FUNCTION_MODEL, MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE, MAX_PAUSE_HEARTBEATS
-from memgpt.openai_tools import create
+from memgpt.constants import (
+    JSON_LOADS_STRICT,
+    MESSAGE_CHATGPT_FUNCTION_MODEL,
+    MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
+    MAX_PAUSE_HEARTBEATS,
+    JSON_ENSURE_ASCII,
+)
+from memgpt.llm_api_tools import create
 
 
 def message_chatgpt(self, message: str):
@@ -55,7 +61,7 @@ def read_from_text_file(self, filename: str, line_start: int, num_lines: Optiona
 
     lines = []
     chars_read = 0
-    with open(filename, "r") as file:
+    with open(filename, "r", encoding="utf-8") as file:
         for current_line_number, line in enumerate(file, start=1):
             if line_start <= current_line_number < line_start + num_lines:
                 chars_to_add = len(line)
@@ -89,7 +95,7 @@ def append_to_text_file(self, filename: str, content: str):
     if not os.path.exists(filename):
         raise FileNotFoundError(f"The file '{filename}' does not exist.")
 
-    with open(filename, "a") as file:
+    with open(filename, "a", encoding="utf-8") as file:
         file.write(content + "\n")
 
 
@@ -115,10 +121,10 @@ def http_request(self, method: str, url: str, payload_json: Optional[str] = None
         else:
             # Validate and convert the payload for other types of requests
             if payload_json:
-                payload = json.loads(payload_json)
+                payload = json.loads(payload_json, strict=JSON_LOADS_STRICT)
             else:
                 payload = {}
-            print(f"[HTTP] launching {method} request to {url}, payload=\n{json.dumps(payload, indent=2)}")
+            print(f"[HTTP] launching {method} request to {url}, payload=\n{json.dumps(payload, indent=2, ensure_ascii=JSON_ENSURE_ASCII)}")
             response = requests.request(method, url, json=payload, headers=headers)
 
         return {"status_code": response.status_code, "headers": dict(response.headers), "body": response.text}
