@@ -84,7 +84,6 @@ class DirectoryConnector(DataConnector):
         self.input_directory = input_directory
         self.recursive = recursive
         self.extensions = extensions
-        print(self.extensions)
 
         if self.recursive == True:
             assert self.input_directory is not None, "Must provide input directory if recursive is True."
