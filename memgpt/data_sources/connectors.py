@@ -86,7 +86,7 @@ class DirectoryConnector(DataConnector):
         self.extensions = extensions
 
         if self.recursive == True:
-            assert self.input_dir is not None, "Must provide input directory if recursive is True."
+            assert self.input_directory is not None, "Must provide input directory if recursive is True."
 
     def generate_documents(self) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Document]:
         from llama_index.core import SimpleDirectoryReader
@@ -101,7 +101,7 @@ class DirectoryConnector(DataConnector):
             assert self.input_files is not None, "Must provide input files if input_dir is None"
             reader = SimpleDirectoryReader(input_files=[str(f) for f in self.input_files])
 
-        llama_index_docs = reader.load_data()
+        llama_index_docs = reader.load_data(show_progress=True)
         docs = []
         for llama_index_doc in llama_index_docs:
             # TODO: add additional metadata?
