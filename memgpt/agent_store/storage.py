@@ -2,6 +2,7 @@
 
 We originally tried to use Llama Index VectorIndex, but their limited API was extremely problematic.
 """
+
 from typing import Any, Optional, List, Iterator, Union, Tuple, Type
 import re
 import pickle
