@@ -288,7 +288,6 @@ class DummyRecallMemory(RecallMemory):
 
 
 class BaseRecallMemory(RecallMemory):
-
     """Recall memory based on base functions implemented by storage connectors"""
 
     def __init__(self, agent_state, restrict_search_to_summaries=False):

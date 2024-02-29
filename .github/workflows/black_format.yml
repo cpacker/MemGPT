@@ -21,7 +21,7 @@ jobs:
           install-args: "-E dev"  # TODO: change this to --group dev when PR #842 lands
 
       - name: Run Black
-        run: poetry run black --check . -l 140
+        run: poetry run black --check .
 
       # (Optional) If you want to automatically fix formatting issues
       # Uncomment the following steps:

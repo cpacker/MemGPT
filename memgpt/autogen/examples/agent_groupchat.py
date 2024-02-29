@@ -9,7 +9,6 @@ Begin by doing:
   pip install -e . (inside the MemGPT home directory)
 """
 
-
 import os
 import autogen
 from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config, load_autogen_memgpt_agent
