@@ -62,8 +62,6 @@ class MemGPTConversableAgent(ConversableAgent):
             load_directory(name=name, **kwargs)
         elif type == "webpage":
             load_webpage(name=name, **kwargs)
-        elif type == "index":
-            load_index(name=name, **kwargs)
         elif type == "database":
             load_database(name=name, **kwargs)
         elif type == "vector_database":
