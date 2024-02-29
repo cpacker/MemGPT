@@ -151,7 +151,7 @@ curl --request POST \
      --header 'authorization: Bearer ilovellms' \
      --header 'content-type: application/json' \
      --data '{}'
-'```
+```
 
 The response back provides the `id` of the new user, as well as an API key for that user which we'll use to associate API calls with the user profile:
 ```sh
