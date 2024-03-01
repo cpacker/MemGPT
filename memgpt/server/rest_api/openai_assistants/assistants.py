@@ -356,7 +356,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
                 content=[Text(text=message["text"])],
                 role=message["role"],
                 thread_id=str(message["agent_id"]),
-                assistant_id=DEFAULT_PRESET  # TODO: update this
+                assistant_id=DEFAULT_PRESET,  # TODO: update this
                 # file_ids=message.file_ids,
                 # metadata=message.metadata,
             )
