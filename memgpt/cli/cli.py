@@ -605,7 +605,7 @@ def run(
         ms.update_agent(agent_state)
 
         # create agent
-        memgpt_agent = Agent(agent_state, interface=interface())
+        memgpt_agent = Agent(agent_state=agent_state, interface=interface())
 
     else:  # create new agent
         # create new agent config: override defaults with args if provided
