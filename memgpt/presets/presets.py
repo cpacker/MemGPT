@@ -1,18 +1,39 @@
 from typing import List
+import os
 from memgpt.data_types import AgentState, Preset
 from memgpt.interface import AgentInterface
 from memgpt.presets.utils import load_all_presets, is_valid_yaml_format
-from memgpt.utils import get_human_text, get_persona_text, printd
+from memgpt.utils import get_human_text, get_persona_text, printd, list_human_files, list_persona_files
 from memgpt.prompts import gpt_system
 from memgpt.functions.functions import load_all_function_sets
 from memgpt.metadata import MetadataStore
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
+from memgpt.models.pydantic_models import HumanModel, PersonaModel
 
 import uuid
 
 
 available_presets = load_all_presets()
 preset_options = list(available_presets.keys())
+
+
+def add_default_humans_and_personas(user_id: uuid.UUID, ms: MetadataStore):
+    for persona_file in list_persona_files():
+        text = open(persona_file, "r").read()
+        name = os.path.basename(persona_file).replace(".txt", "")
+        if ms.get_persona(user_id=user_id, name=name) is not None:
+            printd(f"Persona '{name}' already exists for user '{user_id}'")
+            continue
+        persona = PersonaModel(name=name, text=text, user_id=user_id)
+        ms.add_persona(persona)
+    for human_file in list_human_files():
+        text = open(human_file, "r").read()
+        name = os.path.basename(human_file).replace(".txt", "")
+        if ms.get_human(user_id=user_id, name=name) is not None:
+            printd(f"Human '{name}' already exists for user '{user_id}'")
+            continue
+        human = HumanModel(name=name, text=text, user_id=user_id)
+        ms.add_human(human)
 
 
 def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
@@ -23,7 +44,6 @@ def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
         preset_function_set_names = preset_config["functions"]
         functions_schema = generate_functions_json(preset_function_set_names)
 
-        print("PRESET", preset_name, user_id)
         if ms.get_preset(user_id=user_id, preset_name=preset_name) is not None:
             printd(f"Preset '{preset_name}' already exists for user '{user_id}'")
             continue

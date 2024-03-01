@@ -3,6 +3,7 @@ from enum import Enum
 from pydantic import BaseModel, Field, Json
 import uuid
 from datetime import datetime
+from sqlmodel import Field, SQLModel
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS, MAX_EMBEDDING_DIM
 from memgpt.utils import get_human_text, get_persona_text, printd
@@ -59,14 +60,14 @@ class AgentStateModel(BaseModel):
     state: Optional[Dict] = Field(None, description="The state of the agent.")
 
 
-class HumanModel(BaseModel):
+class HumanModel(SQLModel, table=True):
     text: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human text.")
     name: str = Field(..., description="The name of the human.")
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the human.")
     user_id: Optional[uuid.UUID] = Field(..., description="The unique identifier of the user associated with the human.")
 
 
-class PersonalModel(BaseModel):
+class PersonalModel(SQLModel, table=True):
     text: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona text.")
     name: str = Field(..., description="The name of the persona.")
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the persona.")

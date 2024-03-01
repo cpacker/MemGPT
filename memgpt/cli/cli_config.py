@@ -826,6 +826,8 @@ def add(
 ):
     """Add a person/human"""
 
+    # TODO: update to use DB
+
     if option == "persona":
         directory = os.path.join(MEMGPT_DIR, "personas")
     elif option == "human":

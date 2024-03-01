@@ -5,6 +5,7 @@ import pytest
 from memgpt.metadata import MetadataStore
 from memgpt.config import MemGPTConfig
 from memgpt.data_types import User, AgentState, Source, LLMConfig, EmbeddingConfig
+from memgpt.presets.presets import add_default_presets, add_default_humans_and_personas
 
 
 # @pytest.mark.parametrize("storage_connector", ["postgres", "sqlite"])
@@ -23,6 +24,12 @@ def test_storage(storage_connector):
         config.recall_storage_type = "local"
 
     ms = MetadataStore(config)
+
+    # test adding defaults
+    # TODO: move below
+    add_default_humans_and_personas(user_id=None, ms=ms)
+
+    add_default_presets(user_id=None, ms=ms)
 
     # generate data
     user_1 = User()
