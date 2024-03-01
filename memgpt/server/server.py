@@ -611,8 +611,8 @@ class SyncServer(LockingServer):
             preset_obj.human = human if human else self.config.human
             preset_obj.persona = persona if persona else self.config.persona
 
-            llm_config = (llm_config if llm_config else self.server_llm_config,)
-            embedding_config = (embedding_config if embedding_config else self.server_embedding_config,)
+            llm_config = llm_config if llm_config else self.server_llm_config
+            embedding_config = embedding_config if embedding_config else self.server_embedding_config
 
             agent = Agent(
                 interface=interface,
