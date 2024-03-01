@@ -412,7 +412,7 @@ def server(
 
 def run(
     persona: Annotated[Optional[str], typer.Option(help="Specify persona")] = None,
-    agent: Annotated[Optional[str], typer.Option(help="Specify agent save file")] = None,
+    agent: Annotated[Optional[str], typer.Option(help="Specify agent name")] = None,
     human: Annotated[Optional[str], typer.Option(help="Specify human")] = None,
     preset: Annotated[Optional[str], typer.Option(help="Specify preset")] = None,
     # model flags
@@ -550,10 +550,7 @@ def run(
 
     # create agent config
     agent_state = ms.get_agent(agent_name=agent, user_id=user.id) if agent else None
-    if agent and not agent_state:
-        typer.secho(f"\nCould not find agent '{agent}', exiting...", fg=typer.colors.RED)
-        sys.exit(1)
-    elif agent and agent_state:  # use existing agent
+    if agent and agent_state:  # use existing agent
         typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
         # agent_config = AgentConfig.load(agent)
         # agent_state = ms.get_agent(agent_name=agent, user_id=user_id)
@@ -614,12 +611,7 @@ def run(
         # create new agent config: override defaults with args if provided
         typer.secho("\n🧬 Creating new agent...", fg=typer.colors.WHITE)
 
-        if agent is None:
-            # determine agent name
-            # agent_count = len(ms.list_agents(user_id=user.id))
-            # agent = f"agent_{agent_count}"
-            agent = utils.create_random_username()
-
+        agent_name = agent if agent else utils.create_random_username()
         llm_config = config.default_llm_config
         embedding_config = config.default_embedding_config  # TODO allow overriding embedding params via CLI run
 
@@ -675,6 +667,7 @@ def run(
 
             memgpt_agent = Agent(
                 interface=interface(),
+                name=agent_name,
                 created_by=user.id,
                 preset=preset_obj,
                 llm_config=llm_config,
