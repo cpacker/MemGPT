@@ -68,6 +68,7 @@ def create_agent_from_preset(
     agent_state: AgentState, preset: Preset, interface: AgentInterface, persona_is_file: bool = True, human_is_file: bool = True
 ):
     """Initialize a new agent from a preset (combination of system + function)"""
+    raise DeprecationWarning
 
     # Input validation
     if agent_state.persona is None:
