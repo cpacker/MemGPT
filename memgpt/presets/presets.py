@@ -38,6 +38,10 @@ def add_default_humans_and_personas(user_id: uuid.UUID, ms: MetadataStore):
 
 def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
     """Add the default presets to the metadata store"""
+    # make sure humans/personas added
+    add_default_humans_and_personas(user_id=user_id, ms=ms)
+
+    # add default presets
     for preset_name in preset_options:
         preset_config = available_presets[preset_name]
         preset_system_prompt = preset_config["system_prompt"]
