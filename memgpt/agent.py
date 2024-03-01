@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from memgpt.metadata import MetadataStore
 from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.data_types import AgentState, Message, EmbeddingConfig, Passage
+from memgpt.data_types import AgentState, Message, EmbeddingConfig, Passage, Preset
 from memgpt.models import chat_completion_response
 from memgpt.interface import AgentInterface
 from memgpt.persistence_manager import LocalStateManager
@@ -167,14 +167,52 @@ def initialize_message_sequence(
 class Agent(object):
     def __init__(
         self,
-        agent_state: AgentState,
         interface: AgentInterface,
+        # agents can be created from providing agent_state
+        agent_state: Optional[AgentState] = None,
+        # or from providing a preset
+        # (when the agent is created from a preset, we need the created_by user_id)
+        preset: Optional[Preset] = None,
+        created_by: Optional[uuid.UUID] = None,
         # extras
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
     ):
+
+        # An agent can be created from a Preset object
+        if preset is not None:
+            assert agent_state is None, "Can create an agent from a Preset or AgentState (but both were provided)"
+            assert created_by is not None, "Must provide created_by field when creating an Agent from a Preset"
+
+            # if agent_state is also provided, override any preset values
+            init_agent_state = AgentState(
+                name=preset.name,
+                user_id=created_by,
+                persona=preset.persona,
+                human=preset.human,
+                preset=preset.name,  # TODO link via preset.id instead of name?
+                state={
+                    "persona": preset.persona,
+                    "human": preset.human,
+                    "system": preset.system,
+                    "functions": preset.functions_schema,
+                    "messages": None,
+                },
+            )
+
+        # An agent can also be created directly from AgentState
+        elif agent_state is not None:
+            assert agent_state is not None, "Can create an agent from a Preset or AgentState (but both were provided)"
+            assert agent_state.state is not None and agent_state.state != {}, "AgentState.state cannot be empty"
+
+            # Assume the agent_state passed in is formatted correctly
+            init_agent_state = agent_state
+
+        else:
+            raise ValueError("Both Preset and AgentState were null (must provide one or the other)")
+
         # Hold a copy of the state that was used to init the agent
-        self.agent_state = agent_state
+        self.agent_state = init_agent_state
 
         # gpt-4, gpt-3.5-turbo, ...
         self.model = agent_state.llm_config.model
