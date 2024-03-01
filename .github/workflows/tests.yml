@@ -21,6 +21,15 @@ jobs:
     - name: Build and run container
       run: bash db/run_postgres.sh
 
+    - name: Run Qdrant
+      run: |
+        docker run -d --rm --network=host qdrant/qdrant:v1.7.4
+        until curl --silent --fail http://localhost:6333/readyz; do
+        echo "Waiting for Qdrant server"
+        sleep 5
+        done
+        echo "\nQdrant server started!"
+
     - name: "Setup Python, Poetry and Dependencies"
       uses: packetcoders/action-setup-cache-python-poetry@main
       with:
