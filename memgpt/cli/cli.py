@@ -550,7 +550,10 @@ def run(
 
     # create agent config
     agent_state = ms.get_agent(agent_name=agent, user_id=user.id) if agent else None
-    if agent and agent_state:  # use existing agent
+    if agent and not agent_state:
+        typer.secho(f"\nCould not find agent '{agent}', exiting...", fg=typer.colors.RED)
+        sys.exit(1)
+    elif agent and agent_state:  # use existing agent
         typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
         # agent_config = AgentConfig.load(agent)
         # agent_state = ms.get_agent(agent_name=agent, user_id=user_id)
