@@ -17,6 +17,7 @@ from memgpt.system import get_login_event, package_function_response, package_su
 from memgpt.memory import CoreMemory as InContextMemory, summarize_messages
 from memgpt.llm_api_tools import create, is_context_overflow_error
 from memgpt.utils import (
+    create_random_username,
     get_tool_call_id,
     get_local_time,
     parse_json,
@@ -173,6 +174,7 @@ class Agent(object):
         # or from providing a preset (requires preset + extra fields)
         preset: Optional[Preset] = None,
         created_by: Optional[uuid.UUID] = None,
+        name: Optional[str] = None,
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         # extras
@@ -189,7 +191,7 @@ class Agent(object):
 
             # if agent_state is also provided, override any preset values
             init_agent_state = AgentState(
-                name=preset.name,
+                name=name if name else create_random_username(),
                 user_id=created_by,
                 persona=preset.persona,
                 human=preset.human,
