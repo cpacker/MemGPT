@@ -209,7 +209,7 @@ class Agent(object):
 
         # An agent can also be created directly from AgentState
         elif agent_state is not None:
-            assert agent_state is not None, "Can create an agent from a Preset or AgentState (but both were provided)"
+            assert preset is None, "Can create an agent from a Preset or AgentState (but both were provided)"
             assert agent_state.state is not None and agent_state.state != {}, "AgentState.state cannot be empty"
 
             # Assume the agent_state passed in is formatted correctly
