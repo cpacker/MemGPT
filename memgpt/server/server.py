@@ -616,8 +616,9 @@ class SyncServer(LockingServer):
 
             agent = Agent(
                 interface=interface,
-                created_by=user.id,
                 preset=preset_obj,
+                name=name,
+                created_by=user.id,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
                 # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
