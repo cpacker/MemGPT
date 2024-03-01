@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pymemgpt"
-version = "0.3.3"
+version = "0.3.4"
 packages = [
     {include = "memgpt"}
 ]
@@ -20,7 +20,7 @@ typer = {extras = ["all"], version = "^0.9.0"}
 questionary = "^2.0.1"
 pytz = "^2023.3.post1"
 tqdm = "^4.66.1"
-black = { version = "^23.10.1", optional = true }
+black = {extras = ["jupyter"], version = "^24.2.0"}
 pytest = { version = "^7.4.4", optional = true }
 setuptools = "^68.2.2"
 datasets = { version = "^2.14.6", optional = true}
@@ -64,6 +64,10 @@ postgres = ["pgvector", "pg8000"]
 dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order"]
 server = ["websockets", "fastapi", "uvicorn"]
 autogen = ["pyautogen"]
+
+[tool.black]
+line-length = 140
+target-version = ['py310', 'py311']
 
 [build-system]
 requires = ["poetry-core"]

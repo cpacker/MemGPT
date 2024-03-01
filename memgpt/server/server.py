@@ -598,34 +598,43 @@ class SyncServer(LockingServer):
         if not user:
             raise ValueError(f"cannot find user with associated client id: {user_id}")
 
-        agent_state = AgentState(
-            user_id=user.id,
-            name=name if name else utils.create_random_username(),
-            preset=preset if preset else self.config.preset,
-            # TODO we need to allow passing raw persona/human text via the server request
-            persona=persona if persona else self.config.persona,
-            human=human if human else self.config.human,
-            llm_config=llm_config if llm_config else self.server_llm_config,
-            embedding_config=embedding_config if embedding_config else self.server_embedding_config,
-        )
         # NOTE: you MUST add to the metadata store before creating the agent, otherwise the storage connectors will error on creation
         # TODO: fix this db dependency and remove
         # self.ms.create_agent(agent_state)
 
-        logger.debug(f"Attempting to create agent from agent_state:\n{agent_state}")
         try:
-            preset = self.ms.get_preset(preset_name=agent_state.preset, user_id=user_id)
-            assert preset is not None, f"preset {agent_state.preset} does not exist"
+            preset_obj = self.ms.get_preset(preset_name=preset if preset else self.config.preset, user_id=user_id)
+            assert preset_obj is not None, f"preset {preset if preset else self.config.preset} does not exist"
+            logger.debug(f"Attempting to create agent from preset:\n{preset_obj}")
 
-            agent = presets.create_agent_from_preset(agent_state=agent_state, preset=preset, interface=interface)
+            # Overwrite fields in the preset if they were specified
+            preset_obj.human = human if human else self.config.human
+            preset_obj.persona = persona if persona else self.config.persona
+
+            llm_config = llm_config if llm_config else self.server_llm_config
+            embedding_config = embedding_config if embedding_config else self.server_embedding_config
+
+            agent = Agent(
+                interface=interface,
+                preset=preset_obj,
+                name=name,
+                created_by=user.id,
+                llm_config=llm_config,
+                embedding_config=embedding_config,
+                # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+            )
             save_agent(agent=agent, ms=self.ms)
 
             # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
             # self.ms.update_agent(agent.agent_state)
         except Exception as e:
             logger.exception(e)
-            self.ms.delete_agent(agent_id=agent_state.id)
-            raise
+            try:
+                self.ms.delete_agent(agent_id=agent.agent_state.id)
+            except Exception as delete_e:
+                logger.exception(f"Failed to delete_agent:\n{delete_e}")
+            raise e
 
         save_agent(agent, self.ms)
 

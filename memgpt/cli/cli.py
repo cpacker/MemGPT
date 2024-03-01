@@ -279,10 +279,40 @@ def create_default_user_or_exit(config: MemGPTConfig, ms: MetadataStore):
         return user
 
 
+def generate_self_signed_cert(cert_path="selfsigned.crt", key_path="selfsigned.key"):
+    """Generate a self-signed SSL certificate.
+
+    NOTE: intended to be used for development only.
+    """
+    subprocess.run(
+        [
+            "openssl",
+            "req",
+            "-x509",
+            "-newkey",
+            "rsa:4096",
+            "-keyout",
+            key_path,
+            "-out",
+            cert_path,
+            "-days",
+            "365",
+            "-nodes",
+            "-subj",
+            "/C=US/ST=Denial/L=Springfield/O=Dis/CN=localhost",
+        ],
+        check=True,
+    )
+    return cert_path, key_path
+
+
 def server(
     type: Annotated[ServerChoice, typer.Option(help="Server to run")] = "rest",
     port: Annotated[Optional[int], typer.Option(help="Port to run the server on")] = None,
     host: Annotated[Optional[str], typer.Option(help="Host to run the server on (default to localhost)")] = None,
+    use_ssl: Annotated[bool, typer.Option(help="Run the server using HTTPS?")] = False,
+    ssl_cert: Annotated[Optional[str], typer.Option(help="Path to SSL certificate (if use_ssl is True)")] = None,
+    ssl_key: Annotated[Optional[str], typer.Option(help="Path to SSL key file (if use_ssl is True)")] = None,
     debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = True,
 ):
     """Launch a MemGPT server process"""
@@ -313,8 +343,35 @@ def server(
             sys.exit(1)
 
         try:
-            # Start the subprocess in a new session
-            uvicorn.run(app, host=host or "localhost", port=port or REST_DEFAULT_PORT)
+            if use_ssl:
+                if ssl_cert is None:  # No certificate path provided, generate a self-signed certificate
+                    ssl_certfile, ssl_keyfile = generate_self_signed_cert()
+                    print(f"Running server with self-signed SSL cert: {ssl_certfile}, {ssl_keyfile}")
+                else:
+                    ssl_certfile, ssl_keyfile = ssl_cert, ssl_key  # Assuming cert includes both
+                    print(f"Running server with provided SSL cert: {ssl_certfile}, {ssl_keyfile}")
+
+                # This will start the server on HTTPS
+                assert isinstance(ssl_certfile, str) and os.path.exists(ssl_certfile), ssl_certfile
+                assert isinstance(ssl_keyfile, str) and os.path.exists(ssl_keyfile), ssl_keyfile
+                print(
+                    f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT} --ssl-keyfile {ssl_keyfile} --ssl-certfile {ssl_certfile}"
+                )
+                uvicorn.run(
+                    app,
+                    host=host or "localhost",
+                    port=port or REST_DEFAULT_PORT,
+                    ssl_keyfile=ssl_keyfile,
+                    ssl_certfile=ssl_certfile,
+                )
+            else:
+                # Start the subprocess in a new session
+                print(f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT}")
+                uvicorn.run(
+                    app,
+                    host=host or "localhost",
+                    port=port or REST_DEFAULT_PORT,
+                )
 
         except KeyboardInterrupt:
             # Handle CTRL-C
@@ -355,7 +412,7 @@ def server(
 
 def run(
     persona: Annotated[Optional[str], typer.Option(help="Specify persona")] = None,
-    agent: Annotated[Optional[str], typer.Option(help="Specify agent save file")] = None,
+    agent: Annotated[Optional[str], typer.Option(help="Specify agent name")] = None,
     human: Annotated[Optional[str], typer.Option(help="Specify human")] = None,
     preset: Annotated[Optional[str], typer.Option(help="Specify preset")] = None,
     # model flags
@@ -548,18 +605,13 @@ def run(
         ms.update_agent(agent_state)
 
         # create agent
-        memgpt_agent = Agent(agent_state, interface=interface())
+        memgpt_agent = Agent(agent_state=agent_state, interface=interface())
 
     else:  # create new agent
         # create new agent config: override defaults with args if provided
         typer.secho("\n🧬 Creating new agent...", fg=typer.colors.WHITE)
 
-        if agent is None:
-            # determine agent name
-            # agent_count = len(ms.list_agents(user_id=user.id))
-            # agent = f"agent_{agent_count}"
-            agent = utils.create_random_username()
-
+        agent_name = agent if agent else utils.create_random_username()
         llm_config = config.default_llm_config
         embedding_config = config.default_embedding_config  # TODO allow overriding embedding params via CLI run
 
@@ -592,68 +644,43 @@ def run(
             )
             llm_config.model_endpoint_type = model_endpoint_type
 
-        agent_state = AgentState(
-            name=agent,
-            user_id=user.id,
-            persona=persona if persona else config.persona,
-            human=human if human else config.human,
-            preset=preset if preset else config.preset,
-            llm_config=llm_config,
-            embedding_config=embedding_config,
-        )
-        # ms.create_agent(agent_state)
-
-        typer.secho(f"->  🤖 Using persona profile '{agent_state.persona}'", fg=typer.colors.WHITE)
-        typer.secho(f"->  🧑 Using human profile '{agent_state.human}'", fg=typer.colors.WHITE)
-
-        # Supress llama-index noise
-        # TODO(swooders) add persistence manager code? or comment out?
-        # with suppress_stdout():
-        # TODO: allow configrable state manager (only local is supported right now)
-        # persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
-
         # create agent
         try:
-            preset = ms.get_preset(preset_name=agent_state.preset, user_id=user.id)
-            if preset is None:
+            preset_obj = ms.get_preset(preset_name=preset if preset else config.preset, user_id=user.id)
+            if preset_obj is None:
                 # create preset records in metadata store
                 from memgpt.presets.presets import add_default_presets
 
                 add_default_presets(user.id, ms)
                 # try again
-                preset = ms.get_preset(preset_name=agent_state.preset, user_id=user.id)
-                assert preset is not None, "Couldn't find presets in database, please run `memgpt configure`"
+                preset_obj = ms.get_preset(preset_name=preset if preset else config.preset, user_id=user.id)
+                if preset_obj is None:
+                    typer.secho("Couldn't find presets in database, please run `memgpt configure`", fg=typer.colors.RED)
+                    sys.exit(1)
 
-            memgpt_agent = presets.create_agent_from_preset(
-                agent_state=agent_state,
-                preset=preset,
+            # Overwrite fields in the preset if they were specified
+            preset_obj.human = human if human else config.human
+            preset_obj.persona = persona if persona else config.persona
+
+            typer.secho(f"->  🤖 Using persona profile '{preset_obj.persona}'", fg=typer.colors.WHITE)
+            typer.secho(f"->  🧑 Using human profile '{preset_obj.human}'", fg=typer.colors.WHITE)
+
+            memgpt_agent = Agent(
                 interface=interface(),
+                name=agent_name,
+                created_by=user.id,
+                preset=preset_obj,
+                llm_config=llm_config,
+                embedding_config=embedding_config,
+                # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
             )
             save_agent(agent=memgpt_agent, ms=ms)
+
         except ValueError as e:
-            # TODO(swooders) what's the equivalent cleanup code for the new DB refactor?
             typer.secho(f"Failed to create agent from provided information:\n{e}", fg=typer.colors.RED)
-            # # Delete the directory of the failed agent
-            # try:
-            #     # Path to the specific file
-            #     agent_config_file = agent_config.agent_config_path
-
-            #     # Check if the file exists
-            #     if os.path.isfile(agent_config_file):
-            #         # Delete the file
-            #         os.remove(agent_config_file)
-
-            #     # Now, delete the directory along with any remaining files in it
-            #     agent_save_dir = os.path.join(MEMGPT_DIR, "agents", agent_config.name)
-            #     shutil.rmtree(agent_save_dir)
-            # except:
-            #     typer.secho(f"Failed to delete agent directory during cleanup:\n{e}", fg=typer.colors.RED)
             sys.exit(1)
-        typer.secho(f"🎉 Created new agent '{agent_state.name}' (id={agent_state.id})", fg=typer.colors.GREEN)
-
-    # pretty print agent config
-    # printd(json.dumps(vars(agent_config), indent=4, sort_keys=True, ensure_ascii=JSON_ENSURE_ASCII))
-    # printd(json.dumps(agent_init_state), indent=4, sort_keys=True, ensure_ascii=JSON_ENSURE_ASCII))
+        typer.secho(f"🎉 Created new agent '{memgpt_agent.agent_state.name}' (id={memgpt_agent.agent_state.id})", fg=typer.colors.GREEN)
 
     # start event loop
     from memgpt.main import run_agent_loop

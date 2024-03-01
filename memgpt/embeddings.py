@@ -67,7 +67,6 @@ def check_and_split_text(text: str, embedding_model: str) -> List[str]:
 
 
 class EmbeddingEndpoint:
-
     """Implementation for OpenAI compatible endpoint"""
 
     # """ Based off llama index https://github.com/run-llama/llama_index/blob/a98bdb8ecee513dc2e880f56674e7fd157d1dc3a/llama_index/embeddings/text_embeddings_inference.py """

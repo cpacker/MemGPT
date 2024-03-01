@@ -211,9 +211,11 @@ def get_chat_completion(
                 message=Message(
                     role=chat_completion_result["role"],
                     content=chat_completion_result["content"],
-                    tool_calls=[ToolCall(id=get_tool_call_id(), type="function", function=chat_completion_result["function_call"])]
-                    if "function_call" in chat_completion_result
-                    else [],
+                    tool_calls=(
+                        [ToolCall(id=get_tool_call_id(), type="function", function=chat_completion_result["function_call"])]
+                        if "function_call" in chat_completion_result
+                        else []
+                    ),
                 ),
             )
         ],

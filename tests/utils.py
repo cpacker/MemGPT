@@ -14,7 +14,6 @@ from .constants import TIMEOUT
 
 
 class DummyDataConnector(DataConnector):
-
     """Fake data connector for texting which yields document/passage texts from a provided list"""
 
     def __init__(self, texts: List[str]):
