@@ -5,8 +5,9 @@ from functools import partial
 from fastapi import APIRouter, Body, Depends, Query, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from typing import List, Optional
 
-from memgpt.models.pydantic_models import AgentStateModel
+from memgpt.models.pydantic_models import AgentStateModel, LLMConfigModel, EmbeddingConfigModel
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -14,7 +15,7 @@ from memgpt.server.server import SyncServer
 router = APIRouter()
 
 
-class AgentConfigRequest(BaseModel):
+class GetAgentRequest(BaseModel):
     agent_id: str = Field(..., description="Unique identifier of the agent whose config is requested.")
 
 
@@ -23,9 +24,11 @@ class AgentRenameRequest(BaseModel):
     agent_name: str = Field(..., description="New name for the agent.")
 
 
-class AgentConfigResponse(BaseModel):
+class GetAgentResponse(BaseModel):
     # config: dict = Field(..., description="The agent configuration object.")
     agent_state: AgentStateModel = Field(..., description="The state of the agent.")
+    sources: List[str] = Field(..., description="The list of data sources associated with the agent.")
+    last_run_at: Optional[int] = Field(None, description="The unix timestamp of when the agent was last run.")
 
 
 def validate_agent_name(name: str) -> str:
@@ -48,7 +51,7 @@ def validate_agent_name(name: str) -> str:
 def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
-    @router.get("/agents/config", tags=["agents"], response_model=AgentConfigResponse)
+    @router.get("/agents", tags=["agents"], response_model=GetAgentResponse)
     def get_agent_config(
         agent_id: str = Query(..., description="Unique identifier of the agent whose config is requested."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
@@ -58,15 +61,35 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
 
         This endpoint fetches the configuration details for a given agent, identified by the user and agent IDs.
         """
-        request = AgentConfigRequest(agent_id=agent_id)
+        request = GetAgentRequest(agent_id=agent_id)
 
         agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
+        attached_sources = server.list_attached_sources(agent_id=agent_id)
 
         interface.clear()
         agent_state = server.get_agent_config(user_id=user_id, agent_id=agent_id)
-        return AgentConfigResponse(agent_state=agent_state)
+        # return GetAgentResponse(agent_state=agent_state)
+        llm_config = LLMConfigModel(**vars(agent_state.llm_config))
+        embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
 
-    @router.patch("/agents/rename", tags=["agents"], response_model=AgentConfigResponse)
+        return GetAgentResponse(
+            agent_state=AgentStateModel(
+                id=agent_state.id,
+                name=agent_state.name,
+                user_id=agent_state.user_id,
+                preset=agent_state.preset,
+                persona=agent_state.persona,
+                human=agent_state.human,
+                llm_config=agent_state.llm_config,
+                embedding_config=agent_state.embedding_config,
+                state=agent_state.state,
+                created_at=int(agent_state.created_at.timestamp()),
+            ),
+            last_run_at=None,  # TODO
+            sources=attached_sources,
+        )
+
+    @router.patch("/agents/rename", tags=["agents"], response_model=GetAgentResponse)
     def update_agent_name(
         request: AgentRenameRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
@@ -87,7 +110,7 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
-        return AgentConfigResponse(agent_state=agent_state)
+        return GetAgentResponse(agent_state=agent_state)
 
     @router.delete("/agents", tags=["agents"])
     def delete_agent(
@@ -97,7 +120,7 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
         """
         Delete an agent.
         """
-        request = AgentConfigRequest(agent_id=agent_id)
+        request = GetAgentRequest(agent_id=agent_id)
 
         agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
