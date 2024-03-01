@@ -63,12 +63,12 @@ class AgentStateModel(BaseModel):
 class HumanModel(SQLModel, table=True):
     text: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human text.")
     name: str = Field(..., description="The name of the human.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the human.")
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the human.", primary_key=True)
     user_id: Optional[uuid.UUID] = Field(..., description="The unique identifier of the user associated with the human.")
 
 
-class PersonalModel(SQLModel, table=True):
+class PersonaModel(SQLModel, table=True):
     text: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona text.")
     name: str = Field(..., description="The name of the persona.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the persona.")
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the persona.", primary_key=True)
     user_id: Optional[uuid.UUID] = Field(..., description="The unique identifier of the user associated with the persona.")

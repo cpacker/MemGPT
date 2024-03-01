@@ -321,7 +321,7 @@ class MetadataStore:
                 PresetModel.__table__,
                 PresetSourceMapping.__table__,
                 HumanModel.__table__,
-                PersonalModel.__table__,
+                PersonaModel.__table__,
             ],
         )
         self.session_maker = sessionmaker(bind=self.engine)
@@ -605,13 +605,13 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def add_human(self, human: HumanModel, user_id: Optional[uuid.UUID] = None):
+    def add_human(self, human: HumanModel):
         with self.session_maker() as session:
             session.add(human)
             session.commit()
 
     @enforce_types
-    def add_persona(self, persona: PersonaModel, user_id: Optional[uuid.UUID] = None):
+    def add_persona(self, persona: PersonaModel):
         with self.session_maker() as session:
             session.add(persona)
             session.commit()
@@ -621,7 +621,7 @@ class MetadataStore:
         with self.session_maker() as session:
             results = session.query(HumanModel).filter(HumanModel.name == name).filter(HumanModel.user_id == user_id).all()
             if len(results) == 0:
-                raise ValueError(f"Human with name {name} does not exist")
+                return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0]
 
@@ -630,7 +630,7 @@ class MetadataStore:
         with self.session_maker() as session:
             results = session.query(PersonaModel).filter(PersonaModel.name == name).filter(PersonaModel.user_id == user_id).all()
             if len(results) == 0:
-                raise ValueError(f"Persona with name {name} does not exist")
+                return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0]
 
