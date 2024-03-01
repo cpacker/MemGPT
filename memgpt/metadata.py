@@ -635,17 +635,17 @@ class MetadataStore:
             return results[0]
 
     @enforce_types
-    def list_personas(self, user_id: uuid.UUID) -> List[str]:
+    def list_personas(self, user_id: uuid.UUID) -> List[PersonaModel]:
         with self.session_maker() as session:
             results = session.query(PersonaModel).filter(PersonaModel.user_id == user_id).all()
-            return [r.name for r in results]
+            return results
 
     @enforce_types
-    def list_humans(self, user_id: uuid.UUID) -> List[str]:
+    def list_humans(self, user_id: uuid.UUID) -> List[HumanModel]:
         with self.session_maker() as session:
             # if user_id matches provided user_id or if user_id is None
             results = session.query(HumanModel).filter(HumanModel.user_id == user_id).all()
-            return [r.name for r in results]
+            return results
 
     @enforce_types
     def delete_human(self, name: str, user_id: uuid.UUID):
