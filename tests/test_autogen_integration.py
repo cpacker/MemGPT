@@ -1,3 +1,5 @@
+import os
+import sys
 import subprocess
 import pytest
 
@@ -5,6 +7,15 @@ import pytest
 def test_agent_groupchat():
     # Define the path to the script you want to test
     script_path = "memgpt/autogen/examples/agent_groupchat.py"
+
+    # Dynamically get the project's root directory (assuming this script is run from the root)
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    print(project_root)
+    # sys.exit(1)
+
+    # Prepare the environment, adding the project root to PYTHONPATH
+    env = os.environ.copy()
+    env["PYTHONPATH"] = f"{project_root}:{env.get('PYTHONPATH', '')}"
 
     # Run the script using subprocess.run
     # Capture the output (stdout) and the exit code
