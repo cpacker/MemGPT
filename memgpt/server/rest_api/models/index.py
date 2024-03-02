@@ -15,7 +15,6 @@ router = APIRouter()
 
 
 class ListModelsResponse(BaseModel):
-    # models: List[Model] = Field(..., description="List of model configurations.")
     models: List[LLMConfigModel] = Field(..., description="List of model configurations.")
 
 
