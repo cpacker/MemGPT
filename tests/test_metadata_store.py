@@ -7,6 +7,9 @@ from memgpt.metadata import MetadataStore
 from memgpt.config import MemGPTConfig
 from memgpt.data_types import User, AgentState, Source, LLMConfig, EmbeddingConfig
 from memgpt.utils import get_human_text, get_persona_text
+from memgpt.presets.presets import add_default_presets, add_default_humans_and_personas
+
+from memgpt.models.pydantic_models import HumanModel, PersonaModel
 
 from memgpt.models.pydantic_models import HumanModel, PersonaModel
 
