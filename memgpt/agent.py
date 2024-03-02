@@ -14,7 +14,7 @@ from memgpt.models import chat_completion_response
 from memgpt.interface import AgentInterface
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
-from memgpt.memory import CoreMemory as InContextMemory, summarize_messages
+from memgpt.memory import CoreMemory as InContextMemory, summarize_messages, ArchivalMemory, RecallMemory
 from memgpt.llm_api_tools import create, is_context_overflow_error
 from memgpt.utils import (
     create_random_username,
@@ -45,7 +45,7 @@ from .errors import LLMError
 from .functions.functions import USER_FUNCTIONS_DIR, load_all_function_sets
 
 
-def link_functions(function_schemas):
+def link_functions(function_schemas: list):
     """Link function definitions to list of function schemas"""
 
     # need to dynamically link the functions
@@ -93,7 +93,7 @@ def link_functions(function_schemas):
     return linked_function_set
 
 
-def initialize_memory(ai_notes, human_notes):
+def initialize_memory(ai_notes: Union[str, None], human_notes: Union[str, None]):
     if ai_notes is None:
         raise ValueError(ai_notes)
     if human_notes is None:
@@ -104,7 +104,14 @@ def initialize_memory(ai_notes, human_notes):
     return memory
 
 
-def construct_system_with_memory(system, memory, memory_edit_timestamp, archival_memory=None, recall_memory=None, include_char_count=True):
+def construct_system_with_memory(
+    system: str,
+    memory: InContextMemory,
+    memory_edit_timestamp: str,
+    archival_memory: ArchivalMemory = None,
+    recall_memory: RecallMemory = None,
+    include_char_count: bool = True,
+):
     full_system_message = "\n".join(
         [
             system,
@@ -125,13 +132,13 @@ def construct_system_with_memory(system, memory, memory_edit_timestamp, archival
 
 
 def initialize_message_sequence(
-    model,
-    system,
-    memory,
-    archival_memory=None,
-    recall_memory=None,
-    memory_edit_timestamp=None,
-    include_initial_boot_message=True,
+    model: str,
+    system: str,
+    memory: InContextMemory,
+    archival_memory: ArchivalMemory = None,
+    recall_memory: RecallMemory = None,
+    memory_edit_timestamp: str = None,
+    include_initial_boot_message: bool = True,
 ):
     if memory_edit_timestamp is None:
         memory_edit_timestamp = get_local_time()
