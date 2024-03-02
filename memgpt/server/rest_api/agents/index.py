@@ -69,6 +69,7 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                     embedding_config=embedding_config,
                     state=agent_state.state,
                     created_at=int(agent_state.created_at.timestamp()),
+                    functions_schema=agent_state.state["functions"],  # TODO: this is very error prone, jsut lookup the preset instead
                 )
             )
             # return CreateAgentResponse(
