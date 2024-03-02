@@ -353,7 +353,7 @@ def create_autogen_memgpt_agent(
         preset_obj.persona = agent_config["persona"] if "persona" in agent_config else get_persona_text(config.persona)
 
         memgpt_agent = Agent(
-            interface=interface(),
+            interface=interface,
             name=agent_config["name"] if "name" in agent_config else None,
             created_by=user.id,
             preset=preset_obj,
