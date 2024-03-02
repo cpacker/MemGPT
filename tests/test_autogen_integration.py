@@ -11,6 +11,8 @@ def test_agent_groupchat():
     # Dynamically get the project's root directory (assuming this script is run from the root)
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     print(project_root)
+    project_root = os.path.join(project_root, "MemGPT")
+    print(project_root)
     # sys.exit(1)
 
     # Prepare the environment, adding the project root to PYTHONPATH
