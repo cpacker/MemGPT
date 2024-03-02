@@ -84,6 +84,7 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
                 embedding_config=agent_state.embedding_config,
                 state=agent_state.state,
                 created_at=int(agent_state.created_at.timestamp()),
+                functions_schema=agent_state.state["functions"],  # TODO: this is very error prone, jsut lookup the preset instead
             ),
             last_run_at=None,  # TODO
             sources=attached_sources,
