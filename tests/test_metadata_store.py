@@ -2,9 +2,11 @@ import os
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
 import pytest
 
+from memgpt.agent import Agent, save_agent
 from memgpt.metadata import MetadataStore
 from memgpt.config import MemGPTConfig
 from memgpt.data_types import User, AgentState, Source, LLMConfig, EmbeddingConfig
+from memgpt.utils import get_human_text, get_persona_text
 from memgpt.presets.presets import add_default_presets, add_default_humans_and_personas
 
 from memgpt.models.pydantic_models import HumanModel, PersonaModel
@@ -63,6 +65,39 @@ def test_storage(storage_connector):
     len(ms.list_agents(user_id=user_2.id)) == 0
     len(ms.list_sources(user_id=user_1.id)) == 1
     len(ms.list_sources(user_id=user_2.id)) == 0
+
+    # test agent_state saving
+    agent_state = ms.get_agent(agent_1.id).state
+    assert agent_state is None, agent_state  # when created via create_agent, it should be empty
+
+    from memgpt.presets.presets import add_default_presets
+
+    add_default_presets(user_1.id, ms)
+    preset_obj = ms.get_preset(preset_name=DEFAULT_PRESET, user_id=user_1.id)
+    from memgpt.interface import CLIInterface as interface  # for printing to terminal
+
+    # Overwrite fields in the preset if they were specified
+    preset_obj.human = get_human_text(DEFAULT_HUMAN)
+    preset_obj.persona = get_persona_text(DEFAULT_PERSONA)
+
+    # Create the agent
+    agent = Agent(
+        interface=interface(),
+        created_by=user_1.id,
+        name="agent_test_agent_state",
+        preset=preset_obj,
+        llm_config=config.default_llm_config,
+        embedding_config=config.default_embedding_config,
+        # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+        first_message_verify_mono=(
+            True if (config.default_llm_config.model is not None and "gpt-4" in config.default_llm_config.model) else False
+        ),
+    )
+    agent_with_agent_state = agent.agent_state
+    save_agent(agent=agent, ms=ms)
+
+    agent_state = ms.get_agent(agent_with_agent_state.id).state
+    assert agent_state is not None, agent_state  # when created via create_agent_from_preset, it should be non-empty
 
     # test: updating
 
