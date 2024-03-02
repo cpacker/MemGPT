@@ -85,7 +85,9 @@ class AutoGenInterface(object):
         # NOTE: never gets appended
         if self.debug:
             print(f"memory :: {msg}")
-        message = f"{Fore.LIGHTMAGENTA_EX}{Style.BRIGHT}🧠 {Fore.LIGHTMAGENTA_EX}{msg}{Style.RESET_ALL}" if self.fancy else f"[memory] {msg}"
+        message = (
+            f"{Fore.LIGHTMAGENTA_EX}{Style.BRIGHT}🧠 {Fore.LIGHTMAGENTA_EX}{msg}{Style.RESET_ALL}" if self.fancy else f"[memory] {msg}"
+        )
         print(message)
 
     def system_message(self, msg):
@@ -147,7 +149,9 @@ class AutoGenInterface(object):
             return
 
         if msg.startswith("Success: "):
-            message = f"{Fore.RED}{Style.BRIGHT}⚡🟢 [function] {Fore.RED}{msg}{Style.RESET_ALL}" if self.fancy else f"[function - OK] {msg}"
+            message = (
+                f"{Fore.RED}{Style.BRIGHT}⚡🟢 [function] {Fore.RED}{msg}{Style.RESET_ALL}" if self.fancy else f"[function - OK] {msg}"
+            )
         elif msg.startswith("Error: "):
             message = (
                 f"{Fore.RED}{Style.BRIGHT}⚡🔴 [function] {Fore.RED}{msg}{Style.RESET_ALL}" if self.fancy else f"[function - error] {msg}"

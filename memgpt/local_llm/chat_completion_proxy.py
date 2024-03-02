@@ -1,12 +1,9 @@
 """Key idea: create drop-in replacement for agent's ChatCompletion call that runs on an OpenLLM backend"""
 
-import os
 from datetime import datetime
 import requests
 import json
 import uuid
-
-from box import Box
 
 from memgpt.local_llm.grammars.gbnf_grammar_generator import create_dynamic_model_from_function, generate_gbnf_grammar_and_documentation
 from memgpt.local_llm.webui.api import get_webui_completion
@@ -214,9 +211,11 @@ def get_chat_completion(
                 message=Message(
                     role=chat_completion_result["role"],
                     content=chat_completion_result["content"],
-                    tool_calls=[ToolCall(id=get_tool_call_id(), type="function", function=chat_completion_result["function_call"])]
-                    if "function_call" in chat_completion_result
-                    else [],
+                    tool_calls=(
+                        [ToolCall(id=get_tool_call_id(), type="function", function=chat_completion_result["function_call"])]
+                        if "function_call" in chat_completion_result
+                        else []
+                    ),
                 ),
             )
         ],

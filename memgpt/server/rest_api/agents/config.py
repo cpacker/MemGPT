@@ -1,10 +1,13 @@
-import uuid
 import re
+import uuid
+from functools import partial
 
 from fastapi import APIRouter, Body, Depends, Query, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from memgpt.models.pydantic_models import AgentStateModel
+from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
 
@@ -12,18 +15,17 @@ router = APIRouter()
 
 
 class AgentConfigRequest(BaseModel):
-    user_id: str = Field(..., description="Unique identifier of the user requesting the config.")
     agent_id: str = Field(..., description="Unique identifier of the agent whose config is requested.")
 
 
 class AgentRenameRequest(BaseModel):
-    user_id: str = Field(..., description="Unique identifier of the user requesting the config.")
     agent_id: str = Field(..., description="Unique identifier of the agent whose config is requested.")
     agent_name: str = Field(..., description="New name for the agent.")
 
 
 class AgentConfigResponse(BaseModel):
-    config: dict = Field(..., description="The agent configuration object.")
+    # config: dict = Field(..., description="The agent configuration object.")
+    agent_state: AgentStateModel = Field(..., description="The state of the agent.")
 
 
 def validate_agent_name(name: str) -> str:
@@ -43,67 +45,60 @@ def validate_agent_name(name: str) -> str:
     return name
 
 
-def setup_agents_config_router(server: SyncServer, interface: QueuingInterface):
+def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, password: str):
+    get_current_user_with_server = partial(partial(get_current_user, server), password)
+
     @router.get("/agents/config", tags=["agents"], response_model=AgentConfigResponse)
     def get_agent_config(
-        user_id: str = Query(..., description="Unique identifier of the user requesting the config."),
         agent_id: str = Query(..., description="Unique identifier of the agent whose config is requested."),
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
         Retrieve the configuration for a specific agent.
 
         This endpoint fetches the configuration details for a given agent, identified by the user and agent IDs.
         """
-        request = AgentConfigRequest(user_id=user_id, agent_id=agent_id)
+        request = AgentConfigRequest(agent_id=agent_id)
 
-        # TODO remove once chatui adds user selection / pulls user from config
-        request.user_id = None if request.user_id == "null" else request.user_id
-
-        user_id = uuid.UUID(request.user_id) if request.user_id else None
         agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         interface.clear()
-        config = server.get_agent_config(user_id=user_id, agent_id=agent_id)
-        return AgentConfigResponse(config=config)
+        agent_state = server.get_agent_config(user_id=user_id, agent_id=agent_id)
+        return AgentConfigResponse(agent_state=agent_state)
 
     @router.patch("/agents/rename", tags=["agents"], response_model=AgentConfigResponse)
-    def update_agent_name(request: AgentRenameRequest = Body(...)):
+    def update_agent_name(
+        request: AgentRenameRequest = Body(...),
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
         """
         Updates the name of a specific agent.
 
         This changes the name of the agent in the database but does NOT edit the agent's persona.
         """
-        # TODO remove once chatui adds user selection / pulls user from config
-        request.user_id = None if request.user_id == "null" else request.user_id
-
-        user_id = uuid.UUID(request.user_id) if request.user_id else None
         agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         valid_name = validate_agent_name(request.agent_name)
 
         interface.clear()
         try:
-            config = server.rename_agent(user_id=user_id, agent_id=agent_id, new_agent_name=valid_name)
+            agent_state = server.rename_agent(user_id=user_id, agent_id=agent_id, new_agent_name=valid_name)
         except HTTPException:
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
-        return AgentConfigResponse(config=config)
+        return AgentConfigResponse(agent_state=agent_state)
 
     @router.delete("/agents", tags=["agents"])
     def delete_agent(
-        user_id: str = Query(..., description="Unique identifier of the user requesting the deletion."),
         agent_id: str = Query(..., description="Unique identifier of the agent to be deleted."),
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
         Delete an agent.
         """
-        request = AgentConfigRequest(user_id=user_id, agent_id=agent_id)
+        request = AgentConfigRequest(agent_id=agent_id)
 
-        # TODO remove once chatui adds user selection / pulls user from config
-        request.user_id = None if request.user_id == "null" else request.user_id
-
-        user_id = uuid.UUID(request.user_id) if request.user_id else None
         agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         interface.clear()

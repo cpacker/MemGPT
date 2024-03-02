@@ -6,8 +6,8 @@ subprocess.check_call([sys.executable, "-m", "pip", "install", "pexpect"])
 import pexpect
 
 from .constants import TIMEOUT
-from .utils import configure_memgpt
-from memgpt import MemGPT
+from .utils import create_config, wipe_config
+from memgpt import create_client
 
 
 # def test_configure_memgpt():
@@ -17,9 +17,9 @@ from memgpt import MemGPT
 def test_save_load():
     # configure_memgpt()  # rely on configure running first^
     if os.getenv("OPENAI_API_KEY"):
-        client = MemGPT(quickstart="openai")
+        create_config("openai")
     else:
-        client = MemGPT(quickstart="memgpt_hosted")
+        create_config("memgpt_hosted")
 
     child = pexpect.spawn("poetry run memgpt run --agent test_save_load --first --strip-ui")
 

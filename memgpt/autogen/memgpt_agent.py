@@ -4,6 +4,7 @@ from typing import Callable, Optional, List, Dict, Union, Any, Tuple
 from autogen.agentchat import Agent, ConversableAgent, UserProxyAgent, GroupChat, GroupChatManager
 
 from memgpt.agent import Agent as MemGPTAgent
+from memgpt.agent import save_agent
 from memgpt.autogen.interface import AutoGenInterface
 import memgpt.system as system
 import memgpt.constants as constants
@@ -14,7 +15,6 @@ from memgpt.credentials import MemGPTCredentials
 from memgpt.cli.cli import attach
 from memgpt.cli.cli_load import load_directory, load_webpage, load_index, load_database, load_vector_database
 from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.metadata import MetadataStore, save_agent
 from memgpt.data_types import AgentState, User, LLMConfig, EmbeddingConfig
 
 
@@ -62,8 +62,6 @@ class MemGPTConversableAgent(ConversableAgent):
             load_directory(name=name, **kwargs)
         elif type == "webpage":
             load_webpage(name=name, **kwargs)
-        elif type == "index":
-            load_index(name=name, **kwargs)
         elif type == "database":
             load_database(name=name, **kwargs)
         elif type == "vector_database":
@@ -344,8 +342,10 @@ def create_autogen_memgpt_agent(
         preset=agent_config["preset"],
     )
     try:
+        preset = ms.get_preset(preset_name=agent_state.preset, user_id=user_id)
         memgpt_agent = presets.create_agent_from_preset(
             agent_state=agent_state,
+            preset=preset,
             interface=interface,
             persona_is_file=False,
             human_is_file=False,

@@ -1,17 +1,17 @@
 import uuid
+from functools import partial
 from typing import List
 
-from fastapi import APIRouter, Depends, Body, Query, HTTPException
+from fastapi import APIRouter, Depends, Body, HTTPException
 from pydantic import BaseModel, Field
 
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
+from memgpt.server.rest_api.auth_token import get_current_user
+from memgpt.data_types import AgentState
+from memgpt.models.pydantic_models import LLMConfigModel, EmbeddingConfigModel, AgentStateModel
 
 router = APIRouter()
-
-
-class ListAgentsRequest(BaseModel):
-    user_id: str = Field(..., description="Unique identifier of the user.")
 
 
 class ListAgentsResponse(BaseModel):
@@ -20,48 +20,62 @@ class ListAgentsResponse(BaseModel):
 
 
 class CreateAgentRequest(BaseModel):
-    user_id: str = Field(..., description="Unique identifier of the user issuing the command.")
     config: dict = Field(..., description="The agent configuration object.")
 
 
 class CreateAgentResponse(BaseModel):
-    agent_id: uuid.UUID = Field(..., description="Unique identifier of the newly created agent.")
+    agent_state: AgentStateModel = Field(..., description="The state of the newly created agent.")
 
 
-def setup_agents_index_router(server: SyncServer, interface: QueuingInterface):
+def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, password: str):
+    get_current_user_with_server = partial(partial(get_current_user, server), password)
+
     @router.get("/agents", tags=["agents"], response_model=ListAgentsResponse)
-    def list_agents(user_id: str = Query(..., description="Unique identifier of the user.")):
+    def list_agents(
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
         """
         List all agents associated with a given user.
 
         This endpoint retrieves a list of all agents and their configurations associated with the specified user ID.
         """
-        request = ListAgentsRequest(user_id=user_id)
-
-        # TODO remove once chatui adds user selection / pulls user from config
-        request.user_id = None if request.user_id == "null" else request.user_id
-
-        user_id = uuid.UUID(request.user_id) if request.user_id else None
-
         interface.clear()
         agents_data = server.list_agents(user_id=user_id)
         return ListAgentsResponse(**agents_data)
 
     @router.post("/agents", tags=["agents"], response_model=CreateAgentResponse)
-    def create_agent(request: CreateAgentRequest = Body(...)):
+    def create_agent(
+        request: CreateAgentRequest = Body(...),
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
         """
         Create a new agent with the specified configuration.
         """
         interface.clear()
 
-        # TODO remove once chatui adds user selection / pulls user from config
-        request.user_id = None if request.user_id == "null" else request.user_id
-
         try:
-            user_id = uuid.UUID(request.user_id) if request.user_id else None
-            agent_state = server.create_agent(user_id=user_id, agent_config=request.config)
-            return CreateAgentResponse(agent_id=agent_state.id)
+            agent_state = server.create_agent(user_id=user_id, **request.config)
+            llm_config = LLMConfigModel(**vars(agent_state.llm_config))
+            embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
+            return CreateAgentResponse(
+                agent_state=AgentStateModel(
+                    id=agent_state.id,
+                    name=agent_state.name,
+                    user_id=agent_state.user_id,
+                    preset=agent_state.preset,
+                    persona=agent_state.persona,
+                    human=agent_state.human,
+                    llm_config=llm_config,
+                    embedding_config=embedding_config,
+                    state=agent_state.state,
+                    created_at=int(agent_state.created_at.timestamp()),
+                )
+            )
+            # return CreateAgentResponse(
+            #    agent_state=AgentStateModel(
+            # )
         except Exception as e:
+            print(str(e))
             raise HTTPException(status_code=500, detail=str(e))
 
     return router

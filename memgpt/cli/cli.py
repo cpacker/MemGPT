@@ -13,8 +13,6 @@ from typing import Annotated, Optional
 
 import typer
 import questionary
-from llama_index import set_global_service_context
-from llama_index import ServiceContext
 
 from memgpt.log import logger
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
@@ -25,11 +23,11 @@ from memgpt.utils import printd, open_folder_in_explorer, suppress_stdout
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
-from memgpt.agent import Agent
+from memgpt.agent import Agent, save_agent
 from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
 from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig, User, Passage
-from memgpt.metadata import MetadataStore, save_agent
+from memgpt.metadata import MetadataStore
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
 
 
@@ -55,8 +53,15 @@ def str_to_quickstart_choice(choice_str: str) -> QuickstartChoice:
         raise ValueError(f"{choice_str} is not a valid QuickstartChoice. Valid options are: {valid_options}")
 
 
-def set_config_with_dict(new_config: dict) -> bool:
-    """Set the base config using a dict"""
+def set_config_with_dict(new_config: dict) -> (MemGPTConfig, bool):
+    """_summary_
+
+    Args:
+        new_config (dict): Dict of new config values
+
+    Returns:
+        new_config MemGPTConfig, modified (bool): Returns the new config and a boolean indicating if the config was modified
+    """
     from memgpt.utils import printd
 
     old_config = MemGPTConfig.load()
@@ -93,32 +98,7 @@ def set_config_with_dict(new_config: dict) -> bool:
             else:
                 printd(f"Skipping new config {k}: {v} == {new_config[k]}")
 
-    if modified:
-        printd(f"Saving new config file.")
-        old_config.save()
-        typer.secho(f"📖 MemGPT configuration file updated!", fg=typer.colors.GREEN)
-        typer.secho(
-            "\n".join(
-                [
-                    f"🧠 model\t-> {old_config.default_llm_config.model}",
-                    f"🖥️  endpoint\t-> {old_config.default_llm_config.model_endpoint}",
-                ]
-            ),
-            fg=typer.colors.GREEN,
-        )
-        return True
-    else:
-        typer.secho(f"📖 MemGPT configuration file unchanged.", fg=typer.colors.WHITE)
-        typer.secho(
-            "\n".join(
-                [
-                    f"🧠 model\t-> {old_config.default_llm_config.model}",
-                    f"🖥️  endpoint\t-> {old_config.default_llm_config.model_endpoint}",
-                ]
-            ),
-            fg=typer.colors.WHITE,
-        )
-        return False
+    return (old_config, modified)
 
 
 def quickstart(
@@ -127,7 +107,10 @@ def quickstart(
     debug: Annotated[bool, typer.Option(help="Use --debug to enable debugging output")] = False,
     terminal: bool = True,
 ):
-    """Set the base config file with a single command"""
+    """Set the base config file with a single command
+
+    This function and `configure` should be the ONLY places where MemGPTConfig.save() is called.
+    """
 
     # setup logger
     utils.DEBUG = debug
@@ -154,7 +137,7 @@ def quickstart(
                 config = response.json()
                 # Output a success message and the first few items in the dictionary as a sample
                 printd("JSON config file downloaded successfully.")
-                config_was_modified = set_config_with_dict(config)
+                new_config, config_was_modified = set_config_with_dict(config)
             else:
                 typer.secho(f"Failed to download config from {url}. Status code: {response.status_code}", fg=typer.colors.RED)
 
@@ -165,7 +148,7 @@ def quickstart(
                     with open(backup_config_path, "r", encoding="utf-8") as file:
                         backup_config = json.load(file)
                     printd("Loaded backup config file successfully.")
-                    config_was_modified = set_config_with_dict(backup_config)
+                    new_config, config_was_modified = set_config_with_dict(backup_config)
                 except FileNotFoundError:
                     typer.secho(f"Backup config file not found at {backup_config_path}", fg=typer.colors.RED)
                     return
@@ -177,7 +160,7 @@ def quickstart(
                 with open(backup_config_path, "r", encoding="utf-8") as file:
                     backup_config = json.load(file)
                 printd("Loaded config file successfully.")
-                config_was_modified = set_config_with_dict(backup_config)
+                new_config, config_was_modified = set_config_with_dict(backup_config)
             except FileNotFoundError:
                 typer.secho(f"Config file not found at {backup_config_path}", fg=typer.colors.RED)
                 return
@@ -203,7 +186,7 @@ def quickstart(
                 config = response.json()
                 # Output a success message and the first few items in the dictionary as a sample
                 print("JSON config file downloaded successfully.")
-                config_was_modified = set_config_with_dict(config)
+                new_config, config_was_modified = set_config_with_dict(config)
             else:
                 typer.secho(f"Failed to download config from {url}. Status code: {response.status_code}", fg=typer.colors.RED)
 
@@ -214,7 +197,7 @@ def quickstart(
                     with open(backup_config_path, "r", encoding="utf-8") as file:
                         backup_config = json.load(file)
                     printd("Loaded backup config file successfully.")
-                    config_was_modified = set_config_with_dict(backup_config)
+                    new_config, config_was_modified = set_config_with_dict(backup_config)
                 except FileNotFoundError:
                     typer.secho(f"Backup config file not found at {backup_config_path}", fg=typer.colors.RED)
                     return
@@ -226,13 +209,38 @@ def quickstart(
                 with open(backup_config_path, "r", encoding="utf-8") as file:
                     backup_config = json.load(file)
                 printd("Loaded config file successfully.")
-                config_was_modified = set_config_with_dict(backup_config)
+                new_config, config_was_modified = set_config_with_dict(backup_config)
             except FileNotFoundError:
                 typer.secho(f"Config file not found at {backup_config_path}", fg=typer.colors.RED)
                 return
 
     else:
         raise NotImplementedError(backend)
+
+    if config_was_modified:
+        printd(f"Saving new config file.")
+        new_config.save()
+        typer.secho(f"📖 MemGPT configuration file updated!", fg=typer.colors.GREEN)
+        typer.secho(
+            "\n".join(
+                [
+                    f"🧠 model\t-> {new_config.default_llm_config.model}",
+                    f"🖥️  endpoint\t-> {new_config.default_llm_config.model_endpoint}",
+                ]
+            ),
+            fg=typer.colors.GREEN,
+        )
+    else:
+        typer.secho(f"📖 MemGPT configuration file unchanged.", fg=typer.colors.WHITE)
+        typer.secho(
+            "\n".join(
+                [
+                    f"🧠 model\t-> {new_config.default_llm_config.model}",
+                    f"🖥️  endpoint\t-> {new_config.default_llm_config.model_endpoint}",
+                ]
+            ),
+            fg=typer.colors.WHITE,
+        )
 
     # 'terminal' = quickstart was run alone, in which case we should guide the user on the next command
     if terminal:
@@ -271,10 +279,40 @@ def create_default_user_or_exit(config: MemGPTConfig, ms: MetadataStore):
         return user
 
 
+def generate_self_signed_cert(cert_path="selfsigned.crt", key_path="selfsigned.key"):
+    """Generate a self-signed SSL certificate.
+
+    NOTE: intended to be used for development only.
+    """
+    subprocess.run(
+        [
+            "openssl",
+            "req",
+            "-x509",
+            "-newkey",
+            "rsa:4096",
+            "-keyout",
+            key_path,
+            "-out",
+            cert_path,
+            "-days",
+            "365",
+            "-nodes",
+            "-subj",
+            "/C=US/ST=Denial/L=Springfield/O=Dis/CN=localhost",
+        ],
+        check=True,
+    )
+    return cert_path, key_path
+
+
 def server(
     type: Annotated[ServerChoice, typer.Option(help="Server to run")] = "rest",
     port: Annotated[Optional[int], typer.Option(help="Port to run the server on")] = None,
     host: Annotated[Optional[str], typer.Option(help="Host to run the server on (default to localhost)")] = None,
+    use_ssl: Annotated[bool, typer.Option(help="Run the server using HTTPS?")] = False,
+    ssl_cert: Annotated[Optional[str], typer.Option(help="Path to SSL certificate (if use_ssl is True)")] = None,
+    ssl_key: Annotated[Optional[str], typer.Option(help="Path to SSL key file (if use_ssl is True)")] = None,
     debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = True,
 ):
     """Launch a MemGPT server process"""
@@ -305,8 +343,35 @@ def server(
             sys.exit(1)
 
         try:
-            # Start the subprocess in a new session
-            uvicorn.run(app, host=host or "localhost", port=port or REST_DEFAULT_PORT)
+            if use_ssl:
+                if ssl_cert is None:  # No certificate path provided, generate a self-signed certificate
+                    ssl_certfile, ssl_keyfile = generate_self_signed_cert()
+                    print(f"Running server with self-signed SSL cert: {ssl_certfile}, {ssl_keyfile}")
+                else:
+                    ssl_certfile, ssl_keyfile = ssl_cert, ssl_key  # Assuming cert includes both
+                    print(f"Running server with provided SSL cert: {ssl_certfile}, {ssl_keyfile}")
+
+                # This will start the server on HTTPS
+                assert isinstance(ssl_certfile, str) and os.path.exists(ssl_certfile), ssl_certfile
+                assert isinstance(ssl_keyfile, str) and os.path.exists(ssl_keyfile), ssl_keyfile
+                print(
+                    f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT} --ssl-keyfile {ssl_keyfile} --ssl-certfile {ssl_certfile}"
+                )
+                uvicorn.run(
+                    app,
+                    host=host or "localhost",
+                    port=port or REST_DEFAULT_PORT,
+                    ssl_keyfile=ssl_keyfile,
+                    ssl_certfile=ssl_certfile,
+                )
+            else:
+                # Start the subprocess in a new session
+                print(f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT}")
+                uvicorn.run(
+                    app,
+                    host=host or "localhost",
+                    port=port or REST_DEFAULT_PORT,
+                )
 
         except KeyboardInterrupt:
             # Handle CTRL-C
@@ -347,7 +412,7 @@ def server(
 
 def run(
     persona: Annotated[Optional[str], typer.Option(help="Specify persona")] = None,
-    agent: Annotated[Optional[str], typer.Option(help="Specify agent save file")] = None,
+    agent: Annotated[Optional[str], typer.Option(help="Specify agent name")] = None,
     human: Annotated[Optional[str], typer.Option(help="Specify human")] = None,
     preset: Annotated[Optional[str], typer.Option(help="Specify preset")] = None,
     # model flags
@@ -540,18 +605,13 @@ def run(
         ms.update_agent(agent_state)
 
         # create agent
-        memgpt_agent = Agent(agent_state, interface=interface())
+        memgpt_agent = Agent(agent_state=agent_state, interface=interface())
 
     else:  # create new agent
         # create new agent config: override defaults with args if provided
         typer.secho("\n🧬 Creating new agent...", fg=typer.colors.WHITE)
 
-        if agent is None:
-            # determine agent name
-            # agent_count = len(ms.list_agents(user_id=user.id))
-            # agent = f"agent_{agent_count}"
-            agent = utils.create_random_username()
-
+        agent_name = agent if agent else utils.create_random_username()
         llm_config = config.default_llm_config
         embedding_config = config.default_embedding_config  # TODO allow overriding embedding params via CLI run
 
@@ -584,67 +644,43 @@ def run(
             )
             llm_config.model_endpoint_type = model_endpoint_type
 
-        agent_state = AgentState(
-            name=agent,
-            user_id=user.id,
-            persona=persona if persona else config.persona,
-            human=human if human else config.human,
-            preset=preset if preset else config.preset,
-            llm_config=llm_config,
-            embedding_config=embedding_config,
-        )
-        ms.create_agent(agent_state)
-
-        typer.secho(f"->  🤖 Using persona profile '{agent_state.persona}'", fg=typer.colors.WHITE)
-        typer.secho(f"->  🧑 Using human profile '{agent_state.human}'", fg=typer.colors.WHITE)
-
-        # Supress llama-index noise
-        # TODO(swooders) add persistence manager code? or comment out?
-        # with suppress_stdout():
-        # TODO: allow configrable state manager (only local is supported right now)
-        # persistence_manager = LocalStateManager(agent_config)  # TODO: insert dataset/pre-fill
-
         # create agent
         try:
-            memgpt_agent = presets.create_agent_from_preset(
-                agent_state=agent_state,
+            preset_obj = ms.get_preset(preset_name=preset if preset else config.preset, user_id=user.id)
+            if preset_obj is None:
+                # create preset records in metadata store
+                from memgpt.presets.presets import add_default_presets
+
+                add_default_presets(user.id, ms)
+                # try again
+                preset_obj = ms.get_preset(preset_name=preset if preset else config.preset, user_id=user.id)
+                if preset_obj is None:
+                    typer.secho("Couldn't find presets in database, please run `memgpt configure`", fg=typer.colors.RED)
+                    sys.exit(1)
+
+            # Overwrite fields in the preset if they were specified
+            preset_obj.human = human if human else config.human
+            preset_obj.persona = persona if persona else config.persona
+
+            typer.secho(f"->  🤖 Using persona profile '{preset_obj.persona}'", fg=typer.colors.WHITE)
+            typer.secho(f"->  🧑 Using human profile '{preset_obj.human}'", fg=typer.colors.WHITE)
+
+            memgpt_agent = Agent(
                 interface=interface(),
+                name=agent_name,
+                created_by=user.id,
+                preset=preset_obj,
+                llm_config=llm_config,
+                embedding_config=embedding_config,
+                # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
             )
             save_agent(agent=memgpt_agent, ms=ms)
+
         except ValueError as e:
-            # TODO(swooders) what's the equivalent cleanup code for the new DB refactor?
             typer.secho(f"Failed to create agent from provided information:\n{e}", fg=typer.colors.RED)
-            # # Delete the directory of the failed agent
-            # try:
-            #     # Path to the specific file
-            #     agent_config_file = agent_config.agent_config_path
-
-            #     # Check if the file exists
-            #     if os.path.isfile(agent_config_file):
-            #         # Delete the file
-            #         os.remove(agent_config_file)
-
-            #     # Now, delete the directory along with any remaining files in it
-            #     agent_save_dir = os.path.join(MEMGPT_DIR, "agents", agent_config.name)
-            #     shutil.rmtree(agent_save_dir)
-            # except:
-            #     typer.secho(f"Failed to delete agent directory during cleanup:\n{e}", fg=typer.colors.RED)
             sys.exit(1)
-        typer.secho(f"🎉 Created new agent '{agent_state.name}' (id={agent_state.id})", fg=typer.colors.GREEN)
-
-    # pretty print agent config
-    # printd(json.dumps(vars(agent_config), indent=4, sort_keys=True, ensure_ascii=JSON_ENSURE_ASCII))
-    # printd(json.dumps(agent_init_state), indent=4, sort_keys=True, ensure_ascii=JSON_ENSURE_ASCII))
-
-    # configure llama index
-    original_stdout = sys.stdout  # unfortunate hack required to suppress confusing print statements from llama index
-    sys.stdout = io.StringIO()
-    embed_model = embedding_model(config=agent_state.embedding_config, user_id=user.id)
-    service_context = ServiceContext.from_defaults(
-        llm=None, embed_model=embed_model, chunk_size=agent_state.embedding_config.embedding_chunk_size
-    )
-    set_global_service_context(service_context)
-    sys.stdout = original_stdout
+        typer.secho(f"🎉 Created new agent '{memgpt_agent.agent_state.name}' (id={memgpt_agent.agent_state.id})", fg=typer.colors.GREEN)
 
     # start event loop
     from memgpt.main import run_agent_loop
@@ -689,69 +725,6 @@ def delete_agent(
     except Exception as e:
         typer.secho(f"Failed to delete agent '{agent_name}' (id={agent.id})", fg=typer.colors.RED)
         sys.exit(1)
-
-
-def attach(
-    agent_name: Annotated[str, typer.Option(help="Specify agent to attach data to")],
-    data_source: Annotated[str, typer.Option(help="Data source to attach to agent")],
-    user_id: uuid.UUID = None,
-):
-    # use client ID is no user_id provided
-    config = MemGPTConfig.load()
-    if user_id is None:
-        user_id = uuid.UUID(config.anon_clientid)
-    try:
-        # loads the data contained in data source into the agent's memory
-        from memgpt.agent_store.storage import StorageConnector, TableType
-        from tqdm import tqdm
-
-        ms = MetadataStore(config)
-        agent = ms.get_agent(agent_name=agent_name, user_id=user_id)
-        assert agent is not None, f"No agent found under agent_name={agent_name}, user_id={user_id}"
-        source = ms.get_source(source_name=data_source, user_id=user_id)
-        assert source is not None, f"Source {data_source} does not exist for user {user_id}"
-
-        # get storage connectors
-        with suppress_stdout():
-            source_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id=user_id)
-            dest_storage = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config, user_id=user_id, agent_id=agent.id)
-
-        size = source_storage.size({"data_source": data_source})
-        typer.secho(f"Ingesting {size} passages into {agent.name}", fg=typer.colors.GREEN)
-        page_size = 100
-        generator = source_storage.get_all_paginated(filters={"data_source": data_source}, page_size=page_size)  # yields List[Passage]
-        all_passages = []
-        for i in tqdm(range(0, size, page_size)):
-            passages = next(generator)
-
-            # need to associated passage with agent (for filtering)
-            for passage in passages:
-                assert isinstance(passage, Passage), f"Generate yielded bad non-Passage type: {type(passage)}"
-                passage.agent_id = agent.id
-
-            # insert into agent archival memory
-            dest_storage.insert_many(passages)
-            all_passages += passages
-
-        assert size == len(all_passages), f"Expected {size} passages, but only got {len(all_passages)}"
-
-        # save destination storage
-        dest_storage.save()
-
-        # attach to agent
-        source = ms.get_source(source_name=data_source, user_id=user_id)
-        assert source is not None, f"source does not exist for source_name={data_source}, user_id={user_id}"
-        source_id = source.id
-        ms.attach_source(agent_id=agent.id, source_id=source_id, user_id=user_id)
-
-        total_agent_passages = dest_storage.size()
-
-        typer.secho(
-            f"Attached data source {data_source} to agent {agent_name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
-            fg=typer.colors.GREEN,
-        )
-    except KeyboardInterrupt:
-        typer.secho("Operation interrupted by KeyboardInterrupt.", fg=typer.colors.YELLOW)
 
 
 def version():

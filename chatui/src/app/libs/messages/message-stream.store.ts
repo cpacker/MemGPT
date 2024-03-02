@@ -18,7 +18,7 @@ const useMessageStreamStore = create(
 		{
 			socket: null as EventSource | null,
 			socketURL: null as string | null,
-			readyState: ReadyState.IDLE,
+			readyState: ReadyState.IDLE as ReadyState,
 			abortController: null as AbortController | null,
 			onMessageCallback: ((message: Message) =>
 				console.warn('No message callback set up. Simply logging message', message)) as (message: Message) => void,
@@ -30,10 +30,12 @@ const useMessageStreamStore = create(
 					agentId,
 					message,
 					role,
+					bearerToken,
 				}: {
 					userId: string;
 					agentId: string;
 					message: string;
+					bearerToken: string;
 					role?: 'user' | 'system';
 				}) => {
 					const abortController = new AbortController();
@@ -49,7 +51,7 @@ const useMessageStreamStore = create(
 						});
 					void fetchEventSource(ENDPOINT_URL, {
 						method: 'POST',
-						headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+						headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', Authorization: bearerToken },
 						body: JSON.stringify({
 							user_id: userId,
 							agent_id: agentId,

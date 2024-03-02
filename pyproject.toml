@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pymemgpt"
-version = "0.3.1"
+version = "0.3.4"
 packages = [
     {include = "memgpt"}
 ]
@@ -20,9 +20,8 @@ typer = {extras = ["all"], version = "^0.9.0"}
 questionary = "^2.0.1"
 pytz = "^2023.3.post1"
 tqdm = "^4.66.1"
-black = { version = "^23.10.1", optional = true }
+black = {extras = ["jupyter"], version = "^24.2.0"}
 pytest = { version = "^7.4.4", optional = true }
-llama-index = "^0.9.13"
 setuptools = "^68.2.2"
 datasets = { version = "^2.14.6", optional = true}
 prettytable = "^3.9.0"
@@ -39,7 +38,6 @@ httpx = "^0.25.2"
 numpy = "^1.26.2"
 demjson3 = "^3.0.6"
 tiktoken = "^0.5.1"
-python-box = "^7.1.1"
 pypdf = "^3.17.1"
 pyyaml = "^6.0.1"
 chromadb = "^0.4.18"
@@ -54,13 +52,21 @@ docx2txt = "^0.8"
 sqlalchemy = "^2.0.25"
 pexpect = {version = "^4.9.0", optional = true}
 pyright = {version = "^1.1.347", optional = true}
+llama-index = "^0.10.6"
+llama-index-embeddings-openai = "^0.1.1"
+python-box = "^7.1.1"
+pytest-order = {version = "^1.2.0", optional = true}
 
 [tool.poetry.extras]
 local = ["torch", "huggingface-hub", "transformers"]
 postgres = ["pgvector", "pg8000"]
-dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright"]
+dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order"]
 server = ["websockets", "fastapi", "uvicorn"]
 autogen = ["pyautogen"]
+
+[tool.black]
+line-length = 140
+target-version = ['py310', 'py311']
 
 [build-system]
 requires = ["poetry-core"]
