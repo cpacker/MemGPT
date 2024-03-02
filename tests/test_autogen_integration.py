@@ -16,6 +16,7 @@ def test_agent_groupchat():
     # sys.exit(1)
 
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    project_root = os.path.join(project_root, "memgpt")
     print(f"Adding the following to PATH: {project_root}")
 
     # Prepare the environment, adding the project root to PYTHONPATH
