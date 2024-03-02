@@ -241,11 +241,12 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
             fetched_model_options = get_model_options(
                 credentials=credentials, model_endpoint_type=model_endpoint_type, model_endpoint=model_endpoint
             )
-        except:
+        except Exception as e:
             # NOTE: if this fails, it means the user's key is probably bad
             typer.secho(
                 f"Failed to get model list from {model_endpoint} - make sure your API key and endpoints are correct!", fg=typer.colors.RED
             )
+            raise e
 
         # First ask if the user wants to see the full model list (some may be incompatible)
         see_all_option_str = "[see all options]"
