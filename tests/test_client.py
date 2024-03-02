@@ -1,6 +1,5 @@
 import uuid
 import time
-import os
 import threading
 
 from memgpt import Admin, create_client

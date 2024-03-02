@@ -1,6 +1,5 @@
 from abc import abstractmethod
 from typing import Union, Callable, Optional, List
-from datetime import datetime
 import uuid
 import json
 import logging
@@ -443,7 +442,7 @@ class SyncServer(LockingServer):
             while len(memgpt_agent.messages) > 0:
                 if memgpt_agent.messages[-1].get("role") == "user":
                     # we want to pop up to the last user message and send it again
-                    user_message = memgpt_agent.messages[-1].get("content")
+                    memgpt_agent.messages[-1].get("content")
                     memgpt_agent.messages.pop()
                     break
                 memgpt_agent.messages.pop()

@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-import uuid
 
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.server import app

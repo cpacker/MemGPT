@@ -31,7 +31,7 @@ def create_test_agent():
     )
 
     global agent_obj
-    config = MemGPTConfig.load()
+    MemGPTConfig.load()
     agent_obj = client.server._get_or_load_agent(user_id=client.user_id, agent_id=agent_state.id)
 
 

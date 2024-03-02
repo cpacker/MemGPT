@@ -3,7 +3,7 @@
 import uuid
 import typer
 import time
-from typing import Annotated, Optional
+from typing import Annotated
 
 from memgpt import create_client
 from memgpt.config import MemGPTConfig

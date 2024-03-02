@@ -3,8 +3,7 @@
 import os
 import uuid
 import secrets
-from typing import Optional, List, Dict
-from datetime import datetime
+from typing import Optional, List
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
 from memgpt.utils import get_local_time, enforce_types

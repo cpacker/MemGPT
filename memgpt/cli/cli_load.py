@@ -23,7 +23,6 @@ from memgpt.data_types import Source, Passage, Document, User
 from memgpt.utils import get_utc_time, suppress_stdout
 from memgpt.agent_store.storage import StorageConnector, TableType
 
-from datetime import datetime
 
 app = typer.Typer()
 

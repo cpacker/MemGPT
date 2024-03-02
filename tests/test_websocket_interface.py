@@ -1,6 +1,6 @@
 import os
 import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 from memgpt.config import MemGPTConfig, AgentConfig
 from memgpt.server.ws_api.interface import SyncWebSocketInterface

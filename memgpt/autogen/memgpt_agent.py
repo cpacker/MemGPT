@@ -263,7 +263,7 @@ def load_autogen_memgpt_agent(
     # Create the agent object directly from the loaded state (not via preset creation)
     try:
         memgpt_agent = MemGPTAgent(agent_state=agent_state, interface=interface)
-    except Exception as e:
+    except Exception:
         print(f"Failed to create an agent object from agent state =\n{agent_state}")
         raise
 
@@ -315,8 +315,8 @@ def create_autogen_memgpt_agent(
     embedding_config = config.default_embedding_config
 
     # Overwrite parts of the LLM and embedding configs that were passed into the config dicts
-    llm_config_was_modified = update_config_from_dict(llm_config, agent_config)
-    embedding_config_was_modified = update_config_from_dict(embedding_config, agent_config)
+    update_config_from_dict(llm_config, agent_config)
+    update_config_from_dict(embedding_config, agent_config)
 
     # Create the default user, or load the specified user
     ms = MetadataStore(config)

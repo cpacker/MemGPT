@@ -1,4 +1,3 @@
-from collections import UserDict
 import json
 import os
 import inspect
