@@ -8,7 +8,8 @@ def test_agent_groupchat():
 
     # Run the script using subprocess.run
     # Capture the output (stdout) and the exit code
-    result = subprocess.run(["python", script_path], capture_output=True, text=True)
+    # result = subprocess.run(["python", script_path], capture_output=True, text=True)
+    result = subprocess.run(["poetry", "run", "python", script_path], capture_output=True, text=True)
 
     # Check the exit code (0 indicates success)
     assert result.returncode == 0, f"Script exited with code {result.returncode}: {result.stderr}"
