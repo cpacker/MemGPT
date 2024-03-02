@@ -1,4 +1,5 @@
 import uuid
+import sys
 from typing import Callable, Optional, List, Dict, Union, Any, Tuple
 
 from autogen.agentchat import Agent, ConversableAgent, UserProxyAgent, GroupChat, GroupChatManager
@@ -16,6 +17,7 @@ from memgpt.credentials import MemGPTCredentials
 from memgpt.cli.cli_load import load_directory, load_vector_database
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.data_types import AgentState, User, LLMConfig, EmbeddingConfig
+from memgpt.utils import get_human_text, get_persona_text
 
 
 class MemGPTConversableAgent(ConversableAgent):
@@ -332,23 +334,33 @@ def create_autogen_memgpt_agent(
         user_id = uuid.UUID(agent_config["user_id"])
         user = ms.get_user(user_id=user_id)
 
-    agent_state = AgentState(
-        name=agent_config["name"],
-        user_id=user_id,
-        persona=agent_config["persona"],
-        human=agent_config["human"],
-        llm_config=llm_config,
-        embedding_config=embedding_config,
-        preset=agent_config["preset"],
-    )
     try:
-        preset = ms.get_preset(preset_name=agent_state.preset, user_id=user_id)
-        memgpt_agent = presets.create_agent_from_preset(
-            agent_state=agent_state,
-            preset=preset,
-            interface=interface,
-            persona_is_file=False,
-            human_is_file=False,
+        preset_obj = ms.get_preset(preset_name=agent_config["preset"] if "preset" in agent_config else config.preset, user_id=user.id)
+        if preset_obj is None:
+            # create preset records in metadata store
+            from memgpt.presets.presets import add_default_presets
+
+            add_default_presets(user.id, ms)
+            # try again
+            preset_obj = ms.get_preset(preset_name=agent_config["preset"] if "preset" in agent_config else config.preset, user_id=user.id)
+            if preset_obj is None:
+                print("Couldn't find presets in database, please run `memgpt configure`")
+                sys.exit(1)
+
+        # Overwrite fields in the preset if they were specified
+        # TODO make sure that the human/persona aren't filenames but actually real values
+        preset_obj.human = agent_config["human"] if "human" in agent_config else get_human_text(config.human)
+        preset_obj.persona = agent_config["persona"] if "persona" in agent_config else get_persona_text(config.persona)
+
+        memgpt_agent = Agent(
+            interface=interface(),
+            name=agent_config["name"] if "name" in agent_config else None,
+            created_by=user.id,
+            preset=preset_obj,
+            llm_config=llm_config,
+            embedding_config=embedding_config,
+            # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+            first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
         )
         # Save agent in database immediately after writing
         save_agent(agent=memgpt_agent, ms=ms)
@@ -357,7 +369,7 @@ def create_autogen_memgpt_agent(
 
     # After creating the agent, we then need to wrap it in a ConversableAgent so that it can be plugged into AutoGen
     autogen_memgpt_agent = MemGPTConversableAgent(
-        name=agent_state.name,
+        name=memgpt_agent.agent_state.name,
         agent=memgpt_agent,
         default_auto_reply=default_auto_reply,
         is_termination_msg=is_termination_msg,
