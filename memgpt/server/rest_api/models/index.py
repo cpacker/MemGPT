@@ -23,9 +23,7 @@ def setup_models_index_router(server: SyncServer, interface: QueuingInterface, p
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
     @router.get("/models", tags=["models"], response_model=ListModelsResponse)
-    async def list_models(
-        user_id: uuid.UUID = Depends(get_current_user_with_server),
-    ):
+    async def list_models():
         # Clear the interface
         interface.clear()
 
