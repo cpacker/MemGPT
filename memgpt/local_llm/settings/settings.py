@@ -62,11 +62,27 @@ def get_completions_settings(defaults="simple") -> dict:
         printd(f"No completion settings file '{settings_file}', skipping...")
         # Create the file settings_file to make it easy for the user to edit
         try:
+            stJson ={
+                    "top_k": 0,
+                    "top_p": 0,
+                    "temperature": 0,
+                    "repeat_penalty": 1.18,
+                    "seed": -1,
+                    "tfs_z": 1,
+                    "typical_p": 1,
+                    "repeat_last_n": 64,
+                    "frequency_penalty": 0,
+                    "presence_penalty": 0,
+                    "mirostat": 2,
+                    "mirostat_tau": 4,
+                    "mirostat_eta": 0.1,
+                    "penalize_nl": False
+                }
             with open(settings_file, "w", encoding="utf-8") as file:
                 # We don't want to dump existing default settings in case we modify
                 # the default settings in the future
                 # json.dump(settings, file, indent=4)
-                json.dump({}, file, indent=4)
+                json.dump(stJson, file, indent=4)
         except Exception as e:
             print(f"Error: failed to create empty settings file '{settings_file}'.\n{e}")
 
