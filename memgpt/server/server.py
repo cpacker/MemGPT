@@ -1071,3 +1071,7 @@ class SyncServer(LockingServer):
 
         # attach source to agent
         agent.attach_source(data_source.name, source_connector, self.ms)
+
+    def list_attached_sources(self, agent_id: uuid.UUID):
+        # list all attached sources to an agent
+        return self.ms.list_attached_sources(agent_id)

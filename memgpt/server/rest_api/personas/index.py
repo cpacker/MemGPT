@@ -8,12 +8,13 @@ from pydantic import BaseModel, Field
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
+from memgpt.models.pydantic_models import PersonaModel
 
 router = APIRouter()
 
 
 class ListPersonasResponse(BaseModel):
-    personas: List[dict] = Field(..., description="List of persona configurations.")
+    personas: List[PersonaModel] = Field(..., description="List of persona configurations.")
 
 
 def setup_personas_index_router(server: SyncServer, interface: QueuingInterface, password: str):
@@ -26,13 +27,7 @@ def setup_personas_index_router(server: SyncServer, interface: QueuingInterface,
         # Clear the interface
         interface.clear()
 
-        # TODO: Replace with actual data fetching logic once available
-        personas_data = [
-            {"name": "Persona 1", "text": "Details about Persona 1"},
-            {"name": "Persona 2", "text": "Details about Persona 2"},
-            {"name": "Persona 3", "text": "Details about Persona 3"},
-        ]
-
-        return ListPersonasResponse(personas=personas_data)
+        personas = server.ms.list_personas(user_id=user_id)
+        return ListPersonasResponse(personas=personas)
 
     return router

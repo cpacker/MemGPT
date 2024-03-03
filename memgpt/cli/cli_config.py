@@ -26,6 +26,7 @@ from memgpt.server.utils import shorten_key_middle
 from memgpt.data_types import User, LLMConfig, EmbeddingConfig, Source
 from memgpt.metadata import MetadataStore
 from memgpt.server.utils import shorten_key_middle
+from memgpt.models.pydantic_models import HumanModel, PersonaModel
 
 app = typer.Typer()
 
@@ -241,11 +242,12 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
             fetched_model_options = get_model_options(
                 credentials=credentials, model_endpoint_type=model_endpoint_type, model_endpoint=model_endpoint
             )
-        except:
+        except Exception as e:
             # NOTE: if this fails, it means the user's key is probably bad
             typer.secho(
                 f"Failed to get model list from {model_endpoint} - make sure your API key and endpoints are correct!", fg=typer.colors.RED
             )
+            raise e
 
         # First ask if the user wants to see the full model list (some may be incompatible)
         see_all_option_str = "[see all options]"
@@ -774,20 +776,15 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         """List all humans"""
         table = PrettyTable()
         table.field_names = ["Name", "Text"]
-        for human_file in utils.list_human_files():
-            text = open(human_file, "r").read()
-            name = os.path.basename(human_file).replace("txt", "")
-            table.add_row([name, text])
+        for human in ms.list_humans(user_id=user_id):
+            table.add_row([human.name, human.text])
         print(table)
     elif arg == ListChoice.personas:
         """List all personas"""
         table = PrettyTable()
         table.field_names = ["Name", "Text"]
-        for persona_file in utils.list_persona_files():
-            print(persona_file)
-            text = open(persona_file, "r").read()
-            name = os.path.basename(persona_file).replace(".txt", "")
-            table.add_row([name, text])
+        for persona in ms.list_personas(user_id=user_id):
+            table.add_row([persona.name, persona.text])
         print(table)
     elif arg == ListChoice.sources:
         """List all data sources"""
@@ -839,23 +836,15 @@ def add(
     filename: Annotated[Optional[str], typer.Option("-f", help="Specify filename")] = None,
 ):
     """Add a person/human"""
-
+    config = MemGPTConfig.load()
+    user_id = uuid.UUID(config.anon_clientid)
+    ms = MetadataStore(config)
     if option == "persona":
-        directory = os.path.join(MEMGPT_DIR, "personas")
+        ms.add_persona(PersonaModel(name=name, text=text, user_id=user_id))
     elif option == "human":
-        directory = os.path.join(MEMGPT_DIR, "humans")
+        ms.add_human(HumanModel(name=name, text=text, user_id=user_id))
     else:
         raise ValueError(f"Unknown kind {option}")
-
-    if filename:
-        assert text is None, f"Cannot provide both filename and text"
-        # copy file to directory
-        shutil.copyfile(filename, os.path.join(directory, name))
-    if text:
-        assert filename is None, f"Cannot provide both filename and text"
-        # write text to file
-        with open(os.path.join(directory, name), "w", encoding="utf-8") as f:
-            f.write(text)
 
 
 @app.command()
@@ -899,6 +888,10 @@ def delete(option: str, name: str):
             # metadata
             ms.delete_agent(agent_id=agent.id)
 
+        elif option == "human":
+            ms.delete_human(name=name, user_id=user_id)
+        elif option == "persona":
+            ms.delete_persona(name=name, user_id=user_id)
         else:
             raise ValueError(f"Option {option} not implemented")
 
