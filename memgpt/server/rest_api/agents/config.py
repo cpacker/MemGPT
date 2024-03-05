@@ -1,11 +1,11 @@
 import re
 import uuid
 from functools import partial
+from typing import List, Optional
 
-from fastapi import APIRouter, Body, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from typing import List, Optional
 
 from memgpt.models.pydantic_models import AgentStateModel, LLMConfigModel, EmbeddingConfigModel
 from memgpt.server.rest_api.auth_token import get_current_user
@@ -20,7 +20,6 @@ class GetAgentRequest(BaseModel):
 
 
 class AgentRenameRequest(BaseModel):
-    agent_id: str = Field(..., description="Unique identifier of the agent whose config is requested.")
     agent_name: str = Field(..., description="New name for the agent.")
 
 
@@ -51,9 +50,9 @@ def validate_agent_name(name: str) -> str:
 def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
-    @router.get("/agents", tags=["agents"], response_model=GetAgentResponse)
+    @router.get("/agents/{agent_id}", tags=["agents"], response_model=GetAgentResponse)
     def get_agent_config(
-        agent_id: str = Query(..., description="Unique identifier of the agent whose config is requested."),
+        agent_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
@@ -90,8 +89,9 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
             sources=attached_sources,
         )
 
-    @router.patch("/agents/rename", tags=["agents"], response_model=GetAgentResponse)
+    @router.patch("/agents/{agent_id}/rename", tags=["agents"], response_model=GetAgentResponse)
     def update_agent_name(
+        agent_id: uuid.UUID,
         request: AgentRenameRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
@@ -100,8 +100,6 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
 
         This changes the name of the agent in the database but does NOT edit the agent's persona.
         """
-        agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
-
         valid_name = validate_agent_name(request.agent_name)
 
         interface.clear()
@@ -113,9 +111,9 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
             raise HTTPException(status_code=500, detail=f"{e}")
         return GetAgentResponse(agent_state=agent_state)
 
-    @router.delete("/agents", tags=["agents"])
+    @router.delete("/agents/{agent_id}", tags=["agents"])
     def delete_agent(
-        agent_id: str = Query(..., description="Unique identifier of the agent to be deleted."),
+        agent_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
