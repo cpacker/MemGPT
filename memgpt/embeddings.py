@@ -134,7 +134,7 @@ class EmbeddingEndpoint:
 def default_embedding_model():
     # default to hugging face model running local
     # warning: this is a terrible model
-    from llama_index.embeddings import HuggingFaceEmbedding
+    from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
     os.environ["TOKENIZERS_PARALLELISM"] = "False"
     model = "BAAI/bge-small-en-v1.5"
