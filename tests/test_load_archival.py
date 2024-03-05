@@ -71,6 +71,7 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
 
     # embedding config
     if os.getenv("OPENAI_API_KEY"):
+        print("Using OpenAI embeddings for testing")
         credentials = MemGPTCredentials(
             openai_key=os.getenv("OPENAI_API_KEY"),
         )
@@ -83,11 +84,24 @@ def test_load_directory(metadata_storage_connector, passage_storage_connector, c
         )
 
     else:
+        # print("Using local embedding model for testing")
+        # embedding_config = EmbeddingConfig(
+        #     embedding_endpoint_type="local",
+        #     embedding_endpoint=None,
+        #     embedding_dim=384,
+        # )
+
+        print("Using official hosted embedding model for testing")
         embedding_config = EmbeddingConfig(
-            embedding_endpoint_type="local",
-            embedding_endpoint=None,
-            embedding_dim=384,
+            embedding_endpoint_type="hugging-face",
+            embedding_endpoint="https://embeddings.memgpt.ai",
+            embedding_model="BAAI/bge-large-en-v1.5",
+            embedding_dim=1024,
         )
+
+    # write out the config so that the 'load' command will use it (CLI commands pull from config)
+    config.default_embedding_config = embedding_config
+    config.save()
 
     # create user and agent
     agent = AgentState(

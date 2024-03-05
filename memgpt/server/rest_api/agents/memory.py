@@ -1,7 +1,7 @@
 import uuid
 from functools import partial
 
-from fastapi import APIRouter, Depends, Body, Query
+from fastapi import APIRouter, Depends, Body
 from pydantic import BaseModel, Field
 
 from memgpt.server.rest_api.auth_token import get_current_user
@@ -14,10 +14,6 @@ router = APIRouter()
 class CoreMemory(BaseModel):
     human: str | None = Field(None, description="Human element of the core memory.")
     persona: str | None = Field(None, description="Persona element of the core memory.")
-
-
-class GetAgentMemoryRequest(BaseModel):
-    agent_id: str = Field(..., description="The unique identifier of the agent.")
 
 
 class GetAgentMemoryResponse(BaseModel):
@@ -41,9 +37,9 @@ class UpdateAgentMemoryResponse(BaseModel):
 def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
-    @router.get("/agents/memory", tags=["agents"], response_model=GetAgentMemoryResponse)
+    @router.get("/agents/{agent_id}/memory", tags=["agents"], response_model=GetAgentMemoryResponse)
     def get_agent_memory(
-        agent_id: str = Query(..., description="The unique identifier of the agent."),
+        agent_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
@@ -51,17 +47,13 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
 
         This endpoint fetches the current memory state of the agent identified by the user ID and agent ID.
         """
-        # Validate with the Pydantic model (optional)
-        request = GetAgentMemoryRequest(agent_id=agent_id)
-
-        agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
-
         interface.clear()
         memory = server.get_agent_memory(user_id=user_id, agent_id=agent_id)
         return GetAgentMemoryResponse(**memory)
 
-    @router.post("/agents/memory", tags=["agents"], response_model=UpdateAgentMemoryResponse)
+    @router.post("/agents/{agent_id}/memory", tags=["agents"], response_model=UpdateAgentMemoryResponse)
     def update_agent_memory(
+        agent_id: uuid.UUID,
         request: UpdateAgentMemoryRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
