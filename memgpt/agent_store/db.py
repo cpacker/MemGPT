@@ -26,7 +26,6 @@ from memgpt.constants import MAX_EMBEDDING_DIM
 from memgpt.metadata import MetadataStore
 
 
-
 # Custom UUID type
 class CommonUUID(TypeDecorator):
     impl = CHAR

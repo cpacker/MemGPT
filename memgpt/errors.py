@@ -2,7 +2,6 @@ class LLMError(Exception):
     """Base class for all LLM-related errors."""
 
 
-
 class LLMJSONParsingError(LLMError):
     """Exception raised for errors in the JSON parsing process."""
 
