@@ -24,6 +24,8 @@ def load_data(
     document_store: Optional[StorageConnector] = None,
 ):
     """Load data from a connector (generates documents and passages) into a specified source_id, associatedw with a user_id."""
+    assert source.embedding_model == embedding_config.embedding_model, "Source and embedding config models must match."
+    assert source.embedding_dim == embedding_config.embedding_dim, "Source and embedding config dimensions must match."
 
     # embedding model
     embed_model = embedding_model(embedding_config)
@@ -55,8 +57,8 @@ def load_data(
                 metadata_=passage_metadata,
                 user_id=source.user_id,
                 data_source=source.name,
-                embedding_dim=embedding_config.embedding_dim,
-                embedding_model=embedding_config.embedding_model,
+                embedding_dim=source.embedding_dim,
+                embedding_model=source.embedding_model,
                 embedding=embedding,
             )
 
