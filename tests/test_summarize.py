@@ -2,9 +2,7 @@ import os
 import uuid
 
 from memgpt import create_client
-from memgpt.config import MemGPTConfig
 from memgpt import constants
-import memgpt.functions.function_sets.base as base_functions
 from .utils import wipe_config, create_config
 
 
@@ -31,7 +29,6 @@ def create_test_agent():
     )
 
     global agent_obj
-    config = MemGPTConfig.load()
     agent_obj = client.server._get_or_load_agent(user_id=client.user_id, agent_id=agent_state.id)
 
 
@@ -48,12 +45,16 @@ def test_summarize():
 
     # First send a few messages (5)
     response = client.user_message(
-        agent_id=agent_obj.agent_state.id, message="Hey, how's it going? What do you think about this whole shindig"
+        agent_id=agent_obj.agent_state.id,
+        message="Hey, how's it going? What do you think about this whole shindig",
     )
     assert response is not None and len(response) > 0
     print(f"test_summarize: response={response}")
 
-    response = client.user_message(agent_id=agent_obj.agent_state.id, message="Any thoughts on the meaning of life?")
+    response = client.user_message(
+        agent_id=agent_obj.agent_state.id,
+        message="Any thoughts on the meaning of life?",
+    )
     assert response is not None and len(response) > 0
     print(f"test_summarize: response={response}")
 
@@ -62,7 +63,8 @@ def test_summarize():
     print(f"test_summarize: response={response}")
 
     response = client.user_message(
-        agent_id=agent_obj.agent_state.id, message="Would you be surprised to learn that you're actually conversing with an AI right now?"
+        agent_id=agent_obj.agent_state.id,
+        message="Would you be surprised to learn that you're actually conversing with an AI right now?",
     )
     assert response is not None and len(response) > 0
     print(f"test_summarize: response={response}")

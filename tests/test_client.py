@@ -1,20 +1,13 @@
 import uuid
 import time
-import os
 import threading
 
 from memgpt import Admin, create_client
-from memgpt.config import MemGPTConfig
-from memgpt import constants
-from memgpt.data_types import LLMConfig, EmbeddingConfig, Preset
-from memgpt.functions.functions import load_all_function_sets
-from memgpt.prompts import gpt_system
 from memgpt.constants import DEFAULT_PRESET
 
 import pytest
 
 
-from .utils import wipe_config
 import uuid
 
 
@@ -116,9 +109,3 @@ def test_user_message(client):
     # print(
     #    f"[2] MESSAGE SEND SUCCESS!!! AGENT {test_agent_state_post_message.id}\n\tmessages={test_agent_state_post_message.state['messages']}"
     # )
-
-
-if __name__ == "__main__":
-    # test_create_preset()
-    test_create_agent()
-    test_user_message()
