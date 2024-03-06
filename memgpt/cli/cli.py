@@ -2,8 +2,6 @@ import uuid
 import json
 import requests
 import sys
-import shutil
-import io
 import logging
 from pathlib import Path
 import os
@@ -722,7 +720,7 @@ def delete_agent(
     try:
         ms.delete_agent(agent_id=agent.id)
         typer.secho(f"🕊️ Successfully deleted agent '{agent_name}' (id={agent.id})", fg=typer.colors.GREEN)
-    except Exception as e:
+    except Exception:
         typer.secho(f"Failed to delete agent '{agent_name}' (id={agent.id})", fg=typer.colors.RED)
         sys.exit(1)
 

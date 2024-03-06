@@ -23,7 +23,6 @@ from memgpt.data_types import Source, Passage, Document, User
 from memgpt.utils import get_utc_time, suppress_stdout
 from memgpt.agent_store.storage import StorageConnector, TableType
 
-from datetime import datetime
 
 app = typer.Typer()
 
@@ -97,21 +96,29 @@ def load_directory(
             user_id = uuid.UUID(config.anon_clientid)
 
         ms = MetadataStore(config)
-        source = Source(name=name, user_id=user_id)
+        source = Source(
+            name=name,
+            user_id=user_id,
+            embedding_model=config.default_embedding_config.embedding_model,
+            embedding_dim=config.default_embedding_config.embedding_dim,
+        )
         ms.create_source(source)
-        print("created source", name, str(user_id))
-        print("listing source", user_id, ms.list_sources(user_id=user_id))
         passage_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
         # TODO: also get document store
 
         # ingest data into passage/document store
-        num_passages, num_documents = load_data(
-            connector=connector,
-            source=source,
-            embedding_config=config.default_embedding_config,
-            document_store=None,
-            passage_store=passage_storage,
-        )
+        try:
+            num_passages, num_documents = load_data(
+                connector=connector,
+                source=source,
+                embedding_config=config.default_embedding_config,
+                document_store=None,
+                passage_store=passage_storage,
+            )
+        except Exception as e:
+            typer.secho(f"Failed to load data from provided information.\n{e}", fg=typer.colors.RED)
+            ms.delete_source(source_id=source.id)
+
         print(f"Loaded {num_passages} passages and {num_documents} documents from {name}")
 
     except ValueError as e:
@@ -207,21 +214,29 @@ def load_vector_database(
             user_id = uuid.UUID(config.anon_clientid)
 
         ms = MetadataStore(config)
-        source = Source(name=name, user_id=user_id)
+        source = Source(
+            name=name,
+            user_id=user_id,
+            embedding_model=config.default_embedding_config.embedding_model,
+            embedding_dim=config.default_embedding_config.embedding_dim,
+        )
         ms.create_source(source)
         passage_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
         # TODO: also get document store
 
         # ingest data into passage/document store
-        num_passages, num_documents = load_data(
-            connector=connector,
-            source=source,
-            embedding_config=config.default_embedding_config,
-            document_store=None,
-            passage_store=passage_storage,
-            chunk_size=1000,
-        )
-        print(f"Loaded {num_passages} passages and {num_documents} documents from {name}")
+        try:
+            num_passages, num_documents = load_data(
+                connector=connector,
+                source=source,
+                embedding_config=config.default_embedding_config,
+                document_store=None,
+                passage_store=passage_storage,
+            )
+            print(f"Loaded {num_passages} passages and {num_documents} documents from {name}")
+        except Exception as e:
+            typer.secho(f"Failed to load data from provided information.\n{e}", fg=typer.colors.RED)
+            ms.delete_source(source_id=source.id)
 
     except ValueError as e:
         typer.secho(f"Failed to load VectorDB from provided information.\n{e}", fg=typer.colors.RED)

@@ -188,7 +188,6 @@ class Agent(object):
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
     ):
-
         # An agent can be created from a Preset object
         if preset is not None:
             assert agent_state is None, "Can create an agent from a Preset or AgentState (but both were provided)"
@@ -675,7 +674,7 @@ class Agent(object):
             # (if yes) Step 3: call the function
             # (if yes) Step 4: send the info on the function call and function response to LLM
             response_message = response.choices[0].message
-            response_message_copy = response_message.copy()
+            response_message.copy()
             all_response_messages, heartbeat_request, function_failed = self._handle_ai_response(response_message)
 
             # Add the extra metadata to the assistant response

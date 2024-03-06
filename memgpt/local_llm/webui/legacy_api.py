@@ -1,4 +1,3 @@
-import os
 from urllib.parse import urljoin
 import requests
 

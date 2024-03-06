@@ -4,7 +4,6 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.embeddings import embedding_model
 from memgpt.data_types import Document, Passage
 
-import uuid
 from typing import List, Iterator, Dict, Tuple, Optional
 from llama_index.core import Document as LlamaIndexDocument
 
@@ -25,6 +24,12 @@ def load_data(
     document_store: Optional[StorageConnector] = None,
 ):
     """Load data from a connector (generates documents and passages) into a specified source_id, associatedw with a user_id."""
+    assert (
+        source.embedding_model == embedding_config.embedding_model
+    ), f"Source and embedding config models must match, got: {source.embedding_model} and {embedding_config.embedding_model}"
+    assert (
+        source.embedding_dim == embedding_config.embedding_dim
+    ), f"Source and embedding config dimensions must match, got: {source.embedding_dim} and {embedding_config.embedding_dim}."
 
     # embedding model
     embed_model = embedding_model(embedding_config)
@@ -47,7 +52,7 @@ def load_data(
             document_store.insert(document)
 
         # generate passages
-        for passage_text, passage_metadata in connector.generate_passages([document]):
+        for passage_text, passage_metadata in connector.generate_passages([document], chunk_size=embedding_config.embedding_chunk_size):
             embedding = embed_model.get_text_embedding(passage_text)
             passage = Passage(
                 id=create_uuid_from_string(f"{str(source.id)}_{passage_text}"),
@@ -56,8 +61,8 @@ def load_data(
                 metadata_=passage_metadata,
                 user_id=source.user_id,
                 data_source=source.name,
-                embedding_dim=embedding_config.embedding_dim,
-                embedding_model=embedding_config.embedding_model,
+                embedding_dim=source.embedding_dim,
+                embedding_model=source.embedding_model,
                 embedding=embedding,
             )
 
@@ -102,7 +107,6 @@ class DirectoryConnector(DataConnector):
             reader = SimpleDirectoryReader(input_files=[str(f) for f in self.input_files])
 
         llama_index_docs = reader.load_data(show_progress=True)
-        docs = []
         for llama_index_doc in llama_index_docs:
             # TODO: add additional metadata?
             # doc = Document(text=llama_index_doc.text, metadata=llama_index_doc.metadata)
@@ -111,9 +115,10 @@ class DirectoryConnector(DataConnector):
 
     def generate_passages(self, documents: List[Document], chunk_size: int = 1024) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Passage]:
         # use llama index to run embeddings code
-        from llama_index.core.node_parser import SentenceSplitter
+        # from llama_index.core.node_parser import SentenceSplitter
+        from llama_index.core.node_parser import TokenTextSplitter
 
-        parser = SentenceSplitter(chunk_size=chunk_size)
+        parser = TokenTextSplitter(chunk_size=chunk_size)
         for document in documents:
             llama_index_docs = [LlamaIndexDocument(text=document.text, metadata=document.metadata)]
             nodes = parser.get_nodes_from_documents(llama_index_docs)

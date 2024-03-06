@@ -1,49 +1,42 @@
-from abc import abstractmethod
-from typing import Union, Callable, Optional, List
-from datetime import datetime
-import uuid
 import json
+from datetime import datetime
 import logging
-from threading import Lock
+import uuid
+from abc import abstractmethod
 from functools import wraps
+from threading import Lock
+from typing import Union, Callable, Optional, List
+
 from fastapi import HTTPException
 
-from memgpt.config import MemGPTConfig
-from memgpt.credentials import MemGPTCredentials
-from memgpt.constants import JSON_LOADS_STRICT, JSON_ENSURE_ASCII
-from memgpt.agent import Agent, save_agent
-import memgpt.system as system
 import memgpt.constants as constants
+import memgpt.presets.presets as presets
+import memgpt.server.utils as server_utils
+import memgpt.system as system
+from memgpt.agent import Agent, save_agent
+from memgpt.agent_store.storage import StorageConnector, TableType
 
 # from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.cli.cli_config import get_model_options
+from memgpt.config import MemGPTConfig
+from memgpt.constants import JSON_LOADS_STRICT, JSON_ENSURE_ASCII
+from memgpt.credentials import MemGPTCredentials
 from memgpt.data_sources.connectors import DataConnector, load_data
-from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.metadata import MetadataStore
-import memgpt.presets.presets as presets
-import memgpt.utils as utils
-import memgpt.server.utils as server_utils
 from memgpt.data_types import (
     User,
     Source,
-    Passage,
     AgentState,
     LLMConfig,
     EmbeddingConfig,
     Message,
-    ToolCall,
-    LLMConfig,
-    EmbeddingConfig,
-    Message,
-    ToolCall,
     Token,
     Preset,
 )
-
+from memgpt.interface import AgentInterface  # abstract
 
 # TODO use custom interface
 from memgpt.interface import CLIInterface  # for printing to terminal
-from memgpt.interface import AgentInterface  # abstract
+from memgpt.metadata import MetadataStore
 
 logger = logging.getLogger(__name__)
 
@@ -443,7 +436,7 @@ class SyncServer(LockingServer):
             while len(memgpt_agent.messages) > 0:
                 if memgpt_agent.messages[-1].get("role") == "user":
                     # we want to pop up to the last user message and send it again
-                    user_message = memgpt_agent.messages[-1].get("content")
+                    memgpt_agent.messages[-1].get("content")
                     memgpt_agent.messages.pop()
                     break
                 memgpt_agent.messages.pop()
@@ -1014,7 +1007,7 @@ class SyncServer(LockingServer):
 
     def authenticate_user(self) -> uuid.UUID:
         # TODO: Implement actual authentication to enable multi user setup
-        return uuid.UUID(int=uuid.getnode())
+        return uuid.UUID(MemGPTConfig.load().anon_clientid)
 
     def api_key_to_user(self, api_key: str) -> uuid.UUID:
         """Decode an API key to a user"""
@@ -1031,7 +1024,12 @@ class SyncServer(LockingServer):
 
     def create_source(self, name: str, user_id: uuid.UUID) -> Source:  # TODO: add other fields
         """Create a new data source"""
-        source = Source(name=name, user_id=user_id)
+        source = Source(
+            name=name,
+            user_id=user_id,
+            embedding_model=self.config.default_embedding_config.embedding_model,
+            embedding_dim=self.config.default_embedding_config.embedding_dim,
+        )
         self.ms.create_source(source)
         return source
 

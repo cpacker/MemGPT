@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-import pickle
 from typing import List
 
 from memgpt.memory import (
