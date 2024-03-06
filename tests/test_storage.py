@@ -146,13 +146,13 @@ def test_storage(
         if table_type == TableType.ARCHIVAL_MEMORY:
             print("Skipping test, sqlite only supported for recall memory")
             return
-        config.recall_storage_type = "sqlite"
+        TEST_MEMGPT_CONFIG.recall_storage_type = "sqlite"
     if storage_connector == "qdrant":
         if table_type == TableType.RECALL_MEMORY:
             print("Skipping test, Qdrant only supports archival memory")
             return
-        config.archival_storage_type = "qdrant"
-        config.archival_storage_path = "./test_qdrant"
+        TEST_MEMGPT_CONFIG.archival_storage_type = "qdrant"
+        TEST_MEMGPT_CONFIG.archival_storage_path = "./test_qdrant"
 
     # get embedding model
     embed_model = None

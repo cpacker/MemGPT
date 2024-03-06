@@ -70,7 +70,7 @@ def test_load_directory(
         # nothing to do (should be config defaults)
     elif passage_storage_connector == "qdrant":
         print("Testing Qdrant passage storage")
-        config.archival_storage_uri = "localhost:6333"
+        TEST_MEMGPT_CONFIG.archival_storage_uri = "localhost:6333"
     else:
         raise NotImplementedError(f"Storage type {passage_storage_connector} not implemented")
     TEST_MEMGPT_CONFIG.save()
@@ -147,7 +147,7 @@ def test_load_directory(
     print("Resetting tables with delete_table...")
     passages_conn.delete_table()
     print("Re-creating tables...")
-    passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
+    passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, TEST_MEMGPT_CONFIG, user_id)
     assert (
         passages_conn.size() == 0
     ), f"Expected 0 records, got {passages_conn.size()}: {[vars(r) for r in passages_conn.get_all(limit=GET_ALL_LIMIT)]}"
