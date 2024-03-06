@@ -1,6 +1,7 @@
 """ Metadata store for user/agent/data_source information"""
 
 import os
+import inspect as python_inspect
 import uuid
 import secrets
 from typing import Optional, List
@@ -9,8 +10,9 @@ from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSON
 from memgpt.utils import get_local_time, enforce_types
 from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig, Token, Preset
 from memgpt.config import MemGPTConfig
+from memgpt.functions.functions import load_all_function_sets
 
-from memgpt.models.pydantic_models import PersonaModel, HumanModel
+from memgpt.models.pydantic_models import PersonaModel, HumanModel, ToolModel
 
 from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, Boolean
 from sqlalchemy import func
@@ -518,9 +520,21 @@ class MetadataStore:
             return [r.to_record() for r in results]
 
     @enforce_types
-    def list_tools(self, user_id: uuid.UUID) -> List[Preset]:
+    def list_tools(self, user_id: uuid.UUID) -> List[ToolModel]:
         with self.session_maker() as session:
-            raise NotImplementedError
+            available_functions = load_all_function_sets()
+            print(available_functions)
+            results = [
+                ToolModel(
+                    name=k,
+                    json_schema=v["json_schema"],
+                    source_type="python",
+                    source_code=python_inspect.getsource(v["python_function"]),
+                )
+                for k, v in available_functions.items()
+            ]
+            print(results)
+            return results
             # results = session.query(PresetModel).filter(PresetModel.user_id == user_id).all()
             # return [r.to_record() for r in results]
 

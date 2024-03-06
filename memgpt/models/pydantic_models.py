@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Literal
 from pydantic import BaseModel, Field, Json
 import uuid
 from datetime import datetime
@@ -39,7 +39,9 @@ class PresetModel(BaseModel):
 class ToolModel(BaseModel):
     # TODO move into database
     name: str = Field(..., description="The name of the function.")
-    json_schema: str = Field(..., description="The JSON schema of the function.")
+    json_schema: dict = Field(..., description="The JSON schema of the function.")
+    source_type: Optional[Literal["python"]] = Field(None, description="The type of the source code.")
+    source_code: Optional[str] = Field(..., description="The source code of the function.")
 
 
 class AgentStateModel(BaseModel):
