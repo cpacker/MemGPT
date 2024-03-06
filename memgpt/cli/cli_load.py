@@ -96,7 +96,12 @@ def load_directory(
             user_id = uuid.UUID(config.anon_clientid)
 
         ms = MetadataStore(config)
-        source = Source(name=name, user_id=user_id)
+        source = Source(
+            name=name,
+            user_id=user_id,
+            embedding_model=config.default_embedding_config.embedding_model,
+            embedding_dim=config.default_embedding_config.embedding_dim,
+        )
         ms.create_source(source)
         passage_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
         # TODO: also get document store
@@ -209,7 +214,12 @@ def load_vector_database(
             user_id = uuid.UUID(config.anon_clientid)
 
         ms = MetadataStore(config)
-        source = Source(name=name, user_id=user_id)
+        source = Source(
+            name=name,
+            user_id=user_id,
+            embedding_model=config.default_embedding_config.embedding_model,
+            embedding_dim=config.default_embedding_config.embedding_dim,
+        )
         ms.create_source(source)
         passage_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
         # TODO: also get document store

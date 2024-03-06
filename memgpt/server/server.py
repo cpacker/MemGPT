@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 import logging
 import uuid
 from abc import abstractmethod
@@ -1023,7 +1024,12 @@ class SyncServer(LockingServer):
 
     def create_source(self, name: str, user_id: uuid.UUID) -> Source:  # TODO: add other fields
         """Create a new data source"""
-        source = Source(name=name, user_id=user_id)
+        source = Source(
+            name=name,
+            user_id=user_id,
+            embedding_model=self.config.default_embedding_config.embedding_model,
+            embedding_dim=self.config.default_embedding_config.embedding_dim,
+        )
         self.ms.create_source(source)
         return source
 
