@@ -7,6 +7,9 @@ from memgpt.metadata import MetadataStore
 from memgpt.data_types import User, AgentState, Source, LLMConfig
 from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
+from memgpt.presets.presets import add_default_presets, add_default_humans_and_personas
+from memgpt.models.pydantic_models import HumanModel, PersonaModel
+from memgpt.models.pydantic_models import HumanModel, PersonaModel
 
 
 # @pytest.mark.parametrize("storage_connector", ["postgres", "sqlite"])
@@ -25,9 +28,23 @@ def test_storage(storage_connector):
 
     ms = MetadataStore(TEST_MEMGPT_CONFIG)
 
-    # generate data
+    # users
     user_1 = User()
     user_2 = User()
+    ms.create_user(user_1)
+    ms.create_user(user_2)
+
+    # test adding default humans/personas/presets
+    # add_default_humans_and_personas(user_id=user_1.id, ms=ms)
+    # add_default_humans_and_personas(user_id=user_2.id, ms=ms)
+    ms.add_human(human=HumanModel(name="test_human", text="This is a test human"))
+    ms.add_persona(persona=PersonaModel(name="test_persona", text="This is a test persona"))
+    add_default_presets(user_id=user_1.id, ms=ms)
+    add_default_presets(user_id=user_2.id, ms=ms)
+    assert len(ms.list_humans(user_id=user_1.id)) > 0, ms.list_humans(user_id=user_1.id)
+    assert len(ms.list_personas(user_id=user_1.id)) > 0, ms.list_personas(user_id=user_1.id)
+
+    # generate data
     agent_1 = AgentState(
         user_id=user_1.id,
         name="agent_1",
@@ -40,8 +57,6 @@ def test_storage(storage_connector):
     source_1 = Source(user_id=user_1.id, name="source_1")
 
     # test creation
-    ms.create_user(user_1)
-    ms.create_user(user_2)
     ms.create_agent(agent_1)
     ms.create_source(source_1)
 
@@ -53,7 +68,7 @@ def test_storage(storage_connector):
 
     # test agent_state saving
     agent_state = ms.get_agent(agent_1.id).state
-    assert agent_state is None, agent_state  # when created via create_agent, it should be empty
+    assert agent_state == {}, agent_state  # when created via create_agent, it should be empty
 
     from memgpt.presets.presets import add_default_presets
 

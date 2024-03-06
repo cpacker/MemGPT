@@ -41,6 +41,7 @@ jobs:
         PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
+        PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
       run: |
         poetry run pytest -s -vv -k "not test_storage and not test_server and not test_openai_client" tests
 

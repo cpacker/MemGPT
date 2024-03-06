@@ -1,12 +1,20 @@
-from memgpt.migrate import migrate_all_agents
-from .utils import wipe_config
-from memgpt.server.server import SyncServer
+import os
 import shutil
 import uuid
+
+from memgpt.migrate import migrate_all_agents, migrate_all_sources
+from memgpt.config import MemGPTConfig
+from memgpt.server.server import SyncServer
+
+from .utils import wipe_config, create_config
 
 
 def test_migrate_0211():
     wipe_config()
+    if os.getenv("OPENAI_API_KEY"):
+        create_config("openai")
+    else:
+        create_config("memgpt_hosted")
 
     data_dir = "tests/data/memgpt-0.2.11"
     tmp_dir = f"tmp_{str(uuid.uuid4())}"

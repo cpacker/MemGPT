@@ -185,7 +185,7 @@ else:
 
 
 # Initialize the group chat between the user and two LLM agents (PM and coder)
-groupchat = autogen.GroupChat(agents=[user_proxy, pm, coder], messages=[], max_round=12, speaker_selection_method="round_robin")
+groupchat = autogen.GroupChat(agents=[user_proxy, pm, coder], messages=[], max_round=3, speaker_selection_method="round_robin")
 manager = autogen.GroupChatManager(groupchat=groupchat, llm_config=llm_config)
 
 # Begin the group chat with a message from the user

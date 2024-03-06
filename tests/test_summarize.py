@@ -15,12 +15,12 @@ agent_obj = None
 def create_test_agent():
     """Create a test agent that we can call functions on"""
     wipe_config()
-    global client
     if os.getenv("OPENAI_API_KEY"):
         create_config("openai")
     else:
         create_config("memgpt_hosted")
 
+    global client
     client = create_client()
     agent_state = client.create_agent(
         name=test_agent_name,
