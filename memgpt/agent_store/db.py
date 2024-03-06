@@ -11,9 +11,8 @@ from sqlalchemy_json import mutable_json_type, MutableJson
 from sqlalchemy import TypeDecorator, CHAR
 import uuid
 
-import re
 from tqdm import tqdm
-from typing import Optional, List, Iterator, Dict, Tuple
+from typing import Optional, List, Iterator, Dict
 import numpy as np
 from tqdm import tqdm
 import pandas as pd
@@ -25,8 +24,6 @@ from memgpt.utils import printd
 from memgpt.data_types import Record, Message, Passage, ToolCall, RecordType
 from memgpt.constants import MAX_EMBEDDING_DIM
 from memgpt.metadata import MetadataStore
-
-from datetime import datetime
 
 
 # Custom UUID type

@@ -41,7 +41,6 @@ class ZephyrMistralWrapper(LLMChatCompletionWrapper):
 
         prompt = ""
 
-        IM_START_TOKEN = "<s>"
         IM_END_TOKEN = "</s>"
 
         # System instructions go first
@@ -205,7 +204,6 @@ class ZephyrMistralInnerMonologueWrapper(ZephyrMistralWrapper):
     def chat_completion_to_prompt(self, messages, functions, function_documentation=None):
         prompt = ""
 
-        IM_START_TOKEN = "<s>"
         IM_END_TOKEN = "</s>"
 
         # System insturctions go first
