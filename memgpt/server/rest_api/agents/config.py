@@ -68,8 +68,8 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
         interface.clear()
         agent_state = server.get_agent_config(user_id=user_id, agent_id=agent_id)
         # return GetAgentResponse(agent_state=agent_state)
-        llm_config = LLMConfigModel(**vars(agent_state.llm_config))
-        embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
+        LLMConfigModel(**vars(agent_state.llm_config))
+        EmbeddingConfigModel(**vars(agent_state.embedding_config))
 
         return GetAgentResponse(
             agent_state=AgentStateModel(

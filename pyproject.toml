@@ -56,10 +56,11 @@ python-box = "^7.1.1"
 pytest-order = {version = "^1.2.0", optional = true}
 sqlmodel = "^0.0.16"
 llama-index-embeddings-azure-openai = "^0.1.6"
+autoflake = {version = "^2.3.0", optional = true}
 
 [tool.poetry.extras]
 postgres = ["pgvector", "pg8000"]
-dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order"]
+dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake"]
 server = ["websockets", "fastapi", "uvicorn"]
 autogen = ["pyautogen"]
 

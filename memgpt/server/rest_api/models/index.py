@@ -1,4 +1,3 @@
-import uuid
 from functools import partial
 from typing import List
 
@@ -19,7 +18,7 @@ class ListModelsResponse(BaseModel):
 
 
 def setup_models_index_router(server: SyncServer, interface: QueuingInterface, password: str):
-    get_current_user_with_server = partial(partial(get_current_user, server), password)
+    partial(partial(get_current_user, server), password)
 
     @router.get("/models", tags=["models"], response_model=ListModelsResponse)
     async def list_models():
