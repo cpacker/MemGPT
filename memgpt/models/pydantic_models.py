@@ -36,6 +36,12 @@ class PresetModel(BaseModel):
     functions_schema: List[Dict] = Field(..., description="The functions schema of the preset.")
 
 
+class ToolModel(BaseModel):
+    # TODO move into database
+    name: str = Field(..., description="The name of the function.")
+    json_schema: str = Field(..., description="The JSON schema of the function.")
+
+
 class AgentStateModel(BaseModel):
     id: uuid.UUID = Field(..., description="The unique identifier of the agent.")
     name: str = Field(..., description="The name of the agent.")
