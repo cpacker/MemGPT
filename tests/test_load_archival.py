@@ -103,8 +103,9 @@ def test_load_directory(
         )
 
     # write out the config so that the 'load' command will use it (CLI commands pull from config)
-    config.default_embedding_config = embedding_config
-    config.save()
+    TEST_MEMGPT_CONFIG.default_embedding_config = embedding_config
+    # config.default_embedding_config = embedding_config
+    # config.save()
 
     # create user and agent
     agent = AgentState(
