@@ -1027,7 +1027,6 @@ class SyncServer(LockingServer):
         source = Source(
             name=name,
             user_id=user_id,
-            created_at=datetime.datetime.now(),
             embedding_model=self.config.default_embedding_config.embedding_model,
             embedding_dim=self.config.default_embedding_config.embedding_dim,
         )
