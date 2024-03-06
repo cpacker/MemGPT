@@ -4,7 +4,6 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.embeddings import embedding_model
 from memgpt.data_types import Document, Passage
 
-import uuid
 from typing import List, Iterator, Dict, Tuple, Optional
 from llama_index.core import Document as LlamaIndexDocument
 
@@ -102,7 +101,6 @@ class DirectoryConnector(DataConnector):
             reader = SimpleDirectoryReader(input_files=[str(f) for f in self.input_files])
 
         llama_index_docs = reader.load_data(show_progress=True)
-        docs = []
         for llama_index_doc in llama_index_docs:
             # TODO: add additional metadata?
             # doc = Document(text=llama_index_doc.text, metadata=llama_index_doc.metadata)
