@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Literal
 from pydantic import BaseModel, Field, Json
 import uuid
 from datetime import datetime
@@ -34,6 +34,14 @@ class PresetModel(BaseModel):
     persona: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona of the preset.")
     human: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human of the preset.")
     functions_schema: List[Dict] = Field(..., description="The functions schema of the preset.")
+
+
+class ToolModel(BaseModel):
+    # TODO move into database
+    name: str = Field(..., description="The name of the function.")
+    json_schema: dict = Field(..., description="The JSON schema of the function.")
+    source_type: Optional[Literal["python"]] = Field(None, description="The type of the source code.")
+    source_code: Optional[str] = Field(..., description="The source code of the function.")
 
 
 class AgentStateModel(BaseModel):
