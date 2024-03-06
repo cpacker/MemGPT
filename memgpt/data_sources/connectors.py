@@ -46,7 +46,7 @@ def load_data(
             document_store.insert(document)
 
         # generate passages
-        for passage_text, passage_metadata in connector.generate_passages([document]):
+        for passage_text, passage_metadata in connector.generate_passages([document], chunk_size=embedding_config.embedding_chunk_size):
             embedding = embed_model.get_text_embedding(passage_text)
             passage = Passage(
                 id=create_uuid_from_string(f"{str(source.id)}_{passage_text}"),
@@ -109,9 +109,10 @@ class DirectoryConnector(DataConnector):
 
     def generate_passages(self, documents: List[Document], chunk_size: int = 1024) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Passage]:
         # use llama index to run embeddings code
-        from llama_index.core.node_parser import SentenceSplitter
+        # from llama_index.core.node_parser import SentenceSplitter
+        from llama_index.core.node_parser import TokenTextSplitter
 
-        parser = SentenceSplitter(chunk_size=chunk_size)
+        parser = TokenTextSplitter(chunk_size=chunk_size)
         for document in documents:
             llama_index_docs = [LlamaIndexDocument(text=document.text, metadata=document.metadata)]
             nodes = parser.get_nodes_from_documents(llama_index_docs)
