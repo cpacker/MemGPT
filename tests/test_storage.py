@@ -5,8 +5,7 @@ import pytest
 
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.embeddings import embedding_model, query_embedding
-from memgpt.data_types import Message, Passage, EmbeddingConfig, AgentState, OpenAIEmbeddingConfig
-from memgpt.config import MemGPTConfig
+from memgpt.data_types import Message, Passage, EmbeddingConfig, AgentState
 from memgpt.credentials import MemGPTCredentials
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.metadata import MetadataStore
@@ -14,6 +13,8 @@ from memgpt.data_types import User
 from memgpt.constants import MAX_EMBEDDING_DIM
 
 from datetime import datetime, timedelta
+
+from tests import TEST_MEMGPT_CONFIG
 
 
 # Note: the database will filter out rows that do not correspond to agent1 and test_user by default.
@@ -104,7 +105,12 @@ def recreate_declarative_base():
 # @pytest.mark.parametrize("storage_connector", ["sqlite", "chroma"])
 # @pytest.mark.parametrize("storage_connector", ["postgres"])
 @pytest.mark.parametrize("table_type", [TableType.RECALL_MEMORY, TableType.ARCHIVAL_MEMORY])
-def test_storage(storage_connector, table_type, clear_dynamically_created_models, recreate_declarative_base):
+def test_storage(
+    storage_connector,
+    table_type,
+    clear_dynamically_created_models,
+    recreate_declarative_base,
+):
     # setup memgpt config
     # TODO: set env for different config path
 
@@ -114,35 +120,34 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
     #        print("Removing messages", globals()['Message'])
     #        del globals()['Message']
 
-    config = MemGPTConfig()
     if storage_connector == "postgres":
         if not os.getenv("PGVECTOR_TEST_DB_URL"):
             print("Skipping test, missing PG URI")
             return
-        config.archival_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")
-        config.recall_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")
-        config.archival_storage_type = "postgres"
-        config.recall_storage_type = "postgres"
+        TEST_MEMGPT_CONFIG.archival_storage_uri = os.environ["PGVECTOR_TEST_DB_URL"]
+        TEST_MEMGPT_CONFIG.recall_storage_uri = os.environ["PGVECTOR_TEST_DB_URL"]
+        TEST_MEMGPT_CONFIG.archival_storage_type = "postgres"
+        TEST_MEMGPT_CONFIG.recall_storage_type = "postgres"
     if storage_connector == "lancedb":
         # TODO: complete lancedb implementation
         if not os.getenv("LANCEDB_TEST_URL"):
             print("Skipping test, missing LanceDB URI")
             return
-        config.archival_storage_uri = os.getenv("LANCEDB_TEST_URL")
-        config.recall_storage_uri = os.getenv("LANCEDB_TEST_URL")
-        config.archival_storage_type = "lancedb"
-        config.recall_storage_type = "lancedb"
+        TEST_MEMGPT_CONFIG.archival_storage_uri = os.environ["LANCEDB_TEST_URL"]
+        TEST_MEMGPT_CONFIG.recall_storage_uri = os.environ["LANCEDB_TEST_URL"]
+        TEST_MEMGPT_CONFIG.archival_storage_type = "lancedb"
+        TEST_MEMGPT_CONFIG.recall_storage_type = "lancedb"
     if storage_connector == "chroma":
         if table_type == TableType.RECALL_MEMORY:
             print("Skipping test, chroma only supported for archival memory")
             return
-        config.archival_storage_type = "chroma"
-        config.archival_storage_path = "./test_chroma"
+        TEST_MEMGPT_CONFIG.archival_storage_type = "chroma"
+        TEST_MEMGPT_CONFIG.archival_storage_path = "./test_chroma"
     if storage_connector == "sqlite":
         if table_type == TableType.ARCHIVAL_MEMORY:
             print("Skipping test, sqlite only supported for recall memory")
             return
-        config.recall_storage_type = "sqlite"
+        TEST_MEMGPT_CONFIG.recall_storage_type = "sqlite"
 
     # get embedding model
     embed_model = None
@@ -162,27 +167,27 @@ def test_storage(storage_connector, table_type, clear_dynamically_created_models
     embed_model = embedding_model(embedding_config)
 
     # create user
-    ms = MetadataStore(config)
+    ms = MetadataStore(TEST_MEMGPT_CONFIG)
     ms.delete_user(user_id)
     user = User(id=user_id)
     agent = AgentState(
         user_id=user_id,
         name="agent_1",
         id=agent_1_id,
-        preset=config.preset,
-        persona=config.persona,
-        human=config.human,
-        llm_config=config.default_llm_config,
-        embedding_config=config.default_embedding_config,
+        preset=TEST_MEMGPT_CONFIG.preset,
+        persona=TEST_MEMGPT_CONFIG.persona,
+        human=TEST_MEMGPT_CONFIG.human,
+        llm_config=TEST_MEMGPT_CONFIG.default_llm_config,
+        embedding_config=TEST_MEMGPT_CONFIG.default_embedding_config,
     )
     ms.create_user(user)
     ms.create_agent(agent)
 
     # create storage connector
-    conn = StorageConnector.get_storage_connector(table_type, config=config, user_id=user_id, agent_id=agent.id)
+    conn = StorageConnector.get_storage_connector(table_type, config=TEST_MEMGPT_CONFIG, user_id=user_id, agent_id=agent.id)
     # conn.client.delete_collection(conn.collection.name)  # clear out data
     conn.delete_table()
-    conn = StorageConnector.get_storage_connector(table_type, config=config, user_id=user_id, agent_id=agent.id)
+    conn = StorageConnector.get_storage_connector(table_type, config=TEST_MEMGPT_CONFIG, user_id=user_id, agent_id=agent.id)
 
     # generate data
     if table_type == TableType.ARCHIVAL_MEMORY:

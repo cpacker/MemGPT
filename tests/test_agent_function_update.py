@@ -1,16 +1,14 @@
-from collections import UserDict
 import json
 import os
 import inspect
 import uuid
 
-from memgpt.config import MemGPTConfig
 from memgpt import create_client
 from memgpt import constants
-import memgpt.functions.function_sets.base as base_functions
 from memgpt.functions.functions import USER_FUNCTIONS_DIR
 from memgpt.utils import assistant_function_to_tool
 from memgpt.models import chat_completion_response
+from tests import TEST_MEMGPT_CONFIG
 
 from tests.utils import wipe_config, create_config
 
@@ -39,10 +37,8 @@ def agent():
     # create memgpt client
     client = create_client()
 
-    config = MemGPTConfig.load()
-
     # ensure user exists
-    user_id = uuid.UUID(config.anon_clientid)
+    user_id = uuid.UUID(TEST_MEMGPT_CONFIG.anon_clientid)
     if not client.server.get_user(user_id=user_id):
         client.server.create_user({"id": user_id})
 
