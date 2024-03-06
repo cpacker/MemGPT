@@ -116,7 +116,7 @@ def test_load_directory(
         persona=TEST_MEMGPT_CONFIG.persona,
         human=TEST_MEMGPT_CONFIG.human,
         llm_config=TEST_MEMGPT_CONFIG.default_llm_config,
-        embedding_config=TEST_MEMGPT_CONFIG.embedding_config,
+        embedding_config=TEST_MEMGPT_CONFIG.default_embedding_config,
     )
     ms.delete_user(user.id)
     ms.create_user(user)
