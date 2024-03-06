@@ -2,7 +2,7 @@ import random
 import time
 import requests
 import time
-from typing import Callable, TypeVar, Union
+from typing import Union
 import urllib
 
 from memgpt.credentials import MemGPTCredentials

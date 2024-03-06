@@ -30,7 +30,6 @@ class AsyncWebSocketInterface(BaseWebSocketInterface):
     async def user_message(self, msg):
         """Handle reception of a user message"""
         # Logic to process the user message and possibly trigger agent's response
-        pass
 
     async def internal_monologue(self, msg):
         """Handle the agent's internal monologue"""
@@ -85,7 +84,6 @@ class SyncWebSocketInterface(BaseWebSocketInterface):
     def user_message(self, msg):
         """Handle reception of a user message"""
         # Logic to process the user message and possibly trigger agent's response
-        pass
 
     def internal_monologue(self, msg):
         """Handle the agent's internal monologue"""

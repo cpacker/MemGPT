@@ -1,9 +1,7 @@
 import builtins
-import json
 import os
-import shutil
 import uuid
-from typing import Annotated, Tuple, Optional
+from typing import Annotated, Optional
 from enum import Enum
 from typing import Annotated
 
@@ -512,7 +510,7 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
             raise KeyboardInterrupt
         try:
             embedding_dim = int(embedding_dim)
-        except Exception as e:
+        except Exception:
             raise ValueError(f"Failed to cast {embedding_dim} to integer.")
     else:  # local models
         embedding_endpoint_type = "local"
@@ -627,7 +625,7 @@ def configure():
     # check credentials
     credentials = MemGPTCredentials.load()
     openai_key = get_openai_credentials()
-    azure_creds = get_azure_credentials()
+    get_azure_credentials()
 
     MemGPTConfig.create_config_dir()
 
