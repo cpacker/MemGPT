@@ -126,6 +126,9 @@ def generate_schema(function):
             if get_args(param.annotation)[0] is str:
                 schema["parameters"]["properties"][param.name]["items"] = {"type": "string"}
 
+        if param.annotation == inspect.Parameter.empty:
+            schema["parameters"]["required"].append(param.name)
+
     # append the heartbeat
     if function.__name__ not in NO_HEARTBEAT_FUNCTIONS:
         schema["parameters"]["properties"][FUNCTION_PARAM_NAME_REQ_HEARTBEAT] = {
