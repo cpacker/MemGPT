@@ -21,7 +21,7 @@ def setup_tools_index_router(server: SyncServer, interface: QueuingInterface, pa
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
     @router.get("/tools", tags=["tools"], response_model=ListToolsResponse)
-    async def list_tools(
+    async def list_all_tools(
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """

@@ -528,6 +528,7 @@ class MetadataStore:
                 ToolModel(
                     name=k,
                     json_schema=v["json_schema"],
+                    tags=v["tags"],
                     source_type="python",
                     source_code=python_inspect.getsource(v["python_function"]),
                 )
