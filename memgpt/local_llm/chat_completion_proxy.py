@@ -126,13 +126,14 @@ def get_chat_completion(
         # if hasattr(llm_wrapper, "supports_first_message"):
         if hasattr(llm_wrapper, "supports_first_message") and llm_wrapper.supports_first_message:
             prompt = llm_wrapper.chat_completion_to_prompt(
-                messages, functions if functions else [], first_message=first_message, function_documentation=documentation
+                messages=messages, functions=functions, first_message=first_message, function_documentation=documentation
             )
         else:
-            prompt = llm_wrapper.chat_completion_to_prompt(messages, functions if functions else [], function_documentation=documentation)
+            prompt = llm_wrapper.chat_completion_to_prompt(messages=messages, functions=functions, function_documentation=documentation)
 
         printd(prompt)
     except Exception as e:
+        print(e)
         raise LocalLLMError(
             f"Failed to convert ChatCompletion messages into prompt string with wrapper {str(llm_wrapper)} - error: {str(e)}"
         )

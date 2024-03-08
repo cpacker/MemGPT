@@ -134,7 +134,7 @@ class EmbeddingEndpoint:
 def default_embedding_model():
     # default to hugging face model running local
     # warning: this is a terrible model
-    from llama_index.embeddings import HuggingFaceEmbedding
+    from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
     os.environ["TOKENIZERS_PARALLELISM"] = "False"
     model = "BAAI/bge-small-en-v1.5"
@@ -158,12 +158,25 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
     credentials = MemGPTCredentials.load()
 
     if endpoint_type == "openai":
+        assert credentials.openai_key is not None
         from llama_index.embeddings.openai import OpenAIEmbedding
 
         additional_kwargs = {"user_id": user_id} if user_id else {}
-        model = OpenAIEmbedding(api_base=config.embedding_endpoint, api_key=credentials.openai_key, additional_kwargs=additional_kwargs)
+        model = OpenAIEmbedding(
+            api_base=config.embedding_endpoint,
+            api_key=credentials.openai_key,
+            additional_kwargs=additional_kwargs,
+        )
         return model
+
     elif endpoint_type == "azure":
+        assert all(
+            [
+                credentials.azure_key is not None,
+                credentials.azure_embedding_endpoint is not None,
+                credentials.azure_version is not None,
+            ]
+        )
         from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
 
         # https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings
@@ -176,7 +189,13 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
             azure_endpoint=credentials.azure_endpoint,
             api_version=credentials.azure_version,
         )
+
     elif endpoint_type == "hugging-face":
-        return EmbeddingEndpoint(model=config.embedding_model, base_url=config.embedding_endpoint, user=user_id)
+        return EmbeddingEndpoint(
+            model=config.embedding_model,
+            base_url=config.embedding_endpoint,
+            user=user_id,
+        )
+
     else:
         return default_embedding_model()

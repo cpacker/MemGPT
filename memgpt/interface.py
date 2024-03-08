@@ -203,7 +203,6 @@ class CLIInterface(AgentInterface):
                         except Exception as e:
                             printd(str(e))
                             printd(msg_dict)
-                            pass
                     elif function_name in ["conversation_search", "conversation_search_date"]:
                         print_function_message("🧠", f"searching memory with {function_name}")
                         try:
@@ -216,7 +215,6 @@ class CLIInterface(AgentInterface):
                         except Exception as e:
                             printd(str(e))
                             printd(msg_dict)
-                            pass
                 else:
                     printd(f"{CLI_WARNING_PREFIX}did not recognize function message")
                     printd_function_message("", msg)

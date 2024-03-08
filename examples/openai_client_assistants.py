@@ -1,5 +1,4 @@
 from openai import OpenAI
-import time
 
 """
 This script provides an example of how you can use OpenAI's python client with a MemGPT server.
@@ -33,7 +32,7 @@ def main():
     )
 
     # Store the run ID
-    run_id = run.id
+    run.id
 
     # Retrieve all messages from the thread
     messages = client.beta.threads.messages.list(thread_id=thread.id)

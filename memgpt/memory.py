@@ -142,7 +142,6 @@ class ArchivalMemory(ABC):
         :param memory_string: Memory string to insert
         :type memory_string: str
         """
-        pass
 
     @abstractmethod
     def search(self, query_string, count=None, start=None) -> Tuple[List[str], int]:
@@ -157,7 +156,6 @@ class ArchivalMemory(ABC):
 
         :return: Tuple of (list of results, total number of results)
         """
-        pass
 
     @abstractmethod
     def __repr__(self) -> str:
@@ -168,12 +166,10 @@ class RecallMemory(ABC):
     @abstractmethod
     def text_search(self, query_string, count=None, start=None):
         """Search messages that match query_string in recall memory"""
-        pass
 
     @abstractmethod
     def date_search(self, start_date, end_date, count=None, start=None):
         """Search messages between start_date and end_date in recall memory"""
-        pass
 
     @abstractmethod
     def __repr__(self) -> str:
@@ -182,7 +178,6 @@ class RecallMemory(ABC):
     @abstractmethod
     def insert(self, message: Message):
         """Insert message into recall memory"""
-        pass
 
 
 class DummyRecallMemory(RecallMemory):

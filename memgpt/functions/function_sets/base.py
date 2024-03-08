@@ -1,6 +1,5 @@
 from typing import Optional
 import datetime
-import os
 import json
 import math
 
@@ -62,7 +61,7 @@ def core_memory_append(self, name: str, content: str) -> Optional[str]:
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
     """
-    new_len = self.memory.edit_append(name, content)
+    self.memory.edit_append(name, content)
     self.rebuild_memory()
     return None
 
@@ -79,7 +78,7 @@ def core_memory_replace(self, name: str, old_content: str, new_content: str) -> 
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
     """
-    new_len = self.memory.edit_replace(name, old_content, new_content)
+    self.memory.edit_replace(name, old_content, new_content)
     self.rebuild_memory()
     return None
 

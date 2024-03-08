@@ -2,11 +2,10 @@ import datetime
 from typing import Dict, List, Tuple, Iterator
 import os
 
-from memgpt.config import MemGPTConfig
 from memgpt.cli.cli import quickstart, QuickstartChoice
 from memgpt.data_sources.connectors import DataConnector
-from memgpt import Admin
 from memgpt.data_types import Document
+from tests import TEST_MEMGPT_CONFIG
 
 from .constants import TIMEOUT
 
@@ -37,17 +36,17 @@ def create_config(endpoint="openai"):
 
 
 def wipe_config():
-    if MemGPTConfig.exists():
+    if TEST_MEMGPT_CONFIG.exists():
         # delete
         if os.getenv("MEMGPT_CONFIG_PATH"):
             config_path = os.getenv("MEMGPT_CONFIG_PATH")
         else:
-            config_path = MemGPTConfig.config_path
+            config_path = TEST_MEMGPT_CONFIG.config_path
         # TODO delete file config_path
         os.remove(config_path)
-        assert not MemGPTConfig.exists(), "Config should not exist after deletion"
+        assert not TEST_MEMGPT_CONFIG.exists(), "Config should not exist after deletion"
     else:
-        print("No config to wipe", MemGPTConfig.config_path)
+        print("No config to wipe", TEST_MEMGPT_CONFIG.config_path)
 
 
 def wipe_memgpt_home():
@@ -63,7 +62,7 @@ def wipe_memgpt_home():
     os.system(f"mv ~/.memgpt {backup_dir}")
 
     # Setup the initial directory
-    MemGPTConfig.create_config_dir()
+    TEST_MEMGPT_CONFIG.create_config_dir()
 
 
 def configure_memgpt_localllm():

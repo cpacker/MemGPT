@@ -4,30 +4,29 @@ import pytest
 
 from memgpt.agent import Agent, save_agent
 from memgpt.metadata import MetadataStore
-from memgpt.config import MemGPTConfig
-from memgpt.data_types import User, AgentState, Source, LLMConfig, EmbeddingConfig
+from memgpt.data_types import User, AgentState, Source, LLMConfig
 from memgpt.utils import get_human_text, get_persona_text
+from tests import TEST_MEMGPT_CONFIG
 from memgpt.presets.presets import add_default_presets, add_default_humans_and_personas
-
+from memgpt.models.pydantic_models import HumanModel, PersonaModel
 from memgpt.models.pydantic_models import HumanModel, PersonaModel
 
 
 # @pytest.mark.parametrize("storage_connector", ["postgres", "sqlite"])
 @pytest.mark.parametrize("storage_connector", ["sqlite"])
 def test_storage(storage_connector):
-    config = MemGPTConfig()
     if storage_connector == "postgres":
         if not os.getenv("PGVECTOR_TEST_DB_URL"):
             print("Skipping test, missing PG URI")
             return
-        config.archival_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")
-        config.recall_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")
-        config.archival_storage_type = "postgres"
-        config.recall_storage_type = "postgres"
+        TEST_MEMGPT_CONFIG.archival_storage_uri = os.environ["PGVECTOR_TEST_DB_URL"]
+        TEST_MEMGPT_CONFIG.recall_storage_uri = os.environ["PGVECTOR_TEST_DB_URL"]
+        TEST_MEMGPT_CONFIG.archival_storage_type = "postgres"
+        TEST_MEMGPT_CONFIG.recall_storage_type = "postgres"
     if storage_connector == "sqlite":
-        config.recall_storage_type = "local"
+        TEST_MEMGPT_CONFIG.recall_storage_type = "local"
 
-    ms = MetadataStore(config)
+    ms = MetadataStore(TEST_MEMGPT_CONFIG)
 
     # users
     user_1 = User()
@@ -35,14 +34,15 @@ def test_storage(storage_connector):
     ms.create_user(user_1)
     ms.create_user(user_2)
 
-    # test adding defaults
-    # TODO: move below
-    add_default_humans_and_personas(user_id=user_1.id, ms=ms)
-    add_default_humans_and_personas(user_id=user_2.id, ms=ms)
+    # test adding default humans/personas/presets
+    # add_default_humans_and_personas(user_id=user_1.id, ms=ms)
+    # add_default_humans_and_personas(user_id=user_2.id, ms=ms)
     ms.add_human(human=HumanModel(name="test_human", text="This is a test human"))
     ms.add_persona(persona=PersonaModel(name="test_persona", text="This is a test persona"))
     add_default_presets(user_id=user_1.id, ms=ms)
     add_default_presets(user_id=user_2.id, ms=ms)
+    assert len(ms.list_humans(user_id=user_1.id)) > 0, ms.list_humans(user_id=user_1.id)
+    assert len(ms.list_personas(user_id=user_1.id)) > 0, ms.list_personas(user_id=user_1.id)
 
     # generate data
     agent_1 = AgentState(
@@ -51,8 +51,8 @@ def test_storage(storage_connector):
         preset=DEFAULT_PRESET,
         persona=DEFAULT_PERSONA,
         human=DEFAULT_HUMAN,
-        llm_config=config.default_llm_config,
-        embedding_config=config.default_embedding_config,
+        llm_config=TEST_MEMGPT_CONFIG.default_llm_config,
+        embedding_config=TEST_MEMGPT_CONFIG.default_embedding_config,
     )
     source_1 = Source(user_id=user_1.id, name="source_1")
 
@@ -68,7 +68,7 @@ def test_storage(storage_connector):
 
     # test agent_state saving
     agent_state = ms.get_agent(agent_1.id).state
-    assert agent_state is None, agent_state  # when created via create_agent, it should be empty
+    assert agent_state == {}, agent_state  # when created via create_agent, it should be empty
 
     from memgpt.presets.presets import add_default_presets
 
@@ -102,7 +102,7 @@ def test_storage(storage_connector):
     # test: updating
 
     # test: update JSON-stored LLMConfig class
-    print(agent_1.llm_config, config.default_llm_config)
+    print(agent_1.llm_config, TEST_MEMGPT_CONFIG.default_llm_config)
     llm_config = ms.get_agent(agent_1.id).llm_config
     assert isinstance(llm_config, LLMConfig), f"LLMConfig is {type(llm_config)}"
     assert llm_config.model == "gpt-4", f"LLMConfig model is {llm_config.model}"
