@@ -1,9 +1,11 @@
 from typing import List, Optional, Dict, Literal
 from pydantic import BaseModel, Field, Json, ConfigDict
 import uuid
+import base64
+import numpy as np
 from datetime import datetime
 from sqlmodel import Field, SQLModel
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, Column, BINARY, TypeDecorator
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS, MAX_EMBEDDING_DIM
 from memgpt.utils import get_human_text, get_persona_text, printd
@@ -93,23 +95,46 @@ class SourceModel(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now, description="The unix timestamp of when the source was created.")
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the source.", primary_key=True)
     # embedding info
-    embedding_config: EmbeddingConfigModel = Field(..., description="The embedding configuration used by the source.")
-    # embedding_config: Optional[EmbeddingConfigModel] = Field(None, sa_column=Column(JSON), description="The embedding configuration used by the passage.")
+    # embedding_config: EmbeddingConfigModel = Field(..., description="The embedding configuration used by the source.")
+    embedding_config: Optional[EmbeddingConfigModel] = Field(
+        None, sa_column=Column(JSON), description="The embedding configuration used by the passage."
+    )
 
 
-class DocumentModel(SQLModel, table=True):
-    user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the document.")
-    text: str = Field(..., description="The text of the document.")
-    data_source: str = Field(..., description="The data source of the document.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the document.", primary_key=True)
-    metadata: Optional[Dict] = Field({}, description="The metadata of the document.")
+class CommonVector(TypeDecorator):
+    """Common type for representing vectors in SQLite"""
+
+    impl = BINARY
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(BINARY())
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        # Ensure value is a numpy array
+        if isinstance(value, list):
+            value = np.array(value, dtype=np.float32)
+        # Serialize numpy array to bytes, then encode to base64 for universal compatibility
+        return base64.b64encode(value.tobytes())
+
+    def process_result_value(self, value, dialect):
+        if not value:
+            return value
+        # Check database type and deserialize accordingly
+        if dialect.name == "sqlite":
+            # Decode from base64 and convert back to numpy array
+            value = base64.b64decode(value)
+        # For PostgreSQL, value is already in bytes
+        return np.frombuffer(value, dtype=np.float32)
 
 
-class PassageModel(SQLModel, table=True):
+class PassageModel(BaseModel):
     user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user associated with the passage.")
     agent_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the agent associated with the passage.")
     text: str = Field(..., description="The text of the passage.")
-    embedding: Optional[Json] = Field(None, description="The embedding of the passage.")
+    embedding: Optional[List[float]] = Field(None, description="The embedding of the passage.")
     embedding_config: Optional[EmbeddingConfigModel] = Field(
         None, sa_column=Column(JSON), description="The embedding configuration used by the passage."
     )
@@ -117,3 +142,11 @@ class PassageModel(SQLModel, table=True):
     doc_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the document associated with the passage.")
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the passage.", primary_key=True)
     metadata: Optional[Dict] = Field({}, description="The metadata of the passage.")
+
+
+class DocumentModel(BaseModel):
+    user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the document.")
+    text: str = Field(..., description="The text of the document.")
+    data_source: str = Field(..., description="The data source of the document.")
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the document.", primary_key=True)
+    metadata: Optional[Dict] = Field({}, description="The metadata of the document.")

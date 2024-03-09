@@ -136,7 +136,8 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
 
     @router.post("/sources/upload", tags=["sources"], response_model=UploadFileToSourceResponse)
     async def upload_file_to_source(
-        file: UploadFile = UploadFile(..., description="The file to upload."),
+        # file: UploadFile = UploadFile(..., description="The file to upload."),
+        file: UploadFile,
         source_id: uuid.UUID = Query(..., description="The unique identifier of the source to attach."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
