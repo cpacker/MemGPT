@@ -101,7 +101,7 @@ def load_all_function_sets(merge: bool = True) -> dict:
                 function_set = load_function_set(module)
                 # Add the metadata tags
                 for k, v in function_set.items():
-                    print(function_set)
+                    # print(function_set)
                     v["tags"] = tags
                 schemas_and_functions[module_name] = function_set
             except ValueError as e:

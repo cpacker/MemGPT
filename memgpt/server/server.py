@@ -829,6 +829,50 @@ class SyncServer(LockingServer):
         json_records = [vars(record) for record in records]
         return cursor, json_records
 
+    def get_all_archival_memories(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> list:
+        # TODO deprecate (not safe to be returning an unbounded list)
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        # Assume passages
+        records = memgpt_agent.persistence_manager.archival_memory.storage.get_all()
+        print("records:", records)
+
+        return [dict(id=str(r.id), contents=r.text) for r in records]
+
+    def insert_archival_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, memory_contents: str) -> uuid.UUID:
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        # Insert into archival memory
+        # memory_id = uuid.uuid4()
+        passage_ids = memgpt_agent.persistence_manager.archival_memory.insert(memory_string=memory_contents, return_ids=True)
+
+        return [str(p_id) for p_id in passage_ids]
+
+    def delete_archival_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, memory_id: uuid.UUID):
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        # Delete by ID
+        # TODO check if it exists first, and throw error if not
+        memgpt_agent.persistence_manager.archival_memory.storage.delete({"id": memory_id})
+
     def get_agent_recall_cursor(
         self,
         user_id: uuid.UUID,
