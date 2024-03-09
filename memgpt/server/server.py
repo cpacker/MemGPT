@@ -861,8 +861,17 @@ class SyncServer(LockingServer):
         return [str(p_id) for p_id in passage_ids]
 
     def delete_archival_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, memory_id: uuid.UUID):
-        # TODO implement
-        return
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        # Delete by ID
+        # TODO check if it exists first, and throw error if not
+        memgpt_agent.persistence_manager.archival_memory.storage.delete({"id": memory_id})
 
     def get_agent_recall_cursor(
         self,

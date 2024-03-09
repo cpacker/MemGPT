@@ -150,7 +150,7 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
     @router.delete("/agents/{agent_id}/archival", tags=["agents"])
     def delete_agent_archival_memory(
         agent_id: uuid.UUID,
-        id: int = Query(..., description="Unique ID of the memory to be deleted."),
+        id: str = Query(..., description="Unique ID of the memory to be deleted."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
