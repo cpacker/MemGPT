@@ -604,7 +604,8 @@ class Agent(object):
         first_message: bool = False,
         first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
         skip_verify: bool = False,
-    ) -> Tuple[List[dict], bool, bool, bool]:
+        return_dicts: bool = True,  # if True, return dicts, if False, return Message objects
+    ) -> Tuple[List[Union[dict, Message]], bool, bool, bool]:
         """Top-level event message handler for the MemGPT agent"""
 
         try:
@@ -729,8 +730,8 @@ class Agent(object):
                 )
 
             self._append_to_messages(all_new_messages)
-            all_new_messages_dicts = [msg.to_openai_dict() for msg in all_new_messages]
-            return all_new_messages_dicts, heartbeat_request, function_failed, active_memory_warning, response.usage.completion_tokens
+            messages_to_return = [msg.to_openai_dict() for msg in all_new_messages] if return_dicts else all_new_messages
+            return messages_to_return, heartbeat_request, function_failed, active_memory_warning, response.usage.completion_tokens
 
         except Exception as e:
             printd(f"step() failed\nuser_message = {user_message}\nerror = {e}")
@@ -741,7 +742,7 @@ class Agent(object):
                 self.summarize_messages_inplace()
 
                 # Try step again
-                return self.step(user_message, first_message=first_message)
+                return self.step(user_message, first_message=first_message, return_dicts=return_dicts)
             else:
                 printd(f"step() failed with an unrecognized exception: '{str(e)}'")
                 raise e
