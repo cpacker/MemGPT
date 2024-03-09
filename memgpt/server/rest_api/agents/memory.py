@@ -111,9 +111,9 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
     @router.get("/agents/{agent_id}/archival", tags=["agents"], response_model=GetAgentArchivalMemoryResponse)
     def get_agent_archival_memory(
         agent_id: uuid.UUID,
-        after: Optional[int] = Query(..., description="Unique ID of the memory to start the query range at."),
-        before: Optional[int] = Query(..., description="Unique ID of the memory to end the query range at."),
-        limit: Optional[int] = Query(..., description="How many results to include in the response."),
+        after: Optional[int] = Query(None, description="Unique ID of the memory to start the query range at."),
+        before: Optional[int] = Query(None, description="Unique ID of the memory to end the query range at."),
+        limit: Optional[int] = Query(None, description="How many results to include in the response."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
