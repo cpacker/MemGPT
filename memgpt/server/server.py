@@ -829,6 +829,20 @@ class SyncServer(LockingServer):
         json_records = [vars(record) for record in records]
         return cursor, json_records
 
+    def get_archival_memories(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> list:
+        # TODO type the list return
+        # TODO implement
+        return []
+
+    def insert_archival_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, memory_contents: str) -> uuid.UUID:
+        # TOOD implement
+        memory_id = uuid.uuid4()
+        return memory_id
+
+    def delete_archival_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, memory_id: uuid.UUID):
+        # TODO implement
+        return
+
     def get_agent_recall_cursor(
         self,
         user_id: uuid.UUID,

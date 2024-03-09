@@ -1,8 +1,8 @@
 import uuid
 from functools import partial
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Body, HTTPException, status
+from fastapi import APIRouter, Depends, Body, HTTPException, status, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -43,7 +43,6 @@ class ArchivalMemoryObject(BaseModel):
 
 
 class GetAgentArchivalMemoryResponse(BaseModel):
-    # TODO make paginated
     archival_memory: List[ArchivalMemoryObject] = Field(..., description="A list of all memory objects in archival memory.")
 
 
@@ -96,20 +95,41 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
         response = server.update_agent_core_memory(user_id=user_id, agent_id=agent_id, new_memory_contents=new_memory_contents)
         return UpdateAgentMemoryResponse(**response)
 
+    # @router.get("/agents/{agent_id}/archival", tags=["agents"], response_model=GetAgentArchivalMemoryResponse)
+    # def get_agent_archival_memory(
+    #     agent_id: uuid.UUID,
+    #     user_id: uuid.UUID = Depends(get_current_user_with_server),
+    # ):
+    #     """
+    #     Retrieve the memories in an agent's archival memory store.
+    #     """
+    #     interface.clear()
+    #     # memory = server.get_agent_memory(user_id=user_id, agent_id=agent_id)
+    #     archival_memories = server.get_agent_archival(user_id=user_id, agent_id=agent_id)
+    #     return GetAgentArchivalMemoryResponse(archival_memories)
+
     @router.get("/agents/{agent_id}/archival", tags=["agents"], response_model=GetAgentArchivalMemoryResponse)
     def get_agent_archival_memory(
         agent_id: uuid.UUID,
+        after: Optional[int] = Query(..., description="Unique ID of the memory to start the query range at."),
+        before: Optional[int] = Query(..., description="Unique ID of the memory to end the query range at."),
+        limit: Optional[int] = Query(..., description="How many results to include in the response."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
-        Retrieve the memory state of a specific agent.
-
-        This endpoint fetches the current memory state of the agent identified by the user ID and agent ID.
+        Retrieve the memories in an agent's archival memory store (paginated query).
         """
         interface.clear()
         # memory = server.get_agent_memory(user_id=user_id, agent_id=agent_id)
-        memory = {}
-        return GetAgentArchivalMemoryResponse(**memory)
+        _, archival_json_records = server.get_agent_archival_cursor(
+            user_id=user_id,
+            agent_id=agent_id,
+            after=after,
+            before=before,
+            limit=limit,
+        )
+        print(archival_json_records)
+        return GetAgentArchivalMemoryResponse(archival_json_records)
 
     @router.post("/agents/{agent_id}/archival", tags=["agents"], response_model=InsertAgentArchivalMemoryResponse)
     def insert_agent_archival_memory(
@@ -118,29 +138,26 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
-        Retrieve the memory state of a specific agent.
-
-        This endpoint fetches the current memory state of the agent identified by the user ID and agent ID.
+        Insert a memory into an agent's archival memory store.
         """
         interface.clear()
-        memory = server.get_agent_memory(user_id=user_id, agent_id=agent_id)
-        return InsertAgentArchivalMemoryResponse(**memory)
+        memory_id = server.insert_archival_memory(user_id=user_id, agent_id=agent_id, memory_contents=request.content)
+        return InsertAgentArchivalMemoryResponse(int(memory_id))
 
     @router.delete("/agents/{agent_id}/archival", tags=["agents"])
-    def insert_agent_archival_memory(
+    def delete_agent_archival_memory(
         agent_id: uuid.UUID,
+        id: int = Query(..., description="Unique ID of the memory to be deleted."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
-        Retrieve the memory state of a specific agent.
-
-        This endpoint fetches the current memory state of the agent identified by the user ID and agent ID.
+        Delete a memory from an agent's archival memory store.
         """
         interface.clear()
         try:
-            # server.delete_agent(user_id=user_id, agent_id=agent_id)
-            # TODO
-            return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Agent agent_id={agent_id} successfully deleted"})
+            memory_id = uuid.UUID(id)
+            server.delete_archival_memory(user_id=user_id, agent_id=agent_id, memory_id=memory_id)
+            return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Memory id={memory_id} successfully deleted"})
         except HTTPException:
             raise
         except Exception as e:
