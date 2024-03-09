@@ -2,7 +2,7 @@ import uuid
 from functools import partial
 from typing import List
 
-from fastapi import APIRouter, Depends, Body, UploadFile
+from fastapi import APIRouter, Depends, Body, UploadFile, Query
 from pydantic import BaseModel, Field
 
 from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel
@@ -39,25 +39,7 @@ class CreateSourceResponse(BaseModel):
     source: SourceModel = Field(..., description="The newly created source.")
 
 
-class DeleteSourceRequest(BaseModel):
-    source_id: uuid.UUID = Field(..., description="The unique identifier of the source to delete.")
-
-
-class DeleteSourceResponse(BaseModel):
-    source: SourceModel = Field(..., description="The deleted source.")
-
-
-class AttachSourceToAgentRequest(BaseModel):
-    source_id: uuid.UUID = Field(..., description="The unique identifier of the source to attach.")
-    agent_id: uuid.UUID = Field(..., description="The unique identifier of the agent to attach the source to.")
-
-
-class AttachSourceToAgentResponse(BaseModel):
-    source: SourceModel = Field(..., description="The attached source.")
-
-
 class UploadFileToSourceRequest(BaseModel):
-    source_id: uuid.UUID = Field(..., description="The unique identifier of the source to attach.")
     file: UploadFile = Field(..., description="The file to upload.")
 
 
@@ -75,7 +57,7 @@ class GetSourceDocumentsResponse(BaseModel):
     documents: List[DocumentModel] = Field(..., description="List of documents from the source.")
 
 
-def setup_personas_index_router(server: SyncServer, interface: QueuingInterface, password: str):
+def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
     @router.get("/sources", tags=["sources"], response_model=ListSourcesResponse)
@@ -109,34 +91,60 @@ def setup_personas_index_router(server: SyncServer, interface: QueuingInterface,
             created_at=source.created_at,
         )
 
-    @router.delete("/sources", tags=["sources"], response_model=DeleteSourceResponse)
+    @router.delete("/sources", tags=["sources"], response_model=SourceModel)
     async def delete_source(
-        request: DeleteSourceRequest = Body(...),
+        source_id: uuid.UUID = Query(..., description="The unique identifier of the source to delete."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
-        interface.clear()
-        source = server.ms.delete_source(source_id=request.source_id, user_id=user_id)
-        return DeleteSourceResponse(source=source)
+        # TODO: need to implement this in server
+        raise NotImplementedError
 
-    @router.post("/sources/attach", tags=["sources"], response_model=AttachSourceToAgentResponse)
+    @router.post("/sources/attach", tags=["sources"], response_model=SourceModel)
     async def attach_source_to_agent(
-        request: AttachSourceToAgentRequest = Body(...),
+        agent_id: uuid.UUID = Query(..., description="The unique identifier of the agent to attach the source to."),
+        source_id: uuid.UUID = Query(..., description="The unique identifier of the source to attach."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         interface.clear()
-        source = server.attach_source_to_agent(source_id=request.source_id, agent_id=request.agent_id, user_id=user_id)
-        return AttachSourceToAgentResponse(source=source)
+        source = server.attach_source_to_agent(source_id=source_id, agent_id=agent_id, user_id=user_id)
+        return SourceModel(
+            name=source.name,
+            description=None,  # TODO: actually store descriptions
+            user_id=source.user_id,
+            id=source.id,
+            embedding_config=source.embedding_config,
+            created_at=source.created_at,
+        )
+
+    @router.post("/sources/detach", tags=["sources"], response_model=SourceModel)
+    async def detach_source_from_agent(
+        agent_id: uuid.UUID = Query(..., description="The unique identifier of the agent to detach the source from."),
+        source_id: uuid.UUID = Query(..., description="The unique identifier of the source to detach."),
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        interface.clear()
+        # TODO: need to implement this in server
+        source = server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=user_id)
+        return SourceModel(
+            name=source.name,
+            description=None,  # TODO: actually store descriptions
+            user_id=source.user_id,
+            id=source.id,
+            embedding_config=source.embedding_config,
+            created_at=source.created_at,
+        )
 
     @router.post("/sources/upload", tags=["sources"], response_model=UploadFileToSourceResponse)
     async def upload_file_to_source(
-        request: UploadFileToSourceRequest = Body(...),
+        file: UploadFile = UploadFile(..., description="The file to upload."),
+        source_id: uuid.UUID = Query(..., description="The unique identifier of the source to attach."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         interface.clear()
-        source = server.ms.get_source(source_id=request.source_id, user_id=user_id)
+        source = server.ms.get_source(source_id=uuid.UUID(source_id), user_id=user_id)
 
         # create a directory connector that reads the in-memory  file
-        connector = DirectoryConnector(input_files=[request.file.filename])
+        connector = DirectoryConnector(input_files=[file.filename])
 
         # load the data into the source via the connector
         server.load_data(user_id=user_id, source_name=source.name, connector=connector)

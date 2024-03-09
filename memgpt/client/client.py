@@ -10,6 +10,7 @@ from memgpt.config import MemGPTConfig
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
 from memgpt.metadata import MetadataStore
+from memgpt.data_sources.connectors import DataConnector
 
 
 def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
@@ -67,6 +68,30 @@ class AbstractClient(object):
         raise NotImplementedError
 
     def save(self):
+        raise NotImplementedError
+
+    def list_sources(self):
+        """List loaded sources"""
+        raise NotImplementedError
+
+    def delete_source(self):
+        """Delete a source and associated data (including attached to agents)"""
+        raise NotImplementedError
+
+    def load_file_into_source(self, filename: str, source_id: uuid.UUID):
+        """Load {filename} and insert into source"""
+        raise NotImplementedError
+
+    def create_source(self, name: str):
+        """Create a new source"""
+        raise NotImplementedError
+
+    def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
+        """Attach a source to an agent"""
+        raise NotImplementedError
+
+    def detach_source(self, source_id: uuid.UUID, agent_id: uuid.UUID):
+        """Detach a source from an agent"""
         raise NotImplementedError
 
 
@@ -156,6 +181,42 @@ class RESTClient(AbstractClient):
 
     def save(self):
         raise NotImplementedError
+
+    def list_sources(self):
+        """List loaded sources"""
+        response = requests.get(f"{self.base_url}/api/agents/sources", headers=self.headers)
+        response_json = response.json()
+        return response_json
+
+    def delete_source(self, source_id: uuid.UUID):
+        """Delete a source and associated data (including attached to agents)"""
+        response = requests.delete(f"{self.base_url}/api/sources", params={"source_id": str(source_id)}, headers=self.headers)
+        return response.json()
+
+    def load_file_into_source(self, filename: str, source_id: uuid.UUID):
+        """Load {filename} and insert into source"""
+        params = {"source_id": str(source_id)}
+        files = {"file": open(filename, "rb")}
+        response = requests.post(f"{self.base_url}/api/sources/upload", files=files, params=params, headers=self.headers)
+        return response.json()
+
+    def create_source(self, name: str):
+        """Create a new source"""
+        payload = {"name": name}
+        response = requests.post(f"{self.base_url}/api/sources", json=payload, headers=self.headers)
+        return response.json()
+
+    def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
+        """Attach a source to an agent"""
+        payload = {"source_id": str(source_id), "agent_id": str(agent_id)}
+        response = requests.post(f"{self.base_url}/api/sources/attach", json=payload, headers=self.headers)
+        return response.json()
+
+    def detach_source(self, source_id: uuid.UUID, agent_id: uuid.UUID):
+        """Detach a source from an agent"""
+        payload = {"source_id": str(source_id), "agent_id": str(agent_id)}
+        response = requests.post(f"{self.base_url}/api/sources/detach", json=payload, headers=self.headers)
+        return response.json()
 
 
 class LocalClient(AbstractClient):
@@ -267,3 +328,12 @@ class LocalClient(AbstractClient):
 
     def save(self):
         self.server.save_agents()
+
+    def load_data(self, connector: DataConnector, source_name: str):
+        self.server.load_data(user_id=self.user_id, connector=connector, source_name=source_name)
+
+    def create_source(self, name: str):
+        self.server.create_source(user_id=self.user_id, name=name)
+
+    def attach_source_to_agent(self, source_name: str, agent_id: uuid.UUID):
+        self.server.attach_source_to_agent(user_id=self.user_id, source_name=source_name, agent_id=agent_id)
