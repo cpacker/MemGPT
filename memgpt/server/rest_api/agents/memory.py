@@ -38,7 +38,7 @@ class UpdateAgentMemoryResponse(BaseModel):
 
 class ArchivalMemoryObject(BaseModel):
     # TODO move to models/pydantic_models, or inherent from data_types Record
-    id: int = Field(..., description="Unique identifier for the memory object inside the archival memory store.")
+    id: str = Field(..., description="Unique identifier for the memory object inside the archival memory store.")
     contents: str = Field(..., description="The memory contents.")
 
 
@@ -47,16 +47,17 @@ class GetAgentArchivalMemoryResponse(BaseModel):
 
 
 class InsertAgentArchivalMemoryRequest(BaseModel):
-    agent_id: str = Field(..., description="The unique identifier of the agent.")
     content: str = Field(None, description="The memory contents to insert into archival memory.")
 
 
 class InsertAgentArchivalMemoryResponse(BaseModel):
-    id: int = Field(..., description="Unique identifier for the new archival memory object.")
+    ids: List[str] = Field(
+        ..., description="Unique identifier for the new archival memory object. May return multiple ids if insert contents are chunked."
+    )
 
 
 class DeleteAgentArchivalMemoryRequest(BaseModel):
-    id: int = Field(..., description="Unique identifier for the new archival memory object.")
+    id: str = Field(..., description="Unique identifier for the new archival memory object.")
 
 
 def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, password: str):
@@ -95,18 +96,18 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
         response = server.update_agent_core_memory(user_id=user_id, agent_id=agent_id, new_memory_contents=new_memory_contents)
         return UpdateAgentMemoryResponse(**response)
 
-    # @router.get("/agents/{agent_id}/archival", tags=["agents"], response_model=GetAgentArchivalMemoryResponse)
-    # def get_agent_archival_memory(
-    #     agent_id: uuid.UUID,
-    #     user_id: uuid.UUID = Depends(get_current_user_with_server),
-    # ):
-    #     """
-    #     Retrieve the memories in an agent's archival memory store.
-    #     """
-    #     interface.clear()
-    #     # memory = server.get_agent_memory(user_id=user_id, agent_id=agent_id)
-    #     archival_memories = server.get_agent_archival(user_id=user_id, agent_id=agent_id)
-    #     return GetAgentArchivalMemoryResponse(archival_memories)
+    @router.get("/agents/{agent_id}/archival/all", tags=["agents"], response_model=GetAgentArchivalMemoryResponse)
+    def get_agent_archival_memory_all(
+        agent_id: uuid.UUID,
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        """
+        Retrieve the memories in an agent's archival memory store (non-paginated, returns all entries at once).
+        """
+        interface.clear()
+        archival_memories = server.get_all_archival_memories(user_id=user_id, agent_id=agent_id)
+        print("archival_memories:", archival_memories)
+        return GetAgentArchivalMemoryResponse(archival_memory=archival_memories)
 
     @router.get("/agents/{agent_id}/archival", tags=["agents"], response_model=GetAgentArchivalMemoryResponse)
     def get_agent_archival_memory(
@@ -120,7 +121,9 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
         Retrieve the memories in an agent's archival memory store (paginated query).
         """
         interface.clear()
-        # memory = server.get_agent_memory(user_id=user_id, agent_id=agent_id)
+        # TODO need to add support for non-postgres here
+        # chroma will throw:
+        #     raise ValueError("Cannot run get_all_cursor with chroma")
         _, archival_json_records = server.get_agent_archival_cursor(
             user_id=user_id,
             agent_id=agent_id,
@@ -141,8 +144,8 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
         Insert a memory into an agent's archival memory store.
         """
         interface.clear()
-        memory_id = server.insert_archival_memory(user_id=user_id, agent_id=agent_id, memory_contents=request.content)
-        return InsertAgentArchivalMemoryResponse(int(memory_id))
+        memory_ids = server.insert_archival_memory(user_id=user_id, agent_id=agent_id, memory_contents=request.content)
+        return InsertAgentArchivalMemoryResponse(ids=memory_ids)
 
     @router.delete("/agents/{agent_id}/archival", tags=["agents"])
     def delete_agent_archival_memory(
