@@ -38,8 +38,6 @@ def run_server():
     from memgpt.server.rest_api.server import app
 
     load_dotenv()
-    wipe_config()
-    wipe_memgpt_home()
 
     # Use os.getenv with a fallback to os.environ.get
     db_url = os.getenv("PGVECTOR_TEST_DB_URL") or os.environ.get("PGVECTOR_TEST_DB_URL")
