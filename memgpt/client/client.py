@@ -153,8 +153,8 @@ class RESTClient(AbstractClient):
         return agent_state
 
     def delete_agent(self, agent_id: uuid.UUID):
-        response = requests.delete(f"{self.base_url}/api/agents", params={"agent_id": agent_id}, headers=self.headers)
-        return agent_id
+        response = requests.delete(f"{self.base_url}/api/agents/{str(agent_id)}", headers=self.headers)
+        assert response.status_code == 200, f"Failed to delete agent: {response.text}"
 
     def create_preset(self, preset: Preset):
         raise NotImplementedError
@@ -190,8 +190,8 @@ class RESTClient(AbstractClient):
 
     def delete_source(self, source_id: uuid.UUID):
         """Delete a source and associated data (including attached to agents)"""
-        response = requests.delete(f"{self.base_url}/api/sources", params={"source_id": str(source_id)}, headers=self.headers)
-        return response.json()
+        response = requests.delete(f"{self.base_url}/api/sources/{str(source_id)}", headers=self.headers)
+        assert response.status_code == 200, f"Failed to delete source: {response.text}"
 
     def load_file_into_source(self, filename: str, source_id: uuid.UUID):
         """Load {filename} and insert into source"""

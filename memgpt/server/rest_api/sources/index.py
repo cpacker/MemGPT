@@ -2,7 +2,8 @@ import uuid
 from functools import partial
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Body, UploadFile, Query
+from fastapi import APIRouter, Body, Depends, Query, HTTPException, status, UploadFile
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel
@@ -87,12 +88,19 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
             created_at=source.created_at.timestamp(),
         )
 
-    @router.delete("/sources/{source_id}", tags=["sources"], response_model=SourceModel)
+    @router.delete("/sources/{source_id}", tags=["sources"])
     async def delete_source(
         source_id,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
-        server.delete_source(uuid.UUID(source_id), user_id)
+        interface.clear()
+        try:
+            server.delete_source(source_id=uuid.UUID(source_id), user_id=user_id)
+            return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Source source_id={source_id} successfully deleted"})
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{e}")
 
     @router.post("/sources/attach", tags=["sources"], response_model=SourceModel)
     async def attach_source_to_agent(
