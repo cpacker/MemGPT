@@ -4,13 +4,14 @@ import json
 import math
 
 from memgpt.constants import MAX_PAUSE_HEARTBEATS, RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE, JSON_ENSURE_ASCII
+from memgpt.agent import Agent
 
 ### Functions / tools the agent can use
 # All functions should return a response string (or None)
 # If the function fails, throw an exception
 
 
-def send_message(self, message: str) -> Optional[str]:
+def send_message(self: Agent, message: str) -> Optional[str]:
     """
     Sends a message to the human user.
 
@@ -20,7 +21,8 @@ def send_message(self, message: str) -> Optional[str]:
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
     """
-    self.interface.assistant_message(message)
+    # FIXME passing of msg_obj here is a hack, unclear if guaranteed to be the correct reference
+    self.interface.assistant_message(message, msg_obj=self._messages[-1])
     return None
 
 
@@ -36,7 +38,7 @@ Returns:
 """
 
 
-def pause_heartbeats(self, minutes: int) -> Optional[str]:
+def pause_heartbeats(self: Agent, minutes: int) -> Optional[str]:
     minutes = min(MAX_PAUSE_HEARTBEATS, minutes)
 
     # Record the current time
@@ -50,7 +52,7 @@ def pause_heartbeats(self, minutes: int) -> Optional[str]:
 pause_heartbeats.__doc__ = pause_heartbeats_docstring
 
 
-def core_memory_append(self, name: str, content: str) -> Optional[str]:
+def core_memory_append(self: Agent, name: str, content: str) -> Optional[str]:
     """
     Append to the contents of core memory.
 
@@ -66,7 +68,7 @@ def core_memory_append(self, name: str, content: str) -> Optional[str]:
     return None
 
 
-def core_memory_replace(self, name: str, old_content: str, new_content: str) -> Optional[str]:
+def core_memory_replace(self: Agent, name: str, old_content: str, new_content: str) -> Optional[str]:
     """
     Replace the contents of core memory. To delete memories, use an empty string for new_content.
 
@@ -83,7 +85,7 @@ def core_memory_replace(self, name: str, old_content: str, new_content: str) -> 
     return None
 
 
-def conversation_search(self, query: str, page: Optional[int] = 0) -> Optional[str]:
+def conversation_search(self: Agent, query: str, page: Optional[int] = 0) -> Optional[str]:
     """
     Search prior conversation history using case-insensitive string matching.
 
@@ -112,7 +114,7 @@ def conversation_search(self, query: str, page: Optional[int] = 0) -> Optional[s
     return results_str
 
 
-def conversation_search_date(self, start_date: str, end_date: str, page: Optional[int] = 0) -> Optional[str]:
+def conversation_search_date(self: Agent, start_date: str, end_date: str, page: Optional[int] = 0) -> Optional[str]:
     """
     Search prior conversation history using a date range.
 
@@ -142,7 +144,7 @@ def conversation_search_date(self, start_date: str, end_date: str, page: Optiona
     return results_str
 
 
-def archival_memory_insert(self, content: str) -> Optional[str]:
+def archival_memory_insert(self: Agent, content: str) -> Optional[str]:
     """
     Add to archival memory. Make sure to phrase the memory contents such that it can be easily queried later.
 
@@ -156,7 +158,7 @@ def archival_memory_insert(self, content: str) -> Optional[str]:
     return None
 
 
-def archival_memory_search(self, query: str, page: Optional[int] = 0) -> Optional[str]:
+def archival_memory_search(self: Agent, query: str, page: Optional[int] = 0) -> Optional[str]:
     """
     Search archival memory using semantic (embedding-based) search.
 
