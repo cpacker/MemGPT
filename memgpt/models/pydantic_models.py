@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict, Literal
-from pydantic import BaseModel, Field, Json
+from pydantic import BaseModel, Field, Json, ConfigDict
 import uuid
 from datetime import datetime
 from sqlmodel import Field, SQLModel
@@ -14,6 +14,9 @@ class LLMConfigModel(BaseModel):
     model_endpoint: Optional[str] = "https://api.openai.com/v1"
     model_wrapper: Optional[str] = None
     context_window: Optional[int] = None
+
+    # FIXME hack to silence pydantic protected namespace warning
+    model_config = ConfigDict(protected_namespaces=())
 
 
 class EmbeddingConfigModel(BaseModel):
@@ -40,6 +43,7 @@ class ToolModel(BaseModel):
     # TODO move into database
     name: str = Field(..., description="The name of the function.")
     json_schema: dict = Field(..., description="The JSON schema of the function.")
+    tags: List[str] = Field(..., description="Metadata tags.")
     source_type: Optional[Literal["python"]] = Field(None, description="The type of the source code.")
     source_code: Optional[str] = Field(..., description="The source code of the function.")
 
