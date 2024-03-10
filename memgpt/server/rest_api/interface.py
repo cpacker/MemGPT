@@ -88,7 +88,7 @@ class QueuingInterface(AgentInterface):
 
         self.buffer.put(new_message)
 
-    def function_message(self, msg: str, msg_obj: Optional[Message] = None) -> None:
+    def function_message(self, msg: str, msg_obj: Optional[Message] = None, include_ran_messages: bool = False) -> None:
         """Handle the agent calling a function"""
         # TODO handle 'function' messages that indicate the start of a function call
         assert msg_obj is not None, "QueuingInterface requires msg_obj references for metadata"
@@ -101,6 +101,8 @@ class QueuingInterface(AgentInterface):
             new_message = {"function_call": msg}
 
         elif msg.startswith("Ran "):
+            if not include_ran_messages:
+                return
             msg = msg.replace("Ran ", "Function call returned: ")
             new_message = {"function_call": msg}
 
