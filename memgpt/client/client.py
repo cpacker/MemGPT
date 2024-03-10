@@ -3,7 +3,7 @@ import requests
 import uuid
 from typing import Dict, List, Union, Optional, Tuple
 
-from memgpt.data_types import AgentState, User, Preset, LLMConfig, EmbeddingConfig
+from memgpt.data_types import AgentState, User, Preset, LLMConfig, EmbeddingConfig, Source
 from memgpt.cli.cli import QuickstartChoice
 from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func, str_to_quickstart_choice
 from memgpt.config import MemGPTConfig
@@ -152,17 +152,17 @@ class RESTClient(AbstractClient):
         )
         return agent_state
 
-    def delete_agent(self, agent_id: str):
-        response = requests.delete(f"{self.base_url}/api/agents/{agent_id}", headers=self.headers)
+    def delete_agent(self, agent_id: uuid.UUID):
+        response = requests.delete(f"{self.base_url}/api/agents", params={"agent_id": agent_id}, headers=self.headers)
         return agent_id
 
     def create_preset(self, preset: Preset):
         raise NotImplementedError
 
-    def get_agent_config(self, agent_id: str) -> AgentState:
+    def get_agent_config(self, agent_id: uuid.UUID) -> AgentState:
         raise NotImplementedError
 
-    def get_agent_memory(self, agent_id: str) -> Dict:
+    def get_agent_memory(self, agent_id: uuid.UUID) -> Dict:
         raise NotImplementedError
 
     def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Dict:
@@ -184,7 +184,7 @@ class RESTClient(AbstractClient):
 
     def list_sources(self):
         """List loaded sources"""
-        response = requests.get(f"{self.base_url}/api/agents/sources", headers=self.headers)
+        response = requests.get(f"{self.base_url}/api/sources", headers=self.headers)
         response_json = response.json()
         return response_json
 
@@ -200,22 +200,33 @@ class RESTClient(AbstractClient):
         response = requests.post(f"{self.base_url}/api/sources/upload", files=files, params=params, headers=self.headers)
         return response.json()
 
-    def create_source(self, name: str):
+    def create_source(self, name: str) -> Source:
         """Create a new source"""
         payload = {"name": name}
         response = requests.post(f"{self.base_url}/api/sources", json=payload, headers=self.headers)
-        return response.json()
+        response_json = response.json()
+        print("CREATE SOURCE", response_json, response.text)
+        return Source(
+            id=uuid.UUID(response_json["id"]),
+            name=response_json["name"],
+            user_id=uuid.UUID(response_json["user_id"]),
+            created_at=datetime.datetime.fromtimestamp(response_json["created_at"]),
+            embedding_dim=response_json["embedding_config"]["embedding_dim"],
+            embedding_model=response_json["embedding_config"]["embedding_model"],
+        )
 
-    def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
+    def attach_source_to_agent(self, source_name: str, agent_id: uuid.UUID):
         """Attach a source to an agent"""
-        payload = {"source_id": str(source_id), "agent_id": str(agent_id)}
-        response = requests.post(f"{self.base_url}/api/sources/attach", json=payload, headers=self.headers)
+        params = {"source_name": source_name, "agent_id": agent_id}
+        response = requests.post(f"{self.base_url}/api/sources/attach", params=params, headers=self.headers)
+        assert response.status_code == 200, f"Failed to attach source to agent: {response.text}"
         return response.json()
 
-    def detach_source(self, source_id: uuid.UUID, agent_id: uuid.UUID):
+    def detach_source(self, source_name: str, agent_id: uuid.UUID):
         """Detach a source from an agent"""
-        payload = {"source_id": str(source_id), "agent_id": str(agent_id)}
-        response = requests.post(f"{self.base_url}/api/sources/detach", json=payload, headers=self.headers)
+        params = {"source_name": source_name, "agent_id": str(agent_id)}
+        response = requests.post(f"{self.base_url}/api/sources/detach", params=params, headers=self.headers)
+        assert response.status_code == 200, f"Failed to detach source from agent: {response.text}"
         return response.json()
 
 

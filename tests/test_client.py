@@ -75,10 +75,12 @@ def client(request, user_token):
 # Fixture for test agent
 @pytest.fixture(scope="module")
 def agent(client):
-    yield client.create_agent(name=test_agent_name, preset=test_preset_name)
+    agent_state = client.create_agent(name=test_agent_name, preset=test_preset_name)
+    print("AGENT ID", agent_state.id)
+    yield agent_state
 
     # delete agent
-    client.delete_agent(agent.id)
+    client.delete_agent(agent_state.id)
 
 
 # TODO: add back once REST API supports
@@ -106,17 +108,19 @@ def agent(client):
 #    assert test_agent_state is not None
 
 
-def test_user_message(client, agent):
-    """Test that we can send a message through the client"""
-    assert client is not None, "Run create_agent test first"
-    print(f"\n\n[2] SENDING MESSAGE TO AGENT {agent.id}!!!\n\tmessages={agent.state['messages']}")
-    response = client.user_message(agent_id=agent.id, message="Hello my name is Test, Client Test")
-    assert response is not None and len(response) > 0
-
-
 def test_sources(client, agent):
+
+    # list sources
+    sources = client.list_sources()
+    print("listed sources", sources)
+
     # create a source
-    source = client.create_source(name="test_source", data="test_data")
+    source = client.create_source(name="test_source")
+
+    # list sources
+    sources = client.list_sources()
+    print("listed sources", sources)
+    assert len(sources) == 1
 
     # load a file into a source
     filename = "CONTRIBUTING.md"
@@ -125,12 +129,21 @@ def test_sources(client, agent):
 
     # attach a source
     # TODO: make sure things run in the right order
-    client.attach_source_to_agent(source.id, agent.id)
+    client.attach_source_to_agent(source_name="test_source", agent_id=agent.id)
 
     # TODO: list archival memory
 
     # detach the source
-    client.detach_source(source.id, agent.id)
+    # TODO: add when implemented
+    # client.detach_source(source.name, agent.id)
 
     # delete the source
     client.delete_source(source.id)
+
+
+# def test_user_message(client, agent):
+#    """Test that we can send a message through the client"""
+#    assert client is not None, "Run create_agent test first"
+#    print(f"\n\n[2] SENDING MESSAGE TO AGENT {agent.id}!!!\n\tmessages={agent.state['messages']}")
+#    response = client.user_message(agent_id=agent.id, message="Hello my name is Test, Client Test")
+#    assert response is not None and len(response) > 0

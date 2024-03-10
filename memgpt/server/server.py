@@ -1031,13 +1031,25 @@ class SyncServer(LockingServer):
             embedding_dim=self.config.default_embedding_config.embedding_dim,
         )
         self.ms.create_source(source)
+        assert self.ms.get_source(source_name=name, user_id=user_id) is not None, f"Failed to create source {name}"
         return source
+
+    def delete_source(self, source_id: uuid.UUID, user_id: uuid.UUID):
+        """Delete a data source"""
+        source = self.ms.get_source(source_id=source_id, user_id=user_id)
+        self.ms.delete_source(source_id)
+
+        # delete data from passage store
+        passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+        passage_store.delete({"source": source.name})
+
+        # TODO: delete data from agent passage stores (?)
 
     def load_data(
         self,
         user_id: uuid.UUID,
         connector: DataConnector,
-        source_name: Source,
+        source_name: str,
     ):
         """Load data from a DataConnector into a source for a specified user_id"""
         # TODO: this should be implemented as a batch job or at least async, since it may take a long time
@@ -1059,7 +1071,7 @@ class SyncServer(LockingServer):
         # attach a data source to an agent
         data_source = self.ms.get_source(source_name=source_name, user_id=user_id)
         if data_source is None:
-            raise ValueError(f"Data source {source_name} does not exist")
+            raise ValueError(f"Data source {source_name} does not exist for user_id {user_id}")
 
         # get connection to data source storage
         source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
@@ -1069,6 +1081,12 @@ class SyncServer(LockingServer):
 
         # attach source to agent
         agent.attach_source(data_source.name, source_connector, self.ms)
+
+        return data_source
+
+    def detach_source_from_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_name: str):
+        # TODO: remove all passages coresponding to source from agent's archival memory
+        raise NotImplementedError
 
     def list_attached_sources(self, agent_id: uuid.UUID):
         # list all attached sources to an agent
