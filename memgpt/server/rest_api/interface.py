@@ -75,7 +75,7 @@ class QueuingInterface(AgentInterface):
 
     def assistant_message(self, msg: str, msg_obj: Optional[Message] = None) -> None:
         """Handle the agent sending a message"""
-        # assert msg_obj is not None, "QueuingInterface requires msg_obj references for metadata"
+        assert msg_obj is not None, "QueuingInterface requires msg_obj references for metadata"
         if self.debug:
             print(msg)
 
@@ -91,12 +91,17 @@ class QueuingInterface(AgentInterface):
     def function_message(self, msg: str, msg_obj: Optional[Message] = None) -> None:
         """Handle the agent calling a function"""
         # TODO handle 'function' messages that indicate the start of a function call
-        # assert msg_obj is not None, "QueuingInterface requires msg_obj references for metadata"
+        assert msg_obj is not None, "QueuingInterface requires msg_obj references for metadata"
+
         if self.debug:
             print(msg)
 
         if msg.startswith("Running "):
             msg = msg.replace("Running ", "")
+            new_message = {"function_call": msg}
+
+        elif msg.startswith("Ran "):
+            msg = msg.replace("Ran ", "Function call returned: ")
             new_message = {"function_call": msg}
 
         elif msg.startswith("Success: "):

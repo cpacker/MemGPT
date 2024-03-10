@@ -519,7 +519,9 @@ class Agent(object):
                 heartbeat_request = False
 
             # Failure case 3: function failed during execution
-            self.interface.function_message(f"Running {function_name}({function_args})", msg_obj=None)
+            # NOTE: the msg_obj associated with the "Running " message is the prior assistant message, not the function/tool role message
+            #       this is because the function/tool role message is only created once the function/tool has executed/returned
+            self.interface.function_message(f"Running {function_name}({function_args})", msg_obj=messages[-1])
             try:
                 spec = inspect.getfullargspec(function_to_call).annotations
 
@@ -562,6 +564,7 @@ class Agent(object):
                         },
                     )
                 )  # extend conversation with function response
+                self.interface.function_message(f"Ran {function_name}({function_args})", msg_obj=messages[-1])
                 self.interface.function_message(f"Error: {error_msg}", msg_obj=messages[-1])
                 return messages, False, True  # force a heartbeat to allow agent to handle error
 
@@ -580,6 +583,7 @@ class Agent(object):
                     },
                 )
             )  # extend conversation with function response
+            self.interface.function_message(f"Ran {function_name}({function_args})", msg_obj=messages[-1])
             self.interface.function_message(f"Success: {function_response_string}", msg_obj=messages[-1])
 
         else:
