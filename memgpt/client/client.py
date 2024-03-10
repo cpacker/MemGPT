@@ -348,3 +348,6 @@ class LocalClient(AbstractClient):
 
     def attach_source_to_agent(self, source_name: str, agent_id: uuid.UUID):
         self.server.attach_source_to_agent(user_id=self.user_id, source_name=source_name, agent_id=agent_id)
+
+    def delete_agent(self, agent_id: uuid.UUID):
+        self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)

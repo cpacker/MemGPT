@@ -59,8 +59,8 @@ def user_token():
 
 
 # Fixture to create clients with different configurations
-# @pytest.fixture(params=[{"base_url": test_base_url}, {"base_url": None}], scope="module")
-@pytest.fixture(params=[{"base_url": test_base_url}], scope="module")
+@pytest.fixture(params=[{"base_url": test_base_url}, {"base_url": None}], scope="module")
+# @pytest.fixture(params=[{"base_url": test_base_url}], scope="module")
 def client(request, user_token):
     # use token or not
     if request.param["base_url"]:
@@ -109,6 +109,9 @@ def agent(client):
 
 
 def test_sources(client, agent):
+
+    if not hasattr(client, "base_url"):
+        pytest.skip("Skipping test_sources because base_url is None")
 
     # list sources
     sources = client.list_sources()
