@@ -172,6 +172,9 @@ class CLIInterface(AgentInterface):
             printd_function_message("🟢", msg)
         elif msg.startswith("Error: "):
             printd_function_message("🔴", msg)
+        elif msg.startswith("Ran "):
+            # NOTE: ignore 'ran' messages that come post-execution
+            return
         elif msg.startswith("Running "):
             if debug:
                 printd_function_message("", msg)
