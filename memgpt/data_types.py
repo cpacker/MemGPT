@@ -308,6 +308,7 @@ class Passage(Record):
         doc_id: Optional[uuid.UUID] = None,
         id: Optional[uuid.UUID] = None,
         metadata_: Optional[dict] = {},
+        created_at: Optional[datetime] = None,
     ):
         if id is None:
             # by default, generate ID as a hash of the text (avoid duplicates)
@@ -334,6 +335,8 @@ class Passage(Record):
         )
         self.embedding_dim = embedding_dim
         self.embedding_model = embedding_model
+
+        self.created_at = created_at if created_at is not None else datetime.now()
 
         if self.embedding is not None:
             assert self.embedding_dim, f"Must specify embedding_dim if providing an embedding"
