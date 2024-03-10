@@ -108,8 +108,8 @@ def construct_system_with_memory(
     system: str,
     memory: InContextMemory,
     memory_edit_timestamp: str,
-    archival_memory: ArchivalMemory = None,
-    recall_memory: RecallMemory = None,
+    archival_memory: Optional[ArchivalMemory] = None,
+    recall_memory: Optional[RecallMemory] = None,
     include_char_count: bool = True,
 ):
     full_system_message = "\n".join(
@@ -135,9 +135,9 @@ def initialize_message_sequence(
     model: str,
     system: str,
     memory: InContextMemory,
-    archival_memory: ArchivalMemory = None,
-    recall_memory: RecallMemory = None,
-    memory_edit_timestamp: str = None,
+    archival_memory: Optional[ArchivalMemory] = None,
+    recall_memory: Optional[RecallMemory] = None,
+    memory_edit_timestamp: Optional[str] = None,
     include_initial_boot_message: bool = True,
 ):
     if memory_edit_timestamp is None:
