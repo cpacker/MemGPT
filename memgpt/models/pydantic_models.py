@@ -101,35 +101,6 @@ class SourceModel(SQLModel, table=True):
     )
 
 
-class CommonVector(TypeDecorator):
-    """Common type for representing vectors in SQLite"""
-
-    impl = BINARY
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        return dialect.type_descriptor(BINARY())
-
-    def process_bind_param(self, value, dialect):
-        if value is None:
-            return value
-        # Ensure value is a numpy array
-        if isinstance(value, list):
-            value = np.array(value, dtype=np.float32)
-        # Serialize numpy array to bytes, then encode to base64 for universal compatibility
-        return base64.b64encode(value.tobytes())
-
-    def process_result_value(self, value, dialect):
-        if not value:
-            return value
-        # Check database type and deserialize accordingly
-        if dialect.name == "sqlite":
-            # Decode from base64 and convert back to numpy array
-            value = base64.b64decode(value)
-        # For PostgreSQL, value is already in bytes
-        return np.frombuffer(value, dtype=np.float32)
-
-
 class PassageModel(BaseModel):
     user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user associated with the passage.")
     agent_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the agent associated with the passage.")
