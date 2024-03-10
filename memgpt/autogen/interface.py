@@ -1,8 +1,10 @@
 import json
 import re
+from typing import Optional
 
 from colorama import Fore, Style, init
 
+from memgpt.data_types import Message
 from memgpt.constants import CLI_WARNING_PREFIX, JSON_LOADS_STRICT
 
 init(autoreset=True)
@@ -64,7 +66,7 @@ class AutoGenInterface(object):
         """Clears the buffer. Call before every agent.step() when using MemGPT+AutoGen"""
         self.message_list = []
 
-    def internal_monologue(self, msg):
+    def internal_monologue(self, msg: str, msg_obj: Optional[Message]):
         # NOTE: never gets appended
         if self.debug:
             print(f"inner thoughts :: {msg}")
@@ -74,14 +76,14 @@ class AutoGenInterface(object):
         message = f"\x1B[3m{Fore.LIGHTBLACK_EX}💭 {msg}{Style.RESET_ALL}" if self.fancy else f"[MemGPT agent's inner thoughts] {msg}"
         print(message)
 
-    def assistant_message(self, msg):
+    def assistant_message(self, msg: str, msg_obj: Optional[Message]):
         # NOTE: gets appended
         if self.debug:
             print(f"assistant :: {msg}")
         # message = f"{Fore.YELLOW}{Style.BRIGHT}🤖 {Fore.YELLOW}{msg}{Style.RESET_ALL}" if self.fancy else msg
         self.message_list.append(msg)
 
-    def memory_message(self, msg):
+    def memory_message(self, msg: str):
         # NOTE: never gets appended
         if self.debug:
             print(f"memory :: {msg}")
@@ -90,7 +92,7 @@ class AutoGenInterface(object):
         )
         print(message)
 
-    def system_message(self, msg):
+    def system_message(self, msg: str):
         # NOTE: gets appended
         if self.debug:
             print(f"system :: {msg}")
@@ -98,7 +100,7 @@ class AutoGenInterface(object):
         print(message)
         self.message_list.append(msg)
 
-    def user_message(self, msg, raw=False):
+    def user_message(self, msg: str, msg_obj: Optional[Message], raw=False):
         if self.debug:
             print(f"user :: {msg}")
         if not self.show_user_message:
@@ -136,7 +138,7 @@ class AutoGenInterface(object):
         # TODO should we ever be appending this?
         self.message_list.append(message)
 
-    def function_message(self, msg):
+    def function_message(self, msg: str, msg_obj: Optional[Message]):
         if self.debug:
             print(f"function :: {msg}")
         if not self.show_function_outputs:
