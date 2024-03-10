@@ -430,9 +430,6 @@ class Agent(object):
                 response_message.tool_calls = [response_message.tool_calls[0]]
             assert response_message.tool_calls is not None and len(response_message.tool_calls) > 0
 
-            # The content if then internal monologue, not chat
-            self.interface.internal_monologue(response_message.content)
-
             # generate UUID for tool call
             if override_tool_call_id or response_message.function_call:
                 tool_call_id = get_tool_call_id()  # needs to be a string for JSON
@@ -455,6 +452,9 @@ class Agent(object):
                 )
             )  # extend conversation with assistant's reply
             printd(f"Function call message: {messages[-1]}")
+
+            # The content if then internal monologue, not chat
+            self.interface.internal_monologue(response_message.content, msg_obj=messages[-1])
 
             # Step 3: call the function
             # Note: the JSON response may not always be valid; be sure to handle errors
@@ -483,7 +483,7 @@ class Agent(object):
                         },
                     )
                 )  # extend conversation with function response
-                self.interface.function_message(f"Error: {error_msg}")
+                self.interface.function_message(f"Error: {error_msg}", msg_obj=messages[-1])
                 return messages, False, True  # force a heartbeat to allow agent to handle error
 
             # Failure case 2: function name is OK, but function args are bad JSON
@@ -506,7 +506,7 @@ class Agent(object):
                         },
                     )
                 )  # extend conversation with function response
-                self.interface.function_message(f"Error: {error_msg}")
+                self.interface.function_message(f"Error: {error_msg}", msg_obj=messages[-1])
                 return messages, False, True  # force a heartbeat to allow agent to handle error
 
             # (Still parsing function args)
@@ -519,7 +519,7 @@ class Agent(object):
                 heartbeat_request = False
 
             # Failure case 3: function failed during execution
-            self.interface.function_message(f"Running {function_name}({function_args})")
+            self.interface.function_message(f"Running {function_name}({function_args})", msg_obj=None)
             try:
                 spec = inspect.getfullargspec(function_to_call).annotations
 
@@ -562,12 +562,11 @@ class Agent(object):
                         },
                     )
                 )  # extend conversation with function response
-                self.interface.function_message(f"Error: {error_msg}")
+                self.interface.function_message(f"Error: {error_msg}", msg_obj=messages[-1])
                 return messages, False, True  # force a heartbeat to allow agent to handle error
 
             # If no failures happened along the way: ...
             # Step 4: send the info on the function call and function response to GPT
-            self.interface.function_message(f"Success: {function_response_string}")
             messages.append(
                 Message.dict_to_message(
                     agent_id=self.agent_state.id,
@@ -581,10 +580,10 @@ class Agent(object):
                     },
                 )
             )  # extend conversation with function response
+            self.interface.function_message(f"Success: {function_response_string}", msg_obj=messages[-1])
 
         else:
             # Standard non-function reply
-            self.interface.internal_monologue(response_message.content)
             messages.append(
                 Message.dict_to_message(
                     agent_id=self.agent_state.id,
@@ -593,6 +592,7 @@ class Agent(object):
                     openai_message_dict=response_message.model_dump(),
                 )
             )  # extend conversation with assistant's reply
+            self.interface.internal_monologue(response_message.content, msg_obj=messages[-1])
             heartbeat_request = False
             function_failed = False
 
@@ -618,7 +618,6 @@ class Agent(object):
                 else:
                     raise ValueError(f"Bad type for user_message: {type(user_message)}")
 
-                self.interface.user_message(user_message_text)
                 packed_user_message = {"role": "user", "content": user_message_text}
                 # Special handling for AutoGen messages with 'name' field
                 try:
@@ -640,6 +639,7 @@ class Agent(object):
                     model=self.model,
                     openai_message_dict=packed_user_message,
                 )
+                self.interface.user_message(user_message_text, msg_obj=packed_user_message_obj)
 
                 input_message_sequence = self.messages + [packed_user_message]
             # Alternatively, the requestor can send an empty user message

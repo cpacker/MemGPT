@@ -336,7 +336,10 @@ class SyncServer(LockingServer):
         counter = 0
         while True:
             new_messages, heartbeat_request, function_failed, token_warning, tokens_accumulated = memgpt_agent.step(
-                next_input_message, first_message=False, skip_verify=no_verify
+                next_input_message,
+                first_message=False,
+                skip_verify=no_verify,
+                return_dicts=False,
             )
             counter += 1
 
