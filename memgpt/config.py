@@ -5,17 +5,12 @@ import os
 import uuid
 from dataclasses import dataclass, field
 import configparser
-import typer
-import questionary
-from typing import Optional
 
 import memgpt
 import memgpt.utils as utils
-from memgpt.utils import printd, get_schema_diff
-from memgpt.functions.functions import load_all_function_sets
 
-from memgpt.constants import MEMGPT_DIR, LLM_MAX_TOKENS, DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
-from memgpt.data_types import AgentState, User, LLMConfig, EmbeddingConfig
+from memgpt.constants import MEMGPT_DIR, DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
+from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig
 
 
 # helper functions for writing to configs
@@ -38,8 +33,8 @@ def set_field(config, section, field, value):
 
 @dataclass
 class MemGPTConfig:
-    config_path: str = os.path.join(MEMGPT_DIR, "config")
-    anon_clientid: str = None
+    config_path: str = os.getenv("MEMGPT_CONFIG_PATH") or os.path.join(MEMGPT_DIR, "config")
+    anon_clientid: str = str(uuid.UUID(int=0))
 
     # preset
     preset: str = DEFAULT_PRESET
@@ -185,7 +180,6 @@ class MemGPTConfig:
         anon_clientid = MemGPTConfig.generate_uuid()
         config = cls(anon_clientid=anon_clientid, config_path=config_path)
         config.create_config_dir()  # create dirs
-        config.save()  # save updated config
 
         return config
 
@@ -202,16 +196,51 @@ class MemGPTConfig:
         # model defaults
         set_field(config, "model", "model", self.default_llm_config.model)
         set_field(config, "model", "model_endpoint", self.default_llm_config.model_endpoint)
-        set_field(config, "model", "model_endpoint_type", self.default_llm_config.model_endpoint_type)
+        set_field(
+            config,
+            "model",
+            "model_endpoint_type",
+            self.default_llm_config.model_endpoint_type,
+        )
         set_field(config, "model", "model_wrapper", self.default_llm_config.model_wrapper)
-        set_field(config, "model", "context_window", str(self.default_llm_config.context_window))
+        set_field(
+            config,
+            "model",
+            "context_window",
+            str(self.default_llm_config.context_window),
+        )
 
         # embeddings
-        set_field(config, "embedding", "embedding_endpoint_type", self.default_embedding_config.embedding_endpoint_type)
-        set_field(config, "embedding", "embedding_endpoint", self.default_embedding_config.embedding_endpoint)
-        set_field(config, "embedding", "embedding_model", self.default_embedding_config.embedding_model)
-        set_field(config, "embedding", "embedding_dim", str(self.default_embedding_config.embedding_dim))
-        set_field(config, "embedding", "embedding_chunk_size", str(self.default_embedding_config.embedding_chunk_size))
+        set_field(
+            config,
+            "embedding",
+            "embedding_endpoint_type",
+            self.default_embedding_config.embedding_endpoint_type,
+        )
+        set_field(
+            config,
+            "embedding",
+            "embedding_endpoint",
+            self.default_embedding_config.embedding_endpoint,
+        )
+        set_field(
+            config,
+            "embedding",
+            "embedding_model",
+            self.default_embedding_config.embedding_model,
+        )
+        set_field(
+            config,
+            "embedding",
+            "embedding_dim",
+            str(self.default_embedding_config.embedding_dim),
+        )
+        set_field(
+            config,
+            "embedding",
+            "embedding_chunk_size",
+            str(self.default_embedding_config.embedding_chunk_size),
+        )
 
         # archival storage
         set_field(config, "archival_storage", "type", self.archival_storage_type)
@@ -239,7 +268,7 @@ class MemGPTConfig:
         # always make sure all directories are present
         self.create_config_dir()
 
-        with open(self.config_path, "w") as f:
+        with open(self.config_path, "w", encoding="utf-8") as f:
             config.write(f)
         logger.debug(f"Saved Config:  {self.config_path}")
 
@@ -259,7 +288,16 @@ class MemGPTConfig:
         if not os.path.exists(MEMGPT_DIR):
             os.makedirs(MEMGPT_DIR, exist_ok=True)
 
-        folders = ["personas", "humans", "archival", "agents", "functions", "system_prompts", "presets", "settings"]
+        folders = [
+            "personas",
+            "humans",
+            "archival",
+            "agents",
+            "functions",
+            "system_prompts",
+            "presets",
+            "settings",
+        ]
 
         for folder in folders:
             if not os.path.exists(os.path.join(MEMGPT_DIR, folder)):
@@ -392,7 +430,7 @@ class AgentConfig:
         os.makedirs(os.path.join(MEMGPT_DIR, "agents", self.name), exist_ok=True)
         # save version
         self.memgpt_version = memgpt.__version__
-        with open(self.agent_config_path, "w") as f:
+        with open(self.agent_config_path, "w", encoding="utf-8") as f:
             json.dump(vars(self), f, indent=4)
 
     def to_agent_state(self):
@@ -417,7 +455,7 @@ class AgentConfig:
         """Load agent config from JSON file"""
         agent_config_path = os.path.join(MEMGPT_DIR, "agents", name, "config.json")
         assert os.path.exists(agent_config_path), f"Agent config file does not exist at {agent_config_path}"
-        with open(agent_config_path, "r") as f:
+        with open(agent_config_path, "r", encoding="utf-8") as f:
             agent_config = json.load(f)
         # allow compatibility accross versions
         try:

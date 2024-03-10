@@ -1,5 +1,6 @@
 import json
 import re
+from memgpt.constants import JSON_LOADS_STRICT
 
 from memgpt.errors import LLMJSONParsingError
 
@@ -20,7 +21,7 @@ def extract_first_json(string):
             depth -= 1
             if depth == 0 and start_index is not None:
                 try:
-                    return json.loads(string[start_index : i + 1])
+                    return json.loads(string[start_index : i + 1], strict=JSON_LOADS_STRICT)
                 except json.JSONDecodeError as e:
                     raise LLMJSONParsingError(f"Matched closing bracket, but decode failed with error: {str(e)}")
     printd("No valid JSON object found.")
@@ -149,17 +150,17 @@ def clean_json(raw_llm_output, messages=None, functions=None):
     from memgpt.utils import printd
 
     strategies = [
-        lambda output: json.loads(output),
-        lambda output: json.loads(output + "}"),
-        lambda output: json.loads(output + "}}"),
-        lambda output: json.loads(output + '"}}'),
+        lambda output: json.loads(output, strict=JSON_LOADS_STRICT),
+        lambda output: json.loads(output + "}", strict=JSON_LOADS_STRICT),
+        lambda output: json.loads(output + "}}", strict=JSON_LOADS_STRICT),
+        lambda output: json.loads(output + '"}}', strict=JSON_LOADS_STRICT),
         # with strip and strip comma
-        lambda output: json.loads(output.strip().rstrip(",") + "}"),
-        lambda output: json.loads(output.strip().rstrip(",") + "}}"),
-        lambda output: json.loads(output.strip().rstrip(",") + '"}}'),
+        lambda output: json.loads(output.strip().rstrip(",") + "}", strict=JSON_LOADS_STRICT),
+        lambda output: json.loads(output.strip().rstrip(",") + "}}", strict=JSON_LOADS_STRICT),
+        lambda output: json.loads(output.strip().rstrip(",") + '"}}', strict=JSON_LOADS_STRICT),
         # more complex patchers
-        lambda output: json.loads(repair_json_string(output)),
-        lambda output: json.loads(repair_even_worse_json(output)),
+        lambda output: json.loads(repair_json_string(output), strict=JSON_LOADS_STRICT),
+        lambda output: json.loads(repair_even_worse_json(output), strict=JSON_LOADS_STRICT),
         lambda output: extract_first_json(output + "}}"),
         lambda output: clean_and_interpret_send_message_json(output),
     ]

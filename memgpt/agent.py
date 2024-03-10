@@ -1,24 +1,23 @@
 import datetime
 import uuid
-import glob
 import inspect
-import os
 import json
 from pathlib import Path
 import traceback
 from typing import List, Tuple, Optional, cast, Union
+from tqdm import tqdm
 
-from box import Box
-
-from memgpt.data_types import AgentState, Message, EmbeddingConfig
+from memgpt.metadata import MetadataStore
+from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.data_types import AgentState, Message, LLMConfig, EmbeddingConfig, Passage, Preset
 from memgpt.models import chat_completion_response
 from memgpt.interface import AgentInterface
-from memgpt.persistence_manager import PersistenceManager, LocalStateManager
-from memgpt.config import MemGPTConfig
+from memgpt.persistence_manager import LocalStateManager
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
-from memgpt.memory import CoreMemory as InContextMemory, summarize_messages, CustomizableCoreMemory as CustomizableInContextMemory
+from memgpt.memory import CoreMemory as InContextMemory, summarize_messages, ArchivalMemory, RecallMemory
 from memgpt.llm_api_tools import create, is_context_overflow_error
 from memgpt.utils import (
+    create_random_username,
     get_tool_call_id,
     get_local_time,
     parse_json,
@@ -28,9 +27,11 @@ from memgpt.utils import (
     get_schema_diff,
     validate_function_response,
     verify_first_message_correctness,
+    create_uuid_from_string,
 )
 from memgpt.constants import (
     FIRST_MESSAGE_ATTEMPTS,
+    JSON_LOADS_STRICT,
     MESSAGE_SUMMARY_WARNING_FRAC,
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
@@ -46,7 +47,7 @@ from .presets.default_templates import default_system_message_layout_template, d
 from .prompts.prompt_template import PromptTemplate
 
 
-def link_functions(function_schemas):
+def link_functions(function_schemas: list):
     """Link function definitions to list of function schemas"""
 
     # need to dynamically link the functions
@@ -94,11 +95,7 @@ def link_functions(function_schemas):
     return linked_function_set
 
 
-def initialize_custom_memory(core_memory: dict, core_memory_limits: dict):
-    return CustomizableInContextMemory(core_memory, core_memory_limits)
-
-
-def initialize_memory(ai_notes, human_notes):
+def initialize_memory(ai_notes: Union[str, None], human_notes: Union[str, None]):
     if ai_notes is None:
         raise ValueError(ai_notes)
     if human_notes is None:
@@ -110,72 +107,40 @@ def initialize_memory(ai_notes, human_notes):
 
 
 def construct_system_with_memory(
-    system,
-    memory,
-    memory_edit_timestamp,
-    system_message_layout_template,
-    core_memory_section_template,
-    archival_memory=None,
-    recall_memory=None,
-    include_char_count=True,
+    system: str,
+    memory: InContextMemory,
+    memory_edit_timestamp: str,
+    archival_memory: ArchivalMemory = None,
+    recall_memory: RecallMemory = None,
+    include_char_count: bool = True,
 ):
-    system_template = PromptTemplate.from_string(system_message_layout_template)
-
-    if isinstance(memory, InContextMemory):
-        core_memory_section_template = PromptTemplate.from_string(core_memory_section_template)
-        core_memory_content = (
-            core_memory_section_template.generate_prompt(
-                {
-                    "memory_key": "persona",
-                    "memory_value": memory.persona,
-                    "memory_value_length": len(memory.persona),
-                    "memory_value_limit": memory.persona_char_limit,
-                }
-            )
-            + "\n"
-        )
-        core_memory_content += (
-            core_memory_section_template.generate_prompt(
-                {
-                    "memory_key": "human",
-                    "memory_value": memory.human,
-                    "memory_value_length": len(memory.human),
-                    "memory_value_limit": memory.human_char_limit,
-                }
-            )
-            + "\n"
-        )
-        template_fields = {
-            "system": system,
-            "len_recall_memory": len(recall_memory) if recall_memory else 0,
-            "len_archival_memory": len(archival_memory) if archival_memory else 0,
-            "core_memory_content": core_memory_content,
-            "memory_edit_timestamp": memory_edit_timestamp.strip(),
-        }
-        full_system_message = system_template.generate_prompt(template_fields)
-    else:
-        core_memory_content = memory.get_memory_view(core_memory_section_template)
-        template_fields = {
-            "system": system,
-            "len_recall_memory": f"{len(recall_memory) if recall_memory else 0}",
-            "len_archival_memory": f"{len(archival_memory) if archival_memory else 0}",
-            "core_memory_content": core_memory_content,
-            "memory_edit_timestamp": memory_edit_timestamp.strip(),
-        }
-        full_system_message = system_template.generate_prompt(template_fields)
+    full_system_message = "\n".join(
+        [
+            system,
+            "\n",
+            f"### Memory [last modified: {memory_edit_timestamp.strip()}]",
+            f"{len(recall_memory) if recall_memory else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
+            f"{len(archival_memory) if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
+            "\nCore memory shown below (limited in size, additional information stored in archival / recall memory):",
+            f'<persona characters="{len(memory.persona)}/{memory.persona_char_limit}">' if include_char_count else "<persona>",
+            memory.persona,
+            "</persona>",
+            f'<human characters="{len(memory.human)}/{memory.human_char_limit}">' if include_char_count else "<human>",
+            memory.human,
+            "</human>",
+        ]
+    )
     return full_system_message
 
 
 def initialize_message_sequence(
-    model,
-    system,
-    memory,
-    system_message_layout_template,
-    core_memory_section_template,
-    archival_memory=None,
-    recall_memory=None,
-    memory_edit_timestamp=None,
-    include_initial_boot_message=True,
+    model: str,
+    system: str,
+    memory: InContextMemory,
+    archival_memory: ArchivalMemory = None,
+    recall_memory: RecallMemory = None,
+    memory_edit_timestamp: str = None,
+    include_initial_boot_message: bool = True,
 ):
     if memory_edit_timestamp is None:
         memory_edit_timestamp = get_local_time()
@@ -218,57 +183,80 @@ def initialize_message_sequence(
 class Agent(object):
     def __init__(
         self,
-        agent_state: AgentState,
         interface: AgentInterface,
+        # agents can be created from providing agent_state
+        agent_state: Optional[AgentState] = None,
+        # or from providing a preset (requires preset + extra fields)
+        preset: Optional[Preset] = None,
+        created_by: Optional[uuid.UUID] = None,
+        name: Optional[str] = None,
+        llm_config: Optional[LLMConfig] = None,
+        embedding_config: Optional[EmbeddingConfig] = None,
         # extras
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
-        memgpt_config: Optional[MemGPTConfig] = None,
     ):
+        # An agent can be created from a Preset object
+        if preset is not None:
+            assert agent_state is None, "Can create an agent from a Preset or AgentState (but both were provided)"
+            assert created_by is not None, "Must provide created_by field when creating an Agent from a Preset"
+            assert llm_config is not None, "Must provide llm_config field when creating an Agent from a Preset"
+            assert embedding_config is not None, "Must provide embedding_config field when creating an Agent from a Preset"
+
+            # if agent_state is also provided, override any preset values
+            init_agent_state = AgentState(
+                name=name if name else create_random_username(),
+                user_id=created_by,
+                persona=preset.persona,
+                human=preset.human,
+                llm_config=llm_config,
+                embedding_config=embedding_config,
+                preset=preset.name,  # TODO link via preset.id instead of name?
+                state={
+                    "persona": preset.persona,
+                    "human": preset.human,
+                    "system": preset.system,
+                    "functions": preset.functions_schema,
+                    "messages": None,
+                },
+            )
+
+        # An agent can also be created directly from AgentState
+        elif agent_state is not None:
+            assert preset is None, "Can create an agent from a Preset or AgentState (but both were provided)"
+            assert agent_state.state is not None and agent_state.state != {}, "AgentState.state cannot be empty"
+
+            # Assume the agent_state passed in is formatted correctly
+            init_agent_state = agent_state
+
+        else:
+            raise ValueError("Both Preset and AgentState were null (must provide one or the other)")
+
         # Hold a copy of the state that was used to init the agent
-        self.agent_state = agent_state
+        self.agent_state = init_agent_state
 
         # gpt-4, gpt-3.5-turbo, ...
-        self.model = agent_state.llm_config.model
+        self.model = self.agent_state.llm_config.model
 
         # Store the system instructions (used to rebuild memory)
-        if "system" not in agent_state.state:
+        if "system" not in self.agent_state.state:
             raise ValueError(f"'system' not found in provided AgentState")
-        self.system = agent_state.state["system"]
-        if "system_template" not in agent_state.state:
-            self.system_template = ""
-        else:
-            self.system_template = agent_state.state["system_template"]
-        if "system_message_layout_template" not in agent_state.state:
-            self.system_message_layout_template = default_system_message_layout_template
-        else:
-            self.system_message_layout_template = agent_state.state["system_message_layout_template"]
-        if "core_memory_section_template" not in agent_state.state:
-            self.core_memory_section_template = default_core_memory_section_template
-        else:
-            self.core_memory_section_template = agent_state.state["core_memory_section_template"]
-        if "system_template_fields" not in agent_state.state:
-            self.system_template_fields = {}
-        else:
-            self.system_template_fields = agent_state.state["system_template_fields"]
-        if "functions" not in agent_state.state:
+        self.system = self.agent_state.state["system"]
+
+        if "functions" not in self.agent_state.state:
             raise ValueError(f"'functions' not found in provided AgentState")
         # Store the functions schemas (this is passed as an argument to ChatCompletion)
-        self.functions = agent_state.state["functions"]  # these are the schema
+        self.functions = self.agent_state.state["functions"]  # these are the schema
         # Link the actual python functions corresponding to the schemas
         self.functions_python = {k: v["python_function"] for k, v in link_functions(function_schemas=self.functions).items()}
         assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
-        if "core_memory_type" in agent_state.state and agent_state.state["core_memory_type"] == "custom":
-            if "core_memory" not in agent_state.state:
-                raise ValueError(f"'core_memory' not found in provided AgentState")
-            self.memory = initialize_custom_memory(agent_state.state["core_memory"], agent_state.state["core_memory_limits"])
-        else:
-            # Initialize the memory object
-            if "persona" not in agent_state.state:
-                raise ValueError(f"'persona' not found in provided AgentState")
-            if "human" not in agent_state.state:
-                raise ValueError(f"'human' not found in provided AgentState")
-            self.memory = initialize_memory(ai_notes=agent_state.state["persona"], human_notes=agent_state.state["human"])
+
+        # Initialize the memory object
+        if "persona" not in self.agent_state.state:
+            raise ValueError(f"'persona' not found in provided AgentState")
+        if "human" not in self.agent_state.state:
+            raise ValueError(f"'human' not found in provided AgentState")
+        self.memory = initialize_memory(ai_notes=self.agent_state.state["persona"], human_notes=self.agent_state.state["human"])
 
         # Interface must implement:
         # - internal_monologue
@@ -281,7 +269,7 @@ class Agent(object):
 
         # Create the persistence manager object based on the AgentState info
         # TODO
-        self.persistence_manager = LocalStateManager(agent_state=agent_state)
+        self.persistence_manager = LocalStateManager(agent_state=self.agent_state)
 
         # State needed for heartbeat pausing
         self.pause_heartbeats_start = None
@@ -294,29 +282,20 @@ class Agent(object):
         # When the summarizer is run, set this back to False (to reset)
         self.agent_alerted_about_memory_pressure = False
 
-        # Read local config if not provided
-        if not memgpt_config:
-            self.memgpt_config = MemGPTConfig()
-        else:
-            self.memgpt_config = memgpt_config
-
-        # Initialize connection to metedata store
-        # self.ms = MetadataStore(self.memgpt_config)
-
         self._messages: List[Message] = []
 
         # Once the memory object is initialized, use it to "bake" the system message
-        if "messages" in agent_state.state and agent_state.state["messages"] is not None:
+        if "messages" in self.agent_state.state and self.agent_state.state["messages"] is not None:
             # print(f"Agent.__init__ :: loading, state={agent_state.state['messages']}")
-            if not isinstance(agent_state.state["messages"], list):
-                raise ValueError(f"'messages' in AgentState was bad type: {type(agent_state.state['messages'])}")
-            assert all([isinstance(msg, str) for msg in agent_state.state["messages"]])
+            if not isinstance(self.agent_state.state["messages"], list):
+                raise ValueError(f"'messages' in AgentState was bad type: {type(self.agent_state.state['messages'])}")
+            assert all([isinstance(msg, str) for msg in self.agent_state.state["messages"]])
 
             # Convert to IDs, and pull from the database
             raw_messages = [
-                self.persistence_manager.recall_memory.storage.get(id=uuid.UUID(msg_id)) for msg_id in agent_state.state["messages"]
+                self.persistence_manager.recall_memory.storage.get(id=uuid.UUID(msg_id)) for msg_id in self.agent_state.state["messages"]
             ]
-            assert all([isinstance(msg, Message) for msg in raw_messages]), (raw_messages, agent_state.state["messages"])
+            assert all([isinstance(msg, Message) for msg in raw_messages]), (raw_messages, self.agent_state.state["messages"])
             self._messages.extend([cast(Message, msg) for msg in raw_messages if msg is not None])
 
         else:
@@ -451,7 +430,10 @@ class Agent(object):
             if response_message.function_call:
                 raise DeprecationWarning(response_message)
             if response_message.tool_calls is not None and len(response_message.tool_calls) > 1:
-                raise NotImplementedError(f">1 tool call not supported")
+                # raise NotImplementedError(f">1 tool call not supported")
+                # TODO eventually support sequential tool calling
+                printd(f">1 tool call not supported, using index=0 only\n{response_message.tool_calls}")
+                response_message.tool_calls = [response_message.tool_calls[0]]
             assert response_message.tool_calls is not None and len(response_message.tool_calls) > 0
 
             # The content if then internal monologue, not chat
@@ -624,7 +606,7 @@ class Agent(object):
 
     def step(
         self,
-        user_message: Optional[str],  # NOTE: should be json.dump(dict)
+        user_message: Union[Message, str],  # NOTE: should be json.dump(dict)
         first_message: bool = False,
         first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
         skip_verify: bool = False,
@@ -634,11 +616,18 @@ class Agent(object):
         try:
             # Step 0: add user message
             if user_message is not None:
-                # Create the user message dict
-                self.interface.user_message(user_message)
-                packed_user_message = {"role": "user", "content": user_message}
+                if isinstance(user_message, Message):
+                    user_message_text = user_message.text
+                elif isinstance(user_message, str):
+                    user_message_text = user_message
+                else:
+                    raise ValueError(f"Bad type for user_message: {type(user_message)}")
+
+                self.interface.user_message(user_message_text)
+                packed_user_message = {"role": "user", "content": user_message_text}
+                # Special handling for AutoGen messages with 'name' field
                 try:
-                    user_message_json = json.loads(user_message)
+                    user_message_json = json.loads(user_message_text, strict=JSON_LOADS_STRICT)
                     # Special handling for AutoGen messages with 'name' field
                     # Treat 'name' as a special field
                     # If it exists in the input message, elevate it to the 'message' level
@@ -691,7 +680,7 @@ class Agent(object):
             # (if yes) Step 3: call the function
             # (if yes) Step 4: send the info on the function call and function response to LLM
             response_message = response.choices[0].message
-            response_message_copy = response_message.copy()
+            response_message.copy()
             all_response_messages, heartbeat_request, function_failed = self._handle_ai_response(response_message)
 
             # Add the extra metadata to the assistant response
@@ -707,7 +696,17 @@ class Agent(object):
 
             # Step 4: extend the message history
             if user_message is not None:
-                all_new_messages = [packed_user_message_obj] + all_response_messages
+                if isinstance(user_message, Message):
+                    all_new_messages = [user_message] + all_response_messages
+                else:
+                    all_new_messages = [
+                        Message.dict_to_message(
+                            agent_id=self.agent_state.id,
+                            user_id=self.agent_state.user_id,
+                            model=self.model,
+                            openai_message_dict=packed_user_message,
+                        )
+                    ] + all_response_messages
             else:
                 all_new_messages = all_response_messages
 
@@ -1068,3 +1067,57 @@ class Agent(object):
 
         # TODO: recall memory
         raise NotImplementedError()
+
+    def attach_source(self, source_name, source_connector: StorageConnector, ms: MetadataStore):
+        """Attach data with name `source_name` to the agent from source_connector."""
+        # TODO: eventually, adding a data source should just give access to the retriever the source table, rather than modifying archival memory
+
+        filters = {"user_id": self.agent_state.user_id, "data_source": source_name}
+        size = source_connector.size(filters)
+        # typer.secho(f"Ingesting {size} passages into {agent.name}", fg=typer.colors.GREEN)
+        page_size = 100
+        generator = source_connector.get_all_paginated(filters=filters, page_size=page_size)  # yields List[Passage]
+        all_passages = []
+        for i in tqdm(range(0, size, page_size)):
+            passages = next(generator)
+
+            # need to associated passage with agent (for filtering)
+            for passage in passages:
+                assert isinstance(passage, Passage), f"Generate yielded bad non-Passage type: {type(passage)}"
+                passage.agent_id = self.agent_state.id
+
+                # regenerate passage ID (avoid duplicates)
+                passage.id = create_uuid_from_string(f"{source_name}_{str(passage.agent_id)}_{passage.text}")
+
+            # insert into agent archival memory
+            self.persistence_manager.archival_memory.storage.insert_many(passages)
+            all_passages += passages
+
+        assert size == len(all_passages), f"Expected {size} passages, but only got {len(all_passages)}"
+
+        # save destination storage
+        self.persistence_manager.archival_memory.storage.save()
+
+        # attach to agent
+        source = ms.get_source(source_name=source_name, user_id=self.agent_state.user_id)
+        assert source is not None, f"source does not exist for source_name={source_name}, user_id={self.agent_state.user_id}"
+        source_id = source.id
+        ms.attach_source(agent_id=self.agent_state.id, source_id=source_id, user_id=self.agent_state.user_id)
+
+        total_agent_passages = self.persistence_manager.archival_memory.storage.size()
+
+        printd(
+            f"Attached data source {source_name} to agent {self.agent_state.name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
+        )
+
+
+def save_agent(agent: Agent, ms: MetadataStore):
+    """Save agent to metadata store"""
+
+    agent.update_state()
+    agent_state = agent.agent_state
+
+    if ms.get_agent(agent_id=agent_state.id):
+        ms.update_agent(agent_state)
+    else:
+        ms.create_agent(agent_state)

@@ -75,7 +75,7 @@ FUNCTIONS_CHAINING = {
     },
     "core_memory_replace": {
         "name": "core_memory_replace",
-        "description": "Replace to the contents of core memory. To delete memories, use an empty string for new_content.",
+        "description": "Replace the contents of core memory. To delete memories, use an empty string for new_content.",
         "parameters": {
             "type": "object",
             "properties": {

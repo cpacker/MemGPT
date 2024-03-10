@@ -8,7 +8,7 @@ from docstring_parser import parse
 from pydantic import BaseModel, create_model, Field
 from typing import Any, Type, List, get_args, get_origin, Tuple, Union, Optional, _GenericAlias
 from enum import Enum
-from typing import get_type_hints, Callable
+from typing import Callable
 import re
 
 
@@ -980,14 +980,14 @@ def save_gbnf_grammar_and_documentation(
         None
     """
     try:
-        with open(grammar_file_path, "w") as file:
+        with open(grammar_file_path, "w", encoding="utf-8") as file:
             file.write(grammar + get_primitive_grammar(grammar))
         print(f"Grammar successfully saved to {grammar_file_path}")
     except IOError as e:
         print(f"An error occurred while saving the grammar file: {e}")
 
     try:
-        with open(documentation_file_path, "w") as file:
+        with open(documentation_file_path, "w", encoding="utf-8") as file:
             file.write(documentation)
         print(f"Documentation successfully saved to {documentation_file_path}")
     except IOError as e:

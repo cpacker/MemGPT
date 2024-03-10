@@ -1,7 +1,5 @@
 import uuid
-import json
-import re
-from typing import Optional, List, Iterator, Dict, Tuple, cast, Type
+from typing import Optional, List, Iterator, Dict, Tuple, cast
 
 import chromadb
 from chromadb.api.types import Include, GetResult
@@ -37,7 +35,7 @@ class ChromaStorageConnector(StorageConnector):
         self.include: Include = ["documents", "embeddings", "metadatas"]
 
         # need to be converted to strings
-        self.uuid_fields = ["id", "user_id", "agent_id", "source_id"]
+        self.uuid_fields = ["id", "user_id", "agent_id", "source_id", "doc_id"]
 
     def get_filters(self, filters: Optional[Dict] = {}) -> Tuple[list, dict]:
         # get all filters for query
@@ -126,13 +124,26 @@ class ChromaStorageConnector(StorageConnector):
 
     def format_records(self, records: List[RecordType]):
         assert all([isinstance(r, Passage) for r in records])
-        recs = [cast(Passage, r) for r in records]
-        metadatas = []
-        ids = [str(record.id) for record in recs]
-        documents = [record.text for record in recs]
-        embeddings = [record.embedding for record in recs]
+
+        recs = []
+        ids = []
+        documents = []
+        embeddings = []
+
+        # de-duplication of ids
+        exist_ids = set()
+        for i in range(len(records)):
+            record = records[i]
+            if record.id in exist_ids:
+                continue
+            exist_ids.add(record.id)
+            recs.append(cast(Passage, record))
+            ids.append(str(record.id))
+            documents.append(record.text)
+            embeddings.append(record.embedding)
 
         # collect/format record metadata
+        metadatas = []
         for record in recs:
             metadata = vars(record)
             metadata.pop("id")
@@ -140,9 +151,9 @@ class ChromaStorageConnector(StorageConnector):
             metadata.pop("embedding")
             if "created_at" in metadata:
                 metadata["created_at"] = datetime_to_timestamp(metadata["created_at"])
-            if "metadata" in metadata and metadata["metadata"] is not None:
-                record_metadata = dict(metadata["metadata"])
-                metadata.pop("metadata")
+            if "metadata_" in metadata and metadata["metadata_"] is not None:
+                record_metadata = dict(metadata["metadata_"])
+                metadata.pop("metadata_")
             else:
                 record_metadata = {}
             metadata = {key: value for key, value in metadata.items() if value is not None}  # null values not allowed
@@ -159,13 +170,13 @@ class ChromaStorageConnector(StorageConnector):
         ids, documents, embeddings, metadatas = self.format_records([record])
         if any([e is None for e in embeddings]):
             raise ValueError("Embeddings must be provided to chroma")
-        self.collection.add(documents=documents, embeddings=[e for e in embeddings if e is not None], ids=ids, metadatas=metadatas)
+        self.collection.upsert(documents=documents, embeddings=[e for e in embeddings if e is not None], ids=ids, metadatas=metadatas)
 
     def insert_many(self, records: List[RecordType], show_progress=False):
         ids, documents, embeddings, metadatas = self.format_records(records)
         if any([e is None for e in embeddings]):
             raise ValueError("Embeddings must be provided to chroma")
-        self.collection.add(documents=documents, embeddings=[e for e in embeddings if e is not None], ids=ids, metadatas=metadatas)
+        self.collection.upsert(documents=documents, embeddings=[e for e in embeddings if e is not None], ids=ids, metadatas=metadatas)
 
     def delete(self, filters: Optional[Dict] = {}):
         ids, filters = self.get_filters(filters)

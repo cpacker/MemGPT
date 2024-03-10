@@ -1,18 +1,16 @@
-from collections import UserDict
 import json
 import os
 import inspect
 import uuid
 
-from memgpt import MemGPT
-from memgpt.config import MemGPTConfig
+from memgpt import create_client
 from memgpt import constants
-import memgpt.functions.function_sets.base as base_functions
 from memgpt.functions.functions import USER_FUNCTIONS_DIR
 from memgpt.utils import assistant_function_to_tool
 from memgpt.models import chat_completion_response
+from tests import TEST_MEMGPT_CONFIG
 
-from tests.utils import wipe_config
+from tests.utils import wipe_config, create_config
 
 import pytest
 
@@ -32,23 +30,21 @@ def agent():
     wipe_config()
     global client
     if os.getenv("OPENAI_API_KEY"):
-        client = MemGPT(quickstart="openai")
+        create_config("openai")
     else:
-        client = MemGPT(quickstart="memgpt_hosted")
+        create_config("memgpt_hosted")
 
-    config = MemGPTConfig.load()
+    # create memgpt client
+    client = create_client()
 
     # ensure user exists
-    user_id = uuid.UUID(config.anon_clientid)
+    user_id = uuid.UUID(TEST_MEMGPT_CONFIG.anon_clientid)
     if not client.server.get_user(user_id=user_id):
         client.server.create_user({"id": user_id})
 
     agent_state = client.create_agent(
-        agent_config={
-            # "name": test_agent_id,
-            "persona": constants.DEFAULT_PERSONA,
-            "human": constants.DEFAULT_HUMAN,
-        }
+        persona=constants.DEFAULT_PERSONA,
+        human=constants.DEFAULT_HUMAN,
     )
 
     return client.server._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
@@ -56,7 +52,7 @@ def agent():
 
 @pytest.fixture(scope="module")
 def hello_world_function():
-    with open(os.path.join(USER_FUNCTIONS_DIR, "hello_world.py"), "w") as f:
+    with open(os.path.join(USER_FUNCTIONS_DIR, "hello_world.py"), "w", encoding="utf-8") as f:
         f.write(inspect.getsource(hello_world))
 
 
@@ -85,7 +81,7 @@ def test_add_function_happy(agent, hello_world_function, ai_function_call):
     assert "hello_world" in agent.functions_python.keys()
 
     msgs, heartbeat_req, function_failed = agent._handle_ai_response(ai_function_call)
-    content = json.loads(msgs[-1].to_openai_dict()["content"])
+    content = json.loads(msgs[-1].to_openai_dict()["content"], strict=constants.JSON_LOADS_STRICT)
     assert content["message"] == "hello, world!"
     assert content["status"] == "OK"
     assert not function_failed

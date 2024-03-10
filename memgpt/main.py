@@ -1,11 +1,5 @@
-import shutil
-import configparser
-import uuid
-import logging
-import glob
 import os
 import sys
-import pickle
 import traceback
 import json
 
@@ -13,22 +7,20 @@ import questionary
 import typer
 
 from rich.console import Console
-from prettytable import PrettyTable
+from memgpt.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, JSON_ENSURE_ASCII, JSON_LOADS_STRICT, REQ_HEARTBEAT_MESSAGE
 
 console = Console()
 
-from memgpt.log import logger
+from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.config import MemGPTConfig
 import memgpt.agent as agent
 import memgpt.system as system
-import memgpt.constants as constants
 import memgpt.errors as errors
-from memgpt.cli.cli import run, attach, version, server, open_folder, quickstart, migrate, delete_agent
+from memgpt.cli.cli import run, version, server, open_folder, quickstart, migrate, delete_agent
 from memgpt.cli.cli_config import configure, list, add, delete
 from memgpt.cli.cli_load import app as load_app
-from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.metadata import MetadataStore, save_agent
+from memgpt.metadata import MetadataStore
 
 # import benchmark
 from memgpt.benchmark.benchmark import bench
@@ -36,7 +28,6 @@ from memgpt.benchmark.benchmark import bench
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
 app.command(name="version")(version)
-app.command(name="attach")(attach)
 app.command(name="configure")(configure)
 app.command(name="list")(list)
 app.command(name="add")(add)
@@ -109,11 +100,11 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                 # updated agent save functions
                 if user_input.lower() == "/exit":
                     # memgpt_agent.save()
-                    save_agent(memgpt_agent, ms)
+                    agent.save_agent(memgpt_agent, ms)
                     break
                 elif user_input.lower() == "/save" or user_input.lower() == "/savechat":
                     # memgpt_agent.save()
-                    save_agent(memgpt_agent, ms)
+                    agent.save_agent(memgpt_agent, ms)
                     continue
                 elif user_input.lower() == "/attach":
                     # TODO: check if agent already has it
@@ -140,19 +131,22 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                         ):
                             valid_options.append(source.name)
                         else:
+                            # print warning about invalid sources
+                            typer.secho(
+                                f"Source {source.name} exists but has embedding dimentions {source.embedding_dim} from model {source.embedding_model}, while the agent uses embedding dimentions {memgpt_agent.agent_state.embedding_config.embedding_dim} and model {memgpt_agent.agent_state.embedding_config.embedding_model}",
+                                fg=typer.colors.YELLOW,
+                            )
                             invalid_options.append(source.name)
-
-                    # print warning about invalid sources
-                    typer.secho(
-                        f"Warning: the following sources are not compatible with this agent's embedding model and dimension: {invalid_options}",
-                        fg=typer.colors.YELLOW,
-                    )
 
                     # prompt user for data source selection
                     data_source = questionary.select("Select data source", choices=valid_options).ask()
 
                     # attach new data
-                    attach(memgpt_agent.agent_state.name, data_source)
+                    # attach(memgpt_agent.agent_state.name, data_source)
+                    source_connector = StorageConnector.get_storage_connector(
+                        TableType.PASSAGES, config, user_id=memgpt_agent.agent_state.user_id
+                    )
+                    memgpt_agent.attach_source(data_source, source_connector, ms)
 
                     continue
 
@@ -232,12 +226,32 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                     for x in range(len(memgpt_agent.messages) - 1, 0, -1):
                         if memgpt_agent.messages[x].get("role") == "assistant":
                             text = user_input[len("/rewrite ") :].strip()
-                            args = json.loads(memgpt_agent.messages[x].get("function_call").get("arguments"))
-                            args["message"] = text
-                            memgpt_agent.messages[x].get("function_call").update(
-                                {"arguments": json.dumps(args, ensure_ascii=constants.JSON_ENSURE_ASCII)}
-                            )
-                            break
+                            # Get the current message content
+                            # The rewrite target is the output of send_message
+                            message_obj = memgpt_agent._messages[x]
+                            if message_obj.tool_calls is not None and len(message_obj.tool_calls) > 0:
+                                # Check that we hit an assistant send_message call
+                                name_string = message_obj.tool_calls[0].function.get("name")
+                                if name_string is None or name_string != "send_message":
+                                    print("Assistant missing send_message function call")
+                                    break  # cancel op
+                                args_string = message_obj.tool_calls[0].function.get("arguments")
+                                if args_string is None:
+                                    print("Assistant missing send_message function arguments")
+                                    break  # cancel op
+                                args_json = json.loads(args_string, strict=JSON_LOADS_STRICT)
+                                if "message" not in args_json:
+                                    print("Assistant missing send_message message argument")
+                                    break  # cancel op
+
+                                # Once we found our target, rewrite it
+                                args_json["message"] = text
+                                new_args_string = json.dumps(args_json, ensure_ascii=JSON_ENSURE_ASCII)
+                                message_obj.tool_calls[0].function["arguments"] = new_args_string
+
+                                # To persist to the database, all we need to do is "re-insert" into recall memory
+                                memgpt_agent.persistence_manager.recall_memory.storage.update(record=message_obj)
+                                break
                     continue
 
                 elif user_input.lower() == "/summarize":
@@ -365,10 +379,10 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                 user_message = system.get_token_limit_warning()
                 skip_next_user_input = True
             elif function_failed:
-                user_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
+                user_message = system.get_heartbeat(FUNC_FAILED_HEARTBEAT_MESSAGE)
                 skip_next_user_input = True
             elif heartbeat_request:
-                user_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
+                user_message = system.get_heartbeat(REQ_HEARTBEAT_MESSAGE)
                 skip_next_user_input = True
 
             return new_messages, user_message, skip_next_user_input

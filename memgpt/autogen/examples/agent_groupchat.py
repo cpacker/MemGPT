@@ -9,7 +9,6 @@ Begin by doing:
   pip install -e . (inside the MemGPT home directory)
 """
 
-
 import os
 import autogen
 from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config, load_autogen_memgpt_agent
@@ -186,7 +185,7 @@ else:
 
 
 # Initialize the group chat between the user and two LLM agents (PM and coder)
-groupchat = autogen.GroupChat(agents=[user_proxy, pm, coder], messages=[], max_round=12, speaker_selection_method="round_robin")
+groupchat = autogen.GroupChat(agents=[user_proxy, pm, coder], messages=[], max_round=3, speaker_selection_method="round_robin")
 manager = autogen.GroupChatManager(groupchat=groupchat, llm_config=llm_config)
 
 # Begin the group chat with a message from the user

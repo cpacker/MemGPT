@@ -11,7 +11,6 @@ Begin by doing:
   pip install -e . (inside the MemGPT home directory)
 """
 
-
 import os
 import autogen
 from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config
@@ -162,7 +161,7 @@ memgpt_agent.load_and_attach(
 )
 
 # Initialize the group chat between the agents
-groupchat = autogen.GroupChat(agents=[user_proxy, memgpt_agent], messages=[], max_round=12, speaker_selection_method="round_robin")
+groupchat = autogen.GroupChat(agents=[user_proxy, memgpt_agent], messages=[], max_round=3, speaker_selection_method="round_robin")
 manager = autogen.GroupChatManager(groupchat=groupchat, llm_config=llm_config)
 
 # Begin the group chat with a message from the user

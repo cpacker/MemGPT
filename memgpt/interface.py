@@ -5,7 +5,7 @@ import re
 from colorama import Fore, Style, init
 
 from memgpt.utils import printd
-from memgpt.constants import CLI_WARNING_PREFIX
+from memgpt.constants import CLI_WARNING_PREFIX, JSON_LOADS_STRICT
 
 init(autoreset=True)
 
@@ -122,7 +122,7 @@ class CLIInterface(AgentInterface):
                 return
             else:
                 try:
-                    msg_json = json.loads(msg)
+                    msg_json = json.loads(msg, strict=JSON_LOADS_STRICT)
                 except:
                     printd(f"{CLI_WARNING_PREFIX}failed to parse user message into json")
                     printd_user_message("🧑", msg)
@@ -203,7 +203,6 @@ class CLIInterface(AgentInterface):
                         except Exception as e:
                             printd(str(e))
                             printd(msg_dict)
-                            pass
                     elif function_name in ["conversation_search", "conversation_search_date"]:
                         print_function_message("🧠", f"searching memory with {function_name}")
                         try:
@@ -216,13 +215,12 @@ class CLIInterface(AgentInterface):
                         except Exception as e:
                             printd(str(e))
                             printd(msg_dict)
-                            pass
                 else:
                     printd(f"{CLI_WARNING_PREFIX}did not recognize function message")
                     printd_function_message("", msg)
         else:
             try:
-                msg_dict = json.loads(msg)
+                msg_dict = json.loads(msg, strict=JSON_LOADS_STRICT)
                 if "status" in msg_dict and msg_dict["status"] == "OK":
                     printd_function_message("", str(msg), color=Fore.GREEN)
                 else:
@@ -250,7 +248,7 @@ class CLIInterface(AgentInterface):
                         CLIInterface.internal_monologue(content)
                     # I think the next one is not up to date
                     # function_message(msg["function_call"])
-                    args = json.loads(msg["function_call"].get("arguments"))
+                    args = json.loads(msg["function_call"].get("arguments"), strict=JSON_LOADS_STRICT)
                     CLIInterface.assistant_message(args.get("message"))
                     # assistant_message(content)
                 elif msg.get("tool_calls"):
@@ -258,7 +256,7 @@ class CLIInterface(AgentInterface):
                         CLIInterface.internal_monologue(content)
                     function_obj = msg["tool_calls"][0].get("function")
                     if function_obj:
-                        args = json.loads(function_obj.get("arguments"))
+                        args = json.loads(function_obj.get("arguments"), strict=JSON_LOADS_STRICT)
                         CLIInterface.assistant_message(args.get("message"))
                 else:
                     CLIInterface.internal_monologue(content)

@@ -53,7 +53,6 @@ class QueuingInterface(AgentInterface):
 
     def user_message(self, msg: str):
         """Handle reception of a user message"""
-        pass
 
     def internal_monologue(self, msg: str) -> None:
         """Handle the agent's internal monologue"""

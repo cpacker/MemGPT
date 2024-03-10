@@ -23,7 +23,9 @@ def is_valid_yaml_format(yaml_data, function_set):
 
     # Check if all functions in YAML are part of function_set
     if not set(yaml_data["functions"]).issubset(function_set):
-        raise ValueError("Some functions in YAML are not part of the provided function set.")
+        raise ValueError(
+            f"Some functions in YAML are not part of the provided function set: {set(yaml_data['functions']) - set(function_set)} "
+        )
 
     # If all checks pass
     return True
@@ -36,7 +38,7 @@ def load_yaml_file(file_path):
     :param file_path: Path to the YAML file.
     :return: Data from the YAML file.
     """
-    with open(file_path, "r") as file:
+    with open(file_path, "r", encoding="utf-8") as file:
         return yaml.safe_load(file)
 
 

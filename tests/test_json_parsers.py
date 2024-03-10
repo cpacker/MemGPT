@@ -1,4 +1,5 @@
 import json
+from memgpt.constants import JSON_LOADS_STRICT
 
 import memgpt.local_llm.json_parser as json_parser
 
@@ -81,7 +82,7 @@ def test_json_parsers():
 
     for string in test_strings:
         try:
-            json.loads(string)
+            json.loads(string, strict=JSON_LOADS_STRICT)
             assert False, f"Test JSON string should have failed basic JSON parsing:\n{string}"
         except:
             print("String failed (expectedly)")

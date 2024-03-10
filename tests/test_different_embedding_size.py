@@ -1,13 +1,12 @@
 import uuid
 import os
 
-from memgpt import MemGPT
-from memgpt.config import MemGPTConfig
-from memgpt import constants
-from memgpt.data_types import LLMConfig, EmbeddingConfig, AgentState, Passage
+from memgpt import create_client
+from memgpt.data_types import EmbeddingConfig, Passage
 from memgpt.embeddings import embedding_model
 from memgpt.agent_store.storage import StorageConnector, TableType
-from .utils import wipe_config
+from tests import TEST_MEMGPT_CONFIG
+from .utils import wipe_config, create_config
 import uuid
 
 
@@ -21,7 +20,11 @@ test_user_id = uuid.uuid4()
 
 def generate_passages(user, agent):
     # Note: the database will filter out rows that do not correspond to agent1 and test_user by default.
-    texts = ["This is a test passage", "This is another test passage", "Cinderella wept"]
+    texts = [
+        "This is a test passage",
+        "This is another test passage",
+        "Cinderella wept",
+    ]
     embed_model = embedding_model(agent.embedding_config)
     orig_embeddings = []
     passages = []
@@ -49,39 +52,31 @@ def test_create_user():
     wipe_config()
 
     # create client
-    client = MemGPT(quickstart="openai", user_id=test_user_id)
-
-    # create user
-    user = client.server.create_user({"id": test_user_id})
+    create_config("openai")
+    client = create_client()
 
     # openai: create agent
     openai_agent = client.create_agent(
-        {
-            "user_id": test_user_id,
-            "name": "openai_agent",
-        }
+        name="openai_agent",
     )
     assert (
         openai_agent.embedding_config.embedding_endpoint_type == "openai"
     ), f"openai_agent.embedding_config.embedding_endpoint_type={openai_agent.embedding_config.embedding_endpoint_type}"
 
     # openai: add passages
-    passages, openai_embeddings = generate_passages(user, openai_agent)
-    openai_agent_run = client.server._get_or_load_agent(user_id=user.id, agent_id=openai_agent.id)
+    passages, openai_embeddings = generate_passages(client.user, openai_agent)
+    openai_agent_run = client.server._get_or_load_agent(user_id=client.user.id, agent_id=openai_agent.id)
     openai_agent_run.persistence_manager.archival_memory.storage.insert_many(passages)
 
     # hosted: create agent
     hosted_agent = client.create_agent(
-        {
-            "user_id": test_user_id,
-            "name": "hosted_agent",
-            "embedding_config": EmbeddingConfig(
-                embedding_endpoint_type="hugging-face",
-                embedding_model="BAAI/bge-large-en-v1.5",
-                embedding_endpoint="https://embeddings.memgpt.ai",
-                embedding_dim=1024,
-            ),
-        }
+        name="hosted_agent",
+        embedding_config=EmbeddingConfig(
+            embedding_endpoint_type="hugging-face",
+            embedding_model="BAAI/bge-large-en-v1.5",
+            embedding_endpoint="https://embeddings.memgpt.ai",
+            embedding_dim=1024,
+        ),
     )
     # check to make sure endpoint overriden
     assert (
@@ -89,13 +84,12 @@ def test_create_user():
     ), f"hosted_agent.embedding_config.embedding_endpoint_type={hosted_agent.embedding_config.embedding_endpoint_type}"
 
     # hosted: add passages
-    passages, hosted_embeddings = generate_passages(user, hosted_agent)
-    hosted_agent_run = client.server._get_or_load_agent(user_id=user.id, agent_id=hosted_agent.id)
+    passages, hosted_embeddings = generate_passages(client.user, hosted_agent)
+    hosted_agent_run = client.server._get_or_load_agent(user_id=client.user.id, agent_id=hosted_agent.id)
     hosted_agent_run.persistence_manager.archival_memory.storage.insert_many(passages)
 
     # test passage dimentionality
-    config = MemGPTConfig.load()
-    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user.id)
+    storage = StorageConnector.get_storage_connector(TableType.PASSAGES, TEST_MEMGPT_CONFIG, client.user.id)
     storage.filters = {}  # clear filters to be able to get all passages
     passages = storage.get_all()
     for passage in passages:

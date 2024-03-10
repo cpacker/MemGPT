@@ -1,8 +1,7 @@
 import builtins
 import os
-import shutil
 import uuid
-from typing import Annotated, Tuple, Optional
+from typing import Annotated, Optional
 from enum import Enum
 from typing import Annotated
 
@@ -21,11 +20,11 @@ from memgpt.data_types import User, LLMConfig, EmbeddingConfig
 from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
-from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.server.utils import shorten_key_middle
 from memgpt.data_types import User, LLMConfig, EmbeddingConfig, Source
 from memgpt.metadata import MetadataStore
 from memgpt.server.utils import shorten_key_middle
+from memgpt.models.pydantic_models import HumanModel, PersonaModel
 
 app = typer.Typer()
 
@@ -117,9 +116,11 @@ def configure_llm_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials)
             )
         else:
             credentials.azure_key = azure_creds["azure_key"]
-            credentials.azure_endpoint = azure_creds["azure_endpoint"]
-            credentials.azure_version = azure_creds["azure_version"]
-            config.save()
+            credentials.azure_embedding_version = azure_creds["azure_embedding_version"]
+            credentials.azure_embedding_endpoint = azure_creds["azure_embedding_endpoint"]
+            if "azure_embedding_deployment" in azure_creds:
+                credentials.azure_embedding_deployment = azure_creds["azure_embedding_deployment"]
+            credentials.save()
 
         model_endpoint_type = "azure"
         model_endpoint = azure_creds["azure_endpoint"]
@@ -180,6 +181,54 @@ def configure_llm_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials)
     return model_endpoint_type, model_endpoint
 
 
+def get_model_options(
+    credentials: MemGPTCredentials,
+    model_endpoint_type: str,
+    model_endpoint: str,
+    filter_list: bool = True,
+    filter_prefix: str = "gpt-",
+) -> list:
+    try:
+        if model_endpoint_type == "openai":
+            if credentials.openai_key is None:
+                raise ValueError("Missing OpenAI API key")
+            fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=credentials.openai_key)
+
+            # Filter the list for "gpt" models only
+            if filter_list:
+                model_options = [obj["id"] for obj in fetched_model_options_response["data"] if obj["id"].startswith(filter_prefix)]
+            else:
+                model_options = [obj["id"] for obj in fetched_model_options_response["data"]]
+
+        elif model_endpoint_type == "azure":
+            if credentials.azure_version is None:
+                raise ValueError("Missing Azure key")
+            if credentials.azure_version is None:
+                raise ValueError("Missing Azure version")
+            fetched_model_options_response = azure_openai_get_model_list(
+                url=model_endpoint, api_key=credentials.azure_key, api_version=credentials.azure_version
+            )
+
+            # Filter the list for "gpt" models only
+            if filter_list:
+                model_options = [obj["id"] for obj in fetched_model_options_response["data"] if obj["id"].startswith(filter_prefix)]
+            else:
+                model_options = [obj["id"] for obj in fetched_model_options_response["data"]]
+
+        else:
+            # Attempt to do OpenAI endpoint style model fetching
+            # TODO support local auth
+            fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=None)
+            model_options = [obj["id"] for obj in fetched_model_options_response["data"]]
+            # NOTE no filtering of local model options
+
+        # list
+        return model_options
+
+    except:
+        raise Exception(f"Failed to get model list from {model_endpoint}")
+
+
 def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_endpoint_type: str, model_endpoint: str):
     # set: model, model_wrapper
     model, model_wrapper = None, None
@@ -188,19 +237,15 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
         hardcoded_model_options = ["gpt-4", "gpt-4-32k", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
         fetched_model_options = []
         try:
-            if model_endpoint_type == "openai":
-                fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=credentials.openai_key)
-            elif model_endpoint_type == "azure":
-                assert credentials.azure_version is not None, f"Missing azure_version"
-                fetched_model_options_response = azure_openai_get_model_list(
-                    url=model_endpoint, api_key=credentials.azure_key, api_version=credentials.azure_version
-                )
-            fetched_model_options = [obj["id"] for obj in fetched_model_options_response["data"] if obj["id"].startswith("gpt-")]
-        except:
+            fetched_model_options = get_model_options(
+                credentials=credentials, model_endpoint_type=model_endpoint_type, model_endpoint=model_endpoint
+            )
+        except Exception as e:
             # NOTE: if this fails, it means the user's key is probably bad
             typer.secho(
                 f"Failed to get model list from {model_endpoint} - make sure your API key and endpoints are correct!", fg=typer.colors.RED
             )
+            raise e
 
         # First ask if the user wants to see the full model list (some may be incompatible)
         see_all_option_str = "[see all options]"
@@ -264,8 +309,10 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
             try:
                 # Don't filter model list for vLLM since model list is likely much smaller than OpenAI/Azure endpoint
                 # + probably has custom model names
-                model_options = openai_get_model_list(url=smart_urljoin(model_endpoint, "v1"), api_key=None)
-                model_options = [obj["id"] for obj in model_options["data"]]
+                # TODO support local auth
+                model_options = get_model_options(
+                    credentials=credentials, model_endpoint_type=model_endpoint_type, model_endpoint=model_endpoint
+                )
             except:
                 print(f"Failed to get model list from {model_endpoint}, using defaults")
                 model_options = None
@@ -417,7 +464,12 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
             raise ValueError(
                 "Missing environment variables for Azure (see https://memgpt.readme.io/docs/endpoints#azure-openai). Please set then run `memgpt configure` again."
             )
-        # TODO we need to write these out to the config once we use them if we plan to ping for embedding lists with them
+        credentials.azure_key = azure_creds["azure_key"]
+        credentials.azure_version = azure_creds["azure_version"]
+        credentials.azure_embedding_endpoint = azure_creds["azure_embedding_endpoint"]
+        if "azure_deployment" in azure_creds:
+            credentials.azure_deployment = azure_creds["azure_deployment"]
+        credentials.save()
 
         embedding_endpoint_type = "azure"
         embedding_endpoint = azure_creds["azure_embedding_endpoint"]
@@ -437,6 +489,8 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
         while not utils.is_valid_url(embedding_endpoint):
             typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
             embedding_endpoint = questionary.text("Enter default endpoint:").ask()
+            if embedding_endpoint is None:
+                raise KeyboardInterrupt
 
         # get model type
         default_embedding_model = (
@@ -456,7 +510,7 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
             raise KeyboardInterrupt
         try:
             embedding_dim = int(embedding_dim)
-        except Exception as e:
+        except Exception:
             raise ValueError(f"Failed to cast {embedding_dim} to integer.")
     else:  # local models
         embedding_endpoint_type = "local"
@@ -563,12 +617,15 @@ def configure_recall_storage(config: MemGPTConfig, credentials: MemGPTCredential
 
 @app.command()
 def configure():
-    """Updates default MemGPT configurations"""
+    """Updates default MemGPT configurations
+
+    This function and quickstart should be the ONLY place where MemGPTConfig.save() is called
+    """
 
     # check credentials
     credentials = MemGPTCredentials.load()
     openai_key = get_openai_credentials()
-    azure_creds = get_azure_credentials()
+    get_azure_credentials()
 
     MemGPTConfig.create_config_dir()
 
@@ -657,12 +714,18 @@ def configure():
     else:
         ms.create_user(user)
 
+    # create preset records in metadata store
+    from memgpt.presets.presets import add_default_presets
+
+    add_default_presets(user_id, ms)
+
 
 class ListChoice(str, Enum):
     agents = "agents"
     humans = "humans"
     personas = "personas"
     sources = "sources"
+    presets = "presets"
 
 
 @app.command()
@@ -697,20 +760,15 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         """List all humans"""
         table = PrettyTable()
         table.field_names = ["Name", "Text"]
-        for human_file in utils.list_human_files():
-            text = open(human_file, "r").read()
-            name = os.path.basename(human_file).replace("txt", "")
-            table.add_row([name, text])
+        for human in ms.list_humans(user_id=user_id):
+            table.add_row([human.name, human.text])
         print(table)
     elif arg == ListChoice.personas:
         """List all personas"""
         table = PrettyTable()
         table.field_names = ["Name", "Text"]
-        for persona_file in utils.list_persona_files():
-            print(persona_file)
-            text = open(persona_file, "r").read()
-            name = os.path.basename(persona_file).replace(".txt", "")
-            table.add_row([name, text])
+        for persona in ms.list_personas(user_id=user_id):
+            table.add_row([persona.name, persona.text])
         print(table)
     elif arg == ListChoice.sources:
         """List all data sources"""
@@ -734,6 +792,22 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
             )
 
         print(table)
+    elif arg == ListChoice.presets:
+        """List all available presets"""
+        table = PrettyTable()
+        table.field_names = ["Name", "Description", "Sources", "Functions"]
+        for preset in ms.list_presets(user_id=user_id):
+            sources = ms.get_preset_sources(preset_id=preset.id)
+            table.add_row(
+                [
+                    preset.name,
+                    preset.description,
+                    ",".join([source.name for source in sources]),
+                    # json.dumps(preset.functions_schema, indent=4)
+                    ",\n".join([f["name"] for f in preset.functions_schema]),
+                ]
+            )
+        print(table)
     else:
         raise ValueError(f"Unknown argument {arg}")
 
@@ -746,23 +820,15 @@ def add(
     filename: Annotated[Optional[str], typer.Option("-f", help="Specify filename")] = None,
 ):
     """Add a person/human"""
-
+    config = MemGPTConfig.load()
+    user_id = uuid.UUID(config.anon_clientid)
+    ms = MetadataStore(config)
     if option == "persona":
-        directory = os.path.join(MEMGPT_DIR, "personas")
+        ms.add_persona(PersonaModel(name=name, text=text, user_id=user_id))
     elif option == "human":
-        directory = os.path.join(MEMGPT_DIR, "humans")
+        ms.add_human(HumanModel(name=name, text=text, user_id=user_id))
     else:
         raise ValueError(f"Unknown kind {option}")
-
-    if filename:
-        assert text is None, f"Cannot provide both filename and text"
-        # copy file to directory
-        shutil.copyfile(filename, os.path.join(directory, name))
-    if text:
-        assert filename is None, f"Cannot provide both filename and text"
-        # write text to file
-        with open(os.path.join(directory, name), "w") as f:
-            f.write(text)
 
 
 @app.command()
@@ -806,6 +872,10 @@ def delete(option: str, name: str):
             # metadata
             ms.delete_agent(agent_id=agent.id)
 
+        elif option == "human":
+            ms.delete_human(name=name, user_id=user_id)
+        elif option == "persona":
+            ms.delete_persona(name=name, user_id=user_id)
         else:
             raise ValueError(f"Option {option} not implemented")
 

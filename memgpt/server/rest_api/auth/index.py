@@ -13,9 +13,13 @@ class AuthResponse(BaseModel):
     uuid: UUID = Field(..., description="UUID of the user")
 
 
-def setup_auth_router(server: SyncServer, interface: QueuingInterface):
-    @router.get("/auth", tags=["auth"], response_model=AuthResponse)
-    def authenticate_user():
+class AuthRequest(BaseModel):
+    password: str = Field(None, description="Admin password provided when starting the MemGPT server")
+
+
+def setup_auth_router(server: SyncServer, interface: QueuingInterface, password: str) -> APIRouter:
+    @router.post("/auth", tags=["auth"], response_model=AuthResponse)
+    def authenticate_user(request: AuthRequest) -> AuthResponse:
         """
         Authenticates the user and sends response with User related data.
 
@@ -23,6 +27,8 @@ def setup_auth_router(server: SyncServer, interface: QueuingInterface):
         """
         interface.clear()
         try:
+            if request.password != password:
+                raise HTTPException(status_code=400, detail="Incorrect credentials")
             response = server.authenticate_user()
         except HTTPException:
             raise
