@@ -124,8 +124,14 @@ def test_sources(client, agent):
     print("listed sources", sources)
     assert len(sources) == 1
 
+    # check agent archival memory size
+    archival_memories = client.get_agent_archival_memory(agent_id=agent.id)
+    print(archival_memories)
+    assert len(archival_memories) == 0
+
     # load a file into a source
     filename = "CONTRIBUTING.md"
+    num_passages = 20
     response = client.load_file_into_source(filename, source.id)
     print(response)
 
@@ -133,7 +139,10 @@ def test_sources(client, agent):
     # TODO: make sure things run in the right order
     client.attach_source_to_agent(source_name="test_source", agent_id=agent.id)
 
-    # TODO: list archival memory
+    # list archival memory
+    archival_memories = client.get_agent_archival_memory(agent_id=agent.id)
+    print(archival_memories)
+    assert len(archival_memories) == num_passages
 
     # detach the source
     # TODO: add when implemented

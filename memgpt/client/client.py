@@ -94,6 +94,12 @@ class AbstractClient(object):
         """Detach a source from an agent"""
         raise NotImplementedError
 
+    def get_agent_archival_memory(
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ):
+        """Paginated get for the archival memory for an agent"""
+        raise NotImplementedError
+
 
 class RESTClient(AbstractClient):
     def __init__(
@@ -229,6 +235,19 @@ class RESTClient(AbstractClient):
         assert response.status_code == 200, f"Failed to detach source from agent: {response.text}"
         return response.json()
 
+    def get_agent_archival_memory(
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ):
+        """Paginated get for the archival memory for an agent"""
+        params = {"limit": limit}
+        if before:
+            params["before"] = str(before)
+        if after:
+            params["after"] = str(after)
+        response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/archival", params=params, headers=self.headers)
+        assert response.status_code == 200, f"Failed to get archival memory: {response.text}"
+        return response.json()["archival_memory"]
+
 
 class LocalClient(AbstractClient):
     def __init__(
@@ -351,3 +370,15 @@ class LocalClient(AbstractClient):
 
     def delete_agent(self, agent_id: uuid.UUID):
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
+
+    def get_agent_archival_memory(
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ):
+        _, archival_json_records = self.server.get_agent_archival_cursor(
+            user_id=self.user_id,
+            agent_id=agent_id,
+            after=after,
+            before=before,
+            limit=limit,
+        )
+        return archival_json_records
