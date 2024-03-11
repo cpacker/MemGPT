@@ -15,12 +15,7 @@ from memgpt.server.server import SyncServer
 router = APIRouter()
 
 
-class GetAgentRequest(BaseModel):
-    agent_id: str = Field(..., description="Unique identifier of the agent whose config is requested.")
-
-
 class AgentRenameRequest(BaseModel):
-    agent_id: str = Field(..., description="Unique identifier of the agent whose config is requested.")
     agent_name: str = Field(..., description="New name for the agent.")
 
 
@@ -61,8 +56,6 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
 
         This endpoint fetches the configuration details for a given agent, identified by the user and agent IDs.
         """
-        request = GetAgentRequest(agent_id=agent_id)
-
         # agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
         attached_sources = server.list_attached_sources(agent_id=agent_id)
 

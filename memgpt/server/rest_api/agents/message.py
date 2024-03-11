@@ -24,7 +24,6 @@ class MessageRoleType(str, Enum):
 
 
 class UserMessageRequest(BaseModel):
-    agent_id: str = Field(..., description="The unique identifier of the agent.")
     message: str = Field(..., description="The message content to be processed by the agent.")
     stream: bool = Field(default=False, description="Flag to determine if the response should be streamed. Set to True for streaming.")
     role: MessageRoleType = Field(default=MessageRoleType.user, description="Role of the message sender (either 'user' or 'system')")
@@ -35,7 +34,6 @@ class UserMessageResponse(BaseModel):
 
 
 class GetAgentMessagesRequest(BaseModel):
-    agent_id: str = Field(..., description="The unique identifier of the agent.")
     start: int = Field(..., description="Message index to start on (reverse chronological).")
     count: int = Field(..., description="How many messages to retrieve.")
 

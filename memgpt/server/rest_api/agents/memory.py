@@ -26,7 +26,6 @@ class GetAgentMemoryResponse(BaseModel):
 
 # NOTE not subclassing CoreMemory since in the request both field are optional
 class UpdateAgentMemoryRequest(BaseModel):
-    agent_id: str = Field(..., description="The unique identifier of the agent.")
     human: str = Field(None, description="Human element of the core memory.")
     persona: str = Field(None, description="Persona element of the core memory.")
 

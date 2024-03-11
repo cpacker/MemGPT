@@ -12,7 +12,6 @@ router = APIRouter()
 
 
 class CommandRequest(BaseModel):
-    agent_id: str = Field(..., description="Identifier of the agent on which the command will be executed.")
     command: str = Field(..., description="The command to be executed by the agent.")
 
 
