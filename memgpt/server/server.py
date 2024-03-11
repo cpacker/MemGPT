@@ -728,7 +728,7 @@ class SyncServer(LockingServer):
 
             # Add information about attached sources
             sources_ids = self.ms.list_attached_sources(agent_id=agent_state.id)
-            sources = [self.ms.get_source(source_id=s_id) for s_id in sources_ids] 
+            sources = [self.ms.get_source(source_id=s_id) for s_id in sources_ids]
             return_dict["sources"] = [vars(s) for s in sources]
 
         logger.info(f"Retrieved {len(agents_states)} agents for user {user_id}:\n{[vars(s) for s in agents_states]}")
