@@ -52,6 +52,8 @@ def create_preset_from_file(filename: str, name: str, user_id: uuid.UUID, ms: Me
         system=gpt_system.get_system_text(preset_system_prompt),
         persona=get_persona_text(DEFAULT_PERSONA),
         human=get_human_text(DEFAULT_HUMAN),
+        persona_name=DEFAULT_PERSONA,
+        human_name=DEFAULT_HUMAN,
         functions_schema=functions_schema,
     )
     ms.create_preset(preset)
