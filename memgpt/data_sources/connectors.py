@@ -139,17 +139,17 @@ class DirectoryConnector(DataConnector):
                 yield node.text, None
 
 
-class WebConnector(DataConnector):
-    # TODO
-
-    def __init__(self):
-        pass
+class WebConnector(DirectoryConnector):
+    def __init__(self, urls: List[str] = None, html_to_text: bool = True):
+        self.urls = urls
+        self.html_to_text = html_to_text
 
     def generate_documents(self) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Document]:
-        pass
+        from llama_index.readers.web import SimpleWebPageReader
 
-    def generate_passages(self, documents: List[Document], chunk_size: int = 1024) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Passage]:
-        pass
+        documents = SimpleWebPageReader(html_to_text=self.html_to_text).load_data(self.urls)
+        for document in documents:
+            yield document.text, {"url": document.id_}
 
 
 class VectorDBConnector(DataConnector):
