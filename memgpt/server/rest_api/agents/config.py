@@ -15,12 +15,7 @@ from memgpt.server.server import SyncServer
 router = APIRouter()
 
 
-class GetAgentRequest(BaseModel):
-    agent_id: str = Field(..., description="Unique identifier of the agent whose config is requested.")
-
-
 class AgentRenameRequest(BaseModel):
-    agent_id: str = Field(..., description="Unique identifier of the agent whose config is requested.")
     agent_name: str = Field(..., description="New name for the agent.")
 
 
@@ -51,9 +46,9 @@ def validate_agent_name(name: str) -> str:
 def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
-    @router.get("/agents/config", tags=["agents"], response_model=GetAgentResponse)
+    @router.get("/agents/{agent_id}/config", tags=["agents"], response_model=GetAgentResponse)
     def get_agent_config(
-        agent_id: str = Query(..., description="Unique identifier of the agent whose config is requested."),
+        agent_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
@@ -61,9 +56,7 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
 
         This endpoint fetches the configuration details for a given agent, identified by the user and agent IDs.
         """
-        request = GetAgentRequest(agent_id=agent_id)
-
-        agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
+        # agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
         attached_sources = server.list_attached_sources(agent_id=agent_id)
 
         interface.clear()
@@ -90,8 +83,9 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
             sources=attached_sources,
         )
 
-    @router.patch("/agents/rename", tags=["agents"], response_model=GetAgentResponse)
+    @router.patch("/agents/{agent_id}/rename", tags=["agents"], response_model=GetAgentResponse)
     def update_agent_name(
+        agent_id: uuid.UUID,
         request: AgentRenameRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
@@ -100,7 +94,7 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
 
         This changes the name of the agent in the database but does NOT edit the agent's persona.
         """
-        agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
+        # agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         valid_name = validate_agent_name(request.agent_name)
 
@@ -115,13 +109,13 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
 
     @router.delete("/agents/{agent_id}", tags=["agents"])
     def delete_agent(
-        agent_id,
+        agent_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
         Delete an agent.
         """
-        agent_id = uuid.UUID(agent_id)
+        # agent_id = uuid.UUID(agent_id)
 
         interface.clear()
         try:

@@ -827,7 +827,7 @@ class SyncServer(LockingServer):
             messages = sorted(page, key=lambda x: x.created_at, reverse=True)
 
         # convert to json
-        json_messages = [vars(record) for record in messages]
+        json_messages = [record.to_json() for record in messages]
         return json_messages
 
     def get_agent_archival(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
