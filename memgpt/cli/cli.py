@@ -646,7 +646,7 @@ def run(
 
         # create agent
         try:
-            preset_obj = ms.get_preset(preset_name=preset if preset else config.preset, user_id=user.id)
+            preset_obj = ms.get_preset(name=preset if preset else config.preset, user_id=user.id)
             if preset_obj is None:
                 # create preset records in metadata store
                 from memgpt.presets.presets import add_default_presets

@@ -638,6 +638,12 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
+    def add_preset(self, preset: PresetModel):
+        with self.session_maker() as session:
+            session.add(preset)
+            session.commit()
+
+    @enforce_types
     def get_human(self, name: str, user_id: uuid.UUID) -> str:
         with self.session_maker() as session:
             results = session.query(HumanModel).filter(HumanModel.name == name).filter(HumanModel.user_id == user_id).all()
@@ -650,6 +656,15 @@ class MetadataStore:
     def get_persona(self, name: str, user_id: uuid.UUID) -> str:
         with self.session_maker() as session:
             results = session.query(PersonaModel).filter(PersonaModel.name == name).filter(PersonaModel.user_id == user_id).all()
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0]
+
+    @enforce_types
+    def get_preset(self, name: str, user_id: uuid.UUID) -> str:
+        with self.session_maker() as session:
+            results = session.query(PresetModel).filter(PresetModel.name == name).filter(PresetModel.user_id == user_id).all()
             if len(results) == 0:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
@@ -669,6 +684,12 @@ class MetadataStore:
             return results
 
     @enforce_types
+    def list_presets(self, user_id: uuid.UUID) -> List[PresetModel]:
+        with self.session_maker() as session:
+            results = session.query(PresetModel).filter(PresetModel.user_id == user_id).all()
+            return results
+
+    @enforce_types
     def delete_human(self, name: str, user_id: uuid.UUID):
         with self.session_maker() as session:
             session.query(HumanModel).filter(HumanModel.name == name).filter(HumanModel.user_id == user_id).delete()
@@ -678,4 +699,10 @@ class MetadataStore:
     def delete_persona(self, name: str, user_id: uuid.UUID):
         with self.session_maker() as session:
             session.query(PersonaModel).filter(PersonaModel.name == name).filter(PersonaModel.user_id == user_id).delete()
+            session.commit()
+
+    @enforce_types
+    def delete_preset(self, name: str, user_id: uuid.UUID):
+        with self.session_maker() as session:
+            session.query(PresetModel).filter(PresetModel.name == name).filter(PresetModel.user_id == user_id).delete()
             session.commit()

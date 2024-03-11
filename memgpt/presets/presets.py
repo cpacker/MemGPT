@@ -42,9 +42,9 @@ def create_preset_from_file(filename: str, name: str, user_id: uuid.UUID, ms: Me
     preset_function_set_names = preset_config["functions"]
     functions_schema = generate_functions_json(preset_function_set_names)
 
-    if ms.get_preset(user_id=user_id, preset_name=name) is not None:
+    if ms.get_preset(user_id=user_id, name=name) is not None:
         printd(f"Preset '{name}' already exists for user '{user_id}'")
-        return ms.get_preset(user_id=user_id, preset_name=name)
+        return ms.get_preset(user_id=user_id, name=name)
 
     preset = Preset(
         user_id=user_id,
