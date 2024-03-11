@@ -413,13 +413,13 @@ class MetadataStore:
 
     @enforce_types
     def get_preset(
-        self, preset_id: Optional[uuid.UUID] = None, preset_name: Optional[str] = None, user_id: Optional[uuid.UUID] = None
+        self, preset_id: Optional[uuid.UUID] = None, name: Optional[str] = None, user_id: Optional[uuid.UUID] = None
     ) -> Optional[Preset]:
         with self.session_maker() as session:
             if preset_id:
                 results = session.query(PresetModel).filter(PresetModel.id == preset_id).all()
-            elif preset_name and user_id:
-                results = session.query(PresetModel).filter(PresetModel.name == preset_name).filter(PresetModel.user_id == user_id).all()
+            elif name and user_id:
+                results = session.query(PresetModel).filter(PresetModel.name == name).filter(PresetModel.user_id == user_id).all()
             else:
                 raise ValueError("Must provide either preset_id or (preset_name and user_id)")
             if len(results) == 0:
@@ -656,15 +656,6 @@ class MetadataStore:
     def get_persona(self, name: str, user_id: uuid.UUID) -> str:
         with self.session_maker() as session:
             results = session.query(PersonaModel).filter(PersonaModel.name == name).filter(PersonaModel.user_id == user_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0]
-
-    @enforce_types
-    def get_preset(self, name: str, user_id: uuid.UUID) -> str:
-        with self.session_maker() as session:
-            results = session.query(PresetModel).filter(PresetModel.name == name).filter(PresetModel.user_id == user_id).all()
             if len(results) == 0:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
