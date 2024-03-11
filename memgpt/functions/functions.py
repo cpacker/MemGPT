@@ -65,6 +65,7 @@ def load_all_function_sets(merge: bool = True) -> dict:
             if dir_path == USER_FUNCTIONS_DIR:
                 # For user scripts, adjust the module name appropriately
                 module_full_path = os.path.join(dir_path, file)
+                print(f"Loading user function set from '{module_full_path}'")
                 try:
                     spec = importlib.util.spec_from_file_location(module_name, module_full_path)
                     module = importlib.util.module_from_spec(spec)
