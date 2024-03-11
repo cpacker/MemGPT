@@ -336,7 +336,10 @@ class SyncServer(LockingServer):
         counter = 0
         while True:
             new_messages, heartbeat_request, function_failed, token_warning, tokens_accumulated = memgpt_agent.step(
-                next_input_message, first_message=False, skip_verify=no_verify
+                next_input_message,
+                first_message=False,
+                skip_verify=no_verify,
+                return_dicts=False,
             )
             counter += 1
 
@@ -681,16 +684,32 @@ class SyncServer(LockingServer):
         }
         return agent_config
 
-    def list_agents(self, user_id: uuid.UUID) -> dict:
+    def list_agents(self, user_id: uuid.UUID, add_last_run: bool = True) -> dict:
         """List all available agents to a user"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
         agents_states = self.ms.list_agents(user_id=user_id)
+        agents_states_dicts = [self._agent_state_to_config(state) for state in agents_states]
+
+        if add_last_run:
+            # TODO add a get_message_obj_from_message_id(...) function
+            #      this would allow grabbing Message.created_by without having to load the agent object
+            for agent_state, return_dict in zip(agents_states, agents_states_dicts):
+                # Get the agent object (loaded in memory)
+                memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
+
+                # Retrive the Message object via the recall storage or by directly access _messages
+                last_msg_obj = memgpt_agent._messages[-1]
+
+                # Update the return to include the last_run info
+                # NOTE: 'last_run' is just the timestamp on the latest message in the buffer
+                return_dict["last_run"] = last_msg_obj.created_at
+
         logger.info(f"Retrieved {len(agents_states)} agents for user {user_id}:\n{[vars(s) for s in agents_states]}")
         return {
             "num_agents": len(agents_states),
-            "agents": [self._agent_state_to_config(state) for state in agents_states],
+            "agents": agents_states_dicts,
         }
 
     def get_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
@@ -828,6 +847,50 @@ class SyncServer(LockingServer):
         )
         json_records = [vars(record) for record in records]
         return cursor, json_records
+
+    def get_all_archival_memories(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> list:
+        # TODO deprecate (not safe to be returning an unbounded list)
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        # Assume passages
+        records = memgpt_agent.persistence_manager.archival_memory.storage.get_all()
+        print("records:", records)
+
+        return [dict(id=str(r.id), contents=r.text) for r in records]
+
+    def insert_archival_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, memory_contents: str) -> uuid.UUID:
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        # Insert into archival memory
+        # memory_id = uuid.uuid4()
+        passage_ids = memgpt_agent.persistence_manager.archival_memory.insert(memory_string=memory_contents, return_ids=True)
+
+        return [str(p_id) for p_id in passage_ids]
+
+    def delete_archival_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, memory_id: uuid.UUID):
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        # Delete by ID
+        # TODO check if it exists first, and throw error if not
+        memgpt_agent.persistence_manager.archival_memory.storage.delete({"id": memory_id})
 
     def get_agent_recall_cursor(
         self,
@@ -1031,13 +1094,25 @@ class SyncServer(LockingServer):
             embedding_dim=self.config.default_embedding_config.embedding_dim,
         )
         self.ms.create_source(source)
+        assert self.ms.get_source(source_name=name, user_id=user_id) is not None, f"Failed to create source {name}"
         return source
+
+    def delete_source(self, source_id: uuid.UUID, user_id: uuid.UUID):
+        """Delete a data source"""
+        source = self.ms.get_source(source_id=source_id, user_id=user_id)
+        self.ms.delete_source(source_id)
+
+        # delete data from passage store
+        passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+        passage_store.delete({"data_source": source.name})
+
+        # TODO: delete data from agent passage stores (?)
 
     def load_data(
         self,
         user_id: uuid.UUID,
         connector: DataConnector,
-        source_name: Source,
+        source_name: str,
     ):
         """Load data from a DataConnector into a source for a specified user_id"""
         # TODO: this should be implemented as a batch job or at least async, since it may take a long time
@@ -1059,7 +1134,7 @@ class SyncServer(LockingServer):
         # attach a data source to an agent
         data_source = self.ms.get_source(source_name=source_name, user_id=user_id)
         if data_source is None:
-            raise ValueError(f"Data source {source_name} does not exist")
+            raise ValueError(f"Data source {source_name} does not exist for user_id {user_id}")
 
         # get connection to data source storage
         source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
@@ -1069,6 +1144,12 @@ class SyncServer(LockingServer):
 
         # attach source to agent
         agent.attach_source(data_source.name, source_connector, self.ms)
+
+        return data_source
+
+    def detach_source_from_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_name: str):
+        # TODO: remove all passages coresponding to source from agent's archival memory
+        raise NotImplementedError
 
     def list_attached_sources(self, agent_id: uuid.UUID):
         # list all attached sources to an agent

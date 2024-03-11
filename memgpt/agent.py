@@ -108,8 +108,8 @@ def construct_system_with_memory(
     system: str,
     memory: InContextMemory,
     memory_edit_timestamp: str,
-    archival_memory: ArchivalMemory = None,
-    recall_memory: RecallMemory = None,
+    archival_memory: Optional[ArchivalMemory] = None,
+    recall_memory: Optional[RecallMemory] = None,
     include_char_count: bool = True,
 ):
     full_system_message = "\n".join(
@@ -135,9 +135,9 @@ def initialize_message_sequence(
     model: str,
     system: str,
     memory: InContextMemory,
-    archival_memory: ArchivalMemory = None,
-    recall_memory: RecallMemory = None,
-    memory_edit_timestamp: str = None,
+    archival_memory: Optional[ArchivalMemory] = None,
+    recall_memory: Optional[RecallMemory] = None,
+    memory_edit_timestamp: Optional[str] = None,
     include_initial_boot_message: bool = True,
 ):
     if memory_edit_timestamp is None:
@@ -430,9 +430,6 @@ class Agent(object):
                 response_message.tool_calls = [response_message.tool_calls[0]]
             assert response_message.tool_calls is not None and len(response_message.tool_calls) > 0
 
-            # The content if then internal monologue, not chat
-            self.interface.internal_monologue(response_message.content)
-
             # generate UUID for tool call
             if override_tool_call_id or response_message.function_call:
                 tool_call_id = get_tool_call_id()  # needs to be a string for JSON
@@ -455,6 +452,9 @@ class Agent(object):
                 )
             )  # extend conversation with assistant's reply
             printd(f"Function call message: {messages[-1]}")
+
+            # The content if then internal monologue, not chat
+            self.interface.internal_monologue(response_message.content, msg_obj=messages[-1])
 
             # Step 3: call the function
             # Note: the JSON response may not always be valid; be sure to handle errors
@@ -483,7 +483,7 @@ class Agent(object):
                         },
                     )
                 )  # extend conversation with function response
-                self.interface.function_message(f"Error: {error_msg}")
+                self.interface.function_message(f"Error: {error_msg}", msg_obj=messages[-1])
                 return messages, False, True  # force a heartbeat to allow agent to handle error
 
             # Failure case 2: function name is OK, but function args are bad JSON
@@ -506,7 +506,7 @@ class Agent(object):
                         },
                     )
                 )  # extend conversation with function response
-                self.interface.function_message(f"Error: {error_msg}")
+                self.interface.function_message(f"Error: {error_msg}", msg_obj=messages[-1])
                 return messages, False, True  # force a heartbeat to allow agent to handle error
 
             # (Still parsing function args)
@@ -519,7 +519,9 @@ class Agent(object):
                 heartbeat_request = False
 
             # Failure case 3: function failed during execution
-            self.interface.function_message(f"Running {function_name}({function_args})")
+            # NOTE: the msg_obj associated with the "Running " message is the prior assistant message, not the function/tool role message
+            #       this is because the function/tool role message is only created once the function/tool has executed/returned
+            self.interface.function_message(f"Running {function_name}({function_args})", msg_obj=messages[-1])
             try:
                 spec = inspect.getfullargspec(function_to_call).annotations
 
@@ -562,12 +564,12 @@ class Agent(object):
                         },
                     )
                 )  # extend conversation with function response
-                self.interface.function_message(f"Error: {error_msg}")
+                self.interface.function_message(f"Ran {function_name}({function_args})", msg_obj=messages[-1])
+                self.interface.function_message(f"Error: {error_msg}", msg_obj=messages[-1])
                 return messages, False, True  # force a heartbeat to allow agent to handle error
 
             # If no failures happened along the way: ...
             # Step 4: send the info on the function call and function response to GPT
-            self.interface.function_message(f"Success: {function_response_string}")
             messages.append(
                 Message.dict_to_message(
                     agent_id=self.agent_state.id,
@@ -581,10 +583,11 @@ class Agent(object):
                     },
                 )
             )  # extend conversation with function response
+            self.interface.function_message(f"Ran {function_name}({function_args})", msg_obj=messages[-1])
+            self.interface.function_message(f"Success: {function_response_string}", msg_obj=messages[-1])
 
         else:
             # Standard non-function reply
-            self.interface.internal_monologue(response_message.content)
             messages.append(
                 Message.dict_to_message(
                     agent_id=self.agent_state.id,
@@ -593,6 +596,7 @@ class Agent(object):
                     openai_message_dict=response_message.model_dump(),
                 )
             )  # extend conversation with assistant's reply
+            self.interface.internal_monologue(response_message.content, msg_obj=messages[-1])
             heartbeat_request = False
             function_failed = False
 
@@ -604,7 +608,8 @@ class Agent(object):
         first_message: bool = False,
         first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
         skip_verify: bool = False,
-    ) -> Tuple[List[dict], bool, bool, bool]:
+        return_dicts: bool = True,  # if True, return dicts, if False, return Message objects
+    ) -> Tuple[List[Union[dict, Message]], bool, bool, bool]:
         """Top-level event message handler for the MemGPT agent"""
 
         try:
@@ -617,7 +622,6 @@ class Agent(object):
                 else:
                     raise ValueError(f"Bad type for user_message: {type(user_message)}")
 
-                self.interface.user_message(user_message_text)
                 packed_user_message = {"role": "user", "content": user_message_text}
                 # Special handling for AutoGen messages with 'name' field
                 try:
@@ -639,6 +643,7 @@ class Agent(object):
                     model=self.model,
                     openai_message_dict=packed_user_message,
                 )
+                self.interface.user_message(user_message_text, msg_obj=packed_user_message_obj)
 
                 input_message_sequence = self.messages + [packed_user_message]
             # Alternatively, the requestor can send an empty user message
@@ -729,8 +734,8 @@ class Agent(object):
                 )
 
             self._append_to_messages(all_new_messages)
-            all_new_messages_dicts = [msg.to_openai_dict() for msg in all_new_messages]
-            return all_new_messages_dicts, heartbeat_request, function_failed, active_memory_warning, response.usage.completion_tokens
+            messages_to_return = [msg.to_openai_dict() for msg in all_new_messages] if return_dicts else all_new_messages
+            return messages_to_return, heartbeat_request, function_failed, active_memory_warning, response.usage.completion_tokens
 
         except Exception as e:
             printd(f"step() failed\nuser_message = {user_message}\nerror = {e}")
@@ -741,7 +746,7 @@ class Agent(object):
                 self.summarize_messages_inplace()
 
                 # Try step again
-                return self.step(user_message, first_message=first_message)
+                return self.step(user_message, first_message=first_message, return_dicts=return_dicts)
             else:
                 printd(f"step() failed with an unrecognized exception: '{str(e)}'")
                 raise e
