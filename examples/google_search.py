@@ -12,6 +12,23 @@ from memgpt.credentials import MemGPTCredentials
 from memgpt.utils import printd
 
 
+"""
+This example show how you can add a google search custom function to your MemGPT agent.
+
+1. Copy this file into the `~/.memgpt/functions` directory:
+```
+cp examples/google_search.py  ~/.memgpt/functions/google_search.py
+```
+
+2. Create a preset file that include the function `google_search`
+
+3. Add the preset file via the CLI:
+```
+memgpt add preset -f ~/.memgpt/presets/search_preset.yaml --name search_preset
+```
+"""
+
+
 def google_search(self, query: str) -> List[Tuple[str, str]]:
     """
 
@@ -44,7 +61,8 @@ def google_search(self, query: str) -> List[Tuple[str, str]]:
 
         credentials = MemGPTCredentials().load()
         assert credentials.openai_key is not None, credentials.openai_key
-        model = "gpt-4-1106-preview"
+        # model = "gpt-4-1106-preview"
+        model = "gpt-3.5-turbo-1106"
 
         client = OpenAI(api_key=credentials.openai_key)
         chat_completion = client.chat.completions.create(
