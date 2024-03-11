@@ -684,7 +684,7 @@ class SyncServer(LockingServer):
         }
         return agent_config
 
-    def list_agents(self, user_id: uuid.UUID, add_last_run: bool = True) -> dict:
+    def list_agents(self, user_id: uuid.UUID) -> dict:
         """List all available agents to a user"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -692,19 +692,38 @@ class SyncServer(LockingServer):
         agents_states = self.ms.list_agents(user_id=user_id)
         agents_states_dicts = [self._agent_state_to_config(state) for state in agents_states]
 
-        if add_last_run:
-            # TODO add a get_message_obj_from_message_id(...) function
-            #      this would allow grabbing Message.created_by without having to load the agent object
-            for agent_state, return_dict in zip(agents_states, agents_states_dicts):
-                # Get the agent object (loaded in memory)
-                memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
+        # TODO add a get_message_obj_from_message_id(...) function
+        #      this would allow grabbing Message.created_by without having to load the agent object
+        all_available_tools = self.ms.list_tools(user_id=user_id)
+        for agent_state, return_dict in zip(agents_states, agents_states_dicts):
 
-                # Retrive the Message object via the recall storage or by directly access _messages
-                last_msg_obj = memgpt_agent._messages[-1]
+            # Get the agent object (loaded in memory)
+            memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
 
-                # Update the return to include the last_run info
-                # NOTE: 'last_run' is just the timestamp on the latest message in the buffer
-                return_dict["last_run"] = last_msg_obj.created_at
+            # Add information about tools
+            # TODO memgpt_agent should really have a field of List[ToolModel]
+            #      then we could just pull that field and return it here
+            return_dict["tools"] = [tool for tool in all_available_tools if tool.json_schema in memgpt_agent.functions]
+
+            # Add information about memory (raw core, size of recall, size of archival)
+            core_memory = memgpt_agent.memory
+            recall_memory = memgpt_agent.persistence_manager.recall_memory
+            archival_memory = memgpt_agent.persistence_manager.archival_memory
+            memory_obj = {
+                "core_memory": {
+                    "persona": core_memory.persona,
+                    "human": core_memory.human,
+                },
+                "recall_memory": len(recall_memory) if recall_memory is not None else None,
+                "archival_memory": len(archival_memory) if archival_memory is not None else None,
+            }
+            return_dict["memory"] = memory_obj
+
+            # Add information about last run
+            # NOTE: 'last_run' is just the timestamp on the latest message in the buffer
+            # Retrieve the Message object via the recall storage or by directly access _messages
+            last_msg_obj = memgpt_agent._messages[-1]
+            return_dict["last_run"] = last_msg_obj.created_at
 
         logger.info(f"Retrieved {len(agents_states)} agents for user {user_id}:\n{[vars(s) for s in agents_states]}")
         return {
