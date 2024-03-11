@@ -653,7 +653,7 @@ def run(
 
                 add_default_presets(user.id, ms)
                 # try again
-                preset_obj = ms.get_preset(preset_name=preset if preset else config.preset, user_id=user.id)
+                preset_obj = ms.get_preset(name=preset if preset else config.preset, user_id=user.id)
                 if preset_obj is None:
                     typer.secho("Couldn't find presets in database, please run `memgpt configure`", fg=typer.colors.RED)
                     sys.exit(1)
