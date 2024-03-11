@@ -23,8 +23,12 @@ class CommandResponse(BaseModel):
 def setup_agents_command_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
-    @router.post("/agents/command", tags=["agents"], response_model=CommandResponse)
-    def run_command(request: CommandRequest = Body(...), user_id: uuid.UUID = Depends(get_current_user_with_server)):
+    @router.post("/agents/{agent_id}/command", tags=["agents"], response_model=CommandResponse)
+    def run_command(
+        agent_id: uuid.UUID,
+        request: CommandRequest = Body(...),
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
         """
         Execute a command on a specified agent.
 
@@ -34,7 +38,7 @@ def setup_agents_command_router(server: SyncServer, interface: QueuingInterface,
         """
         interface.clear()
         try:
-            agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
+            # agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
             response = server.run_command(user_id=user_id, agent_id=agent_id, command=request.command)
         except HTTPException:
             raise

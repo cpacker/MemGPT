@@ -47,9 +47,9 @@ class GetAgentMessagesResponse(BaseModel):
 def setup_agents_message_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
-    @router.get("/agents/message", tags=["agents"], response_model=GetAgentMessagesResponse)
+    @router.get("/agents/{agent_id}/message", tags=["agents"], response_model=GetAgentMessagesResponse)
     def get_agent_messages(
-        agent_id: str = Query(..., description="The unique identifier of the agent."),
+        agent_id: uuid.UUID,
         start: int = Query(..., description="Message index to start on (reverse chronological)."),
         count: int = Query(..., description="How many messages to retrieve."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
@@ -59,14 +59,15 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         """
         # Validate with the Pydantic model (optional)
         request = GetAgentMessagesRequest(agent_id=agent_id, start=start, count=count)
-        agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
+        # agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         interface.clear()
         messages = server.get_agent_messages(user_id=user_id, agent_id=agent_id, start=request.start, count=request.count)
         return GetAgentMessagesResponse(messages=messages)
 
-    @router.post("/agents/message", tags=["agents"], response_model=UserMessageResponse)
+    @router.post("/agents/{agent_id}/message", tags=["agents"], response_model=UserMessageResponse)
     async def send_message(
+        agent_id: uuid.UUID,
         request: UserMessageRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
@@ -76,7 +77,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         This endpoint accepts a message from a user and processes it through the agent.
         It can optionally stream the response if 'stream' is set to True.
         """
-        agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
+        # agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         if request.role == "user" or request.role is None:
             message_func = server.user_message
