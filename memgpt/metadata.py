@@ -666,15 +666,6 @@ class MetadataStore:
             return results[0]
 
     @enforce_types
-    def get_preset(self, name: str, user_id: uuid.UUID) -> str:
-        with self.session_maker() as session:
-            results = session.query(PresetModel).filter(PresetModel.name == name).filter(PresetModel.user_id == user_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0]
-
-    @enforce_types
     def list_personas(self, user_id: uuid.UUID) -> List[PersonaModel]:
         with self.session_maker() as session:
             results = session.query(PersonaModel).filter(PersonaModel.user_id == user_id).all()
