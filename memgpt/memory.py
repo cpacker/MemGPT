@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import datetime
-from typing import Optional, List, Tuple
+import uuid
+from typing import Optional, List, Tuple, Union
 
 from memgpt.constants import MESSAGE_SUMMARY_WARNING_FRAC
 from memgpt.utils import get_local_time, printd, count_tokens, validate_date_format, extract_date_from_timestamp
@@ -388,7 +389,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         """Save the index to disk"""
         self.storage.save()
 
-    def insert(self, memory_string):
+    def insert(self, memory_string, return_ids=False) -> Union[bool, List[uuid.UUID]]:
         """Embed and save memory string"""
 
         if not isinstance(memory_string, str):
@@ -412,9 +413,17 @@ class EmbeddingArchivalMemory(ArchivalMemory):
                         )
                 passages.append(self.create_passage(text, embedding))
 
+            # grab the return IDs before the list gets modified
+            ids = [str(p.id) for p in passages]
+
             # insert passages
             self.storage.insert_many(passages)
-            return True
+
+            if return_ids:
+                return ids
+            else:
+                return True
+
         except Exception as e:
             print("Archival insert error", e)
             raise e

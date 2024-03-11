@@ -124,6 +124,12 @@ class Message(Record):
             assert tool_call_id is None
         self.tool_call_id = tool_call_id
 
+    def to_json(self):
+        json_message = vars(self)
+        if json_message["tool_calls"] is not None:
+            json_message["tool_calls"] = [vars(tc) for tc in json_message["tool_calls"]]
+        return json_message
+
     @staticmethod
     def dict_to_message(
         user_id: uuid.UUID,
@@ -308,6 +314,7 @@ class Passage(Record):
         doc_id: Optional[uuid.UUID] = None,
         id: Optional[uuid.UUID] = None,
         metadata_: Optional[dict] = {},
+        created_at: Optional[datetime] = None,
     ):
         if id is None:
             # by default, generate ID as a hash of the text (avoid duplicates)
@@ -334,6 +341,8 @@ class Passage(Record):
         )
         self.embedding_dim = embedding_dim
         self.embedding_model = embedding_model
+
+        self.created_at = created_at if created_at is not None else datetime.now()
 
         if self.embedding is not None:
             assert self.embedding_dim, f"Must specify embedding_dim if providing an embedding"

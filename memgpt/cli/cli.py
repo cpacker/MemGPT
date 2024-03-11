@@ -532,6 +532,8 @@ def run(
     # read user id from config
     ms = MetadataStore(config)
     user = create_default_user_or_exit(config, ms)
+    human = human if human else config.human
+    persona = persona if persona else config.persona
 
     # determine agent to use, if not provided
     if not yes and not agent:
@@ -657,8 +659,8 @@ def run(
                     sys.exit(1)
 
             # Overwrite fields in the preset if they were specified
-            preset_obj.human = human if human else config.human
-            preset_obj.persona = persona if persona else config.persona
+            preset_obj.human = ms.get_human(human, user.id).text
+            preset_obj.persona = ms.get_persona(persona, user.id).text
 
             typer.secho(f"->  🤖 Using persona profile '{preset_obj.persona}'", fg=typer.colors.WHITE)
             typer.secho(f"->  🧑 Using human profile '{preset_obj.human}'", fg=typer.colors.WHITE)

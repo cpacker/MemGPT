@@ -21,6 +21,7 @@ from memgpt.server.rest_api.openai_assistants.assistants import setup_openai_ass
 from memgpt.server.rest_api.personas.index import setup_personas_index_router
 from memgpt.server.rest_api.static_files import mount_static_files
 from memgpt.server.rest_api.tools.index import setup_tools_index_router
+from memgpt.server.rest_api.sources.index import setup_sources_index_router
 from memgpt.server.server import SyncServer
 
 """
@@ -94,6 +95,7 @@ app.include_router(setup_humans_index_router(server, interface, password), prefi
 app.include_router(setup_personas_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_models_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_tools_index_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(setup_sources_index_router(server, interface, password), prefix=API_PREFIX)
 
 # /api/config endpoints
 app.include_router(setup_config_index_router(server, interface, password), prefix=API_PREFIX)

@@ -5,6 +5,7 @@ from memgpt.embeddings import embedding_model
 from memgpt.data_types import Document, Passage
 
 from typing import List, Iterator, Dict, Tuple, Optional
+import typer
 from llama_index.core import Document as LlamaIndexDocument
 
 
@@ -53,7 +54,15 @@ def load_data(
 
         # generate passages
         for passage_text, passage_metadata in connector.generate_passages([document], chunk_size=embedding_config.embedding_chunk_size):
-            embedding = embed_model.get_text_embedding(passage_text)
+            try:
+                embedding = embed_model.get_text_embedding(passage_text)
+            except Exception as e:
+                typer.secho(
+                    f"Warning: Failed to get embedding for {passage_text} (error: {str(e)}), skipping insert into VectorDB.",
+                    fg=typer.colors.YELLOW,
+                )
+                continue
+
             passage = Passage(
                 id=create_uuid_from_string(f"{str(source.id)}_{passage_text}"),
                 text=passage_text,
@@ -130,17 +139,17 @@ class DirectoryConnector(DataConnector):
                 yield node.text, None
 
 
-class WebConnector(DataConnector):
-    # TODO
-
-    def __init__(self):
-        pass
+class WebConnector(DirectoryConnector):
+    def __init__(self, urls: List[str] = None, html_to_text: bool = True):
+        self.urls = urls
+        self.html_to_text = html_to_text
 
     def generate_documents(self) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Document]:
-        pass
+        from llama_index.readers.web import SimpleWebPageReader
 
-    def generate_passages(self, documents: List[Document], chunk_size: int = 1024) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Passage]:
-        pass
+        documents = SimpleWebPageReader(html_to_text=self.html_to_text).load_data(self.urls)
+        for document in documents:
+            yield document.text, {"url": document.id_}
 
 
 class VectorDBConnector(DataConnector):
