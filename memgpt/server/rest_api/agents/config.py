@@ -51,7 +51,7 @@ def validate_agent_name(name: str) -> str:
 def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
-    @router.get("/agents", tags=["agents"], response_model=GetAgentResponse)
+    @router.get("/agents/config", tags=["agents"], response_model=GetAgentResponse)
     def get_agent_config(
         agent_id: str = Query(..., description="Unique identifier of the agent whose config is requested."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
