@@ -65,7 +65,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         messages = server.get_agent_messages(user_id=user_id, agent_id=agent_id, start=request.start, count=request.count)
         return GetAgentMessagesResponse(messages=messages)
 
-    @router.post("/agents/{agent_id}/message", tags=["agents"], response_model=UserMessageResponse)
+    @router.post("/agents/{agent_id}/messages", tags=["agents"], response_model=UserMessageResponse)
     async def send_message(
         agent_id: uuid.UUID,
         request: UserMessageRequest = Body(...),
