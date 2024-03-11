@@ -58,7 +58,8 @@ class AgentStateModel(BaseModel):
     user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the agent.")
 
     # timestamps
-    created_at: datetime = Field(default_factory=datetime.now, description="The unix timestamp of when the agent was created.")
+    # created_at: datetime = Field(default_factory=datetime.now, description="The unix timestamp of when the agent was created.")
+    created_at: int = Field(..., description="The unix timestamp of when the agent was created.")
 
     # preset information
     preset: str = Field(..., description="The preset used by the agent.")
