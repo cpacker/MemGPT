@@ -657,8 +657,8 @@ def run(
                     sys.exit(1)
 
             # Overwrite fields in the preset if they were specified
-            preset_obj.human = human if human else config.human
-            preset_obj.persona = persona if persona else config.persona
+            preset_obj.human = utils.get_human_text(human) if human else utils.get_human_text(config.human)
+            preset_obj.persona = utils.get_persona_text(persona) if persona else utils.get_persona_text(config.persona)
 
             typer.secho(f"->  🤖 Using persona profile '{preset_obj.persona}'", fg=typer.colors.WHITE)
             typer.secho(f"->  🧑 Using human profile '{preset_obj.human}'", fg=typer.colors.WHITE)
