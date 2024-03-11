@@ -47,7 +47,7 @@ class GetAgentMessagesResponse(BaseModel):
 def setup_agents_message_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
-    @router.get("/agents/{agent_id}/message", tags=["agents"], response_model=GetAgentMessagesResponse)
+    @router.get("/agents/{agent_id}/messages", tags=["agents"], response_model=GetAgentMessagesResponse)
     def get_agent_messages(
         agent_id: uuid.UUID,
         start: int = Query(..., description="Message index to start on (reverse chronological)."),
