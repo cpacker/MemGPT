@@ -694,6 +694,7 @@ class SyncServer(LockingServer):
 
         # TODO add a get_message_obj_from_message_id(...) function
         #      this would allow grabbing Message.created_by without having to load the agent object
+        all_available_tools = self.ms.list_tools(user_id=user_id)
         for agent_state, return_dict in zip(agents_states, agents_states_dicts):
 
             # Get the agent object (loaded in memory)
@@ -702,7 +703,7 @@ class SyncServer(LockingServer):
             # Add information about tools
             # TODO memgpt_agent should really have a field of List[ToolModel]
             #      then we could just pull that field and return it here
-            return_dict["tools"] = []
+            return_dict["tools"] = [tool for tool in all_available_tools if tool.json_schema in memgpt_agent.functions]
 
             # Add information about memory (raw core, size of recall, size of archival)
             core_memory = memgpt_agent.memory
