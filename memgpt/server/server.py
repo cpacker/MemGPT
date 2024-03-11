@@ -695,6 +695,7 @@ class SyncServer(LockingServer):
         # TODO add a get_message_obj_from_message_id(...) function
         #      this would allow grabbing Message.created_by without having to load the agent object
         all_available_tools = self.ms.list_tools(user_id=user_id)
+
         for agent_state, return_dict in zip(agents_states, agents_states_dicts):
 
             # Get the agent object (loaded in memory)
@@ -724,6 +725,11 @@ class SyncServer(LockingServer):
             # Retrieve the Message object via the recall storage or by directly access _messages
             last_msg_obj = memgpt_agent._messages[-1]
             return_dict["last_run"] = last_msg_obj.created_at
+
+            # Add information about attached sources
+            sources_ids = self.ms.list_attached_sources(agent_id=agent_state.id)
+            sources = [self.ms.get_source(source_id=s_id) for s_id in sources_ids]
+            return_dict["sources"] = [vars(s) for s in sources]
 
         logger.info(f"Retrieved {len(agents_states)} agents for user {user_id}:\n{[vars(s) for s in agents_states]}")
         return {
