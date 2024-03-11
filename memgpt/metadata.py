@@ -270,7 +270,9 @@ class PresetModel(Base):
     description = Column(String)
     system = Column(String)
     human = Column(String)
+    human_name = Column(String, nullable=False)
     persona = Column(String)
+    persona_name = Column(String, nullable=False)
     preset = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -288,6 +290,8 @@ class PresetModel(Base):
             system=self.system,
             human=self.human,
             persona=self.persona,
+            human_name=self.human_name,
+            persona_name=self.persona_name,
             preset=self.preset,
             created_at=self.created_at,
             functions_schema=self.functions_schema,
