@@ -270,7 +270,9 @@ class PresetModel(Base):
     description = Column(String)
     system = Column(String)
     human = Column(String)
+    human_name = Column(String, nullable=False)
     persona = Column(String)
+    persona_name = Column(String, nullable=False)
     preset = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -288,6 +290,8 @@ class PresetModel(Base):
             system=self.system,
             human=self.human,
             persona=self.persona,
+            human_name=self.human_name,
+            persona_name=self.persona_name,
             preset=self.preset,
             created_at=self.created_at,
             functions_schema=self.functions_schema,
@@ -413,13 +417,13 @@ class MetadataStore:
 
     @enforce_types
     def get_preset(
-        self, preset_id: Optional[uuid.UUID] = None, preset_name: Optional[str] = None, user_id: Optional[uuid.UUID] = None
+        self, preset_id: Optional[uuid.UUID] = None, name: Optional[str] = None, user_id: Optional[uuid.UUID] = None
     ) -> Optional[Preset]:
         with self.session_maker() as session:
             if preset_id:
                 results = session.query(PresetModel).filter(PresetModel.id == preset_id).all()
-            elif preset_name and user_id:
-                results = session.query(PresetModel).filter(PresetModel.name == preset_name).filter(PresetModel.user_id == user_id).all()
+            elif name and user_id:
+                results = session.query(PresetModel).filter(PresetModel.name == name).filter(PresetModel.user_id == user_id).all()
             else:
                 raise ValueError("Must provide either preset_id or (preset_name and user_id)")
             if len(results) == 0:

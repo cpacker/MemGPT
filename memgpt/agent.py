@@ -199,8 +199,8 @@ class Agent(object):
             init_agent_state = AgentState(
                 name=name if name else create_random_username(),
                 user_id=created_by,
-                persona=preset.persona,
-                human=preset.human,
+                persona=preset.persona_name,
+                human=preset.human_name,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
                 preset=preset.name,  # TODO link via preset.id instead of name?
