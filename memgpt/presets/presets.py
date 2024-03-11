@@ -70,7 +70,7 @@ def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
         preset_function_set_names = preset_config["functions"]
         functions_schema = generate_functions_json(preset_function_set_names)
 
-        if ms.get_preset(user_id=user_id, preset_name=preset_name) is not None:
+        if ms.get_preset(user_id=user_id, name=preset_name) is not None:
             printd(f"Preset '{preset_name}' already exists for user '{user_id}'")
             continue
 
