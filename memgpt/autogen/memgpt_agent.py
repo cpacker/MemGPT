@@ -335,14 +335,14 @@ def create_autogen_memgpt_agent(
         user = ms.get_user(user_id=user_id)
 
     try:
-        preset_obj = ms.get_preset(preset_name=agent_config["preset"] if "preset" in agent_config else config.preset, user_id=user.id)
+        preset_obj = ms.get_preset(name=agent_config["preset"] if "preset" in agent_config else config.preset, user_id=user.id)
         if preset_obj is None:
             # create preset records in metadata store
             from memgpt.presets.presets import add_default_presets
 
             add_default_presets(user.id, ms)
             # try again
-            preset_obj = ms.get_preset(preset_name=agent_config["preset"] if "preset" in agent_config else config.preset, user_id=user.id)
+            preset_obj = ms.get_preset(name=agent_config["preset"] if "preset" in agent_config else config.preset, user_id=user.id)
             if preset_obj is None:
                 print("Couldn't find presets in database, please run `memgpt configure`")
                 sys.exit(1)
