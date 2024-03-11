@@ -124,6 +124,12 @@ class Message(Record):
             assert tool_call_id is None
         self.tool_call_id = tool_call_id
 
+    def to_json(self):
+        json_message = vars(self)
+        if json_message["tool_calls"] is not None:
+            json_message["tool_calls"] = [vars(tc) for tc in json_message["tool_calls"]]
+        return json_message
+
     @staticmethod
     def dict_to_message(
         user_id: uuid.UUID,
