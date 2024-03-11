@@ -662,8 +662,8 @@ def run(
             preset_obj.human = ms.get_human(human, user.id).text
             preset_obj.persona = ms.get_persona(persona, user.id).text
 
-            typer.secho(f"->  🤖 Using persona profile '{preset_obj.persona}'", fg=typer.colors.WHITE)
-            typer.secho(f"->  🧑 Using human profile '{preset_obj.human}'", fg=typer.colors.WHITE)
+            typer.secho(f"->  🤖 Using persona profile: '{preset_obj.persona_name}'", fg=typer.colors.WHITE)
+            typer.secho(f"->  🧑 Using human profile: '{preset_obj.human_name}'", fg=typer.colors.WHITE)
 
             memgpt_agent = Agent(
                 interface=interface(),

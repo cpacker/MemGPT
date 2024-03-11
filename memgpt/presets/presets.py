@@ -79,7 +79,9 @@ def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
             name=preset_name,
             system=gpt_system.get_system_text(preset_system_prompt),
             persona=get_persona_text(DEFAULT_PERSONA),
+            persona_name=DEFAULT_PERSONA,
             human=get_human_text(DEFAULT_HUMAN),
+            human_name=DEFAULT_HUMAN,
             functions_schema=functions_schema,
         )
         ms.create_preset(preset)
