@@ -2,7 +2,7 @@ import requests
 import json
 import asyncio
 from config import MEMGPT_ADMIN_API_KEY
-from db import save_user_api_key, save_user_agent_id, get_user_api_key, get_user_agent_id, check_user_exists
+from db import save_user_api_key, save_user_agent_id, get_user_api_key, get_user_agent_id, check_user_exists, save_memgpt_user_id
 
 # Helper function to make asynchronous HTTP requests
 async def async_request(method, url, **kwargs):
@@ -11,11 +11,17 @@ async def async_request(method, url, **kwargs):
     return response
 
 async def create_memgpt_user(telegram_user_id: int):
+    # Check if user already exists in Supabase
+    user_exists = await check_user_exists(telegram_user_id)
+    if user_exists:
+        return "User already exists."
+
+    # Proceed with MemGPT user and agent creation
     response = await async_request('POST', 'http://localhost:8283/admin/users', headers={'Authorization': f'Bearer {MEMGPT_ADMIN_API_KEY}'})
     if response.status_code == 200:
         user_data = response.json()
         user_api_key = user_data['api_key']
-        await save_user_api_key(telegram_user_id, user_api_key)
+        user_memgpt_id = user_data['id']  # Assuming the MemGPT user ID is returned here
         agent_response = await async_request(
             'POST',
             'http://localhost:8283/api/agents',
@@ -30,7 +36,11 @@ async def create_memgpt_user(telegram_user_id: int):
         if agent_response.status_code == 200:
             agent_data = agent_response.json()
             agent_id = agent_data['agent_state']['id']
+            # Save API key and agent ID in Supabase
+            await save_user_api_key(telegram_user_id, user_api_key)
             await save_user_agent_id(telegram_user_id, agent_id)
+            # Save MemGPT user ID in Supabase
+            await save_memgpt_user_id(telegram_user_id, user_memgpt_id)
             return "Your MemGPT agent has been created."
         else:
             return "Failed to create MemGPT agent."

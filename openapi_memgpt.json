@@ -55,11 +55,6 @@
         "summary": "Get All Users",
         "description": "Get a list of all users in the database",
         "operationId": "get_all_users_admin_users_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -71,7 +66,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -80,17 +80,19 @@
         "summary": "Create User",
         "description": "Create a new user in the database",
         "operationId": "create_user_admin_users_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateUserRequest"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateUserRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Request"
               }
             }
           }
@@ -116,14 +118,21 @@
               }
             }
           }
-        }
-      },
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/admin/users/{user_id}": {
       "delete": {
         "tags": [
           "admin"
         ],
         "summary": "Delete User",
-        "operationId": "delete_user_admin_users_delete",
+        "operationId": "delete_user_admin_users__user_id__delete",
         "security": [
           {
             "HTTPBearer": []
@@ -132,14 +141,11 @@
         "parameters": [
           {
             "name": "user_id",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "description": "The ID of the user to be deleted.",
               "title": "User Id"
-            },
-            "description": "The ID of the user to be deleted."
+            }
           }
         ],
         "responses": {
@@ -308,23 +314,40 @@
         }
       }
     },
-    "/api/agents/command": {
+    "/api/agents/{agent_id}/command": {
       "post": {
         "tags": [
           "agents"
         ],
         "summary": "Run Command",
         "description": "Execute a command on a specified agent.\n\nThis endpoint receives a command to be executed on an agent. It uses the user and agent identifiers to authenticate and route the command appropriately.\n\nRaises an HTTPException for any processing errors.",
-        "operationId": "run_command_api_agents_command_post",
+        "operationId": "run_command_api_agents__agent_id__command_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CommandRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -347,47 +370,17 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
-    "/api/agents": {
+    "/api/agents/{agent_id}/config": {
       "get": {
         "tags": [
           "agents"
         ],
-        "summary": "List Agents",
-        "description": "List all agents associated with a given user.\n\nThis endpoint retrieves a list of all agents and their configurations associated with the specified user ID.",
-        "operationId": "list_agents_api_agents_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListAgentsResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "agents"
-        ],
-        "summary": "Delete Agent",
-        "description": "Delete an agent.",
-        "operationId": "delete_agent_api_agents_delete",
+        "summary": "Get Agent Config",
+        "description": "Retrieve the configuration for a specific agent.\n\nThis endpoint fetches the configuration details for a given agent, identified by the user and agent IDs.",
+        "operationId": "get_agent_config_api_agents__agent_id__config_get",
         "security": [
           {
             "HTTPBearer": []
@@ -396,14 +389,13 @@
         "parameters": [
           {
             "name": "agent_id",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Unique identifier of the agent to be deleted.",
+              "format": "uuid",
               "title": "Agent Id"
-            },
-            "description": "Unique identifier of the agent to be deleted."
+            }
           }
         ],
         "responses": {
@@ -411,51 +403,8 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "agents"
-        ],
-        "summary": "Create Agent",
-        "description": "Create a new agent with the specified configuration.",
-        "operationId": "create_agent_api_agents_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateAgentRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateAgentResponse"
+                  "$ref": "#/components/schemas/GetAgentResponse"
                 }
               }
             }
@@ -473,23 +422,40 @@
         }
       }
     },
-    "/api/agents/rename": {
+    "/api/agents/{agent_id}/rename": {
       "patch": {
         "tags": [
           "agents"
         ],
         "summary": "Update Agent Name",
         "description": "Updates the name of a specific agent.\n\nThis changes the name of the agent in the database but does NOT edit the agent's persona.",
-        "operationId": "update_agent_name_api_agents_rename_patch",
+        "operationId": "update_agent_name_api_agents__agent_id__rename_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AgentRenameRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -512,22 +478,17 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
-    "/api/agents/memory": {
-      "get": {
+    "/api/agents/{agent_id}": {
+      "delete": {
         "tags": [
           "agents"
         ],
-        "summary": "Get Agent Memory",
-        "description": "Retrieve the memory state of a specific agent.\n\nThis endpoint fetches the current memory state of the agent identified by the user ID and agent ID.",
-        "operationId": "get_agent_memory_api_agents_memory_get",
+        "summary": "Delete Agent",
+        "description": "Delete an agent.",
+        "operationId": "delete_agent_api_agents__agent_id__delete",
         "security": [
           {
             "HTTPBearer": []
@@ -536,14 +497,132 @@
         "parameters": [
           {
             "name": "agent_id",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The unique identifier of the agent.",
+              "format": "uuid",
               "title": "Agent Id"
-            },
-            "description": "The unique identifier of the agent."
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agents": {
+      "get": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "List Agents",
+        "description": "List all agents associated with a given user.\n\nThis endpoint retrieves a list of all agents and their configurations associated with the specified user ID.",
+        "operationId": "list_agents_api_agents_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListAgentsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "Create Agent",
+        "description": "Create a new agent with the specified configuration.",
+        "operationId": "create_agent_api_agents_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAgentResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/agents/{agent_id}/memory": {
+      "get": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "Get Agent Memory",
+        "description": "Retrieve the memory state of a specific agent.\n\nThis endpoint fetches the current memory state of the agent identified by the user ID and agent ID.",
+        "operationId": "get_agent_memory_api_agents__agent_id__memory_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
           }
         ],
         "responses": {
@@ -575,10 +654,22 @@
         ],
         "summary": "Update Agent Memory",
         "description": "Update the core memory of a specific agent.\n\nThis endpoint accepts new memory contents (human and persona) and updates the core memory of the agent identified by the user ID and agent ID.",
-        "operationId": "update_agent_memory_api_agents_memory_post",
+        "operationId": "update_agent_memory_api_agents__agent_id__memory_post",
         "security": [
           {
             "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
           }
         ],
         "requestBody": {
@@ -615,14 +706,14 @@
         }
       }
     },
-    "/api/agents/message": {
+    "/api/agents/{agent_id}/archival/all": {
       "get": {
         "tags": [
           "agents"
         ],
-        "summary": "Get Agent Messages",
-        "description": "Retrieve the in-context messages of a specific agent. Paginated, provide start and count to iterate.",
-        "operationId": "get_agent_messages_api_agents_message_get",
+        "summary": "Get Agent Archival Memory All",
+        "description": "Retrieve the memories in an agent's archival memory store (non-paginated, returns all entries at once).",
+        "operationId": "get_agent_archival_memory_all_api_agents__agent_id__archival_all_get",
         "security": [
           {
             "HTTPBearer": []
@@ -631,14 +722,278 @@
         "parameters": [
           {
             "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAgentArchivalMemoryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agents/{agent_id}/archival": {
+      "get": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "Get Agent Archival Memory",
+        "description": "Retrieve the memories in an agent's archival memory store (paginated query).",
+        "operationId": "get_agent_archival_memory_api_agents__agent_id__archival_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Unique ID of the memory to start the query range at.",
+              "title": "After"
+            },
+            "description": "Unique ID of the memory to start the query range at."
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Unique ID of the memory to end the query range at.",
+              "title": "Before"
+            },
+            "description": "Unique ID of the memory to end the query range at."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "How many results to include in the response.",
+              "title": "Limit"
+            },
+            "description": "How many results to include in the response."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAgentArchivalMemoryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "Insert Agent Archival Memory",
+        "description": "Insert a memory into an agent's archival memory store.",
+        "operationId": "insert_agent_archival_memory_api_agents__agent_id__archival_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InsertAgentArchivalMemoryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsertAgentArchivalMemoryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "Delete Agent Archival Memory",
+        "description": "Delete a memory from an agent's archival memory store.",
+        "operationId": "delete_agent_archival_memory_api_agents__agent_id__archival_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "id",
             "in": "query",
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The unique identifier of the agent.",
-              "title": "Agent Id"
+              "description": "Unique ID of the memory to be deleted.",
+              "title": "Id"
             },
-            "description": "The unique identifier of the agent."
+            "description": "Unique ID of the memory to be deleted."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agents/{agent_id}/messages": {
+      "get": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "Get Agent Messages",
+        "description": "Retrieve the in-context messages of a specific agent. Paginated, provide start and count to iterate.",
+        "operationId": "get_agent_messages_api_agents__agent_id__messages_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
           },
           {
             "name": "start",
@@ -692,10 +1047,22 @@
         ],
         "summary": "Send Message",
         "description": "Process a user message and return the agent's response.\n\nThis endpoint accepts a message from a user and processes it through the agent.\nIt can optionally stream the response if 'stream' is set to True.",
-        "operationId": "send_message_api_agents_message_post",
+        "operationId": "send_message_api_agents__agent_id__messages_post",
         "security": [
           {
             "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
           }
         ],
         "requestBody": {
@@ -756,6 +1123,50 @@
             "HTTPBearer": []
           }
         ]
+      },
+      "post": {
+        "tags": [
+          "humans"
+        ],
+        "summary": "Create Persona",
+        "operationId": "create_persona_api_humans_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateHumanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HumanModel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/personas": {
@@ -772,6 +1183,50 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListPersonasResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "personas"
+        ],
+        "summary": "Create Persona",
+        "operationId": "create_persona_api_personas_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePersonaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonaModel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -803,6 +1258,470 @@
             }
           }
         }
+      }
+    },
+    "/api/tools": {
+      "get": {
+        "tags": [
+          "tools"
+        ],
+        "summary": "List All Tools",
+        "description": "Get a list of all tools available to agents created by a user",
+        "operationId": "list_all_tools_api_tools_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListToolsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "tools"
+        ],
+        "summary": "Create Tool",
+        "description": "Create a new tool (dummy route)",
+        "operationId": "create_tool_api_tools_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateToolRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListToolsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/sources": {
+      "get": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "List Source",
+        "operationId": "list_source_api_sources_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSourcesResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Create Source",
+        "operationId": "create_source_api_sources_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceModel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/sources/{source_id}": {
+      "delete": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Delete Source",
+        "operationId": "delete_source_api_sources__source_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Source Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sources/attach": {
+      "post": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Attach Source To Agent",
+        "operationId": "attach_source_to_agent_api_sources_attach_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The unique identifier of the agent to attach the source to.",
+              "title": "Agent Id"
+            },
+            "description": "The unique identifier of the agent to attach the source to."
+          },
+          {
+            "name": "source_name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The name of the source to attach.",
+              "title": "Source Name"
+            },
+            "description": "The name of the source to attach."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceModel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sources/detach": {
+      "post": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Detach Source From Agent",
+        "operationId": "detach_source_from_agent_api_sources_detach_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The unique identifier of the agent to detach the source from.",
+              "title": "Agent Id"
+            },
+            "description": "The unique identifier of the agent to detach the source from."
+          },
+          {
+            "name": "source_name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The name of the source to detach.",
+              "title": "Source Name"
+            },
+            "description": "The name of the source to detach."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceModel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sources/upload": {
+      "post": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Upload File To Source",
+        "operationId": "upload_file_to_source_api_sources_upload_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The unique identifier of the source to attach.",
+              "title": "Source Id"
+            },
+            "description": "The unique identifier of the source to attach."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_file_to_source_api_sources_upload_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadFileToSourceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sources/passages ": {
+      "get": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "List Passages",
+        "operationId": "list_passages_api_sources_passages__get",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string",
+                "format": "uuid",
+                "title": "Source Id"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetSourcePassagesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/sources/documents": {
+      "get": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "List Documents",
+        "operationId": "list_documents_api_sources_documents_get",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string",
+                "format": "uuid",
+                "title": "Source Id"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetSourceDocumentsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/config": {
@@ -837,11 +1756,6 @@
     "schemas": {
       "AgentRenameRequest": {
         "properties": {
-          "agent_id": {
-            "type": "string",
-            "title": "Agent Id",
-            "description": "Unique identifier of the agent whose config is requested."
-          },
           "agent_name": {
             "type": "string",
             "title": "Agent Name",
@@ -850,7 +1764,6 @@
         },
         "type": "object",
         "required": [
-          "agent_id",
           "agent_name"
         ],
         "title": "AgentRenameRequest"
@@ -951,6 +1864,27 @@
         ],
         "title": "AgentStateModel"
       },
+      "ArchivalMemoryObject": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Unique identifier for the memory object inside the archival memory store."
+          },
+          "contents": {
+            "type": "string",
+            "title": "Contents",
+            "description": "The memory contents."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "contents"
+        ],
+        "title": "ArchivalMemoryObject"
+      },
       "AssistantFile": {
         "properties": {
           "id": {
@@ -1008,13 +1942,22 @@
         ],
         "title": "AuthResponse"
       },
+      "Body_upload_file_to_source_api_sources_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_file_to_source_api_sources_upload_post"
+      },
       "CommandRequest": {
         "properties": {
-          "agent_id": {
-            "type": "string",
-            "title": "Agent Id",
-            "description": "Identifier of the agent on which the command will be executed."
-          },
           "command": {
             "type": "string",
             "title": "Command",
@@ -1023,7 +1966,6 @@
         },
         "type": "object",
         "required": [
-          "agent_id",
           "command"
         ],
         "title": "CommandRequest"
@@ -1234,6 +2176,26 @@
         ],
         "title": "CreateAssistantRequest"
       },
+      "CreateHumanRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "The human text."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the human."
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "name"
+        ],
+        "title": "CreateHumanRequest"
+      },
       "CreateMessageRequest": {
         "properties": {
           "role": {
@@ -1280,6 +2242,26 @@
           "content"
         ],
         "title": "CreateMessageRequest"
+      },
+      "CreatePersonaRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "The persona text."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the persona."
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "name"
+        ],
+        "title": "CreatePersonaRequest"
       },
       "CreateRunRequest": {
         "properties": {
@@ -1351,6 +2333,32 @@
           "instructions"
         ],
         "title": "CreateRunRequest"
+      },
+      "CreateSourceRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the source."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The description of the source."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CreateSourceRequest"
       },
       "CreateThreadRequest": {
         "properties": {
@@ -1458,6 +2466,53 @@
           "instructions"
         ],
         "title": "CreateThreadRunRequest"
+      },
+      "CreateToolRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the function."
+          },
+          "source_code": {
+            "type": "string",
+            "title": "Source Code",
+            "description": "The source code of the function."
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "const": "python"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Type",
+            "description": "The type of the source code."
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "Metadata tags."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "source_code"
+        ],
+        "title": "CreateToolRequest"
       },
       "CreateUserRequest": {
         "properties": {
@@ -1620,6 +2675,52 @@
         ],
         "title": "DeleteUserResponse"
       },
+      "DocumentModel": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id",
+            "description": "The unique identifier of the user associated with the document."
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "The text of the document."
+          },
+          "data_source": {
+            "type": "string",
+            "title": "Data Source",
+            "description": "The data source of the document."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The unique identifier of the document."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "The metadata of the document.",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "text",
+          "data_source"
+        ],
+        "title": "DocumentModel"
+      },
       "EmbeddingConfigModel": {
         "properties": {
           "embedding_endpoint_type": {
@@ -1723,6 +2824,23 @@
         ],
         "title": "GetAPIKeysResponse"
       },
+      "GetAgentArchivalMemoryResponse": {
+        "properties": {
+          "archival_memory": {
+            "items": {
+              "$ref": "#/components/schemas/ArchivalMemoryObject"
+            },
+            "type": "array",
+            "title": "Archival Memory",
+            "description": "A list of all memory objects in archival memory."
+          }
+        },
+        "type": "object",
+        "required": [
+          "archival_memory"
+        ],
+        "title": "GetAgentArchivalMemoryResponse"
+      },
       "GetAgentMemoryResponse": {
         "properties": {
           "core_memory": {
@@ -1822,6 +2940,40 @@
         ],
         "title": "GetAllUsersResponse"
       },
+      "GetSourceDocumentsResponse": {
+        "properties": {
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentModel"
+            },
+            "type": "array",
+            "title": "Documents",
+            "description": "List of documents from the source."
+          }
+        },
+        "type": "object",
+        "required": [
+          "documents"
+        ],
+        "title": "GetSourceDocumentsResponse"
+      },
+      "GetSourcePassagesResponse": {
+        "properties": {
+          "passages": {
+            "items": {
+              "$ref": "#/components/schemas/PassageModel"
+            },
+            "type": "array",
+            "title": "Passages",
+            "description": "List of passages from the source."
+          }
+        },
+        "type": "object",
+        "required": [
+          "passages"
+        ],
+        "title": "GetSourcePassagesResponse"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1892,6 +3044,34 @@
           "file_id"
         ],
         "title": "ImageFile"
+      },
+      "InsertAgentArchivalMemoryRequest": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "title": "Content",
+            "description": "The memory contents to insert into archival memory."
+          }
+        },
+        "type": "object",
+        "title": "InsertAgentArchivalMemoryRequest"
+      },
+      "InsertAgentArchivalMemoryResponse": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ids",
+            "description": "Unique identifier for the new archival memory object. May return multiple ids if insert contents are chunked."
+          }
+        },
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "title": "InsertAgentArchivalMemoryResponse"
       },
       "LLMConfigModel": {
         "properties": {
@@ -2047,6 +3227,40 @@
           "personas"
         ],
         "title": "ListPersonasResponse"
+      },
+      "ListSourcesResponse": {
+        "properties": {
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceModel"
+            },
+            "type": "array",
+            "title": "Sources",
+            "description": "List of available sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sources"
+        ],
+        "title": "ListSourcesResponse"
+      },
+      "ListToolsResponse": {
+        "properties": {
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/ToolModel"
+            },
+            "type": "array",
+            "title": "Tools",
+            "description": "List of tools (functions)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tools"
+        ],
+        "title": "ListToolsResponse"
       },
       "MessageFile": {
         "properties": {
@@ -2743,6 +3957,116 @@
         ],
         "title": "OpenAIUsage"
       },
+      "PassageModel": {
+        "properties": {
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "The unique identifier of the user associated with the passage."
+          },
+          "agent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id",
+            "description": "The unique identifier of the agent associated with the passage."
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "The text of the passage."
+          },
+          "embedding": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding",
+            "description": "The embedding of the passage."
+          },
+          "embedding_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmbeddingConfigModel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The embedding configuration used by the passage."
+          },
+          "data_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Source",
+            "description": "The data source of the passage."
+          },
+          "doc_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc Id",
+            "description": "The unique identifier of the document associated with the passage."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The unique identifier of the passage."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "The metadata of the passage.",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "PassageModel"
+      },
       "PersonaModel": {
         "properties": {
           "text": {
@@ -2803,6 +4127,55 @@
           "submit_tool_outputs"
         ],
         "title": "RequiredAction"
+      },
+      "SourceModel": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the source."
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "The description of the source."
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id",
+            "description": "The unique identifier of the user associated with the source."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "The unix timestamp of when the source was created."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The unique identifier of the source."
+          },
+          "embedding_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmbeddingConfigModel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The embedding configuration used by the passage."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "user_id"
+        ],
+        "title": "SourceModel"
       },
       "SubmitToolOutputsToRunRequest": {
         "properties": {
@@ -2888,13 +4261,62 @@
         ],
         "title": "ToolCallOutput"
       },
+      "ToolModel": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the function."
+          },
+          "json_schema": {
+            "type": "object",
+            "title": "Json Schema",
+            "description": "The JSON schema of the function."
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "description": "Metadata tags."
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "const": "python"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Type",
+            "description": "The type of the source code."
+          },
+          "source_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Code",
+            "description": "The source code of the function."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "json_schema",
+          "tags",
+          "source_code"
+        ],
+        "title": "ToolModel"
+      },
       "UpdateAgentMemoryRequest": {
         "properties": {
-          "agent_id": {
-            "type": "string",
-            "title": "Agent Id",
-            "description": "The unique identifier of the agent."
-          },
           "human": {
             "type": "string",
             "title": "Human",
@@ -2907,9 +4329,6 @@
           }
         },
         "type": "object",
-        "required": [
-          "agent_id"
-        ],
         "title": "UpdateAgentMemoryRequest"
       },
       "UpdateAgentMemoryResponse": {
@@ -2938,13 +4357,37 @@
         ],
         "title": "UpdateAgentMemoryResponse"
       },
+      "UploadFileToSourceResponse": {
+        "properties": {
+          "source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SourceModel"
+              }
+            ],
+            "description": "The source the file was uploaded to."
+          },
+          "added_passages": {
+            "type": "integer",
+            "title": "Added Passages",
+            "description": "The number of passages added to the source."
+          },
+          "added_documents": {
+            "type": "integer",
+            "title": "Added Documents",
+            "description": "The number of documents added to the source."
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "added_passages",
+          "added_documents"
+        ],
+        "title": "UploadFileToSourceResponse"
+      },
       "UserMessageRequest": {
         "properties": {
-          "agent_id": {
-            "type": "string",
-            "title": "Agent Id",
-            "description": "The unique identifier of the agent."
-          },
           "message": {
             "type": "string",
             "title": "Message",
@@ -2968,7 +4411,6 @@
         },
         "type": "object",
         "required": [
-          "agent_id",
           "message"
         ],
         "title": "UserMessageRequest"

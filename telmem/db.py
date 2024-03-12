@@ -29,6 +29,12 @@ async def get_user_agent_id(telegram_user_id: int) -> str:
     if data.data and len(data.data) > 0:
         return data.data[0]['agent_id']
     return None
+
 async def check_user_exists(telegram_user_id: int) -> bool:
     data = supabase.table("users").select("id").eq("telegram_user_id", telegram_user_id).execute()
     return bool(data.data and len(data.data) > 0)
+async def save_memgpt_user_id(telegram_user_id: int, memgpt_user_id: str):
+    response = supabase.table("users").update({"memgpt_user_id": memgpt_user_id}).eq("telegram_user_id", telegram_user_id).execute()
+    if response.error:
+        raise Exception(f"Failed to update MemGPT user ID: {response.error}")
+    return response.data

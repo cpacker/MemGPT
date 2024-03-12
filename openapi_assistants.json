@@ -1530,11 +1530,6 @@
     "schemas": {
       "AgentRenameRequest": {
         "properties": {
-          "agent_id": {
-            "type": "string",
-            "title": "Agent Id",
-            "description": "Unique identifier of the agent whose config is requested."
-          },
           "agent_name": {
             "type": "string",
             "title": "Agent Name",
@@ -1543,7 +1538,6 @@
         },
         "type": "object",
         "required": [
-          "agent_id",
           "agent_name"
         ],
         "title": "AgentRenameRequest"
@@ -1644,6 +1638,27 @@
         ],
         "title": "AgentStateModel"
       },
+      "ArchivalMemoryObject": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Unique identifier for the memory object inside the archival memory store."
+          },
+          "contents": {
+            "type": "string",
+            "title": "Contents",
+            "description": "The memory contents."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "contents"
+        ],
+        "title": "ArchivalMemoryObject"
+      },
       "AssistantFile": {
         "properties": {
           "id": {
@@ -1701,13 +1716,22 @@
         ],
         "title": "AuthResponse"
       },
+      "Body_upload_file_to_source_api_sources_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_file_to_source_api_sources_upload_post"
+      },
       "CommandRequest": {
         "properties": {
-          "agent_id": {
-            "type": "string",
-            "title": "Agent Id",
-            "description": "Identifier of the agent on which the command will be executed."
-          },
           "command": {
             "type": "string",
             "title": "Command",
@@ -1716,7 +1740,6 @@
         },
         "type": "object",
         "required": [
-          "agent_id",
           "command"
         ],
         "title": "CommandRequest"
@@ -1927,6 +1950,26 @@
         ],
         "title": "CreateAssistantRequest"
       },
+      "CreateHumanRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "The human text."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the human."
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "name"
+        ],
+        "title": "CreateHumanRequest"
+      },
       "CreateMessageRequest": {
         "properties": {
           "role": {
@@ -1973,6 +2016,26 @@
           "content"
         ],
         "title": "CreateMessageRequest"
+      },
+      "CreatePersonaRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "The persona text."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the persona."
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "name"
+        ],
+        "title": "CreatePersonaRequest"
       },
       "CreateRunRequest": {
         "properties": {
@@ -2044,6 +2107,32 @@
           "instructions"
         ],
         "title": "CreateRunRequest"
+      },
+      "CreateSourceRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the source."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The description of the source."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CreateSourceRequest"
       },
       "CreateThreadRequest": {
         "properties": {
@@ -2151,6 +2240,53 @@
           "instructions"
         ],
         "title": "CreateThreadRunRequest"
+      },
+      "CreateToolRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the function."
+          },
+          "source_code": {
+            "type": "string",
+            "title": "Source Code",
+            "description": "The source code of the function."
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "const": "python"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Type",
+            "description": "The type of the source code."
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "Metadata tags."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "source_code"
+        ],
+        "title": "CreateToolRequest"
       },
       "CreateUserRequest": {
         "properties": {
@@ -2313,6 +2449,52 @@
         ],
         "title": "DeleteUserResponse"
       },
+      "DocumentModel": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id",
+            "description": "The unique identifier of the user associated with the document."
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "The text of the document."
+          },
+          "data_source": {
+            "type": "string",
+            "title": "Data Source",
+            "description": "The data source of the document."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The unique identifier of the document."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "The metadata of the document.",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "text",
+          "data_source"
+        ],
+        "title": "DocumentModel"
+      },
       "EmbeddingConfigModel": {
         "properties": {
           "embedding_endpoint_type": {
@@ -2416,6 +2598,23 @@
         ],
         "title": "GetAPIKeysResponse"
       },
+      "GetAgentArchivalMemoryResponse": {
+        "properties": {
+          "archival_memory": {
+            "items": {
+              "$ref": "#/components/schemas/ArchivalMemoryObject"
+            },
+            "type": "array",
+            "title": "Archival Memory",
+            "description": "A list of all memory objects in archival memory."
+          }
+        },
+        "type": "object",
+        "required": [
+          "archival_memory"
+        ],
+        "title": "GetAgentArchivalMemoryResponse"
+      },
       "GetAgentMemoryResponse": {
         "properties": {
           "core_memory": {
@@ -2515,6 +2714,40 @@
         ],
         "title": "GetAllUsersResponse"
       },
+      "GetSourceDocumentsResponse": {
+        "properties": {
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentModel"
+            },
+            "type": "array",
+            "title": "Documents",
+            "description": "List of documents from the source."
+          }
+        },
+        "type": "object",
+        "required": [
+          "documents"
+        ],
+        "title": "GetSourceDocumentsResponse"
+      },
+      "GetSourcePassagesResponse": {
+        "properties": {
+          "passages": {
+            "items": {
+              "$ref": "#/components/schemas/PassageModel"
+            },
+            "type": "array",
+            "title": "Passages",
+            "description": "List of passages from the source."
+          }
+        },
+        "type": "object",
+        "required": [
+          "passages"
+        ],
+        "title": "GetSourcePassagesResponse"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -2585,6 +2818,34 @@
           "file_id"
         ],
         "title": "ImageFile"
+      },
+      "InsertAgentArchivalMemoryRequest": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "title": "Content",
+            "description": "The memory contents to insert into archival memory."
+          }
+        },
+        "type": "object",
+        "title": "InsertAgentArchivalMemoryRequest"
+      },
+      "InsertAgentArchivalMemoryResponse": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ids",
+            "description": "Unique identifier for the new archival memory object. May return multiple ids if insert contents are chunked."
+          }
+        },
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "title": "InsertAgentArchivalMemoryResponse"
       },
       "LLMConfigModel": {
         "properties": {
@@ -2740,6 +3001,40 @@
           "personas"
         ],
         "title": "ListPersonasResponse"
+      },
+      "ListSourcesResponse": {
+        "properties": {
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceModel"
+            },
+            "type": "array",
+            "title": "Sources",
+            "description": "List of available sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sources"
+        ],
+        "title": "ListSourcesResponse"
+      },
+      "ListToolsResponse": {
+        "properties": {
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/ToolModel"
+            },
+            "type": "array",
+            "title": "Tools",
+            "description": "List of tools (functions)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tools"
+        ],
+        "title": "ListToolsResponse"
       },
       "MessageFile": {
         "properties": {
@@ -3436,6 +3731,116 @@
         ],
         "title": "OpenAIUsage"
       },
+      "PassageModel": {
+        "properties": {
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "The unique identifier of the user associated with the passage."
+          },
+          "agent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id",
+            "description": "The unique identifier of the agent associated with the passage."
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "The text of the passage."
+          },
+          "embedding": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding",
+            "description": "The embedding of the passage."
+          },
+          "embedding_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmbeddingConfigModel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The embedding configuration used by the passage."
+          },
+          "data_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Source",
+            "description": "The data source of the passage."
+          },
+          "doc_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc Id",
+            "description": "The unique identifier of the document associated with the passage."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The unique identifier of the passage."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "The metadata of the passage.",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "PassageModel"
+      },
       "PersonaModel": {
         "properties": {
           "text": {
@@ -3496,6 +3901,55 @@
           "submit_tool_outputs"
         ],
         "title": "RequiredAction"
+      },
+      "SourceModel": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the source."
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "The description of the source."
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id",
+            "description": "The unique identifier of the user associated with the source."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "The unix timestamp of when the source was created."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The unique identifier of the source."
+          },
+          "embedding_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmbeddingConfigModel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The embedding configuration used by the passage."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "user_id"
+        ],
+        "title": "SourceModel"
       },
       "SubmitToolOutputsToRunRequest": {
         "properties": {
@@ -3581,13 +4035,62 @@
         ],
         "title": "ToolCallOutput"
       },
+      "ToolModel": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the function."
+          },
+          "json_schema": {
+            "type": "object",
+            "title": "Json Schema",
+            "description": "The JSON schema of the function."
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "description": "Metadata tags."
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "const": "python"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Type",
+            "description": "The type of the source code."
+          },
+          "source_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Code",
+            "description": "The source code of the function."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "json_schema",
+          "tags",
+          "source_code"
+        ],
+        "title": "ToolModel"
+      },
       "UpdateAgentMemoryRequest": {
         "properties": {
-          "agent_id": {
-            "type": "string",
-            "title": "Agent Id",
-            "description": "The unique identifier of the agent."
-          },
           "human": {
             "type": "string",
             "title": "Human",
@@ -3600,9 +4103,6 @@
           }
         },
         "type": "object",
-        "required": [
-          "agent_id"
-        ],
         "title": "UpdateAgentMemoryRequest"
       },
       "UpdateAgentMemoryResponse": {
@@ -3631,13 +4131,37 @@
         ],
         "title": "UpdateAgentMemoryResponse"
       },
+      "UploadFileToSourceResponse": {
+        "properties": {
+          "source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SourceModel"
+              }
+            ],
+            "description": "The source the file was uploaded to."
+          },
+          "added_passages": {
+            "type": "integer",
+            "title": "Added Passages",
+            "description": "The number of passages added to the source."
+          },
+          "added_documents": {
+            "type": "integer",
+            "title": "Added Documents",
+            "description": "The number of documents added to the source."
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "added_passages",
+          "added_documents"
+        ],
+        "title": "UploadFileToSourceResponse"
+      },
       "UserMessageRequest": {
         "properties": {
-          "agent_id": {
-            "type": "string",
-            "title": "Agent Id",
-            "description": "The unique identifier of the agent."
-          },
           "message": {
             "type": "string",
             "title": "Message",
@@ -3661,7 +4185,6 @@
         },
         "type": "object",
         "required": [
-          "agent_id",
           "message"
         ],
         "title": "UserMessageRequest"

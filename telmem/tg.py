@@ -1,18 +1,25 @@
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from telegram import Update
 from config import TELEGRAM_TOKEN
-from memgpt import create_memgpt_user, send_message_to_memgpt, check_user_exists
+from memgpt import create_memgpt_user, send_message_to_memgpt, check_user_exists, save_user_api_key
 import asyncio
 
 async def start(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
-    await context.bot.send_message(chat_id=chat_id, text="Welcome! Let me check if you're already registered.")
-    user_exists = await check_user_exists(chat_id)
-    if user_exists:
-        await context.bot.send_message(chat_id=chat_id, text="You're already registered. How can I assist you today?")
-    else:
-        result = await create_memgpt_user(chat_id)
-        await context.bot.send_message(chat_id=chat_id, text=f"Account created successfully! {result}")
+    try:
+        chat_id = update.effective_chat.id
+        user_exists = await check_user_exists(chat_id)
+        
+        if not user_exists:
+            # Create a new user in Supabase and MemGPT
+            creation_response = await create_memgpt_user(chat_id)
+            await context.bot.send_message(chat_id=chat_id, text=creation_response)
+            # Proceed to create an agent for the new user here if necessary
+        else:
+            # Inform the user that they already have an account
+            await context.bot.send_message(chat_id=chat_id, text="Welcome back! Your account is already set up.")
+            # Proceed with existing user flow here
+    except Exception as e:
+        print(f"Exception occurred: {e}")
 
 async def echo(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
