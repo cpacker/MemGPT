@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 import logging
 import uuid
 from abc import abstractmethod
@@ -958,8 +957,8 @@ class SyncServer(LockingServer):
         cursor, records = memgpt_agent.persistence_manager.recall_memory.storage.get_all_cursor(
             after=after, before=before, limit=limit, order_by=order_by, reverse=reverse
         )
-        json_records = [vars(record) for record in records]
 
+        json_records = [record.to_json() for record in records]
         # TODO: mark what is in-context versus not
         return cursor, json_records
 
