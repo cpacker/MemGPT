@@ -73,47 +73,36 @@ You can load a file, list of files, or directly into MemGPT with the following c
 memgpt load directory --name <NAME> \
     [--input-dir <DIRECTORY>] [--input-files <FILE1> <FILE2>...] [--recursive]
 ```
+```python Python
+from memgpt import create_client
 
-### Loading a database dump
+# Connect to the server as a user
+client = create_client()
 
-You can load database into MemGPT, either from a database dump or a database connection, with the following command:
+# Create a data source 
+source = client.create_source(name="example_source")
 
-```sh
-memgpt load database --name <NAME>  \
-    --query <QUERY> \ # Query to run on database to get data
-    --dump-path <PATH> \ # Path to dump file
-    --scheme <SCHEME> \ # Database scheme
-    --host <HOST> \ # Database host
-    --port <PORT> \ # Database port
-    --user <USER> \ # Database user
-    --password <PASSWORD> \ # Database password
-    --dbname <DB_NAME> # Database name
+# Add file data into a source 
+client.load_file_into_source(filename=filename, source_id=source.id)
 ```
 
-### Loading a vector database
+### Loading with custom connectors 
+You can implement your own data connectors in MemGPT, and use them to load data into data sources: 
 
-If you already have a vector database containing passages and embeddings, you can load them into MemGPT by specifying the table name, database URI, and the columns containing the passage text and embeddings.
+```python Python
+from memgpt.data_sources.connectors import DataConnector
 
-```sh
-memgpt load vector-database --name <NAME> \
-    --uri <URI> \ # Database URI
-    --table_name <TABLE-NAME> \ # Name of table containing data
-    --text_column <TEXT-COL> \ # Name of column containing text
-    --embedding_column <EMBEDDING-COL> # Name of column containing embedding
+class DummyDataConnector(DataConnector):
+    """Fake data connector for texting which yields document/passage texts from a provided list"""
+
+    def __init__(self, texts: List[str]):
+        self.texts = texts
+
+    def generate_documents(self) -> Iterator[Tuple[str, Dict]]:
+        for text in self.texts:
+            yield text, {"metadata": "dummy"}
+
+    def generate_passages(self, documents: List[Document], chunk_size: int = 1024) -> Iterator[Tuple[str | Dict]]:
+        for doc in documents:
+            yield doc.text, doc.metadata
 ```
-
-Since embeddings are already provided, MemGPT will not re-compute the embeddings.
-
-### Loading a LlamaIndex dump
-
-If you have a Llama Index `VectorIndex` which was saved to disk, you can load it into MemGPT by specifying the directory the index was saved to:
-
-```sh
-memgpt load index --name <NAME> --dir <INDEX-DIR>
-```
-
-Since Llama Index will have already computing embeddings, MemGPT will not re-compute embeddings.
-
-### Loading other types of data
-
-We highly encourage contributions for new data sources, which can be added as a new [CLI data load command](https://github.com/cpacker/MemGPT/blob/main/memgpt/cli/cli_load.py). We recommend checking for [Llama Index connectors](https://gpt-index.readthedocs.io/en/v0.6.3/how_to/data_connectors.html) that may support ingesting the data you're interested in loading.
