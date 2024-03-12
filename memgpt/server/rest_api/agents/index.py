@@ -60,8 +60,9 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                     # **request.config
                     # TODO turn into a pydantic model
                     name=request.config["name"],
-                    persona=request.config["persona_text"],
-                    human=request.config["human_text"],
+                    preset=request.config["preset"] if "preset" in request.config else None,
+                    persona=request.config["persona_text"] if "persona_text" in request.config else None,
+                    human=request.config["human_text"] if "human_text" in request.config else None,
                     # llm_config=LLMConfigModel(
                     # model=request.config['model'],
                     # )
