@@ -131,13 +131,12 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                         ):
                             valid_options.append(source.name)
                         else:
+                            # print warning about invalid sources
+                            typer.secho(
+                                f"Source {source.name} exists but has embedding dimentions {source.embedding_dim} from model {source.embedding_model}, while the agent uses embedding dimentions {memgpt_agent.agent_state.embedding_config.embedding_dim} and model {memgpt_agent.agent_state.embedding_config.embedding_model}",
+                                fg=typer.colors.YELLOW,
+                            )
                             invalid_options.append(source.name)
-
-                    # print warning about invalid sources
-                    typer.secho(
-                        f"Warning: the following sources are not compatible with this agent's embedding model and dimension: {invalid_options}",
-                        fg=typer.colors.YELLOW,
-                    )
 
                     # prompt user for data source selection
                     data_source = questionary.select("Select data source", choices=valid_options).ask()
@@ -156,13 +155,13 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                     command = user_input.strip().split()
                     amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 0
                     if amount == 0:
-                        interface.print_messages(memgpt_agent.messages, dump=True)
+                        interface.print_messages(memgpt_agent._messages, dump=True)
                     else:
-                        interface.print_messages(memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
+                        interface.print_messages(memgpt_agent._messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
                     continue
 
                 elif user_input.lower() == "/dumpraw":
-                    interface.print_messages_raw(memgpt_agent.messages)
+                    interface.print_messages_raw(memgpt_agent._messages)
                     continue
 
                 elif user_input.lower() == "/memory":

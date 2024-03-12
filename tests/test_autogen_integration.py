@@ -1,10 +1,11 @@
 import os
-import sys
 import subprocess
 import pytest
 
 
+@pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="Missing OpenAI API key")
 def test_agent_groupchat():
+
     # Define the path to the script you want to test
     script_path = "memgpt/autogen/examples/agent_groupchat.py"
 

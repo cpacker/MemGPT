@@ -68,11 +68,13 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
         return GetAllUsersResponse(user_list=processed_users)
 
     @router.post("/users", tags=["admin"], response_model=CreateUserResponse)
-    def create_user(request: CreateUserRequest = Body(...)):
+    def create_user(request: Optional[CreateUserRequest] = Body(None)):
         """
         Create a new user in the database
         """
-        print("REQUEST ID", request.user_id, request.user_id is None, type(request.user_id))
+        if request is None:
+            request = CreateUserRequest()
+
         new_user = User(
             id=None if not request.user_id else uuid.UUID(request.user_id),
             # TODO can add more fields (name? metadata?)
@@ -98,10 +100,8 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
             raise HTTPException(status_code=500, detail=f"{e}")
         return CreateUserResponse(user_id=str(new_user_ret.id), api_key=token.token)
 
-    @router.delete("/users", tags=["admin"], response_model=DeleteUserResponse)
-    def delete_user(
-        user_id: str = Query(..., description="The ID of the user to be deleted."),
-    ):
+    @router.delete("/users/{user_id}", tags=["admin"], response_model=DeleteUserResponse)
+    def delete_user(user_id):
         # TODO make a soft deletion, instead of a hard deletion
         try:
             user_id_uuid = uuid.UUID(user_id)
@@ -144,7 +144,7 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
-        return GetAPIKeysResponse(api_key=processed_tokens)
+        return GetAPIKeysResponse(api_key_list=processed_tokens)
 
     @router.delete("/users/keys", tags=["admin"], response_model=DeleteAPIKeyResponse)
     def delete_api_key(

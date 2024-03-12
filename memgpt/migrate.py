@@ -248,7 +248,7 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Meta
     try:
         with open(persistence_filename, "rb") as f:
             data = pickle.load(f)
-    except ModuleNotFoundError as e:
+    except ModuleNotFoundError:
         # Patch for stripped openai package
         # ModuleNotFoundError: No module named 'openai.openai_object'
         with open(persistence_filename, "rb") as f:
@@ -474,7 +474,7 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Meta
             interface=None,
         )
         save_agent(agent, ms=ms)
-    except Exception as e:
+    except Exception:
         # if "Agent with name" in str(e):
         #     print(e)
         #     return
@@ -540,7 +540,7 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Meta
     try:
         new_agent_folder = os.path.join(data_dir, MIGRATION_BACKUP_FOLDER, "agents", agent_name)
         shutil.move(agent_folder, new_agent_folder)
-    except Exception as e:
+    except Exception:
         print(f"Failed to move agent folder from {agent_folder} to {new_agent_folder}")
         raise
 

@@ -8,7 +8,7 @@ from docstring_parser import parse
 from pydantic import BaseModel, create_model, Field
 from typing import Any, Type, List, get_args, get_origin, Tuple, Union, Optional, _GenericAlias
 from enum import Enum
-from typing import get_type_hints, Callable
+from typing import Callable
 import re
 
 

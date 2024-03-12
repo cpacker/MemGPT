@@ -1,7 +1,5 @@
 import uuid
-import json
-import re
-from typing import Optional, List, Iterator, Dict, Tuple, cast, Type
+from typing import Optional, List, Iterator, Dict, Tuple, cast
 
 import chromadb
 from chromadb.api.types import Include, GetResult

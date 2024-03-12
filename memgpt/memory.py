@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import datetime
-from typing import Optional, List, Tuple
+import uuid
+from typing import Optional, List, Tuple, Union
 
 from memgpt.constants import MESSAGE_SUMMARY_WARNING_FRAC
 from memgpt.utils import get_local_time, printd, count_tokens, validate_date_format, extract_date_from_timestamp
@@ -142,7 +143,6 @@ class ArchivalMemory(ABC):
         :param memory_string: Memory string to insert
         :type memory_string: str
         """
-        pass
 
     @abstractmethod
     def search(self, query_string, count=None, start=None) -> Tuple[List[str], int]:
@@ -157,7 +157,6 @@ class ArchivalMemory(ABC):
 
         :return: Tuple of (list of results, total number of results)
         """
-        pass
 
     @abstractmethod
     def __repr__(self) -> str:
@@ -168,12 +167,10 @@ class RecallMemory(ABC):
     @abstractmethod
     def text_search(self, query_string, count=None, start=None):
         """Search messages that match query_string in recall memory"""
-        pass
 
     @abstractmethod
     def date_search(self, start_date, end_date, count=None, start=None):
         """Search messages between start_date and end_date in recall memory"""
-        pass
 
     @abstractmethod
     def __repr__(self) -> str:
@@ -182,7 +179,6 @@ class RecallMemory(ABC):
     @abstractmethod
     def insert(self, message: Message):
         """Insert message into recall memory"""
-        pass
 
 
 class DummyRecallMemory(RecallMemory):
@@ -393,7 +389,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         """Save the index to disk"""
         self.storage.save()
 
-    def insert(self, memory_string):
+    def insert(self, memory_string, return_ids=False) -> Union[bool, List[uuid.UUID]]:
         """Embed and save memory string"""
 
         if not isinstance(memory_string, str):
@@ -417,9 +413,17 @@ class EmbeddingArchivalMemory(ArchivalMemory):
                         )
                 passages.append(self.create_passage(text, embedding))
 
+            # grab the return IDs before the list gets modified
+            ids = [str(p.id) for p in passages]
+
             # insert passages
             self.storage.insert_many(passages)
-            return True
+
+            if return_ids:
+                return ids
+            else:
+                return True
+
         except Exception as e:
             print("Archival insert error", e)
             raise e

@@ -11,9 +11,8 @@ from sqlalchemy_json import mutable_json_type, MutableJson
 from sqlalchemy import TypeDecorator, CHAR
 import uuid
 
-import re
 from tqdm import tqdm
-from typing import Optional, List, Iterator, Dict, Tuple
+from typing import Optional, List, Iterator, Dict
 import numpy as np
 from tqdm import tqdm
 import pandas as pd
@@ -25,8 +24,6 @@ from memgpt.utils import printd
 from memgpt.data_types import Record, Message, Passage, ToolCall, RecordType
 from memgpt.constants import MAX_EMBEDDING_DIM
 from memgpt.metadata import MetadataStore
-
-from datetime import datetime
 
 
 # Custom UUID type
@@ -153,6 +150,9 @@ def get_db_model(
 
             metadata_ = Column(MutableJson)
 
+            # Add a datetime column, with default value as the current time
+            created_at = Column(DateTime(timezone=True), server_default=func.now())
+
             def __repr__(self):
                 return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
 
@@ -168,6 +168,7 @@ def get_db_model(
                     data_source=self.data_source,
                     agent_id=self.agent_id,
                     metadata_=self.metadata_,
+                    created_at=self.created_at,
                 )
 
         """Create database model for table_name"""
@@ -320,7 +321,7 @@ class SQLStorageConnector(StorageConnector):
             # get records
             db_record_chunk = query.limit(limit).all()
         if not db_record_chunk:
-            return None
+            return (None, [])
         records = [record.to_record() for record in db_record_chunk]
         next_cursor = db_record_chunk[-1].id
         assert isinstance(next_cursor, uuid.UUID)
@@ -474,7 +475,6 @@ class PostgresStorageConnector(SQLStorageConnector):
                     upsert_stmt = stmt.on_conflict_do_update(
                         index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
                     )
-                    print(upsert_stmt)
                     conn.execute(upsert_stmt)
                 else:
                     conn.execute(stmt)
@@ -552,7 +552,6 @@ class SQLLiteStorageConnector(SQLStorageConnector):
                     upsert_stmt = stmt.on_conflict_do_update(
                         index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
                     )
-                    print(upsert_stmt)
                     conn.execute(upsert_stmt)
                 else:
                     conn.execute(stmt)

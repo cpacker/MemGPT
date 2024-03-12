@@ -2,7 +2,6 @@
 
 import uuid
 from datetime import datetime
-from abc import abstractmethod
 from typing import Optional, List, Dict, TypeVar
 import numpy as np
 
@@ -124,6 +123,12 @@ class Message(Record):
         else:
             assert tool_call_id is None
         self.tool_call_id = tool_call_id
+
+    def to_json(self):
+        json_message = vars(self)
+        if json_message["tool_calls"] is not None:
+            json_message["tool_calls"] = [vars(tc) for tc in json_message["tool_calls"]]
+        return json_message
 
     @staticmethod
     def dict_to_message(
@@ -309,6 +314,7 @@ class Passage(Record):
         doc_id: Optional[uuid.UUID] = None,
         id: Optional[uuid.UUID] = None,
         metadata_: Optional[dict] = {},
+        created_at: Optional[datetime] = None,
     ):
         if id is None:
             # by default, generate ID as a hash of the text (avoid duplicates)
@@ -335,6 +341,8 @@ class Passage(Record):
         )
         self.embedding_dim = embedding_dim
         self.embedding_model = embedding_model
+
+        self.created_at = created_at if created_at is not None else datetime.now()
 
         if self.embedding is not None:
             assert self.embedding_dim, f"Must specify embedding_dim if providing an embedding"
@@ -535,7 +543,9 @@ class Preset(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now, description="The unix timestamp of when the preset was created.")
     system: str = Field(..., description="The system prompt of the preset.")
     persona: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona of the preset.")
+    persona_name: Optional[str] = Field(None, description="The name of the persona of the preset.")
     human: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human of the preset.")
+    human_name: Optional[str] = Field(None, description="The name of the human of the preset.")
     functions_schema: List[Dict] = Field(..., description="The functions schema of the preset.")
     # functions: List[str] = Field(..., description="The functions of the preset.") # TODO: convert to ID
     # sources: List[str] = Field(..., description="The sources of the preset.") # TODO: convert to ID

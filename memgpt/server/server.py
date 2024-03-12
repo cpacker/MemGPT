@@ -1,49 +1,42 @@
-from abc import abstractmethod
-from typing import Union, Callable, Optional, List
-from datetime import datetime
-import uuid
 import json
+from datetime import datetime
 import logging
-from threading import Lock
+import uuid
+from abc import abstractmethod
 from functools import wraps
+from threading import Lock
+from typing import Union, Callable, Optional, List
+
 from fastapi import HTTPException
 
-from memgpt.config import MemGPTConfig
-from memgpt.credentials import MemGPTCredentials
-from memgpt.constants import JSON_LOADS_STRICT, JSON_ENSURE_ASCII
-from memgpt.agent import Agent, save_agent
-import memgpt.system as system
 import memgpt.constants as constants
+import memgpt.presets.presets as presets
+import memgpt.server.utils as server_utils
+import memgpt.system as system
+from memgpt.agent import Agent, save_agent
+from memgpt.agent_store.storage import StorageConnector, TableType
 
 # from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.cli.cli_config import get_model_options
+from memgpt.config import MemGPTConfig
+from memgpt.constants import JSON_LOADS_STRICT, JSON_ENSURE_ASCII
+from memgpt.credentials import MemGPTCredentials
 from memgpt.data_sources.connectors import DataConnector, load_data
-from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.metadata import MetadataStore
-import memgpt.presets.presets as presets
-import memgpt.utils as utils
-import memgpt.server.utils as server_utils
 from memgpt.data_types import (
     User,
     Source,
-    Passage,
     AgentState,
     LLMConfig,
     EmbeddingConfig,
     Message,
-    ToolCall,
-    LLMConfig,
-    EmbeddingConfig,
-    Message,
-    ToolCall,
     Token,
     Preset,
 )
-
+from memgpt.interface import AgentInterface  # abstract
 
 # TODO use custom interface
 from memgpt.interface import CLIInterface  # for printing to terminal
-from memgpt.interface import AgentInterface  # abstract
+from memgpt.metadata import MetadataStore
 
 logger = logging.getLogger(__name__)
 
@@ -343,7 +336,10 @@ class SyncServer(LockingServer):
         counter = 0
         while True:
             new_messages, heartbeat_request, function_failed, token_warning, tokens_accumulated = memgpt_agent.step(
-                next_input_message, first_message=False, skip_verify=no_verify
+                next_input_message,
+                first_message=False,
+                skip_verify=no_verify,
+                return_dicts=False,
             )
             counter += 1
 
@@ -443,7 +439,7 @@ class SyncServer(LockingServer):
             while len(memgpt_agent.messages) > 0:
                 if memgpt_agent.messages[-1].get("role") == "user":
                     # we want to pop up to the last user message and send it again
-                    user_message = memgpt_agent.messages[-1].get("content")
+                    memgpt_agent.messages[-1].get("content")
                     memgpt_agent.messages.pop()
                     break
                 memgpt_agent.messages.pop()
@@ -603,7 +599,7 @@ class SyncServer(LockingServer):
         # self.ms.create_agent(agent_state)
 
         try:
-            preset_obj = self.ms.get_preset(preset_name=preset if preset else self.config.preset, user_id=user_id)
+            preset_obj = self.ms.get_preset(name=preset if preset else self.config.preset, user_id=user_id)
             assert preset_obj is not None, f"preset {preset if preset else self.config.preset} does not exist"
             logger.debug(f"Attempting to create agent from preset:\n{preset_obj}")
 
@@ -673,7 +669,7 @@ class SyncServer(LockingServer):
         self, preset_id: Optional[uuid.UUID] = None, preset_name: Optional[uuid.UUID] = None, user_id: Optional[uuid.UUID] = None
     ) -> Preset:
         """Get the preset"""
-        return self.ms.get_preset(preset_id=preset_id, preset_name=preset_name, user_id=user_id)
+        return self.ms.get_preset(preset_id=preset_id, name=preset_name, user_id=user_id)
 
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:
         """Convert AgentState to a dict for a JSON response"""
@@ -694,10 +690,51 @@ class SyncServer(LockingServer):
             raise ValueError(f"User user_id={user_id} does not exist")
 
         agents_states = self.ms.list_agents(user_id=user_id)
+        agents_states_dicts = [self._agent_state_to_config(state) for state in agents_states]
+
+        # TODO add a get_message_obj_from_message_id(...) function
+        #      this would allow grabbing Message.created_by without having to load the agent object
+        all_available_tools = self.ms.list_tools(user_id=user_id)
+
+        for agent_state, return_dict in zip(agents_states, agents_states_dicts):
+
+            # Get the agent object (loaded in memory)
+            memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
+
+            # Add information about tools
+            # TODO memgpt_agent should really have a field of List[ToolModel]
+            #      then we could just pull that field and return it here
+            return_dict["tools"] = [tool for tool in all_available_tools if tool.json_schema in memgpt_agent.functions]
+
+            # Add information about memory (raw core, size of recall, size of archival)
+            core_memory = memgpt_agent.memory
+            recall_memory = memgpt_agent.persistence_manager.recall_memory
+            archival_memory = memgpt_agent.persistence_manager.archival_memory
+            memory_obj = {
+                "core_memory": {
+                    "persona": core_memory.persona,
+                    "human": core_memory.human,
+                },
+                "recall_memory": len(recall_memory) if recall_memory is not None else None,
+                "archival_memory": len(archival_memory) if archival_memory is not None else None,
+            }
+            return_dict["memory"] = memory_obj
+
+            # Add information about last run
+            # NOTE: 'last_run' is just the timestamp on the latest message in the buffer
+            # Retrieve the Message object via the recall storage or by directly access _messages
+            last_msg_obj = memgpt_agent._messages[-1]
+            return_dict["last_run"] = last_msg_obj.created_at
+
+            # Add information about attached sources
+            sources_ids = self.ms.list_attached_sources(agent_id=agent_state.id)
+            sources = [self.ms.get_source(source_id=s_id) for s_id in sources_ids]
+            return_dict["sources"] = [vars(s) for s in sources]
+
         logger.info(f"Retrieved {len(agents_states)} agents for user {user_id}:\n{[vars(s) for s in agents_states]}")
         return {
             "num_agents": len(agents_states),
-            "agents": [self._agent_state_to_config(state) for state in agents_states],
+            "agents": agents_states_dicts,
         }
 
     def get_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
@@ -790,7 +827,7 @@ class SyncServer(LockingServer):
             messages = sorted(page, key=lambda x: x.created_at, reverse=True)
 
         # convert to json
-        json_messages = [vars(record) for record in messages]
+        json_messages = [record.to_json() for record in messages]
         return json_messages
 
     def get_agent_archival(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
@@ -835,6 +872,50 @@ class SyncServer(LockingServer):
         )
         json_records = [vars(record) for record in records]
         return cursor, json_records
+
+    def get_all_archival_memories(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> list:
+        # TODO deprecate (not safe to be returning an unbounded list)
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        # Assume passages
+        records = memgpt_agent.persistence_manager.archival_memory.storage.get_all()
+        print("records:", records)
+
+        return [dict(id=str(r.id), contents=r.text) for r in records]
+
+    def insert_archival_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, memory_contents: str) -> uuid.UUID:
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        # Insert into archival memory
+        # memory_id = uuid.uuid4()
+        passage_ids = memgpt_agent.persistence_manager.archival_memory.insert(memory_string=memory_contents, return_ids=True)
+
+        return [str(p_id) for p_id in passage_ids]
+
+    def delete_archival_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, memory_id: uuid.UUID):
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+
+        # Delete by ID
+        # TODO check if it exists first, and throw error if not
+        memgpt_agent.persistence_manager.archival_memory.storage.delete({"id": memory_id})
 
     def get_agent_recall_cursor(
         self,
@@ -1014,7 +1095,7 @@ class SyncServer(LockingServer):
 
     def authenticate_user(self) -> uuid.UUID:
         # TODO: Implement actual authentication to enable multi user setup
-        return uuid.UUID(int=uuid.getnode())
+        return uuid.UUID(MemGPTConfig.load().anon_clientid)
 
     def api_key_to_user(self, api_key: str) -> uuid.UUID:
         """Decode an API key to a user"""
@@ -1031,15 +1112,32 @@ class SyncServer(LockingServer):
 
     def create_source(self, name: str, user_id: uuid.UUID) -> Source:  # TODO: add other fields
         """Create a new data source"""
-        source = Source(name=name, user_id=user_id)
+        source = Source(
+            name=name,
+            user_id=user_id,
+            embedding_model=self.config.default_embedding_config.embedding_model,
+            embedding_dim=self.config.default_embedding_config.embedding_dim,
+        )
         self.ms.create_source(source)
+        assert self.ms.get_source(source_name=name, user_id=user_id) is not None, f"Failed to create source {name}"
         return source
+
+    def delete_source(self, source_id: uuid.UUID, user_id: uuid.UUID):
+        """Delete a data source"""
+        source = self.ms.get_source(source_id=source_id, user_id=user_id)
+        self.ms.delete_source(source_id)
+
+        # delete data from passage store
+        passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+        passage_store.delete({"data_source": source.name})
+
+        # TODO: delete data from agent passage stores (?)
 
     def load_data(
         self,
         user_id: uuid.UUID,
         connector: DataConnector,
-        source_name: Source,
+        source_name: str,
     ):
         """Load data from a DataConnector into a source for a specified user_id"""
         # TODO: this should be implemented as a batch job or at least async, since it may take a long time
@@ -1061,7 +1159,7 @@ class SyncServer(LockingServer):
         # attach a data source to an agent
         data_source = self.ms.get_source(source_name=source_name, user_id=user_id)
         if data_source is None:
-            raise ValueError(f"Data source {source_name} does not exist")
+            raise ValueError(f"Data source {source_name} does not exist for user_id {user_id}")
 
         # get connection to data source storage
         source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
@@ -1071,6 +1169,12 @@ class SyncServer(LockingServer):
 
         # attach source to agent
         agent.attach_source(data_source.name, source_connector, self.ms)
+
+        return data_source
+
+    def detach_source_from_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_name: str):
+        # TODO: remove all passages coresponding to source from agent's archival memory
+        raise NotImplementedError
 
     def list_attached_sources(self, agent_id: uuid.UUID):
         # list all attached sources to an agent
