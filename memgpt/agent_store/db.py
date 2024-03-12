@@ -295,10 +295,14 @@ class SQLStorageConnector(StorageConnector):
             # query = query.order_by(asc(self.db_model.id))
 
             # records are sorted by the order_by field first, and then by the ID if two fields are the same
+            # if reverse:
+            #    query = query.order_by(desc(getattr(self.db_model, order_by)), asc(self.db_model.id))
+            # else:
+            #    query = query.order_by(asc(getattr(self.db_model, order_by)), asc(self.db_model.id))
             if reverse:
-                query = query.order_by(desc(getattr(self.db_model, order_by)), asc(self.db_model.id))
+                query = query.order_by(desc(self.db_model.created_at), asc(self.db_model.id))
             else:
-                query = query.order_by(asc(getattr(self.db_model, order_by)), asc(self.db_model.id))
+                query = query.order_by(asc(self.db_model.created_at), asc(self.db_model.id))
 
             # cursor logic: filter records based on before/after ID
             if after:

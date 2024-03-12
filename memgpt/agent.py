@@ -620,18 +620,19 @@ class Agent(object):
                 # Special handling for AutoGen messages with 'name' field
                 # Treat 'name' as a special field
                 # If it exists in the input message, elevate it to the 'message' level
-                if "name" in user_message_json:
-                    name = user_message_json.pop("name", None)
-                    clean_message = json.dumps(user_message_json, ensure_ascii=JSON_ENSURE_ASCII)
+                name = user_message_json.pop("name", None)
+                clean_message = json.dumps(user_message_json, ensure_ascii=JSON_ENSURE_ASCII)
+
             except Exception as e:
                 print(f"{CLI_WARNING_PREFIX}handling of 'name' field failed with: {e}")
 
             return clean_message, name
 
-        def validate_json(user_message_text: str, raise_on_error: bool):
+        def validate_json(user_message_text: str, raise_on_error: bool) -> str:
             try:
                 user_message_json = dict(json.loads(user_message_text, strict=JSON_LOADS_STRICT))
-                _ = json.dumps(user_message_json, ensure_ascii=JSON_ENSURE_ASCII)
+                user_message_json_val = json.dumps(user_message_json, ensure_ascii=JSON_ENSURE_ASCII)
+                return user_message_json_val
             except Exception as e:
                 print(f"{CLI_WARNING_PREFIX}couldn't parse user input message as JSON: {e}")
                 if raise_on_error:
@@ -642,10 +643,9 @@ class Agent(object):
             if user_message is not None:
                 if isinstance(user_message, Message):
                     # Validate JSON via save/load
-                    user_message_text = user_message.text
-                    validate_json(user_message_text, False)
+                    user_message_text = validate_json(user_message.text, False)
+                    cleaned_user_message_text, name = strip_name_field_from_user_message(user_message_text)
 
-                    cleaned_user_message_text, name = strip_name_field_from_user_message(user_message.text)
                     if name is not None:
                         # Update Message object
                         user_message.text = cleaned_user_message_text
@@ -657,7 +657,8 @@ class Agent(object):
 
                 elif isinstance(user_message, str):
                     # Validate JSON via save/load
-                    validate_json(user_message, False)
+                    user_message = validate_json(user_message, False)
+                    cleaned_user_message_text, name = strip_name_field_from_user_message(user_message)
 
                     # If user_message['name'] is not None, it will be handled properly by dict_to_message
                     # So no need to run strip_name_field_from_user_message
@@ -667,13 +668,13 @@ class Agent(object):
                         agent_id=self.agent_state.id,
                         user_id=self.agent_state.user_id,
                         model=self.model,
-                        openai_message_dict=user_message,
+                        openai_message_dict={"role": "user", "content": cleaned_user_message_text, "name": name},
                     )
 
                 else:
                     raise ValueError(f"Bad type for user_message: {type(user_message)}")
 
-                self.interface.user_message(user_message_text, msg_obj=user_message)
+                self.interface.user_message(user_message.text, msg_obj=user_message)
 
                 input_message_sequence = self.messages + [user_message.to_openai_dict()]
             # Alternatively, the requestor can send an empty user message
