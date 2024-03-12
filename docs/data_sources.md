@@ -10,8 +10,17 @@ MemGPT supports pre-loading data into archival memory. In order to made data acc
 
 You can view available data sources with:
 
-```sh
+```sh CLI
 memgpt list sources
+```
+```python Python
+from memgpt import create_client
+
+# Connect to the server as a user
+client = create_client()
+
+# List data source names that belong to user
+client.list_sources()
 ```
 
 ```sh
@@ -28,22 +37,29 @@ The `Agents` column indicates which agents have access to the data, while `Locat
 
 ### Attaching data to agents
 
-Attaching a data source to your agent loads the data into your agent's archival memory to access. You can attach data to your agent in two ways:
+Attaching a data source to your agent loads the data into your agent's archival memory to access. 
 
-*[Option 1]* From the CLI, run:
 
-```sh
-memgpt attach --agent <AGENT-NAME> --data-source <DATA-SOURCE-NAME>
-```
-
-*[Option 2]*  While chatting with the agent, enter the `/attach` command and select the data source
-
-```sh
+```sh CLI
+memgpt run 
+...
 > Enter your message: /attach
 ? Select data source (Use arrow keys)
  » short-stories
    arxiv
    memgpt-docs
+```
+```python Python
+from memgpt import create_client
+
+# Connect to the server as a user
+client = create_client()
+
+# Create an agent 
+agent = client.create_agent()
+
+# Attach a source to an agent 
+client.attach_source_to_agent(source_name="short-storie", agent_id=agent.id)
 ```
 
 > 👍 Hint
