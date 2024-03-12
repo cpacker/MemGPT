@@ -540,7 +540,7 @@ def run(
         agents = ms.list_agents(user_id=user.id)
         agents = [a.name for a in agents]
 
-        if len(agents) > 0 and not any([persona, human, model]):
+        if len(agents) > 0:
             print()
             select_agent = questionary.confirm("Would you like to select an existing agent?").ask()
             if select_agent is None:
