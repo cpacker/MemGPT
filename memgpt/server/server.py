@@ -577,6 +577,7 @@ class SyncServer(LockingServer):
         embedding_config: Optional[EmbeddingConfig] = None,
         interface: Union[AgentInterface, None] = None,
         # persistence_manager: Union[PersistenceManager, None] = None,
+        function_names: Optional[List[str]] = None,  # TODO remove
     ) -> AgentState:
         """Create a new agent using a config"""
         if self.ms.get_user(user_id=user_id) is None:
@@ -609,6 +610,14 @@ class SyncServer(LockingServer):
 
             llm_config = llm_config if llm_config else self.server_llm_config
             embedding_config = embedding_config if embedding_config else self.server_embedding_config
+
+            # TODO remove (https://github.com/cpacker/MemGPT/issues/1138)
+            if function_names is not None:
+                available_tools = self.ms.list_tools(user_id=user_id)
+                available_tools_names = [t.name for t in available_tools]
+                assert all([f_name in available_tools_names for f_name in function_names])
+                preset_obj.functions_schema = [t.json_schema for t in available_tools if t.name in function_names]
+                print("overriding preset_obj tools with:", preset_obj.functions_schema)
 
             agent = Agent(
                 interface=interface,
@@ -815,6 +824,10 @@ class SyncServer(LockingServer):
             # Slice the list for pagination
             messages = reversed_messages[start:end_index]
 
+            # Convert to json
+            # Add a tag indicating in-context or not
+            json_messages = [{**record.to_json(), "in_context": True} for record in messages]
+
         else:
             # need to access persistence manager for additional messages
             db_iterator = memgpt_agent.persistence_manager.recall_memory.storage.get_all_paginated(page_size=count, offset=start)
@@ -826,8 +839,13 @@ class SyncServer(LockingServer):
             # return messages in reverse chronological order
             messages = sorted(page, key=lambda x: x.created_at, reverse=True)
 
-        # convert to json
-        json_messages = [record.to_json() for record in messages]
+            # Convert to json
+            # Add a tag indicating in-context or not
+            json_messages = [record.to_json() for record in messages]
+            in_context_message_ids = [str(m.id) for m in memgpt_agent._messages]
+            for d in json_messages:
+                d["in_context"] = True if str(d["id"]) in in_context_message_ids else False
+
         return json_messages
 
     def get_agent_archival(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
