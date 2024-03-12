@@ -43,7 +43,7 @@ def setup_tools_index_router(server: SyncServer, interface: QueuingInterface, pa
         tools = server.ms.list_tools(user_id=user_id)
         return ListToolsResponse(tools=tools)
 
-    @router.post("/tools", tags=["tools"], response_model=ListToolsResponse)
+    @router.post("/tools", tags=["tools"], response_model=CreateToolResponse)
     async def create_tool(
         request: CreateToolRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
@@ -51,10 +51,6 @@ def setup_tools_index_router(server: SyncServer, interface: QueuingInterface, pa
         """
         Create a new tool (dummy route)
         """
-        return ToolModel(
-            name="dummy_tool",
-            json_schema={},
-            tags=[],
-        )
+        return CreateToolResponse(tool=ToolModel(name=request.name, json_schema={}, tags=[], source_code=request.source_code))
 
     return router
