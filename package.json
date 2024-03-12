@@ -1,5 +1,5 @@
 {
   "dependencies": {
-    "supabase": "^1.145.4"
+    "supabase": "^1.148.6"
   }
 }

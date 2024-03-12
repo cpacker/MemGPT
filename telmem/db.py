@@ -1,7 +1,16 @@
 from supabase import create_client, Client
-from config import SUPABASE_URL, SUPABASE_KEY
+import os
+from dotenv import load_dotenv
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Load environment variables from .env file
+load_dotenv()
+
+# Retrieve environment variables
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+# Initialize Supabase client with the service role key
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 async def get_user_api_key(telegram_user_id: int) -> str:
     data = supabase.table("users").select("api_key").eq("telegram_user_id", telegram_user_id).execute()
