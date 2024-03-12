@@ -49,7 +49,7 @@ def setup_tools_index_router(server: SyncServer, interface: QueuingInterface, pa
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
-        Create a new tool
+        Create a new tool (dummy route)
         """
         return ToolModel(
             name="dummy_tool",
