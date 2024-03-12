@@ -616,7 +616,7 @@ class SyncServer(LockingServer):
                 available_tools = self.ms.list_tools(user_id=user_id)
                 available_tools_names = [t.name for t in available_tools]
                 assert all([f_name in available_tools_names for f_name in function_names])
-                preset_obj.functions_schema = [t.json_schema for t in available_tools]
+                preset_obj.functions_schema = [t.json_schema for t in available_tools if t.name in function_names]
                 print("overriding preset_obj tools with:", preset_obj.functions_schema)
 
             agent = Agent(

@@ -66,7 +66,7 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                     # llm_config=LLMConfigModel(
                     # model=request.config['model'],
                     # )
-                    function_names=request.config["function_names"] if "function_names" in request.config else None,
+                    function_names=request.config["function_names"].split(",") if "function_names" in request.config else None,
                 )
             except:
                 print(f"Failed to create agent from provided config:\n{request.config}")
