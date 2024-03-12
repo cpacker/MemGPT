@@ -599,7 +599,7 @@ class SyncServer(LockingServer):
         # self.ms.create_agent(agent_state)
 
         try:
-            preset_obj = self.ms.get_preset(preset_name=preset if preset else self.config.preset, user_id=user_id)
+            preset_obj = self.ms.get_preset(name=preset if preset else self.config.preset, user_id=user_id)
             assert preset_obj is not None, f"preset {preset if preset else self.config.preset} does not exist"
             logger.debug(f"Attempting to create agent from preset:\n{preset_obj}")
 
@@ -669,7 +669,7 @@ class SyncServer(LockingServer):
         self, preset_id: Optional[uuid.UUID] = None, preset_name: Optional[uuid.UUID] = None, user_id: Optional[uuid.UUID] = None
     ) -> Preset:
         """Get the preset"""
-        return self.ms.get_preset(preset_id=preset_id, preset_name=preset_name, user_id=user_id)
+        return self.ms.get_preset(preset_id=preset_id, name=preset_name, user_id=user_id)
 
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:
         """Convert AgentState to a dict for a JSON response"""
