@@ -29,3 +29,6 @@ async def get_user_agent_id(telegram_user_id: int) -> str:
     if data.data and len(data.data) > 0:
         return data.data[0]['agent_id']
     return None
+async def check_user_exists(telegram_user_id: int) -> bool:
+    data = supabase.table("users").select("id").eq("telegram_user_id", telegram_user_id).execute()
+    return bool(data.data and len(data.data) > 0)
