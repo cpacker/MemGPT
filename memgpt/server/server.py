@@ -815,6 +815,10 @@ class SyncServer(LockingServer):
             # Slice the list for pagination
             messages = reversed_messages[start:end_index]
 
+            # Convert to json
+            # Add a tag indicating in-context or not
+            json_messages = [{**record.to_json(), "in_context": True} for record in messages]
+
         else:
             # need to access persistence manager for additional messages
             db_iterator = memgpt_agent.persistence_manager.recall_memory.storage.get_all_paginated(page_size=count, offset=start)
@@ -826,8 +830,13 @@ class SyncServer(LockingServer):
             # return messages in reverse chronological order
             messages = sorted(page, key=lambda x: x.created_at, reverse=True)
 
-        # convert to json
-        json_messages = [record.to_json() for record in messages]
+            # Convert to json
+            # Add a tag indicating in-context or not
+            json_messages = [record.to_json() for record in messages]
+            in_context_message_ids = [str(m.id) for m in memgpt_agent._messages]
+            for d in json_messages:
+                d["in_context"] = True if str(d["id"]) in in_context_message_ids else False
+
         return json_messages
 
     def get_agent_archival(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
