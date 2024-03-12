@@ -54,7 +54,23 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         interface.clear()
 
         try:
-            agent_state = server.create_agent(user_id=user_id, **request.config)
+            try:
+                agent_state = server.create_agent(
+                    user_id=user_id,
+                    # **request.config
+                    # TODO turn into a pydantic model
+                    name=request.config["name"],
+                    preset=request.config["preset"] if "preset" in request.config else None,
+                    persona=request.config["persona_text"] if "persona_text" in request.config else None,
+                    human=request.config["human_text"] if "human_text" in request.config else None,
+                    # llm_config=LLMConfigModel(
+                    # model=request.config['model'],
+                    # )
+                    function_names=request.config["function_names"].split(",") if "function_names" in request.config else None,
+                )
+            except:
+                print(f"Failed to create agent from provided config:\n{request.config}")
+                raise
             llm_config = LLMConfigModel(**vars(agent_state.llm_config))
             embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
             return CreateAgentResponse(
