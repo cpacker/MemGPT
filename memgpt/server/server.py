@@ -572,6 +572,8 @@ class SyncServer(LockingServer):
         preset: Optional[str] = None,
         persona: Optional[str] = None,
         human: Optional[str] = None,
+        persona_name: Optional[str] = None,
+        human_name: Optional[str] = None,
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         interface: Union[AgentInterface, None] = None,
@@ -606,6 +608,9 @@ class SyncServer(LockingServer):
             # Overwrite fields in the preset if they were specified
             preset_obj.human = human if human else self.config.human
             preset_obj.persona = persona if persona else self.config.persona
+
+            preset_obj.human_name = human_name
+            preset_obj.persona_name = persona_name
 
             llm_config = llm_config if llm_config else self.server_llm_config
             embedding_config = embedding_config if embedding_config else self.server_embedding_config
