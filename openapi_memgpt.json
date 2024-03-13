@@ -1099,6 +1099,86 @@
         }
       }
     },
+    "/api/agents/{agent_id}/messages-cursor": {
+      "get": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "Get Agent Messages Cursor",
+        "description": "Retrieve the in-context messages of a specific agent. Paginated, provide start and count to iterate.",
+        "operationId": "get_agent_messages_cursor_api_agents__agent_id__messages_cursor_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Message before which to retrieve the returned messages.",
+              "title": "Before"
+            },
+            "description": "Message before which to retrieve the returned messages."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of messages to retrieve.",
+              "default": 10,
+              "title": "Limit"
+            },
+            "description": "Maximum number of messages to retrieve."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAgentMessagesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/humans": {
       "get": {
         "tags": [
@@ -1309,7 +1389,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ListToolsResponse"
+                  "$ref": "#/components/schemas/CreateToolResponse"
                 }
               }
             }
@@ -2513,6 +2593,23 @@
           "source_code"
         ],
         "title": "CreateToolRequest"
+      },
+      "CreateToolResponse": {
+        "properties": {
+          "tool": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ToolModel"
+              }
+            ],
+            "description": "Information about the newly created tool."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool"
+        ],
+        "title": "CreateToolResponse"
       },
       "CreateUserRequest": {
         "properties": {

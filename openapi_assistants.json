@@ -2288,6 +2288,23 @@
         ],
         "title": "CreateToolRequest"
       },
+      "CreateToolResponse": {
+        "properties": {
+          "tool": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ToolModel"
+              }
+            ],
+            "description": "Information about the newly created tool."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool"
+        ],
+        "title": "CreateToolResponse"
+      },
       "CreateUserRequest": {
         "properties": {
           "user_id": {
