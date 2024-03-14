@@ -103,20 +103,25 @@ def conversation_search(self: Agent, query: str, page: Optional[int] = 0) -> Opt
     except:
         raise ValueError(f"'page' argument must be an integer")
     count = RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
-    results, total = self.persistence_manager.recall_memory.text_search(query, count=count, start=page * count)
-    num_pages = math.ceil(total / count) - 1  # 0 index
+    try:
+        results, total = self.persistence_manager.recall_memory.text_search(query, count=count, start=page * count)
+        num_pages = math.ceil(total / count) - 1  # 0 index
+    except:
+        results = []
     if len(results) == 0:
         results_str = f"No results found."
     else:
         results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
         results_formatted = [f"timestamp: {d['timestamp']}, {d['message']['role']} - {d['message']['content']}" for d in results]
         results_str = f"{results_pref} {json.dumps(results_formatted, ensure_ascii=JSON_ENSURE_ASCII)}"
+
     return results_str
 
 
 def conversation_search_date(self: Agent, start_date: str, end_date: str, page: Optional[int] = 0) -> Optional[str]:
     """
     Search prior conversation history using a date range.
+    i try this maximum of 2 Times if No results found.
 
     Args:
         start_date (str): The start of the date range to search, in the format 'YYYY-MM-DD'.
@@ -126,6 +131,7 @@ def conversation_search_date(self: Agent, start_date: str, end_date: str, page: 
     Returns:
         str: Query result string
     """
+    print("Search for Data")
     if page is None or (isinstance(page, str) and page.lower().strip() == "none"):
         page = 0
     try:
@@ -133,7 +139,11 @@ def conversation_search_date(self: Agent, start_date: str, end_date: str, page: 
     except:
         raise ValueError(f"'page' argument must be an integer")
     count = RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
-    results, total = self.persistence_manager.recall_memory.date_search(start_date, end_date, count=count, start=page * count)
+    try:
+        results, total = self.persistence_manager.recall_memory.date_search(start_date, end_date, count=count, start=page * count)
+    except:
+        results = []
+
     num_pages = math.ceil(total / count) - 1  # 0 index
     if len(results) == 0:
         results_str = f"No results found."
@@ -141,6 +151,7 @@ def conversation_search_date(self: Agent, start_date: str, end_date: str, page: 
         results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
         results_formatted = [f"timestamp: {d['timestamp']}, {d['message']['role']} - {d['message']['content']}" for d in results]
         results_str = f"{results_pref} {json.dumps(results_formatted, ensure_ascii=JSON_ENSURE_ASCII)}"
+
     return results_str
 
 
