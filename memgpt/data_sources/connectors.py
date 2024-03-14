@@ -1,6 +1,6 @@
-from memgpt.data_types import Passage, Document, EmbeddingConfig, Source
+from memgpt.data_types import  EmbeddingConfig, Source
 from memgpt.utils import create_uuid_from_string
-from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector
 from memgpt.embeddings import embedding_model
 from memgpt.data_types import Document, Passage
 
@@ -146,7 +146,7 @@ class WebConnector(DirectoryConnector):
 
     def generate_documents(self) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Document]:
         from llama_index.readers.web import SimpleWebPageReader
-
+        from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
         documents = SimpleWebPageReader(html_to_text=self.html_to_text).load_data(self.urls)
         for document in documents:
             yield document.text, {"url": document.id_}
