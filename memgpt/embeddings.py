@@ -1,6 +1,5 @@
-import typer
 import uuid
-from typing import Optional, List, Any
+from typing import Optional, List
 import os
 import numpy as np
 from llama_index.legacy.embeddings.huggingface_utils import format_text
@@ -36,10 +35,10 @@ def truncate_text(text: str, max_length: int, encoding) -> str:
     return encoding.decode(encoded_text)
 
 
-def check_and_split_text(text: str, embedding_model: str) -> List[str]:
+def check_and_split_text(text: str, _embedding_model: str) -> List[str]:
     """Split text into chunks of max_length tokens or less"""
 
-    if embedding_model in EMBEDDING_TO_TOKENIZER_MAP:
+    if _embedding_model in EMBEDDING_TO_TOKENIZER_MAP:
         encoding = tiktoken.get_encoding(EMBEDDING_TO_TOKENIZER_MAP[embedding_model])
     else:
         print(f"Warning: couldn't find tokenizer for model {embedding_model}, using default tokenizer {EMBEDDING_TO_TOKENIZER_DEFAULT}")
@@ -82,7 +81,6 @@ class EmbeddingEndpoint:
         base_url: str,
         user: str,
         timeout: float = 60.0,
-        **kwargs: Any,
     ):
         if not is_valid_url(base_url):
             raise ValueError(
@@ -142,9 +140,9 @@ def default_embedding_model():
     return HuggingFaceEmbedding(model_name=model)
 
 
-def query_embedding(embedding_model, query_text: str):
+def query_embedding(_embedding_model, query_text: str):
     """Generate padded embedding for querying database"""
-    query_vec = embedding_model.get_text_embedding(query_text)
+    query_vec = _embedding_model.get_text_embedding(query_text)
     query_vec = np.array(query_vec)
     query_vec = np.pad(query_vec, (0, MAX_EMBEDDING_DIM - query_vec.shape[0]), mode="constant").tolist()
     return query_vec
