@@ -14,6 +14,7 @@ import memgpt.server.utils as server_utils
 import memgpt.system as system
 from memgpt.agent import Agent, save_agent
 from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.utils import get_human_text, get_persona_text
 
 # from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.cli.cli_config import get_model_options
@@ -600,17 +601,28 @@ class SyncServer(LockingServer):
         # TODO: fix this db dependency and remove
         # self.ms.create_agent(agent_state)
 
+        # TODO modify to do creation via preset
         try:
             preset_obj = self.ms.get_preset(name=preset if preset else self.config.preset, user_id=user_id)
             assert preset_obj is not None, f"preset {preset if preset else self.config.preset} does not exist"
             logger.debug(f"Attempting to create agent from preset:\n{preset_obj}")
 
             # Overwrite fields in the preset if they were specified
-            preset_obj.human = human if human else self.config.human
-            preset_obj.persona = persona if persona else self.config.persona
+            if human_name is None:
+                assert human is None, human
+                preset_obj.human_name = self.config.human  # default human file
+                preset_obj.human = human if human else get_human_text(self.config.human)
+            else:
+                preset_obj.human_name = human_name
+                preset_obj.human = human if human else get_human_text(human_name)
 
-            preset_obj.human_name = human_name
-            preset_obj.persona_name = persona_name
+            if persona_name is None:
+                assert persona is None, persona
+                preset_obj.persona_name = self.config.persona  # default persona file
+                preset_obj.persona = persona if persona else get_persona_text(self.config.persona)
+            else:
+                preset_obj.persona_name = persona_name
+                preset_obj.persona = persona if persona else get_persona_text(persona_name)
 
             llm_config = llm_config if llm_config else self.server_llm_config
             embedding_config = embedding_config if embedding_config else self.server_embedding_config
