@@ -71,7 +71,6 @@ def ai_function_call():
         )
     )
 
-    return
 
 
 def test_add_function_happy(agent, hello_world_function, ai_function_call):

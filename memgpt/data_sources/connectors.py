@@ -99,7 +99,7 @@ class DirectoryConnector(DataConnector):
         self.recursive = recursive
         self.extensions = extensions
 
-        if self.recursive == True:
+        if self.recursive:
             assert self.input_directory is not None, "Must provide input directory if recursive is True."
 
     def generate_documents(self) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Document]:

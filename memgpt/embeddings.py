@@ -3,6 +3,7 @@ import uuid
 from typing import Optional, List, Any
 import os
 import numpy as np
+from llama_index.legacy.embeddings.huggingface_utils import format_text
 
 from memgpt.utils import is_valid_url, printd
 from memgpt.data_types import EmbeddingConfig
