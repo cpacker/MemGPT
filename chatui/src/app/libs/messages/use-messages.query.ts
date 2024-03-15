@@ -13,7 +13,7 @@ export const useMessagesQuery = (
 		queryKey: [userId, 'agents', 'item', agentId, 'messages', 'list', start, count],
 		queryFn: async () =>
 			(await fetch(
-				API_BASE_URL + `/agents/message?agent_id=${agentId}&user_id=${userId}&start=${start}&count=${count}`,
+				API_BASE_URL + `/agents/${agentId}/message?user_id=${userId}&start=${start}&count=${count}`,
 				{
 					headers: {
 						Authorization: bearerToken,
