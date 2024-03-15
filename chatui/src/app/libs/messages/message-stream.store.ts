@@ -52,7 +52,6 @@ const useMessageStreamStore = create(
 						headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', Authorization: bearerToken },
 						body: JSON.stringify({
 							user_id: userId,
-							agent_id: agentId,
 							message,
 							role: role ?? 'user',
 							stream: true,

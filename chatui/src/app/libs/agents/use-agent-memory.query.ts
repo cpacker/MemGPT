@@ -8,7 +8,7 @@ export const useAgentMemoryQuery = (userId: string | null | undefined, agentId: 
 	return useQuery({
 		queryKey: [userId, 'agents', 'entry', agentId, 'memory'],
 		queryFn: async () =>
-			(await fetch(API_BASE_URL + `/agents/memory?agent_id=${agentId}&user_id=${userId}`, {
+			(await fetch(API_BASE_URL + `/agents/${agentId}/memory?user_id=${userId}`, {
 				headers: {
 					Authorization: bearerToken,
 				},
