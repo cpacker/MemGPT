@@ -2,7 +2,7 @@ from typing import List
 import os
 from memgpt.data_types import AgentState, Preset
 from memgpt.interface import AgentInterface
-from memgpt.presets.utils import load_all_presets, is_valid_yaml_format
+from memgpt.presets.utils import load_all_presets, is_valid_yaml_format, load_yaml_file
 from memgpt.utils import get_human_text, get_persona_text, printd, list_human_files, list_persona_files
 from memgpt.prompts import gpt_system
 from memgpt.functions.functions import load_all_function_sets
@@ -36,6 +36,30 @@ def add_default_humans_and_personas(user_id: uuid.UUID, ms: MetadataStore):
         ms.add_human(human)
 
 
+def create_preset_from_file(filename: str, name: str, user_id: uuid.UUID, ms: MetadataStore) -> Preset:
+    preset_config = load_yaml_file(filename)
+    preset_system_prompt = preset_config["system_prompt"]
+    preset_function_set_names = preset_config["functions"]
+    functions_schema = generate_functions_json(preset_function_set_names)
+
+    if ms.get_preset(user_id=user_id, name=name) is not None:
+        printd(f"Preset '{name}' already exists for user '{user_id}'")
+        return ms.get_preset(user_id=user_id, name=name)
+
+    preset = Preset(
+        user_id=user_id,
+        name=name,
+        system=gpt_system.get_system_text(preset_system_prompt),
+        persona=get_persona_text(DEFAULT_PERSONA),
+        human=get_human_text(DEFAULT_HUMAN),
+        persona_name=DEFAULT_PERSONA,
+        human_name=DEFAULT_HUMAN,
+        functions_schema=functions_schema,
+    )
+    ms.create_preset(preset)
+    return preset
+
+
 def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
     """Add the default presets to the metadata store"""
     # make sure humans/personas added
@@ -48,7 +72,7 @@ def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
         preset_function_set_names = preset_config["functions"]
         functions_schema = generate_functions_json(preset_function_set_names)
 
-        if ms.get_preset(user_id=user_id, preset_name=preset_name) is not None:
+        if ms.get_preset(user_id=user_id, name=preset_name) is not None:
             printd(f"Preset '{preset_name}' already exists for user '{user_id}'")
             continue
 
@@ -57,7 +81,9 @@ def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
             name=preset_name,
             system=gpt_system.get_system_text(preset_system_prompt),
             persona=get_persona_text(DEFAULT_PERSONA),
+            persona_name=DEFAULT_PERSONA,
             human=get_human_text(DEFAULT_HUMAN),
+            human_name=DEFAULT_HUMAN,
             functions_schema=functions_schema,
         )
         ms.create_preset(preset)

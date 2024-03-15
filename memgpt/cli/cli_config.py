@@ -7,7 +7,8 @@ from typing import Annotated
 
 import questionary
 import typer
-from prettytable import PrettyTable
+from prettytable import PrettyTable, SINGLE_BORDER
+from prettytable.colortable import ColorTable, Themes
 from tqdm import tqdm
 
 from memgpt import utils
@@ -24,7 +25,8 @@ from memgpt.server.utils import shorten_key_middle
 from memgpt.data_types import User, LLMConfig, EmbeddingConfig, Source
 from memgpt.metadata import MetadataStore
 from memgpt.server.utils import shorten_key_middle
-from memgpt.models.pydantic_models import HumanModel, PersonaModel
+from memgpt.models.pydantic_models import HumanModel, PersonaModel, PresetModel
+from memgpt.presets.presets import create_preset_from_file
 
 app = typer.Typer()
 
@@ -747,9 +749,9 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
     config = MemGPTConfig.load()
     ms = MetadataStore(config)
     user_id = uuid.UUID(config.anon_clientid)
+    table = ColorTable(theme=Themes.OCEAN)
     if arg == ListChoice.agents:
         """List all agents"""
-        table = PrettyTable()
         table.field_names = ["Name", "LLM Model", "Embedding Model", "Embedding Dim", "Persona", "Human", "Data Source", "Create Time"]
         for agent in tqdm(ms.list_agents(user_id=user_id)):
             source_ids = ms.list_attached_sources(agent_id=agent.id)
@@ -772,23 +774,20 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         print(table)
     elif arg == ListChoice.humans:
         """List all humans"""
-        table = PrettyTable()
         table.field_names = ["Name", "Text"]
         for human in ms.list_humans(user_id=user_id):
-            table.add_row([human.name, human.text])
+            table.add_row([human.name, human.text.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.personas:
         """List all personas"""
-        table = PrettyTable()
         table.field_names = ["Name", "Text"]
         for persona in ms.list_personas(user_id=user_id):
-            table.add_row([persona.name, persona.text])
+            table.add_row([persona.name, persona.text.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.sources:
         """List all data sources"""
 
         # create table
-        table = PrettyTable()
         table.field_names = ["Name", "Embedding Model", "Embedding Dim", "Created At", "Agents"]
         # TODO: eventually look accross all storage connections
         # TODO: add data source stats
@@ -808,7 +807,6 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         print(table)
     elif arg == ListChoice.presets:
         """List all available presets"""
-        table = PrettyTable()
         table.field_names = ["Name", "Description", "Sources", "Functions"]
         for preset in ms.list_presets(user_id=user_id):
             sources = ms.get_preset_sources(preset_id=preset.id)
@@ -837,10 +835,17 @@ def add(
     config = MemGPTConfig.load()
     user_id = uuid.UUID(config.anon_clientid)
     ms = MetadataStore(config)
+    if filename:  # read from file
+        assert text is None, "Cannot specify both text and filename"
+        with open(filename, "r") as f:
+            text = f.read()
     if option == "persona":
         ms.add_persona(PersonaModel(name=name, text=text, user_id=user_id))
     elif option == "human":
         ms.add_human(HumanModel(name=name, text=text, user_id=user_id))
+    elif option == "preset":
+        assert filename, "Must specify filename for preset"
+        create_preset_from_file(filename, name, user_id, ms)
     else:
         raise ValueError(f"Unknown kind {option}")
 
@@ -890,6 +895,8 @@ def delete(option: str, name: str):
             ms.delete_human(name=name, user_id=user_id)
         elif option == "persona":
             ms.delete_persona(name=name, user_id=user_id)
+        elif option == "preset":
+            ms.delete_preset(name=name, user_id=user_id)
         else:
             raise ValueError(f"Option {option} not implemented")
 

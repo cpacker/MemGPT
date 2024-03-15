@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 import logging
 import uuid
 from abc import abstractmethod
@@ -577,6 +576,7 @@ class SyncServer(LockingServer):
         embedding_config: Optional[EmbeddingConfig] = None,
         interface: Union[AgentInterface, None] = None,
         # persistence_manager: Union[PersistenceManager, None] = None,
+        function_names: Optional[List[str]] = None,  # TODO remove
     ) -> AgentState:
         """Create a new agent using a config"""
         if self.ms.get_user(user_id=user_id) is None:
@@ -599,7 +599,7 @@ class SyncServer(LockingServer):
         # self.ms.create_agent(agent_state)
 
         try:
-            preset_obj = self.ms.get_preset(preset_name=preset if preset else self.config.preset, user_id=user_id)
+            preset_obj = self.ms.get_preset(name=preset if preset else self.config.preset, user_id=user_id)
             assert preset_obj is not None, f"preset {preset if preset else self.config.preset} does not exist"
             logger.debug(f"Attempting to create agent from preset:\n{preset_obj}")
 
@@ -609,6 +609,14 @@ class SyncServer(LockingServer):
 
             llm_config = llm_config if llm_config else self.server_llm_config
             embedding_config = embedding_config if embedding_config else self.server_embedding_config
+
+            # TODO remove (https://github.com/cpacker/MemGPT/issues/1138)
+            if function_names is not None:
+                available_tools = self.ms.list_tools(user_id=user_id)
+                available_tools_names = [t.name for t in available_tools]
+                assert all([f_name in available_tools_names for f_name in function_names])
+                preset_obj.functions_schema = [t.json_schema for t in available_tools if t.name in function_names]
+                print("overriding preset_obj tools with:", preset_obj.functions_schema)
 
             agent = Agent(
                 interface=interface,
@@ -669,7 +677,7 @@ class SyncServer(LockingServer):
         self, preset_id: Optional[uuid.UUID] = None, preset_name: Optional[uuid.UUID] = None, user_id: Optional[uuid.UUID] = None
     ) -> Preset:
         """Get the preset"""
-        return self.ms.get_preset(preset_id=preset_id, preset_name=preset_name, user_id=user_id)
+        return self.ms.get_preset(preset_id=preset_id, name=preset_name, user_id=user_id)
 
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:
         """Convert AgentState to a dict for a JSON response"""
@@ -684,7 +692,7 @@ class SyncServer(LockingServer):
         }
         return agent_config
 
-    def list_agents(self, user_id: uuid.UUID, add_last_run: bool = True) -> dict:
+    def list_agents(self, user_id: uuid.UUID) -> dict:
         """List all available agents to a user"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -692,19 +700,44 @@ class SyncServer(LockingServer):
         agents_states = self.ms.list_agents(user_id=user_id)
         agents_states_dicts = [self._agent_state_to_config(state) for state in agents_states]
 
-        if add_last_run:
-            # TODO add a get_message_obj_from_message_id(...) function
-            #      this would allow grabbing Message.created_by without having to load the agent object
-            for agent_state, return_dict in zip(agents_states, agents_states_dicts):
-                # Get the agent object (loaded in memory)
-                memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
+        # TODO add a get_message_obj_from_message_id(...) function
+        #      this would allow grabbing Message.created_by without having to load the agent object
+        all_available_tools = self.ms.list_tools(user_id=user_id)
 
-                # Retrive the Message object via the recall storage or by directly access _messages
-                last_msg_obj = memgpt_agent._messages[-1]
+        for agent_state, return_dict in zip(agents_states, agents_states_dicts):
 
-                # Update the return to include the last_run info
-                # NOTE: 'last_run' is just the timestamp on the latest message in the buffer
-                return_dict["last_run"] = last_msg_obj.created_at
+            # Get the agent object (loaded in memory)
+            memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
+
+            # Add information about tools
+            # TODO memgpt_agent should really have a field of List[ToolModel]
+            #      then we could just pull that field and return it here
+            return_dict["tools"] = [tool for tool in all_available_tools if tool.json_schema in memgpt_agent.functions]
+
+            # Add information about memory (raw core, size of recall, size of archival)
+            core_memory = memgpt_agent.memory
+            recall_memory = memgpt_agent.persistence_manager.recall_memory
+            archival_memory = memgpt_agent.persistence_manager.archival_memory
+            memory_obj = {
+                "core_memory": {
+                    "persona": core_memory.persona,
+                    "human": core_memory.human,
+                },
+                "recall_memory": len(recall_memory) if recall_memory is not None else None,
+                "archival_memory": len(archival_memory) if archival_memory is not None else None,
+            }
+            return_dict["memory"] = memory_obj
+
+            # Add information about last run
+            # NOTE: 'last_run' is just the timestamp on the latest message in the buffer
+            # Retrieve the Message object via the recall storage or by directly access _messages
+            last_msg_obj = memgpt_agent._messages[-1]
+            return_dict["last_run"] = last_msg_obj.created_at
+
+            # Add information about attached sources
+            sources_ids = self.ms.list_attached_sources(agent_id=agent_state.id)
+            sources = [self.ms.get_source(source_id=s_id) for s_id in sources_ids]
+            return_dict["sources"] = [vars(s) for s in sources]
 
         logger.info(f"Retrieved {len(agents_states)} agents for user {user_id}:\n{[vars(s) for s in agents_states]}")
         return {
@@ -790,6 +823,10 @@ class SyncServer(LockingServer):
             # Slice the list for pagination
             messages = reversed_messages[start:end_index]
 
+            # Convert to json
+            # Add a tag indicating in-context or not
+            json_messages = [{**record.to_json(), "in_context": True} for record in messages]
+
         else:
             # need to access persistence manager for additional messages
             db_iterator = memgpt_agent.persistence_manager.recall_memory.storage.get_all_paginated(page_size=count, offset=start)
@@ -801,8 +838,13 @@ class SyncServer(LockingServer):
             # return messages in reverse chronological order
             messages = sorted(page, key=lambda x: x.created_at, reverse=True)
 
-        # convert to json
-        json_messages = [vars(record) for record in messages]
+            # Convert to json
+            # Add a tag indicating in-context or not
+            json_messages = [record.to_json() for record in messages]
+            in_context_message_ids = [str(m.id) for m in memgpt_agent._messages]
+            for d in json_messages:
+                d["in_context"] = True if str(d["id"]) in in_context_message_ids else False
+
         return json_messages
 
     def get_agent_archival(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
@@ -915,8 +957,8 @@ class SyncServer(LockingServer):
         cursor, records = memgpt_agent.persistence_manager.recall_memory.storage.get_all_cursor(
             after=after, before=before, limit=limit, order_by=order_by, reverse=reverse
         )
-        json_records = [vars(record) for record in records]
 
+        json_records = [record.to_json() for record in records]
         # TODO: mark what is in-context versus not
         return cursor, json_records
 

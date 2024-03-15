@@ -4,7 +4,7 @@ import uuid
 from asyncio import AbstractEventLoop
 from enum import Enum
 from functools import partial
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Body, HTTPException, Query, Depends
 from pydantic import BaseModel, Field
@@ -24,7 +24,6 @@ class MessageRoleType(str, Enum):
 
 
 class UserMessageRequest(BaseModel):
-    agent_id: str = Field(..., description="The unique identifier of the agent.")
     message: str = Field(..., description="The message content to be processed by the agent.")
     stream: bool = Field(default=False, description="Flag to determine if the response should be streamed. Set to True for streaming.")
     role: MessageRoleType = Field(default=MessageRoleType.user, description="Role of the message sender (either 'user' or 'system')")
@@ -35,9 +34,13 @@ class UserMessageResponse(BaseModel):
 
 
 class GetAgentMessagesRequest(BaseModel):
-    agent_id: str = Field(..., description="The unique identifier of the agent.")
     start: int = Field(..., description="Message index to start on (reverse chronological).")
     count: int = Field(..., description="How many messages to retrieve.")
+
+
+class GetAgentMessagesCursorRequest(BaseModel):
+    before: Optional[uuid.UUID] = Field(..., description="Message before which to retrieve the returned messages.")
+    limit: int = Field(..., description="Maximum number of messages to retrieve.")
 
 
 class GetAgentMessagesResponse(BaseModel):
@@ -47,9 +50,9 @@ class GetAgentMessagesResponse(BaseModel):
 def setup_agents_message_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
-    @router.get("/agents/message", tags=["agents"], response_model=GetAgentMessagesResponse)
+    @router.get("/agents/{agent_id}/messages", tags=["agents"], response_model=GetAgentMessagesResponse)
     def get_agent_messages(
-        agent_id: str = Query(..., description="The unique identifier of the agent."),
+        agent_id: uuid.UUID,
         start: int = Query(..., description="Message index to start on (reverse chronological)."),
         count: int = Query(..., description="How many messages to retrieve."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
@@ -59,14 +62,34 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         """
         # Validate with the Pydantic model (optional)
         request = GetAgentMessagesRequest(agent_id=agent_id, start=start, count=count)
-        agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
+        # agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         interface.clear()
         messages = server.get_agent_messages(user_id=user_id, agent_id=agent_id, start=request.start, count=request.count)
         return GetAgentMessagesResponse(messages=messages)
 
-    @router.post("/agents/message", tags=["agents"], response_model=UserMessageResponse)
+    @router.get("/agents/{agent_id}/messages-cursor", tags=["agents"], response_model=GetAgentMessagesResponse)
+    def get_agent_messages_cursor(
+        agent_id: uuid.UUID,
+        before: Optional[uuid.UUID] = Query(None, description="Message before which to retrieve the returned messages."),
+        limit: int = Query(10, description="Maximum number of messages to retrieve."),
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        """
+        Retrieve the in-context messages of a specific agent. Paginated, provide start and count to iterate.
+        """
+        # Validate with the Pydantic model (optional)
+        request = GetAgentMessagesCursorRequest(agent_id=agent_id, before=before, limit=limit)
+
+        interface.clear()
+        [_, messages] = server.get_agent_recall_cursor(
+            user_id=user_id, agent_id=agent_id, before=request.before, limit=request.limit, reverse=True
+        )
+        return GetAgentMessagesResponse(messages=messages)
+
+    @router.post("/agents/{agent_id}/messages", tags=["agents"], response_model=UserMessageResponse)
     async def send_message(
+        agent_id: uuid.UUID,
         request: UserMessageRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
@@ -76,7 +99,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         This endpoint accepts a message from a user and processes it through the agent.
         It can optionally stream the response if 'stream' is set to True.
         """
-        agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
+        # agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         if request.role == "user" or request.role is None:
             message_func = server.user_message
