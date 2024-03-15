@@ -54,7 +54,7 @@ class ToolModel(BaseModel):
 class AgentStateModel(BaseModel):
     id: uuid.UUID = Field(..., description="The unique identifier of the agent.")
     name: str = Field(..., description="The name of the agent.")
-    description: str = Field(None, description="The description of the agent.")
+    description: Optional[str] = Field(None, description="The description of the agent.")
     user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the agent.")
 
     # timestamps
@@ -65,6 +65,8 @@ class AgentStateModel(BaseModel):
     preset: str = Field(..., description="The preset used by the agent.")
     persona: str = Field(..., description="The persona used by the agent.")
     human: str = Field(..., description="The human used by the agent.")
+    persona_name: Optional[str] = Field(None, description="The name of the persona used by the agent.")
+    human_name: Optional[str] = Field(None, description="The name of the human used by the agent.")
     functions_schema: List[Dict] = Field(..., description="The functions schema used by the agent.")
 
     # llm information

@@ -454,6 +454,8 @@ class AgentState:
         llm_config: LLMConfig,
         embedding_config: EmbeddingConfig,
         preset: str,
+        persona_name: Optional[str],
+        human_name: Optional[str],
         # (in-context) state contains:
         # persona: str  # the current persona text
         # human: str  # the current human text
@@ -476,8 +478,13 @@ class AgentState:
         self.name = name
         self.user_id = user_id
         self.preset = preset
+        # The INITIAL values of the persona and human
+        # The values inside self.state['persona'], self.state['human'] are the CURRENT values
         self.persona = persona
         self.human = human
+        # The names of the persona and human (can be null, eg if not created via a file)
+        self.persona_name = persona_name
+        self.human_name = human_name
 
         self.llm_config = llm_config
         self.embedding_config = embedding_config

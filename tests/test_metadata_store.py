@@ -49,8 +49,10 @@ def test_storage(storage_connector):
         user_id=user_1.id,
         name="agent_1",
         preset=DEFAULT_PRESET,
-        persona=DEFAULT_PERSONA,
-        human=DEFAULT_HUMAN,
+        persona_name=DEFAULT_PERSONA,
+        persona=get_persona_text(DEFAULT_PERSONA),
+        human_name=DEFAULT_HUMAN,
+        human=get_human_text(DEFAULT_HUMAN),
         llm_config=TEST_MEMGPT_CONFIG.default_llm_config,
         embedding_config=TEST_MEMGPT_CONFIG.default_embedding_config,
     )

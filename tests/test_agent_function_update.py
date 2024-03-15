@@ -43,8 +43,8 @@ def agent():
         client.server.create_user({"id": user_id})
 
     agent_state = client.create_agent(
-        persona=constants.DEFAULT_PERSONA,
-        human=constants.DEFAULT_HUMAN,
+        persona_name=constants.DEFAULT_PERSONA,
+        human_name=constants.DEFAULT_HUMAN,
     )
 
     return client.server._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)

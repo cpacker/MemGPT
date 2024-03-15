@@ -55,7 +55,7 @@ def bench(
         bench_id = uuid.uuid4()
 
         for i in range(n_tries):
-            agent = client.create_agent(name=f"benchmark_{bench_id}_agent_{i}", persona=PERSONA, human=HUMAN)
+            agent = client.create_agent(name=f"benchmark_{bench_id}_agent_{i}", persona_name=PERSONA, human_name=HUMAN)
 
             agent_id = agent.id
             result, msg = send_message(

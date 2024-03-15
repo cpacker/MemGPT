@@ -24,8 +24,8 @@ def create_test_agent():
     client = create_client()
     agent_state = client.create_agent(
         name=test_agent_name,
-        persona=constants.DEFAULT_PERSONA,
-        human=constants.DEFAULT_HUMAN,
+        persona_name=constants.DEFAULT_PERSONA,
+        human_name=constants.DEFAULT_HUMAN,
     )
 
     global agent_obj

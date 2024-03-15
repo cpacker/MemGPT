@@ -23,7 +23,7 @@ def main():
     client = create_client(base_url="http://localhost:8283", token=token)
 
     # Create an agent
-    agent_info = client.create_agent(name="my_agent", preset=DEFAULT_PRESET, persona=DEFAULT_PERSONA, human=DEFAULT_HUMAN)
+    agent_info = client.create_agent(name="my_agent", preset=DEFAULT_PRESET, persona_name=DEFAULT_PERSONA, human_name=DEFAULT_HUMAN)
     print(f"Created agent: {agent_info.name} with ID {str(agent_info.id)}")
 
     # Send a message to the agent

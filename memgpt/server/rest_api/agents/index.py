@@ -84,6 +84,8 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                     preset=agent_state.preset,
                     persona=agent_state.persona,
                     human=agent_state.human,
+                    persona_name=agent_state.persona_name,
+                    human_name=agent_state.human_name,
                     llm_config=llm_config,
                     embedding_config=embedding_config,
                     state=agent_state.state,

@@ -167,6 +167,8 @@ class RESTClient(AbstractClient):
             preset=response_json["agent_state"]["preset"],
             persona=response_json["agent_state"]["persona"],
             human=response_json["agent_state"]["human"],
+            persona_name=response_json["agent_state"]["persona_name"],
+            human_name=response_json["agent_state"]["human_name"],
             llm_config=llm_config,
             embedding_config=embedding_config,
             state=response_json["agent_state"]["state"],
@@ -327,6 +329,8 @@ class LocalClient(AbstractClient):
         preset: Optional[str] = None,
         persona: Optional[str] = None,
         human: Optional[str] = None,
+        persona_name: Optional[str] = None,
+        human_name: Optional[str] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
     ) -> AgentState:
@@ -340,6 +344,8 @@ class LocalClient(AbstractClient):
             preset=preset,
             persona=persona,
             human=human,
+            persona_name=persona_name,
+            human_name=human_name,
             embedding_config=embedding_config,
             llm_config=llm_config,
         )
