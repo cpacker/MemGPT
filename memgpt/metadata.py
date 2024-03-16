@@ -160,8 +160,6 @@ class AgentModel(Base):
     name = Column(String, nullable=False)
     persona = Column(String)
     human = Column(String)
-    persona_name = Column(String)
-    human_name = Column(String)
     preset = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -182,8 +180,6 @@ class AgentModel(Base):
             name=self.name,
             persona=self.persona,
             human=self.human,
-            persona_name=self.persona_name,
-            human_name=self.human_name,
             preset=self.preset,
             created_at=self.created_at,
             llm_config=self.llm_config,

@@ -99,8 +99,6 @@ def agent_id(server, user_id):
         user_id=user_id,
         name="test_agent",
         preset="memgpt_chat",
-        human_name="cs_phd",
-        persona_name="sam_pov",
     )
     print(f"Created agent\n{agent_state}")
     yield agent_state.id

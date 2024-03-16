@@ -65,8 +65,6 @@ class AgentStateModel(BaseModel):
     preset: str = Field(..., description="The preset used by the agent.")
     persona: str = Field(..., description="The persona used by the agent.")
     human: str = Field(..., description="The human used by the agent.")
-    persona_name: Optional[str] = Field(None, description="The name of the persona used by the agent.")
-    human_name: Optional[str] = Field(None, description="The name of the human used by the agent.")
     functions_schema: List[Dict] = Field(..., description="The functions schema used by the agent.")
 
     # llm information
