@@ -40,14 +40,16 @@ class Admin:
         return CreateAPIKeyResponse(**response.json())
 
     def get_keys(self, user_id: uuid.UUID):
-        response = requests.get(f"{self.base_url}/admin/users/keys/{str(user_id)}", headers=self.headers)
+        params = {"user_id": str(user_id)}
+        response = requests.get(f"{self.base_url}/admin/users/keys", params=params, headers=self.headers)
         if response.status_code != 200:
             raise HTTPError(response.json())
         print(response.text, response.status_code)
         return GetAPIKeysResponse(**response.json())
 
     def delete_key(self, api_key: str):
-        response = requests.delete(f"{self.base_url}/admin/users/keys/{api_key}", headers=self.headers)
+        params = {"api_key": api_key}
+        response = requests.delete(f"{self.base_url}/admin/users/keys", params=params, headers=self.headers)
         if response.status_code != 200:
             raise HTTPError(response.json())
         return DeleteAPIKeyResponse(**response.json())
@@ -62,7 +64,8 @@ class Admin:
         return CreateUserResponse(**response_json)
 
     def delete_user(self, user_id: uuid.UUID):
-        response = requests.delete(f"{self.base_url}/admin/users/{str(user_id)}", headers=self.headers)
+        params = {"user_id": str(user_id)}
+        response = requests.delete(f"{self.base_url}/admin/users", params=params, headers=self.headers)
         if response.status_code != 200:
             raise HTTPError(response.json())
         return DeleteUserResponse(**response.json())

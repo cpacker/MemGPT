@@ -100,8 +100,10 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
             raise HTTPException(status_code=500, detail=f"{e}")
         return CreateUserResponse(user_id=new_user_ret.id, api_key=token.token)
 
-    @router.delete("/users/{user_id}", tags=["admin"], response_model=DeleteUserResponse)
-    def delete_user(user_id):
+    @router.delete("/users", tags=["admin"], response_model=DeleteUserResponse)
+    def delete_user(
+        user_id: uuid.UUID = Query(..., description="The user_id key to be deleted."),
+    ):
         # TODO make a soft deletion, instead of a hard deletion
         try:
             user = server.ms.get_user(user_id=user_id)
