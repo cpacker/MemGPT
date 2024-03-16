@@ -97,7 +97,7 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                     created_at=int(agent_state.created_at.timestamp()),
                     functions_schema=agent_state.state["functions"],  # TODO: this is very error prone, jsut lookup the preset instead
                 ),
-                preset_information=PresetModel(
+                preset=PresetModel(
                     name=preset.name,
                     id=preset.id,
                     user_id=preset.user_id,
