@@ -4,6 +4,7 @@ import time
 import threading
 from dotenv import load_dotenv
 
+from memgpt.server.rest_api.server import start_server
 from memgpt import Admin, create_client
 from memgpt.constants import DEFAULT_PRESET
 from dotenv import load_dotenv
@@ -94,7 +95,7 @@ def run_server():
     config.save()
     credentials.save()
 
-    uvicorn.run(app, host="localhost", port=8283, log_level="info")
+    start_server(debug=False)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -113,8 +114,9 @@ def user_token():
     # Setup: Create a user via the client before the tests
 
     admin = Admin(test_base_url, test_server_token)
-    user_id, token = admin.create_user(test_user_id)  # Adjust as per your client's method
-    print(user_id, token)
+    response = admin.create_user(test_user_id)  # Adjust as per your client's method
+    user_id = response.user_id
+    token = response.api_key
 
     yield token
 
