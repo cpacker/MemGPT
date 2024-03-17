@@ -575,6 +575,8 @@ class SyncServer(LockingServer):
         preset: Optional[str] = None,
         persona: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
         human: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
+        persona_name: Optional[str] = None,
+        human_name: Optional[str] = None,
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         interface: Union[AgentInterface, None] = None,
@@ -609,7 +611,7 @@ class SyncServer(LockingServer):
             logger.debug(f"Attempting to create agent from preset:\n{preset_obj}")
 
             # Overwrite fields in the preset if they were specified
-            if human is not None:
+            if human is not None and human != preset_obj.human:
                 preset_override = True
                 preset_obj.human = human
                 # This is a check for a common bug where users were providing filenames instead of values
@@ -632,6 +634,12 @@ class SyncServer(LockingServer):
                     )
                 except:
                     pass
+            if human_name is not None and human_name != preset_obj.human_name:
+                preset_override = True
+                preset_obj.human_name = human_name
+            if persona_name is not None and persona_name != preset_obj.persona_name:
+                preset_override = True
+                preset_obj.persona_name = persona_name
 
             llm_config = llm_config if llm_config else self.server_llm_config
             embedding_config = embedding_config if embedding_config else self.server_embedding_config
