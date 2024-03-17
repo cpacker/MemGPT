@@ -510,6 +510,7 @@ class SyncServer(LockingServer):
             # NOTE: eventually deprecate and only allow passing Message types
             # Convert to a Message object
             message = Message(
+                user_id=user_id,
                 agent_id=agent_id,
                 role="user",
                 text=packaged_user_message,
@@ -558,6 +559,7 @@ class SyncServer(LockingServer):
             # NOTE: eventually deprecate and only allow passing Message types
             # Convert to a Message object
             message = Message(
+                user_id=user_id,
                 agent_id=agent_id,
                 role="user",
                 text=packaged_system_message,
