@@ -49,6 +49,22 @@ class AbstractClient(object):
         """Create a new agent with the specified configuration."""
         raise NotImplementedError
 
+    def run_command(self, agent_id: uuid.UUID, command: str):
+        """Run a command on the agent."""
+        raise NotImplementedError
+
+    def rename_agent(self, agent_id: uuid.UUID, new_name: str):
+        """Rename the agent."""
+        raise NotImplementedError
+
+    def delete_agent(self, agent_id: uuid.UUID):
+        """Delete the agent."""
+        raise NotImplementedError
+
+    def list_agents(self):
+        """List all agents."""
+        raise NotImplementedError
+
     def create_preset(self, preset: Preset):
         raise NotImplementedError
 
@@ -98,6 +114,14 @@ class AbstractClient(object):
         self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
     ):
         """Paginated get for the archival memory for an agent"""
+        raise NotImplementedError
+
+    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str):
+        """Insert archival memory into the agent."""
+        raise NotImplementedError
+
+    def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
+        """Delete archival memory from the agent."""
         raise NotImplementedError
 
 
