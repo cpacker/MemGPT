@@ -76,7 +76,7 @@ class Admin:
         # TODO: clear out all agents, presets, etc.
         users = self.get_users().user_list
         for user in users:
-            # keys = self.get_keys(user["user_id"]).api_keys
-            # for key in keys:
-            #    self.delete_key(key["token"])
+            keys = self.get_keys(user["user_id"]).api_key_list
+            for key in keys:
+                self.delete_key(key)
             self.delete_user(user["user_id"])
