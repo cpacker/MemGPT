@@ -171,7 +171,8 @@ def test_memory(client, agent):
     client.update_agent_core_memory(agent_id=str(agent.id), new_memory_contents=updated_memory)
     updated_memory_response = client.get_agent_memory(agent_id=agent.id)
     assert (
-        updated_memory_response["human"] == updated_memory["human"] and updated_memory_response["persona"] == updated_memory["persona"]
+        updated_memory_response.core_memory.human == updated_memory["human"]
+        and updated_memory_response.core_memory.persona == updated_memory["persona"]
     ), "Memory update failed"
 
 

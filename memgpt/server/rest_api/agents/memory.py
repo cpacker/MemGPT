@@ -87,8 +87,6 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
 
         This endpoint accepts new memory contents (human and persona) and updates the core memory of the agent identified by the user ID and agent ID.
         """
-        agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
-
         interface.clear()
 
         new_memory_contents = {"persona": request.persona, "human": request.human}
