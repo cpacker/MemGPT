@@ -205,11 +205,13 @@ class RESTClient(AbstractClient):
     # agents
 
     def list_agents(self):
-        response = requests.get(f"{self.base_url}/agents", headers=self.headers)
+        response = requests.get(f"{self.base_url}/api/agents", headers=self.headers)
         return ListAgentsResponse(**response.json())
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
-        response = requests.get(f"{self.base_url}/agents/{str(agent_id)}", headers=self.headers)
+        response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/config", headers=self.headers)
+        print(response.text, response.status_code)
+        print(response)
         if response.status_code == 404:
             # not found error
             return False
@@ -240,29 +242,45 @@ class RESTClient(AbstractClient):
         response = requests.post(f"{self.base_url}/api/agents", json=payload, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create agent: {response.text}")
-        response_json = response.json()
-        print(response_json)
-        llm_config = LLMConfig(**response_json["agent_state"]["llm_config"])
-        embedding_config = EmbeddingConfig(**response_json["agent_state"]["embedding_config"])
+        response_obj = CreateAgentResponse(**response.json())
+        return self.get_agent_response_to_state(response_obj)
+
+    def get_agent_response_to_state(self, response: Union[GetAgentResponse, CreateAgentResponse]) -> AgentState:
+        # TODO: eventually remove this conversion
+        llm_config = LLMConfig(
+            model=response.agent_state.llm_config.model,
+            model_endpoint_type=response.agent_state.llm_config.model_endpoint_type,
+            model_endpoint=response.agent_state.llm_config.model_endpoint,
+            model_wrapper=response.agent_state.llm_config.model_wrapper,
+            context_window=response.agent_state.llm_config.context_window,
+        )
+        embedding_config = EmbeddingConfig(
+            embedding_endpoint_type=response.agent_state.embedding_config.embedding_endpoint_type,
+            embedding_endpoint=response.agent_state.embedding_config.embedding_endpoint,
+            embedding_model=response.agent_state.embedding_config.embedding_model,
+            embedding_dim=response.agent_state.embedding_config.embedding_dim,
+            embedding_chunk_size=response.agent_state.embedding_config.embedding_chunk_size,
+        )
         agent_state = AgentState(
-            id=uuid.UUID(response_json["agent_state"]["id"]),
-            name=response_json["agent_state"]["name"],
-            user_id=uuid.UUID(response_json["agent_state"]["user_id"]),
-            preset=response_json["agent_state"]["preset"],
-            persona=response_json["agent_state"]["persona"],
-            human=response_json["agent_state"]["human"],
+            id=response.agent_state.id,
+            name=response.agent_state.name,
+            user_id=response.agent_state.user_id,
+            preset=response.agent_state.preset,
+            persona=response.agent_state.persona,
+            human=response.agent_state.human,
             llm_config=llm_config,
             embedding_config=embedding_config,
-            state=response_json["agent_state"]["state"],
+            state=response.agent_state.state,
             # load datetime from timestampe
-            created_at=datetime.datetime.fromtimestamp(response_json["agent_state"]["created_at"]),
+            created_at=datetime.datetime.fromtimestamp(response.agent_state.created_at),
         )
         return agent_state
 
     def rename_agent(self, agent_id: uuid.UUID, new_name: str):
         response = requests.patch(f"{self.base_url}/api/agents/{str(agent_id)}/rename", json={"agent_name": new_name}, headers=self.headers)
         assert response.status_code == 200, f"Failed to rename agent: {response.text}"
-        return GetAgentResponse(**response.json())
+        response_obj = GetAgentResponse(**response.json())
+        return self.get_agent_response_to_state(response_obj)
 
     def delete_agent(self, agent_id: uuid.UUID):
         """Delete the agent."""
@@ -272,7 +290,8 @@ class RESTClient(AbstractClient):
     def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
         response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/config", headers=self.headers)
         assert response.status_code == 200, f"Failed to get agent: {response.text}"
-        return GetAgentResponse(**response.json())
+        response_obj = GetAgentResponse(**response.json())
+        return self.get_agent_response_to_state(response_obj)
 
     # presets
     def create_preset(self, preset: Preset):

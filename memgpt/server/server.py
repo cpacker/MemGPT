@@ -1105,7 +1105,7 @@ class SyncServer(LockingServer):
             "modified": modified,
         }
 
-    def rename_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_agent_name: str) -> dict:
+    def rename_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_agent_name: str) -> AgentState:
         """Update the name of the agent in the database"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
