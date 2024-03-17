@@ -16,7 +16,12 @@ from memgpt.data_sources.connectors import DataConnector
 # import pydantic response objects from memgpt.server.rest_api
 from memgpt.server.rest_api.agents.command import CommandResponse
 from memgpt.server.rest_api.agents.config import GetAgentResponse
-from memgpt.server.rest_api.agents.memory import GetAgentMemoryResponse, GetAgentArchivalMemoryResponse, UpdateAgentMemoryResponse
+from memgpt.server.rest_api.agents.memory import (
+    GetAgentMemoryResponse,
+    GetAgentArchivalMemoryResponse,
+    UpdateAgentMemoryResponse,
+    InsertAgentArchivalMemoryResponse,
+)
 from memgpt.server.rest_api.agents.index import ListAgentsResponse, CreateAgentResponse
 from memgpt.server.rest_api.agents.message import UserMessageResponse, GetAgentMessagesResponse
 from memgpt.server.rest_api.config.index import ConfigResponse
@@ -335,12 +340,15 @@ class RESTClient(AbstractClient):
         return GetAgentArchivalMemoryResponse(**response.json())
 
     def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> GetAgentArchivalMemoryResponse:
-        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/archival", json={"memory": memory}, headers=self.headers)
-        return GetAgentArchivalMemoryResponse(**response.json())
+        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/archival", json={"content": memory}, headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to insert archival memory: {response.text}")
+        print(response.json())
+        return InsertAgentArchivalMemoryResponse(**response.json())
 
     def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
         response = requests.delete(f"{self.base_url}/api/agents/{agent_id}/archival?id={memory_id}", headers=self.headers)
-        return response.json()
+        assert response.status_code == 200, f"Failed to delete archival memory: {response.text}"
 
     # messages (recall memory)
 

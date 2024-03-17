@@ -46,7 +46,7 @@ class GetAgentArchivalMemoryResponse(BaseModel):
 
 
 class InsertAgentArchivalMemoryRequest(BaseModel):
-    content: str = Field(None, description="The memory contents to insert into archival memory.")
+    content: str = Field(..., description="The memory contents to insert into archival memory.")
 
 
 class InsertAgentArchivalMemoryResponse(BaseModel):

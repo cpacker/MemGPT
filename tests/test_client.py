@@ -191,9 +191,10 @@ def test_archival_memory(client, agent):
     assert insert_response, "Inserting archival memory failed"
 
     archival_memory_response = client.get_agent_archival_memory(agent_id=agent.id, limit=1)
-    assert memory_content in [mem["contents"] for mem in archival_memory_response["archival_memory"]], "Retrieving archival memory failed"
+    archival_memories = [memory.contents for memory in archival_memory_response.archival_memory]
+    assert memory_content in archival_memories, f"Retrieving archival memory failed: {archival_memories}"
 
-    memory_id_to_delete = archival_memory_response["archival_memory"][0]["id"]
+    memory_id_to_delete = archival_memory_response.archival_memory[0].id
     client.delete_archival_memory(agent_id=agent.id, memory_id=memory_id_to_delete)
 
     # TODO: check deletion
@@ -204,7 +205,7 @@ def test_messages(client, agent):
     assert send_message_response, "Sending message failed"
 
     messages_response = client.get_messages(agent_id=agent.id, limit=1)
-    assert len(messages_response["messages"]) > 0, "Retrieving messages failed"
+    assert len(messages_response.messages) > 0, "Retrieving messages failed"
 
 
 def test_humans_personas(client, agent):
