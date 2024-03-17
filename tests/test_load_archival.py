@@ -12,13 +12,12 @@ from memgpt.cli.cli_load import load_directory
 from memgpt.credentials import MemGPTCredentials
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import User, AgentState, EmbeddingConfig
-from memgpt import create_client
-from .utils import wipe_config, create_config, get_passage_storage
+from .utils import wipe_config, get_passage_storage
 
-GET_ALL_LIMIT = 1000
 from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
-from .utils import wipe_config
+
+GET_ALL_LIMIT = 1000
 
 
 @pytest.fixture(autouse=True)
