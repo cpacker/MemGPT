@@ -643,8 +643,7 @@ def run(
         # create agent
         try:
             preset_obj = ms.get_preset(name=preset if preset else config.preset, user_id=user.id)
-            human_obj = ms.get_human(human, user.id)
-            persona_obj = ms.get_persona(persona, user.id)
+            preset_override = False
             if preset_obj is None:
                 # create preset records in metadata store
                 from memgpt.presets.presets import add_default_presets
@@ -655,14 +654,28 @@ def run(
                 if preset_obj is None:
                     typer.secho("Couldn't find presets in database, please run `memgpt configure`", fg=typer.colors.RED)
                     sys.exit(1)
+
+            human_obj = ms.get_human(human, user.id)
             if human_obj is None:
                 typer.secho("Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)
+            persona_obj = ms.get_persona(persona, user.id)
             if persona_obj is None:
                 typer.secho("Couldn't find persona {persona} in database, please run `memgpt add persona`", fg=typer.colors.RED)
 
             # Overwrite fields in the preset if they were specified
-            preset_obj.human = ms.get_human(human, user.id).text
-            preset_obj.persona = ms.get_persona(persona, user.id).text
+            if human_obj.text != preset_obj.human:
+                preset_override = True
+                preset_obj.human = human_obj.text
+            if persona_obj.text != preset_obj.human:
+                preset_override = True
+                preset_obj.persona = persona_obj.text
+
+            # If the user overrode any parts of the preset, we need to create a new preset to refer back to
+            if preset_override:
+                # Change the name and uuid
+                preset_obj = preset_obj.clone()
+                # Then write out to the database for storage
+                preset_obj = ms.create_preset(preset=preset_obj)
 
             typer.secho(f"->  🤖 Using persona profile: '{preset_obj.persona_name}'", fg=typer.colors.WHITE)
             typer.secho(f"->  🧑 Using human profile: '{preset_obj.human_name}'", fg=typer.colors.WHITE)
