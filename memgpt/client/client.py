@@ -67,7 +67,7 @@ class AbstractClient(object):
     def create_preset(self, preset: Preset):
         raise NotImplementedError
 
-    # agent configuration
+    # memory
 
     def get_agent_memory(self, agent_id: str) -> Dict:
         raise NotImplementedError
@@ -190,6 +190,8 @@ class RESTClient(AbstractClient):
         self.base_url = base_url
         self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
 
+    # agents
+
     def list_agents(self):
         response = requests.get(f"{self.base_url}/agents", headers=self.headers)
         print(response.text)
@@ -239,21 +241,31 @@ class RESTClient(AbstractClient):
         )
         return agent_state
 
+    def rename_agent(self, agent_id: uuid.UUID, new_name: str):
+        """Rename the agent."""
+        raise NotImplementedError
+
     def delete_agent(self, agent_id: uuid.UUID):
+        """Delete the agent."""
         response = requests.delete(f"{self.base_url}/api/agents/{str(agent_id)}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete agent: {response.text}"
 
+    def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
+        raise NotImplementedError
+
+    # presets
     def create_preset(self, preset: Preset):
         raise NotImplementedError
 
-    def get_agent_config(self, agent_id: uuid.UUID) -> AgentState:
-        raise NotImplementedError
+    # memory
 
     def get_agent_memory(self, agent_id: uuid.UUID) -> Dict:
         raise NotImplementedError
 
     def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Dict:
         raise NotImplementedError
+
+    # agent interactions
 
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         # TODO: support role? what is return_token_count?
@@ -268,6 +280,71 @@ class RESTClient(AbstractClient):
 
     def save(self):
         raise NotImplementedError
+
+    # archival memory
+
+    def get_agent_archival_memory(
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ):
+        """Paginated get for the archival memory for an agent"""
+        params = {"limit": limit}
+        if before:
+            params["before"] = str(before)
+        if after:
+            params["after"] = str(after)
+        response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/archival", params=params, headers=self.headers)
+        assert response.status_code == 200, f"Failed to get archival memory: {response.text}"
+        return response.json()["archival_memory"]
+
+    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str):
+        """Insert archival memory into the agent."""
+        raise NotImplementedError
+
+    def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
+        """Delete archival memory from the agent."""
+        raise NotImplementedError
+
+    # messages (recall memory)
+
+    def get_messages(
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ):
+        """Get messages for the agent."""
+        raise NotImplementedError
+
+    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False):
+        """Send a message to the agent."""
+        raise NotImplementedError
+
+    # humans / personas
+
+    def list_humans(self):
+        """List all humans."""
+        raise NotImplementedError
+
+    def create_human(self, name: str, human: str):
+        """Create a human."""
+        raise NotImplementedError
+
+    def list_personas(self):
+        """List all personas."""
+        raise NotImplementedError
+
+    def create_persona(self, name: str, persona: str):
+        """Create a persona."""
+        raise NotImplementedError
+
+    # tools
+
+    def list_tools(self):
+        """List all tools."""
+        raise NotImplementedError
+
+    def create_tool(self, name: str, source_code: str, source_type: str, tags: Optional[List[str]] = None):
+        """Create a tool."""
+        raise NotImplementedError
+
+    # sources
 
     def list_sources(self):
         """List loaded sources"""
@@ -316,18 +393,15 @@ class RESTClient(AbstractClient):
         assert response.status_code == 200, f"Failed to detach source from agent: {response.text}"
         return response.json()
 
-    def get_agent_archival_memory(
-        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-    ):
-        """Paginated get for the archival memory for an agent"""
-        params = {"limit": limit}
-        if before:
-            params["before"] = str(before)
-        if after:
-            params["after"] = str(after)
-        response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/archival", params=params, headers=self.headers)
-        assert response.status_code == 200, f"Failed to get archival memory: {response.text}"
-        return response.json()["archival_memory"]
+    # server configuration commands
+
+    def list_models(self):
+        """List all models."""
+        raise NotImplementedError
+
+    def get_config(self):
+        """Get server config"""
+        raise NotImplementedError
 
 
 class LocalClient(AbstractClient):
