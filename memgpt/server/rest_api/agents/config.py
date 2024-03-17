@@ -56,14 +56,14 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
 
         This endpoint fetches the configuration details for a given agent, identified by the user and agent IDs.
         """
-        # agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
-        attached_sources = server.list_attached_sources(agent_id=agent_id)
 
         interface.clear()
         agent_state = server.get_agent_config(user_id=user_id, agent_id=agent_id)
-        # return GetAgentResponse(agent_state=agent_state)
-        llm_config = LLMConfigModel(**vars(agent_state.llm_config))
-        embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
+        if agent_state is None:
+            raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found.")
+
+        # get sources
+        attached_sources = server.list_attached_sources(agent_id=agent_id)
 
         return GetAgentResponse(
             agent_state=AgentStateModel(

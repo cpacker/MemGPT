@@ -13,6 +13,18 @@ from memgpt.server.server import SyncServer
 from memgpt.metadata import MetadataStore
 from memgpt.data_sources.connectors import DataConnector
 
+# import pydantic response objects from memgpt.server.rest_api
+from memgpt.server.rest_api.agents.command import CommandResponse
+from memgpt.server.rest_api.agents.config import GetAgentResponse
+from memgpt.server.rest_api.agents.memory import GetAgentMemoryResponse, GetAgentArchivalMemoryResponse, UpdateAgentMemoryResponse
+from memgpt.server.rest_api.agents.index import ListAgentsResponse, CreateAgentResponse
+from memgpt.server.rest_api.agents.message import UserMessageResponse, GetAgentMessagesResponse
+from memgpt.server.rest_api.config.index import ConfigResponse
+from memgpt.server.rest_api.humans.index import ListHumansResponse
+from memgpt.server.rest_api.personas.index import ListPersonasResponse
+from memgpt.server.rest_api.tools.index import ListToolsResponse, CreateToolResponse
+from memgpt.server.rest_api.models.index import ListModelsResponse
+
 
 def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
     if base_url is None:
@@ -194,11 +206,17 @@ class RESTClient(AbstractClient):
 
     def list_agents(self):
         response = requests.get(f"{self.base_url}/agents", headers=self.headers)
-        print(response.text)
+        return ListAgentsResponse(**response.json())
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
-        response = requests.get(f"{self.base_url}/agents/config?agent_id={str(agent_id)}", headers=self.headers)
-        print(response.text)
+        response = requests.get(f"{self.base_url}/agents/{str(agent_id)}", headers=self.headers)
+        if response.status_code == 404:
+            # not found error
+            return False
+        elif response.status_code == 200:
+            return True
+        else:
+            raise ValueError(f"Failed to check if agent exists: {response.text}")
 
     def create_agent(
         self,
@@ -242,8 +260,9 @@ class RESTClient(AbstractClient):
         return agent_state
 
     def rename_agent(self, agent_id: uuid.UUID, new_name: str):
-        """Rename the agent."""
-        raise NotImplementedError
+        response = requests.patch(f"{self.base_url}/api/agents/{str(agent_id)}/rename", json={"agent_name": new_name}, headers=self.headers)
+        assert response.status_code == 200, f"Failed to rename agent: {response.text}"
+        return GetAgentResponse(**response.json())
 
     def delete_agent(self, agent_id: uuid.UUID):
         """Delete the agent."""
@@ -251,7 +270,9 @@ class RESTClient(AbstractClient):
         assert response.status_code == 200, f"Failed to delete agent: {response.text}"
 
     def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
-        raise NotImplementedError
+        response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/config", headers=self.headers)
+        assert response.status_code == 200, f"Failed to get agent: {response.text}"
+        return GetAgentResponse(**response.json())
 
     # presets
     def create_preset(self, preset: Preset):
@@ -259,11 +280,13 @@ class RESTClient(AbstractClient):
 
     # memory
 
-    def get_agent_memory(self, agent_id: uuid.UUID) -> Dict:
-        raise NotImplementedError
+    def get_agent_memory(self, agent_id: uuid.UUID) -> GetAgentMemoryResponse:
+        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory", headers=self.headers)
+        return GetAgentMemoryResponse(**response.json())
 
-    def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Dict:
-        raise NotImplementedError
+    def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> UpdateAgentMemoryResponse:
+        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/memory", json=new_memory_contents, headers=self.headers)
+        return UpdateAgentMemoryResponse(**response.json())
 
     # agent interactions
 
@@ -272,11 +295,11 @@ class RESTClient(AbstractClient):
         payload = {"agent_id": str(agent_id), "message": message}
         response = requests.post(f"{self.base_url}/api/agents/message", json=payload, headers=self.headers)
         response_json = response.json()
-        print(response_json)
-        return response_json
+        return UserMessageResponse(**response_json)
 
     def run_command(self, agent_id: str, command: str) -> Union[str, None]:
-        raise NotImplementedError
+        response = requests.post(f"{self.base_url}/api/agents/{str(agent_id)}/command", json={"command": command}, headers=self.headers)
+        return CommandResponse(**response.json())
 
     def save(self):
         raise NotImplementedError
@@ -294,55 +317,60 @@ class RESTClient(AbstractClient):
             params["after"] = str(after)
         response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/archival", params=params, headers=self.headers)
         assert response.status_code == 200, f"Failed to get archival memory: {response.text}"
-        return response.json()["archival_memory"]
+        return GetAgentArchivalMemoryResponse(**response.json())
 
-    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str):
-        """Insert archival memory into the agent."""
-        raise NotImplementedError
+    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> GetAgentArchivalMemoryResponse:
+        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/archival", json={"memory": memory}, headers=self.headers)
+        return GetAgentArchivalMemoryResponse(**response.json())
 
     def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
-        """Delete archival memory from the agent."""
-        raise NotImplementedError
+        response = requests.delete(f"{self.base_url}/api/agents/{agent_id}/archival?id={memory_id}", headers=self.headers)
+        return response.json()
 
     # messages (recall memory)
 
     def get_messages(
         self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-    ):
-        """Get messages for the agent."""
-        raise NotImplementedError
+    ) -> GetAgentMessagesResponse:
+        params = {"before": before, "after": after, "limit": limit}
+        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/messages-cursor", params=params, headers=self.headers)
+        return GetAgentMessagesResponse(**response.json())
 
-    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False):
-        """Send a message to the agent."""
-        raise NotImplementedError
+    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
+        data = {"message": message, "role": role, "stream": stream}
+        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/messages", json=data, headers=self.headers)
+        return UserMessageResponse(**response.json())
 
     # humans / personas
 
-    def list_humans(self):
-        """List all humans."""
-        raise NotImplementedError
+    def list_humans(self) -> ListHumansResponse:
+        response = requests.get(f"{self.base_url}/api/humans", headers=self.headers)
+        return ListHumansResponse(**response.json())
 
     def create_human(self, name: str, human: str):
-        """Create a human."""
-        raise NotImplementedError
+        data = {"name": name, "text": human}
+        response = requests.post(f"{self.base_url}/api/humans", json=data, headers=self.headers)
+        return response.json()
 
-    def list_personas(self):
-        """List all personas."""
-        raise NotImplementedError
+    def list_personas(self) -> ListPersonasResponse:
+        response = requests.get(f"{self.base_url}/api/personas", headers=self.headers)
+        return ListPersonasResponse(**response.json())
 
     def create_persona(self, name: str, persona: str):
-        """Create a persona."""
-        raise NotImplementedError
+        data = {"name": name, "text": persona}
+        response = requests.post(f"{self.base_url}/api/personas", json=data, headers=self.headers)
+        return response.json()
 
     # tools
 
-    def list_tools(self):
-        """List all tools."""
-        raise NotImplementedError
+    def list_tools(self) -> ListToolsResponse:
+        response = requests.get(f"{self.base_url}/api/tools", headers=self.headers)
+        return ListToolsResponse(**response.json())
 
-    def create_tool(self, name: str, source_code: str, source_type: str, tags: Optional[List[str]] = None):
-        """Create a tool."""
-        raise NotImplementedError
+    def create_tool(self, name: str, source_code: str, source_type: str, tags: Optional[List[str]] = None) -> CreateToolResponse:
+        data = {"name": name, "source_code": source_code, "source_type": source_type, "tags": tags}
+        response = requests.post(f"{self.base_url}/api/tools", json=data, headers=self.headers)
+        return CreateToolResponse(**response.json())
 
     # sources
 
@@ -395,13 +423,13 @@ class RESTClient(AbstractClient):
 
     # server configuration commands
 
-    def list_models(self):
-        """List all models."""
-        raise NotImplementedError
+    def list_models(self) -> ListModelsResponse:
+        response = requests.get(f"{self.base_url}/api/models", headers=self.headers)
+        return ListModelsResponse(**response.json())
 
-    def get_config(self):
-        """Get server config"""
-        raise NotImplementedError
+    def get_config(self) -> ConfigResponse:
+        response = requests.get(f"{self.base_url}/api/config", headers=self.headers)
+        return ConfigResponse(**response.json())
 
 
 class LocalClient(AbstractClient):
