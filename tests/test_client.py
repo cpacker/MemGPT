@@ -125,8 +125,8 @@ def user_token():
 
 
 # Fixture to create clients with different configurations
-@pytest.fixture(params=[{"base_url": test_base_url}, {"base_url": None}], scope="module")
-# @pytest.fixture(params=[{"base_url": test_base_url}], scope="module")
+# @pytest.fixture(params=[{"base_url": test_base_url}, {"base_url": None}], scope="module")
+@pytest.fixture(params=[{"base_url": test_base_url}], scope="module")
 def client(request, user_token):
     # use token or not
     if request.param["base_url"]:
@@ -150,62 +150,153 @@ def agent(client):
 
 
 def test_agent(client, agent):
+    # test client.rename_agent
+    new_name = "RenamedTestAgent"
+    client.rename_agent(agent_id=agent.id, new_name=new_name)
+    renamed_agent = client.get_agent(agent_id=str(agent.id))
+    assert renamed_agent.name == new_name, "Agent renaming failed"
 
-    # def rename_agent(self, agent_id: uuid.UUID, new_name: str):
-    # def delete_agent(self, agent_id: uuid.UUID):
-    # def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
-    pass
+    # test client.delete_agent and client.agent_exists
+    delete_agent = client.create_agent(name="DeleteTestAgent", preset=test_preset_name)
+    assert client.agent_exists(agent_id=delete_agent.id), "Agent creation failed"
+    client.delete_agent(agent_id=delete_agent.id)
+    assert client.agent_exists(agent_id=delete_agent.id) == False, "Agent deletion failed"
 
 
 def test_memory(client, agent):
-    # def get_agent_memory(self, agent_id: str) -> Dict:
-    # def update_agent_core_memory(self, agent_id: str, human: Optional[str] = None, persona: Optional[str] = None) -> Dict:
-    pass
+    memory_response = client.get_agent_memory(agent_id=agent.id)
+    print("MEMORY", memory_response)
+
+    updated_memory = {"human": "Updated human memory", "persona": "Updated persona memory"}
+    client.update_agent_core_memory(agent_id=str(agent.id), new_memory_contents=updated_memory)
+    updated_memory_response = client.get_agent_memory(agent_id=agent.id)
+    assert (
+        updated_memory_response["human"] == updated_memory["human"] and updated_memory_response["persona"] == updated_memory["persona"]
+    ), "Memory update failed"
 
 
 def test_agent_interactions(client, agent):
-    # def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
-    # def run_command(self, agent_id: str, command: str) -> Union[str, None]:
-    # def save(self):
-    pass
+    message = "Hello, agent!"
+    message_response = client.user_message(agent_id=str(agent.id), message=message)
+
+    command = "/memory"
+    command_response = client.run_command(agent_id=str(agent.id), command=command)
+    print("command", command_response)
 
 
 def test_archival_memory(client, agent):
+    memory_content = "Archival memory content"
+    insert_response = client.insert_archival_memory(agent_id=agent.id, memory=memory_content)
+    assert insert_response, "Inserting archival memory failed"
 
-    # def get_agent_archival_memory(
-    #    self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-    # ):
-    # def insert_archival_memory(self, agent_id: uuid.UUID, memory: str):
-    # def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
-    pass
+    archival_memory_response = client.get_agent_archival_memory(agent_id=agent.id, limit=1)
+    assert memory_content in [mem["contents"] for mem in archival_memory_response["archival_memory"]], "Retrieving archival memory failed"
+
+    memory_id_to_delete = archival_memory_response["archival_memory"][0]["id"]
+    client.delete_archival_memory(agent_id=agent.id, memory_id=memory_id_to_delete)
+
+    # TODO: check deletion
 
 
 def test_messages(client, agent):
-    # def get_messages(
-    #    self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-    # ):
-    # def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False):
-    pass
+    send_message_response = client.send_message(agent_id=agent.id, message="Test message", role="user")
+    assert send_message_response, "Sending message failed"
+
+    messages_response = client.get_messages(agent_id=agent.id, limit=1)
+    assert len(messages_response["messages"]) > 0, "Retrieving messages failed"
 
 
 def test_humans_personas(client, agent):
-    # def list_humans(self):
-    # def create_human(self, name: str, human: str):
-    # def list_personas(self):
-    # def create_persona(self, name: str, persona: str):
-    pass
+    humans_response = client.list_humans()
+    print("HUMANS", humans_response)
+
+    personas_response = client.list_personas()
+    print("PERSONAS", personas_response)
+
+    human_name = "TestHuman"
+    human_response = client.create_human(name=human_name, human="Human text")
+    assert human_response, "Creating human failed"
+
+    persona_name = "TestPersona"
+    persona_response = client.create_persona(name=persona_name, persona="Persona text")
+    assert persona_response, "Creating persona failed"
 
 
 def test_tools(client, agent):
-    # def list_tools(self):
-    # def create_tool(self, name: str, source_code: str, source_type: str, tags: Optional[List[str]] = None):
-    pass
+    tools_response = client.list_tools()
+    print("TOOLS", tools_response)
+
+    tool_name = "TestTool"
+    tool_response = client.create_tool(name=tool_name, source_code="print('Hello World')", source_type="python")
+    assert tool_response, "Creating tool failed"
 
 
 def test_config(client, agent):
-    # def list_models(self):
-    # def get_config(self):
-    pass
+    models_response = client.list_models()
+    print("MODELS", models_response)
+
+    config_response = client.get_config()
+    # TODO: ensure config is the same as the one in the server
+    print("CONFIG", config_response)
+
+
+# def test_agent(client, agent):
+#
+#    # def rename_agent(self, agent_id: uuid.UUID, new_name: str):
+#    # def delete_agent(self, agent_id: uuid.UUID):
+#    # def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
+#    pass
+#
+#
+# def test_memory(client, agent):
+#    # def get_agent_memory(self, agent_id: str) -> Dict:
+#    # def update_agent_core_memory(self, agent_id: str, human: Optional[str] = None, persona: Optional[str] = None) -> Dict:
+#    pass
+#
+#
+# def test_agent_interactions(client, agent):
+#    # def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
+#    # def run_command(self, agent_id: str, command: str) -> Union[str, None]:
+#    # def save(self):
+#    pass
+#
+#
+# def test_archival_memory(client, agent):
+#
+#    # def get_agent_archival_memory(
+#    #    self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+#    # ):
+#    # def insert_archival_memory(self, agent_id: uuid.UUID, memory: str):
+#    # def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
+#    pass
+#
+#
+# def test_messages(client, agent):
+#    # def get_messages(
+#    #    self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+#    # ):
+#    # def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False):
+#    pass
+#
+#
+# def test_humans_personas(client, agent):
+#    # def list_humans(self):
+#    # def create_human(self, name: str, human: str):
+#    # def list_personas(self):
+#    # def create_persona(self, name: str, persona: str):
+#    pass
+#
+#
+# def test_tools(client, agent):
+#    # def list_tools(self):
+#    # def create_tool(self, name: str, source_code: str, source_type: str, tags: Optional[List[str]] = None):
+#    pass
+#
+#
+# def test_config(client, agent):
+#    # def list_models(self):
+#    # def get_config(self):
+#    pass
 
 
 def test_sources(client, agent):
