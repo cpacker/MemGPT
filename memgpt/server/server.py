@@ -648,9 +648,9 @@ class SyncServer(LockingServer):
             # If the user overrode any parts of the preset, we need to create a new preset to refer back to
             if preset_override:
                 # Change the name and uuid
-                preset_obj = preset_obj.clone()
+                preset_obj = Preset.clone(preset_obj=preset_obj)
                 # Then write out to the database for storage
-                preset_obj = self.ms.create_preset(preset=preset_obj)
+                self.ms.create_preset(preset=preset_obj)
 
             agent = Agent(
                 interface=interface,

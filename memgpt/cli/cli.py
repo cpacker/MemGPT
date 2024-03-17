@@ -24,7 +24,7 @@ from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
 from memgpt.agent import Agent, save_agent
 from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
-from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig, User, Passage
+from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig, User, Passage, Preset
 from memgpt.metadata import MetadataStore
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
 
@@ -673,9 +673,9 @@ def run(
             # If the user overrode any parts of the preset, we need to create a new preset to refer back to
             if preset_override:
                 # Change the name and uuid
-                preset_obj = preset_obj.clone()
+                preset_obj = Preset.clone(preset_obj=preset_obj)
                 # Then write out to the database for storage
-                preset_obj = ms.create_preset(preset=preset_obj)
+                ms.create_preset(preset=preset_obj)
 
             typer.secho(f"->  🤖 Using persona profile: '{preset_obj.persona_name}'", fg=typer.colors.WHITE)
             typer.secho(f"->  🧑 Using human profile: '{preset_obj.human_name}'", fg=typer.colors.WHITE)
