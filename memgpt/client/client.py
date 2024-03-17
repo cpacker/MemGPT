@@ -5,6 +5,7 @@ import uuid
 from typing import Dict, List, Union, Optional, Tuple
 
 from memgpt.data_types import AgentState, User, Preset, LLMConfig, EmbeddingConfig, Source
+from memgpt.models.pydantic_models import HumanModel, PersonaModel
 from memgpt.cli.cli import QuickstartChoice
 from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func, str_to_quickstart_choice
 from memgpt.config import MemGPTConfig
@@ -370,19 +371,26 @@ class RESTClient(AbstractClient):
         response = requests.get(f"{self.base_url}/api/humans", headers=self.headers)
         return ListHumansResponse(**response.json())
 
-    def create_human(self, name: str, human: str):
+    def create_human(self, name: str, human: str) -> HumanModel:
         data = {"name": name, "text": human}
         response = requests.post(f"{self.base_url}/api/humans", json=data, headers=self.headers)
-        return response.json()
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create human: {response.text}")
+
+        print(response.json())
+        return HumanModel(**response.json())
 
     def list_personas(self) -> ListPersonasResponse:
         response = requests.get(f"{self.base_url}/api/personas", headers=self.headers)
         return ListPersonasResponse(**response.json())
 
-    def create_persona(self, name: str, persona: str):
+    def create_persona(self, name: str, persona: str) -> PersonaModel:
         data = {"name": name, "text": persona}
         response = requests.post(f"{self.base_url}/api/personas", json=data, headers=self.headers)
-        return response.json()
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create persona: {response.text}")
+        print(response.json())
+        return PersonaModel(**response.json())
 
     # tools
 

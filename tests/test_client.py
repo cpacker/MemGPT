@@ -95,7 +95,7 @@ def run_server():
     config.save()
     credentials.save()
 
-    start_server(debug=False)
+    start_server(debug=True)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -215,13 +215,15 @@ def test_humans_personas(client, agent):
     personas_response = client.list_personas()
     print("PERSONAS", personas_response)
 
-    human_name = "TestHuman"
-    human_response = client.create_human(name=human_name, human="Human text")
-    assert human_response, "Creating human failed"
-
     persona_name = "TestPersona"
-    persona_response = client.create_persona(name=persona_name, persona="Persona text")
-    assert persona_response, "Creating persona failed"
+    persona = client.create_persona(name=persona_name, persona="Persona text")
+    assert persona.name == persona_name
+    assert persona.text == "Persona text", "Creating persona failed"
+
+    human_name = "TestHuman"
+    human = client.create_human(name=human_name, human="Human text")
+    assert human.name == human_name
+    assert human.text == "Human text", "Creating human failed"
 
 
 def test_tools(client, agent):

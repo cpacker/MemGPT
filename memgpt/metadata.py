@@ -640,6 +640,7 @@ class MetadataStore:
         with self.session_maker() as session:
             session.add(persona)
             session.commit()
+            return persona
 
     @enforce_types
     def add_preset(self, preset: PresetModel):
