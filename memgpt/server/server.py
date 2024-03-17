@@ -16,6 +16,7 @@ import memgpt.server.utils as server_utils
 import memgpt.system as system
 from memgpt.agent import Agent, save_agent
 from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.utils import get_human_text, get_persona_text
 
 # from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.cli.cli_config import get_model_options
@@ -572,8 +573,10 @@ class SyncServer(LockingServer):
         user_id: uuid.UUID,
         name: Optional[str] = None,
         preset: Optional[str] = None,
-        persona: Optional[str] = None,
-        human: Optional[str] = None,
+        persona: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
+        human: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
+        persona_name: Optional[str] = None,
+        human_name: Optional[str] = None,
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         interface: Union[AgentInterface, None] = None,
@@ -600,25 +603,62 @@ class SyncServer(LockingServer):
         # TODO: fix this db dependency and remove
         # self.ms.create_agent(agent_state)
 
+        # TODO modify to do creation via preset
         try:
             preset_obj = self.ms.get_preset(name=preset if preset else self.config.preset, user_id=user_id)
+            preset_override = False
             assert preset_obj is not None, f"preset {preset if preset else self.config.preset} does not exist"
             logger.debug(f"Attempting to create agent from preset:\n{preset_obj}")
 
             # Overwrite fields in the preset if they were specified
-            preset_obj.human = human if human else self.config.human
-            preset_obj.persona = persona if persona else self.config.persona
+            if human is not None and human != preset_obj.human:
+                preset_override = True
+                preset_obj.human = human
+                # This is a check for a common bug where users were providing filenames instead of values
+                try:
+                    get_human_text(human)
+                    raise ValueError(human)
+                    raise UserWarning(
+                        f"It looks like there is a human file named {human} - did you mean to pass the file contents to the `human` arg?"
+                    )
+                except:
+                    pass
+            if persona is not None:
+                preset_override = True
+                preset_obj.persona = persona
+                try:
+                    get_persona_text(persona)
+                    raise ValueError(persona)
+                    raise UserWarning(
+                        f"It looks like there is a persona file named {persona} - did you mean to pass the file contents to the `persona` arg?"
+                    )
+                except:
+                    pass
+            if human_name is not None and human_name != preset_obj.human_name:
+                preset_override = True
+                preset_obj.human_name = human_name
+            if persona_name is not None and persona_name != preset_obj.persona_name:
+                preset_override = True
+                preset_obj.persona_name = persona_name
 
             llm_config = llm_config if llm_config else self.server_llm_config
             embedding_config = embedding_config if embedding_config else self.server_embedding_config
 
             # TODO remove (https://github.com/cpacker/MemGPT/issues/1138)
             if function_names is not None:
+                preset_override = True
                 available_tools = self.ms.list_tools(user_id=user_id)
                 available_tools_names = [t.name for t in available_tools]
                 assert all([f_name in available_tools_names for f_name in function_names])
                 preset_obj.functions_schema = [t.json_schema for t in available_tools if t.name in function_names]
                 print("overriding preset_obj tools with:", preset_obj.functions_schema)
+
+            # If the user overrode any parts of the preset, we need to create a new preset to refer back to
+            if preset_override:
+                # Change the name and uuid
+                preset_obj = Preset.clone(preset_obj=preset_obj)
+                # Then write out to the database for storage
+                self.ms.create_preset(preset=preset_obj)
 
             agent = Agent(
                 interface=interface,
@@ -694,6 +734,7 @@ class SyncServer(LockingServer):
         }
         return agent_config
 
+    # TODO make return type pydantic
     def list_agents(self, user_id: uuid.UUID) -> dict:
         """List all available agents to a user"""
         if self.ms.get_user(user_id=user_id) is None:
@@ -710,6 +751,14 @@ class SyncServer(LockingServer):
 
             # Get the agent object (loaded in memory)
             memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
+
+            # TODO remove this eventually when return type get pydanticfied
+            # this is to add persona_name and human_name so that the columns in UI can populate
+            preset = self.ms.get_preset(name=agent_state.preset, user_id=user_id)
+            # TODO hack for frontend, remove
+            # (top level .persona is persona_name, and nested memory.persona is the state)
+            return_dict["persona"] = preset.persona_name
+            return_dict["human"] = preset.human_name
 
             # Add information about tools
             # TODO memgpt_agent should really have a field of List[ToolModel]

@@ -9,13 +9,15 @@ from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.data_types import AgentState
-from memgpt.models.pydantic_models import LLMConfigModel, EmbeddingConfigModel, AgentStateModel
+from memgpt.models.pydantic_models import LLMConfigModel, EmbeddingConfigModel, AgentStateModel, PresetModel
 
 router = APIRouter()
 
 
 class ListAgentsResponse(BaseModel):
     num_agents: int = Field(..., description="The number of agents available to the user.")
+    # TODO make return type List[AgentStateModel]
+    #      also return - presets: List[PresetModel]
     agents: List[dict] = Field(..., description="List of agent configurations.")
 
 
@@ -25,6 +27,7 @@ class CreateAgentRequest(BaseModel):
 
 class CreateAgentResponse(BaseModel):
     agent_state: AgentStateModel = Field(..., description="The state of the newly created agent.")
+    preset: PresetModel = Field(..., description="The preset that the agent was created from.")
 
 
 def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, password: str):
@@ -62,8 +65,8 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                     # TODO turn into a pydantic model
                     name=request.config["name"],
                     preset=request.config["preset"] if "preset" in request.config else None,
-                    # persona_name=request.config["persona_name"] if "persona_text" in request.config else None,
-                    # human_name=request.config["human_name"] if "human_text" in request.config else None,
+                    persona_name=request.config["persona_name"] if "persona_name" in request.config else None,
+                    human_name=request.config["human_name"] if "human_name" in request.config else None,
                     persona=request.config["persona"] if "persona" in request.config else None,
                     human=request.config["human"] if "human" in request.config else None,
                     # llm_config=LLMConfigModel(
@@ -76,6 +79,10 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                 raise
             llm_config = LLMConfigModel(**vars(agent_state.llm_config))
             embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
+
+            # TODO when get_preset returns a PresetModel instead of Preset, we can remove this packing/unpacking line
+            preset = server.ms.get_preset(name=agent_state.preset, user_id=user_id)
+
             return CreateAgentResponse(
                 agent_state=AgentStateModel(
                     id=agent_state.id,
@@ -89,11 +96,19 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                     state=agent_state.state,
                     created_at=int(agent_state.created_at.timestamp()),
                     functions_schema=agent_state.state["functions"],  # TODO: this is very error prone, jsut lookup the preset instead
-                )
+                ),
+                preset=PresetModel(
+                    name=preset.name,
+                    id=preset.id,
+                    user_id=preset.user_id,
+                    description=preset.description,
+                    created_at=preset.created_at,
+                    system=preset.system,
+                    persona=preset.persona,
+                    human=preset.human,
+                    functions_schema=preset.functions_schema,
+                ),
             )
-            # return CreateAgentResponse(
-            #    agent_state=AgentStateModel(
-            # )
         except Exception as e:
             print(str(e))
             raise HTTPException(status_code=500, detail=str(e))
