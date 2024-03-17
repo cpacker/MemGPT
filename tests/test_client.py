@@ -321,7 +321,7 @@ def test_sources(client, agent):
     assert len(sources) == 1
 
     # check agent archival memory size
-    archival_memories = client.get_agent_archival_memory(agent_id=agent.id)
+    archival_memories = client.get_agent_archival_memory(agent_id=agent.id).archival_memory
     print(archival_memories)
     assert len(archival_memories) == 0
 
@@ -336,7 +336,7 @@ def test_sources(client, agent):
     client.attach_source_to_agent(source_name="test_source", agent_id=agent.id)
 
     # list archival memory
-    archival_memories = client.get_agent_archival_memory(agent_id=agent.id)
+    archival_memories = client.get_agent_archival_memory(agent_id=agent.id).archival_memory
     print(archival_memories)
     assert len(archival_memories) == num_passages
 
