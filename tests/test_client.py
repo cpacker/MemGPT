@@ -244,65 +244,6 @@ def test_config(client, agent):
     print("CONFIG", config_response)
 
 
-# def test_agent(client, agent):
-#
-#    # def rename_agent(self, agent_id: uuid.UUID, new_name: str):
-#    # def delete_agent(self, agent_id: uuid.UUID):
-#    # def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
-#    pass
-#
-#
-# def test_memory(client, agent):
-#    # def get_agent_memory(self, agent_id: str) -> Dict:
-#    # def update_agent_core_memory(self, agent_id: str, human: Optional[str] = None, persona: Optional[str] = None) -> Dict:
-#    pass
-#
-#
-# def test_agent_interactions(client, agent):
-#    # def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
-#    # def run_command(self, agent_id: str, command: str) -> Union[str, None]:
-#    # def save(self):
-#    pass
-#
-#
-# def test_archival_memory(client, agent):
-#
-#    # def get_agent_archival_memory(
-#    #    self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-#    # ):
-#    # def insert_archival_memory(self, agent_id: uuid.UUID, memory: str):
-#    # def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
-#    pass
-#
-#
-# def test_messages(client, agent):
-#    # def get_messages(
-#    #    self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-#    # ):
-#    # def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False):
-#    pass
-#
-#
-# def test_humans_personas(client, agent):
-#    # def list_humans(self):
-#    # def create_human(self, name: str, human: str):
-#    # def list_personas(self):
-#    # def create_persona(self, name: str, persona: str):
-#    pass
-#
-#
-# def test_tools(client, agent):
-#    # def list_tools(self):
-#    # def create_tool(self, name: str, source_code: str, source_type: str, tags: Optional[List[str]] = None):
-#    pass
-#
-#
-# def test_config(client, agent):
-#    # def list_models(self):
-#    # def get_config(self):
-#    pass
-
-
 def test_sources(client, agent):
 
     if not hasattr(client, "base_url"):
@@ -346,25 +287,3 @@ def test_sources(client, agent):
 
     # delete the source
     client.delete_source(source.id)
-
-
-# def test_user_message(client, agent):
-#    """Test that we can send a message through the client"""
-#    assert client is not None, "Run create_agent test first"
-#    print(f"\n\n[2] SENDING MESSAGE TO AGENT {agent.id}!!!\n\tmessages={agent.state['messages']}")
-#    response = client.user_message(agent_id=agent.id, message="Hello my name is Test, Client Test")
-#    assert response is not None and len(response) > 0
-
-# TODO: add back once REST API supports
-# def test_preset(client):
-#
-#    available_functions = load_all_function_sets(merge=True)
-#    functions_schema = [f_dict["json_schema"] for f_name, f_dict in available_functions.items()]
-#    preset = Preset(
-#        name=test_preset_name,
-#        user_id=test_user_id,
-#        description="A preset for testing the MemGPT client",
-#        system=gpt_system.get_system_text(DEFAULT_PRESET),
-#        functions_schema=functions_schema,
-#    )
-#    client.create_preset(preset)
