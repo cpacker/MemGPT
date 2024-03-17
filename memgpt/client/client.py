@@ -1,5 +1,6 @@
 import datetime
 import requests
+from requests.exceptions import RequestException
 import uuid
 from typing import Dict, List, Union, Optional, Tuple
 

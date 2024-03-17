@@ -476,6 +476,8 @@ class AgentState:
         self.name = name
         self.user_id = user_id
         self.preset = preset
+        # The INITIAL values of the persona and human
+        # The values inside self.state['persona'], self.state['human'] are the CURRENT values
         self.persona = persona
         self.human = human
 
