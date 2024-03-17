@@ -310,11 +310,7 @@ class RESTClient(AbstractClient):
     # agent interactions
 
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
-        # TODO: support role? what is return_token_count?
-        payload = {"agent_id": str(agent_id), "message": message}
-        response = requests.post(f"{self.base_url}/api/agents/message", json=payload, headers=self.headers)
-        response_json = response.json()
-        return UserMessageResponse(**response_json)
+        return self.send_message(agent_id, message, role="user")
 
     def run_command(self, agent_id: str, command: str) -> Union[str, None]:
         response = requests.post(f"{self.base_url}/api/agents/{str(agent_id)}/command", json={"command": command}, headers=self.headers)
