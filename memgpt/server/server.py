@@ -1,4 +1,5 @@
 import json
+import subprocess
 import logging
 import uuid
 from abc import abstractmethod
@@ -7,6 +8,7 @@ from threading import Lock
 from typing import Union, Callable, Optional, List
 
 from fastapi import HTTPException
+import uvicorn
 
 import memgpt.constants as constants
 import memgpt.presets.presets as presets

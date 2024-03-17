@@ -140,25 +140,12 @@ class RESTClient(AbstractClient):
                 "human": human,
             }
         }
-        try:
-            response = requests.post(f"{self.base_url}/api/agents", json=payload, headers=self.headers)
-            # Check if the response status code indicates success (i.e., 200 <= status_code < 300)
-            if response.ok:
-                response_json = response.json()
-                try:
-                    llm_config = LLMConfig(**response_json["agent_state"]["llm_config"])
-                except Exception as e:
-                    print(f"Error unpacking response_json: \n{response_json}")
-                    raise ValueError("Error processing the response data.") from e
-            else:
-                # Handle HTTP error responses
-                print(f"HTTP Error {response.status_code}: {response.text}")
-                response.raise_for_status()  # This will raise an HTTPError based on the status code of the response
-        except RequestException as e:
-            # Handle other request-related errors (e.g., network issues)
-            print(f"Request failed: {e}")
-            raise
-
+        response = requests.post(f"{self.base_url}/api/agents", json=payload, headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create agent: {response.text}")
+        response_json = response.json()
+        print(response_json)
+        llm_config = LLMConfig(**response_json["agent_state"]["llm_config"])
         embedding_config = EmbeddingConfig(**response_json["agent_state"]["embedding_config"])
         agent_state = AgentState(
             id=uuid.UUID(response_json["agent_state"]["id"]),
