@@ -552,6 +552,21 @@ class Preset(BaseModel):
     # functions: List[str] = Field(..., description="The functions of the preset.") # TODO: convert to ID
     # sources: List[str] = Field(..., description="The sources of the preset.") # TODO: convert to ID
 
+    @staticmethod
+    def clone(preset_obj: "Preset", new_name_suffix: str = None) -> "Preset":
+        """
+        Takes a Preset object and an optional new name suffix as input,
+        creates a clone of the given Preset object with a new ID and an optional new name,
+        and returns the new Preset object.
+        """
+        new_preset = preset_obj.model_copy()
+        new_preset.id = uuid.uuid4()
+        if new_name_suffix:
+            new_preset.name = f"{preset_obj.name}_{new_name_suffix}"
+        else:
+            new_preset.name = f"{preset_obj.name}_{str(uuid.uuid4())[:8]}"
+        return new_preset
+
 
 class Function(BaseModel):
     name: str = Field(..., description="The name of the function.")

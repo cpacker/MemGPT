@@ -575,6 +575,8 @@ class SyncServer(LockingServer):
         preset: Optional[str] = None,
         persona: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
         human: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
+        persona_name: Optional[str] = None,
+        human_name: Optional[str] = None,
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         interface: Union[AgentInterface, None] = None,
@@ -604,11 +606,13 @@ class SyncServer(LockingServer):
         # TODO modify to do creation via preset
         try:
             preset_obj = self.ms.get_preset(name=preset if preset else self.config.preset, user_id=user_id)
+            preset_override = False
             assert preset_obj is not None, f"preset {preset if preset else self.config.preset} does not exist"
             logger.debug(f"Attempting to create agent from preset:\n{preset_obj}")
 
             # Overwrite fields in the preset if they were specified
-            if human is not None:
+            if human is not None and human != preset_obj.human:
+                preset_override = True
                 preset_obj.human = human
                 # This is a check for a common bug where users were providing filenames instead of values
                 try:
@@ -620,6 +624,7 @@ class SyncServer(LockingServer):
                 except:
                     pass
             if persona is not None:
+                preset_override = True
                 preset_obj.persona = persona
                 try:
                     get_persona_text(persona)
@@ -629,17 +634,31 @@ class SyncServer(LockingServer):
                     )
                 except:
                     pass
+            if human_name is not None and human_name != preset_obj.human_name:
+                preset_override = True
+                preset_obj.human_name = human_name
+            if persona_name is not None and persona_name != preset_obj.persona_name:
+                preset_override = True
+                preset_obj.persona_name = persona_name
 
             llm_config = llm_config if llm_config else self.server_llm_config
             embedding_config = embedding_config if embedding_config else self.server_embedding_config
 
             # TODO remove (https://github.com/cpacker/MemGPT/issues/1138)
             if function_names is not None:
+                preset_override = True
                 available_tools = self.ms.list_tools(user_id=user_id)
                 available_tools_names = [t.name for t in available_tools]
                 assert all([f_name in available_tools_names for f_name in function_names])
                 preset_obj.functions_schema = [t.json_schema for t in available_tools if t.name in function_names]
                 print("overriding preset_obj tools with:", preset_obj.functions_schema)
+
+            # If the user overrode any parts of the preset, we need to create a new preset to refer back to
+            if preset_override:
+                # Change the name and uuid
+                preset_obj = Preset.clone(preset_obj=preset_obj)
+                # Then write out to the database for storage
+                self.ms.create_preset(preset=preset_obj)
 
             agent = Agent(
                 interface=interface,
@@ -736,8 +755,10 @@ class SyncServer(LockingServer):
             # TODO remove this eventually when return type get pydanticfied
             # this is to add persona_name and human_name so that the columns in UI can populate
             preset = self.ms.get_preset(name=agent_state.preset, user_id=user_id)
-            return_dict["persona_name"] = preset.persona_name
-            return_dict["human_name"] = preset.human_name
+            # TODO hack for frontend, remove
+            # (top level .persona is persona_name, and nested memory.persona is the state)
+            return_dict["persona"] = preset.persona_name
+            return_dict["human"] = preset.human_name
 
             # Add information about tools
             # TODO memgpt_agent should really have a field of List[ToolModel]
