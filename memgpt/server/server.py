@@ -3,6 +3,7 @@ import subprocess
 import logging
 import uuid
 from abc import abstractmethod
+from datetime import datetime
 from functools import wraps
 from threading import Lock
 from typing import Union, Callable, Optional, List
@@ -486,7 +487,9 @@ class SyncServer(LockingServer):
             self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
 
     @LockingServer.agent_lock_decorator
-    def user_message(self, user_id: uuid.UUID, agent_id: uuid.UUID, message: Union[str, Message]) -> None:
+    def user_message(
+        self, user_id: uuid.UUID, agent_id: uuid.UUID, message: Union[str, Message], timestamp: Optional[datetime] = None
+    ) -> None:
         """Process an incoming user message and feed it through the MemGPT agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -501,23 +504,41 @@ class SyncServer(LockingServer):
             # If the input begins with a command prefix, reject
             elif message.startswith("/"):
                 raise ValueError(f"Invalid input: '{message}'")
-            packaged_user_message = system.package_user_message(user_message=message)
-        elif isinstance(message, Message):
-            if len(message.text) == 0:
-                raise ValueError(f"Invalid input: '{message.text}'")
 
+            packaged_user_message = system.package_user_message(user_message=message)
+
+            # NOTE: eventually deprecate and only allow passing Message types
+            # Convert to a Message object
+            message = Message(
+                user_id=user_id,
+                agent_id=agent_id,
+                role="user",
+                text=packaged_user_message,
+                # name=None,  # TODO handle name via API
+            )
+
+        if isinstance(message, Message):
+            # Can't have a null text field
+            if len(message.text) == 0 or message.text is None:
+                raise ValueError(f"Invalid input: '{message.text}'")
             # If the input begins with a command prefix, reject
             elif message.text.startswith("/"):
                 raise ValueError(f"Invalid input: '{message.text}'")
-            packaged_user_message = message
+
         else:
-            raise ValueError(f"Invalid input: '{message}'")
+            raise TypeError(f"Invalid input: '{message}' - type {type(message)}")
+
+        if timestamp:
+            # Override the timestamp with what the caller provided
+            message.created_at = timestamp
 
         # Run the agent state forward
         self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
 
     @LockingServer.agent_lock_decorator
-    def system_message(self, user_id: uuid.UUID, agent_id: uuid.UUID, message: str) -> None:
+    def system_message(
+        self, user_id: uuid.UUID, agent_id: uuid.UUID, message: Union[str, Message], timestamp: Optional[datetime] = None
+    ) -> None:
         """Process an incoming system message and feed it through the MemGPT agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -525,19 +546,43 @@ class SyncServer(LockingServer):
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Basic input sanitization
-        if not isinstance(message, str) or len(message) == 0:
-            raise ValueError(f"Invalid input: '{message}'")
+        if isinstance(message, str):
+            if len(message) == 0:
+                raise ValueError(f"Invalid input: '{message}'")
 
-        # If the input begins with a command prefix, reject
-        elif message.startswith("/"):
-            raise ValueError(f"Invalid input: '{message}'")
+            # If the input begins with a command prefix, reject
+            elif message.startswith("/"):
+                raise ValueError(f"Invalid input: '{message}'")
 
-        # Else, process it as a user message to be fed to the agent
-        else:
-            # Package the user message first
             packaged_system_message = system.package_system_message(system_message=message)
-            # Run the agent state forward
-            self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message)
+
+            # NOTE: eventually deprecate and only allow passing Message types
+            # Convert to a Message object
+            message = Message(
+                user_id=user_id,
+                agent_id=agent_id,
+                role="user",
+                text=packaged_system_message,
+                # name=None,  # TODO handle name via API
+            )
+
+        if isinstance(message, Message):
+            # Can't have a null text field
+            if len(message.text) == 0 or message.text is None:
+                raise ValueError(f"Invalid input: '{message.text}'")
+            # If the input begins with a command prefix, reject
+            elif message.text.startswith("/"):
+                raise ValueError(f"Invalid input: '{message.text}'")
+
+        else:
+            raise TypeError(f"Invalid input: '{message}' - type {type(message)}")
+
+        if timestamp:
+            # Override the timestamp with what the caller provided
+            message.created_at = timestamp
+
+        # Run the agent state forward
+        self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message)
 
     @LockingServer.agent_lock_decorator
     def run_command(self, user_id: uuid.UUID, agent_id: uuid.UUID, command: str) -> Union[str, None]:
