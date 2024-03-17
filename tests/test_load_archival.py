@@ -16,6 +16,7 @@ from memgpt import create_client
 from .utils import wipe_config, create_config, get_passage_storage
 
 GET_ALL_LIMIT = 1000
+from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
 from .utils import wipe_config
 
@@ -120,8 +121,8 @@ def test_load_directory(
         user_id=user.id,
         name="test_agent",
         preset=TEST_MEMGPT_CONFIG.preset,
-        persona=TEST_MEMGPT_CONFIG.persona,
-        human=TEST_MEMGPT_CONFIG.human,
+        persona=get_persona_text(TEST_MEMGPT_CONFIG.persona),
+        human=get_human_text(TEST_MEMGPT_CONFIG.human),
         llm_config=TEST_MEMGPT_CONFIG.default_llm_config,
         embedding_config=TEST_MEMGPT_CONFIG.default_embedding_config,
     )

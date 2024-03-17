@@ -1,6 +1,7 @@
 import asyncio
 import json
 import uuid
+from datetime import datetime
 from asyncio import AbstractEventLoop
 from enum import Enum
 from functools import partial
@@ -27,6 +28,10 @@ class UserMessageRequest(BaseModel):
     message: str = Field(..., description="The message content to be processed by the agent.")
     stream: bool = Field(default=False, description="Flag to determine if the response should be streamed. Set to True for streaming.")
     role: MessageRoleType = Field(default=MessageRoleType.user, description="Role of the message sender (either 'user' or 'system')")
+    timestamp: Optional[datetime] = Field(
+        None,
+        description="Timestamp to tag the message with (in ISO format). If null, timestamp will be created server-side on receipt of message.",
+    )
 
 
 class UserMessageResponse(BaseModel):
@@ -116,7 +121,14 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
                 # Check if server.user_message is an async function
                 if asyncio.iscoroutinefunction(message_func):
                     # Start the async task
-                    await asyncio.create_task(message_func(user_id=user_id, agent_id=agent_id, message=request.message))
+                    await asyncio.create_task(
+                        message_func(
+                            user_id=user_id,
+                            agent_id=agent_id,
+                            message=request.message,
+                            timestamp=request.timestamp,
+                        )
+                    )
                 else:
 
                     def handle_exception(exception_loop: AbstractEventLoop, context):
@@ -128,7 +140,14 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
                     # Run the synchronous function in a thread pool
                     loop = asyncio.get_event_loop()
                     loop.set_exception_handler(handle_exception)
-                    loop.run_in_executor(None, message_func, user_id, agent_id, request.message)
+                    loop.run_in_executor(
+                        None,
+                        message_func,
+                        user_id,
+                        agent_id,
+                        request.message,
+                        request.timestamp,
+                    )
 
                 async def formatted_message_generator():
                     async for message in interface.message_generator():

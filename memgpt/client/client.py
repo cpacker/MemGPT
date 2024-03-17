@@ -1,5 +1,6 @@
 import datetime
 import requests
+from requests.exceptions import RequestException
 import uuid
 from typing import Dict, List, Union, Optional, Tuple
 
@@ -140,7 +141,10 @@ class RESTClient(AbstractClient):
             }
         }
         response = requests.post(f"{self.base_url}/api/agents", json=payload, headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create agent: {response.text}")
         response_json = response.json()
+        print(response_json)
         llm_config = LLMConfig(**response_json["agent_state"]["llm_config"])
         embedding_config = EmbeddingConfig(**response_json["agent_state"]["embedding_config"])
         agent_state = AgentState(
