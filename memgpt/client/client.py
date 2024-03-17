@@ -29,6 +29,8 @@ class AbstractClient(object):
         self.auto_save = auto_save
         self.debug = debug
 
+    # agents
+
     def list_agents(self):
         """List all agents associated with a given user."""
         raise NotImplementedError
@@ -49,10 +51,6 @@ class AbstractClient(object):
         """Create a new agent with the specified configuration."""
         raise NotImplementedError
 
-    def run_command(self, agent_id: uuid.UUID, command: str):
-        """Run a command on the agent."""
-        raise NotImplementedError
-
     def rename_agent(self, agent_id: uuid.UUID, new_name: str):
         """Rename the agent."""
         raise NotImplementedError
@@ -61,21 +59,22 @@ class AbstractClient(object):
         """Delete the agent."""
         raise NotImplementedError
 
-    def list_agents(self):
-        """List all agents."""
+    def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
         raise NotImplementedError
 
+    # presets
     def create_preset(self, preset: Preset):
         raise NotImplementedError
 
-    def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
-        raise NotImplementedError
+    # agent configuration
 
     def get_agent_memory(self, agent_id: str) -> Dict:
         raise NotImplementedError
 
     def update_agent_core_memory(self, agent_id: str, human: Optional[str] = None, persona: Optional[str] = None) -> Dict:
         raise NotImplementedError
+
+    # agent interactions
 
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         raise NotImplementedError
@@ -85,6 +84,64 @@ class AbstractClient(object):
 
     def save(self):
         raise NotImplementedError
+
+    # archival memory
+
+    def get_agent_archival_memory(
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ):
+        """Paginated get for the archival memory for an agent"""
+        raise NotImplementedError
+
+    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str):
+        """Insert archival memory into the agent."""
+        raise NotImplementedError
+
+    def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
+        """Delete archival memory from the agent."""
+        raise NotImplementedError
+
+    # messages (recall memory)
+
+    def get_messages(
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ):
+        """Get messages for the agent."""
+        raise NotImplementedError
+
+    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False):
+        """Send a message to the agent."""
+        raise NotImplementedError
+
+    # humans / personas
+
+    def list_humans(self):
+        """List all humans."""
+        raise NotImplementedError
+
+    def create_human(self, name: str, human: str):
+        """Create a human."""
+        raise NotImplementedError
+
+    def list_personas(self):
+        """List all personas."""
+        raise NotImplementedError
+
+    def create_persona(self, name: str, persona: str):
+        """Create a persona."""
+        raise NotImplementedError
+
+    # tools
+
+    def list_tools(self):
+        """List all tools."""
+        raise NotImplementedError
+
+    def create_tool(self, name: str, source_code: str, source_type: str, tags: Optional[List[str]] = None):
+        """Create a tool."""
+        raise NotImplementedError
+
+    # data sources
 
     def list_sources(self):
         """List loaded sources"""
@@ -110,18 +167,14 @@ class AbstractClient(object):
         """Detach a source from an agent"""
         raise NotImplementedError
 
-    def get_agent_archival_memory(
-        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-    ):
-        """Paginated get for the archival memory for an agent"""
+    # server configuration commands
+
+    def list_models(self):
+        """List all models."""
         raise NotImplementedError
 
-    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str):
-        """Insert archival memory into the agent."""
-        raise NotImplementedError
-
-    def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
-        """Delete archival memory from the agent."""
+    def get_config(self):
+        """Get server config"""
         raise NotImplementedError
 
 
