@@ -56,12 +56,17 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
 
         This endpoint fetches the configuration details for a given agent, identified by the user and agent IDs.
         """
-        # agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
-        attached_sources = server.list_attached_sources(agent_id=agent_id)
 
         interface.clear()
+        if not server.ms.get_agent(user_id=user_id, agent_id=agent_id):
+            # agent does not exist
+            raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found.")
+
         agent_state = server.get_agent_config(user_id=user_id, agent_id=agent_id)
-        # return GetAgentResponse(agent_state=agent_state)
+        # get sources
+        attached_sources = server.list_attached_sources(agent_id=agent_id)
+
+        # configs
         llm_config = LLMConfigModel(**vars(agent_state.llm_config))
         embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
 
@@ -73,8 +78,8 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
                 preset=agent_state.preset,
                 persona=agent_state.persona,
                 human=agent_state.human,
-                llm_config=agent_state.llm_config,
-                embedding_config=agent_state.embedding_config,
+                llm_config=llm_config,
+                embedding_config=embedding_config,
                 state=agent_state.state,
                 created_at=int(agent_state.created_at.timestamp()),
                 functions_schema=agent_state.state["functions"],  # TODO: this is very error prone, jsut lookup the preset instead
@@ -101,11 +106,32 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
         interface.clear()
         try:
             agent_state = server.rename_agent(user_id=user_id, agent_id=agent_id, new_agent_name=valid_name)
+            # get sources
+            attached_sources = server.list_attached_sources(agent_id=agent_id)
         except HTTPException:
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
-        return GetAgentResponse(agent_state=agent_state)
+        llm_config = LLMConfigModel(**vars(agent_state.llm_config))
+        embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
+
+        return GetAgentResponse(
+            agent_state=AgentStateModel(
+                id=agent_state.id,
+                name=agent_state.name,
+                user_id=agent_state.user_id,
+                preset=agent_state.preset,
+                persona=agent_state.persona,
+                human=agent_state.human,
+                llm_config=llm_config,
+                embedding_config=embedding_config,
+                state=agent_state.state,
+                created_at=int(agent_state.created_at.timestamp()),
+                functions_schema=agent_state.state["functions"],  # TODO: this is very error prone, jsut lookup the preset instead
+            ),
+            last_run_at=None,  # TODO
+            sources=attached_sources,
+        )
 
     @router.delete("/agents/{agent_id}", tags=["agents"])
     def delete_agent(
