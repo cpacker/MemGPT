@@ -199,8 +199,8 @@ class Agent(object):
             init_agent_state = AgentState(
                 name=name if name else create_random_username(),
                 user_id=created_by,
-                persona=preset.persona_name,
-                human=preset.human_name,
+                persona=preset.persona,
+                human=preset.human,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
                 preset=preset.name,  # TODO link via preset.id instead of name?
@@ -609,47 +609,77 @@ class Agent(object):
         first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
         skip_verify: bool = False,
         return_dicts: bool = True,  # if True, return dicts, if False, return Message objects
+        recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
     ) -> Tuple[List[Union[dict, Message]], bool, bool, bool]:
         """Top-level event message handler for the MemGPT agent"""
+
+        def strip_name_field_from_user_message(user_message_text: str) -> Tuple[str, Optional[str]]:
+            """If 'name' exists in the JSON string, remove it and return the cleaned text + name value"""
+            try:
+                user_message_json = dict(json.loads(user_message_text, strict=JSON_LOADS_STRICT))
+                # Special handling for AutoGen messages with 'name' field
+                # Treat 'name' as a special field
+                # If it exists in the input message, elevate it to the 'message' level
+                name = user_message_json.pop("name", None)
+                clean_message = json.dumps(user_message_json, ensure_ascii=JSON_ENSURE_ASCII)
+
+            except Exception as e:
+                print(f"{CLI_WARNING_PREFIX}handling of 'name' field failed with: {e}")
+
+            return clean_message, name
+
+        def validate_json(user_message_text: str, raise_on_error: bool) -> str:
+            try:
+                user_message_json = dict(json.loads(user_message_text, strict=JSON_LOADS_STRICT))
+                user_message_json_val = json.dumps(user_message_json, ensure_ascii=JSON_ENSURE_ASCII)
+                return user_message_json_val
+            except Exception as e:
+                print(f"{CLI_WARNING_PREFIX}couldn't parse user input message as JSON: {e}")
+                if raise_on_error:
+                    raise e
 
         try:
             # Step 0: add user message
             if user_message is not None:
                 if isinstance(user_message, Message):
-                    user_message_text = user_message.text
+                    # Validate JSON via save/load
+                    user_message_text = validate_json(user_message.text, False)
+                    cleaned_user_message_text, name = strip_name_field_from_user_message(user_message_text)
+
+                    if name is not None:
+                        # Update Message object
+                        user_message.text = cleaned_user_message_text
+                        user_message.name = name
+
+                    # Recreate timestamp
+                    if recreate_message_timestamp:
+                        user_message.created_at = datetime.datetime.now()
+
                 elif isinstance(user_message, str):
-                    user_message_text = user_message
+                    # Validate JSON via save/load
+                    user_message = validate_json(user_message, False)
+                    cleaned_user_message_text, name = strip_name_field_from_user_message(user_message)
+
+                    # If user_message['name'] is not None, it will be handled properly by dict_to_message
+                    # So no need to run strip_name_field_from_user_message
+
+                    # Create the associated Message object (in the database)
+                    user_message = Message.dict_to_message(
+                        agent_id=self.agent_state.id,
+                        user_id=self.agent_state.user_id,
+                        model=self.model,
+                        openai_message_dict={"role": "user", "content": cleaned_user_message_text, "name": name},
+                    )
+
                 else:
                     raise ValueError(f"Bad type for user_message: {type(user_message)}")
 
-                packed_user_message = {"role": "user", "content": user_message_text}
-                # Special handling for AutoGen messages with 'name' field
-                try:
-                    user_message_json = json.loads(user_message_text, strict=JSON_LOADS_STRICT)
-                    # Special handling for AutoGen messages with 'name' field
-                    # Treat 'name' as a special field
-                    # If it exists in the input message, elevate it to the 'message' level
-                    if "name" in user_message_json:
-                        packed_user_message["name"] = user_message_json["name"]
-                        user_message_json.pop("name", None)
-                        packed_user_message["content"] = json.dumps(user_message_json, ensure_ascii=JSON_ENSURE_ASCII)
-                except Exception as e:
-                    print(f"{CLI_WARNING_PREFIX}handling of 'name' field failed with: {e}")
+                self.interface.user_message(user_message.text, msg_obj=user_message)
 
-                # Create the associated Message object (in the database)
-                packed_user_message_obj = Message.dict_to_message(
-                    agent_id=self.agent_state.id,
-                    user_id=self.agent_state.user_id,
-                    model=self.model,
-                    openai_message_dict=packed_user_message,
-                )
-                self.interface.user_message(user_message_text, msg_obj=packed_user_message_obj)
-
-                input_message_sequence = self.messages + [packed_user_message]
+                input_message_sequence = self.messages + [user_message.to_openai_dict()]
             # Alternatively, the requestor can send an empty user message
             else:
                 input_message_sequence = self.messages
-                packed_user_message = None
 
             if len(input_message_sequence) > 1 and input_message_sequence[-1]["role"] != "user":
                 printd(f"{CLI_WARNING_PREFIX}Attempting to run ChatCompletion without user as the last message in the queue")
@@ -698,14 +728,7 @@ class Agent(object):
                 if isinstance(user_message, Message):
                     all_new_messages = [user_message] + all_response_messages
                 else:
-                    all_new_messages = [
-                        Message.dict_to_message(
-                            agent_id=self.agent_state.id,
-                            user_id=self.agent_state.user_id,
-                            model=self.model,
-                            openai_message_dict=packed_user_message,
-                        )
-                    ] + all_response_messages
+                    raise ValueError(type(user_message))
             else:
                 all_new_messages = all_response_messages
 

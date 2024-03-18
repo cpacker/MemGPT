@@ -54,7 +54,7 @@ class ToolModel(BaseModel):
 class AgentStateModel(BaseModel):
     id: uuid.UUID = Field(..., description="The unique identifier of the agent.")
     name: str = Field(..., description="The name of the agent.")
-    description: str = Field(None, description="The description of the agent.")
+    description: Optional[str] = Field(None, description="The description of the agent.")
     user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the agent.")
 
     # timestamps
@@ -73,6 +73,11 @@ class AgentStateModel(BaseModel):
 
     # agent state
     state: Optional[Dict] = Field(None, description="The state of the agent.")
+
+
+class CoreMemory(BaseModel):
+    human: str = Field(..., description="Human element of the core memory.")
+    persona: str = Field(..., description="Persona element of the core memory.")
 
 
 class HumanModel(SQLModel, table=True):

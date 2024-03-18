@@ -393,7 +393,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         """Embed and save memory string"""
 
         if not isinstance(memory_string, str):
-            return TypeError("memory must be a string")
+            raise TypeError("memory must be a string")
 
         try:
             passages = []

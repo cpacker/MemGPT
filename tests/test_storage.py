@@ -11,6 +11,7 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import User
 from memgpt.constants import MAX_EMBEDDING_DIM
+from memgpt.utils import get_human_text, get_persona_text
 
 from datetime import datetime, timedelta
 
@@ -175,8 +176,10 @@ def test_storage(
         name="agent_1",
         id=agent_1_id,
         preset=TEST_MEMGPT_CONFIG.preset,
-        persona=TEST_MEMGPT_CONFIG.persona,
-        human=TEST_MEMGPT_CONFIG.human,
+        # persona_name=TEST_MEMGPT_CONFIG.persona,
+        # human_name=TEST_MEMGPT_CONFIG.human,
+        persona=get_persona_text(TEST_MEMGPT_CONFIG.persona),
+        human=get_human_text(TEST_MEMGPT_CONFIG.human),
         llm_config=TEST_MEMGPT_CONFIG.default_llm_config,
         embedding_config=TEST_MEMGPT_CONFIG.default_embedding_config,
     )

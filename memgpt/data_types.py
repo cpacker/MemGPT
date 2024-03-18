@@ -476,6 +476,8 @@ class AgentState:
         self.name = name
         self.user_id = user_id
         self.preset = preset
+        # The INITIAL values of the persona and human
+        # The values inside self.state['persona'], self.state['human'] are the CURRENT values
         self.persona = persona
         self.human = human
 
@@ -549,6 +551,21 @@ class Preset(BaseModel):
     functions_schema: List[Dict] = Field(..., description="The functions schema of the preset.")
     # functions: List[str] = Field(..., description="The functions of the preset.") # TODO: convert to ID
     # sources: List[str] = Field(..., description="The sources of the preset.") # TODO: convert to ID
+
+    @staticmethod
+    def clone(preset_obj: "Preset", new_name_suffix: str = None) -> "Preset":
+        """
+        Takes a Preset object and an optional new name suffix as input,
+        creates a clone of the given Preset object with a new ID and an optional new name,
+        and returns the new Preset object.
+        """
+        new_preset = preset_obj.model_copy()
+        new_preset.id = uuid.uuid4()
+        if new_name_suffix:
+            new_preset.name = f"{preset_obj.name}_{new_name_suffix}"
+        else:
+            new_preset.name = f"{preset_obj.name}_{str(uuid.uuid4())[:8]}"
+        return new_preset
 
 
 class Function(BaseModel):
