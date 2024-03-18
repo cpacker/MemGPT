@@ -65,6 +65,7 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
     async def list_source(
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
+        """List all data sources created by a user."""
         # Clear the interface
         interface.clear()
 
@@ -76,6 +77,7 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         request: CreateSourceRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
+        """Create a new data source."""
         interface.clear()
         try:
             # TODO: don't use Source and just use SourceModel once pydantic migration is complete
@@ -98,6 +100,7 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         source_id,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
+        """Delete a data source."""
         interface.clear()
         try:
             server.delete_source(source_id=uuid.UUID(source_id), user_id=user_id)
@@ -113,6 +116,7 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         source_name: str = Query(..., description="The name of the source to attach."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
+        """Attach a data source to an existing agent."""
         interface.clear()
         assert isinstance(agent_id, uuid.UUID), f"Expected agent_id to be a UUID, got {agent_id}"
         assert isinstance(user_id, uuid.UUID), f"Expected user_id to be a UUID, got {user_id}"
@@ -132,6 +136,7 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         source_name: str = Query(..., description="The name of the source to detach."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
+        """Detach a data source from an existing agent."""
         server.detach_source_from_agent(source_name=source_name, agent_id=agent_id, user_id=user_id)
 
     @router.post("/sources/upload", tags=["sources"], response_model=UploadFileToSourceResponse)
@@ -141,6 +146,7 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         source_id: uuid.UUID = Query(..., description="The unique identifier of the source to attach."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
+        """Upload a file to a data source."""
         interface.clear()
         source = server.ms.get_source(source_id=source_id, user_id=user_id)
 
@@ -158,13 +164,17 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         source_id: uuid.UUID = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
-        raise NotImplementedError
+        """List all passages associated with a data source."""
+        passages = server.list_data_source_passages(user_id=user_id, source_id=source_id)
+        return GetSourcePassagesResponse(passages=passages)
 
     @router.get("/sources/documents", tags=["sources"], response_model=GetSourceDocumentsResponse)
     async def list_documents(
         source_id: uuid.UUID = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
-        raise NotImplementedError
+        """List all documents associated with a data source."""
+        documents = server.list_data_source_documents(user_id=user_id, source_id=source_id)
+        return GetSourceDocumentsResponse(documents=documents)
 
     return router

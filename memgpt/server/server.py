@@ -7,6 +7,7 @@ from datetime import datetime
 from functools import wraps
 from threading import Lock
 from typing import Union, Callable, Optional, List
+import warnings
 
 from fastapi import HTTPException
 import uvicorn
@@ -36,7 +37,7 @@ from memgpt.data_types import (
     Preset,
 )
 
-from memgpt.models.pydantic_models import SourceModelWithMetadata, SourceMetadata
+from memgpt.models.pydantic_models import SourceModelWithMetadata, SourceMetadata, PassageModel, DocumentModel
 from memgpt.interface import AgentInterface  # abstract
 
 # TODO use custom interface
@@ -1295,6 +1296,14 @@ class SyncServer(LockingServer):
         # list all attached sources to an agent
         return self.ms.list_attached_sources(agent_id)
 
+    def list_data_source_passages(self, user_id: uuid.UUID, source_id: uuid.UUID) -> List[PassageModel]:
+        warnings.warn("list_data_source_passages is not yet implemented, returning empty list.", category=UserWarning)
+        return []
+
+    def list_data_source_documents(self, user_id: uuid.UUID, source_id: uuid.UUID) -> List[DocumentModel]:
+        warnings.warn("list_data_source_documents is not yet implemented, returning empty list.", category=UserWarning)
+        return []
+
     def list_all_sources(self, user_id: uuid.UUID) -> List[SourceModelWithMetadata]:
         """List all sources (w/ extra metadata) belonging to a user"""
 
@@ -1304,16 +1313,16 @@ class SyncServer(LockingServer):
         sources_with_metadata = []
         for source in sources:
 
-            num_passages = 0
-            num_documents = 0
+            passages = self.list_data_source_passages(user_id=user_id, source_id=source.id)
+            documents = self.list_data_source_documents(user_id=user_id, source_id=source.id)
 
             sources_with_metadata.append(
                 SourceModelWithMetadata(
                     source=source,
                     # extra metadata
                     metadata=SourceMetadata(
-                        num_documents=num_documents,
-                        num_passages=num_passages,
+                        num_documents=len(passages),
+                        num_passages=len(documents),
                     ),
                 )
             )
