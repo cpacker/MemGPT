@@ -6,7 +6,7 @@ from fastapi import APIRouter, Body, Depends, Query, HTTPException, status, Uplo
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel
+from memgpt.models.pydantic_models import SourceModel, SourceModelWithMetadata, PassageModel, DocumentModel
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -28,7 +28,7 @@ Implement the following functions:
 
 
 class ListSourcesResponse(BaseModel):
-    sources: List[SourceModel] = Field(..., description="List of available sources")
+    sources: List[SourceModelWithMetadata] = Field(..., description="List of available sources + metadata.")
 
 
 class CreateSourceRequest(BaseModel):
@@ -68,7 +68,7 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         # Clear the interface
         interface.clear()
 
-        sources = server.ms.list_sources(user_id=user_id)
+        sources = server.list_all_sources(user_id=user_id)
         return ListSourcesResponse(sources=sources)
 
     @router.post("/sources", tags=["sources"], response_model=SourceModel)
@@ -77,16 +77,21 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         interface.clear()
-        # TODO: don't use Source and just use SourceModel once pydantic migration is complete
-        source = server.create_source(name=request.name, user_id=user_id)
-        return SourceModel(
-            name=source.name,
-            description=None,  # TODO: actually store descriptions
-            user_id=source.user_id,
-            id=source.id,
-            embedding_config=server.server_embedding_config,
-            created_at=source.created_at.timestamp(),
-        )
+        try:
+            # TODO: don't use Source and just use SourceModel once pydantic migration is complete
+            source = server.create_source(name=request.name, user_id=user_id)
+            return SourceModel(
+                name=source.name,
+                description=None,  # TODO: actually store descriptions
+                user_id=source.user_id,
+                id=source.id,
+                embedding_config=server.server_embedding_config,
+                created_at=source.created_at.timestamp(),
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{e}")
 
     @router.delete("/sources/{source_id}", tags=["sources"])
     async def delete_source(

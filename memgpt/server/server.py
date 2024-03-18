@@ -35,6 +35,8 @@ from memgpt.data_types import (
     Token,
     Preset,
 )
+
+from memgpt.models.pydantic_models import SourceModelWithMetadata, SourceMetadata
 from memgpt.interface import AgentInterface  # abstract
 
 # TODO use custom interface
@@ -1292,3 +1294,28 @@ class SyncServer(LockingServer):
     def list_attached_sources(self, agent_id: uuid.UUID):
         # list all attached sources to an agent
         return self.ms.list_attached_sources(agent_id)
+
+    def list_all_sources(self, user_id: uuid.UUID) -> List[SourceModelWithMetadata]:
+        """List all sources (w/ extra metadata) belonging to a user"""
+
+        sources = self.ms.list_sources(user_id=user_id)
+
+        # Add extra metadata to the sources
+        sources_with_metadata = []
+        for source in sources:
+
+            num_passages = 0
+            num_documents = 0
+
+            sources_with_metadata.append(
+                SourceModelWithMetadata(
+                    source=source,
+                    # extra metadata
+                    metadata=SourceMetadata(
+                        num_documents=num_documents,
+                        num_passages=num_passages,
+                    ),
+                )
+            )
+
+        return sources_with_metadata
