@@ -75,6 +75,11 @@ class AgentStateModel(BaseModel):
     state: Optional[Dict] = Field(None, description="The state of the agent.")
 
 
+class CoreMemory(BaseModel):
+    human: str = Field(..., description="Human element of the core memory.")
+    persona: str = Field(..., description="Persona element of the core memory.")
+
+
 class HumanModel(SQLModel, table=True):
     text: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human text.")
     name: str = Field(..., description="The name of the human.")
