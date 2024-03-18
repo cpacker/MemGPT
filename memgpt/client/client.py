@@ -4,8 +4,8 @@ from requests.exceptions import RequestException
 import uuid
 from typing import Dict, List, Union, Optional, Tuple
 
-from memgpt.data_types import AgentState, User, Preset, LLMConfig, EmbeddingConfig, Source, Message, Passage
-from memgpt.models.pydantic_models import HumanModel, PersonaModel, CoreMemory, ToolModel
+from memgpt.data_types import AgentState, User, Preset, LLMConfig, EmbeddingConfig, Source
+from memgpt.models.pydantic_models import HumanModel, PersonaModel
 from memgpt.cli.cli import QuickstartChoice
 from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func, str_to_quickstart_choice
 from memgpt.config import MemGPTConfig
@@ -50,7 +50,7 @@ class AbstractClient(object):
 
     # agents
 
-    def list_agents(self) -> List[AgentState]:
+    def list_agents(self):
         """List all agents associated with a given user."""
         raise NotImplementedError
 
@@ -70,7 +70,7 @@ class AbstractClient(object):
         """Create a new agent with the specified configuration."""
         raise NotImplementedError
 
-    def rename_agent(self, agent_id: uuid.UUID, new_name: str) -> AgentState:
+    def rename_agent(self, agent_id: uuid.UUID, new_name: str):
         """Rename the agent."""
         raise NotImplementedError
 
@@ -82,40 +82,23 @@ class AbstractClient(object):
         raise NotImplementedError
 
     # presets
-    def create_preset(self, preset: Preset) -> Preset:
+    def create_preset(self, preset: Preset):
         raise NotImplementedError
 
     # memory
 
-    def get_agent_memory(self, agent_id: str) -> CoreMemory:
+    def get_agent_memory(self, agent_id: str) -> Dict:
         raise NotImplementedError
 
-    def update_agent_core_memory(self, agent_id: str, human: Optional[str] = None, persona: Optional[str] = None) -> CoreMemory:
+    def update_agent_core_memory(self, agent_id: str, human: Optional[str] = None, persona: Optional[str] = None) -> Dict:
         raise NotImplementedError
 
     # agent interactions
 
-    def user_message(self, agent_id: uuid.UUID, message: str) -> List[Message]:
-        """Send a user message to the agent
-
-        :param agent_id: Unique agent ID to send message to
-        :type agent_id: uuid.UUID
-        :param message: User message string
-        :type message: str
-        :return: New generated messages from agent in response
-        :rtype: List[Message]
-        """
+    def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         raise NotImplementedError
 
-    def run_command(self, agent_id: uuid.UUID, command: str) -> List[Message]:
-        """Run a CLI command on the agent
-        :param agent_id: Unique agent ID to send message to
-        :type agent_id: uuid.UUID
-        :param message: Command (e.g. "/memory")
-        :type message: str
-        :return: New generated messages from agent in response
-        :rtype: List[Message]
-        """
+    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
         raise NotImplementedError
 
     def save(self):
@@ -125,11 +108,11 @@ class AbstractClient(object):
 
     def get_agent_archival_memory(
         self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-    ) -> List[Passage]:
+    ):
         """Paginated get for the archival memory for an agent"""
         raise NotImplementedError
 
-    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> uuid.UUID:
+    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str):
         """Insert archival memory into the agent."""
         raise NotImplementedError
 
@@ -141,45 +124,45 @@ class AbstractClient(object):
 
     def get_messages(
         self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-    ) -> List[Passage]:
+    ):
         """Get messages for the agent."""
         raise NotImplementedError
 
-    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> List[Message]:
+    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False):
         """Send a message to the agent."""
         raise NotImplementedError
 
     # humans / personas
 
-    def list_humans(self) -> List[HumanModel]:
+    def list_humans(self):
         """List all humans."""
         raise NotImplementedError
 
-    def create_human(self, name: str, human: str) -> HumanModel:
+    def create_human(self, name: str, human: str):
         """Create a human."""
         raise NotImplementedError
 
-    def list_personas(self) -> List[PersonaModel]:
+    def list_personas(self):
         """List all personas."""
         raise NotImplementedError
 
-    def create_persona(self, name: str, persona: str) -> PersonaModel:
+    def create_persona(self, name: str, persona: str):
         """Create a persona."""
         raise NotImplementedError
 
     # tools
 
-    def list_tools(self) -> List[ToolModel]:
+    def list_tools(self):
         """List all tools."""
         raise NotImplementedError
 
-    def create_tool(self, name: str, source_code: str, source_type: str, tags: Optional[List[str]] = None) -> ToolModel:
+    def create_tool(self, name: str, source_code: str, source_type: str, tags: Optional[List[str]] = None):
         """Create a tool."""
         raise NotImplementedError
 
     # data sources
 
-    def list_sources(self) -> List[Source]:
+    def list_sources(self):
         """List loaded sources"""
         raise NotImplementedError
 
@@ -191,7 +174,7 @@ class AbstractClient(object):
         """Load {filename} and insert into source"""
         raise NotImplementedError
 
-    def create_source(self, name: str) -> Source:
+    def create_source(self, name: str):
         """Create a new source"""
         raise NotImplementedError
 
@@ -205,11 +188,11 @@ class AbstractClient(object):
 
     # server configuration commands
 
-    def list_models(self) -> List[str]:
+    def list_models(self):
         """List all models."""
         raise NotImplementedError
 
-    def get_config(self) -> MemGPTConfig:
+    def get_config(self):
         """Get server config"""
         raise NotImplementedError
 
