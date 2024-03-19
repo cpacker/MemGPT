@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Literal
+from typing import List, Optional, Dict, Literal, Type
 from pydantic import BaseModel, Field, Json, ConfigDict
 import uuid
 import base64
@@ -96,7 +96,7 @@ class PersonaModel(SQLModel, table=True):
 
 class SourceModel(SQLModel, table=True):
     name: str = Field(..., description="The name of the source.")
-    description: str = Field(None, description="The description of the source.")
+    description: Optional[str] = Field(None, description="The description of the source.")
     user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the source.")
     created_at: datetime = Field(default_factory=datetime.now, description="The unix timestamp of when the source was created.")
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the source.", primary_key=True)
@@ -105,6 +105,8 @@ class SourceModel(SQLModel, table=True):
     embedding_config: Optional[EmbeddingConfigModel] = Field(
         None, sa_column=Column(JSON), description="The embedding configuration used by the passage."
     )
+    # NOTE: .metadata is a reserved attribute on SQLModel
+    metadata_: Optional[dict] = Field(None, sa_column=Column(JSON), description="Metadata associated with the source.")
 
 
 class PassageModel(BaseModel):
