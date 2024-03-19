@@ -89,3 +89,5 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
+
+    return router
