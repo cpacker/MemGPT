@@ -19,11 +19,13 @@ class QdrantStorageConnector(StorageConnector):
     def __init__(self, table_type: str, config: MemGPTConfig, user_id, agent_id=None):
         super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
         assert table_type in [TableType.ARCHIVAL_MEMORY, TableType.PASSAGES], "Qdrant only supports archival memory"
-        if config.archival_storage_path:
-            self.qdrant_client = QdrantClient(path=config.archival_storage_path)
-        else:
+        if config.archival_storage_uri and len(config.archival_storage_uri.split(":")) == 2:
             host, port = config.archival_storage_uri.split(":")
             self.qdrant_client = QdrantClient(host=host, port=port, api_key=os.getenv("QDRANT_API_KEY"))
+        elif config.archival_storage_path:
+            self.qdrant_client = QdrantClient(path=config.archival_storage_path)
+        else:
+            raise ValueError("Qdrant storage requires either a URI or a path to the storage configured")
         if not self.qdrant_client.collection_exists(self.table_name):
             self.qdrant_client.create_collection(
                 collection_name=self.table_name,
@@ -32,7 +34,7 @@ class QdrantStorageConnector(StorageConnector):
                     distance=models.Distance.COSINE,
                 ),
             )
-        self.uuid_fields = ["id", "user_id", "agent_id", "source_id"]
+        self.uuid_fields = ["id", "user_id", "agent_id", "source_id", "doc_id"]
 
     def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: int = 10) -> Iterator[List[RecordType]]:
         filters = self.get_qdrant_filters(filters)
