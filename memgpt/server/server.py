@@ -1330,7 +1330,7 @@ class SyncServer(LockingServer):
             documents = self.list_data_source_documents(user_id=user_id, source_id=source.id)
 
             # Overwrite metadata field, should be empty anyways
-            source.source_metadata = dict(
+            source.metadata_ = dict(
                 num_documents=len(passages),
                 num_passages=len(documents),
             )
