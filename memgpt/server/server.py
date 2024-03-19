@@ -7,6 +7,7 @@ from datetime import datetime
 from functools import wraps
 from threading import Lock
 from typing import Union, Callable, Optional, List
+import warnings
 
 from fastapi import HTTPException
 import uvicorn
@@ -35,6 +36,8 @@ from memgpt.data_types import (
     Token,
     Preset,
 )
+
+from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel
 from memgpt.interface import AgentInterface  # abstract
 
 # TODO use custom interface
@@ -1292,3 +1295,46 @@ class SyncServer(LockingServer):
     def list_attached_sources(self, agent_id: uuid.UUID):
         # list all attached sources to an agent
         return self.ms.list_attached_sources(agent_id)
+
+    def list_data_source_passages(self, user_id: uuid.UUID, source_id: uuid.UUID) -> List[PassageModel]:
+        warnings.warn("list_data_source_passages is not yet implemented, returning empty list.", category=UserWarning)
+        return []
+
+    def list_data_source_documents(self, user_id: uuid.UUID, source_id: uuid.UUID) -> List[DocumentModel]:
+        warnings.warn("list_data_source_documents is not yet implemented, returning empty list.", category=UserWarning)
+        return []
+
+    def list_all_sources(self, user_id: uuid.UUID) -> List[SourceModel]:
+        """List all sources (w/ extra metadata) belonging to a user"""
+
+        sources = self.ms.list_sources(user_id=user_id)
+
+        # TODO don't unpack here, instead list_sources should return a SourceModel
+        sources = [
+            SourceModel(
+                name=source.name,
+                description=None,  # TODO: actually store descriptions
+                user_id=source.user_id,
+                id=source.id,
+                embedding_config=self.server_embedding_config,
+                created_at=source.created_at,
+            )
+            for source in sources
+        ]
+
+        # Add extra metadata to the sources
+        sources_with_metadata = []
+        for source in sources:
+
+            passages = self.list_data_source_passages(user_id=user_id, source_id=source.id)
+            documents = self.list_data_source_documents(user_id=user_id, source_id=source.id)
+
+            # Overwrite metadata field, should be empty anyways
+            source.metadata_ = dict(
+                num_documents=len(passages),
+                num_passages=len(documents),
+            )
+
+            sources_with_metadata.append(source)
+
+        return sources_with_metadata
