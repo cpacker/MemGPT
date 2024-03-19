@@ -62,15 +62,20 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
     @router.get("/sources", tags=["sources"], response_model=ListSourcesResponse)
-    async def list_source(
+    async def list_sources(
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """List all data sources created by a user."""
         # Clear the interface
         interface.clear()
 
-        sources = server.list_all_sources(user_id=user_id)
-        return ListSourcesResponse(sources=sources)
+        try:
+            sources = server.list_all_sources(user_id=user_id)
+            return ListSourcesResponse(sources=sources)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{e}")
 
     @router.post("/sources", tags=["sources"], response_model=SourceModel)
     async def create_source(
@@ -97,7 +102,7 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
 
     @router.delete("/sources/{source_id}", tags=["sources"])
     async def delete_source(
-        source_id,
+        source_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """Delete a data source."""
