@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body, Depends, Query, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from memgpt.data_types import Preset  # TODO remove
 from memgpt.models.pydantic_models import PresetModel
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
@@ -39,6 +40,9 @@ class CreatePresetsRequest(BaseModel):
     persona: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona of the preset.")
     human: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human of the preset.")
     functions_schema: List[Dict] = Field(..., description="The functions schema of the preset.")
+    # TODO
+    persona_name: Optional[str] = Field(None, description="The name of the persona of the preset.")
+    human_name: Optional[str] = Field(None, description="The name of the human of the preset.")
 
 
 class CreateSourceResponse(BaseModel):
@@ -58,6 +62,7 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
 
         try:
             presets = server.ms.list_presets(user_id=user_id)
+            presets = [PresetModel(**vars(p)) for p in presets]
             return ListPresetsResponse(presets=presets)
         except HTTPException:
             raise
@@ -71,7 +76,18 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
     ):
         """Create a preset."""
         try:
-            new_preset = PresetModel(**vars(request).update(user_id=user_id))
+            # new_preset = PresetModel(
+            new_preset = Preset(
+                user_id=user_id,  # not pulled from request
+                name=request.name,
+                description=request.description,
+                system=request.system,
+                persona=request.persona,
+                human=request.human,
+                functions_schema=request.functions_schema,
+                persona_name=request.persona_name,
+                human_name=request.human_name,
+            )
             server.ms.create_preset(preset=new_preset)
             return new_preset
         except HTTPException:
