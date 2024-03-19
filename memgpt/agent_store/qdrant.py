@@ -7,8 +7,6 @@ from memgpt.utils import datetime_to_timestamp, timestamp_to_datetime
 from memgpt.config import MemGPTConfig
 from memgpt.data_types import Record, Passage, RecordType
 from qdrant_client import QdrantClient, models, grpc
-from grpc import RpcError
-from qdrant_client.http.exceptions import UnexpectedResponse
 from memgpt.constants import MAX_EMBEDDING_DIM
 
 TEXT_PAYLOAD_KEY = "text_content"
@@ -26,9 +24,7 @@ class QdrantStorageConnector(StorageConnector):
         else:
             host, port = config.archival_storage_uri.split(":")
             self.qdrant_client = QdrantClient(host=host, port=port, api_key=os.getenv("QDRANT_API_KEY"))
-        try:
-            self.qdrant_client.get_collection(self.table_name)
-        except (UnexpectedResponse, ValueError, RpcError):
+        if not self.qdrant_client.collection_exists(self.table_name):
             self.qdrant_client.create_collection(
                 collection_name=self.table_name,
                 vectors_config=models.VectorParams(

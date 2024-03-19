@@ -140,7 +140,7 @@ def qdrant_server_running() -> bool:
 # Qdrant local doesn't support concurrent access
 # Use Qdrant server for the test if running
 def get_passage_storage():
-    storage = ["chroma", "postgres", "qdrant"]
+    storage = ["chroma", "postgres"]
     if qdrant_server_running():
         storage.append("qdrant")
 
