@@ -108,7 +108,7 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         """Delete a data source."""
         interface.clear()
         try:
-            server.delete_source(source_id=uuid.UUID(source_id), user_id=user_id)
+            server.delete_source(source_id=source_id, user_id=user_id)
             return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Source source_id={source_id} successfully deleted"})
         except HTTPException:
             raise
