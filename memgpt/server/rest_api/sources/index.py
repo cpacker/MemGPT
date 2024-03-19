@@ -6,7 +6,7 @@ from fastapi import APIRouter, Body, Depends, Query, HTTPException, status, Uplo
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from memgpt.models.pydantic_models import SourceModel, SourceModelWithMetadata, PassageModel, DocumentModel
+from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -28,7 +28,7 @@ Implement the following functions:
 
 
 class ListSourcesResponse(BaseModel):
-    sources: List[SourceModelWithMetadata] = Field(..., description="List of available sources + metadata.")
+    sources: List[SourceModel] = Field(..., description="List of available sources.")
 
 
 class CreateSourceRequest(BaseModel):

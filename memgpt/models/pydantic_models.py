@@ -100,16 +100,7 @@ class SourceModel(SQLModel, table=True):
     embedding_config: Optional[EmbeddingConfigModel] = Field(
         None, sa_column=Column(JSON), description="The embedding configuration used by the passage."
     )
-
-
-class SourceMetadata(BaseModel):
-    num_documents: int = Field(..., description="The number of documents that are part of the source.")
-    num_passages: int = Field(..., description="The number of passages that are part of the source.")
-
-
-class SourceModelWithMetadata(BaseModel):
-    source: SourceModel = Field(..., description="The source model.")
-    metadata: SourceMetadata = Field(..., description="Metadata associated with the source model.")
+    source_metadata: Optional[dict] = Field(None, sa_column=Column(JSON), description="Metadata associated with the source.")
 
 
 class PassageModel(BaseModel):

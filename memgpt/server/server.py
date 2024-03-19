@@ -37,7 +37,7 @@ from memgpt.data_types import (
     Preset,
 )
 
-from memgpt.models.pydantic_models import SourceModelWithMetadata, SourceMetadata, PassageModel, DocumentModel
+from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel
 from memgpt.interface import AgentInterface  # abstract
 
 # TODO use custom interface
@@ -1304,10 +1304,23 @@ class SyncServer(LockingServer):
         warnings.warn("list_data_source_documents is not yet implemented, returning empty list.", category=UserWarning)
         return []
 
-    def list_all_sources(self, user_id: uuid.UUID) -> List[SourceModelWithMetadata]:
+    def list_all_sources(self, user_id: uuid.UUID) -> List[SourceModel]:
         """List all sources (w/ extra metadata) belonging to a user"""
 
         sources = self.ms.list_sources(user_id=user_id)
+
+        # TODO don't unpack here, instead list_sources should return a SourceModel
+        sources = [
+            SourceModel(
+                name=source.name,
+                description=None,  # TODO: actually store descriptions
+                user_id=source.user_id,
+                id=source.id,
+                embedding_config=self.server_embedding_config,
+                created_at=source.created_at,
+            )
+            for source in sources
+        ]
 
         # Add extra metadata to the sources
         sources_with_metadata = []
@@ -1316,15 +1329,12 @@ class SyncServer(LockingServer):
             passages = self.list_data_source_passages(user_id=user_id, source_id=source.id)
             documents = self.list_data_source_documents(user_id=user_id, source_id=source.id)
 
-            sources_with_metadata.append(
-                SourceModelWithMetadata(
-                    source=source,
-                    # extra metadata
-                    metadata=SourceMetadata(
-                        num_documents=len(passages),
-                        num_passages=len(documents),
-                    ),
-                )
+            # Overwrite metadata field, should be empty anyways
+            source.source_metadata = dict(
+                num_documents=len(passages),
+                num_passages=len(documents),
             )
+
+            sources_with_metadata.append(source)
 
         return sources_with_metadata
