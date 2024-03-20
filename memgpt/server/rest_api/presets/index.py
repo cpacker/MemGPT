@@ -88,6 +88,10 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
                 human_name=request.human_name,
             )
             preset = server.create_preset(preset=new_preset)
+
+            # TODO remove once we migrate from Preset to PresetModel
+            preset = PresetModel(**vars(preset))
+
             return CreatePresetResponse(preset=preset)
         except HTTPException:
             raise
