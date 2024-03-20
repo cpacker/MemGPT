@@ -33,6 +33,7 @@ from memgpt.constants import (
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
     JSON_ENSURE_ASCII,
+    TOOL_CALL_ID_MAX_LEN,
 )
 from memgpt.models.chat_completion_response import ChatCompletionResponse
 
@@ -469,7 +470,7 @@ NOUN_BANK = [
 
 
 def get_tool_call_id() -> str:
-    return str(uuid.uuid4())
+    return str(uuid.uuid4())[:TOOL_CALL_ID_MAX_LEN]
 
 
 def assistant_function_to_tool(assistant_message: dict) -> dict:
