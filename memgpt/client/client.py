@@ -570,6 +570,8 @@ class LocalClient(AbstractClient):
         return agent_state
 
     def create_preset(self, preset: Preset) -> Preset:
+        if preset.user_id is None:
+            preset.user_id = self.user_id
         preset = self.server.create_preset(preset=preset)
         return preset
 
