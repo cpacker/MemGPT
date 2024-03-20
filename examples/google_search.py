@@ -15,6 +15,8 @@ from memgpt.utils import printd
 """
 This example show how you can add a google search custom function to your MemGPT agent.
 
+First, make sure you run `pip install serpapi`, then setup memgpt:
+
 1. Copy this file into the `~/.memgpt/functions` directory:
 ```
 cp examples/google_search.py  ~/.memgpt/functions/google_search.py
@@ -24,7 +26,12 @@ cp examples/google_search.py  ~/.memgpt/functions/google_search.py
 
 3. Add the preset file via the CLI:
 ```
-memgpt add preset -f ~/.memgpt/presets/search_preset.yaml --name search_preset
+memgpt add preset -f  examples/google_search_preset.yaml --name search_preset
+```
+
+4. Run memgpt with the `google_search_persona` persona:
+```
+memgpt run --preset search_preset --persona google_search_persona
 ```
 """
 
