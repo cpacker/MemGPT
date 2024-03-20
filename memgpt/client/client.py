@@ -327,9 +327,9 @@ class RESTClient(AbstractClient):
         response = requests.delete(f"{self.base_url}/api/presets/{str(preset_id)}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete preset: {response.text}"
 
-    def list_presets(self) -> ListPresetsResponse:
+    def list_presets(self) -> List[PresetModel]:
         response = requests.get(f"{self.base_url}/api/presets", headers=self.headers)
-        return ListPresetsResponse(**response.json())
+        return ListPresetsResponse(**response.json()).presets
 
     # memory
     def get_agent_memory(self, agent_id: uuid.UUID) -> GetAgentMemoryResponse:
