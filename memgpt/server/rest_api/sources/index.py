@@ -1,4 +1,7 @@
 import uuid
+import tempfile
+import os
+import hashlib
 from functools import partial
 from typing import List, Optional
 
@@ -150,14 +153,20 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         interface.clear()
         source = server.ms.get_source(source_id=source_id, user_id=user_id)
 
-        # create a directory connector that reads the in-memory  file
-        connector = DirectoryConnector(input_files=[file.filename])
+        # write the file to a temporary directory (deleted after the context manager exits)
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            file_path = os.path.join(tmpdirname, file.filename)
+            with open(file_path, "wb") as buffer:
+                buffer.write(file.file.read())
 
-        # load the data into the source via the connector
-        server.load_data(user_id=user_id, source_name=source.name, connector=connector)
+            # read the file
+            connector = DirectoryConnector(input_files=[file_path])
+
+            # load the data into the source via the connector
+            passage_count, document_count = server.load_data(user_id=user_id, source_name=source.name, connector=connector)
 
         # TODO: actually return added passages/documents
-        return UploadFileToSourceResponse(source=source, added_passages=0, added_documents=0)
+        return UploadFileToSourceResponse(source=source, added_passages=passage_count, added_documents=document_count)
 
     @router.get("/sources/passages ", tags=["sources"], response_model=GetSourcePassagesResponse)
     async def list_passages(
