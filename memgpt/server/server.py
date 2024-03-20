@@ -771,7 +771,7 @@ class SyncServer(LockingServer):
 
     def create_preset(self, preset: Preset):
         """Create a new preset using a config"""
-        if self.ms.get_user(user_id=preset.user_id) is None:
+        if preset.user_id is not None and self.ms.get_user(user_id=preset.user_id) is None:
             raise ValueError(f"User user_id={preset.user_id} does not exist")
 
         self.ms.create_preset(preset)
