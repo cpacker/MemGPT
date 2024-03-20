@@ -319,7 +319,7 @@ class RESTClient(AbstractClient):
             human_name=preset.human_name,
             functions_schema=preset.functions_schema,
         )
-        response = requests.post(f"{self.base_url}/api/presets", json=payload.model_dump_json(), headers=self.headers)
+        response = requests.post(f"{self.base_url}/api/presets", json=payload.model_dump(), headers=self.headers)
         assert response.status_code == 200, f"Failed to create preset: {response.text}"
         return CreatePresetResponse(**response.json())
 
