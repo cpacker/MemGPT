@@ -293,6 +293,7 @@ def test_sources(client, agent):
 def test_presets(client, agent):
 
     new_preset = Preset(
+        user_id=client.user_id,
         name="pytest_test_preset",
         description="DUMMY_DESCRIPTION",
         system="DUMMY_SYSTEM",
