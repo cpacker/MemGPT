@@ -5,7 +5,7 @@ import uuid
 from typing import Dict, List, Union, Optional, Tuple
 
 from memgpt.data_types import AgentState, User, Preset, LLMConfig, EmbeddingConfig, Source
-from memgpt.models.pydantic_models import HumanModel, PersonaModel
+from memgpt.models.pydantic_models import HumanModel, PersonaModel, PresetModel
 from memgpt.cli.cli import QuickstartChoice
 from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func, str_to_quickstart_choice
 from memgpt.config import MemGPTConfig
@@ -30,6 +30,7 @@ from memgpt.server.rest_api.humans.index import ListHumansResponse
 from memgpt.server.rest_api.personas.index import ListPersonasResponse
 from memgpt.server.rest_api.tools.index import ListToolsResponse, CreateToolResponse
 from memgpt.server.rest_api.models.index import ListModelsResponse
+from memgpt.server.rest_api.presets.index import CreatePresetResponse, CreatePresetsRequest, ListPresetsResponse
 
 
 def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
@@ -83,6 +84,12 @@ class AbstractClient(object):
 
     # presets
     def create_preset(self, preset: Preset):
+        raise NotImplementedError
+
+    def delete_preset(self, preset_id: uuid.UUID):
+        raise NotImplementedError
+
+    def list_presets(self):
         raise NotImplementedError
 
     # memory
@@ -300,11 +307,31 @@ class RESTClient(AbstractClient):
         return self.get_agent_response_to_state(response_obj)
 
     # presets
-    def create_preset(self, preset: Preset):
-        raise NotImplementedError
+    def create_preset(self, preset: Preset) -> CreatePresetResponse:
+        # TODO should the arg type here be PresetModel, not Preset?
+        payload = CreatePresetsRequest(
+            name=preset.name,
+            description=preset.description,
+            system=preset.system,
+            persona=preset.persona,
+            human=preset.human,
+            persona_name=preset.persona_name,
+            human_name=preset.human_name,
+            functions_schema=preset.functions_schema,
+        )
+        response = requests.post(f"{self.base_url}/api/presets", json=payload.model_dump_json(), headers=self.headers)
+        assert response.status_code == 200, f"Failed to create preset: {response.text}"
+        return CreatePresetResponse(**response.json())
+
+    def delete_preset(self, preset_id: uuid.UUID):
+        response = requests.delete(f"{self.base_url}/api/presets/{str(preset_id)}", headers=self.headers)
+        assert response.status_code == 200, f"Failed to delete preset: {response.text}"
+
+    def list_presets(self) -> ListPresetsResponse:
+        response = requests.get(f"{self.base_url}/api/presets", headers=self.headers)
+        return ListPresetsResponse(**response.json())
 
     # memory
-
     def get_agent_memory(self, agent_id: uuid.UUID) -> GetAgentMemoryResponse:
         response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory", headers=self.headers)
         return GetAgentMemoryResponse(**response.json())
@@ -542,9 +569,15 @@ class LocalClient(AbstractClient):
         )
         return agent_state
 
-    def create_preset(self, preset: Preset):
+    def create_preset(self, preset: Preset) -> Preset:
         preset = self.server.create_preset(preset=preset)
         return preset
+
+    def delete_preset(self, preset_id: uuid.UUID):
+        preset = self.server.delete_preset(preset_id=preset_id, user_id=self.user_id)
+
+    def list_presets(self) -> List[PresetModel]:
+        return self.server.list_presets(user_id=self.user_id)
 
     def get_agent_config(self, agent_id: str) -> AgentState:
         self.interface.clear()

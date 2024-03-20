@@ -45,7 +45,7 @@ class CreatePresetsRequest(BaseModel):
     human_name: Optional[str] = Field(None, description="The name of the human of the preset.")
 
 
-class CreateSourceResponse(BaseModel):
+class CreatePresetResponse(BaseModel):
     preset: PresetModel = Field(..., description="The newly created preset.")
 
 
@@ -61,15 +61,14 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
         interface.clear()
 
         try:
-            presets = server.ms.list_presets(user_id=user_id)
-            presets = [PresetModel(**vars(p)) for p in presets]
+            presets = server.list_presets(user_id=user_id)
             return ListPresetsResponse(presets=presets)
         except HTTPException:
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
 
-    @router.post("/presets", tags=["presets"], response_model=PresetModel)
+    @router.post("/presets", tags=["presets"], response_model=CreatePresetResponse)
     async def create_preset(
         request: CreatePresetsRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
@@ -88,8 +87,8 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
                 persona_name=request.persona_name,
                 human_name=request.human_name,
             )
-            server.ms.create_preset(preset=new_preset)
-            return new_preset
+            preset = server.create_preset(preset=new_preset)
+            return CreatePresetResponse(preset=preset)
         except HTTPException:
             raise
         except Exception as e:
@@ -103,14 +102,10 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
         """Delete a preset."""
         interface.clear()
         try:
-            # first get the preset by name
-            preset = server.get_preset(preset_id=preset_id, user_id=user_id)
-            if preset is None:
-                raise ValueError(f"Could not find preset_id {preset_id}")
-            # then delete via name
-            # TODO allow delete-by-id, eg via server.delete_preset function
-            server.ms.delete_preset(name=preset.name, user_id=user_id)
-            return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Preset preset_id={preset_id} successfully deleted"})
+            preset = server.delete_preset(user_id=user_id, preset_id=preset_id)
+            return JSONResponse(
+                status_code=status.HTTP_200_OK, content={"message": f"Preset preset_id={str(preset.id)} successfully deleted"}
+            )
         except HTTPException:
             raise
         except Exception as e:

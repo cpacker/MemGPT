@@ -287,3 +287,7 @@ def test_sources(client, agent):
 
     # delete the source
     client.delete_source(source.id)
+
+
+def test_presets(client, agent):
+    pass
