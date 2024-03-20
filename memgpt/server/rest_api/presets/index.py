@@ -1,6 +1,6 @@
 import uuid
 from functools import partial
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Union
 
 from fastapi import APIRouter, Body, Depends, Query, HTTPException, status
 from fastapi.responses import JSONResponse
@@ -32,7 +32,7 @@ class ListPresetsResponse(BaseModel):
 class CreatePresetsRequest(BaseModel):
     # TODO is there a cleaner way to create the request from the PresetModel (need to drop fields though)?
     name: str = Field(..., description="The name of the preset.")
-    id: Optional[uuid.UUID] = Field(default_factory=uuid.uuid4, description="The unique identifier of the preset.")
+    id: Optional[Union[uuid.UUID, str]] = Field(default_factory=uuid.uuid4, description="The unique identifier of the preset.")
     # user_id: uuid.UUID = Field(..., description="The unique identifier of the user who created the preset.")
     description: Optional[str] = Field(None, description="The description of the preset.")
     # created_at: datetime = Field(default_factory=datetime.now, description="The unix timestamp of when the preset was created.")
@@ -75,6 +75,8 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
     ):
         """Create a preset."""
         try:
+            if isinstance(request.id, str):
+                request.id = uuid.UUID(request.id)
             # new_preset = PresetModel(
             new_preset = Preset(
                 user_id=user_id,

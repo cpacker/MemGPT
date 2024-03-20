@@ -310,7 +310,7 @@ class RESTClient(AbstractClient):
     def create_preset(self, preset: Preset) -> CreatePresetResponse:
         # TODO should the arg type here be PresetModel, not Preset?
         payload = CreatePresetsRequest(
-            id=preset.id,
+            id=str(preset.id),
             name=preset.name,
             description=preset.description,
             system=preset.system,
