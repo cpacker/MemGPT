@@ -6,7 +6,7 @@ from abc import abstractmethod
 from datetime import datetime
 from functools import wraps
 from threading import Lock
-from typing import Union, Callable, Optional, List
+from typing import Union, Callable, Optional, List, Tuple
 import warnings
 
 from fastapi import HTTPException
@@ -1254,7 +1254,7 @@ class SyncServer(LockingServer):
         user_id: uuid.UUID,
         connector: DataConnector,
         source_name: str,
-    ):
+    ) -> Tuple[int, int]:
         """Load data from a DataConnector into a source for a specified user_id"""
         # TODO: this should be implemented as a batch job or at least async, since it may take a long time
 
@@ -1269,7 +1269,8 @@ class SyncServer(LockingServer):
         document_store = None  # StorageConnector.get_storage_connector(TableType.DOCUMENTS, self.config, user_id=user_id)
 
         # load data into the document store
-        load_data(connector, source, self.config.default_embedding_config, passage_store, document_store)
+        passage_count, document_count = load_data(connector, source, self.config.default_embedding_config, passage_store, document_store)
+        return passage_count, document_count
 
     def attach_source_to_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_name: str):
         # attach a data source to an agent
