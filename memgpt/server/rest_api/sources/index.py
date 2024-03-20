@@ -155,7 +155,6 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
 
         # write the file to a temporary directory (deleted after the context manager exits)
         with tempfile.TemporaryDirectory() as tmpdirname:
-            print("TEMPORARY DIRECTORY", tmpdirname)
             file_path = os.path.join(tmpdirname, file.filename)
             with open(file_path, "wb") as buffer:
                 buffer.write(file.file.read())
