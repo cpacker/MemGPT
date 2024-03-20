@@ -33,7 +33,7 @@ class EmbeddingConfigModel(BaseModel):
 class PresetModel(BaseModel):
     name: str = Field(..., description="The name of the preset.")
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the preset.")
-    user_id: uuid.UUID = Field(..., description="The unique identifier of the user who created the preset.")
+    user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user who created the preset.")
     description: Optional[str] = Field(None, description="The description of the preset.")
     created_at: datetime = Field(default_factory=datetime.now, description="The unix timestamp of when the preset was created.")
     system: str = Field(..., description="The system prompt of the preset.")
