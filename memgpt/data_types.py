@@ -5,7 +5,15 @@ from datetime import datetime
 from typing import Optional, List, Dict, TypeVar
 import numpy as np
 
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS, MAX_EMBEDDING_DIM
+from memgpt.constants import (
+    DEFAULT_HUMAN,
+    DEFAULT_MEMGPT_MODEL,
+    DEFAULT_PERSONA,
+    DEFAULT_PRESET,
+    LLM_MAX_TOKENS,
+    MAX_EMBEDDING_DIM,
+    TOOL_CALL_ID_MAX_LEN,
+)
 from memgpt.utils import get_local_time, format_datetime, get_utc_time, create_uuid_from_string
 from memgpt.models import chat_completion_response
 from memgpt.utils import get_human_text, get_persona_text, printd
@@ -229,7 +237,7 @@ class Message(Record):
                 tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
             )
 
-    def to_openai_dict(self):
+    def to_openai_dict(self, max_tool_id_length=TOOL_CALL_ID_MAX_LEN):
         """Go from Message class to ChatCompletion message object"""
 
         # TODO change to pydantic casting, eg `return SystemMessageModel(self)`
@@ -265,13 +273,16 @@ class Message(Record):
                 openai_message["name"] = self.name
             if self.tool_calls is not None:
                 openai_message["tool_calls"] = [tool_call.to_dict() for tool_call in self.tool_calls]
+                if max_tool_id_length:
+                    for tool_call_dict in openai_message["tool_calls"]:
+                        tool_call_dict["id"] = tool_call_dict["id"][:max_tool_id_length]
 
         elif self.role == "tool":
             assert all([v is not None for v in [self.role, self.tool_call_id]]), vars(self)
             openai_message = {
                 "content": self.text,
                 "role": self.role,
-                "tool_call_id": self.tool_call_id,
+                "tool_call_id": self.tool_call_id[:max_tool_id_length] if max_tool_id_length else self.tool_call_id,
             }
         else:
             raise ValueError(self.role)
