@@ -77,6 +77,7 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
         try:
             # new_preset = PresetModel(
             new_preset = Preset(
+                user_id=user_id,
                 name=request.name,
                 description=request.description,
                 system=request.system,
