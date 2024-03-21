@@ -1,0 +1,20 @@
+name: Docker Image CI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build the Docker image
+      run: |
+        # Extract the version number from pyproject.toml using awk
+        CURRENT_VERSION=$(awk -F '"' '/version =/ { print $2 }' pyproject.toml | head -n 1)
+        docker build . --file Dockerfile --tag memgpt/memgpt-server:$CURRENT_VERSION
