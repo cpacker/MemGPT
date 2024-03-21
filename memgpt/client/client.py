@@ -446,9 +446,8 @@ class RESTClient(AbstractClient):
 
     def load_file_into_source(self, filename: str, source_id: uuid.UUID):
         """Load {filename} and insert into source"""
-        params = {"source_id": str(source_id)}
         files = {"file": open(filename, "rb")}
-        response = requests.post(f"{self.base_url}/api/sources/upload", files=files, params=params, headers=self.headers)
+        response = requests.post(f"{self.base_url}/api/sources/{source_id}/upload", files=files, headers=self.headers)
         return response.json()
 
     def create_source(self, name: str) -> Source:
@@ -466,17 +465,17 @@ class RESTClient(AbstractClient):
             embedding_model=response_json["embedding_config"]["embedding_model"],
         )
 
-    def attach_source_to_agent(self, source_name: str, agent_id: uuid.UUID):
+    def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
         """Attach a source to an agent"""
-        params = {"source_name": source_name, "agent_id": agent_id}
-        response = requests.post(f"{self.base_url}/api/sources/attach", params=params, headers=self.headers)
+        params = {"agent_id": agent_id}
+        response = requests.post(f"{self.base_url}/api/sources/{source_id}/attach", params=params, headers=self.headers)
         assert response.status_code == 200, f"Failed to attach source to agent: {response.text}"
         return response.json()
 
-    def detach_source(self, source_name: str, agent_id: uuid.UUID):
+    def detach_source(self, source_id: uuid.UUID, agent_id: uuid.UUID):
         """Detach a source from an agent"""
-        params = {"source_name": source_name, "agent_id": str(agent_id)}
-        response = requests.post(f"{self.base_url}/api/sources/detach", params=params, headers=self.headers)
+        params = {"agent_id": str(agent_id)}
+        response = requests.post(f"{self.base_url}/api/sources/{source_id}/detach", params=params, headers=self.headers)
         assert response.status_code == 200, f"Failed to detach source from agent: {response.text}"
         return response.json()
 
@@ -615,8 +614,8 @@ class LocalClient(AbstractClient):
     def create_source(self, name: str):
         self.server.create_source(user_id=self.user_id, name=name)
 
-    def attach_source_to_agent(self, source_name: str, agent_id: uuid.UUID):
-        self.server.attach_source_to_agent(user_id=self.user_id, source_name=source_name, agent_id=agent_id)
+    def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
+        self.server.attach_source_to_agent(user_id=self.user_id, source_id=source_id, agent_id=agent_id)
 
     def delete_agent(self, agent_id: uuid.UUID):
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
