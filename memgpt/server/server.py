@@ -1367,6 +1367,7 @@ class SyncServer(LockingServer):
             source.metadata_ = dict(
                 num_documents=len(passages),
                 num_passages=len(documents),
+                attached_agents=[],
             )
 
             sources_with_metadata.append(source)
