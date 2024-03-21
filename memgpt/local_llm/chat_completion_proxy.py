@@ -21,7 +21,7 @@ from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
 from memgpt.errors import LocalLLMConnectionError, LocalLLMError
 from memgpt.constants import CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
 from memgpt.models.chat_completion_response import ChatCompletionResponse, Choice, Message, ToolCall, UsageStatistics
-from memgpt.utils import get_tool_call_id
+from memgpt.utils import get_tool_call_id, get_utc_time
 
 has_shown_warning = False
 grammar_supported_backends = ["koboldcpp", "llamacpp", "webui", "webui-legacy"]
@@ -220,7 +220,7 @@ def get_chat_completion(
                 ),
             )
         ],
-        created=datetime.now().astimezone(),
+        created=get_utc_time(),
         model=model,
         # "This fingerprint represents the backend configuration that the model runs with."
         # system_fingerprint=user if user is not None else "null",
