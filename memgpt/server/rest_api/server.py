@@ -218,7 +218,7 @@ def start_server(
         assert isinstance(ssl_certfile, str) and os.path.exists(ssl_certfile), ssl_certfile
         assert isinstance(ssl_keyfile, str) and os.path.exists(ssl_keyfile), ssl_keyfile
         print(
-            f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT} --ssl-keyfile {ssl_keyfile} --ssl-certfile {ssl_certfile}"
+            f"Running: uvicorn server:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT} --ssl-keyfile {ssl_keyfile} --ssl-certfile {ssl_certfile}"
         )
         uvicorn.run(
             app,
@@ -229,7 +229,7 @@ def start_server(
         )
     else:
         # Start the subprocess in a new session
-        print(f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT}")
+        print(f"Running: uvicorn server:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT}")
         uvicorn.run(
             app,
             host=host or "localhost",
