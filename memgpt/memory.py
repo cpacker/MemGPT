@@ -4,6 +4,7 @@ import uuid
 from typing import Optional, List, Tuple, Union
 
 from memgpt.constants import MESSAGE_SUMMARY_WARNING_FRAC
+from memgpt.prompts.prompt_template import PromptTemplate
 from memgpt.utils import get_local_time, printd, count_tokens, validate_date_format, extract_date_from_timestamp
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
 from memgpt.llm_api_tools import create
@@ -100,6 +101,101 @@ class CoreMemory(object):
                 raise ValueError("Content not found in human (make sure to use exact string)")
         else:
             raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
+
+
+class CustomizableCoreMemory(object):
+    """Held in-context inside the system message
+
+    Customizable Core Memory
+    """
+
+    def __init__(
+        self,
+        core_memory: dict[str, Any] = None,
+        memory_field_limits: dict[str, int] = None,
+        default_limit: int = 150,
+        archival_memory_exists=True,
+    ):
+        if core_memory is None:
+            core_memory = {}
+        if memory_field_limits is None:
+            memory_field_limits = {}
+
+        self.core_memory = core_memory
+        self.memory_field_limits = memory_field_limits
+        self.default_limit = default_limit
+        # affects the error message the AI will see on overflow inserts
+        self.archival_memory_exists = archival_memory_exists
+
+    def __repr__(self) -> str:
+        content = f"\n### CORE MEMORY ###"
+        for key, value in self.core_memory.items():
+            content += f"\n=== {key} ===\n{value}\n"
+        return content
+
+    def get_memory_view(self, core_memory_section_template):
+        template = PromptTemplate.from_string(core_memory_section_template)
+        content = ""
+        for key, value in self.core_memory.items():
+            limit = self.default_limit if key not in self.memory_field_limits else self.memory_field_limits[key]
+            content += (
+                template.generate_prompt(
+                    {
+                        "memory_key": key,
+                        "memory_value": f"{value}",
+                        "memory_value_length": f"{len(value)}",
+                        "memory_value_limit": f"{limit}",
+                    }
+                )
+                + "\n"
+            )
+        return content
+
+    def to_dict(self):
+        return self.core_memory
+
+    @classmethod
+    def load(cls, state):
+        return cls(state["core_memory"])
+
+    def edit(self, field, content):
+        if field in self.core_memory:
+            if field in self.memory_field_limits:
+                if len(content) > self.memory_field_limits[field]:
+                    error_msg = f"Edit failed: Exceeds {self.memory_field_limits[field]} character limit (requested {len(content)})."
+                    if self.archival_memory_exists:
+                        error_msg = f"{error_msg} Consider summarizing existing core memories in '{field}' and/or moving lower priority content to archival memory to free up space in core memory, then trying again."
+                    raise ValueError(error_msg)
+            else:
+                if len(content) > self.default_limit:
+                    error_msg = f"Edit failed: Exceeds {self.default_limit} character limit (requested {len(content)})."
+                    if self.archival_memory_exists:
+                        error_msg = f"{error_msg} Consider summarizing existing core memories in '{field}' and/or moving lower priority content to archival memory to free up space in core memory, then trying again."
+                    raise ValueError(error_msg)
+            self.core_memory[field] = content
+            return len(content)
+        else:
+            raise KeyError(f"No memory section named {field}!")
+
+    def edit_append(self, field, content, sep="\n"):
+        if field in self.core_memory:
+            new_content = self.core_memory[field] + sep + content
+            return self.edit(field, new_content)
+        else:
+            raise KeyError(f"No memory section named {field}!")
+
+    def edit_replace(self, field, old_content, new_content):
+        if len(old_content) == 0:
+            raise ValueError("old_content cannot be an empty string (must specify old_content to replace)")
+
+        if field in self.core_memory:
+            if old_content in self.core_memory[field]:
+                new_content = self.core_memory[field].replace(old_content, new_content)
+                return self.edit(field, new_content)
+            else:
+                raise ValueError("Content not found in field (make sure to use exact string)")
+        else:
+            raise KeyError(f"No memory section named {field}!")
 
 
 def summarize_messages(
@@ -240,7 +336,7 @@ class DummyRecallMemory(RecallMemory):
         matches = [
             d for d in message_pool if d["message"]["content"] is not None and query_string.lower() in d["message"]["content"].lower()
         ]
-        printd(f"recall_memory - matches:\n{matches[start:start+count]}")
+        printd(f"recall_memory - matches:\n{matches[start:start + count]}")
 
         # start/count support paging through results
         if start is not None and count is not None:

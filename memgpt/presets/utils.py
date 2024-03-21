@@ -76,3 +76,46 @@ def load_all_presets():
         all_yaml_data[base_name] = data
 
     return all_yaml_data
+
+
+def load_text_file(file_path):
+    """
+    Load a Text file and return the data.
+
+    :param file_path: Path to the Text file.
+    :return: Data from the Text file.
+    """
+    with open(file_path, "r") as file:
+        return file.read()
+
+
+def load_all_templates():
+    """Load all the templates in the examples directory"""
+
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+
+    example_path_pattern = os.path.join(script_directory, "examples", "*.txt")
+
+    example_yaml_files = glob.glob(example_path_pattern)
+
+    user_presets_dir = os.path.join(MEMGPT_DIR, "presets")
+
+    if not os.path.exists(user_presets_dir):
+        os.makedirs(user_presets_dir)
+
+    user_path_pattern = os.path.join(user_presets_dir, "*.txt")
+
+    user_yaml_files = glob.glob(user_path_pattern)
+
+    # Pull from both examplesa and user-provided
+    all_yaml_files = example_yaml_files + user_yaml_files
+
+    # Loading and creating a mapping from file name to YAML data
+    all_yaml_data = {}
+    for file_path in all_yaml_files:
+        # Extracting the base file name without the '.yaml' extension
+        base_name = os.path.splitext(os.path.basename(file_path))[0]
+        data = load_text_file(file_path)
+        all_yaml_data[base_name] = data
+
+    return all_yaml_data

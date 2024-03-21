@@ -43,6 +43,8 @@ from memgpt.constants import (
 )
 from .errors import LLMError
 from .functions.functions import USER_FUNCTIONS_DIR, load_all_function_sets
+from .presets.default_templates import default_system_message_layout_template, default_core_memory_section_template
+from .prompts.prompt_template import PromptTemplate
 
 
 def link_functions(function_schemas: list):
@@ -144,7 +146,13 @@ def initialize_message_sequence(
         memory_edit_timestamp = get_local_time()
 
     full_system_message = construct_system_with_memory(
-        system, memory, memory_edit_timestamp, archival_memory=archival_memory, recall_memory=recall_memory
+        system,
+        memory,
+        memory_edit_timestamp,
+        system_message_layout_template,
+        core_memory_section_template,
+        archival_memory=archival_memory,
+        recall_memory=recall_memory,
     )
     first_user_message = get_login_event()  # event letting MemGPT know the user just logged in
 
@@ -293,9 +301,7 @@ class Agent(object):
         else:
             # print(f"Agent.__init__ :: creating, state={agent_state.state['messages']}")
             init_messages = initialize_message_sequence(
-                self.model,
-                self.system,
-                self.memory,
+                self.model, self.system, self.memory, self.system_message_layout_template, self.core_memory_section_template
             )
             init_messages_objs = []
             for msg in init_messages:
@@ -905,6 +911,43 @@ class Agent(object):
             self.model,
             self.system,
             self.memory,
+            self.system_message_layout_template,
+            self.core_memory_section_template,
+            archival_memory=self.persistence_manager.archival_memory,
+            recall_memory=self.persistence_manager.recall_memory,
+        )[0]
+
+        diff = united_diff(curr_system_message["content"], new_system_message["content"])
+        printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
+
+        # Swap the system message out
+        self._swap_system_message(
+            Message.dict_to_message(
+                agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=new_system_message
+            )
+        )
+
+    def edit_system_template_field(self, field_name: str, field_value: Union[str, float, int], rebuild_system_template: bool = True):
+        """Edits a system template field"""
+        if field_name not in self.system_template_fields:
+            raise ValueError(f"'{field_name}' not found in system template fields")
+
+        self.system_template_fields[field_name] = field_value
+        if rebuild_system_template:
+            self.rebuild_system_template()
+
+    def rebuild_system_template(self):
+        """Rebuilds the system message with the latest template field values"""
+        curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
+
+        template = PromptTemplate.from_string(self.system_template)
+
+        new_system_message = initialize_message_sequence(
+            self.model,
+            template.generate_prompt(self.system_template_fields),
+            self.memory,
+            self.system_message_layout_template,
+            self.core_memory_section_template,
             archival_memory=self.persistence_manager.archival_memory,
             recall_memory=self.persistence_manager.recall_memory,
         )[0]
@@ -1005,13 +1048,32 @@ class Agent(object):
     #        self.ms.update_agent(agent=new_agent_state)
 
     def update_state(self) -> AgentState:
-        updated_state = {
-            "persona": self.memory.persona,
-            "human": self.memory.human,
-            "system": self.system,
-            "functions": self.functions,
-            "messages": [str(msg.id) for msg in self._messages],
-        }
+        if isinstance(self.memory, InContextMemory):
+            updated_state = {
+                "persona": self.memory.persona,
+                "human": self.memory.human,
+                "core_memory_type": "default",
+                "system_message_layout_template": self.system_message_layout_template,
+                "core_memory_section_template": self.core_memory_section_template,
+                "system": self.system,
+                "system_template": self.system_template,
+                "functions": self.functions,
+                "messages": [str(msg.id) for msg in self._messages],
+            }
+        elif isinstance(self.memory, CustomizableInContextMemory):
+            updated_state = {
+                "core_memory": self.memory.core_memory,
+                "core_memory_limits": self.memory.memory_field_limits,
+                "core_memory_type": "custom",
+                "system_message_layout_template": self.system_message_layout_template,
+                "core_memory_section_template": self.core_memory_section_template,
+                "system": self.system,
+                "system_template": self.system_template,
+                "functions": self.functions,
+                "messages": [str(msg.id) for msg in self._messages],
+            }
+        else:
+            updated_state = {}
 
         self.agent_state = AgentState(
             name=self.agent_state.name,
