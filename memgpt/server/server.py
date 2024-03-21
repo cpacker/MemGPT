@@ -37,7 +37,7 @@ from memgpt.data_types import (
     Preset,
 )
 
-from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel, PresetModel
+from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel
 from memgpt.interface import AgentInterface  # abstract
 
 # TODO use custom interface
@@ -751,27 +751,13 @@ class SyncServer(LockingServer):
         if agent is not None:
             self.ms.delete_agent(agent_id=agent_id)
 
-    def delete_preset(self, user_id: uuid.UUID, preset_id: uuid.UUID) -> Preset:
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-
-        # first get the preset by name
-        preset = self.get_preset(preset_id=preset_id, user_id=user_id)
-        if preset is None:
-            raise ValueError(f"Could not find preset_id {preset_id}")
-        # then delete via name
-        # TODO allow delete-by-id, eg via server.delete_preset function
-        self.ms.delete_preset(name=preset.name, user_id=user_id)
-
-        return preset
-
     def initialize_default_presets(self, user_id: uuid.UUID):
         """Add default preset options into the metadata store"""
         presets.add_default_presets(user_id, self.ms)
 
     def create_preset(self, preset: Preset):
         """Create a new preset using a config"""
-        if preset.user_id is not None and self.ms.get_user(user_id=preset.user_id) is None:
+        if self.ms.get_user(user_id=preset.user_id) is None:
             raise ValueError(f"User user_id={preset.user_id} does not exist")
 
         self.ms.create_preset(preset)
@@ -782,13 +768,6 @@ class SyncServer(LockingServer):
     ) -> Preset:
         """Get the preset"""
         return self.ms.get_preset(preset_id=preset_id, name=preset_name, user_id=user_id)
-
-    def list_presets(self, user_id: uuid.UUID) -> List[PresetModel]:
-        # TODO update once we strip Preset in favor of PresetModel
-        presets = self.ms.list_presets(user_id=user_id)
-        presets = [PresetModel(**vars(p)) for p in presets]
-
-        return presets
 
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:
         """Convert AgentState to a dict for a JSON response"""
@@ -1293,17 +1272,11 @@ class SyncServer(LockingServer):
         passage_count, document_count = load_data(connector, source, self.config.default_embedding_config, passage_store, document_store)
         return passage_count, document_count
 
-    def attach_source_to_agent(
-        self,
-        user_id: uuid.UUID,
-        agent_id: uuid.UUID,
-        source_id: Optional[uuid.UUID] = None,
-        source_name: Optional[str] = None,
-    ):
+    def attach_source_to_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_name: str):
         # attach a data source to an agent
-        data_source = self.ms.get_source(source_id=source_id, user_id=user_id, source_name=source_name)
+        data_source = self.ms.get_source(source_name=source_name, user_id=user_id)
         if data_source is None:
-            raise ValueError(f"Data source id={source_id} name={source_name} does not exist for user_id {user_id}")
+            raise ValueError(f"Data source {source_name} does not exist for user_id {user_id}")
 
         # get connection to data source storage
         source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
@@ -1316,13 +1289,7 @@ class SyncServer(LockingServer):
 
         return data_source
 
-    def detach_source_from_agent(
-        self,
-        user_id: uuid.UUID,
-        agent_id: uuid.UUID,
-        source_id: Optional[uuid.UUID] = None,
-        source_name: Optional[str] = None,
-    ):
+    def detach_source_from_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_name: str):
         # TODO: remove all passages coresponding to source from agent's archival memory
         raise NotImplementedError
 
@@ -1360,23 +1327,22 @@ class SyncServer(LockingServer):
         sources_with_metadata = []
         for source in sources:
 
-            passages = self.list_data_source_passages(user_id=user_id, source_id=source.id)
-            documents = self.list_data_source_documents(user_id=user_id, source_id=source.id)
-            agent_ids = self.ms.list_attached_agents(source_id=source.id)
-            # add the agent name information
-            attached_agents = [
-                {
-                    "id": str(a_id),
-                    "name": self.ms.get_agent(user_id=user_id, agent_id=a_id).name,
-                }
-                for a_id in agent_ids
-            ]
+            # count number of passages
+            passage_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+            num_passages = passage_conn.size({"data_source": source.name})
+            print(passage_conn.get_all())
+            print("NUMBER PASSAGES", num_passages, user_id)
+
+            # TODO: add when documents table implemented
+            ## count number of documents
+            # document_conn = StorageConnector.get_storage_connector(TableType.DOCUMENTS, self.config, user_id=user_id)
+            # num_documents = document_conn.size({"data_source": source.name})
+            num_documents = 0
 
             # Overwrite metadata field, should be empty anyways
             source.metadata_ = dict(
-                num_documents=len(passages),
-                num_passages=len(documents),
-                attached_agents=attached_agents,
+                num_documents=num_documents,
+                num_passages=num_passages,
             )
 
             sources_with_metadata.append(source)
