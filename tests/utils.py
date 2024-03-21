@@ -53,7 +53,7 @@ def wipe_memgpt_home():
     """Wipes ~/.memgpt (moves to a backup), and initializes a new ~/.memgpt dir"""
 
     # Get the current timestamp in a readable format (e.g., YYYYMMDD_HHMMSS)
-    timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
 
     # Construct the new backup directory name with the timestamp
     backup_dir = f"~/.memgpt_test_backup_{timestamp}"
