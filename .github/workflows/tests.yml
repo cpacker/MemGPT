@@ -23,7 +23,7 @@ jobs:
 
     - name: Run Qdrant
       run: |
-        docker run -d --rm --network=host qdrant/qdrant:v1.7.4
+        docker run -d --rm --network=host qdrant/qdrant:v1.8.3
         until curl --silent --fail http://localhost:6333/readyz; do
         echo "Waiting for Qdrant server"
         sleep 5
