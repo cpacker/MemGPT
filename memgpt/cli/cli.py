@@ -168,7 +168,9 @@ def quickstart(
         api_key = os.getenv("OPENAI_API_KEY")
         while api_key is None or len(api_key) == 0:
             # Ask for API key as input
-            api_key = questionary.password("Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):").ask()
+            api_key = questionary.password(
+                "Enter your OpenAI API key, or separated by comma keys (starts with 'sk-', see https://platform.openai.com/api-keys):"
+            ).ask()
         credentials.openai_key = api_key
         credentials.save()
 

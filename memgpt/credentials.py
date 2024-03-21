@@ -17,10 +17,35 @@ from memgpt.config import get_field, set_field
 
 
 SUPPORTED_AUTH_TYPES = ["bearer_token", "api_key"]
+KEY_NAMES = ("openai_key", "azure_key", "openllm_key")
 
 
 @dataclass
 class MemGPTCredentials:
+    # key_roller functionality with backward compatability
+    def __getattribute__(self, prop: str):
+        # exclude processing of all fields except fields with keys
+        value = super().__getattribute__(prop)
+        if value is None or prop not in KEY_NAMES:
+            return value
+
+        # the key field stores comma-separated keys
+        keys = [key for key in value.split(",")]
+        # calculating the current key number
+        number = self._key_num
+        number = number + 1 if number + 1 < len(keys) else 0
+        self._key_num = number
+        # key issuance
+        if len(keys):
+            return keys[number]
+        return None
+
+    def _get_keys(self, key_name):
+        if key_name in KEY_NAMES:
+            return super().__getattribute__(key_name)
+
+    _key_num: int = 0
+
     # credentials for MemGPT
     credentials_path: str = os.path.join(MEMGPT_DIR, "credentials")
 
@@ -31,6 +56,7 @@ class MemGPTCredentials:
     # azure config
     azure_auth_type: str = "api_key"
     azure_key: Optional[str] = None
+
     # base llm / model
     azure_version: Optional[str] = None
     azure_endpoint: Optional[str] = None
@@ -49,9 +75,8 @@ class MemGPTCredentials:
         config = configparser.ConfigParser()
 
         # allow overriding with env variables
-        if os.getenv("MEMGPT_CREDENTIALS_PATH"):
-            credentials_path = os.getenv("MEMGPT_CREDENTIALS_PATH")
-        else:
+        credentials_path = os.getenv("MEMGPT_CREDENTIALS_PATH")
+        if not credentials_path:
             credentials_path = MemGPTCredentials.credentials_path
 
         if os.path.exists(credentials_path):
@@ -90,11 +115,11 @@ class MemGPTCredentials:
         config = configparser.ConfigParser()
         # openai config
         set_field(config, "openai", "auth_type", self.openai_auth_type)
-        set_field(config, "openai", "key", self.openai_key)
+        set_field(config, "openai", "key", self._get_keys("openai_key"))
 
         # azure config
         set_field(config, "azure", "auth_type", self.azure_auth_type)
-        set_field(config, "azure", "key", self.azure_key)
+        set_field(config, "azure", "key", self._get_keys("azure_key"))
         set_field(config, "azure", "version", self.azure_version)
         set_field(config, "azure", "endpoint", self.azure_endpoint)
         set_field(config, "azure", "deployment", self.azure_deployment)
@@ -102,9 +127,9 @@ class MemGPTCredentials:
         set_field(config, "azure", "embedding_endpoint", self.azure_embedding_endpoint)
         set_field(config, "azure", "embedding_deployment", self.azure_embedding_deployment)
 
-        # openai config
+        # openllm config
         set_field(config, "openllm", "auth_type", self.openllm_auth_type)
-        set_field(config, "openllm", "key", self.openllm_key)
+        set_field(config, "openllm", "key", self._get_keys("openllm_key"))
 
         if not os.path.exists(MEMGPT_DIR):
             os.makedirs(MEMGPT_DIR, exist_ok=True)
@@ -114,9 +139,8 @@ class MemGPTCredentials:
     @staticmethod
     def exists():
         # allow overriding with env variables
-        if os.getenv("MEMGPT_CREDENTIALS_PATH"):
-            credentials_path = os.getenv("MEMGPT_CREDENTIALS_PATH")
-        else:
+        credentials_path = os.getenv("MEMGPT_CREDENTIALS_PATH")
+        if not credentials_path:
             credentials_path = MemGPTCredentials.credentials_path
 
         assert not os.path.isdir(credentials_path), f"Credentials path {credentials_path} cannot be set to a directory."
