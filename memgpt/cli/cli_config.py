@@ -224,7 +224,7 @@ def get_model_options(
         else:
             # Attempt to do OpenAI endpoint style model fetching
             # TODO support local auth
-            fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=None)
+            fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=None, fix_url=True)
             model_options = [obj["id"] for obj in fetched_model_options_response["data"]]
             # NOTE no filtering of local model options
 
