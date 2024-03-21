@@ -1362,12 +1362,21 @@ class SyncServer(LockingServer):
 
             passages = self.list_data_source_passages(user_id=user_id, source_id=source.id)
             documents = self.list_data_source_documents(user_id=user_id, source_id=source.id)
+            agent_ids = self.ms.list_attached_agents(source_id=source.id)
+            # add the agent name information
+            attached_agents = [
+                {
+                    "id": a_id,
+                    "name": self.ms.get_agent(user_id=user_id, agent_id=a_id).name,
+                }
+                for a_id in agent_ids
+            ]
 
             # Overwrite metadata field, should be empty anyways
             source.metadata_ = dict(
                 num_documents=len(passages),
                 num_passages=len(documents),
-                attached_agents=[],
+                attached_agents=attached_agents,
             )
 
             sources_with_metadata.append(source)
