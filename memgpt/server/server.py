@@ -1366,7 +1366,7 @@ class SyncServer(LockingServer):
             # add the agent name information
             attached_agents = [
                 {
-                    "id": a_id,
+                    "id": str(a_id),
                     "name": self.ms.get_agent(user_id=user_id, agent_id=a_id).name,
                 }
                 for a_id in agent_ids
