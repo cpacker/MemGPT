@@ -783,6 +783,13 @@ class SyncServer(LockingServer):
         """Get the preset"""
         return self.ms.get_preset(preset_id=preset_id, name=preset_name, user_id=user_id)
 
+    def list_presets(self, user_id: uuid.UUID) -> List[PresetModel]:
+        # TODO update once we strip Preset in favor of PresetModel
+        presets = self.ms.list_presets(user_id=user_id)
+        presets = [PresetModel(**vars(p)) for p in presets]
+
+        return presets
+
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:
         """Convert AgentState to a dict for a JSON response"""
         assert agent_state is not None
@@ -795,13 +802,6 @@ class SyncServer(LockingServer):
             "created_at": agent_state.created_at.isoformat(),
         }
         return agent_config
-
-    def list_presets(self, user_id: uuid.UUID) -> List[PresetModel]:
-        # TODO update once we strip Preset in favor of PresetModel
-        presets = self.ms.list_presets(user_id=user_id)
-        presets = [PresetModel(**vars(p)) for p in presets]
-
-        return presets
 
     # TODO make return type pydantic
     def list_agents(self, user_id: uuid.UUID) -> dict:
@@ -1293,11 +1293,17 @@ class SyncServer(LockingServer):
         passage_count, document_count = load_data(connector, source, self.config.default_embedding_config, passage_store, document_store)
         return passage_count, document_count
 
-    def attach_source_to_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_name: str):
+    def attach_source_to_agent(
+        self,
+        user_id: uuid.UUID,
+        agent_id: uuid.UUID,
+        source_id: Optional[uuid.UUID] = None,
+        source_name: Optional[str] = None,
+    ):
         # attach a data source to an agent
-        data_source = self.ms.get_source(source_name=source_name, user_id=user_id)
+        data_source = self.ms.get_source(source_id=source_id, user_id=user_id, source_name=source_name)
         if data_source is None:
-            raise ValueError(f"Data source {source_name} does not exist for user_id {user_id}")
+            raise ValueError(f"Data source id={source_id} name={source_name} does not exist for user_id {user_id}")
 
         # get connection to data source storage
         source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
@@ -1310,7 +1316,13 @@ class SyncServer(LockingServer):
 
         return data_source
 
-    def detach_source_from_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_name: str):
+    def detach_source_from_agent(
+        self,
+        user_id: uuid.UUID,
+        agent_id: uuid.UUID,
+        source_id: Optional[uuid.UUID] = None,
+        source_name: Optional[str] = None,
+    ):
         # TODO: remove all passages coresponding to source from agent's archival memory
         raise NotImplementedError
 
