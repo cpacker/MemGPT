@@ -1,4 +1,7 @@
 import uuid
+import tempfile
+import os
+import hashlib
 from functools import partial
 from typing import List, Optional
 
@@ -62,15 +65,20 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
     @router.get("/sources", tags=["sources"], response_model=ListSourcesResponse)
-    async def list_source(
+    async def list_sources(
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """List all data sources created by a user."""
         # Clear the interface
         interface.clear()
 
-        sources = server.list_all_sources(user_id=user_id)
-        return ListSourcesResponse(sources=sources)
+        try:
+            sources = server.list_all_sources(user_id=user_id)
+            return ListSourcesResponse(sources=sources)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{e}")
 
     @router.post("/sources", tags=["sources"], response_model=SourceModel)
     async def create_source(
@@ -97,30 +105,30 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
 
     @router.delete("/sources/{source_id}", tags=["sources"])
     async def delete_source(
-        source_id,
+        source_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """Delete a data source."""
         interface.clear()
         try:
-            server.delete_source(source_id=uuid.UUID(source_id), user_id=user_id)
+            server.delete_source(source_id=source_id, user_id=user_id)
             return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Source source_id={source_id} successfully deleted"})
         except HTTPException:
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
 
-    @router.post("/sources/attach", tags=["sources"], response_model=SourceModel)
+    @router.post("/sources/{source_id}/attach", tags=["sources"], response_model=SourceModel)
     async def attach_source_to_agent(
+        source_id: uuid.UUID,
         agent_id: uuid.UUID = Query(..., description="The unique identifier of the agent to attach the source to."),
-        source_name: str = Query(..., description="The name of the source to attach."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """Attach a data source to an existing agent."""
         interface.clear()
         assert isinstance(agent_id, uuid.UUID), f"Expected agent_id to be a UUID, got {agent_id}"
         assert isinstance(user_id, uuid.UUID), f"Expected user_id to be a UUID, got {user_id}"
-        source = server.attach_source_to_agent(source_name=source_name, agent_id=agent_id, user_id=user_id)
+        source = server.attach_source_to_agent(source_id=source_id, agent_id=agent_id, user_id=user_id)
         return SourceModel(
             name=source.name,
             description=None,  # TODO: actually store descriptions
@@ -130,47 +138,53 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
             created_at=source.created_at,
         )
 
-    @router.post("/sources/detach", tags=["sources"], response_model=SourceModel)
+    @router.post("/sources/{source_id}/detach", tags=["sources"], response_model=SourceModel)
     async def detach_source_from_agent(
+        source_id: uuid.UUID,
         agent_id: uuid.UUID = Query(..., description="The unique identifier of the agent to detach the source from."),
-        source_name: str = Query(..., description="The name of the source to detach."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """Detach a data source from an existing agent."""
-        server.detach_source_from_agent(source_name=source_name, agent_id=agent_id, user_id=user_id)
+        server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=user_id)
 
-    @router.post("/sources/upload", tags=["sources"], response_model=UploadFileToSourceResponse)
+    @router.post("/sources/{source_id}/upload", tags=["sources"], response_model=UploadFileToSourceResponse)
     async def upload_file_to_source(
         # file: UploadFile = UploadFile(..., description="The file to upload."),
         file: UploadFile,
-        source_id: uuid.UUID = Query(..., description="The unique identifier of the source to attach."),
+        source_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """Upload a file to a data source."""
         interface.clear()
         source = server.ms.get_source(source_id=source_id, user_id=user_id)
 
-        # create a directory connector that reads the in-memory  file
-        connector = DirectoryConnector(input_files=[file.filename])
+        # write the file to a temporary directory (deleted after the context manager exits)
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            file_path = os.path.join(tmpdirname, file.filename)
+            with open(file_path, "wb") as buffer:
+                buffer.write(file.file.read())
 
-        # load the data into the source via the connector
-        server.load_data(user_id=user_id, source_name=source.name, connector=connector)
+            # read the file
+            connector = DirectoryConnector(input_files=[file_path])
+
+            # load the data into the source via the connector
+            passage_count, document_count = server.load_data(user_id=user_id, source_name=source.name, connector=connector)
 
         # TODO: actually return added passages/documents
-        return UploadFileToSourceResponse(source=source, added_passages=0, added_documents=0)
+        return UploadFileToSourceResponse(source=source, added_passages=passage_count, added_documents=document_count)
 
-    @router.get("/sources/passages ", tags=["sources"], response_model=GetSourcePassagesResponse)
+    @router.get("/sources/{source_id}/passages ", tags=["sources"], response_model=GetSourcePassagesResponse)
     async def list_passages(
-        source_id: uuid.UUID = Body(...),
+        source_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """List all passages associated with a data source."""
         passages = server.list_data_source_passages(user_id=user_id, source_id=source_id)
         return GetSourcePassagesResponse(passages=passages)
 
-    @router.get("/sources/documents", tags=["sources"], response_model=GetSourceDocumentsResponse)
+    @router.get("/sources/{source_id}/documents", tags=["sources"], response_model=GetSourceDocumentsResponse)
     async def list_documents(
-        source_id: uuid.UUID = Body(...),
+        source_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """List all documents associated with a data source."""
