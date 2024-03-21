@@ -1,4 +1,4 @@
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 import copy
 import re
 import json
@@ -841,7 +841,7 @@ def get_local_time(timezone=None):
 def get_utc_time() -> datetime:
     """Get the current UTC time"""
     # return datetime.now(pytz.utc)
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 def format_datetime(dt):
