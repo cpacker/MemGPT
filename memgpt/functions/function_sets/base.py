@@ -42,7 +42,7 @@ def pause_heartbeats(self: Agent, minutes: int) -> Optional[str]:
     minutes = min(MAX_PAUSE_HEARTBEATS, minutes)
 
     # Record the current time
-    self.pause_heartbeats_start = datetime.datetime.now()
+    self.pause_heartbeats_start = datetime.datetime.now(datetime.UTC)
     # And record how long the pause should go for
     self.pause_heartbeats_minutes = int(minutes)
 
