@@ -157,7 +157,7 @@ def test_attach_source_to_agent(server, user_id, agent_id):
     assert len(passages_before) == 0
 
     # attach source
-    server.attach_source_to_agent(user_id, agent_id, "test_source")
+    server.attach_source_to_agent(user_id=user_id, agent_id=agent_id, source_name="test_source")
 
     # check archival memory size
     passages_after = server.get_agent_archival(user_id=user_id, agent_id=agent_id, start=0, count=10000)
