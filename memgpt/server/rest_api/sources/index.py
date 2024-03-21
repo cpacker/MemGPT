@@ -118,17 +118,17 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
 
-    @router.post("/sources/attach", tags=["sources"], response_model=SourceModel)
+    @router.post("/sources/{source_id}/attach", tags=["sources"], response_model=SourceModel)
     async def attach_source_to_agent(
+        source_id: uuid.UUID,
         agent_id: uuid.UUID = Query(..., description="The unique identifier of the agent to attach the source to."),
-        source_name: str = Query(..., description="The name of the source to attach."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """Attach a data source to an existing agent."""
         interface.clear()
         assert isinstance(agent_id, uuid.UUID), f"Expected agent_id to be a UUID, got {agent_id}"
         assert isinstance(user_id, uuid.UUID), f"Expected user_id to be a UUID, got {user_id}"
-        source = server.attach_source_to_agent(source_name=source_name, agent_id=agent_id, user_id=user_id)
+        source = server.attach_source_to_agent(source_id=source_id, agent_id=agent_id, user_id=user_id)
         return SourceModel(
             name=source.name,
             description=None,  # TODO: actually store descriptions
@@ -138,20 +138,20 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
             created_at=source.created_at,
         )
 
-    @router.post("/sources/detach", tags=["sources"], response_model=SourceModel)
+    @router.post("/sources/{source_id}/detach", tags=["sources"], response_model=SourceModel)
     async def detach_source_from_agent(
+        source_id: uuid.UUID,
         agent_id: uuid.UUID = Query(..., description="The unique identifier of the agent to detach the source from."),
-        source_name: str = Query(..., description="The name of the source to detach."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """Detach a data source from an existing agent."""
-        server.detach_source_from_agent(source_name=source_name, agent_id=agent_id, user_id=user_id)
+        server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=user_id)
 
-    @router.post("/sources/upload", tags=["sources"], response_model=UploadFileToSourceResponse)
+    @router.post("/sources/{source_id}/upload", tags=["sources"], response_model=UploadFileToSourceResponse)
     async def upload_file_to_source(
         # file: UploadFile = UploadFile(..., description="The file to upload."),
         file: UploadFile,
-        source_id: uuid.UUID = Query(..., description="The unique identifier of the source to attach."),
+        source_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """Upload a file to a data source."""
@@ -173,18 +173,18 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         # TODO: actually return added passages/documents
         return UploadFileToSourceResponse(source=source, added_passages=passage_count, added_documents=document_count)
 
-    @router.get("/sources/passages ", tags=["sources"], response_model=GetSourcePassagesResponse)
+    @router.get("/sources/{source_id}/passages ", tags=["sources"], response_model=GetSourcePassagesResponse)
     async def list_passages(
-        source_id: uuid.UUID = Body(...),
+        source_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """List all passages associated with a data source."""
         passages = server.list_data_source_passages(user_id=user_id, source_id=source_id)
         return GetSourcePassagesResponse(passages=passages)
 
-    @router.get("/sources/documents", tags=["sources"], response_model=GetSourceDocumentsResponse)
+    @router.get("/sources/{source_id}/documents", tags=["sources"], response_model=GetSourceDocumentsResponse)
     async def list_documents(
-        source_id: uuid.UUID = Body(...),
+        source_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """List all documents associated with a data source."""
