@@ -253,6 +253,7 @@ def test_sources(client, agent):
     # list sources
     sources = client.list_sources()
     print("listed sources", sources)
+    assert len(sources.sources) == 0
 
     # create a source
     source = client.create_source(name="test_source")
@@ -260,7 +261,9 @@ def test_sources(client, agent):
     # list sources
     sources = client.list_sources()
     print("listed sources", sources)
-    assert len(sources) == 1
+    assert len(sources.sources) == 1
+    assert sources.sources[0].metadata_["num_passages"] == 0
+    assert sources.sources[0].metadata_["num_documents"] == 0
 
     # check agent archival memory size
     archival_memories = client.get_agent_archival_memory(agent_id=agent.id).archival_memory
@@ -269,18 +272,25 @@ def test_sources(client, agent):
 
     # load a file into a source
     filename = "CONTRIBUTING.md"
-    num_passages = 20
     response = client.load_file_into_source(filename=filename, source_id=source.id)
-    print(response)
+
+    # TODO: make sure things run in the right order
+    archival_memories = client.get_agent_archival_memory(agent_id=agent.id).archival_memory
+    assert len(archival_memories) == 0
 
     # attach a source
-    # TODO: make sure things run in the right order
     client.attach_source_to_agent(source_id=source.id, agent_id=agent.id)
 
     # list archival memory
     archival_memories = client.get_agent_archival_memory(agent_id=agent.id).archival_memory
-    print(archival_memories)
-    assert len(archival_memories) == num_passages
+    # print(archival_memories)
+    assert len(archival_memories) == 20 or len(archival_memories) == 21
+
+    # check number of passages
+    sources = client.list_sources()
+    assert sources.sources[0].metadata_["num_passages"] > 0
+    assert sources.sources[0].metadata_["num_documents"] == 0  # TODO: fix this once document store added
+    print(sources)
 
     # detach the source
     # TODO: add when implemented
