@@ -34,8 +34,8 @@ def main():
     agent_info = client.create_agent(
         name="my_agent",
         preset=DEFAULT_PRESET,
-        # persona=get_persona_text(DEFAULT_PERSONA),
-        # human=get_human_text(DEFAULT_HUMAN),
+        persona=get_persona_text(DEFAULT_PERSONA),
+        human=get_human_text(DEFAULT_HUMAN),
     )
     print(f"Created agent: {agent_info.name} with ID {str(agent_info.id)}")
 
