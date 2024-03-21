@@ -88,6 +88,7 @@ def load_directory(
     recursive: Annotated[bool, typer.Option(help="Recursively search for files in directory.")] = False,
     extensions: Annotated[str, typer.Option(help="Comma separated list of file extensions to load")] = default_extensions,
     user_id: Annotated[Optional[uuid.UUID], typer.Option(help="User ID to associate with dataset.")] = None,  # TODO: remove
+    description: Annotated[Optional[str], typer.Option(help="Description of the source.")] = None,
 ):
     try:
         connector = DirectoryConnector(input_files=input_files, input_directory=input_dir, recursive=recursive, extensions=extensions)
@@ -101,6 +102,7 @@ def load_directory(
             user_id=user_id,
             embedding_model=config.default_embedding_config.embedding_model,
             embedding_dim=config.default_embedding_config.embedding_dim,
+            description=description,
         )
         ms.create_source(source)
         passage_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
