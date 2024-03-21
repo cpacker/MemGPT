@@ -39,10 +39,6 @@ class CreateSourceRequest(BaseModel):
     description: Optional[str] = Field(None, description="The description of the source.")
 
 
-class CreateSourceResponse(BaseModel):
-    source: SourceModel = Field(..., description="The newly created source.")
-
-
 class UploadFileToSourceRequest(BaseModel):
     file: UploadFile = Field(..., description="The file to upload.")
 
@@ -128,7 +124,8 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         interface.clear()
         assert isinstance(agent_id, uuid.UUID), f"Expected agent_id to be a UUID, got {agent_id}"
         assert isinstance(user_id, uuid.UUID), f"Expected user_id to be a UUID, got {user_id}"
-        source = server.attach_source_to_agent(source_id=source_id, agent_id=agent_id, user_id=user_id)
+        source = server.ms.get_source(source_id=source_id, user_id=user_id)
+        source = server.attach_source_to_agent(source_name=source.name, agent_id=agent_id, user_id=user_id)
         return SourceModel(
             name=source.name,
             description=None,  # TODO: actually store descriptions
