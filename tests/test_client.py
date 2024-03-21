@@ -270,12 +270,12 @@ def test_sources(client, agent):
     # load a file into a source
     filename = "CONTRIBUTING.md"
     num_passages = 20
-    response = client.load_file_into_source(filename, source.id)
+    response = client.load_file_into_source(filename=filename, source_id=source.id)
     print(response)
 
     # attach a source
     # TODO: make sure things run in the right order
-    client.attach_source_to_agent(source_name="test_source", agent_id=agent.id)
+    client.attach_source_to_agent(source_id=source.id, agent_id=agent.id)
 
     # list archival memory
     archival_memories = client.get_agent_archival_memory(agent_id=agent.id).archival_memory
