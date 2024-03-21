@@ -37,7 +37,7 @@ from memgpt.data_types import (
     Preset,
 )
 
-from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel
+from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel, PresetModel
 from memgpt.interface import AgentInterface  # abstract
 
 # TODO use custom interface
@@ -751,13 +751,27 @@ class SyncServer(LockingServer):
         if agent is not None:
             self.ms.delete_agent(agent_id=agent_id)
 
+    def delete_preset(self, user_id: uuid.UUID, preset_id: uuid.UUID) -> Preset:
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+
+        # first get the preset by name
+        preset = self.get_preset(preset_id=preset_id, user_id=user_id)
+        if preset is None:
+            raise ValueError(f"Could not find preset_id {preset_id}")
+        # then delete via name
+        # TODO allow delete-by-id, eg via server.delete_preset function
+        self.ms.delete_preset(name=preset.name, user_id=user_id)
+
+        return preset
+
     def initialize_default_presets(self, user_id: uuid.UUID):
         """Add default preset options into the metadata store"""
         presets.add_default_presets(user_id, self.ms)
 
     def create_preset(self, preset: Preset):
         """Create a new preset using a config"""
-        if self.ms.get_user(user_id=preset.user_id) is None:
+        if preset.user_id is not None and self.ms.get_user(user_id=preset.user_id) is None:
             raise ValueError(f"User user_id={preset.user_id} does not exist")
 
         self.ms.create_preset(preset)
@@ -768,6 +782,13 @@ class SyncServer(LockingServer):
     ) -> Preset:
         """Get the preset"""
         return self.ms.get_preset(preset_id=preset_id, name=preset_name, user_id=user_id)
+
+    def list_presets(self, user_id: uuid.UUID) -> List[PresetModel]:
+        # TODO update once we strip Preset in favor of PresetModel
+        presets = self.ms.list_presets(user_id=user_id)
+        presets = [PresetModel(**vars(p)) for p in presets]
+
+        return presets
 
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:
         """Convert AgentState to a dict for a JSON response"""
