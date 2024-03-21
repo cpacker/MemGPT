@@ -102,6 +102,7 @@ class SourceModel(SQLModel, table=True):
     user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the source.")
     created_at: datetime = Field(default_factory=datetime.now, description="The unix timestamp of when the source was created.")
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the source.", primary_key=True)
+    description: Optional[str] = Field(None, description="The description of the source.")
     # embedding info
     # embedding_config: EmbeddingConfigModel = Field(..., description="The embedding configuration used by the source.")
     embedding_config: Optional[EmbeddingConfigModel] = Field(

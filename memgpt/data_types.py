@@ -506,6 +506,7 @@ class Source:
         self,
         user_id: uuid.UUID,
         name: str,
+        description: Optional[str] = None,
         created_at: Optional[datetime] = None,
         id: Optional[uuid.UUID] = None,
         # embedding info
@@ -522,6 +523,7 @@ class Source:
         self.name = name
         self.user_id = user_id
         self.created_at = created_at if created_at is not None else datetime.now()
+        self.description = description
 
         # embedding info (optional)
         self.embedding_dim = embedding_dim
