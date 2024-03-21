@@ -37,7 +37,7 @@ from memgpt.data_types import (
     Preset,
 )
 
-from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel
+from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel, PresetModel
 from memgpt.interface import AgentInterface  # abstract
 
 # TODO use custom interface
@@ -751,13 +751,27 @@ class SyncServer(LockingServer):
         if agent is not None:
             self.ms.delete_agent(agent_id=agent_id)
 
+    def delete_preset(self, user_id: uuid.UUID, preset_id: uuid.UUID) -> Preset:
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+
+        # first get the preset by name
+        preset = self.get_preset(preset_id=preset_id, user_id=user_id)
+        if preset is None:
+            raise ValueError(f"Could not find preset_id {preset_id}")
+        # then delete via name
+        # TODO allow delete-by-id, eg via server.delete_preset function
+        self.ms.delete_preset(name=preset.name, user_id=user_id)
+
+        return preset
+
     def initialize_default_presets(self, user_id: uuid.UUID):
         """Add default preset options into the metadata store"""
         presets.add_default_presets(user_id, self.ms)
 
     def create_preset(self, preset: Preset):
         """Create a new preset using a config"""
-        if self.ms.get_user(user_id=preset.user_id) is None:
+        if preset.user_id is not None and self.ms.get_user(user_id=preset.user_id) is None:
             raise ValueError(f"User user_id={preset.user_id} does not exist")
 
         self.ms.create_preset(preset)
@@ -781,6 +795,13 @@ class SyncServer(LockingServer):
             "created_at": agent_state.created_at.isoformat(),
         }
         return agent_config
+
+    def list_presets(self, user_id: uuid.UUID) -> List[PresetModel]:
+        # TODO update once we strip Preset in favor of PresetModel
+        presets = self.ms.list_presets(user_id=user_id)
+        presets = [PresetModel(**vars(p)) for p in presets]
+
+        return presets
 
     # TODO make return type pydantic
     def list_agents(self, user_id: uuid.UUID) -> dict:
@@ -1331,7 +1352,10 @@ class SyncServer(LockingServer):
             passage_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
             num_passages = passage_conn.size({"data_source": source.name})
             print(passage_conn.get_all())
-            print("NUMBER PASSAGES", num_passages, user_id)
+            print(
+                "NUMBER PASSAGES",
+                num_passages,
+            )
 
             # TODO: add when documents table implemented
             ## count number of documents
@@ -1339,10 +1363,21 @@ class SyncServer(LockingServer):
             # num_documents = document_conn.size({"data_source": source.name})
             num_documents = 0
 
+            agent_ids = self.ms.list_attached_agents(source_id=source.id)
+            # add the agent name information
+            attached_agents = [
+                {
+                    "id": str(a_id),
+                    "name": self.ms.get_agent(user_id=user_id, agent_id=a_id).name,
+                }
+                for a_id in agent_ids
+            ]
+
             # Overwrite metadata field, should be empty anyways
             source.metadata_ = dict(
                 num_documents=num_documents,
                 num_passages=num_passages,
+                attached_agents=attached_agents,
             )
 
             sources_with_metadata.append(source)
