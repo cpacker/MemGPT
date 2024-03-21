@@ -17,6 +17,7 @@ from memgpt.system import get_login_event, package_function_response, package_su
 from memgpt.memory import CoreMemory as InContextMemory, summarize_messages, ArchivalMemory, RecallMemory
 from memgpt.llm_api_tools import create, is_context_overflow_error
 from memgpt.utils import (
+    get_utc_time,
     create_random_username,
     get_tool_call_id,
     get_local_time,
@@ -653,7 +654,7 @@ class Agent(object):
 
                     # Recreate timestamp
                     if recreate_message_timestamp:
-                        user_message.created_at = datetime.datetime.now()
+                        user_message.created_at = get_utc_time()
 
                 elif isinstance(user_message, str):
                     # Validate JSON via save/load
@@ -895,7 +896,7 @@ class Agent(object):
             return False
 
         # Check if it's been more than pause_heartbeats_minutes since pause_heartbeats_start
-        elapsed_time = datetime.datetime.now() - self.pause_heartbeats_start
+        elapsed_time = get_utc_time() - self.pause_heartbeats_start
         return elapsed_time.total_seconds() < self.pause_heartbeats_minutes * 60
 
     def rebuild_memory(self):
