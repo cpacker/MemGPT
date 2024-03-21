@@ -35,7 +35,7 @@ class CreatePresetsRequest(BaseModel):
     id: Optional[Union[uuid.UUID, str]] = Field(default_factory=uuid.uuid4, description="The unique identifier of the preset.")
     # user_id: uuid.UUID = Field(..., description="The unique identifier of the user who created the preset.")
     description: Optional[str] = Field(None, description="The description of the preset.")
-    # created_at: datetime = Field(default_factory=datetime.now, description="The unix timestamp of when the preset was created.")
+    # created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the preset was created.")
     system: str = Field(..., description="The system prompt of the preset.")
     persona: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona of the preset.")
     human: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human of the preset.")
