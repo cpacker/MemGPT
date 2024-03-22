@@ -1,20 +1,21 @@
 import asyncio
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from asyncio import AbstractEventLoop
 from enum import Enum
 from functools import partial
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from fastapi import APIRouter, Body, HTTPException, Query, Depends
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from starlette.responses import StreamingResponse
 
 from memgpt.constants import JSON_ENSURE_ASCII
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
+from memgpt.data_types import Message
 
 router = APIRouter()
 
@@ -32,6 +33,14 @@ class UserMessageRequest(BaseModel):
         None,
         description="Timestamp to tag the message with (in ISO format). If null, timestamp will be created server-side on receipt of message.",
     )
+
+    @validator("timestamp")
+    def validate_timestamp(cls, value: Any) -> Any:
+        if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+            raise ValueError("Timestamp must include timezone information.")
+        if value.tzinfo.utcoffset(value) != datetime.fromtimestamp(timezone.utc).utcoffset():
+            raise ValueError("Timestamp must be in UTC.")
+        return value
 
 
 class UserMessageResponse(BaseModel):
@@ -90,6 +99,12 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         [_, messages] = server.get_agent_recall_cursor(
             user_id=user_id, agent_id=agent_id, before=request.before, limit=request.limit, reverse=True
         )
+        print("====> messages-cursor DEBUG")
+        for i, msg in enumerate(messages):
+            print(f"message {i+1}/{len(messages)}")
+            # print(f"UTC created-at: {msg.created_at.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'}")
+            print(f"ISO format string: {msg['created_at']}")
+            print(msg)
         return GetAgentMessagesResponse(messages=messages)
 
     @router.post("/agents/{agent_id}/messages", tags=["agents"], response_model=UserMessageResponse)
