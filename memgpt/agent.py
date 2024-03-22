@@ -297,7 +297,7 @@ class Agent(object):
                 # TODO eventually do casting via an edit_message function
                 if not is_utc_datetime(m.created_at):
                     printd(f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
-                    m.created_at.replace(tzinfo=datetime.timezone.utc)
+                    m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
 
         else:
             # print(f"Agent.__init__ :: creating, state={agent_state.state['messages']}")
@@ -322,7 +322,7 @@ class Agent(object):
                 # TODO eventually do casting via an edit_message function
                 if not is_utc_datetime(m.created_at):
                     printd(f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
-                    m.created_at.replace(tzinfo=datetime.timezone.utc)
+                    m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
 
         # Keep track of the total number of messages throughout all time
         self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)

@@ -135,7 +135,7 @@ class Message(Record):
         # turn datetime to ISO format
         # also if the created_at is missing a timezone, add UTC
         if not is_utc_datetime(self.created_at):
-            self.created_at.replace(tzinfo=timezone.utc)
+            self.created_at = self.created_at.replace(tzinfo=timezone.utc)
         json_message["created_at"] = self.created_at.isoformat()
         return json_message
 
