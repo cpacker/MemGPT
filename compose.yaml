@@ -18,7 +18,7 @@ services:
       - pgvector_db
     environment:
       - POSTGRES_URI=postgresql://${MEMGPT_PG_USER}:${MEMGPT_PG_PASSWORD}@pgvector_db:5432/${MEMGPT_PG_DB}
-      - MEMGPT_SERVER_PASS=test_server_token # memgpt server password
+      - MEMGPT_SERVER_PASS=${MEMGPT_SERVER_PASS} # memgpt server password
     volumes:
       - ~/.memgpt/config:/root/.memgpt/config # config file
       - ~/.memgpt/credentials:/root/.memgpt/credentials # credentials file
