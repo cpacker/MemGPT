@@ -4,7 +4,7 @@ import time
 import threading
 from dotenv import load_dotenv
 
-from memgpt.server.rest_api.server import start_server
+# from memgpt.server.rest_api.server import start_server
 from memgpt import Admin, create_client
 from memgpt.constants import DEFAULT_PRESET
 from memgpt.data_types import Preset  # TODO move to PresetModel
@@ -29,7 +29,7 @@ client = None
 test_agent_state_post_message = None
 test_user_id = uuid.uuid4()
 
-test_base_url = "http://localhost:8283"
+test_base_url = "http://localhost:8083"
 
 # admin credentials
 test_server_token = "test_server_token"
@@ -96,7 +96,7 @@ def run_server():
     config.save()
     credentials.save()
 
-    start_server(debug=True)
+    i  # start_server(debug=True)
 
 
 @pytest.fixture(scope="session", autouse=True)
