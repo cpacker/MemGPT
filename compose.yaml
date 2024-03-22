@@ -3,7 +3,9 @@ services:
   pgvector_db:
     image: ankane/pgvector:latest
     environment:
-      - POSTGRES_PASSWORD=memgpt
+      - POSTGRES_USER=${MEMGPT_PG_USER}
+      - POSTGRES_PASSWORD=${MEMGPT_PG_PASSWORD}
+      - POSTGRES_DB=${MEMGPT_PG_DB}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -15,7 +17,7 @@ services:
     depends_on:
       - pgvector_db
     environment:
-      - PG_VECTOR_URI=postgresql://memgpt:memgpt@pgvector_db:5432/memgpt # Update the password
+      - POSTGRES_URI=postgresql://${MEMGPT_PG_USER}:${MEMGPT_PG_PASSWORD}@pgvector_db:5432/${MEMGPT_PG_DB}
       - MEMGPT_SERVER_PASS=test_server_token # memgpt server password
     volumes:
       - ~/.memgpt/config:/root/.memgpt/config # config file
