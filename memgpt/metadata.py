@@ -7,7 +7,7 @@ import secrets
 from typing import Optional, List
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
-from memgpt.utils import get_local_time, enforce_types
+from memgpt.utils import enforce_types
 from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig, Token, Preset
 from memgpt.config import MemGPTConfig
 from memgpt.functions.functions import load_all_function_sets
@@ -540,7 +540,7 @@ class MetadataStore:
                 )
                 for k, v in available_functions.items()
             ]
-            print(results)
+            # print(results)
             return results
             # results = session.query(PresetModel).filter(PresetModel.user_id == user_id).all()
             # return [r.to_record() for r in results]
