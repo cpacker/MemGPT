@@ -21,6 +21,7 @@ from memgpt.data_types import AgentState, User, Passage, Source, Message
 from memgpt.metadata import MetadataStore
 from memgpt.utils import (
     MEMGPT_DIR,
+    get_utc_time,
     version_less_than,
     OpenAIBackcompatUnpickler,
     annotate_message_json_list_with_tool_calls,
@@ -46,7 +47,7 @@ def wipe_config_and_reconfigure(data_dir: str = MEMGPT_DIR, run_configure=True, 
         os.makedirs(os.path.join(data_dir, MIGRATION_BACKUP_FOLDER, "agents"))
 
     # Get the current timestamp in a readable format (e.g., YYYYMMDD_HHMMSS)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = get_utc_time().strftime("%Y%m%d_%H%M%S")
 
     # Construct the new backup directory name with the timestamp
     backup_filename = os.path.join(data_dir, MIGRATION_BACKUP_FOLDER, f"config_backup_{timestamp}")
@@ -324,8 +325,10 @@ def migrate_agent(agent_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Meta
         id=agent_id,
         name=agent_config["name"],
         user_id=user.id,
-        persona=agent_config["persona"],  # eg 'sam_pov'
-        human=agent_config["human"],  # eg 'basic'
+        # persona_name=agent_config["persona"],  # eg 'sam_pov'
+        # human_name=agent_config["human"],  # eg 'basic'
+        persona=state_dict["memory"]["persona"],  # NOTE: hacky (not init, but latest)
+        human=state_dict["memory"]["human"],  # NOTE: hacky (not init, but latest)
         preset=agent_config["preset"],  # eg 'memgpt_chat'
         state=dict(
             human=state_dict["memory"]["human"],

@@ -1,12 +1,16 @@
 import json
+import subprocess
 import logging
 import uuid
 from abc import abstractmethod
+from datetime import datetime
 from functools import wraps
 from threading import Lock
-from typing import Union, Callable, Optional, List
+from typing import Union, Callable, Optional, List, Tuple
+import warnings
 
 from fastapi import HTTPException
+import uvicorn
 
 import memgpt.constants as constants
 import memgpt.presets.presets as presets
@@ -14,6 +18,7 @@ import memgpt.server.utils as server_utils
 import memgpt.system as system
 from memgpt.agent import Agent, save_agent
 from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.utils import get_human_text, get_persona_text
 
 # from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.cli.cli_config import get_model_options
@@ -31,6 +36,8 @@ from memgpt.data_types import (
     Token,
     Preset,
 )
+
+from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel, PresetModel
 from memgpt.interface import AgentInterface  # abstract
 
 # TODO use custom interface
@@ -483,7 +490,9 @@ class SyncServer(LockingServer):
             self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
 
     @LockingServer.agent_lock_decorator
-    def user_message(self, user_id: uuid.UUID, agent_id: uuid.UUID, message: Union[str, Message]) -> None:
+    def user_message(
+        self, user_id: uuid.UUID, agent_id: uuid.UUID, message: Union[str, Message], timestamp: Optional[datetime] = None
+    ) -> None:
         """Process an incoming user message and feed it through the MemGPT agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -498,23 +507,41 @@ class SyncServer(LockingServer):
             # If the input begins with a command prefix, reject
             elif message.startswith("/"):
                 raise ValueError(f"Invalid input: '{message}'")
-            packaged_user_message = system.package_user_message(user_message=message)
-        elif isinstance(message, Message):
-            if len(message.text) == 0:
-                raise ValueError(f"Invalid input: '{message.text}'")
 
+            packaged_user_message = system.package_user_message(user_message=message)
+
+            # NOTE: eventually deprecate and only allow passing Message types
+            # Convert to a Message object
+            message = Message(
+                user_id=user_id,
+                agent_id=agent_id,
+                role="user",
+                text=packaged_user_message,
+                # name=None,  # TODO handle name via API
+            )
+
+        if isinstance(message, Message):
+            # Can't have a null text field
+            if len(message.text) == 0 or message.text is None:
+                raise ValueError(f"Invalid input: '{message.text}'")
             # If the input begins with a command prefix, reject
             elif message.text.startswith("/"):
                 raise ValueError(f"Invalid input: '{message.text}'")
-            packaged_user_message = message
+
         else:
-            raise ValueError(f"Invalid input: '{message}'")
+            raise TypeError(f"Invalid input: '{message}' - type {type(message)}")
+
+        if timestamp:
+            # Override the timestamp with what the caller provided
+            message.created_at = timestamp
 
         # Run the agent state forward
         self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
 
     @LockingServer.agent_lock_decorator
-    def system_message(self, user_id: uuid.UUID, agent_id: uuid.UUID, message: str) -> None:
+    def system_message(
+        self, user_id: uuid.UUID, agent_id: uuid.UUID, message: Union[str, Message], timestamp: Optional[datetime] = None
+    ) -> None:
         """Process an incoming system message and feed it through the MemGPT agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -522,19 +549,43 @@ class SyncServer(LockingServer):
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Basic input sanitization
-        if not isinstance(message, str) or len(message) == 0:
-            raise ValueError(f"Invalid input: '{message}'")
+        if isinstance(message, str):
+            if len(message) == 0:
+                raise ValueError(f"Invalid input: '{message}'")
 
-        # If the input begins with a command prefix, reject
-        elif message.startswith("/"):
-            raise ValueError(f"Invalid input: '{message}'")
+            # If the input begins with a command prefix, reject
+            elif message.startswith("/"):
+                raise ValueError(f"Invalid input: '{message}'")
 
-        # Else, process it as a user message to be fed to the agent
-        else:
-            # Package the user message first
             packaged_system_message = system.package_system_message(system_message=message)
-            # Run the agent state forward
-            self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message)
+
+            # NOTE: eventually deprecate and only allow passing Message types
+            # Convert to a Message object
+            message = Message(
+                user_id=user_id,
+                agent_id=agent_id,
+                role="user",
+                text=packaged_system_message,
+                # name=None,  # TODO handle name via API
+            )
+
+        if isinstance(message, Message):
+            # Can't have a null text field
+            if len(message.text) == 0 or message.text is None:
+                raise ValueError(f"Invalid input: '{message.text}'")
+            # If the input begins with a command prefix, reject
+            elif message.text.startswith("/"):
+                raise ValueError(f"Invalid input: '{message.text}'")
+
+        else:
+            raise TypeError(f"Invalid input: '{message}' - type {type(message)}")
+
+        if timestamp:
+            # Override the timestamp with what the caller provided
+            message.created_at = timestamp
+
+        # Run the agent state forward
+        self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message)
 
     @LockingServer.agent_lock_decorator
     def run_command(self, user_id: uuid.UUID, agent_id: uuid.UUID, command: str) -> Union[str, None]:
@@ -570,8 +621,10 @@ class SyncServer(LockingServer):
         user_id: uuid.UUID,
         name: Optional[str] = None,
         preset: Optional[str] = None,
-        persona: Optional[str] = None,
-        human: Optional[str] = None,
+        persona: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
+        human: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
+        persona_name: Optional[str] = None,
+        human_name: Optional[str] = None,
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         interface: Union[AgentInterface, None] = None,
@@ -598,25 +651,62 @@ class SyncServer(LockingServer):
         # TODO: fix this db dependency and remove
         # self.ms.create_agent(agent_state)
 
+        # TODO modify to do creation via preset
         try:
             preset_obj = self.ms.get_preset(name=preset if preset else self.config.preset, user_id=user_id)
+            preset_override = False
             assert preset_obj is not None, f"preset {preset if preset else self.config.preset} does not exist"
             logger.debug(f"Attempting to create agent from preset:\n{preset_obj}")
 
             # Overwrite fields in the preset if they were specified
-            preset_obj.human = human if human else self.config.human
-            preset_obj.persona = persona if persona else self.config.persona
+            if human is not None and human != preset_obj.human:
+                preset_override = True
+                preset_obj.human = human
+                # This is a check for a common bug where users were providing filenames instead of values
+                try:
+                    get_human_text(human)
+                    raise ValueError(human)
+                    raise UserWarning(
+                        f"It looks like there is a human file named {human} - did you mean to pass the file contents to the `human` arg?"
+                    )
+                except:
+                    pass
+            if persona is not None:
+                preset_override = True
+                preset_obj.persona = persona
+                try:
+                    get_persona_text(persona)
+                    raise ValueError(persona)
+                    raise UserWarning(
+                        f"It looks like there is a persona file named {persona} - did you mean to pass the file contents to the `persona` arg?"
+                    )
+                except:
+                    pass
+            if human_name is not None and human_name != preset_obj.human_name:
+                preset_override = True
+                preset_obj.human_name = human_name
+            if persona_name is not None and persona_name != preset_obj.persona_name:
+                preset_override = True
+                preset_obj.persona_name = persona_name
 
             llm_config = llm_config if llm_config else self.server_llm_config
             embedding_config = embedding_config if embedding_config else self.server_embedding_config
 
             # TODO remove (https://github.com/cpacker/MemGPT/issues/1138)
             if function_names is not None:
+                preset_override = True
                 available_tools = self.ms.list_tools(user_id=user_id)
                 available_tools_names = [t.name for t in available_tools]
                 assert all([f_name in available_tools_names for f_name in function_names])
                 preset_obj.functions_schema = [t.json_schema for t in available_tools if t.name in function_names]
                 print("overriding preset_obj tools with:", preset_obj.functions_schema)
+
+            # If the user overrode any parts of the preset, we need to create a new preset to refer back to
+            if preset_override:
+                # Change the name and uuid
+                preset_obj = Preset.clone(preset_obj=preset_obj)
+                # Then write out to the database for storage
+                self.ms.create_preset(preset=preset_obj)
 
             agent = Agent(
                 interface=interface,
@@ -661,13 +751,27 @@ class SyncServer(LockingServer):
         if agent is not None:
             self.ms.delete_agent(agent_id=agent_id)
 
+    def delete_preset(self, user_id: uuid.UUID, preset_id: uuid.UUID) -> Preset:
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+
+        # first get the preset by name
+        preset = self.get_preset(preset_id=preset_id, user_id=user_id)
+        if preset is None:
+            raise ValueError(f"Could not find preset_id {preset_id}")
+        # then delete via name
+        # TODO allow delete-by-id, eg via server.delete_preset function
+        self.ms.delete_preset(name=preset.name, user_id=user_id)
+
+        return preset
+
     def initialize_default_presets(self, user_id: uuid.UUID):
         """Add default preset options into the metadata store"""
         presets.add_default_presets(user_id, self.ms)
 
     def create_preset(self, preset: Preset):
         """Create a new preset using a config"""
-        if self.ms.get_user(user_id=preset.user_id) is None:
+        if preset.user_id is not None and self.ms.get_user(user_id=preset.user_id) is None:
             raise ValueError(f"User user_id={preset.user_id} does not exist")
 
         self.ms.create_preset(preset)
@@ -678,6 +782,13 @@ class SyncServer(LockingServer):
     ) -> Preset:
         """Get the preset"""
         return self.ms.get_preset(preset_id=preset_id, name=preset_name, user_id=user_id)
+
+    def list_presets(self, user_id: uuid.UUID) -> List[PresetModel]:
+        # TODO update once we strip Preset in favor of PresetModel
+        presets = self.ms.list_presets(user_id=user_id)
+        presets = [PresetModel(**vars(p)) for p in presets]
+
+        return presets
 
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:
         """Convert AgentState to a dict for a JSON response"""
@@ -692,6 +803,7 @@ class SyncServer(LockingServer):
         }
         return agent_config
 
+    # TODO make return type pydantic
     def list_agents(self, user_id: uuid.UUID) -> dict:
         """List all available agents to a user"""
         if self.ms.get_user(user_id=user_id) is None:
@@ -708,6 +820,14 @@ class SyncServer(LockingServer):
 
             # Get the agent object (loaded in memory)
             memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
+
+            # TODO remove this eventually when return type get pydanticfied
+            # this is to add persona_name and human_name so that the columns in UI can populate
+            preset = self.ms.get_preset(name=agent_state.preset, user_id=user_id)
+            # TODO hack for frontend, remove
+            # (top level .persona is persona_name, and nested memory.persona is the state)
+            return_dict["persona"] = preset.persona_name
+            return_dict["human"] = preset.human_name
 
             # Add information about tools
             # TODO memgpt_agent should really have a field of List[ToolModel]
@@ -1054,7 +1174,7 @@ class SyncServer(LockingServer):
             "modified": modified,
         }
 
-    def rename_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_agent_name: str) -> dict:
+    def rename_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_agent_name: str) -> AgentState:
         """Update the name of the agent in the database"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -1155,7 +1275,7 @@ class SyncServer(LockingServer):
         user_id: uuid.UUID,
         connector: DataConnector,
         source_name: str,
-    ):
+    ) -> Tuple[int, int]:
         """Load data from a DataConnector into a source for a specified user_id"""
         # TODO: this should be implemented as a batch job or at least async, since it may take a long time
 
@@ -1170,13 +1290,20 @@ class SyncServer(LockingServer):
         document_store = None  # StorageConnector.get_storage_connector(TableType.DOCUMENTS, self.config, user_id=user_id)
 
         # load data into the document store
-        load_data(connector, source, self.config.default_embedding_config, passage_store, document_store)
+        passage_count, document_count = load_data(connector, source, self.config.default_embedding_config, passage_store, document_store)
+        return passage_count, document_count
 
-    def attach_source_to_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_name: str):
+    def attach_source_to_agent(
+        self,
+        user_id: uuid.UUID,
+        agent_id: uuid.UUID,
+        source_id: Optional[uuid.UUID] = None,
+        source_name: Optional[str] = None,
+    ):
         # attach a data source to an agent
-        data_source = self.ms.get_source(source_name=source_name, user_id=user_id)
+        data_source = self.ms.get_source(source_id=source_id, user_id=user_id, source_name=source_name)
         if data_source is None:
-            raise ValueError(f"Data source {source_name} does not exist for user_id {user_id}")
+            raise ValueError(f"Data source id={source_id} name={source_name} does not exist for user_id {user_id}")
 
         # get connection to data source storage
         source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
@@ -1189,10 +1316,82 @@ class SyncServer(LockingServer):
 
         return data_source
 
-    def detach_source_from_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_name: str):
+    def detach_source_from_agent(
+        self,
+        user_id: uuid.UUID,
+        agent_id: uuid.UUID,
+        source_id: Optional[uuid.UUID] = None,
+        source_name: Optional[str] = None,
+    ):
         # TODO: remove all passages coresponding to source from agent's archival memory
         raise NotImplementedError
 
     def list_attached_sources(self, agent_id: uuid.UUID):
         # list all attached sources to an agent
         return self.ms.list_attached_sources(agent_id)
+
+    def list_data_source_passages(self, user_id: uuid.UUID, source_id: uuid.UUID) -> List[PassageModel]:
+        warnings.warn("list_data_source_passages is not yet implemented, returning empty list.", category=UserWarning)
+        return []
+
+    def list_data_source_documents(self, user_id: uuid.UUID, source_id: uuid.UUID) -> List[DocumentModel]:
+        warnings.warn("list_data_source_documents is not yet implemented, returning empty list.", category=UserWarning)
+        return []
+
+    def list_all_sources(self, user_id: uuid.UUID) -> List[SourceModel]:
+        """List all sources (w/ extra metadata) belonging to a user"""
+
+        sources = self.ms.list_sources(user_id=user_id)
+
+        # TODO don't unpack here, instead list_sources should return a SourceModel
+        sources = [
+            SourceModel(
+                name=source.name,
+                description=None,  # TODO: actually store descriptions
+                user_id=source.user_id,
+                id=source.id,
+                embedding_config=self.server_embedding_config,
+                created_at=source.created_at,
+            )
+            for source in sources
+        ]
+
+        # Add extra metadata to the sources
+        sources_with_metadata = []
+        for source in sources:
+
+            # count number of passages
+            passage_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+            num_passages = passage_conn.size({"data_source": source.name})
+            print(passage_conn.get_all())
+            print(
+                "NUMBER PASSAGES",
+                num_passages,
+            )
+
+            # TODO: add when documents table implemented
+            ## count number of documents
+            # document_conn = StorageConnector.get_storage_connector(TableType.DOCUMENTS, self.config, user_id=user_id)
+            # num_documents = document_conn.size({"data_source": source.name})
+            num_documents = 0
+
+            agent_ids = self.ms.list_attached_agents(source_id=source.id)
+            # add the agent name information
+            attached_agents = [
+                {
+                    "id": str(a_id),
+                    "name": self.ms.get_agent(user_id=user_id, agent_id=a_id).name,
+                }
+                for a_id in agent_ids
+            ]
+
+            # Overwrite metadata field, should be empty anyways
+            source.metadata_ = dict(
+                num_documents=num_documents,
+                num_passages=num_passages,
+                attached_agents=attached_agents,
+            )
+
+            sources_with_metadata.append(source)
+
+        return sources_with_metadata

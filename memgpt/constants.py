@@ -3,6 +3,9 @@ from logging import CRITICAL, ERROR, WARN, WARNING, INFO, DEBUG, NOTSET
 
 MEMGPT_DIR = os.path.join(os.path.expanduser("~"), ".memgpt")
 
+# OpenAI error message: Invalid 'messages[1].tool_calls[0].id': string too long. Expected a string with maximum length 29, but got a string with length 36 instead.
+TOOL_CALL_ID_MAX_LEN = 29
+
 # embeddings
 MAX_EMBEDDING_DIM = 4096  # maximum supported embeding size - do NOT change or else DBs will need to be reset
 

@@ -99,8 +99,6 @@ def agent_id(server, user_id):
         user_id=user_id,
         name="test_agent",
         preset="memgpt_chat",
-        human="cs_phd",
-        persona="sam_pov",
     )
     print(f"Created agent\n{agent_state}")
     yield agent_state.id
@@ -159,7 +157,7 @@ def test_attach_source_to_agent(server, user_id, agent_id):
     assert len(passages_before) == 0
 
     # attach source
-    server.attach_source_to_agent(user_id, agent_id, "test_source")
+    server.attach_source_to_agent(user_id=user_id, agent_id=agent_id, source_name="test_source")
 
     # check archival memory size
     passages_after = server.get_agent_archival(user_id=user_id, agent_id=agent_id, start=0, count=10000)

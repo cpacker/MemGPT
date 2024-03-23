@@ -202,6 +202,7 @@ class SourceModel(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     embedding_dim = Column(BIGINT)
     embedding_model = Column(String)
+    description = Column(String)
 
     # TODO: add num passages
 
@@ -216,6 +217,7 @@ class SourceModel(Base):
             created_at=self.created_at,
             embedding_dim=self.embedding_dim,
             embedding_model=self.embedding_model,
+            description=self.description,
         )
 
 
@@ -648,7 +650,7 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def get_human(self, name: str, user_id: uuid.UUID) -> str:
+    def get_human(self, name: str, user_id: uuid.UUID) -> Optional[HumanModel]:
         with self.session_maker() as session:
             results = session.query(HumanModel).filter(HumanModel.name == name).filter(HumanModel.user_id == user_id).all()
             if len(results) == 0:
@@ -657,7 +659,7 @@ class MetadataStore:
             return results[0]
 
     @enforce_types
-    def get_persona(self, name: str, user_id: uuid.UUID) -> str:
+    def get_persona(self, name: str, user_id: uuid.UUID) -> Optional[PersonaModel]:
         with self.session_maker() as session:
             results = session.query(PersonaModel).filter(PersonaModel.name == name).filter(PersonaModel.user_id == user_id).all()
             if len(results) == 0:
