@@ -1360,8 +1360,21 @@ class SyncServer(LockingServer):
         sources_with_metadata = []
         for source in sources:
 
-            passages = self.list_data_source_passages(user_id=user_id, source_id=source.id)
-            documents = self.list_data_source_documents(user_id=user_id, source_id=source.id)
+            # count number of passages
+            passage_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+            num_passages = passage_conn.size({"data_source": source.name})
+            print(passage_conn.get_all())
+            print(
+                "NUMBER PASSAGES",
+                num_passages,
+            )
+
+            # TODO: add when documents table implemented
+            ## count number of documents
+            # document_conn = StorageConnector.get_storage_connector(TableType.DOCUMENTS, self.config, user_id=user_id)
+            # num_documents = document_conn.size({"data_source": source.name})
+            num_documents = 0
+
             agent_ids = self.ms.list_attached_agents(source_id=source.id)
             # add the agent name information
             attached_agents = [
@@ -1374,8 +1387,8 @@ class SyncServer(LockingServer):
 
             # Overwrite metadata field, should be empty anyways
             source.metadata_ = dict(
-                num_documents=len(passages),
-                num_passages=len(documents),
+                num_documents=num_documents,
+                num_passages=num_passages,
                 attached_agents=attached_agents,
             )
 

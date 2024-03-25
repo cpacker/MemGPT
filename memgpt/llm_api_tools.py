@@ -2,7 +2,7 @@ import random
 import time
 import requests
 import time
-from typing import Union
+from typing import Union, Optional
 import urllib
 
 from memgpt.credentials import MemGPTCredentials
@@ -81,9 +81,16 @@ def clean_azure_endpoint(raw_endpoint_name):
     return endpoint_address
 
 
-def openai_get_model_list(url: str, api_key: Union[str, None]) -> dict:
+def openai_get_model_list(url: str, api_key: Union[str, None], fix_url: Optional[bool] = False) -> dict:
     """https://platform.openai.com/docs/api-reference/models/list"""
     from memgpt.utils import printd
+
+    # In some cases we may want to double-check the URL and do basic correction, eg:
+    # In MemGPT config the address for vLLM is w/o a /v1 suffix for simplicity
+    # However if we're treating the server as an OpenAI proxy we want the /v1 suffix on our model hit
+    if fix_url:
+        if not url.endswith("/v1"):
+            url = smart_urljoin(url, "v1")
 
     url = smart_urljoin(url, "models")
 

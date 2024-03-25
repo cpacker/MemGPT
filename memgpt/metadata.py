@@ -202,6 +202,7 @@ class SourceModel(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     embedding_dim = Column(BIGINT)
     embedding_model = Column(String)
+    description = Column(String)
 
     # TODO: add num passages
 
@@ -216,6 +217,7 @@ class SourceModel(Base):
             created_at=self.created_at,
             embedding_dim=self.embedding_dim,
             embedding_model=self.embedding_model,
+            description=self.description,
         )
 
 

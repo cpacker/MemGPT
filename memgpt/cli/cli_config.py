@@ -224,7 +224,7 @@ def get_model_options(
         else:
             # Attempt to do OpenAI endpoint style model fetching
             # TODO support local auth
-            fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=None)
+            fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=None, fix_url=True)
             model_options = [obj["id"] for obj in fetched_model_options_response["data"]]
             # NOTE no filtering of local model options
 
@@ -789,7 +789,7 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         """List all data sources"""
 
         # create table
-        table.field_names = ["Name", "Embedding Model", "Embedding Dim", "Created At", "Agents"]
+        table.field_names = ["Name", "Description", "Embedding Model", "Embedding Dim", "Created At", "Agents"]
         # TODO: eventually look accross all storage connections
         # TODO: add data source stats
         # TODO: connect to agents
@@ -802,7 +802,14 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
             agent_names = [agent_state.name for agent_state in agent_states if agent_state is not None]
 
             table.add_row(
-                [source.name, source.embedding_model, source.embedding_dim, utils.format_datetime(source.created_at), ",".join(agent_names)]
+                [
+                    source.name,
+                    source.description,
+                    source.embedding_model,
+                    source.embedding_dim,
+                    utils.format_datetime(source.created_at),
+                    ",".join(agent_names),
+                ]
             )
 
         print(table)

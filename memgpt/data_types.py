@@ -96,7 +96,7 @@ class Message(Record):
         self.agent_id = agent_id
         self.text = text
         self.model = model  # model name (e.g. gpt-4)
-        self.created_at = created_at if created_at is not None else datetime.now()
+        self.created_at = created_at if created_at is not None else get_utc_time()
 
         # openai info
         assert role in ["system", "assistant", "user", "tool"]
@@ -353,7 +353,7 @@ class Passage(Record):
         self.embedding_dim = embedding_dim
         self.embedding_model = embedding_model
 
-        self.created_at = created_at if created_at is not None else datetime.now()
+        self.created_at = created_at if created_at is not None else get_utc_time()
 
         if self.embedding is not None:
             assert self.embedding_dim, f"Must specify embedding_dim if providing an embedding"
@@ -495,7 +495,7 @@ class AgentState:
         self.llm_config = llm_config
         self.embedding_config = embedding_config
 
-        self.created_at = created_at if created_at is not None else datetime.now()
+        self.created_at = created_at if created_at is not None else get_utc_time()
 
         # state
         self.state = {} if not state else state
@@ -506,6 +506,7 @@ class Source:
         self,
         user_id: uuid.UUID,
         name: str,
+        description: Optional[str] = None,
         created_at: Optional[datetime] = None,
         id: Optional[uuid.UUID] = None,
         # embedding info
@@ -521,7 +522,8 @@ class Source:
 
         self.name = name
         self.user_id = user_id
-        self.created_at = created_at if created_at is not None else datetime.now()
+        self.description = description
+        self.created_at = created_at if created_at is not None else get_utc_time()
 
         # embedding info (optional)
         self.embedding_dim = embedding_dim
@@ -553,7 +555,7 @@ class Preset(BaseModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the preset.")
     user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user who created the preset.")
     description: Optional[str] = Field(None, description="The description of the preset.")
-    created_at: datetime = Field(default_factory=datetime.now, description="The unix timestamp of when the preset was created.")
+    created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the preset was created.")
     system: str = Field(..., description="The system prompt of the preset.")
     persona: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona of the preset.")
     persona_name: Optional[str] = Field(None, description="The name of the persona of the preset.")
