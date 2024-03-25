@@ -29,6 +29,7 @@ async def create_memgpt_user(telegram_user_id: int):
             headers={'Authorization': f'Bearer {user_api_key}', 'Content-Type': 'application/json'},
             json={
                 "config": {
+                    "user_id": f"{user_memgpt_id}",
                     "name": f"AgentForTelegramUser{telegram_user_id}",
                     "preset": "memgpt_chat",
                 }
@@ -37,6 +38,7 @@ async def create_memgpt_user(telegram_user_id: int):
         if agent_response.status_code == 200:
             agent_data = agent_response.json()
             agent_id = agent_data['agent_state']['id']
+            print("memgpt.py :" + agent_id)
             # Save API key and agent ID in Supabase
             await save_user_api_key(telegram_user_id, user_api_key)
             await save_user_agent_id(telegram_user_id, agent_id)
@@ -51,7 +53,7 @@ async def create_memgpt_user(telegram_user_id: int):
 async def send_message_to_memgpt(telegram_user_id: int, message_text: str):
     user_api_key = await get_user_api_key(telegram_user_id)
     agent_id = await get_user_agent_id(telegram_user_id)
-    logging.debug(f"user_api_key: {user_api_key}, agent_id: {agent_id}")  # Add this line for debugging
+    print(f"user_api_key: {user_api_key}, agent_id: {agent_id}")  # Add this line for debugging
     if not user_api_key or not agent_id:
         return "No API key or agent found. Please start again."
     response = await async_request(

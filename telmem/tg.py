@@ -1,9 +1,14 @@
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from telegram import Update
-from config import TELEGRAM_TOKEN
 from memgpt import create_memgpt_user, send_message_to_memgpt, check_user_exists, save_memgpt_user_id_and_api_key
 import asyncio
 import logging
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 async def start(update: Update, context: CallbackContext):
     try:

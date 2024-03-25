@@ -20,9 +20,33 @@ logging.basicConfig(level=logging.INFO)
 async def get_user_api_key(telegram_user_id: int) -> str:
     loop = asyncio.get_event_loop()
     data, error = await loop.run_in_executor(None, lambda: supabase.table("users").select("api_key").eq("telegram_user_id", telegram_user_id).execute())
-    logging.info(f"Data fetched for API key: {data}, Error: {error}")  # Add this for debugging
-    if not error and data and len(data) > 0:
-        return data[0]['api_key']
+    logging.info(f"Data fetched for API key: {data}, Error: {error}")
+
+    # Check if 'api_key' key exists
+    if data[1][0].get('api_key'):
+        # Extracting the value of 'api_key'
+        api_key_value = data[1][0]['api_key']
+        logging.info(f"Returning API_key: {api_key_value}")
+        return api_key_value
+    else:
+        logging.error("Missing 'api_key' field.")
+    
+    return None
+
+async def get_user_agent_id(telegram_user_id: int) -> str:
+    loop = asyncio.get_event_loop()
+    data, error = await loop.run_in_executor(None, lambda: supabase.table("users").select("agent_id").eq("telegram_user_id", telegram_user_id).execute())
+    logging.info(f"Data fetched for agent_id: {data}, Error: {error}")
+    
+    # Check if 'agent_id' key exists
+    if data[1][0].get('agent_id'):
+        # Extracting the value of 'agent_id'
+        agent_id_value = data[1][0]['agent_id']
+        logging.info(f"Returning agent_id: {agent_id_value}")
+        return agent_id_value
+    else:
+        logging.error("Missing 'agent_id' field.")
+
     return None
 
 async def save_user_api_key(telegram_user_id: int, user_api_key: str):
@@ -34,21 +58,15 @@ async def save_user_api_key(telegram_user_id: int, user_api_key: str):
 async def save_user_agent_id(telegram_user_id: int, agent_id: str):
     try:
         loop = asyncio.get_event_loop()
-        data, error = await loop.run_in_executor(None, lambda: supabase.table("users").upsert({"telegram_user_id": telegram_user_id, "agent_id": agent_id}).execute())
-        if error and isinstance(error, tuple) and error[0] != 'count':
-            raise Exception(f"Failed to save or update agent ID: {error}")
-    except postgrest.exceptions.APIError as e:
-        if e.message == 'duplicate key value violates unique constraint "users_telegram_user_id_key"':
-            print(f"Duplicate key error for telegram_user_id: {telegram_user_id}. Record might already exist.")
+        data, error = await loop.run_in_executor(None, lambda: supabase.table("users").update({"agent_id": agent_id}).eq("telegram_user_id", telegram_user_id).execute())
+        if error:
+            logging.error(f"Failed to update agent ID for Telegram user ID {telegram_user_id}: {error}")
         else:
-            raise
+            logging.info(f"Agent ID {agent_id} updated successfully for Telegram user ID {telegram_user_id}.")
+    except postgrest.exceptions.APIError as e:
+        # Handle API errors
+        logging.error(f"An error occurred: {e}")
 
-async def get_user_agent_id(telegram_user_id: int) -> str:
-    loop = asyncio.get_event_loop()
-    data, error = await loop.run_in_executor(None, lambda: supabase.table("users").select("agent_id").eq("telegram_user_id", telegram_user_id).execute())
-    if not error and data and len(data) > 0:
-        return data[0]['agent_id']
-    return None
 
 async def check_user_exists(telegram_user_id: int) -> bool:
     try:
@@ -57,10 +75,16 @@ async def check_user_exists(telegram_user_id: int) -> bool:
         if error:
             logging.error(f"Error checking user exists: {error}")
             return False
-        return bool(data and len(data) > 0)
+        elif data:
+            logging.info(f"User with Telegram user ID {telegram_user_id} already exists.")
+            return True
+        else:
+            logging.info(f"User with Telegram user ID {telegram_user_id} does not exist.")
+            return False
     except Exception as e:
         logging.exception("Unexpected error checking if user exists", exc_info=e)
         return False
+
 
 async def save_memgpt_user_id_and_api_key(telegram_user_id: int, memgpt_user_id: str, user_api_key: str):
     loop = asyncio.get_event_loop()
