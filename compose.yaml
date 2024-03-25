@@ -20,7 +20,7 @@ services:
       - POSTGRES_URI=postgresql://${MEMGPT_PG_USER}:${MEMGPT_PG_PASSWORD}@pgvector_db:5432/${MEMGPT_PG_DB}
       - MEMGPT_SERVER_PASS=${MEMGPT_SERVER_PASS} # memgpt server password
     volumes:
-      - ~/.memgpt/config:/root/.memgpt/config # config file
+      - ./configs/server_config.yml:/root/.memgpt/config # config file
       - ~/.memgpt/credentials:/root/.memgpt/credentials # credentials file
     ports:
       - "8083:8083"
