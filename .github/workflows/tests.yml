@@ -18,9 +18,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Build and run container
-      run: bash db/run_postgres.sh
-
     - name: Run docker compose server
       env:
         MEMGPT_PG_DB:   memgpt
