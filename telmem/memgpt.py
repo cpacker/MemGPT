@@ -56,14 +56,30 @@ async def send_message_to_memgpt(telegram_user_id: int, message_text: str):
     print(f"user_api_key: {user_api_key}, agent_id: {agent_id}")  # Add this line for debugging
     if not user_api_key or not agent_id:
         return "No API key or agent found. Please start again."
+    
     response = await async_request(
         'POST',
-        'http://localhost:8283/api/agents/message',
+        f'http://localhost:8283/api/agents/{agent_id}/messages',
         headers={'Authorization': f'Bearer {user_api_key}'},
         json={'agent_id': agent_id, 'message': message_text, 'stream': True, 'role': 'user'}
     )
+    
     if response.status_code == 200:
-        memgpt_response = response.json().get('response')
-        return memgpt_response
+        # Extract and return assistant message
+        assistant_message = None
+        for line in response.text.split('\n'):
+            if line.startswith('data:'):
+                try:
+                    data = json.loads(line[len('data:'):])
+                    if 'assistant_message' in data:
+                        assistant_message = data['assistant_message']
+                        break
+                except json.JSONDecodeError as e:
+                    print("Error parsing JSON:", e)
+                    
+        if assistant_message:
+            return assistant_message
+        else:
+            return "No assistant message found in response."
     else:
         return "Failed to send message to MemGPT."
