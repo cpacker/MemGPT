@@ -4,7 +4,6 @@ import time
 import threading
 from dotenv import load_dotenv
 
-from memgpt.server.rest_api.server import start_server
 from memgpt import Admin, create_client
 from memgpt.constants import DEFAULT_PRESET
 from memgpt.data_types import Preset  # TODO move to PresetModel
@@ -29,7 +28,8 @@ client = None
 test_agent_state_post_message = None
 test_user_id = uuid.uuid4()
 
-test_base_url = "http://localhost:8283"
+local_service_url = "http://localhost:8283"
+docker_compose_url = "http://localhost:8083"
 
 # admin credentials
 test_server_token = "test_server_token"
@@ -38,6 +38,7 @@ test_server_token = "test_server_token"
 def run_server():
     import uvicorn
     from memgpt.server.rest_api.server import app
+    from memgpt.server.rest_api.server import start_server
 
     load_dotenv()
 
@@ -99,44 +100,38 @@ def run_server():
     start_server(debug=True)
 
 
-@pytest.fixture(scope="session", autouse=True)
-def start_uvicorn_server():
-    """Starts Uvicorn server in a background thread."""
-
-    thread = threading.Thread(target=run_server, daemon=True)
-    thread.start()
-    print("Starting server...")
-    time.sleep(5)
-    yield
-
-
-@pytest.fixture(scope="module")
-def user_token():
-    # Setup: Create a user via the client before the tests
-
-    admin = Admin(test_base_url, test_server_token)
-    response = admin.create_user(test_user_id)  # Adjust as per your client's method
-    user_id = response.user_id
-    token = response.api_key
-
-    yield token
-
-    # Teardown: Delete the user after the test (or after all tests if fixture scope is module/class)
-    admin.delete_user(test_user_id)  # Adjust as per your client's method
-
-
 # Fixture to create clients with different configurations
-# @pytest.fixture(params=[{"base_url": test_base_url}, {"base_url": None}], scope="module")
-@pytest.fixture(params=[{"base_url": test_base_url}], scope="module")
-def client(request, user_token):
-    # use token or not
+@pytest.fixture(
+    params=[
+        {"base_url": local_service_url},
+        # {"base_url": docker_compose_url}, # TODO: add when docker compose added to tests
+        # {"base_url": None} # TODO: add when implemented
+    ],
+    scope="module",
+)
+# @pytest.fixture(params=[{"base_url": test_base_url}], scope="module")
+def client(request):
     if request.param["base_url"]:
-        token = user_token
+        if request.param["base_url"] == local_service_url:
+            # start server
+            print("Starting server...")
+            thread = threading.Thread(target=run_server, daemon=True)
+            thread.start()
+            time.sleep(5)
+
+        admin = Admin(local_service_url, test_server_token)
+        response = admin.create_user(test_user_id)  # Adjust as per your client's method
+        user_id = response.user_id
+        token = response.api_key
     else:
         token = None
 
     client = create_client(**request.param, token=token)  # This yields control back to the test function
     yield client
+
+    # cleanup user
+    if request.param["base_url"]:
+        admin.delete_user(test_user_id)  # Adjust as per your client's method
 
 
 # Fixture for test agent
