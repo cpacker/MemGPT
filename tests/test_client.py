@@ -97,6 +97,7 @@ def run_server():
     config.save()
     credentials.save()
 
+    print("Starting server...")
     start_server(debug=True)
 
 
@@ -104,22 +105,23 @@ def run_server():
 @pytest.fixture(
     params=[
         {"base_url": local_service_url},
-        # {"base_url": docker_compose_url}, # TODO: add when docker compose added to tests
+        {"base_url": docker_compose_url},  # TODO: add when docker compose added to tests
         # {"base_url": None} # TODO: add when implemented
     ],
     scope="module",
 )
 # @pytest.fixture(params=[{"base_url": test_base_url}], scope="module")
 def client(request):
+    print("CLIENT", request.param["base_url"])
     if request.param["base_url"]:
         if request.param["base_url"] == local_service_url:
             # start server
-            print("Starting server...")
+            print("Starting server thread")
             thread = threading.Thread(target=run_server, daemon=True)
             thread.start()
             time.sleep(5)
 
-        admin = Admin(local_service_url, test_server_token)
+        admin = Admin(request.param["base_url"], test_server_token)
         response = admin.create_user(test_user_id)  # Adjust as per your client's method
         user_id = response.user_id
         token = response.api_key
