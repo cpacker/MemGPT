@@ -1,7 +1,7 @@
 name: Run All pytest Tests
 
 env:
-  PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+  MEMGPT_PG_URI: ${{ secrets.MEMGPT_PG_URI }}
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
 on:
@@ -18,6 +18,9 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Build and run container
+      run: bash db/run_postgres.sh
+
     - name: Run docker compose server
       env:
         MEMGPT_PG_DB:   memgpt
@@ -26,7 +29,7 @@ jobs:
         MEMGPT_SERVER_PASS: test_server_token
         MEMGPT_CONFIG_PATH: configs/server_config.yaml
 
-      run: docker compose up & sleep 10
+      run: docker compose up &
 
     - name: "Setup Python, Poetry and Dependencies"
       uses: packetcoders/action-setup-cache-python-poetry@main
@@ -37,7 +40,7 @@ jobs:
 
     - name: Run server tests
       env:
-        PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:5432/memgpt
+        MEMGPT_PG_URI: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
       run: |
@@ -45,7 +48,7 @@ jobs:
 
     - name: Run tests with pytest
       env:
-        PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:5432/memgpt
+        MEMGPT_PG_URI: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
@@ -54,7 +57,7 @@ jobs:
 
     - name: Run storage tests
       env:
-        PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:5432/memgpt
+        MEMGPT_PG_URI: postgresql+pg8000://memgpt:memgpt@localhost:5432/memgpt
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
       run: |

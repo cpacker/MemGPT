@@ -46,10 +46,10 @@ def test_load_directory(
     wipe_config()
     # setup config
     if metadata_storage_connector == "postgres":
-        if not os.getenv("PGVECTOR_TEST_DB_URL"):
+        if not os.getenv("MEMGPT_PG_URI"):
             print("Skipping test, missing PG URI")
             return
-        TEST_MEMGPT_CONFIG.metadata_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")
+        TEST_MEMGPT_CONFIG.metadata_storage_uri = os.getenv("MEMGPT_PG_URI")
         TEST_MEMGPT_CONFIG.metadata_storage_type = "postgres"
     elif metadata_storage_connector == "sqlite":
         print("testing  sqlite metadata")
@@ -57,10 +57,10 @@ def test_load_directory(
     else:
         raise NotImplementedError(f"Storage type {metadata_storage_connector} not implemented")
     if passage_storage_connector == "postgres":
-        if not os.getenv("PGVECTOR_TEST_DB_URL"):
+        if not os.getenv("MEMGPT_PG_URI"):
             print("Skipping test, missing PG URI")
             return
-        TEST_MEMGPT_CONFIG.archival_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")
+        TEST_MEMGPT_CONFIG.archival_storage_uri = os.getenv("MEMGPT_PG_URI")
         TEST_MEMGPT_CONFIG.archival_storage_type = "postgres"
     elif passage_storage_connector == "chroma":
         print("testing chroma passage storage")
