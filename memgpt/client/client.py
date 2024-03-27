@@ -286,7 +286,7 @@ class RESTClient(AbstractClient):
             embedding_config=embedding_config,
             state=response.agent_state.state,
             # load datetime from timestampe
-            created_at=datetime.datetime.fromtimestamp(response.agent_state.created_at),
+            created_at=datetime.datetime.fromtimestamp(response.agent_state.created_at, tz=datetime.timezone.utc),
         )
         return agent_state
 
