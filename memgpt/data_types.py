@@ -394,7 +394,7 @@ class EmbeddingConfig:
         embedding_endpoint: Optional[str] = None,
         embedding_model: Optional[str] = None,
         embedding_dim: Optional[int] = None,
-        embedding_chunk_size: Optional[int] = None,
+        embedding_chunk_size: Optional[int] = 300,
     ):
         self.embedding_endpoint_type = embedding_endpoint_type
         self.embedding_endpoint = embedding_endpoint

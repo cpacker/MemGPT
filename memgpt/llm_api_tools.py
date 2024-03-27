@@ -417,6 +417,7 @@ def create(
     if agent_state.llm_config.model_endpoint_type == "openai":
         # TODO do the same for Azure?
         if credentials.openai_key is None and agent_state.llm_config.model_endpoint == "https://api.openai.com/v1":
+            # only is a problem if we are *not* using an openai proxy
             raise ValueError(f"OpenAI key is missing from MemGPT config file")
         if use_tool_naming:
             data = dict(
