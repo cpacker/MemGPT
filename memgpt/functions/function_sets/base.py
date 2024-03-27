@@ -22,9 +22,6 @@ def send_message(self: Agent, message: str) -> Optional[str]:
         Optional[str]: None is always returned as this function does not produce a response.
     """
     # FIXME passing of msg_obj here is a hack, unclear if guaranteed to be the correct reference
-    # print("SEND_MESSAGE:::")
-    # print(self.interface.__class__.__name__)
-    # print("messages:::", [vars(m) for m in self._messages])
     self.interface.assistant_message(message)  # , msg_obj=self._messages[-1])
     return None
 
