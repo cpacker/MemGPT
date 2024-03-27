@@ -21,15 +21,6 @@ jobs:
     - name: Build and run container
       run: bash db/run_postgres.sh
 
-    #- name: Run docker compose server
-    #  env:
-    #    MEMGPT_PG_DB:   memgpt
-    #    MEMGPT_PG_USER: memgpt
-    #    MEMGPT_PG_PASSWORD: memgpt
-    #    MEMGPT_SERVER_PASS: test_server_token
-    #    MEMGPT_CONFIG_PATH: configs/server_config.yaml
-
-    #  run: docker compose up &
 
     - name: "Setup Python, Poetry and Dependencies"
       uses: packetcoders/action-setup-cache-python-poetry@main
@@ -37,6 +28,22 @@ jobs:
         python-version: "3.11"
         poetry-version: "1.7.1"
         install-args: "--all-extras"
+
+    - name: Initialize credentials
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        poetry run memgpt quickstart --backend openai
+
+    - name: Run docker compose server
+      env:
+        MEMGPT_PG_DB:   memgpt
+        MEMGPT_PG_USER: memgpt
+        MEMGPT_PG_PASSWORD: memgpt
+        MEMGPT_SERVER_PASS: test_server_token
+        MEMGPT_CONFIG_PATH: configs/server_config.yaml
+
+      run: docker compose up &
 
     - name: Run server tests
       env:
