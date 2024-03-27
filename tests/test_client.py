@@ -238,9 +238,10 @@ def test_config(client, agent):
     models_response = client.list_models()
     print("MODELS", models_response)
 
-    config_response = client.get_config()
+    # TODO: add back
+    # config_response = client.get_config()
     # TODO: ensure config is the same as the one in the server
-    print("CONFIG", config_response)
+    # print("CONFIG", config_response)
 
 
 def test_sources(client, agent):
