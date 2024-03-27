@@ -44,10 +44,10 @@ class MemGPTConfig:
     human: str = DEFAULT_HUMAN
 
     # model parameters
-    default_llm_config: LLMConfig = field(default_factory=LLMConfig)
+    default_llm_config: LLMConfig = None
 
     # embedding parameters
-    default_embedding_config: EmbeddingConfig = field(default_factory=EmbeddingConfig)
+    default_embedding_config: EmbeddingConfig = None
 
     # database configs: archival
     archival_storage_type: str = "chroma"  # local, db
