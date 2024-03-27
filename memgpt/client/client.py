@@ -551,8 +551,6 @@ class LocalClient(AbstractClient):
         preset: Optional[str] = None,
         persona: Optional[str] = None,
         human: Optional[str] = None,
-        embedding_config: Optional[EmbeddingConfig] = None,
-        llm_config: Optional[LLMConfig] = None,
     ) -> AgentState:
         if name and self.agent_exists(agent_name=name):
             raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
@@ -564,8 +562,6 @@ class LocalClient(AbstractClient):
             preset=preset,
             persona=persona,
             human=human,
-            embedding_config=embedding_config,
-            llm_config=llm_config,
         )
         return agent_state
 
