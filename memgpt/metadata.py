@@ -305,8 +305,8 @@ class MetadataStore:
         # TODO: get DB URI or path
         if config.metadata_storage_type == "postgres":
             # construct URI from enviornment variables
-            if os.getenv("MEMGPT_PG_URI"):
-                self.uri = os.getenv("MEMGPT_PG_URI")
+            if os.getenv("MEMGPT_PGURI"):
+                self.uri = os.getenv("MEMGPT_PGURI")
             else:
                 db = os.getenv("MEMGPT_PG_DB", "memgpt")
                 user = os.getenv("MEMGPT_PG_USER", "memgpt")
