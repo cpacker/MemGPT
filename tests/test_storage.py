@@ -5,7 +5,7 @@ import pytest
 
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.embeddings import embedding_model, query_embedding
-from memgpt.data_types import Message, Passage, EmbeddingConfig, AgentState
+from memgpt.data_types import Message, Passage, EmbeddingConfig, AgentState, LLMConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.metadata import MetadataStore
@@ -120,7 +120,17 @@ def test_storage(
     #    if 'Message' in globals():
     #        print("Removing messages", globals()['Message'])
     #        del globals()['Message']
-
+    TEST_MEMGPT_CONFIG.default_embedding_config = EmbeddingConfig(
+        embedding_endpoint_type="openai",
+        embedding_endpoint="https://api.openai.com/v1",
+        embedding_dim=1536,
+        embedding_model="text-embedding-ada-002",
+    )
+    TEST_MEMGPT_CONFIG.default_llm_config = LLMConfig(
+        model_endpoint_type="openai",
+        model_endpoint="https://api.openai.com/v1",
+        model="gpt-4",
+    )
     if storage_connector == "postgres":
         if not os.getenv("MEMGPT_PGURI"):
             print("Skipping test, missing PG URI")
