@@ -6,7 +6,6 @@
 \set db_password `([ -r /var/run/secrets/memgpt-password ] && cat /var/run/secrets/memgpt-password) || echo "${POSTGRES_PASSWORD:-memgpt}"`
 \set db_name `([ -r /var/run/secrets/memgpt-db ] && cat /var/run/secrets/memgpt-db) || echo "${POSTGRES_DB:-memgpt}"`
 
-
 -- CREATE USER :"db_user"
 --     WITH PASSWORD :'db_password'
 --     NOCREATEDB

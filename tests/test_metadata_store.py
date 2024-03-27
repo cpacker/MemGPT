@@ -16,11 +16,11 @@ from memgpt.models.pydantic_models import HumanModel, PersonaModel
 @pytest.mark.parametrize("storage_connector", ["sqlite"])
 def test_storage(storage_connector):
     if storage_connector == "postgres":
-        if not os.getenv("PGVECTOR_TEST_DB_URL"):
+        if not os.getenv("MEMGPT_PGURI"):
             print("Skipping test, missing PG URI")
             return
-        TEST_MEMGPT_CONFIG.archival_storage_uri = os.environ["PGVECTOR_TEST_DB_URL"]
-        TEST_MEMGPT_CONFIG.recall_storage_uri = os.environ["PGVECTOR_TEST_DB_URL"]
+        TEST_MEMGPT_CONFIG.archival_storage_uri = os.environ["MEMGPT_PGURI"]
+        TEST_MEMGPT_CONFIG.recall_storage_uri = os.environ["MEMGPT_PGURI"]
         TEST_MEMGPT_CONFIG.archival_storage_type = "postgres"
         TEST_MEMGPT_CONFIG.recall_storage_type = "postgres"
     if storage_connector == "sqlite":
@@ -49,8 +49,8 @@ def test_storage(storage_connector):
         user_id=user_1.id,
         name="agent_1",
         preset=DEFAULT_PRESET,
-        persona=get_persona_text(DEFAULT_PERSONA),
-        human=get_human_text(DEFAULT_HUMAN),
+        persona=DEFAULT_PERSONA,
+        human=DEFAULT_HUMAN,
         llm_config=TEST_MEMGPT_CONFIG.default_llm_config,
         embedding_config=TEST_MEMGPT_CONFIG.default_embedding_config,
     )
@@ -73,7 +73,7 @@ def test_storage(storage_connector):
     from memgpt.presets.presets import add_default_presets
 
     add_default_presets(user_1.id, ms)
-    preset_obj = ms.get_preset(preset_name=DEFAULT_PRESET, user_id=user_1.id)
+    preset_obj = ms.get_preset(name=DEFAULT_PRESET, user_id=user_1.id)
     from memgpt.interface import CLIInterface as interface  # for printing to terminal
 
     # Overwrite fields in the preset if they were specified
