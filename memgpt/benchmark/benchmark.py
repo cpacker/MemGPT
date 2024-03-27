@@ -43,6 +43,7 @@ def bench(
     print_messages: Annotated[bool, typer.Option("--messages", help="Print functions calls and messages from the agent.")] = False,
     n_tries: Annotated[int, typer.Option("--n-tries", help="Number of benchmark tries to perform for each function.")] = TRIES,
 ):
+    global client
     client = create_client()
     print(f"\nDepending on your hardware, this may take up to 30 minutes. This will also create {n_tries * len(PROMPTS)} new agents.\n")
     config = MemGPTConfig.load()

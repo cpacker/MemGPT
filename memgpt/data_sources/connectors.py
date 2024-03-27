@@ -1,6 +1,6 @@
-from memgpt.data_types import Passage, Document, EmbeddingConfig, Source
+from memgpt.data_types import  EmbeddingConfig, Source
 from memgpt.utils import create_uuid_from_string
-from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector
 from memgpt.embeddings import embedding_model
 from memgpt.data_types import Document, Passage
 
@@ -99,7 +99,7 @@ class DirectoryConnector(DataConnector):
         self.recursive = recursive
         self.extensions = extensions
 
-        if self.recursive == True:
+        if self.recursive:
             assert self.input_directory is not None, "Must provide input directory if recursive is True."
 
     def generate_documents(self) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Document]:
@@ -146,7 +146,7 @@ class WebConnector(DirectoryConnector):
 
     def generate_documents(self) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Document]:
         from llama_index.readers.web import SimpleWebPageReader
-
+        from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
         documents = SimpleWebPageReader(html_to_text=self.html_to_text).load_data(self.urls)
         for document in documents:
             yield document.text, {"url": document.id_}

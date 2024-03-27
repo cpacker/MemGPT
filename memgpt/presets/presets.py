@@ -121,50 +121,50 @@ def create_agent_from_preset(
     raise DeprecationWarning("Function no longer supported - pass a Preset object to Agent.__init__ instead")
 
     # Input validation
-    if agent_state.persona is None:
-        raise ValueError(f"'persona' not specified in AgentState (required)")
-    if agent_state.human is None:
-        raise ValueError(f"'human' not specified in AgentState (required)")
-    if agent_state.preset is None:
-        raise ValueError(f"'preset' not specified in AgentState (required)")
-    if not (agent_state.state == {} or agent_state.state is None):
-        raise ValueError(f"'state' must be uninitialized (empty)")
-
-    assert preset is not None, "preset cannot be none"
-    preset_name = agent_state.preset
-    assert preset_name == preset.name, f"AgentState preset '{preset_name}' does not match preset name '{preset.name}'"
-    persona = agent_state.persona
-    human = agent_state.human
-    model = agent_state.llm_config.model
-
-    from memgpt.agent import Agent
-
+    # if agent_state.persona is None:
+    #     raise ValueError(f"'persona' not specified in AgentState (required)")
+    # if agent_state.human is None:
+    #     raise ValueError(f"'human' not specified in AgentState (required)")
+    # if agent_state.preset is None:
+    #     raise ValueError(f"'preset' not specified in AgentState (required)")
+    # if not (agent_state.state == {} or agent_state.state is None):
+    #     raise ValueError(f"'state' must be uninitialized (empty)")
+    #
+    # assert preset is not None, "preset cannot be none"
+    # preset_name = agent_state.preset
+    # assert preset_name == preset.name, f"AgentState preset '{preset_name}' does not match preset name '{preset.name}'"
+    # persona = agent_state.persona
+    # human = agent_state.human
+    # model = agent_state.llm_config.model
+    #
+    # from memgpt.agent import Agent
+    #
     # available_presets = load_all_presets()
     # if preset_name not in available_presets:
     #    raise ValueError(f"Preset '{preset_name}.yaml' not found")
-
+    #
     # preset = available_presets[preset_name]
     # preset_system_prompt = preset["system_prompt"]
     # preset_function_set_names = preset["functions"]
     # preset_function_set_schemas = generate_functions_json(preset_function_set_names)
-
+    #
     # Override the following in the AgentState:
     #   persona: str  # the current persona text
     #   human: str  # the current human text
     #   system: str,  # system prompt (not required if initializing with a preset)
     #   functions: dict,  # schema definitions ONLY (function code linked at runtime)
     #   messages: List[dict],  # in-context messages
-    agent_state.state = {
-        "persona": get_persona_text(persona) if persona_is_file else persona,
-        "human": get_human_text(human) if human_is_file else human,
-        "system": preset.system,
-        "functions": preset.functions_schema,
-        "messages": None,
-    }
+    # agent_state.state = {
+    #     "persona": get_persona_text(persona) if persona_is_file else persona,
+    #     "human": get_human_text(human) if human_is_file else human,
+    #     "system": preset.system,
+    #     "functions": preset.functions_schema,
+    #     "messages": None,
+    # }
 
-    return Agent(
-        agent_state=agent_state,
-        interface=interface,
-        # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-        first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
-    )
+    # return Agent(
+    #     agent_state=agent_state,
+    #     interface=interface,
+    #     # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+    #     first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
+    # )
