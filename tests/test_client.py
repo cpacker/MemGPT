@@ -59,6 +59,7 @@ def run_server():
                 embedding_endpoint_type="openai",
                 embedding_endpoint="https://api.openai.com/v1",
                 embedding_dim=1536,
+                embedding_model="text-embedding-ada-002",
             ),
             # llms
             default_llm_config=LLMConfig(
