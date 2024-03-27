@@ -1,9 +1,10 @@
 """ This module contains the data types used by MemGPT. Each data type must include a function to create a DB model. """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, TypeVar
 import numpy as np
+from pydantic import BaseModel, Field, Json
 
 from memgpt.constants import (
     DEFAULT_HUMAN,
@@ -14,14 +15,9 @@ from memgpt.constants import (
     MAX_EMBEDDING_DIM,
     TOOL_CALL_ID_MAX_LEN,
 )
-from memgpt.utils import get_local_time, format_datetime, get_utc_time, create_uuid_from_string
+from memgpt.utils import get_utc_time, create_uuid_from_string
 from memgpt.models import chat_completion_response
-from memgpt.utils import get_human_text, get_persona_text, printd
-
-from pydantic import BaseModel, Field, Json
-from memgpt.utils import get_human_text, get_persona_text, printd
-
-from pydantic import BaseModel, Field, Json
+from memgpt.utils import get_human_text, get_persona_text, printd, is_utc_datetime
 
 
 class Record:
@@ -136,6 +132,11 @@ class Message(Record):
         json_message = vars(self)
         if json_message["tool_calls"] is not None:
             json_message["tool_calls"] = [vars(tc) for tc in json_message["tool_calls"]]
+        # turn datetime to ISO format
+        # also if the created_at is missing a timezone, add UTC
+        if not is_utc_datetime(self.created_at):
+            self.created_at = self.created_at.replace(tzinfo=timezone.utc)
+        json_message["created_at"] = self.created_at.isoformat()
         return json_message
 
     @staticmethod
