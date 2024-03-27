@@ -29,6 +29,7 @@ from memgpt.utils import (
     validate_function_response,
     verify_first_message_correctness,
     create_uuid_from_string,
+    is_utc_datetime,
 )
 from memgpt.constants import (
     FIRST_MESSAGE_ATTEMPTS,
@@ -140,7 +141,7 @@ def initialize_message_sequence(
     recall_memory: Optional[RecallMemory] = None,
     memory_edit_timestamp: Optional[str] = None,
     include_initial_boot_message: bool = True,
-):
+) -> List[dict]:
     if memory_edit_timestamp is None:
         memory_edit_timestamp = get_local_time()
 
@@ -291,6 +292,13 @@ class Agent(object):
             assert all([isinstance(msg, Message) for msg in raw_messages]), (raw_messages, self.agent_state.state["messages"])
             self._messages.extend([cast(Message, msg) for msg in raw_messages if msg is not None])
 
+            for m in self._messages:
+                # assert is_utc_datetime(m.created_at), f"created_at on message for agent {self.agent_state.name} isn't UTC:\n{vars(m)}"
+                # TODO eventually do casting via an edit_message function
+                if not is_utc_datetime(m.created_at):
+                    printd(f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
+                    m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
+
         else:
             # print(f"Agent.__init__ :: creating, state={agent_state.state['messages']}")
             init_messages = initialize_message_sequence(
@@ -308,6 +316,13 @@ class Agent(object):
             assert all([isinstance(msg, Message) for msg in init_messages_objs]), (init_messages_objs, init_messages)
             self.messages_total = 0
             self._append_to_messages(added_messages=[cast(Message, msg) for msg in init_messages_objs if msg is not None])
+
+            for m in self._messages:
+                assert is_utc_datetime(m.created_at), f"created_at on message for agent {self.agent_state.name} isn't UTC:\n{vars(m)}"
+                # TODO eventually do casting via an edit_message function
+                if not is_utc_datetime(m.created_at):
+                    printd(f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
+                    m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
 
         # Keep track of the total number of messages throughout all time
         self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
@@ -445,6 +460,8 @@ class Agent(object):
 
             # role: assistant (requesting tool call, set tool call ID)
             messages.append(
+                # NOTE: we're recreating the message here
+                # TODO should probably just overwrite the fields?
                 Message.dict_to_message(
                     agent_id=self.agent_state.id,
                     user_id=self.agent_state.user_id,
@@ -710,7 +727,7 @@ class Agent(object):
             # (if yes) Step 3: call the function
             # (if yes) Step 4: send the info on the function call and function response to LLM
             response_message = response.choices[0].message
-            response_message.copy()
+            response_message.model_copy()  # TODO why are we copying here?
             all_response_messages, heartbeat_request, function_failed = self._handle_ai_response(response_message)
 
             # Add the extra metadata to the assistant response

@@ -151,7 +151,7 @@ def get_db_model(
             metadata_ = Column(MutableJson)
 
             # Add a datetime column, with default value as the current time
-            created_at = Column(DateTime(timezone=True), server_default=func.now())
+            created_at = Column(DateTime(timezone=True))
 
             def __repr__(self):
                 return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
@@ -217,7 +217,7 @@ def get_db_model(
             embedding_model = Column(String)
 
             # Add a datetime column, with default value as the current time
-            created_at = Column(DateTime(timezone=True), server_default=func.now())
+            created_at = Column(DateTime(timezone=True))
 
             def __repr__(self):
                 return f"<Message(message_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
