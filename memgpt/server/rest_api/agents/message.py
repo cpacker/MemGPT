@@ -99,12 +99,12 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         [_, messages] = server.get_agent_recall_cursor(
             user_id=user_id, agent_id=agent_id, before=request.before, limit=request.limit, reverse=True
         )
-        print("====> messages-cursor DEBUG")
-        for i, msg in enumerate(messages):
-            print(f"message {i+1}/{len(messages)}")
-            # print(f"UTC created-at: {msg.created_at.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'}")
-            print(f"ISO format string: {msg['created_at']}")
-            print(msg)
+        # print("====> messages-cursor DEBUG")
+        # for i, msg in enumerate(messages):
+        # print(f"message {i+1}/{len(messages)}")
+        # print(f"UTC created-at: {msg.created_at.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'}")
+        # print(f"ISO format string: {msg['created_at']}")
+        # print(msg)
         return GetAgentMessagesResponse(messages=messages)
 
     @router.post("/agents/{agent_id}/messages", tags=["agents"], response_model=UserMessageResponse)
