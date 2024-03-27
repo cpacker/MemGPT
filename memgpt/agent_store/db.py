@@ -439,15 +439,18 @@ class PostgresStorageConnector(SQLStorageConnector):
         self.db_model = get_db_model(config, self.table_name, table_type, user_id, agent_id)
 
         # construct URI from enviornment variables
-        db = os.getenv("MEMGPT_PG_DB", "memgpt")
-        user = os.getenv("MEMGPT_PG_USER", "memgpt")
-        password = os.getenv("MEMGPT_PG_PASSWORD", "memgpt")
-        port = os.getenv("MEMGPT_PG_PORT", "5432")
-        url = os.getenv("MEMGPT_PG_URL", "localhost")
-        uri = f"postgresql+pg8000://{user}:{password}@{url}:{port}/{db}"
+        if os.getenv("MEMGPT_PGURI"):
+            self.uri = os.getenv("MEMGPT_PGURI")
+        else:
+            db = os.getenv("MEMGPT_PG_DB", "memgpt")
+            user = os.getenv("MEMGPT_PG_USER", "memgpt")
+            password = os.getenv("MEMGPT_PG_PASSWORD", "memgpt")
+            port = os.getenv("MEMGPT_PG_PORT", "5432")
+            url = os.getenv("MEMGPT_PG_URL", "localhost")
+            self.uri = f"postgresql+pg8000://{user}:{password}@{url}:{port}/{db}"
 
         # create engine
-        self.engine = create_engine(uri)
+        self.engine = create_engine(self.uri)
 
         for c in self.db_model.__table__.columns:
             if c.name == "embedding":
