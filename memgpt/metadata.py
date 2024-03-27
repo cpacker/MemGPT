@@ -305,12 +305,15 @@ class MetadataStore:
         # TODO: get DB URI or path
         if config.metadata_storage_type == "postgres":
             # construct URI from enviornment variables
-            db = os.getenv("MEMGPT_PG_DB", "memgpt")
-            user = os.getenv("MEMGPT_PG_USER", "memgpt")
-            password = os.getenv("MEMGPT_PG_PASSWORD", "memgpt")
-            port = os.getenv("MEMGPT_PG_PORT", "5432")
-            url = os.getenv("MEMGPT_PG_URL", "localhost")
-            self.uri = f"postgresql+pg8000://{user}:{password}@{url}:{port}/{db}"
+            if os.getenv("MEMGPT_PGURI"):
+                self.uri = os.getenv("MEMGPT_PGURI")
+            else:
+                db = os.getenv("MEMGPT_PG_DB", "memgpt")
+                user = os.getenv("MEMGPT_PG_USER", "memgpt")
+                password = os.getenv("MEMGPT_PG_PASSWORD", "memgpt")
+                port = os.getenv("MEMGPT_PG_PORT", "5432")
+                url = os.getenv("MEMGPT_PG_URL", "localhost")
+                self.uri = f"postgresql+pg8000://{user}:{password}@{url}:{port}/{db}"
         elif config.metadata_storage_type == "sqlite":
             path = os.path.join(config.metadata_storage_path, "sqlite.db")
             self.uri = f"sqlite:///{path}"
