@@ -11,12 +11,12 @@ MAX_EMBEDDING_DIM = 4096  # maximum supported embeding size - do NOT change or e
 
 # tokenizers
 EMBEDDING_TO_TOKENIZER_MAP = {
-    "text-embedding-3-small": "cl100k_base",
+    "text-embedding-ada-002": "cl100k_base",
 }
 EMBEDDING_TO_TOKENIZER_DEFAULT = "cl100k_base"
 
 
-DEFAULT_MEMGPT_MODEL = "gpt-4-0125-preview"
+DEFAULT_MEMGPT_MODEL = "gpt-4"
 DEFAULT_PERSONA = "sam_pov"
 DEFAULT_HUMAN = "basic"
 DEFAULT_PRESET = "memgpt_chat"
@@ -56,7 +56,6 @@ LLM_MAX_TOKENS = {
     "DEFAULT": 8192,
     ## OpenAI models: https://platform.openai.com/docs/models/overview
     # gpt-4
-    "gpt-4-0125-preview": 128000,
     "gpt-4-1106-preview": 128000,
     "gpt-4": 8192,
     "gpt-4-32k": 32768,
