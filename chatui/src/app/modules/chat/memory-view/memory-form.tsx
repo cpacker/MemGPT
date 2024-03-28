@@ -22,15 +22,14 @@ import { useAuthStoreState } from '../../../libs/auth/auth.store';
 
 export function MemoryForm({ className, data, agentId }: { className?: string; data: AgentMemory; agentId: string }) {
 	const auth = useAuthStoreState();
-	const mutation = useAgentMemoryUpdateMutation(auth.uuid);
+	const mutation = useAgentMemoryUpdateMutation(auth.uuid, agentId);
 
 	const form = useForm<z.infer<typeof AgentMemoryUpdateSchema>>({
 		resolver: zodResolver(AgentMemoryUpdateSchema),
 		defaultValues: {
 			persona: data?.core_memory?.persona,
 			human: data?.core_memory?.human,
-			user_id: auth.uuid ?? undefined,
-			agent_id: agentId,
+			user_id: auth.uuid ?? undefined
 		},
 	});
 

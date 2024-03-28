@@ -11,8 +11,6 @@ export const enum ReadyState {
 	ERROR,
 }
 
-const ENDPOINT_URL = API_BASE_URL + '/agents/message';
-
 const useMessageStreamStore = create(
 	combine(
 		{
@@ -49,12 +47,11 @@ const useMessageStreamStore = create(
 							abortController.abort();
 							return { ...state, abortController: null, readyState: ReadyState.ERROR };
 						});
-					void fetchEventSource(ENDPOINT_URL, {
+					void fetchEventSource(`${API_BASE_URL}/agents/${agentId}/messages`, {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', Authorization: bearerToken },
 						body: JSON.stringify({
 							user_id: userId,
-							agent_id: agentId,
 							message,
 							role: role ?? 'user',
 							stream: true,
