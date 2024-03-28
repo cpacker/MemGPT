@@ -33,7 +33,11 @@ jobs:
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry run memgpt quickstart --backend openai
+        if [ -z "$OPENAI_API_KEY" ]; then
+          poetry run memgpt quickstart --backend openai
+        else
+          poetry run memgpt quickstart --backend openai
+        fi
 
     - name: Run docker compose server
       env:
