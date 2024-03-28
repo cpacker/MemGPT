@@ -370,9 +370,9 @@ class Passage(Record):
 class LLMConfig:
     def __init__(
         self,
-        model: Optional[str] = "gpt-4",
-        model_endpoint_type: Optional[str] = "openai",
-        model_endpoint: Optional[str] = "https://api.openai.com/v1",
+        model: Optional[str] = None,
+        model_endpoint_type: Optional[str] = None,
+        model_endpoint: Optional[str] = None,
         model_wrapper: Optional[str] = None,
         context_window: Optional[int] = None,
     ):
@@ -391,10 +391,10 @@ class LLMConfig:
 class EmbeddingConfig:
     def __init__(
         self,
-        embedding_endpoint_type: Optional[str] = "openai",
-        embedding_endpoint: Optional[str] = "https://api.openai.com/v1",
-        embedding_model: Optional[str] = "text-embedding-ada-002",
-        embedding_dim: Optional[int] = 1536,
+        embedding_endpoint_type: Optional[str] = None,
+        embedding_endpoint: Optional[str] = None,
+        embedding_model: Optional[str] = None,
+        embedding_dim: Optional[int] = None,
         embedding_chunk_size: Optional[int] = 300,
     ):
         self.embedding_endpoint_type = embedding_endpoint_type

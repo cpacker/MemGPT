@@ -1,4 +1,5 @@
 import os
+import pytest
 import uuid
 
 from memgpt import create_client
@@ -10,10 +11,10 @@ from .utils import wipe_config, create_config
 
 # test_agent_id = "test_agent"
 client = None
-agent_obj = None
 
 
-def create_test_agent():
+@pytest.fixture(scope="module")
+def agent_obj():
     """Create a test agent that we can call functions on"""
     wipe_config()
     global client
@@ -31,26 +32,18 @@ def create_test_agent():
     global agent_obj
     user_id = uuid.UUID(TEST_MEMGPT_CONFIG.anon_clientid)
     agent_obj = client.server._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
+    yield agent_obj
+
+    client.delete_agent(agent_obj.agent_state.id)
 
 
-def test_archival():
-    global agent_obj
-    if agent_obj is None:
-        create_test_agent()
-    assert agent_obj is not None
-
+def test_archival(agent_obj):
     base_functions.archival_memory_insert(agent_obj, "banana")
-
     base_functions.archival_memory_search(agent_obj, "banana")
     base_functions.archival_memory_search(agent_obj, "banana", page=0)
 
 
-def test_recall():
-    global agent_obj
-    if agent_obj is None:
-        create_test_agent()
-
+def test_recall(agent_obj):
     base_functions.conversation_search(agent_obj, "banana")
     base_functions.conversation_search(agent_obj, "banana", page=0)
-
     base_functions.conversation_search_date(agent_obj, start_date="2022-01-01", end_date="2022-01-02")

@@ -68,15 +68,13 @@ def test_create_user():
     openai_agent_run = client.server._get_or_load_agent(user_id=client.user.id, agent_id=openai_agent.id)
     openai_agent_run.persistence_manager.archival_memory.storage.insert_many(passages)
 
+    # create client
+    create_config("memgpt_hosted")
+    client = create_client()
+
     # hosted: create agent
     hosted_agent = client.create_agent(
         name="hosted_agent",
-        embedding_config=EmbeddingConfig(
-            embedding_endpoint_type="hugging-face",
-            embedding_model="BAAI/bge-large-en-v1.5",
-            embedding_endpoint="https://embeddings.memgpt.ai",
-            embedding_dim=1024,
-        ),
     )
     # check to make sure endpoint overriden
     assert (
