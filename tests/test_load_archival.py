@@ -11,10 +11,10 @@ from memgpt.cli.cli_load import load_directory
 # from memgpt.data_sources.connectors import DirectoryConnector, load_data
 from memgpt.credentials import MemGPTCredentials
 from memgpt.metadata import MetadataStore
-from memgpt.data_types import User, AgentState, EmbeddingConfig
+from memgpt.data_types import User, AgentState, EmbeddingConfig, LLMConfig
 from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
-from .utils import wipe_config
+from .utils import wipe_config, create_config
 
 
 @pytest.fixture(autouse=True)
@@ -44,6 +44,18 @@ def test_load_directory(
     recreate_declarative_base,
 ):
     wipe_config()
+    TEST_MEMGPT_CONFIG.default_embedding_config = EmbeddingConfig(
+        embedding_endpoint_type="openai",
+        embedding_endpoint="https://api.openai.com/v1",
+        embedding_dim=1536,
+        embedding_model="text-embedding-ada-002",
+    )
+    TEST_MEMGPT_CONFIG.default_llm_config = LLMConfig(
+        model_endpoint_type="openai",
+        model_endpoint="https://api.openai.com/v1",
+        model="gpt-4",
+    )
+
     # setup config
     if metadata_storage_connector == "postgres":
         if not os.getenv("MEMGPT_PGURI"):
@@ -84,6 +96,7 @@ def test_load_directory(
             embedding_endpoint_type="openai",
             embedding_endpoint="https://api.openai.com/v1",
             embedding_dim=1536,
+            embedding_model="text-embedding-ada-002",
             # openai_key=os.getenv("OPENAI_API_KEY"),
         )
 

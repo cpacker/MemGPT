@@ -75,27 +75,46 @@ def set_config_with_dict(new_config: dict) -> (MemGPTConfig, bool):
                 printd(f"Skipping new config {k}: {v} == {new_config[k]}")
 
     # update embedding config
-    for k, v in vars(old_config.default_embedding_config).items():
-        if k in new_config:
-            if v != new_config[k]:
-                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
-                modified = True
-                # old_config[k] = new_config[k]
-                setattr(old_config.default_embedding_config, k, new_config[k])
-            else:
-                printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+    if old_config.default_embedding_config:
+        for k, v in vars(old_config.default_embedding_config).items():
+            if k in new_config:
+                if v != new_config[k]:
+                    printd(f"Replacing config {k}: {v} -> {new_config[k]}")
+                    modified = True
+                    # old_config[k] = new_config[k]
+                    setattr(old_config.default_embedding_config, k, new_config[k])
+                else:
+                    printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+    else:
+        modified = True
+        fields = ["embedding_model", "embedding_dim", "embedding_chunk_size", "embedding_endpoint", "embedding_endpoint_type"]
+        args = {}
+        for field in fields:
+            if field in new_config:
+                args[field] = new_config[field]
+                printd(f"Setting new config {field}: {new_config[field]}")
+        old_config.default_embedding_config = EmbeddingConfig(**args)
 
     # update llm config
-    for k, v in vars(old_config.default_llm_config).items():
-        if k in new_config:
-            if v != new_config[k]:
-                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
-                modified = True
-                # old_config[k] = new_config[k]
-                setattr(old_config.default_llm_config, k, new_config[k])
-            else:
-                printd(f"Skipping new config {k}: {v} == {new_config[k]}")
-
+    if old_config.default_llm_config:
+        for k, v in vars(old_config.default_llm_config).items():
+            if k in new_config:
+                if v != new_config[k]:
+                    printd(f"Replacing config {k}: {v} -> {new_config[k]}")
+                    modified = True
+                    # old_config[k] = new_config[k]
+                    setattr(old_config.default_llm_config, k, new_config[k])
+                else:
+                    printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+    else:
+        modified = True
+        fields = ["model", "model_endpoint", "model_endpoint_type", "model_wrapper", "context_window"]
+        args = {}
+        for field in fields:
+            if field in new_config:
+                args[field] = new_config[field]
+                printd(f"Setting new config {field}: {new_config[field]}")
+        old_config.default_llm_config = LLMConfig(**args)
     return (old_config, modified)
 
 
@@ -153,10 +172,13 @@ def quickstart(
         else:
             # Load the file from the relative path
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
+            print("SCRIPT", script_dir)
             backup_config_path = os.path.join(script_dir, "..", "configs", "memgpt_hosted.json")
+            print("FILE PATH", backup_config_path)
             try:
                 with open(backup_config_path, "r", encoding="utf-8") as file:
                     backup_config = json.load(file)
+                    print(backup_config)
                 printd("Loaded config file successfully.")
                 new_config, config_was_modified = set_config_with_dict(backup_config)
             except FileNotFoundError:
@@ -300,15 +322,6 @@ def server(
     #    stream_handler.setFormatter(formatter)
     #    # Add the handler to the logger
     #    server_logger.addHandler(stream_handler)
-
-    # override config with postgres enviornment (messy, but necessary for docker compose)
-    if os.getenv("POSTGRES_URI"):
-        config = MemGPTConfig.load()
-        config.archival_storage_uri = os.getenv("POSTGRES_URI")
-        config.recall_storage_uri = os.getenv("POSTGRES_URI")
-        config.metadata_storage_uri = os.getenv("POSTGRES_URI")
-        print(f"Overriding DB config URI with enviornment variable: {config.archival_storage_uri}")
-        config.save()
 
     if type == ServerChoice.rest_api:
         import uvicorn

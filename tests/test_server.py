@@ -35,6 +35,7 @@ def server():
             default_embedding_config=EmbeddingConfig(
                 embedding_endpoint_type="openai",
                 embedding_endpoint="https://api.openai.com/v1",
+                embedding_model="text-embedding-ada-002",
                 embedding_dim=1536,
             ),
             # llms
