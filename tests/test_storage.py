@@ -7,7 +7,6 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.embeddings import embedding_model, query_embedding
 from memgpt.data_types import Message, Passage, EmbeddingConfig, AgentState, LLMConfig
 from memgpt.credentials import MemGPTCredentials
-from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import User
 from memgpt.constants import MAX_EMBEDDING_DIM
@@ -102,7 +101,7 @@ def recreate_declarative_base():
     Base.metadata.clear()
 
 
-@pytest.mark.parametrize("storage_connector", ["postgres", "chroma", "sqlite"])
+@pytest.mark.parametrize("storage_connector", ["postgres", "chroma", "sqlite", "qdrant"])
 # @pytest.mark.parametrize("storage_connector", ["sqlite", "chroma"])
 # @pytest.mark.parametrize("storage_connector", ["postgres"])
 @pytest.mark.parametrize("table_type", [TableType.RECALL_MEMORY, TableType.ARCHIVAL_MEMORY])
@@ -159,6 +158,12 @@ def test_storage(
             print("Skipping test, sqlite only supported for recall memory")
             return
         TEST_MEMGPT_CONFIG.recall_storage_type = "sqlite"
+    if storage_connector == "qdrant":
+        if table_type == TableType.RECALL_MEMORY:
+            print("Skipping test, Qdrant only supports archival memory")
+            return
+        TEST_MEMGPT_CONFIG.archival_storage_type = "qdrant"
+        TEST_MEMGPT_CONFIG.archival_storage_path = "./test_qdrant"
 
     # get embedding model
     embed_model = None
@@ -226,7 +231,7 @@ def test_storage(
     conn.insert_many(records[1:])
     assert (
         conn.size() == 2
-    ), f"Expected 1 record, got {conn.size()}: {conn.get_all()}"  # expect 2, since storage connector filters for agent1
+    ), f"Expected 2 records, got {conn.size()}: {conn.get_all()}"  # expect 2, since storage connector filters for agent1
 
     # test: update
     # NOTE: only testing with messages

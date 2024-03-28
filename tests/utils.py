@@ -2,6 +2,8 @@ import datetime
 from typing import Dict, List, Tuple, Iterator
 import os
 
+import requests
+
 from memgpt.cli.cli import quickstart, QuickstartChoice
 from memgpt.data_sources.connectors import DataConnector
 from memgpt.data_types import Document
@@ -121,3 +123,25 @@ def configure_memgpt(enable_openai=False, enable_azure=False):
         raise NotImplementedError
     else:
         configure_memgpt_localllm()
+
+
+def qdrant_server_running() -> bool:
+    """Check if Qdrant server is running."""
+
+    try:
+        response = requests.get("http://localhost:6333", timeout=10.0)
+        response_json = response.json()
+        return response_json.get("title") == "qdrant - vector search engine"
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        return False
+
+
+# tests/load_archival_storage.py instantiates multiple storage connectors instances
+# Qdrant local doesn't support concurrent access
+# Use Qdrant server for the test if running
+def get_passage_storage():
+    storage = ["chroma", "postgres"]
+    if qdrant_server_running():
+        storage.append("qdrant")
+
+    return storage
