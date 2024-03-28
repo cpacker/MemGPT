@@ -5,7 +5,7 @@ from memgpt.memory import (
     BaseRecallMemory,
     EmbeddingArchivalMemory,
 )
-from memgpt.utils import get_local_time, printd
+from memgpt.utils import printd
 from memgpt.data_types import Message, ToolCall, AgentState
 
 from datetime import datetime

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import copy
 import re
 import json
@@ -467,6 +467,10 @@ NOUN_BANK = [
     "yak",
     "zebra",
 ]
+
+
+def is_utc_datetime(dt: datetime) -> bool:
+    return dt.tzinfo is not None and dt.tzinfo.utcoffset(dt) == timedelta(0)
 
 
 def get_tool_call_id() -> str:

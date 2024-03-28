@@ -38,13 +38,13 @@ To run the Postgres backend, you will need a URI to a Postgres database that sup
     - Add the following line to your shell profile (e.g., `~/.bashrc`, `~/.zshrc`):
 
       ```sh
-      export PGVECTOR_TEST_DB_URL=postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+      export MEMGPT_PGURI=postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
       ```
 
     - Or create a `.env` file in the root project directory with:
 
       ```sh
-      PGVECTOR_TEST_DB_URL=postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+      MEMGPT_PGURI=postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
       ```
 
 4. Run the script from the root project directory:

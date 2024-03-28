@@ -7,6 +7,7 @@ import pytz
 
 from memgpt.interface import AgentInterface
 from memgpt.data_types import Message
+from memgpt.utils import is_utc_datetime
 
 
 class QueuingInterface(AgentInterface):
@@ -57,34 +58,54 @@ class QueuingInterface(AgentInterface):
     def user_message(self, msg: str, msg_obj: Optional[Message] = None):
         """Handle reception of a user message"""
         assert msg_obj is not None, "QueuingInterface requires msg_obj references for metadata"
+        if self.debug:
+            print(msg)
+            print(vars(msg_obj))
+            print(msg_obj.created_at.isoformat())
 
     def internal_monologue(self, msg: str, msg_obj: Optional[Message] = None) -> None:
         """Handle the agent's internal monologue"""
         assert msg_obj is not None, "QueuingInterface requires msg_obj references for metadata"
         if self.debug:
             print(msg)
+            print(vars(msg_obj))
+            print(msg_obj.created_at.isoformat())
 
         new_message = {"internal_monologue": msg}
 
         # add extra metadata
         if msg_obj is not None:
             new_message["id"] = str(msg_obj.id)
+            assert is_utc_datetime(msg_obj.created_at), msg_obj.created_at
             new_message["date"] = msg_obj.created_at.isoformat()
 
         self.buffer.put(new_message)
 
     def assistant_message(self, msg: str, msg_obj: Optional[Message] = None) -> None:
         """Handle the agent sending a message"""
-        assert msg_obj is not None, "QueuingInterface requires msg_obj references for metadata"
+        # assert msg_obj is not None, "QueuingInterface requires msg_obj references for metadata"
+
         if self.debug:
             print(msg)
+            if msg_obj is not None:
+                print(vars(msg_obj))
+                print(msg_obj.created_at.isoformat())
 
         new_message = {"assistant_message": msg}
 
         # add extra metadata
         if msg_obj is not None:
             new_message["id"] = str(msg_obj.id)
+            assert is_utc_datetime(msg_obj.created_at), msg_obj.created_at
             new_message["date"] = msg_obj.created_at.isoformat()
+        else:
+            # FIXME this is a total hack
+            assert self.buffer.qsize() > 1, "Tried to reach back to grab function call data, but couldn't find a buffer message."
+            # TODO also should not be accessing protected member here
+
+            new_message["id"] = self.buffer.queue[-1]["id"]
+            # assert is_utc_datetime(msg_obj.created_at), msg_obj.created_at
+            new_message["date"] = self.buffer.queue[-1]["date"]
 
         self.buffer.put(new_message)
 
@@ -95,6 +116,8 @@ class QueuingInterface(AgentInterface):
 
         if self.debug:
             print(msg)
+            print(vars(msg_obj))
+            print(msg_obj.created_at.isoformat())
 
         if msg.startswith("Running "):
             msg = msg.replace("Running ", "")
@@ -121,6 +144,7 @@ class QueuingInterface(AgentInterface):
         # add extra metadata
         if msg_obj is not None:
             new_message["id"] = str(msg_obj.id)
+            assert is_utc_datetime(msg_obj.created_at), msg_obj.created_at
             new_message["date"] = msg_obj.created_at.isoformat()
 
         self.buffer.put(new_message)

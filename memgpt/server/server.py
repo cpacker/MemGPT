@@ -240,7 +240,8 @@ class SyncServer(LockingServer):
             embedding_endpoint_type=self.config.default_embedding_config.embedding_endpoint_type,
             embedding_endpoint=self.config.default_embedding_config.embedding_endpoint,
             embedding_dim=self.config.default_embedding_config.embedding_dim,
-            # openai_key=self.credentials.openai_key,
+            embedding_model=self.config.default_embedding_config.embedding_model,
+            embedding_chunk_size=self.config.default_embedding_config.embedding_chunk_size,
         )
 
         # Initialize the metadata store
@@ -1064,7 +1065,7 @@ class SyncServer(LockingServer):
         order_by: Optional[str] = "created_at",
         order: Optional[str] = "asc",
         reverse: Optional[bool] = False,
-    ):
+    ) -> Tuple[uuid.UUID, List[dict]]:
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
