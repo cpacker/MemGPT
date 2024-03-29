@@ -21,6 +21,12 @@ jobs:
     - name: Build and run container
       run: bash db/run_postgres.sh
 
+    - name: Run Milvus
+      run: |
+        wget https://raw.githubusercontent.com/milvus-io/milvus/master/scripts/standalone_embed.sh
+        bash standalone_embed.sh start
+        sleep 2
+        echo "\nMilvus server started!"
 
     - name: "Setup Python, Poetry and Dependencies"
       uses: packetcoders/action-setup-cache-python-poetry@main

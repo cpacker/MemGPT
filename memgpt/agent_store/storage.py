@@ -110,7 +110,10 @@ class StorageConnector:
             from memgpt.agent_store.db import SQLLiteStorageConnector
 
             return SQLLiteStorageConnector(table_type, config, user_id, agent_id)
+        elif storage_type == "milvus":
+            from memgpt.agent_store.milvus import MilvusStorageConnector
 
+            return MilvusStorageConnector(table_type, config, user_id, agent_id)
         else:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")
 
