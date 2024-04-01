@@ -17,7 +17,7 @@ services:
     depends_on:
       - pgvector_db
     environment:
-      - POSTGRES_URI=postgresql://${MEMGPT_PG_USER}:${MEMGPT_PG_PASSWORD}@pgvector_db:5432/${MEMGPT_PG_DB}
+      - MEMGPT_PGURI=postgresql://${MEMGPT_PG_USER}:${MEMGPT_PG_PASSWORD}@pgvector_db:5432/${MEMGPT_PG_DB}
       - MEMGPT_SERVER_PASS=${MEMGPT_SERVER_PASS} # memgpt server password
       - MEMGPT_PG_DB=${MEMGPT_PG_DB}
       - MEMGPT_PG_USER=${MEMGPT_PG_USER}
