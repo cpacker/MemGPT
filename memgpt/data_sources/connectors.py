@@ -55,6 +55,16 @@ def load_data(
 
         # generate passages
         for passage_text, passage_metadata in connector.generate_passages([document], chunk_size=embedding_config.embedding_chunk_size):
+
+            # for some reason, llama index parsers sometimes return empty strings
+            if len(passage_text) == 0:
+                typer.secho(
+                    f"Warning: Llama index parser returned empty string, skipping insert of passage with metadata '{passage_metadata}' into VectorDB. You can usually ignore this warning.",
+                    fg=typer.colors.YELLOW,
+                )
+                continue
+
+            # get embedding
             try:
                 embedding = embed_model.get_text_embedding(passage_text)
             except Exception as e:
