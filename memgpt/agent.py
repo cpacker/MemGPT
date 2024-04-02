@@ -240,7 +240,12 @@ class Agent(object):
             assert created_by is not None, "Must provide created_by field when creating an Agent from a Preset"
             assert llm_config is not None, "Must provide llm_config field when creating an Agent from a Preset"
             assert embedding_config is not None, "Must provide embedding_config field when creating an Agent from a Preset"
-
+            core_memory_limits = {}
+            core_memory = {}
+            for field in preset.core_memory.keys():
+                if "max_length" in preset.core_memory[field]:
+                    core_memory_limits[field] = preset.core_memory[field]["max_length"]
+                core_memory[field] = preset.core_memory[field]["content"]
             # if agent_state is also provided, override any preset values
             init_agent_state = AgentState(
                 name=name if name else create_random_username(),
@@ -257,7 +262,8 @@ class Agent(object):
                     "system_template": preset.system_template,
                     "system_template_fields": preset.system_template_fields,
                     "core_memory_type": preset.core_memory_type,
-                    "core_memory": preset.core_memory,
+                    "core_memory": core_memory,
+                    "core_memory_limits": core_memory_limits,
                     "system_message_layout_template": preset.system_message_layout_template,
                     "core_memory_section_template": preset.core_memory_section_template,
                     "functions": preset.functions_schema,
@@ -311,17 +317,17 @@ class Agent(object):
         # Link the actual python functions corresponding to the schemas
         self.functions_python = {k: v["python_function"] for k, v in link_functions(function_schemas=self.functions).items()}
         assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
-        if "core_memory_type" in agent_state.state and agent_state.state["core_memory_type"] == "custom":
-            if "core_memory" not in agent_state.state:
+        if "core_memory_type" in self.agent_state.state and self.agent_state.state["core_memory_type"] == "custom":
+            if "core_memory" not in self.agent_state.state:
                 raise ValueError(f"'core_memory' not found in provided AgentState")
-            self.memory = initialize_custom_memory(agent_state.state["core_memory"], agent_state.state["core_memory_limits"])
+            self.memory = initialize_custom_memory(self.agent_state.state["core_memory"], self.agent_state.state["core_memory_limits"])
         else:
             # Initialize the memory object
-            if "persona" not in agent_state.state:
+            if "persona" not in self.agent_state.state:
                 raise ValueError(f"'persona' not found in provided AgentState")
-            if "human" not in agent_state.state:
+            if "human" not in self.agent_state.state:
                 raise ValueError(f"'human' not found in provided AgentState")
-            self.memory = initialize_memory(ai_notes=agent_state.state["persona"], human_notes=agent_state.state["human"])
+            self.memory = initialize_memory(ai_notes=self.agent_state.state["persona"], human_notes=self.agent_state.state["human"])
 
         # Interface must implement:
         # - internal_monologue
@@ -1142,7 +1148,7 @@ class Agent(object):
                 "functions": self.functions,
                 "messages": [str(msg.id) for msg in self._messages],
             }
-        elif isinstance(self.memory, CustomizableInContextMemory):
+        elif isinstance(self.memory, CustomizableCoreMemory):
             updated_state = {
                 "core_memory": self.memory.core_memory,
                 "core_memory_limits": self.memory.memory_field_limits,
