@@ -655,7 +655,6 @@ def generate_gbnf_grammar_from_pydantic_models(
 
         for model in models:
             model_rules, has_special_string = generate_gbnf_grammar(model, processed_models, created_rules)
-            model_rules[0] += rf' ",\n" ws "\"next_step\""  ":" ws string '
             if add_request_heartbeat and model.__name__ in request_heartbeat_models:
                 model_rules[0] += rf' ",\n" ws "\"{request_heartbeat_field_name}\""  ":" ws boolean '
             if not has_special_string:
