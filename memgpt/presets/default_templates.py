@@ -12,3 +12,21 @@ default_core_memory_section_template = """<{memory_key} characters={memory_value
 {memory_value}
 </{memory_key}>
 """
+
+default_system_message_template = """{memgpt_introduction}
+
+{memgpt_realism_authenticity}
+
+{memgpt_control_flow}
+
+{memgpt_basic_functions}
+
+{memgpt_memory_editing}
+
+{memgpt_recall_memory}
+
+{memgpt_core_memory}
+
+{memgpt_archival_memory}
+
+{memgpt_introduction_end}"""
