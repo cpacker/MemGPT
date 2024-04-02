@@ -5,7 +5,19 @@ from memgpt.constants import JSON_LOADS_STRICT
 from memgpt.errors import LLMJSONParsingError
 
 
-def extract_first_json(string):
+def replace_escaped_underscores(string: str):
+    """Handles the case of escaped underscores, e.g.:
+
+    {
+      "function":"send\_message",
+      "params": {
+        "inner\_thoughts": "User is asking for information about themselves. Retrieving data from core memory.",
+        "message": "I know that you are Chad. Is there something specific you would like to know or talk about regarding yourself?"
+    """
+    return string.replace("\_", "_")
+
+
+def extract_first_json(string: str):
     """Handles the case of two JSON objects back-to-back"""
     from memgpt.utils import printd
 
@@ -163,6 +175,9 @@ def clean_json(raw_llm_output, messages=None, functions=None):
         lambda output: json.loads(repair_even_worse_json(output), strict=JSON_LOADS_STRICT),
         lambda output: extract_first_json(output + "}}"),
         lambda output: clean_and_interpret_send_message_json(output),
+        # replace underscores
+        lambda output: json.loads(replace_escaped_underscores(output), strict=JSON_LOADS_STRICT),
+        lambda output: extract_first_json(replace_escaped_underscores(output) + "}}"),
     ]
 
     for strategy in strategies:

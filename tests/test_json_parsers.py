@@ -4,6 +4,14 @@ from memgpt.constants import JSON_LOADS_STRICT
 import memgpt.local_llm.json_parser as json_parser
 
 
+EXAMPLE_ESCAPED_UNDERSCORES = """{
+  "function":"send\_message",
+  "params": {
+    "inner\_thoughts": "User is asking for information about themselves. Retrieving data from core memory.",
+    "message": "I know that you are Chad. Is there something specific you would like to know or talk about regarding yourself?"
+"""
+
+
 EXAMPLE_MISSING_CLOSING_BRACE = """{
   "function": "send_message",
   "params": {
@@ -72,6 +80,7 @@ def test_json_parsers():
     """Try various broken JSON and check that the parsers can fix it"""
 
     test_strings = [
+        EXAMPLE_ESCAPED_UNDERSCORES,
         EXAMPLE_MISSING_CLOSING_BRACE,
         EXAMPLE_BAD_TOKEN_END,
         EXAMPLE_DOUBLE_JSON,

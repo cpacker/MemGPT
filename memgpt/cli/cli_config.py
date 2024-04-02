@@ -132,7 +132,9 @@ def configure_llm_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials)
         model_endpoint = azure_creds["azure_endpoint"]
 
     else:  # local models
-        backend_options = ["webui", "webui-legacy", "llamacpp", "koboldcpp", "ollama", "lmstudio", "lmstudio-legacy", "vllm", "openai"]
+        # backend_options_old = ["webui", "webui-legacy", "llamacpp", "koboldcpp", "ollama", "lmstudio", "lmstudio-legacy", "vllm", "openai"]
+        backend_options = builtins.list(DEFAULT_ENDPOINTS.keys())
+        # assert backend_options_old == backend_options, (backend_options_old, backend_options)
         default_model_endpoint_type = None
         if config.default_llm_config.model_endpoint_type in backend_options:
             # set from previous config
@@ -223,8 +225,12 @@ def get_model_options(
 
         else:
             # Attempt to do OpenAI endpoint style model fetching
-            # TODO support local auth
-            fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=None, fix_url=True)
+            # TODO support local auth with api-key header
+            if credentials.openllm_auth_type == "bearer_token":
+                api_key = credentials.openllm_key
+            else:
+                api_key = None
+            fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=api_key, fix_url=True)
             model_options = [obj["id"] for obj in fetched_model_options_response["data"]]
             # NOTE no filtering of local model options
 
@@ -289,6 +295,44 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
                     raise KeyboardInterrupt
 
     else:  # local models
+
+        # ask about local auth
+        if model_endpoint_type in ["groq"]:  # TODO all llm engines under 'local' that will require api keys
+            use_local_auth = True
+            local_auth_type = "bearer_token"
+            local_auth_key = questionary.password(
+                "Enter your Groq API key:",
+            ).ask()
+            if local_auth_key is None:
+                raise KeyboardInterrupt
+            credentials.openllm_auth_type = local_auth_type
+            credentials.openllm_key = local_auth_key
+            credentials.save()
+        else:
+            use_local_auth = questionary.confirm(
+                "Is your LLM endpoint authenticated? (default no)",
+                default=False,
+            ).ask()
+            if use_local_auth is None:
+                raise KeyboardInterrupt
+            if use_local_auth:
+                local_auth_type = questionary.select(
+                    "What HTTP authentication method does your endpoint require?",
+                    choices=SUPPORTED_AUTH_TYPES,
+                    default=SUPPORTED_AUTH_TYPES[0],
+                ).ask()
+                if local_auth_type is None:
+                    raise KeyboardInterrupt
+                local_auth_key = questionary.password(
+                    "Enter your authentication key:",
+                ).ask()
+                if local_auth_key is None:
+                    raise KeyboardInterrupt
+                # credentials = MemGPTCredentials.load()
+                credentials.openllm_auth_type = local_auth_type
+                credentials.openllm_key = local_auth_key
+                credentials.save()
+
         # ollama also needs model type
         if model_endpoint_type == "ollama":
             default_model = (
@@ -311,7 +355,7 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
         )
 
         # vllm needs huggingface model tag
-        if model_endpoint_type == "vllm":
+        if model_endpoint_type in ["vllm", "groq"]:
             try:
                 # Don't filter model list for vLLM since model list is likely much smaller than OpenAI/Azure endpoint
                 # + probably has custom model names
@@ -365,31 +409,6 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
         ).ask()
         if model_wrapper is None:
             raise KeyboardInterrupt
-
-        # ask about local auth
-        use_local_auth = questionary.confirm(
-            "Is your LLM endpoint authenticated? (default no)",
-            default=False,
-        ).ask()
-        if use_local_auth is None:
-            raise KeyboardInterrupt
-        if use_local_auth:
-            local_auth_type = questionary.select(
-                "What HTTP authentication method does your endpoint require?",
-                choices=SUPPORTED_AUTH_TYPES,
-                default=SUPPORTED_AUTH_TYPES[0],
-            ).ask()
-            if local_auth_type is None:
-                raise KeyboardInterrupt
-            local_auth_key = questionary.password(
-                "Enter your authentication key:",
-            ).ask()
-            if local_auth_key is None:
-                raise KeyboardInterrupt
-            # credentials = MemGPTCredentials.load()
-            credentials.openllm_auth_type = local_auth_type
-            credentials.openllm_key = local_auth_key
-            credentials.save()
 
     # set: context_window
     if str(model) not in LLM_MAX_TOKENS:
