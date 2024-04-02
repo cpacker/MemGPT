@@ -74,11 +74,12 @@ async def check_user(update: Update, context: CallbackContext):
 
 async def changeagent(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
+    chat_id = update.message.chat.id
     
     # Check if arguments are provided
     if context.args:
         name = context.args[0]
-        response = await change_agent(chat_id, name)
+        response = await change_agent(user_id, name)
         await context.bot.send_message(chat_id=chat_id, text=response)
     else:
         # If no arguments are provided, send a message asking the user to provide a name
