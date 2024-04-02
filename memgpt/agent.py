@@ -242,10 +242,10 @@ class Agent(object):
             assert embedding_config is not None, "Must provide embedding_config field when creating an Agent from a Preset"
             core_memory_limits = {}
             core_memory = {}
-            for field in preset.core_memory.keys():
-                if "max_length" in preset.core_memory[field]:
-                    core_memory_limits[field] = preset.core_memory[field]["max_length"]
-                core_memory[field] = preset.core_memory[field]["content"]
+            for field in preset.initial_core_memory.keys():
+                if "max_length" in preset.initial_core_memory[field]:
+                    core_memory_limits[field] = preset.initial_core_memory[field]["max_length"]
+                core_memory[field] = preset.initial_core_memory[field]["content"]
             # if agent_state is also provided, override any preset values
             init_agent_state = AgentState(
                 name=name if name else create_random_username(),
