@@ -24,7 +24,7 @@ from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
 from memgpt.agent import Agent, save_agent
 from memgpt.embeddings import embedding_model
 from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
-from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig, User, Passage, Preset
+from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig, User, Passage
 from memgpt.metadata import MetadataStore
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
 
@@ -75,27 +75,46 @@ def set_config_with_dict(new_config: dict) -> (MemGPTConfig, bool):
                 printd(f"Skipping new config {k}: {v} == {new_config[k]}")
 
     # update embedding config
-    for k, v in vars(old_config.default_embedding_config).items():
-        if k in new_config:
-            if v != new_config[k]:
-                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
-                modified = True
-                # old_config[k] = new_config[k]
-                setattr(old_config.default_embedding_config, k, new_config[k])
-            else:
-                printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+    if old_config.default_embedding_config:
+        for k, v in vars(old_config.default_embedding_config).items():
+            if k in new_config:
+                if v != new_config[k]:
+                    printd(f"Replacing config {k}: {v} -> {new_config[k]}")
+                    modified = True
+                    # old_config[k] = new_config[k]
+                    setattr(old_config.default_embedding_config, k, new_config[k])
+                else:
+                    printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+    else:
+        modified = True
+        fields = ["embedding_model", "embedding_dim", "embedding_chunk_size", "embedding_endpoint", "embedding_endpoint_type"]
+        args = {}
+        for field in fields:
+            if field in new_config:
+                args[field] = new_config[field]
+                printd(f"Setting new config {field}: {new_config[field]}")
+        old_config.default_embedding_config = EmbeddingConfig(**args)
 
     # update llm config
-    for k, v in vars(old_config.default_llm_config).items():
-        if k in new_config:
-            if v != new_config[k]:
-                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
-                modified = True
-                # old_config[k] = new_config[k]
-                setattr(old_config.default_llm_config, k, new_config[k])
-            else:
-                printd(f"Skipping new config {k}: {v} == {new_config[k]}")
-
+    if old_config.default_llm_config:
+        for k, v in vars(old_config.default_llm_config).items():
+            if k in new_config:
+                if v != new_config[k]:
+                    printd(f"Replacing config {k}: {v} -> {new_config[k]}")
+                    modified = True
+                    # old_config[k] = new_config[k]
+                    setattr(old_config.default_llm_config, k, new_config[k])
+                else:
+                    printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+    else:
+        modified = True
+        fields = ["model", "model_endpoint", "model_endpoint_type", "model_wrapper", "context_window"]
+        args = {}
+        for field in fields:
+            if field in new_config:
+                args[field] = new_config[field]
+                printd(f"Setting new config {field}: {new_config[field]}")
+        old_config.default_llm_config = LLMConfig(**args)
     return (old_config, modified)
 
 
@@ -153,10 +172,13 @@ def quickstart(
         else:
             # Load the file from the relative path
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
+            print("SCRIPT", script_dir)
             backup_config_path = os.path.join(script_dir, "..", "configs", "memgpt_hosted.json")
+            print("FILE PATH", backup_config_path)
             try:
                 with open(backup_config_path, "r", encoding="utf-8") as file:
                     backup_config = json.load(file)
+                    print(backup_config)
                 printd("Loaded config file successfully.")
                 new_config, config_was_modified = set_config_with_dict(backup_config)
             except FileNotFoundError:
@@ -643,7 +665,8 @@ def run(
         # create agent
         try:
             preset_obj = ms.get_preset(name=preset if preset else config.preset, user_id=user.id)
-            preset_override = False
+            human_obj = ms.get_human(human, user.id)
+            persona_obj = ms.get_persona(persona, user.id)
             if preset_obj is None:
                 # create preset records in metadata store
                 from memgpt.presets.presets import add_default_presets
@@ -654,28 +677,14 @@ def run(
                 if preset_obj is None:
                     typer.secho("Couldn't find presets in database, please run `memgpt configure`", fg=typer.colors.RED)
                     sys.exit(1)
-
-            human_obj = ms.get_human(human, user.id)
             if human_obj is None:
                 typer.secho("Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)
-            persona_obj = ms.get_persona(persona, user.id)
             if persona_obj is None:
                 typer.secho("Couldn't find persona {persona} in database, please run `memgpt add persona`", fg=typer.colors.RED)
 
             # Overwrite fields in the preset if they were specified
-            if human_obj.text != preset_obj.human:
-                preset_override = True
-                preset_obj.human = human_obj.text
-            if persona_obj.text != preset_obj.human:
-                preset_override = True
-                preset_obj.persona = persona_obj.text
-
-            # If the user overrode any parts of the preset, we need to create a new preset to refer back to
-            if preset_override:
-                # Change the name and uuid
-                preset_obj = Preset.clone(preset_obj=preset_obj)
-                # Then write out to the database for storage
-                ms.create_preset(preset=preset_obj)
+            preset_obj.human = ms.get_human(human, user.id).text
+            preset_obj.persona = ms.get_persona(persona, user.id).text
 
             typer.secho(f"->  🤖 Using persona profile: '{preset_obj.persona_name}'", fg=typer.colors.WHITE)
             typer.secho(f"->  🧑 Using human profile: '{preset_obj.human_name}'", fg=typer.colors.WHITE)

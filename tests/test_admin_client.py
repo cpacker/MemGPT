@@ -32,8 +32,8 @@ def run_server():
     load_dotenv()
 
     # Use os.getenv with a fallback to os.environ.get
-    db_url = os.getenv("PGVECTOR_TEST_DB_URL") or os.environ.get("PGVECTOR_TEST_DB_URL")
-    assert db_url, "Missing PGVECTOR_TEST_DB_URL"
+    db_url = os.getenv("MEMGPT_PGURI") or os.environ.get("MEMGPT_PGURI")
+    assert db_url, "Missing MEMGPT_PGURI"
 
     if os.getenv("OPENAI_API_KEY"):
         config = TestMGPTConfig(

@@ -151,7 +151,7 @@ def get_db_model(
             metadata_ = Column(MutableJson)
 
             # Add a datetime column, with default value as the current time
-            created_at = Column(DateTime(timezone=True), server_default=func.now())
+            created_at = Column(DateTime(timezone=True))
 
             def __repr__(self):
                 return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
@@ -217,7 +217,7 @@ def get_db_model(
             embedding_model = Column(String)
 
             # Add a datetime column, with default value as the current time
-            created_at = Column(DateTime(timezone=True), server_default=func.now())
+            created_at = Column(DateTime(timezone=True))
 
             def __repr__(self):
                 return f"<Message(message_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
@@ -437,16 +437,31 @@ class PostgresStorageConnector(SQLStorageConnector):
             raise ValueError(f"Table type {table_type} not implemented")
         # create table
         self.db_model = get_db_model(config, self.table_name, table_type, user_id, agent_id)
+
+        # construct URI from enviornment variables
+        if os.getenv("MEMGPT_PGURI"):
+            self.uri = os.getenv("MEMGPT_PGURI")
+        else:
+            db = os.getenv("MEMGPT_PG_DB", "memgpt")
+            user = os.getenv("MEMGPT_PG_USER", "memgpt")
+            password = os.getenv("MEMGPT_PG_PASSWORD", "memgpt")
+            port = os.getenv("MEMGPT_PG_PORT", "5432")
+            url = os.getenv("MEMGPT_PG_URL", "localhost")
+            self.uri = f"postgresql+pg8000://{user}:{password}@{url}:{port}/{db}"
+
+        # create engine
         self.engine = create_engine(self.uri)
+
         for c in self.db_model.__table__.columns:
             if c.name == "embedding":
                 assert isinstance(c.type, Vector), f"Embedding column must be of type Vector, got {c.type}"
 
-        Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
-
         self.session_maker = sessionmaker(bind=self.engine)
         with self.session_maker() as session:
             session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
+
+        # create table
+        Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         filters = self.get_filters(filters)

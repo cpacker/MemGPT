@@ -7,7 +7,7 @@ import secrets
 from typing import Optional, List
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
-from memgpt.utils import get_local_time, enforce_types
+from memgpt.utils import enforce_types
 from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig, Token, Preset
 from memgpt.config import MemGPTConfig
 from memgpt.functions.functions import load_all_function_sets
@@ -304,7 +304,16 @@ class MetadataStore:
     def __init__(self, config: MemGPTConfig):
         # TODO: get DB URI or path
         if config.metadata_storage_type == "postgres":
-            self.uri = config.metadata_storage_uri
+            # construct URI from enviornment variables
+            if os.getenv("MEMGPT_PGURI"):
+                self.uri = os.getenv("MEMGPT_PGURI")
+            else:
+                db = os.getenv("MEMGPT_PG_DB", "memgpt")
+                user = os.getenv("MEMGPT_PG_USER", "memgpt")
+                password = os.getenv("MEMGPT_PG_PASSWORD", "memgpt")
+                port = os.getenv("MEMGPT_PG_PORT", "5432")
+                url = os.getenv("MEMGPT_PG_URL", "localhost")
+                self.uri = f"postgresql+pg8000://{user}:{password}@{url}:{port}/{db}"
         elif config.metadata_storage_type == "sqlite":
             path = os.path.join(config.metadata_storage_path, "sqlite.db")
             self.uri = f"sqlite:///{path}"
@@ -540,7 +549,7 @@ class MetadataStore:
                 )
                 for k, v in available_functions.items()
             ]
-            print(results)
+            # print(results)
             return results
             # results = session.query(PresetModel).filter(PresetModel.user_id == user_id).all()
             # return [r.to_record() for r in results]

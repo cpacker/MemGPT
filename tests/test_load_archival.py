@@ -11,10 +11,10 @@ from memgpt.cli.cli_load import load_directory
 # from memgpt.data_sources.connectors import DirectoryConnector, load_data
 from memgpt.credentials import MemGPTCredentials
 from memgpt.metadata import MetadataStore
-from memgpt.data_types import User, AgentState, EmbeddingConfig
+from memgpt.data_types import User, AgentState, EmbeddingConfig, LLMConfig
 from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
-from .utils import wipe_config
+from .utils import wipe_config, create_config
 
 
 @pytest.fixture(autouse=True)
@@ -44,12 +44,24 @@ def test_load_directory(
     recreate_declarative_base,
 ):
     wipe_config()
+    TEST_MEMGPT_CONFIG.default_embedding_config = EmbeddingConfig(
+        embedding_endpoint_type="openai",
+        embedding_endpoint="https://api.openai.com/v1",
+        embedding_dim=1536,
+        embedding_model="text-embedding-ada-002",
+    )
+    TEST_MEMGPT_CONFIG.default_llm_config = LLMConfig(
+        model_endpoint_type="openai",
+        model_endpoint="https://api.openai.com/v1",
+        model="gpt-4",
+    )
+
     # setup config
     if metadata_storage_connector == "postgres":
-        if not os.getenv("PGVECTOR_TEST_DB_URL"):
+        if not os.getenv("MEMGPT_PGURI"):
             print("Skipping test, missing PG URI")
             return
-        TEST_MEMGPT_CONFIG.metadata_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")
+        TEST_MEMGPT_CONFIG.metadata_storage_uri = os.getenv("MEMGPT_PGURI")
         TEST_MEMGPT_CONFIG.metadata_storage_type = "postgres"
     elif metadata_storage_connector == "sqlite":
         print("testing  sqlite metadata")
@@ -57,10 +69,10 @@ def test_load_directory(
     else:
         raise NotImplementedError(f"Storage type {metadata_storage_connector} not implemented")
     if passage_storage_connector == "postgres":
-        if not os.getenv("PGVECTOR_TEST_DB_URL"):
+        if not os.getenv("MEMGPT_PGURI"):
             print("Skipping test, missing PG URI")
             return
-        TEST_MEMGPT_CONFIG.archival_storage_uri = os.getenv("PGVECTOR_TEST_DB_URL")
+        TEST_MEMGPT_CONFIG.archival_storage_uri = os.getenv("MEMGPT_PGURI")
         TEST_MEMGPT_CONFIG.archival_storage_type = "postgres"
     elif passage_storage_connector == "chroma":
         print("testing chroma passage storage")
@@ -84,6 +96,7 @@ def test_load_directory(
             embedding_endpoint_type="openai",
             embedding_endpoint="https://api.openai.com/v1",
             embedding_dim=1536,
+            embedding_model="text-embedding-ada-002",
             # openai_key=os.getenv("OPENAI_API_KEY"),
         )
 
