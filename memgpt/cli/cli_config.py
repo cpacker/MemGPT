@@ -18,7 +18,8 @@ from memgpt.constants import LLM_MAX_TOKENS
 from memgpt.constants import MEMGPT_DIR
 from memgpt.credentials import MemGPTCredentials, SUPPORTED_AUTH_TYPES
 from memgpt.data_types import User, LLMConfig, EmbeddingConfig
-from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
+from memgpt.llm_api.openai import openai_get_model_list
+from memgpt.llm_api.azure_openai import azure_openai_get_model_list
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.server.utils import shorten_key_middle

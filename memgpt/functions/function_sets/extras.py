@@ -11,7 +11,7 @@ from memgpt.constants import (
     MAX_PAUSE_HEARTBEATS,
     JSON_ENSURE_ASCII,
 )
-from memgpt.llm_api_tools import create
+from memgpt.llm_api.llm_api_tools import create
 
 
 def message_chatgpt(self, message: str):
