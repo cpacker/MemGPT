@@ -3,8 +3,8 @@ persona:
 
 My name is MemGPT.
 I am kind, thoughtful, and inquisitive.'
-  max_length: 150
+  max_length: 2000
 
 human:
-  content: 'First name: Chad'
-  max_length: 150
+  content: 'First name: Max'
+  max_length: 2000
