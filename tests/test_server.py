@@ -20,8 +20,8 @@ def server():
     wipe_memgpt_home()
 
     # Use os.getenv with a fallback to os.environ.get
-    db_url = os.getenv("PGVECTOR_TEST_DB_URL") or os.environ.get("PGVECTOR_TEST_DB_URL")
-    assert db_url, "Missing PGVECTOR_TEST_DB_URL"
+    db_url = os.getenv("MEMGPT_PGURI") or os.environ.get("MEMGPT_PGURI")
+    assert db_url, "Missing MEMGPT_PGURI"
 
     if os.getenv("OPENAI_API_KEY"):
         config = TestMGPTConfig(
@@ -35,6 +35,7 @@ def server():
             default_embedding_config=EmbeddingConfig(
                 embedding_endpoint_type="openai",
                 embedding_endpoint="https://api.openai.com/v1",
+                embedding_model="text-embedding-ada-002",
                 embedding_dim=1536,
             ),
             # llms
@@ -99,8 +100,6 @@ def agent_id(server, user_id):
         user_id=user_id,
         name="test_agent",
         preset="memgpt_chat",
-        human="cs_phd",
-        persona="sam_pov",
     )
     print(f"Created agent\n{agent_state}")
     yield agent_state.id
@@ -159,7 +158,7 @@ def test_attach_source_to_agent(server, user_id, agent_id):
     assert len(passages_before) == 0
 
     # attach source
-    server.attach_source_to_agent(user_id, agent_id, "test_source")
+    server.attach_source_to_agent(user_id=user_id, agent_id=agent_id, source_name="test_source")
 
     # check archival memory size
     passages_after = server.get_agent_archival(user_id=user_id, agent_id=agent_id, start=0, count=10000)

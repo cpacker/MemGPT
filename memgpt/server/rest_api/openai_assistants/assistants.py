@@ -32,6 +32,7 @@ from memgpt.models.openai import (
 )
 from memgpt.data_types import LLMConfig, EmbeddingConfig, Message
 from memgpt.constants import DEFAULT_PRESET
+from memgpt.utils import get_utc_time
 
 router = APIRouter()
 
@@ -160,7 +161,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
             id=DEFAULT_PRESET,
             name="default_preset",
             description=request.description,
-            created_at=int(datetime.now().timestamp()),
+            created_at=int(get_utc_time().timestamp()),
             model=request.model,
             instructions=request.instructions,
             tools=request.tools,
@@ -176,7 +177,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
         # TODO: add file to assistant
         return AssistantFile(
             id=request.file_id,
-            created_at=int(datetime.now().timestamp()),
+            created_at=int(get_utc_time().timestamp()),
             assistant_id=assistant_id,
         )
 
@@ -411,7 +412,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
         agent = server._get_or_load_agent(user_id=user_id, agent_id=agent_id)
         agent.step(user_message=None)  # already has messages added
         run_id = str(uuid.uuid4())
-        create_time = int(datetime.now().timestamp())
+        create_time = int(get_utc_time().timestamp())
         return OpenAIRun(
             id=run_id,
             created_at=create_time,

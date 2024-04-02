@@ -155,13 +155,13 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                     command = user_input.strip().split()
                     amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 0
                     if amount == 0:
-                        interface.print_messages(memgpt_agent.messages, dump=True)
+                        interface.print_messages(memgpt_agent._messages, dump=True)
                     else:
-                        interface.print_messages(memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
+                        interface.print_messages(memgpt_agent._messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
                     continue
 
                 elif user_input.lower() == "/dumpraw":
-                    interface.print_messages_raw(memgpt_agent.messages)
+                    interface.print_messages_raw(memgpt_agent._messages)
                     continue
 
                 elif user_input.lower() == "/memory":

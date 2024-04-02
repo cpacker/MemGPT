@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import copy
 import re
 import json
@@ -33,6 +33,7 @@ from memgpt.constants import (
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
     JSON_ENSURE_ASCII,
+    TOOL_CALL_ID_MAX_LEN,
 )
 from memgpt.models.chat_completion_response import ChatCompletionResponse
 
@@ -468,8 +469,12 @@ NOUN_BANK = [
 ]
 
 
+def is_utc_datetime(dt: datetime) -> bool:
+    return dt.tzinfo is not None and dt.tzinfo.utcoffset(dt) == timedelta(0)
+
+
 def get_tool_call_id() -> str:
-    return str(uuid.uuid4())
+    return str(uuid.uuid4())[:TOOL_CALL_ID_MAX_LEN]
 
 
 def assistant_function_to_tool(assistant_message: dict) -> dict:
@@ -838,7 +843,9 @@ def get_local_time(timezone=None):
 
 
 def get_utc_time() -> datetime:
-    return datetime.now(pytz.utc)
+    """Get the current UTC time"""
+    # return datetime.now(pytz.utc)
+    return datetime.now(timezone.utc)
 
 
 def format_datetime(dt):

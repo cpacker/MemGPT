@@ -1,11 +1,13 @@
 from abc import ABC, abstractmethod
 import json
 import re
+from typing import List, Optional
 
 from colorama import Fore, Style, init
 
 from memgpt.utils import printd
 from memgpt.constants import CLI_WARNING_PREFIX, JSON_LOADS_STRICT
+from memgpt.data_types import Message
 
 init(autoreset=True)
 
@@ -16,25 +18,28 @@ STRIP_UI = False
 
 
 class AgentInterface(ABC):
-    """Interfaces handle MemGPT-related events (observer pattern)"""
+    """Interfaces handle MemGPT-related events (observer pattern)
+
+    The 'msg' args provides the scoped message, and the optional Message arg can provide additional metadata.
+    """
 
     @abstractmethod
-    def user_message(self, msg):
+    def user_message(self, msg: str, msg_obj: Optional[Message] = None):
         """MemGPT receives a user message"""
         raise NotImplementedError
 
     @abstractmethod
-    def internal_monologue(self, msg):
+    def internal_monologue(self, msg: str, msg_obj: Optional[Message] = None):
         """MemGPT generates some internal monologue"""
         raise NotImplementedError
 
     @abstractmethod
-    def assistant_message(self, msg):
+    def assistant_message(self, msg: str, msg_obj: Optional[Message] = None):
         """MemGPT uses send_message"""
         raise NotImplementedError
 
     @abstractmethod
-    def function_message(self, msg):
+    def function_message(self, msg: str, msg_obj: Optional[Message] = None):
         """MemGPT calls a function"""
         raise NotImplementedError
 
@@ -58,14 +63,14 @@ class CLIInterface(AgentInterface):
     """Basic interface for dumping agent events to the command-line"""
 
     @staticmethod
-    def important_message(msg):
+    def important_message(msg: str):
         fstr = f"{Fore.MAGENTA}{Style.BRIGHT}{{msg}}{Style.RESET_ALL}"
         if STRIP_UI:
             fstr = "{msg}"
         print(fstr.format(msg=msg))
 
     @staticmethod
-    def warning_message(msg):
+    def warning_message(msg: str):
         fstr = f"{Fore.RED}{Style.BRIGHT}{{msg}}{Style.RESET_ALL}"
         if STRIP_UI:
             fstr = "{msg}"
@@ -73,7 +78,7 @@ class CLIInterface(AgentInterface):
             print(fstr.format(msg=msg))
 
     @staticmethod
-    def internal_monologue(msg):
+    def internal_monologue(msg: str, msg_obj: Optional[Message] = None):
         # ANSI escape code for italic is '\x1B[3m'
         fstr = f"\x1B[3m{Fore.LIGHTBLACK_EX}💭 {{msg}}{Style.RESET_ALL}"
         if STRIP_UI:
@@ -81,28 +86,28 @@ class CLIInterface(AgentInterface):
         print(fstr.format(msg=msg))
 
     @staticmethod
-    def assistant_message(msg):
+    def assistant_message(msg: str, msg_obj: Optional[Message] = None):
         fstr = f"{Fore.YELLOW}{Style.BRIGHT}🤖 {Fore.YELLOW}{{msg}}{Style.RESET_ALL}"
         if STRIP_UI:
             fstr = "{msg}"
         print(fstr.format(msg=msg))
 
     @staticmethod
-    def memory_message(msg):
+    def memory_message(msg: str, msg_obj: Optional[Message] = None):
         fstr = f"{Fore.LIGHTMAGENTA_EX}{Style.BRIGHT}🧠 {Fore.LIGHTMAGENTA_EX}{{msg}}{Style.RESET_ALL}"
         if STRIP_UI:
             fstr = "{msg}"
         print(fstr.format(msg=msg))
 
     @staticmethod
-    def system_message(msg):
+    def system_message(msg: str, msg_obj: Optional[Message] = None):
         fstr = f"{Fore.MAGENTA}{Style.BRIGHT}🖥️ [system] {Fore.MAGENTA}{msg}{Style.RESET_ALL}"
         if STRIP_UI:
             fstr = "{msg}"
         print(fstr.format(msg=msg))
 
     @staticmethod
-    def user_message(msg, raw=False, dump=False, debug=DEBUG):
+    def user_message(msg: str, msg_obj: Optional[Message] = None, raw: bool = False, dump: bool = False, debug: bool = DEBUG):
         def print_user_message(icon, msg, printf=print):
             if STRIP_UI:
                 printf(f"{icon} {msg}")
@@ -148,7 +153,8 @@ class CLIInterface(AgentInterface):
             printd_user_message("🧑", msg_json)
 
     @staticmethod
-    def function_message(msg, debug=DEBUG):
+    def function_message(msg: str, msg_obj: Optional[Message] = None, debug: bool = DEBUG):
+
         def print_function_message(icon, msg, color=Fore.RED, printf=print):
             if STRIP_UI:
                 printf(f"⚡{icon} [function] {msg}")
@@ -166,6 +172,9 @@ class CLIInterface(AgentInterface):
             printd_function_message("🟢", msg)
         elif msg.startswith("Error: "):
             printd_function_message("🔴", msg)
+        elif msg.startswith("Ran "):
+            # NOTE: ignore 'ran' messages that come post-execution
+            return
         elif msg.startswith("Running "):
             if debug:
                 printd_function_message("", msg)
@@ -230,7 +239,10 @@ class CLIInterface(AgentInterface):
                 printd_function_message("", msg)
 
     @staticmethod
-    def print_messages(message_sequence, dump=False):
+    def print_messages(message_sequence: List[Message], dump=False):
+        # rewrite to dict format
+        message_sequence = [msg.to_openai_dict() for msg in message_sequence]
+
         idx = len(message_sequence)
         for msg in message_sequence:
             if dump:
@@ -270,7 +282,10 @@ class CLIInterface(AgentInterface):
                 print(f"Unknown role: {content}")
 
     @staticmethod
-    def print_messages_simple(message_sequence):
+    def print_messages_simple(message_sequence: List[Message]):
+        # rewrite to dict format
+        message_sequence = [msg.to_openai_dict() for msg in message_sequence]
+
         for msg in message_sequence:
             role = msg["role"]
             content = msg["content"]
@@ -285,7 +300,10 @@ class CLIInterface(AgentInterface):
                 print(f"Unknown role: {content}")
 
     @staticmethod
-    def print_messages_raw(message_sequence):
+    def print_messages_raw(message_sequence: List[Message]):
+        # rewrite to dict format
+        message_sequence = [msg.to_openai_dict() for msg in message_sequence]
+
         for msg in message_sequence:
             print(msg)
 

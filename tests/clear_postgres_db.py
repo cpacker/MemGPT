@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, MetaData
 
 def main():
     uri = os.environ.get(
-        "PGVECTOR_TEST_DB_URL",
+        "MEMGPT_PGURI",
         "postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt",
     )
 

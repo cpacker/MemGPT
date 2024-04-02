@@ -1,7 +1,7 @@
 name: Run All pytest Tests
 
 env:
-  PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+  MEMGPT_PGURI: ${{ secrets.MEMGPT_PGURI }}
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
 on:
@@ -21,6 +21,7 @@ jobs:
     - name: Build and run container
       run: bash db/run_postgres.sh
 
+
     - name: "Setup Python, Poetry and Dependencies"
       uses: packetcoders/action-setup-cache-python-poetry@main
       with:
@@ -28,9 +29,29 @@ jobs:
         poetry-version: "1.7.1"
         install-args: "--all-extras"
 
+    - name: Initialize credentials
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        if [ -z "$OPENAI_API_KEY" ]; then
+          poetry run memgpt quickstart --backend openai
+        else
+          poetry run memgpt quickstart --backend openai
+        fi
+
+    - name: Run docker compose server
+      env:
+        MEMGPT_PG_DB:   memgpt
+        MEMGPT_PG_USER: memgpt
+        MEMGPT_PG_PASSWORD: memgpt
+        MEMGPT_SERVER_PASS: test_server_token
+        MEMGPT_CONFIG_PATH: configs/server_config.yaml
+
+      run: docker compose up &
+
     - name: Run server tests
       env:
-        PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+        MEMGPT_PGURI: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
       run: |
@@ -38,7 +59,7 @@ jobs:
 
     - name: Run tests with pytest
       env:
-        PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+        MEMGPT_PGURI: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
@@ -47,7 +68,7 @@ jobs:
 
     - name: Run storage tests
       env:
-        PGVECTOR_TEST_DB_URL: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+        MEMGPT_PGURI: postgresql+pg8000://memgpt:memgpt@localhost:5432/memgpt
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
       run: |

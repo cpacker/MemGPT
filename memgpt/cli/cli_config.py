@@ -7,7 +7,8 @@ from typing import Annotated
 
 import questionary
 import typer
-from prettytable import PrettyTable
+from prettytable import PrettyTable, SINGLE_BORDER
+from prettytable.colortable import ColorTable, Themes
 from tqdm import tqdm
 
 from memgpt import utils
@@ -24,7 +25,8 @@ from memgpt.server.utils import shorten_key_middle
 from memgpt.data_types import User, LLMConfig, EmbeddingConfig, Source
 from memgpt.metadata import MetadataStore
 from memgpt.server.utils import shorten_key_middle
-from memgpt.models.pydantic_models import HumanModel, PersonaModel
+from memgpt.models.pydantic_models import HumanModel, PersonaModel, PresetModel
+from memgpt.presets.presets import create_preset_from_file
 
 app = typer.Typer()
 
@@ -116,6 +118,10 @@ def configure_llm_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials)
             )
         else:
             credentials.azure_key = azure_creds["azure_key"]
+            credentials.azure_version = azure_creds["azure_version"]
+            credentials.azure_endpoint = azure_creds["azure_endpoint"]
+            if "azure_deployment" in azure_creds:
+                credentials.azure_deployment = azure_creds["azure_deployment"]
             credentials.azure_embedding_version = azure_creds["azure_embedding_version"]
             credentials.azure_embedding_endpoint = azure_creds["azure_embedding_endpoint"]
             if "azure_embedding_deployment" in azure_creds:
@@ -126,7 +132,9 @@ def configure_llm_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials)
         model_endpoint = azure_creds["azure_endpoint"]
 
     else:  # local models
-        backend_options = ["webui", "webui-legacy", "llamacpp", "koboldcpp", "ollama", "lmstudio", "lmstudio-legacy", "vllm", "openai"]
+        # backend_options_old = ["webui", "webui-legacy", "llamacpp", "koboldcpp", "ollama", "lmstudio", "lmstudio-legacy", "vllm", "openai"]
+        backend_options = builtins.list(DEFAULT_ENDPOINTS.keys())
+        # assert backend_options_old == backend_options, (backend_options_old, backend_options)
         default_model_endpoint_type = None
         if config.default_llm_config.model_endpoint_type in backend_options:
             # set from previous config
@@ -201,7 +209,7 @@ def get_model_options(
                 model_options = [obj["id"] for obj in fetched_model_options_response["data"]]
 
         elif model_endpoint_type == "azure":
-            if credentials.azure_version is None:
+            if credentials.azure_key is None:
                 raise ValueError("Missing Azure key")
             if credentials.azure_version is None:
                 raise ValueError("Missing Azure version")
@@ -217,8 +225,12 @@ def get_model_options(
 
         else:
             # Attempt to do OpenAI endpoint style model fetching
-            # TODO support local auth
-            fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=None)
+            # TODO support local auth with api-key header
+            if credentials.openllm_auth_type == "bearer_token":
+                api_key = credentials.openllm_key
+            else:
+                api_key = None
+            fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=api_key, fix_url=True)
             model_options = [obj["id"] for obj in fetched_model_options_response["data"]]
             # NOTE no filtering of local model options
 
@@ -283,6 +295,44 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
                     raise KeyboardInterrupt
 
     else:  # local models
+
+        # ask about local auth
+        if model_endpoint_type in ["groq"]:  # TODO all llm engines under 'local' that will require api keys
+            use_local_auth = True
+            local_auth_type = "bearer_token"
+            local_auth_key = questionary.password(
+                "Enter your Groq API key:",
+            ).ask()
+            if local_auth_key is None:
+                raise KeyboardInterrupt
+            credentials.openllm_auth_type = local_auth_type
+            credentials.openllm_key = local_auth_key
+            credentials.save()
+        else:
+            use_local_auth = questionary.confirm(
+                "Is your LLM endpoint authenticated? (default no)",
+                default=False,
+            ).ask()
+            if use_local_auth is None:
+                raise KeyboardInterrupt
+            if use_local_auth:
+                local_auth_type = questionary.select(
+                    "What HTTP authentication method does your endpoint require?",
+                    choices=SUPPORTED_AUTH_TYPES,
+                    default=SUPPORTED_AUTH_TYPES[0],
+                ).ask()
+                if local_auth_type is None:
+                    raise KeyboardInterrupt
+                local_auth_key = questionary.password(
+                    "Enter your authentication key:",
+                ).ask()
+                if local_auth_key is None:
+                    raise KeyboardInterrupt
+                # credentials = MemGPTCredentials.load()
+                credentials.openllm_auth_type = local_auth_type
+                credentials.openllm_key = local_auth_key
+                credentials.save()
+
         # ollama also needs model type
         if model_endpoint_type == "ollama":
             default_model = (
@@ -305,7 +355,7 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
         )
 
         # vllm needs huggingface model tag
-        if model_endpoint_type == "vllm":
+        if model_endpoint_type in ["vllm", "groq"]:
             try:
                 # Don't filter model list for vLLM since model list is likely much smaller than OpenAI/Azure endpoint
                 # + probably has custom model names
@@ -359,31 +409,6 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
         ).ask()
         if model_wrapper is None:
             raise KeyboardInterrupt
-
-        # ask about local auth
-        use_local_auth = questionary.confirm(
-            "Is your LLM endpoint authenticated? (default no)",
-            default=False,
-        ).ask()
-        if use_local_auth is None:
-            raise KeyboardInterrupt
-        if use_local_auth:
-            local_auth_type = questionary.select(
-                "What HTTP authentication method does your endpoint require?",
-                choices=SUPPORTED_AUTH_TYPES,
-                default=SUPPORTED_AUTH_TYPES[0],
-            ).ask()
-            if local_auth_type is None:
-                raise KeyboardInterrupt
-            local_auth_key = questionary.password(
-                "Enter your authentication key:",
-            ).ask()
-            if local_auth_key is None:
-                raise KeyboardInterrupt
-            # credentials = MemGPTCredentials.load()
-            credentials.openllm_auth_type = local_auth_type
-            credentials.openllm_key = local_auth_key
-            credentials.save()
 
     # set: context_window
     if str(model) not in LLM_MAX_TOKENS:
@@ -467,8 +492,6 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
         credentials.azure_key = azure_creds["azure_key"]
         credentials.azure_version = azure_creds["azure_version"]
         credentials.azure_embedding_endpoint = azure_creds["azure_embedding_endpoint"]
-        if "azure_deployment" in azure_creds:
-            credentials.azure_deployment = azure_creds["azure_deployment"]
         credentials.save()
 
         embedding_endpoint_type = "azure"
@@ -625,7 +648,6 @@ def configure():
     # check credentials
     credentials = MemGPTCredentials.load()
     openai_key = get_openai_credentials()
-    get_azure_credentials()
 
     MemGPTConfig.create_config_dir()
 
@@ -733,9 +755,9 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
     config = MemGPTConfig.load()
     ms = MetadataStore(config)
     user_id = uuid.UUID(config.anon_clientid)
+    table = ColorTable(theme=Themes.OCEAN)
     if arg == ListChoice.agents:
         """List all agents"""
-        table = PrettyTable()
         table.field_names = ["Name", "LLM Model", "Embedding Model", "Embedding Dim", "Persona", "Human", "Data Source", "Create Time"]
         for agent in tqdm(ms.list_agents(user_id=user_id)):
             source_ids = ms.list_attached_sources(agent_id=agent.id)
@@ -758,24 +780,21 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         print(table)
     elif arg == ListChoice.humans:
         """List all humans"""
-        table = PrettyTable()
         table.field_names = ["Name", "Text"]
         for human in ms.list_humans(user_id=user_id):
-            table.add_row([human.name, human.text])
+            table.add_row([human.name, human.text.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.personas:
         """List all personas"""
-        table = PrettyTable()
         table.field_names = ["Name", "Text"]
         for persona in ms.list_personas(user_id=user_id):
-            table.add_row([persona.name, persona.text])
+            table.add_row([persona.name, persona.text.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.sources:
         """List all data sources"""
 
         # create table
-        table = PrettyTable()
-        table.field_names = ["Name", "Embedding Model", "Embedding Dim", "Created At", "Agents"]
+        table.field_names = ["Name", "Description", "Embedding Model", "Embedding Dim", "Created At", "Agents"]
         # TODO: eventually look accross all storage connections
         # TODO: add data source stats
         # TODO: connect to agents
@@ -788,13 +807,19 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
             agent_names = [agent_state.name for agent_state in agent_states if agent_state is not None]
 
             table.add_row(
-                [source.name, source.embedding_model, source.embedding_dim, utils.format_datetime(source.created_at), ",".join(agent_names)]
+                [
+                    source.name,
+                    source.description,
+                    source.embedding_model,
+                    source.embedding_dim,
+                    utils.format_datetime(source.created_at),
+                    ",".join(agent_names),
+                ]
             )
 
         print(table)
     elif arg == ListChoice.presets:
         """List all available presets"""
-        table = PrettyTable()
         table.field_names = ["Name", "Description", "Sources", "Functions"]
         for preset in ms.list_presets(user_id=user_id):
             sources = ms.get_preset_sources(preset_id=preset.id)
@@ -823,10 +848,17 @@ def add(
     config = MemGPTConfig.load()
     user_id = uuid.UUID(config.anon_clientid)
     ms = MetadataStore(config)
+    if filename:  # read from file
+        assert text is None, "Cannot specify both text and filename"
+        with open(filename, "r") as f:
+            text = f.read()
     if option == "persona":
         ms.add_persona(PersonaModel(name=name, text=text, user_id=user_id))
     elif option == "human":
         ms.add_human(HumanModel(name=name, text=text, user_id=user_id))
+    elif option == "preset":
+        assert filename, "Must specify filename for preset"
+        create_preset_from_file(filename, name, user_id, ms)
     else:
         raise ValueError(f"Unknown kind {option}")
 
@@ -876,6 +908,8 @@ def delete(option: str, name: str):
             ms.delete_human(name=name, user_id=user_id)
         elif option == "persona":
             ms.delete_persona(name=name, user_id=user_id)
+        elif option == "preset":
+            ms.delete_preset(name=name, user_id=user_id)
         else:
             raise ValueError(f"Option {option} not implemented")
 

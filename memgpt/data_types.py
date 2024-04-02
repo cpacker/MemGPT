@@ -1,19 +1,23 @@
 """ This module contains the data types used by MemGPT. Each data type must include a function to create a DB model. """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, TypeVar
 import numpy as np
+from pydantic import BaseModel, Field, Json
 
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS, MAX_EMBEDDING_DIM
-from memgpt.utils import get_local_time, format_datetime, get_utc_time, create_uuid_from_string
+from memgpt.constants import (
+    DEFAULT_HUMAN,
+    DEFAULT_MEMGPT_MODEL,
+    DEFAULT_PERSONA,
+    DEFAULT_PRESET,
+    LLM_MAX_TOKENS,
+    MAX_EMBEDDING_DIM,
+    TOOL_CALL_ID_MAX_LEN,
+)
+from memgpt.utils import get_utc_time, create_uuid_from_string
 from memgpt.models import chat_completion_response
-from memgpt.utils import get_human_text, get_persona_text, printd
-
-from pydantic import BaseModel, Field, Json
-from memgpt.utils import get_human_text, get_persona_text, printd
-
-from pydantic import BaseModel, Field, Json
+from memgpt.utils import get_human_text, get_persona_text, printd, is_utc_datetime
 
 
 class Record:
@@ -88,7 +92,7 @@ class Message(Record):
         self.agent_id = agent_id
         self.text = text
         self.model = model  # model name (e.g. gpt-4)
-        self.created_at = created_at if created_at is not None else datetime.now()
+        self.created_at = created_at if created_at is not None else get_utc_time()
 
         # openai info
         assert role in ["system", "assistant", "user", "tool"]
@@ -123,6 +127,17 @@ class Message(Record):
         else:
             assert tool_call_id is None
         self.tool_call_id = tool_call_id
+
+    def to_json(self):
+        json_message = vars(self)
+        if json_message["tool_calls"] is not None:
+            json_message["tool_calls"] = [vars(tc) for tc in json_message["tool_calls"]]
+        # turn datetime to ISO format
+        # also if the created_at is missing a timezone, add UTC
+        if not is_utc_datetime(self.created_at):
+            self.created_at = self.created_at.replace(tzinfo=timezone.utc)
+        json_message["created_at"] = self.created_at.isoformat()
+        return json_message
 
     @staticmethod
     def dict_to_message(
@@ -223,7 +238,7 @@ class Message(Record):
                 tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
             )
 
-    def to_openai_dict(self):
+    def to_openai_dict(self, max_tool_id_length=TOOL_CALL_ID_MAX_LEN):
         """Go from Message class to ChatCompletion message object"""
 
         # TODO change to pydantic casting, eg `return SystemMessageModel(self)`
@@ -259,13 +274,16 @@ class Message(Record):
                 openai_message["name"] = self.name
             if self.tool_calls is not None:
                 openai_message["tool_calls"] = [tool_call.to_dict() for tool_call in self.tool_calls]
+                if max_tool_id_length:
+                    for tool_call_dict in openai_message["tool_calls"]:
+                        tool_call_dict["id"] = tool_call_dict["id"][:max_tool_id_length]
 
         elif self.role == "tool":
             assert all([v is not None for v in [self.role, self.tool_call_id]]), vars(self)
             openai_message = {
                 "content": self.text,
                 "role": self.role,
-                "tool_call_id": self.tool_call_id,
+                "tool_call_id": self.tool_call_id[:max_tool_id_length] if max_tool_id_length else self.tool_call_id,
             }
         else:
             raise ValueError(self.role)
@@ -308,6 +326,7 @@ class Passage(Record):
         doc_id: Optional[uuid.UUID] = None,
         id: Optional[uuid.UUID] = None,
         metadata_: Optional[dict] = {},
+        created_at: Optional[datetime] = None,
     ):
         if id is None:
             # by default, generate ID as a hash of the text (avoid duplicates)
@@ -335,6 +354,8 @@ class Passage(Record):
         self.embedding_dim = embedding_dim
         self.embedding_model = embedding_model
 
+        self.created_at = created_at if created_at is not None else get_utc_time()
+
         if self.embedding is not None:
             assert self.embedding_dim, f"Must specify embedding_dim if providing an embedding"
             assert self.embedding_model, f"Must specify embedding_model if providing an embedding"
@@ -349,9 +370,9 @@ class Passage(Record):
 class LLMConfig:
     def __init__(
         self,
-        model: Optional[str] = "gpt-4",
-        model_endpoint_type: Optional[str] = "openai",
-        model_endpoint: Optional[str] = "https://api.openai.com/v1",
+        model: Optional[str] = None,
+        model_endpoint_type: Optional[str] = None,
+        model_endpoint: Optional[str] = None,
         model_wrapper: Optional[str] = None,
         context_window: Optional[int] = None,
     ):
@@ -370,10 +391,10 @@ class LLMConfig:
 class EmbeddingConfig:
     def __init__(
         self,
-        embedding_endpoint_type: Optional[str] = "openai",
-        embedding_endpoint: Optional[str] = "https://api.openai.com/v1",
-        embedding_model: Optional[str] = "text-embedding-ada-002",
-        embedding_dim: Optional[int] = 1536,
+        embedding_endpoint_type: Optional[str] = None,
+        embedding_endpoint: Optional[str] = None,
+        embedding_model: Optional[str] = None,
+        embedding_dim: Optional[int] = None,
         embedding_chunk_size: Optional[int] = 300,
     ):
         self.embedding_endpoint_type = embedding_endpoint_type
@@ -467,13 +488,15 @@ class AgentState:
         self.name = name
         self.user_id = user_id
         self.preset = preset
+        # The INITIAL values of the persona and human
+        # The values inside self.state['persona'], self.state['human'] are the CURRENT values
         self.persona = persona
         self.human = human
 
         self.llm_config = llm_config
         self.embedding_config = embedding_config
 
-        self.created_at = created_at if created_at is not None else datetime.now()
+        self.created_at = created_at if created_at is not None else get_utc_time()
 
         # state
         self.state = {} if not state else state
@@ -484,6 +507,7 @@ class Source:
         self,
         user_id: uuid.UUID,
         name: str,
+        description: Optional[str] = None,
         created_at: Optional[datetime] = None,
         id: Optional[uuid.UUID] = None,
         # embedding info
@@ -499,7 +523,8 @@ class Source:
 
         self.name = name
         self.user_id = user_id
-        self.created_at = created_at if created_at is not None else datetime.now()
+        self.description = description
+        self.created_at = created_at if created_at is not None else get_utc_time()
 
         # embedding info (optional)
         self.embedding_dim = embedding_dim
@@ -529,15 +554,32 @@ class Token:
 class Preset(BaseModel):
     name: str = Field(..., description="The name of the preset.")
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the preset.")
-    user_id: uuid.UUID = Field(..., description="The unique identifier of the user who created the preset.")
+    user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user who created the preset.")
     description: Optional[str] = Field(None, description="The description of the preset.")
-    created_at: datetime = Field(default_factory=datetime.now, description="The unix timestamp of when the preset was created.")
+    created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the preset was created.")
     system: str = Field(..., description="The system prompt of the preset.")
     persona: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona of the preset.")
+    persona_name: Optional[str] = Field(None, description="The name of the persona of the preset.")
     human: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human of the preset.")
+    human_name: Optional[str] = Field(None, description="The name of the human of the preset.")
     functions_schema: List[Dict] = Field(..., description="The functions schema of the preset.")
     # functions: List[str] = Field(..., description="The functions of the preset.") # TODO: convert to ID
     # sources: List[str] = Field(..., description="The sources of the preset.") # TODO: convert to ID
+
+    @staticmethod
+    def clone(preset_obj: "Preset", new_name_suffix: str = None) -> "Preset":
+        """
+        Takes a Preset object and an optional new name suffix as input,
+        creates a clone of the given Preset object with a new ID and an optional new name,
+        and returns the new Preset object.
+        """
+        new_preset = preset_obj.model_copy()
+        new_preset.id = uuid.uuid4()
+        if new_name_suffix:
+            new_preset.name = f"{preset_obj.name}_{new_name_suffix}"
+        else:
+            new_preset.name = f"{preset_obj.name}_{str(uuid.uuid4())[:8]}"
+        return new_preset
 
 
 class Function(BaseModel):

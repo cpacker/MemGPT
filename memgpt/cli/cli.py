@@ -75,27 +75,46 @@ def set_config_with_dict(new_config: dict) -> (MemGPTConfig, bool):
                 printd(f"Skipping new config {k}: {v} == {new_config[k]}")
 
     # update embedding config
-    for k, v in vars(old_config.default_embedding_config).items():
-        if k in new_config:
-            if v != new_config[k]:
-                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
-                modified = True
-                # old_config[k] = new_config[k]
-                setattr(old_config.default_embedding_config, k, new_config[k])
-            else:
-                printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+    if old_config.default_embedding_config:
+        for k, v in vars(old_config.default_embedding_config).items():
+            if k in new_config:
+                if v != new_config[k]:
+                    printd(f"Replacing config {k}: {v} -> {new_config[k]}")
+                    modified = True
+                    # old_config[k] = new_config[k]
+                    setattr(old_config.default_embedding_config, k, new_config[k])
+                else:
+                    printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+    else:
+        modified = True
+        fields = ["embedding_model", "embedding_dim", "embedding_chunk_size", "embedding_endpoint", "embedding_endpoint_type"]
+        args = {}
+        for field in fields:
+            if field in new_config:
+                args[field] = new_config[field]
+                printd(f"Setting new config {field}: {new_config[field]}")
+        old_config.default_embedding_config = EmbeddingConfig(**args)
 
     # update llm config
-    for k, v in vars(old_config.default_llm_config).items():
-        if k in new_config:
-            if v != new_config[k]:
-                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
-                modified = True
-                # old_config[k] = new_config[k]
-                setattr(old_config.default_llm_config, k, new_config[k])
-            else:
-                printd(f"Skipping new config {k}: {v} == {new_config[k]}")
-
+    if old_config.default_llm_config:
+        for k, v in vars(old_config.default_llm_config).items():
+            if k in new_config:
+                if v != new_config[k]:
+                    printd(f"Replacing config {k}: {v} -> {new_config[k]}")
+                    modified = True
+                    # old_config[k] = new_config[k]
+                    setattr(old_config.default_llm_config, k, new_config[k])
+                else:
+                    printd(f"Skipping new config {k}: {v} == {new_config[k]}")
+    else:
+        modified = True
+        fields = ["model", "model_endpoint", "model_endpoint_type", "model_wrapper", "context_window"]
+        args = {}
+        for field in fields:
+            if field in new_config:
+                args[field] = new_config[field]
+                printd(f"Setting new config {field}: {new_config[field]}")
+        old_config.default_llm_config = LLMConfig(**args)
     return (old_config, modified)
 
 
@@ -153,10 +172,13 @@ def quickstart(
         else:
             # Load the file from the relative path
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
+            print("SCRIPT", script_dir)
             backup_config_path = os.path.join(script_dir, "..", "configs", "memgpt_hosted.json")
+            print("FILE PATH", backup_config_path)
             try:
                 with open(backup_config_path, "r", encoding="utf-8") as file:
                     backup_config = json.load(file)
+                    print(backup_config)
                 printd("Loaded config file successfully.")
                 new_config, config_was_modified = set_config_with_dict(backup_config)
             except FileNotFoundError:
@@ -277,33 +299,6 @@ def create_default_user_or_exit(config: MemGPTConfig, ms: MetadataStore):
         return user
 
 
-def generate_self_signed_cert(cert_path="selfsigned.crt", key_path="selfsigned.key"):
-    """Generate a self-signed SSL certificate.
-
-    NOTE: intended to be used for development only.
-    """
-    subprocess.run(
-        [
-            "openssl",
-            "req",
-            "-x509",
-            "-newkey",
-            "rsa:4096",
-            "-keyout",
-            key_path,
-            "-out",
-            cert_path,
-            "-days",
-            "365",
-            "-nodes",
-            "-subj",
-            "/C=US/ST=Denial/L=Springfield/O=Dis/CN=localhost",
-        ],
-        check=True,
-    )
-    return cert_path, key_path
-
-
 def server(
     type: Annotated[ServerChoice, typer.Option(help="Server to run")] = "rest",
     port: Annotated[Optional[int], typer.Option(help="Port to run the server on")] = None,
@@ -311,22 +306,22 @@ def server(
     use_ssl: Annotated[bool, typer.Option(help="Run the server using HTTPS?")] = False,
     ssl_cert: Annotated[Optional[str], typer.Option(help="Path to SSL certificate (if use_ssl is True)")] = None,
     ssl_key: Annotated[Optional[str], typer.Option(help="Path to SSL key file (if use_ssl is True)")] = None,
-    debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = True,
+    debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = False,
 ):
     """Launch a MemGPT server process"""
 
-    if debug:
-        from memgpt.server.server import logger as server_logger
+    # if debug:
+    #    from memgpt.server.server import logger as server_logger
 
-        # Set the logging level
-        server_logger.setLevel(logging.DEBUG)
-        # Create a StreamHandler
-        stream_handler = logging.StreamHandler()
-        # Set the formatter (optional)
-        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        stream_handler.setFormatter(formatter)
-        # Add the handler to the logger
-        server_logger.addHandler(stream_handler)
+    #    # Set the logging level
+    #    server_logger.setLevel(logging.DEBUG)
+    #    # Create a StreamHandler
+    #    stream_handler = logging.StreamHandler()
+    #    # Set the formatter (optional)
+    #    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    #    stream_handler.setFormatter(formatter)
+    #    # Add the handler to the logger
+    #    server_logger.addHandler(stream_handler)
 
     if type == ServerChoice.rest_api:
         import uvicorn
@@ -341,35 +336,45 @@ def server(
             sys.exit(1)
 
         try:
-            if use_ssl:
-                if ssl_cert is None:  # No certificate path provided, generate a self-signed certificate
-                    ssl_certfile, ssl_keyfile = generate_self_signed_cert()
-                    print(f"Running server with self-signed SSL cert: {ssl_certfile}, {ssl_keyfile}")
-                else:
-                    ssl_certfile, ssl_keyfile = ssl_cert, ssl_key  # Assuming cert includes both
-                    print(f"Running server with provided SSL cert: {ssl_certfile}, {ssl_keyfile}")
+            from memgpt.server.rest_api.server import start_server
 
-                # This will start the server on HTTPS
-                assert isinstance(ssl_certfile, str) and os.path.exists(ssl_certfile), ssl_certfile
-                assert isinstance(ssl_keyfile, str) and os.path.exists(ssl_keyfile), ssl_keyfile
-                print(
-                    f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT} --ssl-keyfile {ssl_keyfile} --ssl-certfile {ssl_certfile}"
-                )
-                uvicorn.run(
-                    app,
-                    host=host or "localhost",
-                    port=port or REST_DEFAULT_PORT,
-                    ssl_keyfile=ssl_keyfile,
-                    ssl_certfile=ssl_certfile,
-                )
-            else:
-                # Start the subprocess in a new session
-                print(f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT}")
-                uvicorn.run(
-                    app,
-                    host=host or "localhost",
-                    port=port or REST_DEFAULT_PORT,
-                )
+            start_server(
+                port=port,
+                host=host,
+                use_ssl=use_ssl,
+                ssl_cert=ssl_cert,
+                ssl_key=ssl_key,
+                debug=debug,
+            )
+            # if use_ssl:
+            #    if ssl_cert is None:  # No certificate path provided, generate a self-signed certificate
+            #        ssl_certfile, ssl_keyfile = generate_self_signed_cert()
+            #        print(f"Running server with self-signed SSL cert: {ssl_certfile}, {ssl_keyfile}")
+            #    else:
+            #        ssl_certfile, ssl_keyfile = ssl_cert, ssl_key  # Assuming cert includes both
+            #        print(f"Running server with provided SSL cert: {ssl_certfile}, {ssl_keyfile}")
+
+            #    # This will start the server on HTTPS
+            #    assert isinstance(ssl_certfile, str) and os.path.exists(ssl_certfile), ssl_certfile
+            #    assert isinstance(ssl_keyfile, str) and os.path.exists(ssl_keyfile), ssl_keyfile
+            #    print(
+            #        f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT} --ssl-keyfile {ssl_keyfile} --ssl-certfile {ssl_certfile}"
+            #    )
+            #    uvicorn.run(
+            #        app,
+            #        host=host or "localhost",
+            #        port=port or REST_DEFAULT_PORT,
+            #        ssl_keyfile=ssl_keyfile,
+            #        ssl_certfile=ssl_certfile,
+            #    )
+            # else:
+            #    # Start the subprocess in a new session
+            #    print(f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT}")
+            #    uvicorn.run(
+            #        app,
+            #        host=host or "localhost",
+            #        port=port or REST_DEFAULT_PORT,
+            #    )
 
         except KeyboardInterrupt:
             # Handle CTRL-C
@@ -377,6 +382,19 @@ def server(
             sys.exit(0)
 
     elif type == ServerChoice.ws_api:
+        if debug:
+            from memgpt.server.server import logger as server_logger
+
+            # Set the logging level
+            server_logger.setLevel(logging.DEBUG)
+            # Create a StreamHandler
+            stream_handler = logging.StreamHandler()
+            # Set the formatter (optional)
+            formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+            stream_handler.setFormatter(formatter)
+            # Add the handler to the logger
+            server_logger.addHandler(stream_handler)
+
         if port is None:
             port = WS_DEFAULT_PORT
 
@@ -532,13 +550,15 @@ def run(
     # read user id from config
     ms = MetadataStore(config)
     user = create_default_user_or_exit(config, ms)
+    human = human if human else config.human
+    persona = persona if persona else config.persona
 
     # determine agent to use, if not provided
     if not yes and not agent:
         agents = ms.list_agents(user_id=user.id)
         agents = [a.name for a in agents]
 
-        if len(agents) > 0 and not any([persona, human, model]):
+        if len(agents) > 0:
             print()
             select_agent = questionary.confirm("Would you like to select an existing agent?").ask()
             if select_agent is None:
@@ -644,24 +664,30 @@ def run(
 
         # create agent
         try:
-            preset_obj = ms.get_preset(preset_name=preset if preset else config.preset, user_id=user.id)
+            preset_obj = ms.get_preset(name=preset if preset else config.preset, user_id=user.id)
+            human_obj = ms.get_human(human, user.id)
+            persona_obj = ms.get_persona(persona, user.id)
             if preset_obj is None:
                 # create preset records in metadata store
                 from memgpt.presets.presets import add_default_presets
 
                 add_default_presets(user.id, ms)
                 # try again
-                preset_obj = ms.get_preset(preset_name=preset if preset else config.preset, user_id=user.id)
+                preset_obj = ms.get_preset(name=preset if preset else config.preset, user_id=user.id)
                 if preset_obj is None:
                     typer.secho("Couldn't find presets in database, please run `memgpt configure`", fg=typer.colors.RED)
                     sys.exit(1)
+            if human_obj is None:
+                typer.secho("Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)
+            if persona_obj is None:
+                typer.secho("Couldn't find persona {persona} in database, please run `memgpt add persona`", fg=typer.colors.RED)
 
             # Overwrite fields in the preset if they were specified
-            preset_obj.human = human if human else config.human
-            preset_obj.persona = persona if persona else config.persona
+            preset_obj.human = ms.get_human(human, user.id).text
+            preset_obj.persona = ms.get_persona(persona, user.id).text
 
-            typer.secho(f"->  🤖 Using persona profile '{preset_obj.persona}'", fg=typer.colors.WHITE)
-            typer.secho(f"->  🧑 Using human profile '{preset_obj.human}'", fg=typer.colors.WHITE)
+            typer.secho(f"->  🤖 Using persona profile: '{preset_obj.persona_name}'", fg=typer.colors.WHITE)
+            typer.secho(f"->  🧑 Using human profile: '{preset_obj.human_name}'", fg=typer.colors.WHITE)
 
             memgpt_agent = Agent(
                 interface=interface(),

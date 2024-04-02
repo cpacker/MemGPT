@@ -26,7 +26,6 @@ class GetAgentMemoryResponse(BaseModel):
 
 # NOTE not subclassing CoreMemory since in the request both field are optional
 class UpdateAgentMemoryRequest(BaseModel):
-    agent_id: str = Field(..., description="The unique identifier of the agent.")
     human: str = Field(None, description="Human element of the core memory.")
     persona: str = Field(None, description="Persona element of the core memory.")
 
@@ -38,7 +37,7 @@ class UpdateAgentMemoryResponse(BaseModel):
 
 class ArchivalMemoryObject(BaseModel):
     # TODO move to models/pydantic_models, or inherent from data_types Record
-    id: str = Field(..., description="Unique identifier for the memory object inside the archival memory store.")
+    id: uuid.UUID = Field(..., description="Unique identifier for the memory object inside the archival memory store.")
     contents: str = Field(..., description="The memory contents.")
 
 
@@ -47,7 +46,7 @@ class GetAgentArchivalMemoryResponse(BaseModel):
 
 
 class InsertAgentArchivalMemoryRequest(BaseModel):
-    content: str = Field(None, description="The memory contents to insert into archival memory.")
+    content: str = Field(..., description="The memory contents to insert into archival memory.")
 
 
 class InsertAgentArchivalMemoryResponse(BaseModel):
@@ -88,8 +87,6 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
 
         This endpoint accepts new memory contents (human and persona) and updates the core memory of the agent identified by the user ID and agent ID.
         """
-        agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
-
         interface.clear()
 
         new_memory_contents = {"persona": request.persona, "human": request.human}
@@ -107,7 +104,8 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
         interface.clear()
         archival_memories = server.get_all_archival_memories(user_id=user_id, agent_id=agent_id)
         print("archival_memories:", archival_memories)
-        return GetAgentArchivalMemoryResponse(archival_memory=archival_memories)
+        archival_memory_objects = [ArchivalMemoryObject(id=passage["id"], contents=passage["contents"]) for passage in archival_memories]
+        return GetAgentArchivalMemoryResponse(archival_memory=archival_memory_objects)
 
     @router.get("/agents/{agent_id}/archival", tags=["agents"], response_model=GetAgentArchivalMemoryResponse)
     def get_agent_archival_memory(
@@ -131,8 +129,8 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
             before=before,
             limit=limit,
         )
-        print(archival_json_records)
-        return GetAgentArchivalMemoryResponse(archival_json_records)
+        archival_memory_objects = [ArchivalMemoryObject(id=passage["id"], contents=passage["text"]) for passage in archival_json_records]
+        return GetAgentArchivalMemoryResponse(archival_memory=archival_memory_objects)
 
     @router.post("/agents/{agent_id}/archival", tags=["agents"], response_model=InsertAgentArchivalMemoryResponse)
     def insert_agent_archival_memory(

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pymemgpt"
-version = "0.3.5"
+version = "0.3.7"
 packages = [
     {include = "memgpt"}
 ]
@@ -57,6 +57,7 @@ llama-index = "^0.10.6"
 llama-index-embeddings-openai = "^0.1.1"
 llama-index-embeddings-huggingface = {version = "^0.1.4", optional = true}
 llama-index-embeddings-azure-openai = "^0.1.6"
+python-multipart = "^0.0.9"
 
 [tool.poetry.extras]
 local = ["llama-index-embeddings-huggingface"]

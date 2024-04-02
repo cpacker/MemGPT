@@ -108,7 +108,7 @@ To send a message to this agent, we can copy the agent ID from the previous resp
 Let's send the message _"what's the meaning of life? someone told me it's 42..."_:
 ```sh
 curl --request POST \
-     --url http://localhost:8283/api/agents/message \
+     --url http://localhost:8283/api/agents/<agent_id>/messages \
      --header 'accept: application/json' \
      --header 'authorization: Bearer ilovellms' \
      --header 'content-type: application/json' \
