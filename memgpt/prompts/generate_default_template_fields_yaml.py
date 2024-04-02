@@ -111,5 +111,5 @@ From now on, you are going to act as your persona.
 """.strip()
 )
 
-
-save_yaml(default_template_dict, "system/default_template_fields.yaml")
+if __name__ == "__main__":
+    save_yaml(default_template_dict, "system/default_template_fields.yaml")
