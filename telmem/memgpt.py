@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MEMGPT_ADMIN_KEY = os.getenv("MEMGPT_SERVER_PASS ")
+MEMGPT_ADMIN_API_KEY = os.getenv("MEMGPT_SERVER_PASS ")
 
 # Helper function to make asynchronous HTTP requests
 async def async_request(method, url, **kwargs):
