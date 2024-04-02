@@ -11,9 +11,6 @@ assignees: ''
 A clear and concise description of what the bug is.
 
 **Please describe your setup**
-
-- [ ] MemGPT version
-  - What is the output of `memgpt version`? (eg "0.2.4")
 - [ ] How did you install memgpt?
   - `pip install pymemgpt`? `pip install pymemgpt-nightly`? `git clone`?
 - [ ] Describe your setup
@@ -25,6 +22,9 @@ If applicable, add screenshots to help explain your problem.
 
 **Additional context**
 Add any other context about the problem here.
+
+**MemGPT Config**
+Please attach your `~/.memgpt/config` file or copy past it below.
 
 ---
 

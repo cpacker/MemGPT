@@ -1,14 +1,13 @@
-import os
 from urllib.parse import urljoin
 import requests
 
 from memgpt.local_llm.settings.settings import get_completions_settings
-from memgpt.local_llm.utils import load_grammar_file, count_tokens
+from memgpt.local_llm.utils import count_tokens, post_json_auth_request
 
 WEBUI_API_SUFFIX = "/v1/completions"
 
 
-def get_vllm_completion(endpoint, model, prompt, context_window, user, grammar=None):
+def get_vllm_completion(endpoint, auth_type, auth_key, model, prompt, context_window, user, grammar=None):
     """https://github.com/vllm-project/vllm/blob/main/examples/api_client.py"""
     from memgpt.utils import printd
 
@@ -30,14 +29,13 @@ def get_vllm_completion(endpoint, model, prompt, context_window, user, grammar=N
     # Set grammar
     if grammar is not None:
         raise NotImplementedError
-        request["grammar_string"] = load_grammar_file(grammar)
 
     if not endpoint.startswith(("http://", "https://")):
         raise ValueError(f"Endpoint ({endpoint}) must begin with http:// or https://")
 
     try:
         URI = urljoin(endpoint.strip("/") + "/", WEBUI_API_SUFFIX.strip("/"))
-        response = requests.post(URI, json=request)
+        response = post_json_auth_request(uri=URI, json_payload=request, auth_type=auth_type, auth_key=auth_key)
         if response.status_code == 200:
             result_full = response.json()
             printd(f"JSON API response:\n{result_full}")

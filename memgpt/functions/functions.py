@@ -2,15 +2,18 @@ import importlib
 import inspect
 import os
 import sys
+from types import ModuleType
 
 
 from memgpt.functions.schema_generator import generate_schema
 from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
 
-sys.path.append(os.path.join(MEMGPT_DIR, "functions"))
+USER_FUNCTIONS_DIR = os.path.join(MEMGPT_DIR, "functions")
+
+sys.path.append(USER_FUNCTIONS_DIR)
 
 
-def load_function_set(module):
+def load_function_set(module: ModuleType) -> dict:
     """Load the functions and generate schema for them, given a module object"""
     function_dict = {}
 
@@ -34,7 +37,7 @@ def load_function_set(module):
     return function_dict
 
 
-def load_all_function_sets(merge=True):
+def load_all_function_sets(merge: bool = True) -> dict:
     # functions/examples/*.py
     scripts_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of the current script
     function_sets_dir = os.path.join(scripts_dir, "function_sets")  # Path to the function_sets directory
@@ -42,26 +45,27 @@ def load_all_function_sets(merge=True):
     example_module_files = [f for f in os.listdir(function_sets_dir) if f.endswith(".py") and f != "__init__.py"]
 
     # ~/.memgpt/functions/*.py
-    user_scripts_dir = os.path.join(MEMGPT_DIR, "functions")
     # create if missing
-    if not os.path.exists(user_scripts_dir):
-        os.makedirs(user_scripts_dir)
-    user_module_files = [f for f in os.listdir(user_scripts_dir) if f.endswith(".py") and f != "__init__.py"]
+    if not os.path.exists(USER_FUNCTIONS_DIR):
+        os.makedirs(USER_FUNCTIONS_DIR)
+    user_module_files = [f for f in os.listdir(USER_FUNCTIONS_DIR) if f.endswith(".py") and f != "__init__.py"]
 
     # combine them both (pull from both examples and user-provided)
     # all_module_files = example_module_files + user_module_files
 
     # Add user_scripts_dir to sys.path
-    if user_scripts_dir not in sys.path:
-        sys.path.append(user_scripts_dir)
+    if USER_FUNCTIONS_DIR not in sys.path:
+        sys.path.append(USER_FUNCTIONS_DIR)
 
     schemas_and_functions = {}
-    for dir_path, module_files in [(function_sets_dir, example_module_files), (user_scripts_dir, user_module_files)]:
+    for dir_path, module_files in [(function_sets_dir, example_module_files), (USER_FUNCTIONS_DIR, user_module_files)]:
         for file in module_files:
+            tags = []
             module_name = file[:-3]  # Remove '.py' from filename
-            if dir_path == user_scripts_dir:
+            if dir_path == USER_FUNCTIONS_DIR:
                 # For user scripts, adjust the module name appropriately
                 module_full_path = os.path.join(dir_path, file)
+                print(f"Loading user function set from '{module_full_path}'")
                 try:
                     spec = importlib.util.spec_from_file_location(module_name, module_full_path)
                     module = importlib.util.module_from_spec(spec)
@@ -85,6 +89,7 @@ def load_all_function_sets(merge=True):
             else:
                 # For built-in scripts, use the existing method
                 full_module_name = f"memgpt.functions.function_sets.{module_name}"
+                tags.append(f"memgpt-{module_name}")
                 try:
                     module = importlib.import_module(full_module_name)
                 except Exception as e:
@@ -95,6 +100,10 @@ def load_all_function_sets(merge=True):
             try:
                 # Load the function set
                 function_set = load_function_set(module)
+                # Add the metadata tags
+                for k, v in function_set.items():
+                    # print(function_set)
+                    v["tags"] = tags
                 schemas_and_functions[module_name] = function_set
             except ValueError as e:
                 print(f"Error loading function set '{module_name}': {e}")

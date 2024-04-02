@@ -1,6 +1,15 @@
 import json
+from memgpt.constants import JSON_LOADS_STRICT
 
 import memgpt.local_llm.json_parser as json_parser
+
+
+EXAMPLE_ESCAPED_UNDERSCORES = """{
+  "function":"send\_message",
+  "params": {
+    "inner\_thoughts": "User is asking for information about themselves. Retrieving data from core memory.",
+    "message": "I know that you are Chad. Is there something specific you would like to know or talk about regarding yourself?"
+"""
 
 
 EXAMPLE_MISSING_CLOSING_BRACE = """{
@@ -57,21 +66,32 @@ GARBAGEGARBAGEGARBAGEGARBAGE
 GARBAGEGARBAGEGARBAGEGARBAGE
 """
 
+EXAMPLE_ARCHIVAL_SEARCH = """
+
+{
+  "function": "archival_memory_search",
+  "params": {
+    "inner_thoughts": "Looking for WaitingForAction.",
+    "query": "WaitingForAction",
+"""
+
 
 def test_json_parsers():
     """Try various broken JSON and check that the parsers can fix it"""
 
     test_strings = [
+        EXAMPLE_ESCAPED_UNDERSCORES,
         EXAMPLE_MISSING_CLOSING_BRACE,
         EXAMPLE_BAD_TOKEN_END,
         EXAMPLE_DOUBLE_JSON,
         EXAMPLE_HARD_LINE_FEEDS,
         EXAMPLE_SEND_MESSAGE_PREFIX_OK_REST_BAD,
+        EXAMPLE_ARCHIVAL_SEARCH,
     ]
 
     for string in test_strings:
         try:
-            json.loads(string)
+            json.loads(string, strict=JSON_LOADS_STRICT)
             assert False, f"Test JSON string should have failed basic JSON parsing:\n{string}"
         except:
             print("String failed (expectedly)")

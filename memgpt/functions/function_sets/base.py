@@ -1,17 +1,17 @@
 from typing import Optional
 import datetime
-import os
 import json
 import math
 
-from memgpt.constants import MAX_PAUSE_HEARTBEATS, RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
+from memgpt.constants import MAX_PAUSE_HEARTBEATS, RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE, JSON_ENSURE_ASCII
+from memgpt.agent import Agent
 
 ### Functions / tools the agent can use
 # All functions should return a response string (or None)
 # If the function fails, throw an exception
 
 
-def send_message(self, message: str) -> Optional[str]:
+def send_message(self: Agent, message: str) -> Optional[str]:
     """
     Sends a message to the human user.
 
@@ -21,7 +21,8 @@ def send_message(self, message: str) -> Optional[str]:
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
     """
-    self.interface.assistant_message(message)
+    # FIXME passing of msg_obj here is a hack, unclear if guaranteed to be the correct reference
+    self.interface.assistant_message(message)  # , msg_obj=self._messages[-1])
     return None
 
 
@@ -37,11 +38,11 @@ Returns:
 """
 
 
-def pause_heartbeats(self, minutes: int) -> Optional[str]:
+def pause_heartbeats(self: Agent, minutes: int) -> Optional[str]:
     minutes = min(MAX_PAUSE_HEARTBEATS, minutes)
 
     # Record the current time
-    self.pause_heartbeats_start = datetime.datetime.now()
+    self.pause_heartbeats_start = datetime.datetime.now(datetime.timezone.utc)
     # And record how long the pause should go for
     self.pause_heartbeats_minutes = int(minutes)
 
@@ -51,7 +52,7 @@ def pause_heartbeats(self, minutes: int) -> Optional[str]:
 pause_heartbeats.__doc__ = pause_heartbeats_docstring
 
 
-def core_memory_append(self, name: str, content: str) -> Optional[str]:
+def core_memory_append(self: Agent, name: str, content: str) -> Optional[str]:
     """
     Append to the contents of core memory.
 
@@ -62,14 +63,14 @@ def core_memory_append(self, name: str, content: str) -> Optional[str]:
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
     """
-    new_len = self.memory.edit_append(name, content)
+    self.memory.edit_append(name, content)
     self.rebuild_memory()
     return None
 
 
-def core_memory_replace(self, name: str, old_content: str, new_content: str) -> Optional[str]:
+def core_memory_replace(self: Agent, name: str, old_content: str, new_content: str) -> Optional[str]:
     """
-    Replace to the contents of core memory. To delete memories, use an empty string for new_content.
+    Replace the contents of core memory. To delete memories, use an empty string for new_content.
 
     Args:
         name (str): Section of the memory to be edited (persona or human).
@@ -79,12 +80,12 @@ def core_memory_replace(self, name: str, old_content: str, new_content: str) -> 
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
     """
-    new_len = self.memory.edit_replace(name, old_content, new_content)
+    self.memory.edit_replace(name, old_content, new_content)
     self.rebuild_memory()
     return None
 
 
-def conversation_search(self, query: str, page: Optional[int] = 0) -> Optional[str]:
+def conversation_search(self: Agent, query: str, page: Optional[int] = 0) -> Optional[str]:
     """
     Search prior conversation history using case-insensitive string matching.
 
@@ -95,6 +96,12 @@ def conversation_search(self, query: str, page: Optional[int] = 0) -> Optional[s
     Returns:
         str: Query result string
     """
+    if page is None or (isinstance(page, str) and page.lower().strip() == "none"):
+        page = 0
+    try:
+        page = int(page)
+    except:
+        raise ValueError(f"'page' argument must be an integer")
     count = RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
     results, total = self.persistence_manager.recall_memory.text_search(query, count=count, start=page * count)
     num_pages = math.ceil(total / count) - 1  # 0 index
@@ -103,11 +110,11 @@ def conversation_search(self, query: str, page: Optional[int] = 0) -> Optional[s
     else:
         results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
         results_formatted = [f"timestamp: {d['timestamp']}, {d['message']['role']} - {d['message']['content']}" for d in results]
-        results_str = f"{results_pref} {json.dumps(results_formatted)}"
+        results_str = f"{results_pref} {json.dumps(results_formatted, ensure_ascii=JSON_ENSURE_ASCII)}"
     return results_str
 
 
-def conversation_search_date(self, start_date: str, end_date: str, page: Optional[int] = 0) -> Optional[str]:
+def conversation_search_date(self: Agent, start_date: str, end_date: str, page: Optional[int] = 0) -> Optional[str]:
     """
     Search prior conversation history using a date range.
 
@@ -119,6 +126,12 @@ def conversation_search_date(self, start_date: str, end_date: str, page: Optiona
     Returns:
         str: Query result string
     """
+    if page is None or (isinstance(page, str) and page.lower().strip() == "none"):
+        page = 0
+    try:
+        page = int(page)
+    except:
+        raise ValueError(f"'page' argument must be an integer")
     count = RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
     results, total = self.persistence_manager.recall_memory.date_search(start_date, end_date, count=count, start=page * count)
     num_pages = math.ceil(total / count) - 1  # 0 index
@@ -127,11 +140,11 @@ def conversation_search_date(self, start_date: str, end_date: str, page: Optiona
     else:
         results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
         results_formatted = [f"timestamp: {d['timestamp']}, {d['message']['role']} - {d['message']['content']}" for d in results]
-        results_str = f"{results_pref} {json.dumps(results_formatted)}"
+        results_str = f"{results_pref} {json.dumps(results_formatted, ensure_ascii=JSON_ENSURE_ASCII)}"
     return results_str
 
 
-def archival_memory_insert(self, content: str) -> Optional[str]:
+def archival_memory_insert(self: Agent, content: str) -> Optional[str]:
     """
     Add to archival memory. Make sure to phrase the memory contents such that it can be easily queried later.
 
@@ -145,7 +158,7 @@ def archival_memory_insert(self, content: str) -> Optional[str]:
     return None
 
 
-def archival_memory_search(self, query: str, page: Optional[int] = 0) -> Optional[str]:
+def archival_memory_search(self: Agent, query: str, page: Optional[int] = 0) -> Optional[str]:
     """
     Search archival memory using semantic (embedding-based) search.
 
@@ -156,6 +169,12 @@ def archival_memory_search(self, query: str, page: Optional[int] = 0) -> Optiona
     Returns:
         str: Query result string
     """
+    if page is None or (isinstance(page, str) and page.lower().strip() == "none"):
+        page = 0
+    try:
+        page = int(page)
+    except:
+        raise ValueError(f"'page' argument must be an integer")
     count = RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
     results, total = self.persistence_manager.archival_memory.search(query, count=count, start=page * count)
     num_pages = math.ceil(total / count) - 1  # 0 index
@@ -164,5 +183,5 @@ def archival_memory_search(self, query: str, page: Optional[int] = 0) -> Optiona
     else:
         results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
         results_formatted = [f"timestamp: {d['timestamp']}, memory: {d['content']}" for d in results]
-        results_str = f"{results_pref} {json.dumps(results_formatted)}"
+        results_str = f"{results_pref} {json.dumps(results_formatted, ensure_ascii=JSON_ENSURE_ASCII)}"
     return results_str

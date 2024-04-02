@@ -1,10 +1,23 @@
 import json
 import re
+from memgpt.constants import JSON_LOADS_STRICT
 
 from memgpt.errors import LLMJSONParsingError
 
 
-def extract_first_json(string):
+def replace_escaped_underscores(string: str):
+    """Handles the case of escaped underscores, e.g.:
+
+    {
+      "function":"send\_message",
+      "params": {
+        "inner\_thoughts": "User is asking for information about themselves. Retrieving data from core memory.",
+        "message": "I know that you are Chad. Is there something specific you would like to know or talk about regarding yourself?"
+    """
+    return string.replace("\_", "_")
+
+
+def extract_first_json(string: str):
     """Handles the case of two JSON objects back-to-back"""
     from memgpt.utils import printd
 
@@ -20,7 +33,7 @@ def extract_first_json(string):
             depth -= 1
             if depth == 0 and start_index is not None:
                 try:
-                    return json.loads(string[start_index : i + 1])
+                    return json.loads(string[start_index : i + 1], strict=JSON_LOADS_STRICT)
                 except json.JSONDecodeError as e:
                     raise LLMJSONParsingError(f"Matched closing bracket, but decode failed with error: {str(e)}")
     printd("No valid JSON object found.")
@@ -148,42 +161,30 @@ def repair_even_worse_json(json_string):
 def clean_json(raw_llm_output, messages=None, functions=None):
     from memgpt.utils import printd
 
-    """Try a bunch of hacks to parse the data coming out of the LLM"""
-    try:
-        # printd("clean json runs:", raw_llm_output)
-        data = json.loads(raw_llm_output)
-    except (json.JSONDecodeError, LLMJSONParsingError):
+    strategies = [
+        lambda output: json.loads(output, strict=JSON_LOADS_STRICT),
+        lambda output: json.loads(output + "}", strict=JSON_LOADS_STRICT),
+        lambda output: json.loads(output + "}}", strict=JSON_LOADS_STRICT),
+        lambda output: json.loads(output + '"}}', strict=JSON_LOADS_STRICT),
+        # with strip and strip comma
+        lambda output: json.loads(output.strip().rstrip(",") + "}", strict=JSON_LOADS_STRICT),
+        lambda output: json.loads(output.strip().rstrip(",") + "}}", strict=JSON_LOADS_STRICT),
+        lambda output: json.loads(output.strip().rstrip(",") + '"}}', strict=JSON_LOADS_STRICT),
+        # more complex patchers
+        lambda output: json.loads(repair_json_string(output), strict=JSON_LOADS_STRICT),
+        lambda output: json.loads(repair_even_worse_json(output), strict=JSON_LOADS_STRICT),
+        lambda output: extract_first_json(output + "}}"),
+        lambda output: clean_and_interpret_send_message_json(output),
+        # replace underscores
+        lambda output: json.loads(replace_escaped_underscores(output), strict=JSON_LOADS_STRICT),
+        lambda output: extract_first_json(replace_escaped_underscores(output) + "}}"),
+    ]
+
+    for strategy in strategies:
         try:
-            printd("trying adding }")
-            data = json.loads(raw_llm_output + "}")
-        except (json.JSONDecodeError, LLMJSONParsingError):
-            try:
-                printd("trying adding }}")
-                data = json.loads(raw_llm_output + "}}")
-            except (json.JSONDecodeError, LLMJSONParsingError):
-                try:
-                    printd('trying adding "}}')
-                    data = json.loads(raw_llm_output + '"}}')
-                except (json.JSONDecodeError, LLMJSONParsingError):
-                    try:
-                        repaired = repair_json_string(raw_llm_output)
-                        printd("trying repair_json_string:", repaired)
-                        data = json.loads(repaired)
-                    except (json.JSONDecodeError, LLMJSONParsingError):
-                        try:
-                            repaired = repair_even_worse_json(raw_llm_output)
-                            printd("trying repair_even_worse_json:", repaired)
-                            data = json.loads(repaired)
-                        except (json.JSONDecodeError, LLMJSONParsingError):
-                            try:
-                                printd("trying first_json")
-                                data = extract_first_json(raw_llm_output + "}}")
-                            except (json.JSONDecodeError, LLMJSONParsingError):
-                                try:
-                                    printd("trying to pull send_message manually")
-                                    data = clean_and_interpret_send_message_json(raw_llm_output)
-                                except (json.JSONDecodeError, LLMJSONParsingError):
-                                    raise LLMJSONParsingError(
-                                        f"Failed to decode valid MemGPT JSON from LLM output:\n=====\n{raw_llm_output}\n====="
-                                    )
-    return data
+            printd(f"Trying strategy: {strategy.__name__}")
+            return strategy(raw_llm_output)
+        except (json.JSONDecodeError, LLMJSONParsingError) as e:
+            printd(f"Strategy {strategy.__name__} failed with error: {e}")
+
+    raise LLMJSONParsingError(f"Failed to decode valid MemGPT JSON from LLM output:\n=====\n{raw_llm_output}\n=====")

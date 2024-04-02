@@ -1,7 +1,7 @@
-name: MemGPT tests
+name: Run All pytest Tests
 
 env:
-  PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+  MEMGPT_PGURI: ${{ secrets.MEMGPT_PGURI }}
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
 on:
@@ -12,49 +12,64 @@ on:
 
 jobs:
   test:
-
     runs-on: ubuntu-latest
-
-    env:
-      PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-
-    timeout-minutes: 5
-
+    timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v1
+    - name: Checkout
+      uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Build and run container
+      run: bash db/run_postgres.sh
+
+
+    - name: "Setup Python, Poetry and Dependencies"
+      uses: packetcoders/action-setup-cache-python-poetry@main
       with:
         python-version: "3.11"
+        poetry-version: "1.7.1"
+        install-args: "--all-extras"
 
-    - name: Install poetry
-      run: pip install poetry
-
-    - name: Set Poetry config
-      run: |
-        poetry config virtualenvs.in-project false
-        poetry config virtualenvs.path ~/.virtualenvs
-
-    - name: Install dependencies using Poetry
+    - name: Initialize credentials
       env:
-        PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry install -E dev -E postgres -E local -E server
+        if [ -z "$OPENAI_API_KEY" ]; then
+          poetry run memgpt quickstart --backend openai
+        else
+          poetry run memgpt quickstart --backend openai
+        fi
 
-    - name: Set Poetry config
+    - name: Run docker compose server
       env:
-        PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+        MEMGPT_PG_DB:   memgpt
+        MEMGPT_PG_USER: memgpt
+        MEMGPT_PG_PASSWORD: memgpt
+        MEMGPT_SERVER_PASS: test_server_token
+        MEMGPT_CONFIG_PATH: configs/server_config.yaml
+
+      run: docker compose up &
+
+    - name: Run server tests
+      env:
+        MEMGPT_PGURI: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        MEMGPT_SERVER_PASS: test_server_token
       run: |
-        poetry config virtualenvs.in-project false
-        poetry config virtualenvs.path ~/.virtualenvs
+        poetry run pytest -s -vv tests/test_server.py
 
     - name: Run tests with pytest
       env:
-        PGVECTOR_TEST_DB_URL: ${{ secrets.PGVECTOR_TEST_DB_URL }}
+        MEMGPT_PGURI: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        MEMGPT_SERVER_PASS: test_server_token
+        PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
       run: |
-        PGVECTOR_TEST_DB_URL=${{ secrets.PGVECTOR_TEST_DB_URL }} OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} poetry run pytest -s -vv tests
+        poetry run pytest -s -vv -k "not test_storage and not test_server and not test_openai_client" tests
+
+    - name: Run storage tests
+      env:
+        MEMGPT_PGURI: postgresql+pg8000://memgpt:memgpt@localhost:5432/memgpt
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        MEMGPT_SERVER_PASS: test_server_token
+      run: |
+        poetry run pytest -s -vv tests/test_storage.py

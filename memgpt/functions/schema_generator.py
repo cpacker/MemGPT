@@ -1,8 +1,9 @@
 import inspect
 import typing
-from typing import get_args
+from typing import get_args, get_origin
 
 from docstring_parser import parse
+from pydantic import BaseModel
 
 from memgpt.constants import FUNCTION_PARAM_NAME_REQ_HEARTBEAT, FUNCTION_PARAM_TYPE_REQ_HEARTBEAT, FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT
 
@@ -45,12 +46,37 @@ def type_to_json_schema_type(py_type):
         str: "string",
         bool: "boolean",
         float: "number",
+        list[str]: "array",
         # Add more mappings as needed
     }
     if py_type not in type_map:
         raise ValueError(f"Python type {py_type} has no corresponding JSON schema type")
 
     return type_map.get(py_type, "string")  # Default to "string" if type not in map
+
+
+def pydantic_model_to_open_ai(model):
+    schema = model.model_json_schema()
+    docstring = parse(model.__doc__ or "")
+    parameters = {k: v for k, v in schema.items() if k not in ("title", "description")}
+    for param in docstring.params:
+        if (name := param.arg_name) in parameters["properties"] and (description := param.description):
+            if "description" not in parameters["properties"][name]:
+                parameters["properties"][name]["description"] = description
+
+    parameters["required"] = sorted(k for k, v in parameters["properties"].items() if "default" not in v)
+
+    if "description" not in schema:
+        if docstring.short_description:
+            schema["description"] = docstring.short_description
+        else:
+            raise
+
+    return {
+        "name": schema["title"],
+        "description": schema["description"],
+        "parameters": parameters,
+    }
 
 
 def generate_schema(function):
@@ -83,14 +109,24 @@ def generate_schema(function):
         if not param_doc or not param_doc.description:
             raise ValueError(f"Parameter '{param.name}' in function '{function.__name__}' lacks a description in the docstring")
 
-        # Add parameter details to the schema
-        param_doc = next((d for d in docstring.params if d.arg_name == param.name), None)
-        schema["parameters"]["properties"][param.name] = {
-            # "type": "string" if param.annotation == str else str(param.annotation),
-            "type": type_to_json_schema_type(param.annotation) if param.annotation != inspect.Parameter.empty else "string",
-            "description": param_doc.description,
-        }
+        if inspect.isclass(param.annotation) and issubclass(param.annotation, BaseModel):
+            schema["parameters"]["properties"][param.name] = pydantic_model_to_open_ai(param.annotation)
+        else:
+            # Add parameter details to the schema
+            param_doc = next((d for d in docstring.params if d.arg_name == param.name), None)
+            schema["parameters"]["properties"][param.name] = {
+                # "type": "string" if param.annotation == str else str(param.annotation),
+                "type": type_to_json_schema_type(param.annotation) if param.annotation != inspect.Parameter.empty else "string",
+                "description": param_doc.description,
+            }
         if param.default == inspect.Parameter.empty:
+            schema["parameters"]["required"].append(param.name)
+
+        if get_origin(param.annotation) is list:
+            if get_args(param.annotation)[0] is str:
+                schema["parameters"]["properties"][param.name]["items"] = {"type": "string"}
+
+        if param.annotation == inspect.Parameter.empty:
             schema["parameters"]["required"].append(param.name)
 
     # append the heartbeat

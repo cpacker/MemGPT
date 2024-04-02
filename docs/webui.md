@@ -1,7 +1,7 @@
 ---
-title: oobobooga web UI
+title: oobabooga web UI
 excerpt: Setting up MemGPT with web UI
-category: 6580da9a40bb410016b8b0c3 
+category: 6580da9a40bb410016b8b0c3
 ---
 
 > 📘 web UI troubleshooting
@@ -19,7 +19,8 @@ In this example we'll set up [oobabooga web UI](https://github.com/oobabooga/tex
 5. Assuming steps 1-4 went correctly, the LLM is now properly hosted on a port you can point MemGPT to!
 
 In your terminal where you're running MemGPT, run `memgpt configure` to set the default backend for MemGPT to point at web UI:
-```
+
+```text
 # if you are running web UI locally, the default IP address + port will be http://localhost:5000
 ? Select LLM inference provider: local
 ? Select LLM backend (select 'openai' if you have an OpenAI compatible proxy): webui
@@ -28,6 +29,7 @@ In your terminal where you're running MemGPT, run `memgpt configure` to set the 
 ```
 
 If you have an existing agent that you want to move to the web UI backend, add extra flags to `memgpt run`:
+
 ```sh
 memgpt run --agent your_agent --model-endpoint-type webui --model-endpoint http://localhost:5000
 ```

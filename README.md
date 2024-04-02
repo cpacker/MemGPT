@@ -1,12 +1,14 @@
-<a href="#user-content-memgpt"><img src="https://research.memgpt.ai/assets/img/memgpt_logo_circle.png" alt="MemGPT logo" width="75" align="right"></a>
-
-# [MemGPT](https://memgpt.ai)
+<p align="center">
+  <a href="https://memgpt.ai"><img src="https://github.com/cpacker/MemGPT/assets/5475622/80f2f418-ef92-4f7a-acab-5d642faa4991" alt="MemGPT logo"></a>
+</p>
 
 <div align="center">
 
+ <strong>MemGPT allows you to build LLM agents with self-editing memory</strong>
+
  <strong>Try out our MemGPT chatbot on <a href="https://discord.gg/9GEQrxmVyE">Discord</a>!</strong>
 
- <strong>⭐ NEW: You can now run MemGPT with <a href="https://memgpt.readme.io/docs/local_llm">open/local LLMs</a> and <a href="https://memgpt.readme.io/docs/autogen">AutoGen</a>! ⭐ </strong>
+ <strong>You can now run MemGPT with <a href="https://memgpt.readme.io/docs/local_llm">open/local LLMs</a> and <a href="https://memgpt.readme.io/docs/autogen">AutoGen</a>!</strong>
 
 
 [![Discord](https://img.shields.io/discord/1161736243340640419?label=Discord&logo=discord&logoColor=5865F2&style=flat-square&color=5865F2)](https://discord.gg/9GEQrxmVyE)
@@ -68,14 +70,14 @@ If you're running MemGPT for the first time, you'll see two quickstart options:
 
 Neither of these options require you to have an LLM running on your own machine. If you'd like to run MemGPT with your custom LLM setup (or on OpenAI Azure), select **Other** to proceed to the advanced setup.
 
-### Advanced setup 
+### Advanced setup
 You can reconfigure MemGPT's default settings by running:
 ```sh
 memgpt configure
 ```
 
 ### In-chat commands
-You can run the following commands in the MemGPT CLI prompt which chatting with an agent:
+You can run the following commands in the MemGPT CLI prompt while chatting with an agent:
 * `/exit`: Exit the CLI
 * `/attach`: Attach a loaded data source to the agent
 * `/save`: Save a checkpoint of the current agent/conversation state
@@ -85,7 +87,7 @@ You can run the following commands in the MemGPT CLI prompt which chatting with 
 * `/pop`: Undo the last message in the conversation
 * `/pop <count>`: Undo the last messages in the conversation. It defaults to 3, which usually is one turn around in the conversation
 * `/retry`: Pops the last answer and tries to get another one
-* `/rethink <text>`: Will replace the inner dialog of the last assistant message with the <text> to help shaping the conversation
+* `/rethink <text>`: Will replace the inner dialog of the last assistant message with the `<text>` to help shaping the conversation
 * `/rewrite`: Will replace the last assistant answer with the given text to correct or force the answer
 * `/heartbeat`: Send a heartbeat system message to the agent
 * `/memorywarning`: Send a memory warning system message to the agent
@@ -125,6 +127,36 @@ poetry install
 ```
 </details>
 
+## Python integration (for developers)
+
+The fastest way to integrate MemGPT with your own Python projects is through the MemGPT client:
+```python
+from memgpt import create_client
+
+# Connect to the server as a user
+client = create_client()
+
+# Create an agent
+agent_info = client.create_agent(
+  name="my_agent",
+  persona="You are a friendly agent.",
+  human="Bob is a friendly human."
+)
+
+# Send a message to the agent
+messages = client.user_message(agent_id=agent_info.id, message="Hello, agent!")
+```
+
+## What open LLMs work well with MemGPT?
+When using MemGPT with open LLMs (such as those downloaded from HuggingFace), the performance of MemGPT will be highly dependent on the LLM's function calling ability.
+
+You can find a list of LLMs/models that are known to work well with MemGPT on the [#model-chat channel on Discord](https://discord.gg/9GEQrxmVyE), as well as on [this spreadsheet](https://docs.google.com/spreadsheets/d/1fH-FdaO8BltTMa4kXiNCxmBCQ46PRBVp3Vn6WbPgsFs/edit?usp=sharing).
+
+### Benchmarking an LLM on MemGPT (`memgpt benchmark` command)
+To evaluate the performance of a model on MemGPT, simply configure the appropriate model settings using `memgpt configure`, and then initiate the benchmark via `memgpt benchmark`. The duration will vary depending on your hardware. This will run through a predefined set of prompts through multiple iterations to test the function calling capabilities of a model.
+
+You can help track what LLMs work well with MemGPT by contributing your benchmark results via [this form](https://forms.gle/XiBGKEEPFFLNSR348), which will be used to update the spreadsheet.
+
 ## Support
 For issues and feature requests, please [open a GitHub issue](https://github.com/cpacker/MemGPT/issues) or message us on our `#support` channel on [Discord](https://discord.gg/9GEQrxmVyE).
 
@@ -134,12 +166,5 @@ Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded
 ## Legal notices
 By using MemGPT and related MemGPT services (such as the MemGPT endpoint or hosted service), you agree to our [privacy policy](PRIVACY.md) and [terms of service](TERMS.md).
 
-## 🚀 Project Roadmap
-- [x] Release MemGPT Discord bot demo (perpetual chatbot)
-- [x] Add additional workflows (load SQL/text into MemGPT external context)
-- [x] Integration tests
-- [x] Integrate with AutoGen ([discussion](https://github.com/cpacker/MemGPT/discussions/65))
-- [x] Add official gpt-3.5-turbo support ([discussion](https://github.com/cpacker/MemGPT/discussions/66))
-- [x] CLI UI improvements ([issue](https://github.com/cpacker/MemGPT/issues/11))
-- [x] Add support for other LLM backends ([issue](https://github.com/cpacker/MemGPT/issues/18), [discussion](https://github.com/cpacker/MemGPT/discussions/67))
-- [ ] Release MemGPT family of open models (eg finetuned Mistral) ([discussion](https://github.com/cpacker/MemGPT/discussions/67))
+## Roadmap
+You can view (and comment on!) the MemGPT developer roadmap on GitHub: https://github.com/cpacker/MemGPT/issues/1200.

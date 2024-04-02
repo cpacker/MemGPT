@@ -2,6 +2,7 @@ import json
 
 from .wrapper_base import LLMChatCompletionWrapper
 from ..json_parser import clean_json
+from ...constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
 from ...errors import LLMJSONParsingError
 
 
@@ -25,7 +26,7 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
         self.include_opening_brance_in_prefix = include_opening_brace_in_prefix
         self.include_section_separators = include_section_separators
 
-    def chat_completion_to_prompt(self, messages, functions):
+    def chat_completion_to_prompt(self, messages, functions, function_documentation=None):
         """Example for airoboros: https://huggingface.co/jondurbin/airoboros-l2-70b-2.1#prompt-format
 
         A chat.
@@ -86,8 +87,11 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
         # prompt += f"\nPlease select the most suitable function and parameters from the list of available functions below, based on the user's input. Provide your response in JSON format."
         prompt += f"\nPlease select the most suitable function and parameters from the list of available functions below, based on the ongoing conversation. Provide your response in JSON format."
         prompt += f"\nAvailable functions:"
-        for function_dict in functions:
-            prompt += f"\n{create_function_description(function_dict)}"
+        if function_documentation is not None:
+            prompt += f"\n{function_documentation}"
+        else:
+            for function_dict in functions:
+                prompt += f"\n{create_function_description(function_dict)}"
 
         def create_function_call(function_call):
             """Go from ChatCompletion to Airoboros style function trace (in prompt)
@@ -110,9 +114,9 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
             """
             airo_func_call = {
                 "function": function_call["name"],
-                "params": json.loads(function_call["arguments"]),
+                "params": json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
             }
-            return json.dumps(airo_func_call, indent=2)
+            return json.dumps(airo_func_call, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
 
         # Add a sep for the conversation
         if self.include_section_separators:
@@ -120,12 +124,12 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
 
         # Last are the user/assistant messages
         for message in messages[1:]:
-            assert message["role"] in ["user", "assistant", "function"], message
+            assert message["role"] in ["user", "assistant", "function", "tool"], message
 
             if message["role"] == "user":
                 if self.simplify_json_content:
                     try:
-                        content_json = json.loads(message["content"])
+                        content_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
                         content_simple = content_json["message"]
                         prompt += f"\nUSER: {content_simple}"
                     except:
@@ -135,7 +139,7 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
                 # need to add the function call if there was one
                 if "function_call" in message and message["function_call"]:
                     prompt += f"\n{create_function_call(message['function_call'])}"
-            elif message["role"] == "function":
+            elif message["role"] in ["function", "tool"]:
                 # TODO find a good way to add this
                 # prompt += f"\nASSISTANT: (function return) {message['content']}"
                 prompt += f"\nFUNCTION RETURN: {message['content']}"
@@ -202,7 +206,7 @@ class Airoboros21Wrapper(LLMChatCompletionWrapper):
             "content": None,
             "function_call": {
                 "name": function_name,
-                "arguments": json.dumps(function_parameters),
+                "arguments": json.dumps(function_parameters, ensure_ascii=JSON_ENSURE_ASCII),
             },
         }
         return message
@@ -229,7 +233,7 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
         self.assistant_prefix_extra = assistant_prefix_extra
         self.include_section_separators = include_section_separators
 
-    def chat_completion_to_prompt(self, messages, functions):
+    def chat_completion_to_prompt(self, messages, functions, function_documentation=None):
         """Example for airoboros: https://huggingface.co/jondurbin/airoboros-l2-70b-2.1#prompt-format
 
         A chat.
@@ -292,8 +296,11 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
         # prompt += f"\nPlease select the most suitable function and parameters from the list of available functions below, based on the user's input. Provide your response in JSON format."
         prompt += f"\nPlease select the most suitable function and parameters from the list of available functions below, based on the ongoing conversation. Provide your response in JSON format."
         prompt += f"\nAvailable functions:"
-        for function_dict in functions:
-            prompt += f"\n{create_function_description(function_dict)}"
+        if function_documentation is not None:
+            prompt += f"\n{function_documentation}"
+        else:
+            for function_dict in functions:
+                prompt += f"\n{create_function_description(function_dict)}"
 
         def create_function_call(function_call, inner_thoughts=None):
             """Go from ChatCompletion to Airoboros style function trace (in prompt)
@@ -318,10 +325,10 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
                 "function": function_call["name"],
                 "params": {
                     "inner_thoughts": inner_thoughts,
-                    **json.loads(function_call["arguments"]),
+                    **json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
                 },
             }
-            return json.dumps(airo_func_call, indent=2)
+            return json.dumps(airo_func_call, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
 
         # Add a sep for the conversation
         if self.include_section_separators:
@@ -329,7 +336,7 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
 
         # Last are the user/assistant messages
         for message in messages[1:]:
-            assert message["role"] in ["user", "assistant", "function"], message
+            assert message["role"] in ["user", "assistant", "function", "tool"], message
 
             if message["role"] == "user":
                 # Support for AutoGen naming of agents
@@ -340,7 +347,7 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
                     user_prefix = "USER"
                 if self.simplify_json_content:
                     try:
-                        content_json = json.loads(message["content"])
+                        content_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
                         content_simple = content_json["message"]
                         prompt += f"\n{user_prefix}: {content_simple}"
                     except:
@@ -357,7 +364,7 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
                 inner_thoughts = message["content"]
                 if "function_call" in message and message["function_call"]:
                     prompt += f"\n{create_function_call(message['function_call'], inner_thoughts=inner_thoughts)}"
-            elif message["role"] == "function":
+            elif message["role"] in ["function", "tool"]:
                 # TODO find a good way to add this
                 # prompt += f"\nASSISTANT: (function return) {message['content']}"
                 prompt += f"\nFUNCTION RETURN: {message['content']}"
@@ -418,10 +425,15 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
         except Exception as e:
             raise Exception(f"Failed to decode JSON from LLM output:\n{raw_llm_output} - error\n{str(e)}")
         try:
+            # NOTE: weird bug can happen where 'function' gets nested if the prefix in the prompt isn't abided by
+            if isinstance(function_json_output["function"], dict):
+                function_json_output = function_json_output["function"]
             function_name = function_json_output["function"]
             function_parameters = function_json_output["params"]
         except KeyError as e:
-            raise LLMJSONParsingError(f"Received valid JSON from LLM, but JSON was missing fields: {str(e)}")
+            raise LLMJSONParsingError(
+                f"Received valid JSON from LLM, but JSON was missing fields: {str(e)}. JSON result was:\n{function_json_output}"
+            )
 
         if self.clean_func_args:
             (
@@ -435,7 +447,7 @@ class Airoboros21InnerMonologueWrapper(Airoboros21Wrapper):
             "content": inner_thoughts,
             "function_call": {
                 "name": function_name,
-                "arguments": json.dumps(function_parameters),
+                "arguments": json.dumps(function_parameters, ensure_ascii=JSON_ENSURE_ASCII),
             },
         }
         return message

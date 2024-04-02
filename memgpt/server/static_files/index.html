@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>MemGPT</title>
+		<base href="/" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="icon" type="image/x-icon" href="/favicon.ico" />
+		
+		<script>
+			if (localStorage.theme === 'dark') {
+				if (document && document.documentElement) {
+					document.documentElement.classList.add('dark');
+				}
+			} else if (localStorage.theme === 'light') {
+				if (document && document.documentElement) {
+					document.documentElement.classList.remove('dark');
+					localStorage.setItem('theme', 'light');
+				}
+			} else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+				localStorage.setItem('theme', 'system');
+				if (document && document.documentElement) {
+					document.documentElement.classList.add('dark');
+				}
+			} else {
+				if (document && document.documentElement) {
+					document.documentElement.classList.remove('dark');
+				}
+			}
+		</script>
+		<script type="module" crossorigin src="/assets/index-f6a3d52a.js"></script>
+		<link rel="stylesheet" href="/assets/index-57df4f6c.css">
+	</head>
+	<body>
+		<div class="h-full w-full" id="root"></div>
+		
+	</body>
+</html>
