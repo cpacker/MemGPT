@@ -45,24 +45,37 @@ def create_preset_from_file(filename: str, name: str, user_id: uuid.UUID, ms: Me
     if ms.get_preset(user_id=user_id, name=name) is not None:
         printd(f"Preset '{name}' already exists for user '{user_id}'")
         return ms.get_preset(user_id=user_id, name=name)
+    system_preset_dict = gpt_system.get_system_text(preset_system_prompt)
     script_directory = os.path.dirname(os.path.abspath(__file__))
     example_path = os.path.join(script_directory, "core_memory_templates_example")
     user_templates = os.path.join(MEMGPT_DIR, "templates")
     if "system_message_layout_template" not in preset_config:
         preset_config["system_message_layout_template"] = load_text_file(f"{example_path}/system_message_layout_template.txt")
     else:
-        preset_config["system_message_layout_template"] = load_text_file(
-            f"{user_templates}/{preset_config['system_message_layout_template']}.txt"
-        )
-    if "core_memory_layout_template" not in preset_config:
-        preset_config["core_memory_layout_template"] = load_text_file(f"{example_path}/core_memory_layout_template.txt")
-    else:
-        preset_config["core_memory_layout_template"] = load_text_file(
-            f"{user_templates}/{preset_config['core_memory_layout_template']}.txt"
-        )
+        if os.path.exists(f"{user_templates}/{preset_config['system_message_layout_template']}.txt"):
+            preset_config["system_message_layout_template"] = load_text_file(
+                f"{user_templates}/{preset_config['system_message_layout_template']}.txt"
+            )
+        else:
+            preset_config["system_message_layout_template"] = load_text_file(f"{example_path}/system_message_layout_template.txt")
+    if "core_memory_section_template" not in preset_config:
+        preset_config["core_memory_section_template"] = load_text_file(f"{example_path}/core_memory_section_template.txt")
 
-    user_initial_core_memory = os.path.join(MEMGPT_DIR, "initial_core_memory")
-    system_preset_dict = gpt_system.get_system_text(preset_system_prompt)
+    else:
+        if os.path.exists(f"{user_templates}/{preset_config['core_memory_section_template']}.txt"):
+            preset_config["core_memory_section_template"] = load_text_file(
+                f"{user_templates}/{preset_config['core_memory_section_template']}.txt"
+            )
+        else:
+            preset_config["core_memory_section_template"] = load_text_file(f"{example_path}/core_memory_section_template.txt")
+    user_core_memory = os.path.join(MEMGPT_DIR, "initial_core_memory")
+    core_memory = {}
+    if "core_memory_file" in preset_config:
+        if os.path.exists(f"{user_core_memory}/{preset_config['core_memory_file']}.yaml"):
+            core_memory = load_yaml_file(f"{user_core_memory}/{preset_config['core_memory_file']}.yaml")
+        else:
+            core_memory = load_yaml_file(f"{example_path}/{preset_config['core_memory_file']}.yaml")
+
     preset = Preset(
         user_id=user_id,
         name=name,
@@ -70,17 +83,9 @@ def create_preset_from_file(filename: str, name: str, user_id: uuid.UUID, ms: Me
         system_template=system_preset_dict["template"],
         system_template_fields=system_preset_dict["template_fields"],
         core_memory_type="default" if "core_memory_type" not in preset_config else preset_config["core_memory_type"],
-        core_memory=(
-            {}
-            if "core_memory_file" not in preset_config
-            else load_yaml_file(f"{user_initial_core_memory}/{preset_config['core_memory_file']}.yaml")
-        ),
-        system_message_layout_template=(
-            preset_config["system_message_layout_template"] if "system_message_layout_template" in preset_config else "default"
-        ),
-        core_memory_layout_template=(
-            preset_config["core_memory_layout_template"] if "core_memory_layout_template" in preset_config else "default"
-        ),
+        initial_core_memory=core_memory,
+        system_message_layout_template=(preset_config["system_message_layout_template"]),
+        core_memory_layout_template=(preset_config["core_memory_layout_template"]),
         persona=get_persona_text(DEFAULT_PERSONA),
         human=get_human_text(DEFAULT_HUMAN),
         persona_name=DEFAULT_PERSONA,
@@ -134,6 +139,8 @@ def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
         if "core_memory_file" in preset_config:
             if os.path.exists(f"{user_core_memory}/{preset_config['core_memory_file']}.yaml"):
                 core_memory = load_yaml_file(f"{user_core_memory}/{preset_config['core_memory_file']}.yaml")
+            else:
+                core_memory = load_yaml_file(f"{example_path}/{preset_config['core_memory_file']}.yaml")
         preset = Preset(
             user_id=user_id,
             name=preset_name,
@@ -141,13 +148,9 @@ def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
             system_template=system_preset_dict["template"],
             system_template_fields=system_preset_dict["template_fields"],
             core_memory_type="default" if "core_memory_type" not in preset_config else preset_config["core_memory_type"],
-            core_memory=core_memory,
-            system_message_layout_template=(
-                preset_config["system_message_layout_template"] if "system_message_layout_template" in preset_config else "default"
-            ),
-            core_memory_section_template=(
-                preset_config["core_memory_section_template"] if "core_memory_section_template" in preset_config else "default"
-            ),
+            initial_core_memory=core_memory,
+            system_message_layout_template=(preset_config["system_message_layout_template"]),
+            core_memory_section_template=(preset_config["core_memory_section_template"]),
             persona=get_persona_text(DEFAULT_PERSONA),
             persona_name=DEFAULT_PERSONA,
             human=get_human_text(DEFAULT_HUMAN),
