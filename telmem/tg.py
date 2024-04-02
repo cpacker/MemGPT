@@ -91,6 +91,21 @@ async def deleteagent(update: Update, context: CallbackContext):
         # If no arguments are provided, send a message asking the user to provide a name
         await context.bot.send_message(chat_id=chat_id, text="Please type the name of the agent. Type /listagents.")
 
+
+async def help_command(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    help_text = "Available commands:\n"
+    help_text += "/start - Creation of user and first agent.\n"
+    help_text += "/listagents - List all agents\n"
+    help_text += "/currentagent - Display current agent\n"
+    help_text += "/changeagent <name> - Change the current agent\n"
+    help_text += "/createagent <name> - Create a new agent\n"
+    help_text += "/deleteagent <name> - Delete an existing agent\n"
+    # help_text += "/debug - Check if bot is running\n"
+    help_text += "/check_user - Check if user is registered\n"
+    help_text += "/help - Show this help message\n"
+    await context.bot.send_message(chat_id=chat_id, text=help_text)
+
 def main():
     logging.basicConfig(level=logging.DEBUG)
     application = Application.builder().token(TELEGRAM_TOKEN).build()
@@ -102,6 +117,7 @@ def main():
     application.add_handler(CommandHandler("deleteagent", deleteagent))
     application.add_handler(CommandHandler("debug", debug))
     application.add_handler(CommandHandler("check_user", check_user))
+    application.add_handler(CommandHandler("help", help_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
     application.run_polling()
 
