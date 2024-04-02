@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import datetime
 import uuid
-from typing import Optional, List, Tuple, Union
+from typing import Optional, List, Tuple, Union, Any
 
 from memgpt.constants import MESSAGE_SUMMARY_WARNING_FRAC
 from memgpt.prompts.prompt_template import PromptTemplate

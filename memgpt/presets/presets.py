@@ -2,12 +2,12 @@ from typing import List
 import os
 from memgpt.data_types import AgentState, Preset
 from memgpt.interface import AgentInterface
-from memgpt.presets.utils import load_all_presets, is_valid_yaml_format, load_yaml_file
+from memgpt.presets.utils import load_all_presets, is_valid_yaml_format, load_yaml_file, load_text_file
 from memgpt.utils import get_human_text, get_persona_text, printd, list_human_files, list_persona_files
 from memgpt.prompts import gpt_system
 from memgpt.functions.functions import load_all_function_sets
 from memgpt.metadata import MetadataStore
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
+from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET, MEMGPT_DIR
 from memgpt.models.pydantic_models import HumanModel, PersonaModel
 
 import uuid
@@ -45,11 +45,30 @@ def create_preset_from_file(filename: str, name: str, user_id: uuid.UUID, ms: Me
     if ms.get_preset(user_id=user_id, name=name) is not None:
         printd(f"Preset '{name}' already exists for user '{user_id}'")
         return ms.get_preset(user_id=user_id, name=name)
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+    example_path = os.path.join(script_directory, "core_memory_templates_example")
+    user_templates = os.path.join(MEMGPT_DIR, "templates")
+    if "system_message_layout_template" not in preset_config:
+        preset_config["system_message_layout_template"] = load_text_file(f"{example_path}/system_message_layout_template.txt")
+    else:
+        preset_config["system_message_layout_template"] = load_text_file(f"{user_templates}/{preset_config['system_message_layout_template']}.txt")
+    if "core_memory_layout_template" not in preset_config:
+        preset_config["core_memory_layout_template"] = load_text_file(f"{example_path}/core_memory_layout_template.txt")
+    else:
+        preset_config["core_memory_layout_template"] = load_text_file(f"{user_templates}/{preset_config['core_memory_layout_template']}.txt")
 
+    user_initial_core_memory = os.path.join(MEMGPT_DIR, "initial_core_memory")
+    system_preset_dict = gpt_system.get_system_text(preset_system_prompt)
     preset = Preset(
         user_id=user_id,
         name=name,
-        system=gpt_system.get_system_text(preset_system_prompt),
+        system=system_preset_dict["system_message"],
+        system_template=system_preset_dict["template"],
+        system_template_fields=system_preset_dict["template_fields"],
+        core_memory_type="default" if "core_memory_type" not in preset_config else preset_config["core_memory_type"],
+        core_memory={} if "core_memory_file" not in preset_config else load_yaml_file(f"{user_initial_core_memory}/{preset_config['core_memory_file']}.yaml"),
+        system_message_layout_template=preset_config["system_message_layout_template"] if "system_message_layout_template" in preset_config else "default",
+        core_memory_layout_template=preset_config["core_memory_layout_template"] if "core_memory_layout_template" in preset_config else "default",
         persona=get_persona_text(DEFAULT_PERSONA),
         human=get_human_text(DEFAULT_HUMAN),
         persona_name=DEFAULT_PERSONA,
@@ -75,11 +94,27 @@ def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
         if ms.get_preset(user_id=user_id, name=preset_name) is not None:
             printd(f"Preset '{preset_name}' already exists for user '{user_id}'")
             continue
-
+        system_preset_dict = gpt_system.get_system_text(preset_system_prompt)
+        script_directory = os.path.dirname(os.path.abspath(__file__))
+        example_path = os.path.join(script_directory, "core_memory_templates_example")
+        if "system_message_layout_template" not in preset_config:
+            preset_config["system_message_layout_template"] = load_text_file(f"{example_path}/system_message_layout_template.txt")
+        else:
+            preset_config["system_message_layout_template"] = load_text_file(f"{example_path}/{preset_config['system_message_layout_template']}.txt")
+        if "core_memory_layout_template" not in preset_config:
+            preset_config["core_memory_layout_template"] = load_text_file(f"{example_path}/core_memory_section_template.txt")
+        else:
+            preset_config["core_memory_layout_template"] = load_text_file(f"{example_path}/{preset_config['core_memory_layout_template']}.txt")
         preset = Preset(
             user_id=user_id,
             name=preset_name,
-            system=gpt_system.get_system_text(preset_system_prompt),
+            system=system_preset_dict["system_message"],
+            system_template=system_preset_dict["template"],
+            system_template_fields=system_preset_dict["template_fields"],
+            core_memory_type="default" if "core_memory_type" not in preset_config else preset_config["core_memory_type"],
+            core_memory={} if "core_memory_file" not in preset_config else load_yaml_file(f"{example_path}/{preset_config['core_memory_file']}.yaml"),
+            system_message_layout_template=preset_config["system_message_layout_template"] if "system_message_layout_template" in preset_config else "default",
+            core_memory_layout_template=preset_config["core_memory_layout_template"] if "core_memory_layout_template" in preset_config else "default",
             persona=get_persona_text(DEFAULT_PERSONA),
             persona_name=DEFAULT_PERSONA,
             human=get_human_text(DEFAULT_HUMAN),

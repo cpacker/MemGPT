@@ -271,6 +271,12 @@ class PresetModel(Base):
     name = Column(String, nullable=False)
     description = Column(String)
     system = Column(String)
+    system_template = Column(String)
+    system_template_fields = Column(JSON)
+    core_memory_type = Column(String)
+    core_memory = Column(JSON)
+    system_message_layout_template = Column(String)
+    core_memory_section_template = Column(String)
     human = Column(String)
     human_name = Column(String, nullable=False)
     persona = Column(String)
@@ -290,6 +296,12 @@ class PresetModel(Base):
             name=self.name,
             description=self.description,
             system=self.system,
+            system_template=self.system_template,
+            system_template_fields=self.system_template_fields,
+            core_memory_type=self.core_memory_type,
+            core_memory=self.core_memory,
+            core_memory_section_template=self.core_memory_section_template,
+            system_message_layout_template=self.system_message_layout_template,
             human=self.human,
             persona=self.persona,
             human_name=self.human_name,

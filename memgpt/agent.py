@@ -13,8 +13,10 @@ from memgpt.data_types import AgentState, Message, LLMConfig, EmbeddingConfig, P
 from memgpt.models import chat_completion_response
 from memgpt.interface import AgentInterface
 from memgpt.persistence_manager import LocalStateManager
-from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
-from memgpt.memory import CoreMemory as InContextMemory, summarize_messages, ArchivalMemory, RecallMemory
+from memgpt.system import get_login_event, package_function_response, package_summarize_message, \
+    get_initial_boot_messages
+from memgpt.memory import CoreMemory as InContextMemory, summarize_messages, ArchivalMemory, RecallMemory, \
+    CustomizableCoreMemory
 from memgpt.llm_api_tools import create, is_context_overflow_error
 from memgpt.utils import (
     get_utc_time,
@@ -69,7 +71,8 @@ def link_functions(function_schemas: list):
         # Attempt to find the function in the existing function library
         f_name = f_schema.get("name")
         if f_name is None:
-            raise ValueError(f"While loading agent.state.functions encountered a bad function schema object with no name:\n{f_schema}")
+            raise ValueError(
+                f"While loading agent.state.functions encountered a bad function schema object with no name:\n{f_schema}")
         linked_function = available_functions.get(f_name)
         if linked_function is None:
             raise ValueError(
@@ -77,7 +80,7 @@ def link_functions(function_schemas: list):
             )
         # Once we find a matching function, make sure the schema is identical
         if json.dumps(f_schema, ensure_ascii=JSON_ENSURE_ASCII) != json.dumps(
-            linked_function["json_schema"], ensure_ascii=JSON_ENSURE_ASCII
+                linked_function["json_schema"], ensure_ascii=JSON_ENSURE_ASCII
         ):
             # error_message = (
             #     f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different."
@@ -86,8 +89,8 @@ def link_functions(function_schemas: list):
             # )
             schema_diff = get_schema_diff(f_schema, linked_function["json_schema"])
             error_message = (
-                f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different.\n"
-                + "".join(schema_diff)
+                    f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different.\n"
+                    + "".join(schema_diff)
             )
 
             # NOTE to handle old configs, instead of erroring here let's just warn
@@ -102,48 +105,85 @@ def initialize_memory(ai_notes: Union[str, None], human_notes: Union[str, None])
         raise ValueError(ai_notes)
     if human_notes is None:
         raise ValueError(human_notes)
-    memory = InContextMemory(human_char_limit=CORE_MEMORY_HUMAN_CHAR_LIMIT, persona_char_limit=CORE_MEMORY_PERSONA_CHAR_LIMIT)
+    memory = InContextMemory(human_char_limit=CORE_MEMORY_HUMAN_CHAR_LIMIT,
+                             persona_char_limit=CORE_MEMORY_PERSONA_CHAR_LIMIT)
     memory.edit_persona(ai_notes)
     memory.edit_human(human_notes)
     return memory
 
 
+def initialize_custom_memory(core_memory: dict, core_memory_limits: dict):
+    return CustomizableCoreMemory(core_memory, core_memory_limits)
+
+
 def construct_system_with_memory(
-    system: str,
-    memory: InContextMemory,
-    memory_edit_timestamp: str,
-    archival_memory: Optional[ArchivalMemory] = None,
-    recall_memory: Optional[RecallMemory] = None,
-    include_char_count: bool = True,
+        system,
+        memory,
+        memory_edit_timestamp,
+        system_message_layout_template,
+        core_memory_section_template,
+        archival_memory=None,
+        recall_memory=None,
+        include_char_count=True,
 ):
-    full_system_message = "\n".join(
-        [
-            system,
-            "\n",
-            f"### Memory [last modified: {memory_edit_timestamp.strip()}]",
-            f"{len(recall_memory) if recall_memory else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
-            f"{len(archival_memory) if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
-            "\nCore memory shown below (limited in size, additional information stored in archival / recall memory):",
-            f'<persona characters="{len(memory.persona)}/{memory.persona_char_limit}">' if include_char_count else "<persona>",
-            memory.persona,
-            "</persona>",
-            f'<human characters="{len(memory.human)}/{memory.human_char_limit}">' if include_char_count else "<human>",
-            memory.human,
-            "</human>",
-        ]
-    )
+    system_template = PromptTemplate.from_string(system_message_layout_template)
+
+    if isinstance(memory, InContextMemory):
+        core_memory_section_template = PromptTemplate.from_string(core_memory_section_template)
+        core_memory_content = (
+                core_memory_section_template.generate_prompt(
+                    {
+                        "memory_key": "persona",
+                        "memory_value": memory.persona,
+                        "memory_value_length": len(memory.persona),
+                        "memory_value_limit": memory.persona_char_limit,
+                    }
+                )
+                + "\n"
+        )
+        core_memory_content += (
+                core_memory_section_template.generate_prompt(
+                    {
+                        "memory_key": "human",
+                        "memory_value": memory.human,
+                        "memory_value_length": len(memory.human),
+                        "memory_value_limit": memory.human_char_limit,
+                    }
+                )
+                + "\n"
+        )
+        template_fields = {
+            "system": system,
+            "len_recall_memory": len(recall_memory) if recall_memory else 0,
+            "len_archival_memory": len(archival_memory) if archival_memory else 0,
+            "core_memory_content": core_memory_content,
+            "memory_edit_timestamp": memory_edit_timestamp.strip(),
+        }
+        full_system_message = system_template.generate_prompt(template_fields)
+    else:
+        core_memory_content = memory.get_memory_view(core_memory_section_template)
+        template_fields = {
+            "system": system,
+            "len_recall_memory": f"{len(recall_memory) if recall_memory else 0}",
+            "len_archival_memory": f"{len(archival_memory) if archival_memory else 0}",
+            "core_memory_content": core_memory_content,
+            "memory_edit_timestamp": memory_edit_timestamp.strip(),
+        }
+        full_system_message = system_template.generate_prompt(template_fields)
     return full_system_message
 
 
 def initialize_message_sequence(
-    model: str,
-    system: str,
-    memory: InContextMemory,
-    archival_memory: Optional[ArchivalMemory] = None,
-    recall_memory: Optional[RecallMemory] = None,
-    memory_edit_timestamp: Optional[str] = None,
-    include_initial_boot_message: bool = True,
-) -> List[dict]:
+        model,
+        system,
+        memory,
+        system_message_layout_template,
+        core_memory_section_template,
+        archival_memory=None,
+        recall_memory=None,
+        memory_edit_timestamp=None,
+        include_initial_boot_message=True,
+):
     if memory_edit_timestamp is None:
         memory_edit_timestamp = get_local_time()
 
@@ -164,13 +204,13 @@ def initialize_message_sequence(
         else:
             initial_boot_messages = get_initial_boot_messages("startup_with_send_message")
         messages = (
-            [
-                {"role": "system", "content": full_system_message},
-            ]
-            + initial_boot_messages
-            + [
-                {"role": "user", "content": first_user_message},
-            ]
+                [
+                    {"role": "system", "content": full_system_message},
+                ]
+                + initial_boot_messages
+                + [
+                    {"role": "user", "content": first_user_message},
+                ]
         )
 
     else:
@@ -184,19 +224,19 @@ def initialize_message_sequence(
 
 class Agent(object):
     def __init__(
-        self,
-        interface: AgentInterface,
-        # agents can be created from providing agent_state
-        agent_state: Optional[AgentState] = None,
-        # or from providing a preset (requires preset + extra fields)
-        preset: Optional[Preset] = None,
-        created_by: Optional[uuid.UUID] = None,
-        name: Optional[str] = None,
-        llm_config: Optional[LLMConfig] = None,
-        embedding_config: Optional[EmbeddingConfig] = None,
-        # extras
-        messages_total: Optional[int] = None,  # TODO remove?
-        first_message_verify_mono: bool = True,  # TODO move to config?
+            self,
+            interface: AgentInterface,
+            # agents can be created from providing agent_state
+            agent_state: Optional[AgentState] = None,
+            # or from providing a preset (requires preset + extra fields)
+            preset: Optional[Preset] = None,
+            created_by: Optional[uuid.UUID] = None,
+            name: Optional[str] = None,
+            llm_config: Optional[LLMConfig] = None,
+            embedding_config: Optional[EmbeddingConfig] = None,
+            # extras
+            messages_total: Optional[int] = None,  # TODO remove?
+            first_message_verify_mono: bool = True,  # TODO move to config?
     ):
         # An agent can be created from a Preset object
         if preset is not None:
@@ -218,6 +258,12 @@ class Agent(object):
                     "persona": preset.persona,
                     "human": preset.human,
                     "system": preset.system,
+                    "system_template": preset.system_template,
+                    "system_template_fields": preset.system_template_fields,
+                    "core_memory_type": preset.core_memory_type,
+                    "core_memory": preset.core_memory,
+                    "system_message_layout_template": preset.system_message_layout_template,
+                    "core_memory_section_template": preset.core_memory_section_template,
                     "functions": preset.functions_schema,
                     "messages": None,
                 },
@@ -245,12 +291,30 @@ class Agent(object):
             raise ValueError(f"'system' not found in provided AgentState")
         self.system = self.agent_state.state["system"]
 
+        if "system_template" not in self.agent_state.state:
+            self.system_template = ""
+        else:
+            self.system_template = self.agent_state.state["system_template"]
+        if "system_message_layout_template" not in self.agent_state.state:
+            self.system_message_layout_template = default_system_message_layout_template
+        else:
+            self.system_message_layout_template = self.agent_state.state["system_message_layout_template"]
+        if "core_memory_section_template" not in self.agent_state.state:
+            self.core_memory_section_template = default_core_memory_section_template
+        else:
+            self.core_memory_section_template = self.agent_state.state["core_memory_section_template"]
+        if "system_template_fields" not in self.agent_state.state:
+            self.system_template_fields = {}
+        else:
+            self.system_template_fields = self.agent_state.state["system_template_fields"]
+
         if "functions" not in self.agent_state.state:
             raise ValueError(f"'functions' not found in provided AgentState")
         # Store the functions schemas (this is passed as an argument to ChatCompletion)
         self.functions = self.agent_state.state["functions"]  # these are the schema
         # Link the actual python functions corresponding to the schemas
-        self.functions_python = {k: v["python_function"] for k, v in link_functions(function_schemas=self.functions).items()}
+        self.functions_python = {k: v["python_function"] for k, v in
+                                 link_functions(function_schemas=self.functions).items()}
         assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
 
         # Initialize the memory object
@@ -258,7 +322,8 @@ class Agent(object):
             raise ValueError(f"'persona' not found in provided AgentState")
         if "human" not in self.agent_state.state:
             raise ValueError(f"'human' not found in provided AgentState")
-        self.memory = initialize_memory(ai_notes=self.agent_state.state["persona"], human_notes=self.agent_state.state["human"])
+        self.memory = initialize_memory(ai_notes=self.agent_state.state["persona"],
+                                        human_notes=self.agent_state.state["human"])
 
         # Interface must implement:
         # - internal_monologue
@@ -295,39 +360,47 @@ class Agent(object):
 
             # Convert to IDs, and pull from the database
             raw_messages = [
-                self.persistence_manager.recall_memory.storage.get(id=uuid.UUID(msg_id)) for msg_id in self.agent_state.state["messages"]
+                self.persistence_manager.recall_memory.storage.get(id=uuid.UUID(msg_id)) for msg_id in
+                self.agent_state.state["messages"]
             ]
-            assert all([isinstance(msg, Message) for msg in raw_messages]), (raw_messages, self.agent_state.state["messages"])
+            assert all([isinstance(msg, Message) for msg in raw_messages]), (
+            raw_messages, self.agent_state.state["messages"])
             self._messages.extend([cast(Message, msg) for msg in raw_messages if msg is not None])
 
             for m in self._messages:
                 # assert is_utc_datetime(m.created_at), f"created_at on message for agent {self.agent_state.name} isn't UTC:\n{vars(m)}"
                 # TODO eventually do casting via an edit_message function
                 if not is_utc_datetime(m.created_at):
-                    printd(f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
+                    printd(
+                        f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
                     m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
 
         else:
             # print(f"Agent.__init__ :: creating, state={agent_state.state['messages']}")
             init_messages = initialize_message_sequence(
-                self.model, self.system, self.memory, self.system_message_layout_template, self.core_memory_section_template
+                self.model, self.system, self.memory, self.system_message_layout_template,
+                self.core_memory_section_template
             )
             init_messages_objs = []
             for msg in init_messages:
                 init_messages_objs.append(
                     Message.dict_to_message(
-                        agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=msg
+                        agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model,
+                        openai_message_dict=msg
                     )
                 )
             assert all([isinstance(msg, Message) for msg in init_messages_objs]), (init_messages_objs, init_messages)
             self.messages_total = 0
-            self._append_to_messages(added_messages=[cast(Message, msg) for msg in init_messages_objs if msg is not None])
+            self._append_to_messages(
+                added_messages=[cast(Message, msg) for msg in init_messages_objs if msg is not None])
 
             for m in self._messages:
-                assert is_utc_datetime(m.created_at), f"created_at on message for agent {self.agent_state.name} isn't UTC:\n{vars(m)}"
+                assert is_utc_datetime(
+                    m.created_at), f"created_at on message for agent {self.agent_state.name} isn't UTC:\n{vars(m)}"
                 # TODO eventually do casting via an edit_message function
                 if not is_utc_datetime(m.created_at):
-                    printd(f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
+                    printd(
+                        f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
                     m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
 
         # Keep track of the total number of messages throughout all time
@@ -364,7 +437,8 @@ class Agent(object):
 
         new_messages = [self._messages[0]] + added_messages + self._messages[1:]  # prepend (no system)
         self._messages = new_messages
-        self.messages_total += len(added_messages)  # still should increment the message counter (summaries are additions too)
+        self.messages_total += len(
+            added_messages)  # still should increment the message counter (summaries are additions too)
 
     def _append_to_messages(self, added_messages: List[Message]):
         """Wrapper around self.messages.append to allow additional calls to a state/persistence manager"""
@@ -405,10 +479,10 @@ class Agent(object):
         self._messages = new_messages
 
     def _get_ai_reply(
-        self,
-        message_sequence: List[dict],
-        function_call: str = "auto",
-        first_message: bool = False,  # hint
+            self,
+            message_sequence: List[dict],
+            function_call: str = "auto",
+            first_message: bool = False,  # hint
     ) -> chat_completion_response.ChatCompletionResponse:
         """Get response from LLM API"""
         try:
@@ -435,14 +509,15 @@ class Agent(object):
             raise e
 
     def _handle_ai_response(
-        self, response_message: chat_completion_response.Message, override_tool_call_id: bool = True
+            self, response_message: chat_completion_response.Message, override_tool_call_id: bool = True
     ) -> Tuple[List[Message], bool, bool]:
         """Handles parsing and function execution"""
 
         messages = []  # append these to the history when done
 
         # Step 2: check if LLM wanted to call a function
-        if response_message.function_call or (response_message.tool_calls is not None and len(response_message.tool_calls) > 0):
+        if response_message.function_call or (
+                response_message.tool_calls is not None and len(response_message.tool_calls) > 0):
             if response_message.function_call:
                 raise DeprecationWarning(response_message)
             if response_message.tool_calls is not None and len(response_message.tool_calls) > 1:
@@ -485,7 +560,8 @@ class Agent(object):
 
             # Failure case 1: function name is wrong
             function_call = (
-                response_message.function_call if response_message.function_call is not None else response_message.tool_calls[0].function
+                response_message.function_call if response_message.function_call is not None else
+                response_message.tool_calls[0].function
             )
             function_name = function_call.name
             printd(f"Request to call function {function_name} with tool_call_id: {tool_call_id}")
@@ -627,13 +703,14 @@ class Agent(object):
         return messages, heartbeat_request, function_failed
 
     def step(
-        self,
-        user_message: Union[Message, str],  # NOTE: should be json.dump(dict)
-        first_message: bool = False,
-        first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
-        skip_verify: bool = False,
-        return_dicts: bool = True,  # if True, return dicts, if False, return Message objects
-        recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
+            self,
+            user_message: Union[Message, str],  # NOTE: should be json.dump(dict)
+            first_message: bool = False,
+            first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
+            skip_verify: bool = False,
+            return_dicts: bool = True,  # if True, return dicts, if False, return Message objects
+            recreate_message_timestamp: bool = True,
+            # if True, when input is a Message type, recreated the 'created_at' field
     ) -> Tuple[List[Union[dict, Message]], bool, bool, bool]:
         """Top-level event message handler for the MemGPT agent"""
 
@@ -706,7 +783,8 @@ class Agent(object):
                 input_message_sequence = self.messages
 
             if len(input_message_sequence) > 1 and input_message_sequence[-1]["role"] != "user":
-                printd(f"{CLI_WARNING_PREFIX}Attempting to run ChatCompletion without user as the last message in the queue")
+                printd(
+                    f"{CLI_WARNING_PREFIX}Attempting to run ChatCompletion without user as the last message in the queue")
 
             # Step 1: send the conversation and available functions to GPT
             if not skip_verify and (first_message or self.messages_total == self.messages_total_init):
@@ -762,10 +840,12 @@ class Agent(object):
             # We can't do summarize logic properly if context_window is undefined
             if self.agent_state.llm_config.context_window is None:
                 # Fallback if for some reason context_window is missing, just set to the default
-                print(f"{CLI_WARNING_PREFIX}could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
+                print(
+                    f"{CLI_WARNING_PREFIX}could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
                 print(f"{self.agent_state}")
                 self.agent_state.llm_config.context_window = (
-                    LLM_MAX_TOKENS[self.model] if (self.model is not None and self.model in LLM_MAX_TOKENS) else LLM_MAX_TOKENS["DEFAULT"]
+                    LLM_MAX_TOKENS[self.model] if (self.model is not None and self.model in LLM_MAX_TOKENS) else
+                    LLM_MAX_TOKENS["DEFAULT"]
                 )
             if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * int(self.agent_state.llm_config.context_window):
                 printd(
@@ -781,7 +861,8 @@ class Agent(object):
                 )
 
             self._append_to_messages(all_new_messages)
-            messages_to_return = [msg.to_openai_dict() for msg in all_new_messages] if return_dicts else all_new_messages
+            messages_to_return = [msg.to_openai_dict() for msg in
+                                  all_new_messages] if return_dicts else all_new_messages
             return messages_to_return, heartbeat_request, function_failed, active_memory_warning, response.usage.completion_tokens
 
         except Exception as e:
@@ -799,7 +880,8 @@ class Agent(object):
                 raise e
 
     def summarize_messages_inplace(self, cutoff=None, preserve_last_N_messages=True, disallow_tool_as_first=True):
-        assert self.messages[0]["role"] == "system", f"self.messages[0] should be system (instead got {self.messages[0]})"
+        assert self.messages[0][
+                   "role"] == "system", f"self.messages[0] should be system (instead got {self.messages[0]})"
 
         # Start at index 1 (past the system message),
         # and collect messages for summarization until we reach the desired truncation token fraction (eg 50%)
@@ -871,17 +953,21 @@ class Agent(object):
                 f"Summarize error: tried to run summarize, but couldn't find enough messages to compress [len={len(message_sequence_to_summarize)} <= 1]"
             )
         else:
-            printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
+            printd(
+                f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
 
         # We can't do summarize logic properly if context_window is undefined
         if self.agent_state.llm_config.context_window is None:
             # Fallback if for some reason context_window is missing, just set to the default
-            print(f"{CLI_WARNING_PREFIX}could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
+            print(
+                f"{CLI_WARNING_PREFIX}could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
             print(f"{self.agent_state}")
             self.agent_state.llm_config.context_window = (
-                LLM_MAX_TOKENS[self.model] if (self.model is not None and self.model in LLM_MAX_TOKENS) else LLM_MAX_TOKENS["DEFAULT"]
+                LLM_MAX_TOKENS[self.model] if (self.model is not None and self.model in LLM_MAX_TOKENS) else
+                LLM_MAX_TOKENS["DEFAULT"]
             )
-        summary = summarize_messages(agent_state=self.agent_state, message_sequence_to_summarize=message_sequence_to_summarize)
+        summary = summarize_messages(agent_state=self.agent_state,
+                                     message_sequence_to_summarize=message_sequence_to_summarize)
         printd(f"Got summary: {summary}")
 
         # Metadata that's useful for the agent to see
@@ -889,7 +975,8 @@ class Agent(object):
         remaining_message_count = len(self.messages[cutoff:])
         hidden_message_count = all_time_message_count - remaining_message_count
         summary_message_count = len(message_sequence_to_summarize)
-        summary_message = package_summarize_message(summary, summary_message_count, hidden_message_count, all_time_message_count)
+        summary_message = package_summarize_message(summary, summary_message_count, hidden_message_count,
+                                                    all_time_message_count)
         printd(f"Packaged into message: {summary_message}")
 
         prior_len = len(self.messages)
@@ -941,11 +1028,13 @@ class Agent(object):
         # Swap the system message out
         self._swap_system_message(
             Message.dict_to_message(
-                agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=new_system_message
+                agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model,
+                openai_message_dict=new_system_message
             )
         )
 
-    def edit_system_template_field(self, field_name: str, field_value: Union[str, float, int], rebuild_system_template: bool = True):
+    def edit_system_template_field(self, field_name: str, field_value: Union[str, float, int],
+                                   rebuild_system_template: bool = True):
         """Edits a system template field"""
         if field_name not in self.system_template_fields:
             raise ValueError(f"'{field_name}' not found in system template fields")
@@ -976,7 +1065,8 @@ class Agent(object):
         # Swap the system message out
         self._swap_system_message(
             Message.dict_to_message(
-                agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=new_system_message
+                agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model,
+                openai_message_dict=new_system_message
             )
         )
 

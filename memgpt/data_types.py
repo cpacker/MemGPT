@@ -15,6 +15,8 @@ from memgpt.constants import (
     MAX_EMBEDDING_DIM,
     TOOL_CALL_ID_MAX_LEN,
 )
+from memgpt.presets.default_templates import default_system_message_layout_template, \
+    default_core_memory_section_template
 from memgpt.utils import get_utc_time, create_uuid_from_string
 from memgpt.models import chat_completion_response
 from memgpt.utils import get_human_text, get_persona_text, printd, is_utc_datetime
@@ -558,11 +560,18 @@ class Preset(BaseModel):
     description: Optional[str] = Field(None, description="The description of the preset.")
     created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the preset was created.")
     system: str = Field(..., description="The system prompt of the preset.")
+    system_template: Optional[str] = Field("", description="The system prompt template of the preset.")
+    system_template_fields: Optional[Dict] = Field({}, description="The system prompt template fields of the preset.")
+    core_memory_type: Optional[str] = Field("default", description="The core memory type of the preset.")
+    core_memory: Optional[Dict] = Field({}, description="The initial core memory of the preset.")
+    system_message_layout_template: Optional[str] = Field(default_system_message_layout_template, description="The system message layout template of the preset.")
+    core_memory_section_template: Optional[str] = Field(default_core_memory_section_template, description="The core memory section template of the preset.")
     persona: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona of the preset.")
     persona_name: Optional[str] = Field(None, description="The name of the persona of the preset.")
     human: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human of the preset.")
     human_name: Optional[str] = Field(None, description="The name of the human of the preset.")
     functions_schema: List[Dict] = Field(..., description="The functions schema of the preset.")
+
     # functions: List[str] = Field(..., description="The functions of the preset.") # TODO: convert to ID
     # sources: List[str] = Field(..., description="The sources of the preset.") # TODO: convert to ID
 

@@ -224,7 +224,7 @@ def get_chat_completion(
             )
         ],
         created=get_utc_time(),
-        model=model,
+        model=model if model is not None else "local_llm",
         # "This fingerprint represents the backend configuration that the model runs with."
         # system_fingerprint=user if user is not None else "null",
         system_fingerprint=None,
