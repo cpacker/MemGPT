@@ -118,9 +118,7 @@ def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
                     f"{user_templates}/{preset_config['system_message_layout_template']}.txt"
                 )
             else:
-                preset_config["system_message_layout_template"] = load_text_file(
-                    f"{example_path}/system_message_layout_template.txt"
-                )
+                preset_config["system_message_layout_template"] = load_text_file(f"{example_path}/system_message_layout_template.txt")
         if "core_memory_section_template" not in preset_config:
             preset_config["core_memory_section_template"] = load_text_file(f"{example_path}/core_memory_section_template.txt")
 
@@ -130,9 +128,7 @@ def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
                     f"{user_templates}/{preset_config['core_memory_section_template']}.txt"
                 )
             else:
-                preset_config["core_memory_section_template"] = load_text_file(
-                    f"{example_path}/core_memory_section_template.txt"
-                )
+                preset_config["core_memory_section_template"] = load_text_file(f"{example_path}/core_memory_section_template.txt")
         user_core_memory = os.path.join(MEMGPT_DIR, "initial_core_memory")
         core_memory = {}
         if "core_memory_file" in preset_config:
