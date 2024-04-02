@@ -316,14 +316,17 @@ class Agent(object):
         self.functions_python = {k: v["python_function"] for k, v in
                                  link_functions(function_schemas=self.functions).items()}
         assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
-
-        # Initialize the memory object
-        if "persona" not in self.agent_state.state:
-            raise ValueError(f"'persona' not found in provided AgentState")
-        if "human" not in self.agent_state.state:
-            raise ValueError(f"'human' not found in provided AgentState")
-        self.memory = initialize_memory(ai_notes=self.agent_state.state["persona"],
-                                        human_notes=self.agent_state.state["human"])
+        if "core_memory_type" in agent_state.state and agent_state.state["core_memory_type"] == "custom":
+            if "core_memory" not in agent_state.state:
+                raise ValueError(f"'core_memory' not found in provided AgentState")
+            self.memory = initialize_custom_memory(agent_state.state["core_memory"], agent_state.state["core_memory_limits"])
+        else:
+            # Initialize the memory object
+            if "persona" not in agent_state.state:
+                raise ValueError(f"'persona' not found in provided AgentState")
+            if "human" not in agent_state.state:
+                raise ValueError(f"'human' not found in provided AgentState")
+            self.memory = initialize_memory(ai_notes=agent_state.state["persona"], human_notes=agent_state.state["human"])
 
         # Interface must implement:
         # - internal_monologue
