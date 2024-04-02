@@ -15,7 +15,12 @@ from memgpt.constants import (
     MAX_EMBEDDING_DIM,
     TOOL_CALL_ID_MAX_LEN,
 )
-from memgpt.presets.default_templates import default_system_message_layout_template, default_core_memory_section_template
+from memgpt.presets.default_templates import (
+    default_system_message_layout_template,
+    default_core_memory_section_template,
+    default_system_message_template,
+)
+from memgpt.prompts.generate_default_template_fields_yaml import default_template_dict
 from memgpt.utils import get_utc_time, create_uuid_from_string
 from memgpt.models import chat_completion_response
 from memgpt.utils import get_human_text, get_persona_text, printd, is_utc_datetime
@@ -559,10 +564,10 @@ class Preset(BaseModel):
     description: Optional[str] = Field(None, description="The description of the preset.")
     created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the preset was created.")
     system: str = Field(..., description="The system prompt of the preset.")
-    system_template: Optional[str] = Field("", description="The system prompt template of the preset.")
-    system_template_fields: Optional[Dict] = Field({}, description="The system prompt template fields of the preset.")
+    system_template: Optional[str] = Field(default_system_message_template, description="The system prompt template of the preset.")
+    system_template_fields: Optional[Dict] = Field(default_template_dict, description="The system prompt template fields of the preset.")
     core_memory_type: Optional[str] = Field("default", description="The core memory type of the preset.")
-    core_memory: Optional[Dict] = Field({}, description="The initial core memory of the preset.")
+    initial_core_memory: Optional[Dict] = Field({}, description="The initial core memory of the preset.")
     system_message_layout_template: Optional[str] = Field(
         default_system_message_layout_template, description="The system message layout template of the preset."
     )
