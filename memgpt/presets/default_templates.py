@@ -9,7 +9,9 @@ Core memory shown below (limited in size, additional information stored in archi
 {core_memory_content}"""
 
 default_core_memory_section_template = """<{memory_key} characters={memory_value_length}/{memory_value_limit}>
+
 {memory_value}
+
 </{memory_key}>
 """
 
