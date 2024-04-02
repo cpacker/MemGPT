@@ -12,12 +12,13 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 async def start(update: Update, context: CallbackContext):
     try:
-        chat_id = update.effective_chat.id
-        user_exists = await check_user_exists(chat_id)
+        user_id = update.message.from_user.id
+        user_exists = await check_user_exists(user_id)
         
         if not user_exists:
             # Create a new user in Supabase and MemGPT, and save their details
-            creation_response = await create_memgpt_user(chat_id)
+            creation_response = await create_memgpt_user(user_id)
+            chat_id = update.message.chat.id
             await context.bot.send_message(chat_id=chat_id, text=creation_response)
         else:
             # Inform the user that they already have an account
@@ -27,48 +28,52 @@ async def start(update: Update, context: CallbackContext):
         await context.bot.send_message(chat_id=chat_id, text="An error occurred. Please try again.")
 
 async def echo(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
+    user_id = update.message.from_user.id
     message_text = update.message.text
-    response = await send_message_to_memgpt(chat_id, message_text)
+    response = await send_message_to_memgpt(user_id, message_text)
+    chat_id = update.message.chat.id
     await context.bot.send_message(chat_id=chat_id, text=response)
 
 # New debug command
 async def debug(update: Update, context: CallbackContext):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Debug: Bot is running.")
+    await context.bot.send_message(chat_id=update.message.from_user.id, text="Debug: Bot is running.")
 
 async def listagents(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
-    response = await list_agents(chat_id)
+    user_id = update.message.from_user.id
+    response = await list_agents(user_id)
+    chat_id = update.message.chat.id
     await context.bot.send_message(chat_id=chat_id, text=response)
 
 async def createagent(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
+    user_id = update.message.from_user.id
+    chat_id = update.message.chat.id
     
     # Check if arguments are provided
     if context.args:
         name = context.args[0]
-        response = await create_agent(chat_id, name)
+        response = await create_agent(user_id, name)
         await context.bot.send_message(chat_id=chat_id, text=response)
     else:
         # If no arguments are provided, send a message asking the user to provide a name
         await context.bot.send_message(chat_id=chat_id, text="Please provide a name for the agent.")
 
 async def currentagent(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
-    response = await current_agent(chat_id)
+    user_id = update.message.from_user.id
+    chat_id = update.message.chat.id
+    response = await current_agent(user_id)
     await context.bot.send_message(chat_id=chat_id, text=response)        
 
-# New check user command
 async def check_user(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
-    user_exists = await check_user_exists(chat_id)
+    user_id = update.message.from_user.id
+    chat_id = update.message.chat.id
+    user_exists = await check_user_exists(user_id)
     if user_exists:
         await context.bot.send_message(chat_id=chat_id, text="This user is already registered.")
     else:
         await context.bot.send_message(chat_id=chat_id, text="This user is not registered.")
 
 async def changeagent(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
+    user_id = update.message.from_user.id
     
     # Check if arguments are provided
     if context.args:
@@ -80,12 +85,12 @@ async def changeagent(update: Update, context: CallbackContext):
         await context.bot.send_message(chat_id=chat_id, text="Please type the name of the agent. Type /listagents.")
 
 async def deleteagent(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
-    
+    user_id = update.message.from_user.id
+    chat_id = update.message.chat.id
     # Check if arguments are provided
     if context.args:
         name = context.args[0]
-        response = await delete_agent(chat_id, name)
+        response = await delete_agent(user_id, name)
         await context.bot.send_message(chat_id=chat_id, text=response)
     else:
         # If no arguments are provided, send a message asking the user to provide a name
@@ -93,7 +98,7 @@ async def deleteagent(update: Update, context: CallbackContext):
 
 
 async def help_command(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
+    chat_id = update.message.chat.id
     help_text = "Available commands:\n"
     help_text += "/start - Creation of user and first agent.\n"
     help_text += "/listagents - List all agents\n"
