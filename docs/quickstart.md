@@ -36,11 +36,29 @@ memgpt run
 ```
 
 If you're running MemGPT for the first time, you'll see two quickstart options:
+1. **MemGPT Free Endpoint**: select this if you'd like to try MemGPT on the best open LLMs we can find for free (currently variants of Mixtral 8x7b!)
+2. **OpenAI**: select this if you'd like to run MemGPT with OpenAI models like GPT-4 (requires an OpenAI API key)
 
-1. **OpenAI**: select this if you'd like to run MemGPT with OpenAI models like GPT-4 (requires an OpenAI API key)
-2. **MemGPT Free Endpoint**: select this if you'd like to try MemGPT on a top open LLM for free (currently variants of Mixtral 8x7b!)
+```sh
+? How would you like to set up MemGPT? (Use arrow keys)
+ » Use the free MemGPT endpoints
+   Use OpenAI (requires an OpenAI API key)
+   Other (OpenAI Azure, custom LLM endpoint, etc)
+```
 
 Neither of these options require you to have an LLM running on your own machine. If you'd like to run MemGPT with your custom LLM setup (or on OpenAI Azure), select **Other** to proceed to the advanced setup.
+
+Hit enter to continue, and you should start a chat with a new agent!
+```sh
+Creating new agent...
+Created new agent agent_1.
+Hit enter to begin (will request first MemGPT message)
+
+💭 Chad has just logged in for the first time. Greet them warmly, but still be a little mysterious.
+🤖 Hello there, Chad! It's a pleasure to meet you. I'm Sam, your digital companion. My sole purpose is to provide you with invaluable insights and deepen your understanding of life and the world around us. Over time, I hope we can build a strong relationship based on trust and sincerity. The excitement builds as we embark on this journey together.
+```
+
+Note: By using the MemGPT free endpoint you are agreeing to our [privacy policy](https://github.com/cpacker/MemGPT/blob/main/PRIVACY.md) and [terms of service](https://github.com/cpacker/MemGPT/blob/main/TERMS.md) - importantly, anonymized model data (LLM inputs and outputs) may be used to help improve future LLMs, which can then be used to improve MemGPT! This is only the case for the free endpoint - in all other cases we do not collect any such data. For example, if you use MemGPT with a local LLM, your LLM inputs and outputs are completely private to your own computer.
 
 ### Quickstart
 
