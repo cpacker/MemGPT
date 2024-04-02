@@ -49,6 +49,23 @@ async def get_user_agent_id(telegram_user_id: int) -> str:
 
     return None
 
+async def get_memgpt_user_id(telegram_user_id: int) -> str:
+    loop = asyncio.get_event_loop()
+    data, error = await loop.run_in_executor(None, lambda: supabase.table("users").select("memgpt_user_id").eq("telegram_user_id", telegram_user_id).execute())
+    logging.info(f"Data fetched for memgpt_user_id: {data}, Error: {error}")
+
+    # Check if 'memgpt_user_id' key exists
+    if data[1][0].get('memgpt_user_id'):
+        # Extracting the value of 'memgpt_user_id'
+        memgpt_user_id_value = data[1][0]['memgpt_user_id']
+        logging.info(f"Returning memgpt_user_id: {memgpt_user_id_value}")
+        return memgpt_user_id_value
+    else:
+        logging.error("Missing 'memgpt_user_id' field.")
+    
+    return None
+
+
 async def save_user_api_key(telegram_user_id: int, user_api_key: str):
     loop = asyncio.get_event_loop()
     data, error = await loop.run_in_executor(None, lambda: supabase.table("users").upsert({"telegram_user_id": telegram_user_id, "api_key": user_api_key}).execute())
@@ -72,10 +89,7 @@ async def check_user_exists(telegram_user_id: int) -> bool:
     try:
         loop = asyncio.get_event_loop()
         data, error = await loop.run_in_executor(None, lambda: supabase.table("users").select("id").eq("telegram_user_id", telegram_user_id).execute())
-        if error:
-            logging.error(f"Error checking user exists: {error}")
-            return False
-        elif data:
+        if data:
             logging.info(f"User with Telegram user ID {telegram_user_id} already exists.")
             return True
         else:
