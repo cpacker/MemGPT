@@ -240,7 +240,8 @@ class SyncServer(LockingServer):
             embedding_endpoint_type=self.config.default_embedding_config.embedding_endpoint_type,
             embedding_endpoint=self.config.default_embedding_config.embedding_endpoint,
             embedding_dim=self.config.default_embedding_config.embedding_dim,
-            # openai_key=self.credentials.openai_key,
+            embedding_model=self.config.default_embedding_config.embedding_model,
+            embedding_chunk_size=self.config.default_embedding_config.embedding_chunk_size,
         )
 
         # Initialize the metadata store
