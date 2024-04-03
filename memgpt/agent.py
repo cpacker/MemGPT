@@ -242,10 +242,11 @@ class Agent(object):
             assert embedding_config is not None, "Must provide embedding_config field when creating an Agent from a Preset"
             core_memory_limits = {}
             core_memory = {}
-            for field in preset.initial_core_memory.keys():
-                if "max_length" in preset.initial_core_memory[field]:
-                    core_memory_limits[field] = preset.initial_core_memory[field]["max_length"]
-                core_memory[field] = preset.initial_core_memory[field]["content"]
+            if "initial_core_memory" in preset.template_data:
+                for field in preset.template_data["initial_core_memory"].keys():
+                    if "max_length" in preset.template_data["initial_core_memory"][field]:
+                        core_memory_limits[field] = preset.template_data["initial_core_memory"][field]["max_length"]
+                    core_memory[field] = preset.template_data["initial_core_memory"][field]["content"]
             # if agent_state is also provided, override any preset values
             init_agent_state = AgentState(
                 name=name if name else create_random_username(),
@@ -259,13 +260,13 @@ class Agent(object):
                     "persona": preset.persona,
                     "human": preset.human,
                     "system": preset.system,
-                    "system_template": preset.system_template,
-                    "system_template_fields": preset.system_template_fields,
-                    "core_memory_type": preset.core_memory_type,
-                    "core_memory": core_memory,
-                    "core_memory_limits": core_memory_limits,
-                    "system_message_layout_template": preset.system_message_layout_template,
-                    "core_memory_section_template": preset.core_memory_section_template,
+                    "system_template": preset.template_data["system_template"] if "system_template" in preset.template_data else "",
+                    "system_template_fields": preset.template_data["system_template_fields"] if "system_template_fields" in preset.template_data else {},
+                    "core_memory_type": preset.template_data["core_memory_type"] if "core_memory_type" in preset.template_data else "default",
+                    "core_memory": core_memory if core_memory else None,
+                    "core_memory_limits": core_memory_limits if core_memory_limits else None,
+                    "system_message_layout_template": preset.template_data["system_message_layout_template"] if "system_message_layout_template" in preset.template_data else "",
+                    "core_memory_section_template": preset.template_data["core_memory_section_template"] if "core_memory_section_template" in preset.template_data else "",
                     "functions": preset.functions_schema,
                     "messages": None,
                 },
