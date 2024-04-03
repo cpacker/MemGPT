@@ -37,6 +37,7 @@ def load_data(
 
     # insert passages/documents
     passages = []
+    embedding_to_document_name = {}
     passage_count = 0
     document_count = 0
     for document_text, document_metadata in connector.generate_documents():
@@ -54,6 +55,16 @@ def load_data(
 
         # generate passages
         for passage_text, passage_metadata in connector.generate_passages([document], chunk_size=embedding_config.embedding_chunk_size):
+
+            # for some reason, llama index parsers sometimes return empty strings
+            if len(passage_text) == 0:
+                typer.secho(
+                    f"Warning: Llama index parser returned empty string, skipping insert of passage with metadata '{passage_metadata}' into VectorDB. You can usually ignore this warning.",
+                    fg=typer.colors.YELLOW,
+                )
+                continue
+
+            # get embedding
             try:
                 embedding = embed_model.get_text_embedding(passage_text)
             except Exception as e:
@@ -75,7 +86,17 @@ def load_data(
                 embedding=embedding,
             )
 
+            hashable_embedding = tuple(passage.embedding)
+            document_name = document.metadata.get("file_path", document.id)
+            if hashable_embedding in embedding_to_document_name:
+                typer.secho(
+                    f"Warning: Duplicate embedding found for passage in {document_name} (already exists in {embedding_to_document_name[hashable_embedding]}), skipping insert into VectorDB.",
+                    fg=typer.colors.YELLOW,
+                )
+                continue
+
             passages.append(passage)
+            embedding_to_document_name[hashable_embedding] = document_name
             if len(passages) >= embedding_config.embedding_chunk_size:
                 # insert passages into passage store
                 passage_store.insert_many(passages)
