@@ -635,9 +635,9 @@ def generate_gbnf_grammar_from_pydantic_models(
 
         if add_inner_thoughts:
             if allow_only_inner_thoughts:
-                model_rule = rf'{format_model_and_field_name(outer_object_name)} ::= (" "| "\n") "{{" ws "\"{inner_thought_field_name}\""  ":" ws string (("," "\n" ws "\"{outer_object_name}\""  ":" grammar-models)? | "\n" ws "}}")'
+                model_rule = rf'{format_model_and_field_name(outer_object_name)} ::= (" "| "\n") "{{" ws "\"{inner_thought_field_name}\""  ":" ws string ((","  ws "\"{outer_object_name}\""  ":" grammar-models)? | ws "}}")'
             else:
-                model_rule = rf'{format_model_and_field_name(outer_object_name)} ::= (" "| "\n") "{{" ws "\"{inner_thought_field_name}\""  ":" ws string "," "\n" ws "\"{outer_object_name}\""  ":" grammar-models '
+                model_rule = rf'{format_model_and_field_name(outer_object_name)} ::= (" "| "\n") "{{" ws "\"{inner_thought_field_name}\""  ":" ws string ","  ws "\"{outer_object_name}\""  ":" grammar-models '
         else:
             model_rule = rf'{format_model_and_field_name(outer_object_name)} ::= (" "| "\n") "{{" ws "\"{outer_object_name}\""  ":" ws grammar-models'
 
@@ -656,7 +656,7 @@ def generate_gbnf_grammar_from_pydantic_models(
         for model in models:
             model_rules, has_special_string = generate_gbnf_grammar(model, processed_models, created_rules)
             if add_request_heartbeat and model.__name__ in request_heartbeat_models:
-                model_rules[0] += rf' ",\n" ws "\"{request_heartbeat_field_name}\""  ":" ws boolean '
+                model_rules[0] += rf' "," ws "\"{request_heartbeat_field_name}\""  ":" ws boolean '
             if not has_special_string:
                 model_rules[0] += r' ws "}"'
 
