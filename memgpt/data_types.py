@@ -564,16 +564,7 @@ class Preset(BaseModel):
     description: Optional[str] = Field(None, description="The description of the preset.")
     created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the preset was created.")
     system: str = Field(..., description="The system prompt of the preset.")
-    system_template: Optional[str] = Field(default_system_message_template, description="The system prompt template of the preset.")
-    system_template_fields: Optional[Dict] = Field(default_template_dict, description="The system prompt template fields of the preset.")
-    core_memory_type: Optional[str] = Field("default", description="The core memory type of the preset.")
-    initial_core_memory: Optional[Dict] = Field({}, description="The initial core memory of the preset.")
-    system_message_layout_template: Optional[str] = Field(
-        default_system_message_layout_template, description="The system message layout template of the preset."
-    )
-    core_memory_section_template: Optional[str] = Field(
-        default_core_memory_section_template, description="The core memory section template of the preset."
-    )
+    template_data: Optional[Dict] = Field({}, description="The system prompt and core memory templates.")
     persona: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona of the preset.")
     persona_name: Optional[str] = Field(None, description="The name of the persona of the preset.")
     human: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human of the preset.")
