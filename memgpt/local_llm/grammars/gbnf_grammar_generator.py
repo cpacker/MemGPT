@@ -940,7 +940,7 @@ def generate_text_documentation(
         class_description = class_doc if class_doc and class_doc != base_class_doc else ""
         if class_description != "":
             documentation += "  description: "
-            documentation += format_multiline_description(class_description, 1) + "\n"
+            documentation += format_multiline_description(class_description, 0) + "\n"
 
         if add_prefix:
             # Indenting the fields section
