@@ -858,14 +858,14 @@ class Agent(object):
                 printd(f"Selected cutoff {cutoff} was a 'tool', shifting one...")
                 cutoff += 1
 
-        message_sequence_to_summarize = self.messages[1:cutoff]  # do NOT get rid of the system message
+        message_sequence_to_summarize = self._messages[1:cutoff]  # do NOT get rid of the system message
         if len(message_sequence_to_summarize) <= 1:
             # This prevents a potential infinite loop of summarizing the same message over and over
             raise LLMError(
                 f"Summarize error: tried to run summarize, but couldn't find enough messages to compress [len={len(message_sequence_to_summarize)} <= 1]"
             )
         else:
-            printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
+            printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self._messages)}")
 
         # We can't do summarize logic properly if context_window is undefined
         if self.agent_state.llm_config.context_window is None:
