@@ -106,7 +106,7 @@ def run_server():
 @pytest.fixture(
     params=[
         {"base_url": local_service_url},
-        {"base_url": docker_compose_url},  # TODO: add when docker compose added to tests
+        # {"base_url": docker_compose_url},  # TODO: add when docker compose added to tests
         # {"base_url": None} # TODO: add when implemented
     ],
     scope="module",
@@ -350,11 +350,15 @@ def test_presets(client, agent):
     assert new_preset.id not in [p.id for p in all_presets], (new_preset, all_presets)
 
 
-def test_functions(client, agent):
+def test_tools(client, agent):
 
     # load a function
     file_path = "tests/data/functions/dump_json.py"
     module_name = "dump_json"
+
+    # add the tool
+    create_tool_response = client.create_tool(name=module_name, file_path=file_path)
+    print(create_tool_response)
 
     # list functions
 

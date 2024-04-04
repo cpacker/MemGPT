@@ -340,6 +340,7 @@ class MetadataStore:
                 PresetSourceMapping.__table__,
                 HumanModel.__table__,
                 PersonaModel.__table__,
+                ToolModel.__table__,
             ],
         )
         self.session_maker = sessionmaker(bind=self.engine)
@@ -658,6 +659,12 @@ class MetadataStore:
     def add_preset(self, preset: PresetModel):
         with self.session_maker() as session:
             session.add(preset)
+            session.commit()
+
+    @enforce_types
+    def add_tool(self, tool: ToolModel):
+        with self.session_maker() as session:
+            session.add(tool)
             session.commit()
 
     @enforce_types
