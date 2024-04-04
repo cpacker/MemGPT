@@ -356,12 +356,21 @@ def test_tools(client, agent):
     file_path = "tests/data/functions/dump_json.py"
     module_name = "dump_json"
 
+    # list functions
+    response = client.list_tools()
+    orig_tools = response.tools
+    print(orig_tools)
+
     # add the tool
     create_tool_response = client.create_tool(name=module_name, file_path=file_path)
     print(create_tool_response)
 
     # list functions
+    response = client.list_tools()
+    new_tools = response.tools
+    assert module_name in [tool.name for tool in new_tools]
+    # assert len(new_tools) == len(orig_tools) + 1
 
-    # add a function to a preset
+    # TODO: add a function to a preset
 
-    # add a function to an agent
+    # TODO: add a function to an agent

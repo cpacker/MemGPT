@@ -2,7 +2,7 @@ import json
 from memgpt.agent import Agent
 
 
-def dump_json(self: Agent, input: dict) -> str:
+def dump_json(self: Agent, input: str) -> str:
     """
     Dumps the content to JSON.
 
