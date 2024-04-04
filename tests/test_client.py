@@ -348,3 +348,16 @@ def test_presets(client, agent):
     # List all presets and make sure the preset is NOT in the list
     all_presets = client.list_presets()
     assert new_preset.id not in [p.id for p in all_presets], (new_preset, all_presets)
+
+
+def test_functions(client, agent):
+
+    # load a function
+    file_path = "tests/data/functions/dump_json.py"
+    module_name = "dump_json"
+
+    # list functions
+
+    # add a function to a preset
+
+    # add a function to an agent
