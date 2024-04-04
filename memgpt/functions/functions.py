@@ -37,6 +37,47 @@ def load_function_set(module: ModuleType) -> dict:
     return function_dict
 
 
+def validate_function(module_name, module_full_path):
+    try:
+        file = os.path.basename(module_full_path)
+        spec = importlib.util.spec_from_file_location(module_name, module_full_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    except ModuleNotFoundError as e:
+        # Handle missing module imports
+        missing_package = str(e).split("'")[1]  # Extract the name of the missing package
+        print(f"{CLI_WARNING_PREFIX}skipped loading python file '{module_full_path}'!")
+        return (
+            False,
+            f"'{file}' imports '{missing_package}', but '{missing_package}' is not installed locally - install python package '{missing_package}' to link functions from '{file}' to MemGPT.",
+        )
+    except SyntaxError as e:
+        # Handle syntax errors in the module
+        return False, f"{CLI_WARNING_PREFIX}skipped loading python file '{file}' due to a syntax error: {e}"
+    except Exception as e:
+        # Handle other general exceptions
+        return False, f"{CLI_WARNING_PREFIX}skipped loading python file '{file}': {e}"
+
+    return True, None
+
+
+def write_function(module_name: str, function_name: str, function_code: str):
+    """Write a function to a file in the user functions directory"""
+    # Create the user functions directory if it doesn't exist
+    if not os.path.exists(USER_FUNCTIONS_DIR):
+        os.makedirs(USER_FUNCTIONS_DIR)
+
+    # Write the function to a file
+    file_path = os.path.join(USER_FUNCTIONS_DIR, f"{module_name}.py")
+    with open(file_path, "a") as f:
+        f.write(function_code)
+    succ, error = validate_function(module_name, file_path)
+
+    # raise error if function cannot be loaded
+    if not succ:
+        raise ValueError(error)
+
+
 def load_all_function_sets(merge: bool = True) -> dict:
     # functions/examples/*.py
     scripts_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of the current script

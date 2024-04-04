@@ -44,13 +44,27 @@ class PresetModel(BaseModel):
     functions_schema: List[Dict] = Field(..., description="The functions schema of the preset.")
 
 
-class ToolModel(BaseModel):
+class ToolModel(SQLModel, table=True):
     # TODO move into database
     name: str = Field(..., description="The name of the function.")
     json_schema: dict = Field(..., description="The JSON schema of the function.")
     tags: List[str] = Field(..., description="Metadata tags.")
     source_type: Optional[Literal["python"]] = Field(None, description="The type of the source code.")
     source_code: Optional[str] = Field(..., description="The source code of the function.")
+
+
+class AgentToolMap(SQLModel, table=True):
+    # mapping between agents and tools
+    agent_id: uuid.UUID = Field(..., description="The unique identifier of the agent.")
+    tool_id: uuid.UUID = Field(..., description="The unique identifier of the tool.")
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the agent-tool map.", primary_key=True)
+
+
+class PresetToolMap(SQLModel, table=True):
+    # mapping between presets and tools
+    preset_id: uuid.UUID = Field(..., description="The unique identifier of the preset.")
+    tool_id: uuid.UUID = Field(..., description="The unique identifier of the tool.")
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the preset-tool map.", primary_key=True)
 
 
 class AgentStateModel(BaseModel):
