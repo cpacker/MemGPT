@@ -44,7 +44,7 @@ jobs:
         if [ -z "$OPENAI_API_KEY" ]; then
           poetry run memgpt quickstart --backend openai
         else
-          poetry run memgpt quickstart --backend openai
+          poetry run memgpt quickstart --backend memgpt
         fi
 
     - name: Run docker compose server

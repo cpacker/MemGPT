@@ -307,13 +307,15 @@ class MetadataStore:
             # construct URI from enviornment variables
             if os.getenv("MEMGPT_PGURI"):
                 self.uri = os.getenv("MEMGPT_PGURI")
-            else:
+            elif os.getenv("MEMGPT_PG_DB"):
                 db = os.getenv("MEMGPT_PG_DB", "memgpt")
                 user = os.getenv("MEMGPT_PG_USER", "memgpt")
                 password = os.getenv("MEMGPT_PG_PASSWORD", "memgpt")
                 port = os.getenv("MEMGPT_PG_PORT", "5432")
                 url = os.getenv("MEMGPT_PG_URL", "localhost")
                 self.uri = f"postgresql+pg8000://{user}:{password}@{url}:{port}/{db}"
+            else:
+                self.uri = config.metadata_storage_uri
         elif config.metadata_storage_type == "sqlite":
             path = os.path.join(config.metadata_storage_path, "sqlite.db")
             self.uri = f"sqlite:///{path}"
