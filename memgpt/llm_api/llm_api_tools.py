@@ -2,13 +2,15 @@ import random
 import time
 import requests
 import time
+from typing import List
 
 from memgpt.credentials import MemGPTCredentials
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
 from memgpt.constants import CLI_WARNING_PREFIX
 from memgpt.models.chat_completion_response import ChatCompletionResponse
+from memgpt.models.chat_completion_request import ChatCompletionRequest, cast_message_to_subtype
 
-from memgpt.data_types import AgentState
+from memgpt.data_types import AgentState, Message
 
 from memgpt.llm_api.openai import openai_chat_completions_request
 from memgpt.llm_api.azure_openai import azure_openai_chat_completions_request, MODEL_TO_AZURE_ENGINE
@@ -113,7 +115,7 @@ def retry_with_exponential_backoff(
 @retry_with_exponential_backoff
 def create(
     agent_state: AgentState,
-    messages,
+    messages: List[Message],
     functions=None,
     functions_python=None,
     function_call="auto",
@@ -142,17 +144,17 @@ def create(
             # only is a problem if we are *not* using an openai proxy
             raise ValueError(f"OpenAI key is missing from MemGPT config file")
         if use_tool_naming:
-            data = dict(
+            data = ChatCompletionRequest(
                 model=agent_state.llm_config.model,
-                messages=messages,
+                messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
                 tools=[{"type": "function", "function": f} for f in functions] if functions else None,
                 tool_choice=function_call,
                 user=str(agent_state.user_id),
             )
         else:
-            data = dict(
+            data = ChatCompletionRequest(
                 model=agent_state.llm_config.model,
-                messages=messages,
+                messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
                 functions=functions,
                 function_call=function_call,
                 user=str(agent_state.user_id),

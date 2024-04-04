@@ -102,16 +102,21 @@ class CoreMemory(object):
             raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
 
 
+def _format_summary_history(message_history: List[Message]):
+    # TODO use existing prompt formatters for this (eg ChatML)
+    return "\n".join([f"{m.role}: {m.text}" for m in message_history])
+
+
 def summarize_messages(
     agent_state: AgentState,
-    message_sequence_to_summarize,
+    message_sequence_to_summarize: List[Message],
 ):
     """Summarize a message sequence using GPT"""
     # we need the context_window
     context_window = agent_state.llm_config.context_window
 
     summary_prompt = SUMMARY_PROMPT_SYSTEM
-    summary_input = str(message_sequence_to_summarize)
+    summary_input = _format_summary_history(message_sequence_to_summarize)
     summary_input_tkns = count_tokens(summary_input)
     if summary_input_tkns > MESSAGE_SUMMARY_WARNING_FRAC * context_window:
         trunc_ratio = (MESSAGE_SUMMARY_WARNING_FRAC * context_window / summary_input_tkns) * 0.8  # For good measure...
@@ -120,9 +125,12 @@ def summarize_messages(
             [summarize_messages(agent_state, message_sequence_to_summarize=message_sequence_to_summarize[:cutoff])]
             + message_sequence_to_summarize[cutoff:]
         )
+
+    dummy_user_id = uuid.uuid4()
+    dummy_agent_id = uuid.uuid4()
     message_sequence = [
-        {"role": "system", "content": summary_prompt},
-        {"role": "user", "content": summary_input},
+        Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role="system", text=summary_prompt),
+        Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role="user", text=summary_input),
     ]
 
     response = create(

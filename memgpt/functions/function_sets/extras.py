@@ -2,7 +2,7 @@ from typing import Optional
 import os
 import json
 import requests
-
+import uuid
 
 from memgpt.constants import (
     JSON_LOADS_STRICT,
@@ -12,6 +12,7 @@ from memgpt.constants import (
     JSON_ENSURE_ASCII,
 )
 from memgpt.llm_api.llm_api_tools import create
+from memgpt.data_types import Message
 
 
 def message_chatgpt(self, message: str):
@@ -24,15 +25,15 @@ def message_chatgpt(self, message: str):
     Returns:
         str: Reply message from ChatGPT
     """
+    dummy_user_id = uuid.uuid4()
+    dummy_agent_id = uuid.uuid4()
     message_sequence = [
-        {"role": "system", "content": MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE},
-        {"role": "user", "content": str(message)},
+        Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role="system", text=MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE),
+        Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role="user", text=str(message)),
     ]
     response = create(
         model=MESSAGE_CHATGPT_FUNCTION_MODEL,
         messages=message_sequence,
-        # functions=functions,
-        # function_call=function_call,
     )
 
     reply = response.choices[0].message.content

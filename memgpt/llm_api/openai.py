@@ -3,6 +3,7 @@ import time
 from typing import Union, Optional
 
 from memgpt.models.chat_completion_response import ChatCompletionResponse
+from memgpt.models.chat_completion_request import ChatCompletionRequest
 from memgpt.models.embedding_response import EmbeddingResponse
 from memgpt.utils import smart_urljoin
 
@@ -57,12 +58,13 @@ def openai_get_model_list(url: str, api_key: Union[str, None], fix_url: Optional
         raise e
 
 
-def openai_chat_completions_request(url: str, api_key: str, data: dict) -> ChatCompletionResponse:
+def openai_chat_completions_request(url: str, api_key: str, data: ChatCompletionRequest) -> ChatCompletionResponse:
     """https://platform.openai.com/docs/guides/text-generation?lang=curl"""
     from memgpt.utils import printd
 
     url = smart_urljoin(url, "chat/completions")
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+    data = data.model_dump(exclude_none=True)
 
     # If functions == None, strip from the payload
     if "functions" in data and data["functions"] is None:

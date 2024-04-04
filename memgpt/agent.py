@@ -400,7 +400,7 @@ class Agent(object):
 
     def _get_ai_reply(
         self,
-        message_sequence: List[dict],
+        message_sequence: List[Message],
         function_call: str = "auto",
         first_message: bool = False,  # hint
     ) -> chat_completion_response.ChatCompletionResponse:
@@ -694,12 +694,12 @@ class Agent(object):
 
                 self.interface.user_message(user_message.text, msg_obj=user_message)
 
-                input_message_sequence = self.messages + [user_message.to_openai_dict()]
+                input_message_sequence = self._messages + [user_message]
             # Alternatively, the requestor can send an empty user message
             else:
-                input_message_sequence = self.messages
+                input_message_sequence = self._messages
 
-            if len(input_message_sequence) > 1 and input_message_sequence[-1]["role"] != "user":
+            if len(input_message_sequence) > 1 and input_message_sequence[-1].role != "user":
                 printd(f"{CLI_WARNING_PREFIX}Attempting to run ChatCompletion without user as the last message in the queue")
 
             # Step 1: send the conversation and available functions to GPT
