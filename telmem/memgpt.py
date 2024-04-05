@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MEMGPT_ADMIN_API_KEY = os.getenv("MEMGPT_SERVER_PASS ")
+MEMGPT_ADMIN_API_KEY = os.getenv("MEMGPT_SERVER_PASS")
 
 # Helper function to make asynchronous HTTP requests
 async def async_request(method, url, **kwargs):
@@ -19,10 +19,6 @@ async def async_request(method, url, **kwargs):
     return response
 
 async def create_memgpt_user(telegram_user_id: int):
-    # Check if user already exists in Supabase
-    user_exists = await check_user_exists(telegram_user_id)
-    if user_exists:
-        return "User already exists."
 
     # Proceed with MemGPT user and agent creation
     response = await async_request('POST', 'http://localhost:8283/admin/users', headers={'Authorization': f'Bearer {MEMGPT_ADMIN_API_KEY}'})
@@ -37,7 +33,7 @@ async def create_memgpt_user(telegram_user_id: int):
             json={
                 "config": {
                     "user_id": f"{user_memgpt_id}",
-                    "name": "Default Agent",
+                    "name": "DefaultAgent",
                     "preset": "memgpt_chat",
                 }
             }
@@ -260,8 +256,6 @@ async def delete_agent(telegram_user_id: int, agent_name: str):
         return f"Agent {agent_name} successfully deleted."
     else:
         return f"Error occured."
-
-    
 
 async def name_to_id(agents_info, agent_name):
     # Split agents_info into individual agent records

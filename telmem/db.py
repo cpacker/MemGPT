@@ -89,10 +89,12 @@ async def check_user_exists(telegram_user_id: int) -> bool:
     try:
         loop = asyncio.get_event_loop()
         data, error = await loop.run_in_executor(None, lambda: supabase.table("users").select("id").eq("telegram_user_id", telegram_user_id).execute())
-        if data:
+        if data and data[1]:
+            response = ("You are already registered.")
             logging.info(f"User with Telegram user ID {telegram_user_id} already exists.")
-            return True
+            return response
         else:
+            response = ("You are not registered. Please type /start to register.")
             logging.info(f"User with Telegram user ID {telegram_user_id} does not exist.")
             return False
     except Exception as e:
