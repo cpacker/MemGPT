@@ -214,7 +214,13 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                     for x in range(len(memgpt_agent.messages) - 1, 0, -1):
                         if memgpt_agent.messages[x].get("role") == "assistant":
                             text = user_input[len("/rethink ") :].strip()
-                            memgpt_agent.messages[x].update({"content": text})
+
+                            # Do the /rethink-ing
+                            message_obj = memgpt_agent._messages[x]
+                            message_obj.text = text
+
+                            # To persist to the database, all we need to do is "re-insert" into recall memory
+                            memgpt_agent.persistence_manager.recall_memory.storage.update(record=message_obj)
                             break
                     continue
 
