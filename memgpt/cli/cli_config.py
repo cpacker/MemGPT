@@ -538,6 +538,7 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
     else:  # local models
         embedding_endpoint_type = "local"
         embedding_endpoint = None
+        embedding_model = "BAAI/bge-small-en-v1.5"
         embedding_dim = 384
 
     return embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model
