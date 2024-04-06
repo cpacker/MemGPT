@@ -14,6 +14,7 @@ from memgpt.data_types import AgentState, Message
 
 from memgpt.llm_api.openai import openai_chat_completions_request
 from memgpt.llm_api.azure_openai import azure_openai_chat_completions_request, MODEL_TO_AZURE_ENGINE
+from memgpt.llm_api.google_ai import google_ai_chat_completions_request, convert_tools_to_google_ai_format, annotate_messages_with_tools
 
 
 def is_context_overflow_error(exception: requests.exceptions.RequestException) -> bool:
@@ -196,6 +197,21 @@ def create(
             api_version=credentials.azure_version,
             api_key=credentials.azure_key,
             data=data,
+        )
+
+    elif agent_state.llm_config.model_endpoint_type == "google_ai":
+        if not use_tool_naming:
+            raise NotImplementedError("Only tool calling supported on Google AI API requests")
+
+        return google_ai_chat_completions_request(
+            service_endpoint="test",
+            model="gemini",
+            api_key="based",
+            # see structure of payload here: https://ai.google.dev/docs/function_calling
+            data=dict(
+                # contents=[m.to_google_ai_dict() for m in messages],
+                # tools=
+            ),
         )
 
     # local model
