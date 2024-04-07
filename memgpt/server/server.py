@@ -1364,11 +1364,6 @@ class SyncServer(LockingServer):
             # count number of passages
             passage_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
             num_passages = passage_conn.size({"data_source": source.name})
-            print(passage_conn.get_all())
-            print(
-                "NUMBER PASSAGES",
-                num_passages,
-            )
 
             # TODO: add when documents table implemented
             ## count number of documents
