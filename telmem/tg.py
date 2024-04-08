@@ -1,4 +1,4 @@
-from telegram.ext import Application, CommandHandler, ConversationHandler, MessageHandler, filters, CallbackContext, CallbackQueryHandler
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext, CallbackQueryHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from memgpt import create_memgpt_user, create_agent, current_agent, delete_agent, change_agent, send_message_to_memgpt, check_user_exists, list_agents
 import logging
@@ -49,9 +49,6 @@ async def echo(update: Update, context: CallbackContext):
 async def debug(update: Update, context: CallbackContext):
     await context.bot.send_message(chat_id=update.message.from_user.id, text="Debug: Bot is running.")
 
-async def listagents(user_id):
-    response = await list_agents(user_id)
-    return response
 
 async def createagent(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
@@ -66,27 +63,15 @@ async def createagent(update: Update, context: CallbackContext):
         # If no arguments are provided, send a message asking the user to provide a name
         await context.bot.send_message(chat_id=chat_id, text="Please provide a name for the agent.")
 
-async def currentagent(user_id):
-    response = await current_agent(user_id)
-    return response
 
-async def checkuser(user_id):
-    response = await check_user_exists(user_id)
-    return response
-
-async def changeagent(user_id, agent_name):
-    response = await change_agent(user_id, agent_name)
-    return response
-
-async def change_agents_buttons(update: Update, context: CallbackContext):
+# Generic function to generate inline keyboard markup for a list of agents
+async def generate_agent_buttons(update: Update, context: CallbackContext, agents_info: str, prefix: str):
     try:
-        user_id = update.callback_query.from_user.id
-        agents_info = await list_agents(user_id)
         if agents_info.startswith("Num of agents"):
             agent_names = re.findall(r'Agent Name: (\S+)', agents_info)
             if agent_names:
                 keyboard = [
-                    [InlineKeyboardButton(agent, callback_data=f'agent_{agent}') for agent in agent_names]
+                    [InlineKeyboardButton(agent, callback_data=f'{prefix}_{agent}') for agent in agent_names]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await context.bot.send_message(chat_id=update.callback_query.message.chat.id, text="Choose an agent:", reply_markup=reply_markup)
@@ -97,28 +82,15 @@ async def change_agents_buttons(update: Update, context: CallbackContext):
     except Exception as e:
         await context.bot.send_message(chat_id=update.callback_query.message.chat.id, text=f"Error: {e}")
 
-async def deleteagent(user_id, agent_name):
-    response = await delete_agent(user_id, agent_name)
-    return response
-
 async def delete_agent_buttons(update: Update, context: CallbackContext):
-    try:
-        user_id = update.callback_query.from_user.id
-        agents_info = await list_agents(user_id)
-        if agents_info.startswith("Num of agents"):
-            agent_names = re.findall(r'Agent Name: (\S+)', agents_info)
-            if agent_names:
-                keyboard = [
-                    [InlineKeyboardButton(agent, callback_data=f'delete_{agent}') for agent in agent_names]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await context.bot.send_message(chat_id=update.callback_query.message.chat.id, text="Choose an agent to delete:", reply_markup=reply_markup)
-            else:
-                await context.bot.send_message(chat_id=update.callback_query.message.chat.id, text="No agents available.")
-        else:
-            await context.bot.send_message(chat_id=update.callback_query.message.chat.id, text=agents_info)
-    except Exception as e:
-        await context.bot.send_message(chat_id=update.callback_query.message.chat.id, text=f"Error: {e}")
+    user_id = update.callback_query.from_user.id
+    agents_info = await list_agents(user_id)
+    await generate_agent_buttons(update, context, agents_info, 'delete')
+
+async def change_agent_buttons(update: Update, context: CallbackContext):
+    user_id = update.callback_query.from_user.id
+    agents_info = await list_agents(user_id)
+    await generate_agent_buttons(update, context, agents_info, 'change')
 
 async def help_command(update: Update, context: CallbackContext):
     chat_id = update.message.chat.id
@@ -133,16 +105,16 @@ async def menu(update: Update, context: CallbackContext):
     # Create a menu with inline buttons
     keyboard = [
         [
-            InlineKeyboardButton("List Agents", callback_data='listagents'),
-            InlineKeyboardButton("Current Agent", callback_data='currentagent')
+            InlineKeyboardButton("List Agents", callback_data='list_agents'),
+            InlineKeyboardButton("Current Agent", callback_data='current_agent')
         ],
         [
-            InlineKeyboardButton("Change Agent", callback_data='change_agents_buttons'),
+            InlineKeyboardButton("Change Agent", callback_data='change_agent_buttons'),
             InlineKeyboardButton("Create Agent", callback_data='createagent')
         ],
         [
             InlineKeyboardButton("Delete Agent", callback_data='delete_agent_buttons'),
-            InlineKeyboardButton("Check User", callback_data='checkuser')
+            InlineKeyboardButton("Check User", callback_data='check_user')
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -156,30 +128,28 @@ async def button_click(update: Update, context: CallbackContext):
     callback_data = query.data
     user_id = query.from_user.id
     chat_id = query.message.chat.id
-    if callback_data == 'listagents':
-        response = await listagents(user_id)
+    if callback_data == 'list_agents':
+        response = await list_agents(user_id)
         await context.bot.send_message(chat_id=chat_id, text=response)
-    elif callback_data == 'currentagent':
-        response = await currentagent(user_id)
+    elif callback_data == 'current_agent':
+        response = await current_agent(user_id)
         await context.bot.send_message(chat_id=chat_id, text=response)
-    elif callback_data == 'change_agents_buttons':
-        await change_agents_buttons(update, context)
+    elif callback_data == 'change_agent_buttons':
+        await change_agent_buttons(update, context)
     elif callback_data == 'createagent':
         await createagent(update, context)
     elif callback_data == 'delete_agent_buttons':
         await delete_agent_buttons(update, context)
-    elif callback_data == 'checkuser':
-        response = await checkuser(user_id)
+    elif callback_data == 'check_user':
+        response = await check_user_exists(user_id)
         await context.bot.send_message(chat_id=chat_id, text=response)
-    elif callback_data.startswith('agent_'):
-        # Extract agent name from callback_data
+    elif callback_data.startswith('change_'):
         agent_name = callback_data.split('_')[1]
-        # Call changeagent function with user_id and agent_name
-        response = await changeagent(user_id, agent_name)
+        response = await change_agent(user_id, agent_name)
         await context.bot.send_message(chat_id=chat_id, text=response)
     elif callback_data.startswith('delete_'):
         agent_name = callback_data.split('_')[1]
-        response = await deleteagent(user_id, agent_name)
+        response = await delete_agent(user_id, agent_name)
         await context.bot.send_message(chat_id=chat_id, text=response)
 
 def main():
@@ -188,6 +158,8 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("menu", menu))
+    application.add_handler(CommandHandler("createagent", createagent))
+
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
     application.add_handler(CallbackQueryHandler(callback=button_click))
