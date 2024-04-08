@@ -4,8 +4,8 @@ from memgpt import create_memgpt_user, create_agent, current_agent, delete_agent
 import logging
 import os
 from dotenv import load_dotenv
+import re
 
-AGENT_NAME = 0
 
 load_dotenv()
 
@@ -74,30 +74,51 @@ async def checkuser(user_id):
     response = await check_user_exists(user_id)
     return response
 
-async def changeagent(update: Update, context: CallbackContext):
-    user_id = update.message.from_user.id
-    chat_id = update.message.chat.id
-    
-    # Check if arguments are provided
-    if context.args:
-        name = context.args[0]
-        response = await change_agent(user_id, name)
-        await context.bot.send_message(chat_id=chat_id, text=response)
-    else:
-        # If no arguments are provided, send a message asking the user to provide a name
-        await context.bot.send_message(chat_id=chat_id, text="Please type the name of the agent. Type /listagents.")
+async def changeagent(user_id, agent_name):
+    response = await change_agent(user_id, agent_name)
+    return response
 
-async def deleteagent(update: Update, context: CallbackContext):
-    user_id = update.message.from_user.id
-    chat_id = update.message.chat.id
-    # Check if arguments are provided
-    if context.args:
-        name = context.args[0]
-        response = await delete_agent(user_id, name)
-        await context.bot.send_message(chat_id=chat_id, text=response)
-    else:
-        # If no arguments are provided, send a message asking the user to provide a name
-        await context.bot.send_message(chat_id=chat_id, text="Please type the name of the agent. Type /listagents.")
+async def change_agents_buttons(update: Update, context: CallbackContext):
+    try:
+        user_id = update.callback_query.from_user.id
+        agents_info = await list_agents(user_id)
+        if agents_info.startswith("Num of agents"):
+            agent_names = re.findall(r'Agent Name: (\S+)', agents_info)
+            if agent_names:
+                keyboard = [
+                    [InlineKeyboardButton(agent, callback_data=f'agent_{agent}') for agent in agent_names]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await context.bot.send_message(chat_id=update.callback_query.message.chat.id, text="Choose an agent:", reply_markup=reply_markup)
+            else:
+                await context.bot.send_message(chat_id=update.callback_query.message.chat.id, text="No agents available.")
+        else:
+            await context.bot.send_message(chat_id=update.callback_query.message.chat.id, text=agents_info)
+    except Exception as e:
+        await context.bot.send_message(chat_id=update.callback_query.message.chat.id, text=f"Error: {e}")
+
+async def deleteagent(user_id, agent_name):
+    response = await delete_agent(user_id, agent_name)
+    return response
+
+async def delete_agent_buttons(update: Update, context: CallbackContext):
+    try:
+        user_id = update.callback_query.from_user.id
+        agents_info = await list_agents(user_id)
+        if agents_info.startswith("Num of agents"):
+            agent_names = re.findall(r'Agent Name: (\S+)', agents_info)
+            if agent_names:
+                keyboard = [
+                    [InlineKeyboardButton(agent, callback_data=f'delete_{agent}') for agent in agent_names]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await context.bot.send_message(chat_id=update.callback_query.message.chat.id, text="Choose an agent to delete:", reply_markup=reply_markup)
+            else:
+                await context.bot.send_message(chat_id=update.callback_query.message.chat.id, text="No agents available.")
+        else:
+            await context.bot.send_message(chat_id=update.callback_query.message.chat.id, text=agents_info)
+    except Exception as e:
+        await context.bot.send_message(chat_id=update.callback_query.message.chat.id, text=f"Error: {e}")
 
 async def help_command(update: Update, context: CallbackContext):
     chat_id = update.message.chat.id
@@ -116,11 +137,11 @@ async def menu(update: Update, context: CallbackContext):
             InlineKeyboardButton("Current Agent", callback_data='currentagent')
         ],
         [
-            InlineKeyboardButton("Change Agent", callback_data='changeagent'),
+            InlineKeyboardButton("Change Agent", callback_data='change_agents_buttons'),
             InlineKeyboardButton("Create Agent", callback_data='createagent')
         ],
         [
-            InlineKeyboardButton("Delete Agent", callback_data='deleteagent'),
+            InlineKeyboardButton("Delete Agent", callback_data='delete_agent_buttons'),
             InlineKeyboardButton("Check User", callback_data='checkuser')
         ]
     ]
@@ -134,7 +155,6 @@ async def button_click(update: Update, context: CallbackContext):
     
     callback_data = query.data
     user_id = query.from_user.id
-    print(callback_data)
     chat_id = query.message.chat.id
     if callback_data == 'listagents':
         response = await listagents(user_id)
@@ -142,18 +162,25 @@ async def button_click(update: Update, context: CallbackContext):
     elif callback_data == 'currentagent':
         response = await currentagent(user_id)
         await context.bot.send_message(chat_id=chat_id, text=response)
-    elif callback_data == 'changeagent':
-        response = await changeagent(update, context)
-        await context.bot.send_message(chat_id=chat_id, text=response)
+    elif callback_data == 'change_agents_buttons':
+        await change_agents_buttons(update, context)
     elif callback_data == 'createagent':
         await createagent(update, context)
-    elif callback_data == 'deleteagent':
-        await deleteagent(update, context)
+    elif callback_data == 'delete_agent_buttons':
+        await delete_agent_buttons(update, context)
     elif callback_data == 'checkuser':
         response = await checkuser(user_id)
         await context.bot.send_message(chat_id=chat_id, text=response)
-
-
+    elif callback_data.startswith('agent_'):
+        # Extract agent name from callback_data
+        agent_name = callback_data.split('_')[1]
+        # Call changeagent function with user_id and agent_name
+        response = await changeagent(user_id, agent_name)
+        await context.bot.send_message(chat_id=chat_id, text=response)
+    elif callback_data.startswith('delete_'):
+        agent_name = callback_data.split('_')[1]
+        response = await deleteagent(user_id, agent_name)
+        await context.bot.send_message(chat_id=chat_id, text=response)
 
 def main():
     logging.basicConfig(level=logging.DEBUG)
@@ -164,7 +191,6 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
     application.add_handler(CallbackQueryHandler(callback=button_click))
-
 
     application.run_polling()
 
