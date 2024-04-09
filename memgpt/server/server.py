@@ -37,7 +37,7 @@ from memgpt.data_types import (
     Preset,
 )
 
-from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel, PresetModel
+from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel, PresetModel, ToolModel
 from memgpt.interface import AgentInterface  # abstract
 
 # TODO use custom interface
@@ -1391,3 +1391,11 @@ class SyncServer(LockingServer):
             sources_with_metadata.append(source)
 
         return sources_with_metadata
+
+    def create_tool(self, name: str, user_id: uuid.UUID) -> ToolModel:  # TODO: add other fields
+        """Create a new tool"""
+        pass
+
+    def delete_tool(self, tool_id: uuid.UUID, user_id: uuid.UUID):
+        """Delete a tool"""
+        pass

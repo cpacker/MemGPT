@@ -234,7 +234,7 @@ class Agent(object):
 
         # Store the system instructions (used to rebuild memory)
         if "system" not in self.agent_state.state:
-            raise ValueError(f"'system' not found in provided AgentState")
+            raise ValueError("'system' not found in provided AgentState")
         self.system = self.agent_state.state["system"]
 
         if "functions" not in self.agent_state.state:
@@ -1101,7 +1101,7 @@ def save_agent(agent: Agent, ms: MetadataStore):
     agent.update_state()
     agent_state = agent.agent_state
 
-    if ms.get_agent(agent_id=agent_state.id):
+    if ms.get_agent(agent_name=agent_state.name, user_id=agent_state.user_id):
         ms.update_agent(agent_state)
     else:
         ms.create_agent(agent_state)
