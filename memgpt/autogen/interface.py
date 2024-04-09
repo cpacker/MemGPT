@@ -66,7 +66,7 @@ class AutoGenInterface(object):
         """Clears the buffer. Call before every agent.step() when using MemGPT+AutoGen"""
         self.message_list = []
 
-    def internal_monologue(self, msg: str, msg_obj: Optional[Message]):
+    def internal_monologue(self, msg: str, msg_obj: Optional[Message] = None):
         # NOTE: never gets appended
         if self.debug:
             print(f"inner thoughts :: {msg}")
@@ -76,7 +76,7 @@ class AutoGenInterface(object):
         message = f"\x1B[3m{Fore.LIGHTBLACK_EX}💭 {msg}{Style.RESET_ALL}" if self.fancy else f"[MemGPT agent's inner thoughts] {msg}"
         print(message)
 
-    def assistant_message(self, msg: str, msg_obj: Optional[Message]):
+    def assistant_message(self, msg: str, msg_obj: Optional[Message] = None):
         # NOTE: gets appended
         if self.debug:
             print(f"assistant :: {msg}")
@@ -100,7 +100,7 @@ class AutoGenInterface(object):
         print(message)
         self.message_list.append(msg)
 
-    def user_message(self, msg: str, msg_obj: Optional[Message], raw=False):
+    def user_message(self, msg: str, msg_obj: Optional[Message] = None, raw=False):
         if self.debug:
             print(f"user :: {msg}")
         if not self.show_user_message:
@@ -138,7 +138,7 @@ class AutoGenInterface(object):
         # TODO should we ever be appending this?
         self.message_list.append(message)
 
-    def function_message(self, msg: str, msg_obj: Optional[Message]):
+    def function_message(self, msg: str, msg_obj: Optional[Message] = None):
         if self.debug:
             print(f"function :: {msg}")
         if not self.show_function_outputs:
