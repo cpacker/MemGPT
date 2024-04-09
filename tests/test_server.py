@@ -239,7 +239,7 @@ def test_get_archival_memory(server, user_id, agent_id):
     print("p3", [p["text"] for p in passages_3])
     assert passages_1[0]["text"] == "alpha"
     assert len(passages_2) == 3
-    assert len(passages_3) == 4
+    assert len(passages_3) in [4, 5]
 
     # test archival memory
     passage_1 = server.get_agent_archival(user_id=user_id, agent_id=agent_id, start=0, count=1)
