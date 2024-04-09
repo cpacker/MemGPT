@@ -164,7 +164,9 @@ class AbstractClient(object):
         """List all tools."""
         raise NotImplementedError
 
-    def create_tool(self, name: str, source_code: str, source_type: str, tags: Optional[List[str]] = None):
+    def create_tool(
+        self, name: str, file_path: str, source_type: Optional[str] = "python", tags: Optional[List[str]] = None
+    ) -> CreateToolResponse:
         """Create a tool."""
         raise NotImplementedError
 
@@ -421,17 +423,6 @@ class RESTClient(AbstractClient):
         print(response.json())
         return PersonaModel(**response.json())
 
-    # tools
-
-    def list_tools(self) -> ListToolsResponse:
-        response = requests.get(f"{self.base_url}/api/tools", headers=self.headers)
-        return ListToolsResponse(**response.json())
-
-    def create_tool(self, name: str, source_code: str, source_type: str, tags: Optional[List[str]] = None) -> CreateToolResponse:
-        data = {"name": name, "source_code": source_code, "source_type": source_type, "tags": tags}
-        response = requests.post(f"{self.base_url}/api/tools", json=data, headers=self.headers)
-        return CreateToolResponse(**response.json())
-
     # sources
 
     def list_sources(self):
@@ -488,6 +479,23 @@ class RESTClient(AbstractClient):
     def get_config(self) -> ConfigResponse:
         response = requests.get(f"{self.base_url}/api/config", headers=self.headers)
         return ConfigResponse(**response.json())
+
+    # tools
+
+    def create_tool(
+        self, name: str, file_path: str, source_type: Optional[str] = "python", tags: Optional[List[str]] = None
+    ) -> CreateToolResponse:
+        """Add a tool implemented in a file path"""
+        source_code = open(file_path, "r").read()
+        data = {"name": name, "source_code": source_code, "source_type": source_type, "tags": tags}
+        response = requests.post(f"{self.base_url}/api/tools", json=data, headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create tool: {response.text}")
+        return CreateToolResponse(**response.json())
+
+    def list_tools(self) -> ListToolsResponse:
+        response = requests.get(f"{self.base_url}/api/tools", headers=self.headers)
+        return ListToolsResponse(**response.json())
 
 
 class LocalClient(AbstractClient):

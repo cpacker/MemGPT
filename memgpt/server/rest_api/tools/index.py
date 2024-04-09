@@ -51,6 +51,16 @@ def setup_tools_index_router(server: SyncServer, interface: QueuingInterface, pa
         """
         Create a new tool (dummy route)
         """
+        from memgpt.functions.functions import write_function
+
+        # write function to ~/.memgt/functions directory
+        write_function(request.name, request.name, request.source_code)
+
+        print("adding tool", request.name, request.tags, request.source_code)
+        tool = ToolModel(name=request.name, json_schema={}, tags=request.tags, source_code=request.source_code)
+        server.ms.add_tool(tool)
+
+        # TODO: insert tool information into DB as ToolModel
         return CreateToolResponse(tool=ToolModel(name=request.name, json_schema={}, tags=[], source_code=request.source_code))
 
     return router
