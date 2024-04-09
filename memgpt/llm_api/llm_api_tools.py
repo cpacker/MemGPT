@@ -18,7 +18,6 @@ from memgpt.llm_api.azure_openai import azure_openai_chat_completions_request, M
 from memgpt.llm_api.google_ai import (
     google_ai_chat_completions_request,
     convert_tools_to_google_ai_format,
-    annotate_messages_with_tool_names,
 )
 
 
@@ -220,9 +219,9 @@ def create(
 
         return google_ai_chat_completions_request(
             inner_thoughts_in_kwargs=google_ai_inner_thoughts_in_kwarg,
-            service_endpoint=os.getenv("GAI_SERVICE_ENDPOINT"),
-            model="gemini-pro",
-            api_key=os.getenv("GAI_API_KEY"),
+            service_endpoint=credentials.google_ai_service_endpoint,
+            model=agent_state.llm_config.model,
+            api_key=credentials.google_ai_key,
             # see structure of payload here: https://ai.google.dev/docs/function_calling
             data=dict(
                 contents=[m.to_google_ai_dict() for m in messages],

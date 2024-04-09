@@ -18,8 +18,96 @@ SUPPORTED_MODELS = [
 ]
 
 
-def annotate_messages_with_tool_names():
-    return
+def google_ai_get_model_details(service_endpoint: str, api_key: str, model: str, key_in_header: bool = True) -> List[dict]:
+    from memgpt.utils import printd
+
+    # Two ways to pass the key: https://ai.google.dev/tutorials/setup
+    if key_in_header:
+        url = f"https://{service_endpoint}.googleapis.com/v1beta/models/{model}"
+        headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
+    else:
+        url = f"https://{service_endpoint}.googleapis.com/v1beta/models/{model}?key={api_key}"
+        headers = {"Content-Type": "application/json"}
+
+    try:
+        response = requests.get(url, headers=headers)
+        printd(f"response = {response}")
+        response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
+        response = response.json()  # convert to dict from string
+        printd(f"response.json = {response}")
+
+        # Grab the models out
+        return response
+
+    except requests.exceptions.HTTPError as http_err:
+        # Handle HTTP errors (e.g., response 4XX, 5XX)
+        printd(f"Got HTTPError, exception={http_err}")
+        # Print the HTTP status code
+        print(f"HTTP Error: {http_err.response.status_code}")
+        # Print the response content (error message from server)
+        print(f"Message: {http_err.response.text}")
+        raise http_err
+
+    except requests.exceptions.RequestException as req_err:
+        # Handle other requests-related errors (e.g., connection error)
+        printd(f"Got RequestException, exception={req_err}")
+        raise req_err
+
+    except Exception as e:
+        # Handle other potential errors
+        printd(f"Got unknown Exception, exception={e}")
+        raise e
+
+
+def google_ai_get_model_context_window(service_endpoint: str, api_key: str, model: str, key_in_header: bool = True) -> int:
+    model_details = google_ai_get_model_details(
+        service_endpoint=service_endpoint, api_key=api_key, model=model, key_in_header=key_in_header
+    )
+    # TODO should this be:
+    # return model_details["inputTokenLimit"] + model_details["outputTokenLimit"]
+    return int(model_details["inputTokenLimit"])
+
+
+def google_ai_get_model_list(service_endpoint: str, api_key: str, key_in_header: bool = True) -> List[dict]:
+    from memgpt.utils import printd
+
+    # Two ways to pass the key: https://ai.google.dev/tutorials/setup
+    if key_in_header:
+        url = f"https://{service_endpoint}.googleapis.com/v1beta/models"
+        headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
+    else:
+        url = f"https://{service_endpoint}.googleapis.com/v1beta/models?key={api_key}"
+        headers = {"Content-Type": "application/json"}
+
+    try:
+        response = requests.get(url, headers=headers)
+        printd(f"response = {response}")
+        response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
+        response = response.json()  # convert to dict from string
+        printd(f"response.json = {response}")
+
+        # Grab the models out
+        model_list = response["models"]
+        return model_list
+
+    except requests.exceptions.HTTPError as http_err:
+        # Handle HTTP errors (e.g., response 4XX, 5XX)
+        printd(f"Got HTTPError, exception={http_err}")
+        # Print the HTTP status code
+        print(f"HTTP Error: {http_err.response.status_code}")
+        # Print the response content (error message from server)
+        print(f"Message: {http_err.response.text}")
+        raise http_err
+
+    except requests.exceptions.RequestException as req_err:
+        # Handle other requests-related errors (e.g., connection error)
+        printd(f"Got RequestException, exception={req_err}")
+        raise req_err
+
+    except Exception as e:
+        # Handle other potential errors
+        printd(f"Got unknown Exception, exception={e}")
+        raise e
 
 
 def add_dummy_model_messages(messages: List[dict]) -> List[dict]:
@@ -41,46 +129,6 @@ def add_dummy_model_messages(messages: List[dict]) -> List[dict]:
             messages_with_padding.append(dummy_yield_message)
 
     return messages_with_padding
-
-
-# TODO use pydantic model as input
-def convert_openai_tool_call_to_google_ai(tool_call: dict, inner_thoughts_in_kwargs: Optional[bool] = True) -> dict:
-    """
-    OpenAI format:
-    {
-      "role": "tool",
-      "tool_call_id":
-      "content":
-    }
-
-    Google AI format:
-    {
-      "role": "function",
-      "parts": [{
-        "functionResponse": {
-          "name": "find_theaters",
-          "response": {
-            "name": "find_theaters",
-            "content": {
-              "movie": "Barbie",
-              "theaters": [{
-                "name": "AMC Mountain View 16",
-                "address": "2000 W El Camino Real, Mountain View, CA 94040"
-              }, {
-                "name": "Regal Edwards 14",
-                "address": "245 Castro St, Mountain View, CA 94040"
-              }]
-            }
-          }
-        }]
-    }
-    """
-    pass
-
-
-# TODO use pydantic model as input
-def convert_openai_assistant_content_to_google_ai(tool_call: dict) -> dict:
-    pass
 
 
 # TODO use pydantic model as input
