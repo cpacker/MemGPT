@@ -1,6 +1,7 @@
 """ This module contains the data types used by MemGPT. Each data type must include a function to create a DB model. """
 
 import uuid
+import json
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, TypeVar
 import numpy as np
@@ -299,7 +300,7 @@ class Message(Record):
             parts[]: Part
             role: str ('user' or 'model')
         """
-        if self.name is not None:
+        if self.role != "tool" and self.name is not None:
             raise UserWarning(f"Using Google AI with non-null 'name' field ({self.name}) not yet supported.")
 
         if self.role == "system":
@@ -326,30 +327,56 @@ class Message(Record):
             # NOTE: Google AI API doesn't allow non-null content + function call
             # To get around this, just two a two part message, inner thoughts first then
             parts = []
-            if self.text is not None:
-                parts.append({"text": self.text})
+            # if self.text is not None:
+            # parts.append({"text": self.text})
             if self.tool_calls is not None:
                 # NOTE: implied support for multiple calls
                 for tool_call in self.tool_calls:
+                    function_name = tool_call.function["name"]
+                    function_args = tool_call.function["arguments"]
+                    try:
+                        # NOTE: Google AI wants actual JSON objects, not strings
+                        function_args = json.loads(function_args)
+                    except:
+                        raise UserWarning(f"Failed to parse JSON function args: {function_args}")
+                        function_args = {"args": function_args}
+
                     parts.append(
                         {
                             "functionCall": {
-                                "name": tool_call.function["name"],
-                                "args": tool_call.function["arguments"],
+                                "name": function_name,
+                                "args": function_args,
                             }
                         }
                     )
+            google_ai_message["parts"] = parts
 
         elif self.role == "tool":
             # NOTE: Significantly different tool calling format, more similar to function calling format
             assert all([v is not None for v in [self.role, self.tool_call_id]]), vars(self)
+
+            if self.name is None:
+                raise UserWarning(f"Couldn't find function name on tool call, defaulting to tool ID instead.")
+                function_name = self.tool_call_id
+            else:
+                function_name = self.name
+
+            # NOTE: Google AI API wants the function response as JSON only, no string
+            try:
+                function_response = json.loads(self.text)
+            except:
+                function_response = {"function_response": self.text}
+
             google_ai_message = {
                 "role": "function",
                 "parts": [
                     {
                         "functionResponse": {
-                            "name": self.tool_call_id,  # TODO override with name or replace with self.tool_call_name
-                            "content": self.text,  # NOTE this can be structured JSON
+                            "name": function_name,
+                            "response": {
+                                "name": function_name,  # NOTE: name twice... why?
+                                "content": function_response,
+                            },
                         }
                     }
                 ],

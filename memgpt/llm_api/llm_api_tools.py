@@ -1,6 +1,7 @@
 import random
 import time
 import requests
+import os
 import time
 from typing import List
 
@@ -8,13 +9,17 @@ from memgpt.credentials import MemGPTCredentials
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
 from memgpt.constants import CLI_WARNING_PREFIX
 from memgpt.models.chat_completion_response import ChatCompletionResponse
-from memgpt.models.chat_completion_request import ChatCompletionRequest, cast_message_to_subtype
+from memgpt.models.chat_completion_request import ChatCompletionRequest, Tool, cast_message_to_subtype
 
 from memgpt.data_types import AgentState, Message
 
 from memgpt.llm_api.openai import openai_chat_completions_request
 from memgpt.llm_api.azure_openai import azure_openai_chat_completions_request, MODEL_TO_AZURE_ENGINE
-from memgpt.llm_api.google_ai import google_ai_chat_completions_request, convert_tools_to_google_ai_format, annotate_messages_with_tools
+from memgpt.llm_api.google_ai import (
+    google_ai_chat_completions_request,
+    convert_tools_to_google_ai_format,
+    annotate_messages_with_tool_names,
+)
 
 
 def is_context_overflow_error(exception: requests.exceptions.RequestException) -> bool:
@@ -138,6 +143,9 @@ def create(
         printd("unsetting function_call because functions is None")
         function_call = None
 
+    # TODO remove
+    agent_state.llm_config.model_endpoint_type = "google_ai"
+
     # openai
     if agent_state.llm_config.model_endpoint_type == "openai":
         # TODO do the same for Azure?
@@ -203,14 +211,17 @@ def create(
         if not use_tool_naming:
             raise NotImplementedError("Only tool calling supported on Google AI API requests")
 
+        tools = [{"type": "function", "function": f} for f in functions] if functions else None
+        tools = [Tool(**t) for t in tools]
+
         return google_ai_chat_completions_request(
-            service_endpoint="test",
-            model="gemini",
-            api_key="based",
+            service_endpoint=os.getenv("GAI_SERVICE_ENDPOINT"),
+            model="gemini-pro",
+            api_key=os.getenv("GAI_API_KEY"),
             # see structure of payload here: https://ai.google.dev/docs/function_calling
             data=dict(
-                # contents=[m.to_google_ai_dict() for m in messages],
-                # tools=
+                contents=[m.to_google_ai_dict() for m in messages],
+                # tools=convert_tools_to_google_ai_format(tools),
             ),
         )
 
