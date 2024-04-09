@@ -142,9 +142,6 @@ def create(
         printd("unsetting function_call because functions is None")
         function_call = None
 
-    # TODO remove
-    agent_state.llm_config.model_endpoint_type = "google_ai"
-
     # openai
     if agent_state.llm_config.model_endpoint_type == "openai":
         # TODO do the same for Azure?
