@@ -164,12 +164,9 @@ def convert_tools_to_google_ai_format(tools: List[Tool], inner_thoughts_in_kwarg
     ]
 
     # Correct casing + add inner thoughts if needed
-    print("YYY", function_list)
     for func in function_list:
         func["parameters"]["type"] = "OBJECT"
-        print("zzz", func["parameters"]["properties"])
         for param_name, param_fields in func["parameters"]["properties"].items():
-            # print("XXX", param)
             param_fields["type"] = param_fields["type"].upper()
         # Add inner thoughts
         if inner_thoughts_in_kwargs:
@@ -380,10 +377,6 @@ def google_ai_chat_completions_request(
     # data["contents"][-1]["role"] = "model"
     if add_postfunc_model_messages:
         data["contents"] = add_dummy_model_messages(data["contents"])
-
-    print(f"messages in 'contents'")
-    for m in data["contents"]:
-        print(m)
 
     printd(f"Sending request to {url}")
     try:
