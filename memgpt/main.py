@@ -11,6 +11,7 @@ from memgpt.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, JSON_ENSURE_ASCII, J
 
 console = Console()
 
+from memgpt.agent import save_agent
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.config import MemGPTConfig
@@ -192,7 +193,9 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                     else:
                         print(f"Popping last {pop_amount} messages from stack")
                         for _ in range(min(pop_amount, len(memgpt_agent.messages))):
-                            memgpt_agent.messages.pop()
+                            memgpt_agent._messages.pop()
+                        # Persist the state
+                        save_agent(agent=memgpt_agent, ms=ms)
                     continue
 
                 elif user_input.lower() == "/retry":
