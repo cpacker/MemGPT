@@ -106,7 +106,7 @@ def run_server():
 @pytest.fixture(
     params=[
         {"base_url": local_service_url},
-        {"base_url": docker_compose_url},  # TODO: add when docker compose added to tests
+        # {"base_url": docker_compose_url},  # TODO: add when docker compose added to tests
         # {"base_url": None} # TODO: add when implemented
     ],
     scope="module",
