@@ -359,15 +359,16 @@ def test_tools(client, agent):
     # list functions
     response = client.list_tools()
     orig_tools = response.tools
-    print(orig_tools)
+    print("Original tools:", [tool.name for tool in orig_tools])
 
     # add the tool
     create_tool_response = client.create_tool(name=module_name, file_path=file_path)
-    print(create_tool_response)
+    print("Create tool response:", create_tool_response)
 
     # list functions
     response = client.list_tools()
     new_tools = response.tools
+    print("Updated tools:", [tool.name for tool in new_tools])
     assert module_name in [tool.name for tool in new_tools]
     # assert len(new_tools) == len(orig_tools) + 1
 
