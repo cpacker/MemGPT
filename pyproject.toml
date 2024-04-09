@@ -42,6 +42,7 @@ fastapi = {version = "^0.104.1", optional = true}
 uvicorn = {version = "^0.24.0.post1", optional = true}
 pytest-asyncio = {version = "^0.23.2", optional = true}
 pydantic = "^2.5.2"
+pydantic-settings = "^2.2.1"
 pyautogen = {version = "0.2.22", optional = true}
 html2text = "^2020.1.16"
 docx2txt = "^0.8"

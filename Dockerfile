@@ -28,4 +28,4 @@ COPY memgpt ./memgpt
 
 EXPOSE 8083
 
-ENTRYPOINT ["python", "-m", "uvicorn", "memgpt.server.rest_api.server:app", "--host", "0.0.0.0", "--port", "8083"]
+CMD ["uvicorn", "memgpt.server.rest_api.server:app", "--host", "0.0.0.0", "--port", "8083"]

@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from tests.config import TestMGPTConfig
 
 utils.DEBUG = True
+from memgpt.settings import settings
 from memgpt.credentials import MemGPTCredentials
 from memgpt.server.server import SyncServer
 from memgpt.data_types import EmbeddingConfig, LLMConfig
@@ -19,9 +20,7 @@ def server():
     wipe_config()
     wipe_memgpt_home()
 
-    # Use os.getenv with a fallback to os.environ.get
-    db_url = os.getenv("MEMGPT_PGURI") or os.environ.get("MEMGPT_PGURI")
-    assert db_url, "Missing MEMGPT_PGURI"
+    db_url = settings.pg_db
 
     if os.getenv("OPENAI_API_KEY"):
         config = TestMGPTConfig(
