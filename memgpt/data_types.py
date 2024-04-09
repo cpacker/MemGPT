@@ -19,6 +19,7 @@ from memgpt.constants import (
 from memgpt.utils import get_utc_time, create_uuid_from_string
 from memgpt.models import chat_completion_response
 from memgpt.utils import get_human_text, get_persona_text, printd, is_utc_datetime
+from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG, INNER_THOUGHTS_KWARG_DESCRIPTION
 
 
 class Record:
@@ -293,7 +294,7 @@ class Message(Record):
 
         return openai_message
 
-    def to_google_ai_dict(self) -> dict:
+    def to_google_ai_dict(self, put_inner_thoughts_in_kwargs: bool = True) -> dict:
         """Go from Message class to Google AI REST message object
 
         type Content: https://ai.google.dev/api/rest/v1/Content / https://ai.google.dev/api/rest/v1beta/Content
@@ -327,8 +328,11 @@ class Message(Record):
             # NOTE: Google AI API doesn't allow non-null content + function call
             # To get around this, just two a two part message, inner thoughts first then
             parts = []
-            # if self.text is not None:
-            # parts.append({"text": self.text})
+            if not put_inner_thoughts_in_kwargs and self.text is not None:
+                # NOTE: ideally we do multi-part for CoT / inner thoughts + function call, but Google AI API doesn't allow it
+                raise NotImplementedError
+                parts.append({"text": self.text})
+
             if self.tool_calls is not None:
                 # NOTE: implied support for multiple calls
                 for tool_call in self.tool_calls:
@@ -340,6 +344,11 @@ class Message(Record):
                     except:
                         raise UserWarning(f"Failed to parse JSON function args: {function_args}")
                         function_args = {"args": function_args}
+
+                    if put_inner_thoughts_in_kwargs and self.text is not None:
+                        assert "inner_thoughts" not in function_args, function_args
+                        assert len(self.tool_calls) == 1
+                        function_args[INNER_THOUGHTS_KWARG] = self.text
 
                     parts.append(
                         {

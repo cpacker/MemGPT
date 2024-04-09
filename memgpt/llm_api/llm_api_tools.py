@@ -211,17 +211,22 @@ def create(
         if not use_tool_naming:
             raise NotImplementedError("Only tool calling supported on Google AI API requests")
 
+        # NOTE: until Google AI supports CoT / text alongside function calls,
+        # we need to put it in a kwarg (unless we want to split the message into two)
+        google_ai_inner_thoughts_in_kwarg = True
+
         tools = [{"type": "function", "function": f} for f in functions] if functions else None
         tools = [Tool(**t) for t in tools]
 
         return google_ai_chat_completions_request(
+            inner_thoughts_in_kwargs=google_ai_inner_thoughts_in_kwarg,
             service_endpoint=os.getenv("GAI_SERVICE_ENDPOINT"),
             model="gemini-pro",
             api_key=os.getenv("GAI_API_KEY"),
             # see structure of payload here: https://ai.google.dev/docs/function_calling
             data=dict(
                 contents=[m.to_google_ai_dict() for m in messages],
-                # tools=convert_tools_to_google_ai_format(tools),
+                tools=convert_tools_to_google_ai_format(tools, inner_thoughts_in_kwargs=google_ai_inner_thoughts_in_kwarg),
             ),
         )
 

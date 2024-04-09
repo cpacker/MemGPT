@@ -1,11 +1,14 @@
 import requests
-from typing import Union, List
+import json
+import uuid
+from typing import Union, List, Optional
 
-from memgpt.models.chat_completion_response import ChatCompletionResponse
+from memgpt.models.chat_completion_response import ChatCompletionResponse, Choice, Message, ToolCall, FunctionCall, UsageStatistics
 from memgpt.models.chat_completion_request import ChatCompletionRequest, Tool
 from memgpt.models.embedding_response import EmbeddingResponse
-from memgpt.utils import smart_urljoin
-from memgpt.constants import NON_USER_MSG_PREFIX
+from memgpt.utils import smart_urljoin, get_tool_call_id, get_utc_time
+from memgpt.local_llm.utils import count_tokens
+from memgpt.constants import NON_USER_MSG_PREFIX, JSON_ENSURE_ASCII
 
 # from memgpt.data_types import ToolCall
 
@@ -41,7 +44,7 @@ def add_dummy_model_messages(messages: List[dict]) -> List[dict]:
 
 
 # TODO use pydantic model as input
-def convert_openai_tool_call_to_google_ai(tool_call: dict) -> dict:
+def convert_openai_tool_call_to_google_ai(tool_call: dict, inner_thoughts_in_kwargs: Optional[bool] = True) -> dict:
     """
     OpenAI format:
     {
@@ -105,7 +108,7 @@ def to_google_ai(openai_message_dict: dict) -> dict:
 
 
 # TODO convert return type to pydantic
-def convert_tools_to_google_ai_format(tools: List[Tool]) -> List[dict]:
+def convert_tools_to_google_ai_format(tools: List[Tool], inner_thoughts_in_kwargs: Optional[bool] = True) -> List[dict]:
     """
     OpenAI style:
       "tools": [{
@@ -114,7 +117,15 @@ def convert_tools_to_google_ai_format(tools: List[Tool]) -> List[dict]:
             "name": "find_movies",
             "description": "find ....",
             "parameters": {
-              ...
+              "type": "object",
+              "properties": {
+                 PARAM: {
+                   "type": PARAM_TYPE,  # eg "string"
+                   "description": PARAM_DESCRIPTION,
+                 },
+                 ...
+              },
+              "required": List[str],
             }
         }
       }
@@ -151,7 +162,185 @@ def convert_tools_to_google_ai_format(tools: List[Tool]) -> List[dict]:
         )
         for t in tools
     ]
+
+    # Correct casing + add inner thoughts if needed
+    print("YYY", function_list)
+    for func in function_list:
+        func["parameters"]["type"] = "OBJECT"
+        print("zzz", func["parameters"]["properties"])
+        for param_name, param_fields in func["parameters"]["properties"].items():
+            # print("XXX", param)
+            param_fields["type"] = param_fields["type"].upper()
+        # Add inner thoughts
+        if inner_thoughts_in_kwargs:
+            from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG, INNER_THOUGHTS_KWARG_DESCRIPTION
+
+            func["parameters"]["properties"][INNER_THOUGHTS_KWARG] = {
+                "type": "STRING",
+                "description": INNER_THOUGHTS_KWARG_DESCRIPTION,
+            }
+            func["parameters"]["required"].append(INNER_THOUGHTS_KWARG)
+
     return [{"functionDeclarations": function_list}]
+
+
+def convert_google_ai_response_to_chatcompletion(
+    response_json: dict,  # REST response from Google AI API
+    model: str,  # Required since not returned
+    input_messages: Optional[List[dict]] = None,  # Required if the API doesn't return UsageMetadata
+    pull_inner_thoughts_from_args: Optional[bool] = True,
+) -> ChatCompletionResponse:
+    """Google AI API response format is not the same as ChatCompletion, requires unpacking
+
+    Example:
+    {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": " OK. Barbie is showing in two theaters in Mountain View, CA: AMC Mountain View 16 and Regal Edwards 14."
+              }
+            ]
+          }
+        }
+      ],
+      "usageMetadata": {
+        "promptTokenCount": 9,
+        "candidatesTokenCount": 27,
+        "totalTokenCount": 36
+      }
+    }
+    """
+    try:
+        choices = []
+        for candidate in response_json["candidates"]:
+            content = candidate["content"]
+
+            role = content["role"]
+            assert role == "model", f"Unknown role in response: {role}"
+
+            parts = content["parts"]
+            # TODO support parts / multimodal
+            assert len(parts) == 1, f"Multi-part not yet supported:\n{parts}"
+            response_message = parts[0]
+
+            # Convert the actual message style to OpenAI style
+            if "functionCall" in response_message and response_message["functionCall"] is not None:
+                function_call = response_message["functionCall"]
+                assert isinstance(function_call, dict), function_call
+                function_name = function_call["name"]
+                assert isinstance(function_name, str), function_name
+                function_args = function_call["args"]
+                assert isinstance(function_args, dict), function_args
+
+                # NOTE: this also involves stripping the inner monologue out of the function
+                if pull_inner_thoughts_from_args:
+                    from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG, INNER_THOUGHTS_KWARG_DESCRIPTION
+
+                    assert INNER_THOUGHTS_KWARG in function_args, f"Couldn't find inner thoughts in function args:\n{function_call}"
+                    inner_thoughts = function_args.pop(INNER_THOUGHTS_KWARG)
+                    assert inner_thoughts is not None, f"Expected non-null inner thoughts function arg:\n{function_call}"
+                else:
+                    inner_thoughts = None
+
+                # Google AI API doesn't generate tool call IDs
+                openai_response_message = Message(
+                    role="assistant",  # NOTE: "model" -> "assistant"
+                    content=inner_thoughts,
+                    tool_calls=[
+                        ToolCall(
+                            id=get_tool_call_id(),
+                            type="function",
+                            function=FunctionCall(
+                                name=function_name,
+                                arguments=json.dumps(function_args),
+                            ),
+                        )
+                    ],
+                )
+
+            else:
+
+                # Inner thoughts are the content by default
+                inner_thoughts = response_message["text"]
+
+                # Google AI API doesn't generate tool call IDs
+                openai_response_message = Message(
+                    role="assistant",  # NOTE: "model" -> "assistant"
+                    content=inner_thoughts,
+                )
+
+            # Google AI API uses different finish reason strings than OpenAI
+            # OpenAI: 'stop', 'length', 'function_call', 'content_filter', null
+            #   see: https://platform.openai.com/docs/guides/text-generation/chat-completions-api
+            # Google AI API: FINISH_REASON_UNSPECIFIED, STOP, MAX_TOKENS, SAFETY, RECITATION, OTHER
+            #   see: https://ai.google.dev/api/python/google/ai/generativelanguage/Candidate/FinishReason
+            finish_reason = candidate["finishReason"]
+            if finish_reason == "STOP":
+                openai_finish_reason = (
+                    "function_call"
+                    if openai_response_message.tool_calls is not None and len(openai_response_message.tool_calls) > 0
+                    else "stop"
+                )
+            elif finish_reason == "MAX_TOKENS":
+                openai_finish_reason = "length"
+            elif finish_reason == "SAFETY":
+                openai_finish_reason = "content_filter"
+            elif finish_reason == "RECITATION":
+                openai_finish_reason = "content_filter"
+            else:
+                raise ValueError(f"Unrecognized finish reason in Google AI response: {finish_reason}")
+
+            choices.append(
+                Choice(
+                    finish_reason=openai_finish_reason,
+                    index=candidate["index"],
+                    message=openai_response_message,
+                )
+            )
+
+        if len(choices) > 1:
+            raise UserWarning(f"Unexpected number of candidates in response (expected 1, got {len(choices)})")
+
+        # NOTE: some of the Google AI APIs show UsageMetadata in the response, but it seems to not exist?
+        #  "usageMetadata": {
+        #     "promptTokenCount": 9,
+        #     "candidatesTokenCount": 27,
+        #     "totalTokenCount": 36
+        #   }
+        if "usageMetadata" in response_json:
+            usage = UsageStatistics(
+                prompt_tokens=response_json["usageMetadata"]["promptTokenCount"],
+                completion_tokens=response_json["usageMetadata"]["candidatesTokenCount"],
+                total_tokens=response_json["usageMetadata"]["totalTokenCount"],
+            )
+        else:
+            # Count it ourselves
+            assert input_messages is not None, f"Didn't get UsageMetadata from the API response, so input_messages is required"
+            prompt_tokens = count_tokens(
+                json.dumps(input_messages, ensure_ascii=JSON_ENSURE_ASCII)
+            )  # NOTE: this is a very rough approximation
+            completion_tokens = count_tokens(
+                json.dumps(openai_response_message.model_dump(), ensure_ascii=JSON_ENSURE_ASCII)
+            )  # NOTE: this is also approximate
+            total_tokens = prompt_tokens + completion_tokens
+            usage = UsageStatistics(
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+            )
+
+        response_id = str(uuid.uuid4())
+        return ChatCompletionResponse(
+            id=response_id,
+            choices=choices,
+            model=model,  # NOTE: Google API doesn't pass back model in the response
+            created=get_utc_time(),
+            usage=usage,
+        )
+    except KeyError as e:
+        raise e
 
 
 # TODO convert 'data' type to pydantic
@@ -162,6 +351,9 @@ def google_ai_chat_completions_request(
     data: dict,
     key_in_header: bool = True,
     add_postfunc_model_messages: bool = True,
+    # NOTE: Google AI API doesn't support mixing parts 'text' and 'function',
+    # so there's no clean way to put inner thoughts in the same message as a function call
+    inner_thoughts_in_kwargs: bool = True,
 ) -> ChatCompletionResponse:
     """https://ai.google.dev/docs/function_calling
 
@@ -200,11 +392,15 @@ def google_ai_chat_completions_request(
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
         response = response.json()  # convert to dict from string
         printd(f"response.json = {response}")
-        # NOTE: azure openai does not include "content" in the response when it is None, so we need to add it
-        if "content" not in response["choices"][0].get("message"):
-            response["choices"][0]["message"]["content"] = None
-        response = ChatCompletionResponse(**response)  # convert to 'dot-dict' style which is the openai python client default
-        return response
+
+        # Convert Google AI response to ChatCompletion style
+        return convert_google_ai_response_to_chatcompletion(
+            response_json=response,
+            model=model,
+            input_messages=data["contents"],
+            pull_inner_thoughts_from_args=inner_thoughts_in_kwargs,
+        )
+
     except requests.exceptions.HTTPError as http_err:
         # Handle HTTP errors (e.g., response 4XX, 5XX)
         printd(f"Got HTTPError, exception={http_err}, payload={data}")
@@ -213,10 +409,12 @@ def google_ai_chat_completions_request(
         # Print the response content (error message from server)
         print(f"Message: {http_err.response.text}")
         raise http_err
+
     except requests.exceptions.RequestException as req_err:
         # Handle other requests-related errors (e.g., connection error)
         printd(f"Got RequestException, exception={req_err}")
         raise req_err
+
     except Exception as e:
         # Handle other potential errors
         printd(f"Got unknown Exception, exception={e}")
