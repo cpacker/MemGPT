@@ -211,8 +211,12 @@ def create(
         # we need to put it in a kwarg (unless we want to split the message into two)
         google_ai_inner_thoughts_in_kwarg = True
 
-        tools = [{"type": "function", "function": f} for f in functions] if functions else None
-        tools = [Tool(**t) for t in tools]
+        if functions is not None:
+            tools = [{"type": "function", "function": f} for f in functions]
+            tools = [Tool(**t) for t in tools]
+            tools = (convert_tools_to_google_ai_format(tools, inner_thoughts_in_kwargs=google_ai_inner_thoughts_in_kwarg),)
+        else:
+            tools = None
 
         return google_ai_chat_completions_request(
             inner_thoughts_in_kwargs=google_ai_inner_thoughts_in_kwarg,
@@ -222,7 +226,7 @@ def create(
             # see structure of payload here: https://ai.google.dev/docs/function_calling
             data=dict(
                 contents=[m.to_google_ai_dict() for m in messages],
-                tools=convert_tools_to_google_ai_format(tools, inner_thoughts_in_kwargs=google_ai_inner_thoughts_in_kwarg),
+                tools=tools,
             ),
         )
 

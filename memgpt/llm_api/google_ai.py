@@ -8,6 +8,7 @@ from memgpt.models.chat_completion_request import ChatCompletionRequest, Tool
 from memgpt.models.embedding_response import EmbeddingResponse
 from memgpt.utils import smart_urljoin, get_tool_call_id, get_utc_time
 from memgpt.local_llm.utils import count_tokens
+from memgpt.local_llm.json_parser import clean_json_string_extra_backslash
 from memgpt.constants import NON_USER_MSG_PREFIX, JSON_ENSURE_ASCII
 
 # from memgpt.data_types import ToolCall
@@ -299,7 +300,7 @@ def convert_google_ai_response_to_chatcompletion(
                             type="function",
                             function=FunctionCall(
                                 name=function_name,
-                                arguments=json.dumps(function_args),
+                                arguments=clean_json_string_extra_backslash(json.dumps(function_args)),
                             ),
                         )
                     ],

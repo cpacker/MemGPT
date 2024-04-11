@@ -5,6 +5,18 @@ from memgpt.constants import JSON_LOADS_STRICT
 from memgpt.errors import LLMJSONParsingError
 
 
+def clean_json_string_extra_backslash(s):
+    """Clean extra backslashes out from stringified JSON
+
+    NOTE: Google AI Gemini API likes to include these
+    """
+    # Strip slashes that are used to escape single quotes and other backslashes
+    # Use json.loads to parse it correctly
+    while "\\\\" in s:
+        s = s.replace("\\\\", "\\")
+    return s
+
+
 def replace_escaped_underscores(string: str):
     """Handles the case of escaped underscores, e.g.:
 
