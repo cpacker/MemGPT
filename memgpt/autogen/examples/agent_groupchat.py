@@ -124,7 +124,8 @@ else:
 USE_MEMGPT = True
 
 # Set to True if you want to print MemGPT's inner workings.
-DEBUG = False
+# DEBUG = False
+DEBUG = True
 
 interface_kwargs = {
     "debug": DEBUG,

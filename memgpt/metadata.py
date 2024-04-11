@@ -7,7 +7,7 @@ import secrets
 from typing import Optional, List
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
-from memgpt.utils import enforce_types
+from memgpt.utils import enforce_types, printd
 from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig, Token, Preset
 from memgpt.config import MemGPTConfig
 from memgpt.functions.functions import load_all_function_sets
@@ -307,13 +307,15 @@ class MetadataStore:
             # construct URI from enviornment variables
             if os.getenv("MEMGPT_PGURI"):
                 self.uri = os.getenv("MEMGPT_PGURI")
-            else:
+            elif os.getenv("MEMGPT_PG_DB"):
                 db = os.getenv("MEMGPT_PG_DB", "memgpt")
                 user = os.getenv("MEMGPT_PG_USER", "memgpt")
                 password = os.getenv("MEMGPT_PG_PASSWORD", "memgpt")
                 port = os.getenv("MEMGPT_PG_PORT", "5432")
                 url = os.getenv("MEMGPT_PG_URL", "localhost")
                 self.uri = f"postgresql+pg8000://{user}:{password}@{url}:{port}/{db}"
+            else:
+                self.uri = config.metadata_storage_uri
         elif config.metadata_storage_type == "sqlite":
             path = os.path.join(config.metadata_storage_path, "sqlite.db")
             self.uri = f"sqlite:///{path}"
@@ -338,6 +340,7 @@ class MetadataStore:
                 PresetSourceMapping.__table__,
                 HumanModel.__table__,
                 PersonaModel.__table__,
+                ToolModel.__table__,
             ],
         )
         self.session_maker = sessionmaker(bind=self.engine)
@@ -497,7 +500,13 @@ class MetadataStore:
     @enforce_types
     def delete_agent(self, agent_id: uuid.UUID):
         with self.session_maker() as session:
+
+            # delete agents
             session.query(AgentModel).filter(AgentModel.id == agent_id).delete()
+
+            # delete mappings
+            session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).delete()
+
             session.commit()
 
     @enforce_types
@@ -624,13 +633,31 @@ class MetadataStore:
     def list_attached_sources(self, agent_id: uuid.UUID) -> List[uuid.UUID]:
         with self.session_maker() as session:
             results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
-            return [r.source_id for r in results]
+
+            source_ids = []
+            # make sure source exists
+            for r in results:
+                source = self.get_source(source_id=r.source_id)
+                if source:
+                    source_ids.append(r.source_id)
+                else:
+                    printd(f"Warning: source {r.source_id} does not exist but exists in mapping database. This should never happen.")
+            return source_ids
 
     @enforce_types
     def list_attached_agents(self, source_id: uuid.UUID) -> List[uuid.UUID]:
         with self.session_maker() as session:
             results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).all()
-            return [r.agent_id for r in results]
+
+            agent_ids = []
+            # make sure agent exists
+            for r in results:
+                agent = self.get_agent(agent_id=r.agent_id)
+                if agent:
+                    agent_ids.append(r.agent_id)
+                else:
+                    printd(f"Warning: agent {r.agent_id} does not exist but exists in mapping database. This should never happen.")
+            return agent_ids
 
     @enforce_types
     def detach_source(self, agent_id: uuid.UUID, source_id: uuid.UUID):
@@ -656,6 +683,12 @@ class MetadataStore:
     def add_preset(self, preset: PresetModel):
         with self.session_maker() as session:
             session.add(preset)
+            session.commit()
+
+    @enforce_types
+    def add_tool(self, tool: ToolModel):
+        with self.session_maker() as session:
+            session.add(tool)
             session.commit()
 
     @enforce_types
