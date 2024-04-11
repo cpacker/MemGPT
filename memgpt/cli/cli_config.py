@@ -21,6 +21,8 @@ from memgpt.data_types import User, LLMConfig, EmbeddingConfig
 from memgpt.llm_api.openai import openai_get_model_list
 from memgpt.llm_api.azure_openai import azure_openai_get_model_list
 from memgpt.llm_api.google_ai import google_ai_get_model_list, google_ai_get_model_context_window
+from memgpt.llm_api.anthropic import anthropic_get_model_list, antropic_get_model_context_window
+from memgpt.llm_api.llm_api_tools import LLM_API_PROVIDER_OPTIONS
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.server.utils import shorten_key_middle
@@ -64,14 +66,14 @@ def configure_llm_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials)
     # get default
     default_model_endpoint_type = config.default_llm_config.model_endpoint_type
     if config.default_llm_config.model_endpoint_type is not None and config.default_llm_config.model_endpoint_type not in [
-        "openai",
-        "azure",
-        "google_ai",
+        provider for provider in LLM_API_PROVIDER_OPTIONS if provider != "local"
     ]:  # local model
         default_model_endpoint_type = "local"
 
     provider = questionary.select(
-        "Select LLM inference provider:", choices=["openai", "azure", "google_ai", "local"], default=default_model_endpoint_type
+        "Select LLM inference provider:",
+        choices=LLM_API_PROVIDER_OPTIONS,
+        default=default_model_endpoint_type,
     ).ask()
     if provider is None:
         raise KeyboardInterrupt
@@ -184,6 +186,46 @@ def configure_llm_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials)
 
         model_endpoint_type = "google_ai"
 
+    elif provider == "anthropic":
+        # check for key
+        if credentials.anthropic_key is None:
+            # allow key to get pulled from env vars
+            anthropic_api_key = os.getenv("ANTHROPIC_API_KEY", None)
+            # if we still can't find it, ask for it as input
+            if anthropic_api_key is None:
+                while anthropic_api_key is None or len(anthropic_api_key) == 0:
+                    # Ask for API key as input
+                    anthropic_api_key = questionary.password(
+                        "Enter your Anthropic API key (starts with 'sk-', see https://console.anthropic.com/settings/keys):"
+                    ).ask()
+                    if anthropic_api_key is None:
+                        raise KeyboardInterrupt
+            credentials.anthropic_key = anthropic_api_key
+            credentials.save()
+        else:
+            # Give the user an opportunity to overwrite the key
+            anthropic_api_key = None
+            default_input = (
+                shorten_key_middle(credentials.anthropic_key) if credentials.anthropic_key.startswith("sk-") else credentials.anthropic_key
+            )
+            anthropic_api_key = questionary.password(
+                "Enter your Anthropic API key (starts with 'sk-', see https://console.anthropic.com/settings/keys):",
+                default=default_input,
+            ).ask()
+            if anthropic_api_key is None:
+                raise KeyboardInterrupt
+            # If the user modified it, use the new one
+            if anthropic_api_key != default_input:
+                credentials.anthropic_key = anthropic_api_key
+                credentials.save()
+
+        model_endpoint_type = "anthropic"
+        model_endpoint = "https://api.anthropic.com/v1"
+        model_endpoint = questionary.text("Override default endpoint:", default=model_endpoint).ask()
+        if model_endpoint is None:
+            raise KeyboardInterrupt
+        provider = "anthropic"
+
     else:  # local models
         # backend_options_old = ["webui", "webui-legacy", "llamacpp", "koboldcpp", "ollama", "lmstudio", "lmstudio-legacy", "vllm", "openai"]
         backend_options = builtins.list(DEFAULT_ENDPOINTS.keys())
@@ -291,6 +333,12 @@ def get_model_options(
             model_options = [mo for mo in model_options if str(mo).startswith("gemini") and "-pro" in str(mo)]
             # model_options = ["gemini-pro"]
 
+        elif model_endpoint_type == "anthropic":
+            if credentials.anthropic_key is None:
+                raise ValueError("Missing Anthropic API key")
+            fetched_model_options = anthropic_get_model_list(url=model_endpoint, api_key=credentials.anthropic_key)
+            model_options = [obj["name"] for obj in fetched_model_options]
+
         else:
             # Attempt to do OpenAI endpoint style model fetching
             # TODO support local auth with api-key header
@@ -363,6 +411,26 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
                     raise KeyboardInterrupt
 
     elif model_endpoint_type == "google_ai":
+        try:
+            fetched_model_options = get_model_options(
+                credentials=credentials, model_endpoint_type=model_endpoint_type, model_endpoint=model_endpoint
+            )
+        except Exception as e:
+            # NOTE: if this fails, it means the user's key is probably bad
+            typer.secho(
+                f"Failed to get model list from {model_endpoint} - make sure your API key and endpoints are correct!", fg=typer.colors.RED
+            )
+            raise e
+
+        model = questionary.select(
+            "Select default model:",
+            choices=fetched_model_options,
+            default=fetched_model_options[0],
+        ).ask()
+        if model is None:
+            raise KeyboardInterrupt
+
+    elif model_endpoint_type == "anthropic":
         try:
             fetched_model_options = get_model_options(
                 credentials=credentials, model_endpoint_type=model_endpoint_type, model_endpoint=model_endpoint
@@ -522,11 +590,32 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
                     fetched_context_window,
                     "custom",
                 ]
-            except:
-                print(f"Failed to get model details for model '{model}' on Google AI API")
+            except Exception as e:
+                print(f"Failed to get model details for model '{model}' on Google AI API ({str(e)})")
 
             context_window_input = questionary.select(
                 "Select your model's context window (see https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versioning#gemini-model-versions):",
+                choices=context_length_options,
+                default=context_length_options[0],
+            ).ask()
+            if context_window_input is None:
+                raise KeyboardInterrupt
+
+        elif model_endpoint_type == "anthropic":
+            try:
+                fetched_context_window = str(
+                    antropic_get_model_context_window(url=model_endpoint, api_key=credentials.anthropic_key, model=model)
+                )
+                print(f"Got context window {fetched_context_window} for model {model}")
+                context_length_options = [
+                    fetched_context_window,
+                    "custom",
+                ]
+            except Exception as e:
+                print(f"Failed to get model details for model '{model}' ({str(e)})")
+
+            context_window_input = questionary.select(
+                "Select your model's context window (see https://docs.anthropic.com/claude/docs/models-overview):",
                 choices=context_length_options,
                 default=context_length_options[0],
             ).ask()

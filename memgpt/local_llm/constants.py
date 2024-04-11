@@ -13,6 +13,7 @@ DEFAULT_ENDPOINTS = {
     "vllm": "http://localhost:8000",
     # APIs
     "openai": "https://api.openai.com",
+    "anthropic": "https://api.anthropic.com",
     "groq": "https://api.groq.com/openai",
 }
 

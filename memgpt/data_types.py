@@ -294,6 +294,78 @@ class Message(Record):
 
         return openai_message
 
+    def to_anthropic_dict(self, inner_thoughts_xml_tag="thinking") -> dict:
+        # raise NotImplementedError
+
+        def add_xml_tag(string: str, xml_tag: Optional[str]):
+            # NOTE: Anthropic docs recommends using <thinking> tag when using CoT + tool use
+            return f"<{xml_tag}>{string}</{xml_tag}" if xml_tag else string
+
+        if self.role == "system":
+            raise ValueError(f"Anthropic 'system' role not supported")
+
+        elif self.role == "user":
+            assert all([v is not None for v in [self.text, self.role]]), vars(self)
+            anthropic_message = {
+                "content": self.text,
+                "role": self.role,
+            }
+            # Optional field, do not include if null
+            if self.name is not None:
+                anthropic_message["name"] = self.name
+
+        elif self.role == "assistant":
+            assert self.tool_calls is not None or self.text is not None
+            anthropic_message = {
+                "role": self.role,
+            }
+            content = []
+            if self.text is not None:
+                content.append(
+                    {
+                        "type": "text",
+                        "text": add_xml_tag(string=self.text, xml_tag=inner_thoughts_xml_tag),
+                    }
+                )
+            if self.tool_calls is not None:
+                for tool_call in self.tool_calls:
+                    content.append(
+                        {
+                            "type": "tool_use",
+                            "id": tool_call.id,
+                            "name": tool_call.function["name"],
+                            "input": json.loads(tool_call.function["arguments"]),
+                        }
+                    )
+
+            # If the only content was text, unpack it back into a singleton
+            # TODO
+            anthropic_message["content"] = content
+
+            # Optional fields, do not include if null
+            if self.name is not None:
+                anthropic_message["name"] = self.name
+
+        elif self.role == "tool":
+            # NOTE: Anthropic uses role "user" for "tool" responses
+            assert all([v is not None for v in [self.role, self.tool_call_id]]), vars(self)
+            anthropic_message = {
+                "role": "user",  # NOTE: diff
+                "content": [
+                    # TODO support error types etc
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": self.tool_call_id,
+                        "content": self.text,
+                    }
+                ],
+            }
+
+        else:
+            raise ValueError(self.role)
+
+        return anthropic_message
+
     def to_google_ai_dict(self, put_inner_thoughts_in_kwargs: bool = True) -> dict:
         """Go from Message class to Google AI REST message object
 

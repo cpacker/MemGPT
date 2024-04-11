@@ -32,6 +32,9 @@ class MemGPTCredentials:
     google_ai_key: Optional[str] = None
     google_ai_service_endpoint: Optional[str] = None
 
+    # anthropic config
+    anthropic_key: Optional[str] = None
+
     # azure config
     azure_auth_type: str = "api_key"
     azure_key: Optional[str] = None
@@ -77,6 +80,8 @@ class MemGPTCredentials:
                 # gemini
                 "google_ai_key": get_field(config, "google_ai", "key"),
                 "google_ai_service_endpoint": get_field(config, "google_ai", "service_endpoint"),
+                # anthropic
+                "anthropic_key": get_field(config, "anthropic", "key"),
                 # open llm
                 "openllm_auth_type": get_field(config, "openllm", "auth_type"),
                 "openllm_key": get_field(config, "openllm", "key"),
@@ -112,6 +117,9 @@ class MemGPTCredentials:
         # gemini
         set_field(config, "google_ai", "key", self.google_ai_key)
         set_field(config, "google_ai", "service_endpoint", self.google_ai_service_endpoint)
+
+        # anthropic
+        set_field(config, "anthropic", "key", self.anthropic_key)
 
         # openllm config
         set_field(config, "openllm", "auth_type", self.openllm_auth_type)
