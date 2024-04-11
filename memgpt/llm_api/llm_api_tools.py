@@ -22,6 +22,9 @@ from memgpt.llm_api.google_ai import (
 from memgpt.llm_api.anthropic import anthropic_chat_completions_request
 
 
+LLM_API_PROVIDER_OPTIONS = ["openai", "azure", "anthropic", "google_ai", "local"]
+
+
 def is_context_overflow_error(exception: requests.exceptions.RequestException) -> bool:
     """Checks if an exception is due to context overflow (based on common OpenAI response messages)"""
     from memgpt.utils import printd
@@ -143,9 +146,6 @@ def create(
         printd("unsetting function_call because functions is None")
         function_call = None
 
-    # TODO remove
-    agent_state.llm_config.model_endpoint_type = "anthropic"
-
     # openai
     if agent_state.llm_config.model_endpoint_type == "openai":
         # TODO do the same for Azure?
@@ -245,11 +245,10 @@ def create(
             tools = None
 
         return anthropic_chat_completions_request(
-            url="https://api.anthropic.com/v1",
-            api_key=os.getenv("ANTHROPIC_API_KEY"),
+            url=agent_state.llm_config.model_endpoint,
+            api_key=credentials.anthropic_key,
             data=ChatCompletionRequest(
-                # model=agent_state.llm_config.model,
-                model="claude-3-haiku-20240307",  # TODO remove
+                model=agent_state.llm_config.model,
                 messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
                 tools=[{"type": "function", "function": f} for f in functions] if functions else None,
                 # tool_choice=function_call,
