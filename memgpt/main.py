@@ -1,6 +1,7 @@
 import os
 import sys
 import traceback
+import requests
 import json
 
 import questionary
@@ -271,7 +272,7 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                             fg=typer.colors.GREEN,
                             bold=True,
                         )
-                    except errors.LLMError as e:
+                    except (errors.LLMError, requests.exceptions.HTTPError) as e:
                         typer.secho(
                             f"/summarize failed:\n{e}",
                             fg=typer.colors.RED,

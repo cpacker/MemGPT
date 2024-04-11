@@ -28,6 +28,10 @@ class MemGPTCredentials:
     openai_auth_type: str = "bearer_token"
     openai_key: Optional[str] = None
 
+    # gemini config
+    google_ai_key: Optional[str] = None
+    google_ai_service_endpoint: Optional[str] = None
+
     # azure config
     azure_auth_type: str = "api_key"
     azure_key: Optional[str] = None
@@ -70,6 +74,9 @@ class MemGPTCredentials:
                 "azure_embedding_version": get_field(config, "azure", "embedding_version"),
                 "azure_embedding_endpoint": get_field(config, "azure", "embedding_endpoint"),
                 "azure_embedding_deployment": get_field(config, "azure", "embedding_deployment"),
+                # gemini
+                "google_ai_key": get_field(config, "google_ai", "key"),
+                "google_ai_service_endpoint": get_field(config, "google_ai", "service_endpoint"),
                 # open llm
                 "openllm_auth_type": get_field(config, "openllm", "auth_type"),
                 "openllm_key": get_field(config, "openllm", "key"),
@@ -102,7 +109,11 @@ class MemGPTCredentials:
         set_field(config, "azure", "embedding_endpoint", self.azure_embedding_endpoint)
         set_field(config, "azure", "embedding_deployment", self.azure_embedding_deployment)
 
-        # openai config
+        # gemini
+        set_field(config, "google_ai", "key", self.google_ai_key)
+        set_field(config, "google_ai", "service_endpoint", self.google_ai_service_endpoint)
+
+        # openllm config
         set_field(config, "openllm", "auth_type", self.openllm_auth_type)
         set_field(config, "openllm", "key", self.openllm_key)
 

@@ -15,7 +15,7 @@ from memgpt.interface import AgentInterface
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
 from memgpt.memory import CoreMemory as InContextMemory, summarize_messages, ArchivalMemory, RecallMemory
-from memgpt.llm_api_tools import create, is_context_overflow_error
+from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
 from memgpt.utils import (
     get_utc_time,
     create_random_username,
@@ -400,7 +400,7 @@ class Agent(object):
 
     def _get_ai_reply(
         self,
-        message_sequence: List[dict],
+        message_sequence: List[Message],
         function_call: str = "auto",
         first_message: bool = False,  # hint
     ) -> chat_completion_response.ChatCompletionResponse:
@@ -694,12 +694,12 @@ class Agent(object):
 
                 self.interface.user_message(user_message.text, msg_obj=user_message)
 
-                input_message_sequence = self.messages + [user_message.to_openai_dict()]
+                input_message_sequence = self._messages + [user_message]
             # Alternatively, the requestor can send an empty user message
             else:
-                input_message_sequence = self.messages
+                input_message_sequence = self._messages
 
-            if len(input_message_sequence) > 1 and input_message_sequence[-1]["role"] != "user":
+            if len(input_message_sequence) > 1 and input_message_sequence[-1].role != "user":
                 printd(f"{CLI_WARNING_PREFIX}Attempting to run ChatCompletion without user as the last message in the queue")
 
             # Step 1: send the conversation and available functions to GPT
@@ -858,14 +858,14 @@ class Agent(object):
                 printd(f"Selected cutoff {cutoff} was a 'tool', shifting one...")
                 cutoff += 1
 
-        message_sequence_to_summarize = self.messages[1:cutoff]  # do NOT get rid of the system message
+        message_sequence_to_summarize = self._messages[1:cutoff]  # do NOT get rid of the system message
         if len(message_sequence_to_summarize) <= 1:
             # This prevents a potential infinite loop of summarizing the same message over and over
             raise LLMError(
                 f"Summarize error: tried to run summarize, but couldn't find enough messages to compress [len={len(message_sequence_to_summarize)} <= 1]"
             )
         else:
-            printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self.messages)}")
+            printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self._messages)}")
 
         # We can't do summarize logic properly if context_window is undefined
         if self.agent_state.llm_config.context_window is None:
