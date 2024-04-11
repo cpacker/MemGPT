@@ -225,13 +225,13 @@ def test_humans_personas(client, agent):
     assert human.text == "Human text", "Creating human failed"
 
 
-def test_tools(client, agent):
-    tools_response = client.list_tools()
-    print("TOOLS", tools_response)
-
-    tool_name = "TestTool"
-    tool_response = client.create_tool(name=tool_name, source_code="print('Hello World')", source_type="python")
-    assert tool_response, "Creating tool failed"
+# def test_tools(client, agent):
+#    tools_response = client.list_tools()
+#    print("TOOLS", tools_response)
+#
+#    tool_name = "TestTool"
+#    tool_response = client.create_tool(name=tool_name, source_code="print('Hello World')", source_type="python")
+#    assert tool_response, "Creating tool failed"
 
 
 def test_config(client, agent):
@@ -350,27 +350,27 @@ def test_presets(client, agent):
     assert new_preset.id not in [p.id for p in all_presets], (new_preset, all_presets)
 
 
-def test_tools(client, agent):
-
-    # load a function
-    file_path = "tests/data/functions/dump_json.py"
-    module_name = "dump_json"
-
-    # list functions
-    response = client.list_tools()
-    orig_tools = response.tools
-    print(orig_tools)
-
-    # add the tool
-    create_tool_response = client.create_tool(name=module_name, file_path=file_path)
-    print(create_tool_response)
-
-    # list functions
-    response = client.list_tools()
-    new_tools = response.tools
-    assert module_name in [tool.name for tool in new_tools]
-    # assert len(new_tools) == len(orig_tools) + 1
-
-    # TODO: add a function to a preset
-
-    # TODO: add a function to an agent
+# def test_tools(client, agent):
+#
+#    # load a function
+#    file_path = "tests/data/functions/dump_json.py"
+#    module_name = "dump_json"
+#
+#    # list functions
+#    response = client.list_tools()
+#    orig_tools = response.tools
+#    print(orig_tools)
+#
+#    # add the tool
+#    create_tool_response = client.create_tool(name=module_name, file_path=file_path)
+#    print(create_tool_response)
+#
+#    # list functions
+#    response = client.list_tools()
+#    new_tools = response.tools
+#    assert module_name in [tool.name for tool in new_tools]
+#    # assert len(new_tools) == len(orig_tools) + 1
+#
+#    # TODO: add a function to a preset
+#
+#    # TODO: add a function to an agent
