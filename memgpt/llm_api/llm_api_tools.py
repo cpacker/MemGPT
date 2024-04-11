@@ -19,6 +19,7 @@ from memgpt.llm_api.google_ai import (
     google_ai_chat_completions_request,
     convert_tools_to_google_ai_format,
 )
+from memgpt.llm_api.anthropic import anthropic_chat_completions_request
 
 
 def is_context_overflow_error(exception: requests.exceptions.RequestException) -> bool:
@@ -142,6 +143,9 @@ def create(
         printd("unsetting function_call because functions is None")
         function_call = None
 
+    # TODO remove
+    agent_state.llm_config.model_endpoint_type = "anthropic"
+
     # openai
     if agent_state.llm_config.model_endpoint_type == "openai":
         # TODO do the same for Azure?
@@ -214,7 +218,7 @@ def create(
         if functions is not None:
             tools = [{"type": "function", "function": f} for f in functions]
             tools = [Tool(**t) for t in tools]
-            tools = (convert_tools_to_google_ai_format(tools, inner_thoughts_in_kwargs=google_ai_inner_thoughts_in_kwarg),)
+            tools = convert_tools_to_google_ai_format(tools, inner_thoughts_in_kwargs=google_ai_inner_thoughts_in_kwarg)
         else:
             tools = None
 
@@ -227,6 +231,31 @@ def create(
             data=dict(
                 contents=[m.to_google_ai_dict() for m in messages],
                 tools=tools,
+            ),
+        )
+
+    elif agent_state.llm_config.model_endpoint_type == "anthropic":
+        if not use_tool_naming:
+            raise NotImplementedError("Only tool calling supported on Anthropic API requests")
+
+        if functions is not None:
+            tools = [{"type": "function", "function": f} for f in functions]
+            tools = [Tool(**t) for t in tools]
+        else:
+            tools = None
+
+        return anthropic_chat_completions_request(
+            url="https://api.anthropic.com/v1",
+            api_key=os.getenv("ANTHROPIC_API_KEY"),
+            data=ChatCompletionRequest(
+                # model=agent_state.llm_config.model,
+                model="claude-3-haiku-20240307",  # TODO remove
+                messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
+                tools=[{"type": "function", "function": f} for f in functions] if functions else None,
+                # tool_choice=function_call,
+                # user=str(agent_state.user_id),
+                # NOTE: max_tokens is required for Anthropic API
+                max_tokens=1024,  # TODO make dynamic
             ),
         )
 
