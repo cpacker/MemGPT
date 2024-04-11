@@ -358,6 +358,9 @@ class Message(Record):
                             }
                         }
                     )
+            else:
+                assert self.text is not None
+                parts.append({"text": self.text})
             google_ai_message["parts"] = parts
 
         elif self.role == "tool":

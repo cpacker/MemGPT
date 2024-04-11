@@ -3,7 +3,7 @@ import datetime
 import uuid
 from typing import Optional, List, Tuple, Union
 
-from memgpt.constants import MESSAGE_SUMMARY_WARNING_FRAC
+from memgpt.constants import MESSAGE_SUMMARY_WARNING_FRAC, MESSAGE_SUMMARY_REQUEST_ACK
 from memgpt.utils import get_local_time, printd, count_tokens, validate_date_format, extract_date_from_timestamp
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
 from memgpt.llm_api.llm_api_tools import create
@@ -110,6 +110,7 @@ def _format_summary_history(message_history: List[Message]):
 def summarize_messages(
     agent_state: AgentState,
     message_sequence_to_summarize: List[Message],
+    insert_acknowledgement_assistant_message: bool = True,
 ):
     """Summarize a message sequence using GPT"""
     # we need the context_window
@@ -128,10 +129,11 @@ def summarize_messages(
 
     dummy_user_id = uuid.uuid4()
     dummy_agent_id = uuid.uuid4()
-    message_sequence = [
-        Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role="system", text=summary_prompt),
-        Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role="user", text=summary_input),
-    ]
+    message_sequence = []
+    message_sequence.append(Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role="system", text=summary_prompt))
+    if insert_acknowledgement_assistant_message:
+        message_sequence.append(Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role="assistant", text=MESSAGE_SUMMARY_REQUEST_ACK))
+    message_sequence.append(Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role="user", text=summary_input))
 
     response = create(
         agent_state=agent_state,
