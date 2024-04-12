@@ -1,0 +1,279 @@
+import random
+import time
+import requests
+import os
+import time
+from typing import List
+
+from memgpt.credentials import MemGPTCredentials
+from memgpt.local_llm.chat_completion_proxy import get_chat_completion
+from memgpt.constants import CLI_WARNING_PREFIX
+from memgpt.models.chat_completion_response import ChatCompletionResponse
+from memgpt.models.chat_completion_request import ChatCompletionRequest, Tool, cast_message_to_subtype
+
+from memgpt.data_types import AgentState, Message
+
+from memgpt.llm_api.openai import openai_chat_completions_request
+from memgpt.llm_api.azure_openai import azure_openai_chat_completions_request, MODEL_TO_AZURE_ENGINE
+from memgpt.llm_api.google_ai import (
+    google_ai_chat_completions_request,
+    convert_tools_to_google_ai_format,
+)
+from memgpt.llm_api.anthropic import anthropic_chat_completions_request
+
+
+LLM_API_PROVIDER_OPTIONS = ["openai", "azure", "anthropic", "google_ai", "local"]
+
+
+def is_context_overflow_error(exception: requests.exceptions.RequestException) -> bool:
+    """Checks if an exception is due to context overflow (based on common OpenAI response messages)"""
+    from memgpt.utils import printd
+
+    match_string = "maximum context length"
+
+    # Backwards compatibility with openai python package/client v0.28 (pre-v1 client migration)
+    if match_string in str(exception):
+        printd(f"Found '{match_string}' in str(exception)={(str(exception))}")
+        return True
+
+    # Based on python requests + OpenAI REST API (/v1)
+    elif isinstance(exception, requests.exceptions.HTTPError):
+        if exception.response is not None and "application/json" in exception.response.headers.get("Content-Type", ""):
+            try:
+                error_details = exception.response.json()
+                if "error" not in error_details:
+                    printd(f"HTTPError occurred, but couldn't find error field: {error_details}")
+                    return False
+                else:
+                    error_details = error_details["error"]
+
+                # Check for the specific error code
+                if error_details.get("code") == "context_length_exceeded":
+                    printd(f"HTTPError occurred, caught error code {error_details.get('code')}")
+                    return True
+                # Soft-check for "maximum context length" inside of the message
+                elif error_details.get("message") and "maximum context length" in error_details.get("message"):
+                    printd(f"HTTPError occurred, found '{match_string}' in error message contents ({error_details})")
+                    return True
+                else:
+                    printd(f"HTTPError occurred, but unknown error message: {error_details}")
+                    return False
+            except ValueError:
+                # JSON decoding failed
+                printd(f"HTTPError occurred ({exception}), but no JSON error message.")
+
+    # Generic fail
+    else:
+        return False
+
+
+def retry_with_exponential_backoff(
+    func,
+    initial_delay: float = 1,
+    exponential_base: float = 2,
+    jitter: bool = True,
+    max_retries: int = 20,
+    # List of OpenAI error codes: https://github.com/openai/openai-python/blob/17ac6779958b2b74999c634c4ea4c7b74906027a/src/openai/_client.py#L227-L250
+    # 429 = rate limit
+    error_codes: tuple = (429,),
+):
+    """Retry a function with exponential backoff."""
+
+    def wrapper(*args, **kwargs):
+        from memgpt.utils import printd
+
+        # Initialize variables
+        num_retries = 0
+        delay = initial_delay
+
+        # Loop until a successful response or max_retries is hit or an exception is raised
+        while True:
+            try:
+                return func(*args, **kwargs)
+
+            except requests.exceptions.HTTPError as http_err:
+                # Retry on specified errors
+                if http_err.response.status_code in error_codes:
+                    # Increment retries
+                    num_retries += 1
+
+                    # Check if max retries has been reached
+                    if num_retries > max_retries:
+                        raise Exception(f"Maximum number of retries ({max_retries}) exceeded.")
+
+                    # Increment the delay
+                    delay *= exponential_base * (1 + jitter * random.random())
+
+                    # Sleep for the delay
+                    # printd(f"Got a rate limit error ('{http_err}') on LLM backend request, waiting {int(delay)}s then retrying...")
+                    print(
+                        f"{CLI_WARNING_PREFIX}Got a rate limit error ('{http_err}') on LLM backend request, waiting {int(delay)}s then retrying..."
+                    )
+                    time.sleep(delay)
+                else:
+                    # For other HTTP errors, re-raise the exception
+                    raise
+
+            # Raise exceptions for any errors not specified
+            except Exception as e:
+                raise e
+
+    return wrapper
+
+
+@retry_with_exponential_backoff
+def create(
+    agent_state: AgentState,
+    messages: List[Message],
+    functions=None,
+    functions_python=None,
+    function_call="auto",
+    # hint
+    first_message=False,
+    # use tool naming?
+    # if false, will use deprecated 'functions' style
+    use_tool_naming=True,
+) -> ChatCompletionResponse:
+    """Return response to chat completion with backoff"""
+    from memgpt.utils import printd
+
+    printd(f"Using model {agent_state.llm_config.model_endpoint_type}, endpoint: {agent_state.llm_config.model_endpoint}")
+
+    # TODO eventually refactor so that credentials are passed through
+    credentials = MemGPTCredentials.load()
+
+    if function_call and not functions:
+        printd("unsetting function_call because functions is None")
+        function_call = None
+
+    # openai
+    if agent_state.llm_config.model_endpoint_type == "openai":
+        # TODO do the same for Azure?
+        if credentials.openai_key is None and agent_state.llm_config.model_endpoint == "https://api.openai.com/v1":
+            # only is a problem if we are *not* using an openai proxy
+            raise ValueError(f"OpenAI key is missing from MemGPT config file")
+        if use_tool_naming:
+            data = ChatCompletionRequest(
+                model=agent_state.llm_config.model,
+                messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
+                tools=[{"type": "function", "function": f} for f in functions] if functions else None,
+                tool_choice=function_call,
+                user=str(agent_state.user_id),
+            )
+        else:
+            data = ChatCompletionRequest(
+                model=agent_state.llm_config.model,
+                messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
+                functions=functions,
+                function_call=function_call,
+                user=str(agent_state.user_id),
+            )
+        return openai_chat_completions_request(
+            url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
+            api_key=credentials.openai_key,
+            data=data,
+        )
+
+    # azure
+    elif agent_state.llm_config.model_endpoint_type == "azure":
+        azure_deployment = (
+            credentials.azure_deployment
+            if credentials.azure_deployment is not None
+            else MODEL_TO_AZURE_ENGINE[agent_state.llm_config.model]
+        )
+        if use_tool_naming:
+            data = dict(
+                # NOTE: don't pass model to Azure calls, that is the deployment_id
+                # model=agent_config.model,
+                messages=messages,
+                tools=[{"type": "function", "function": f} for f in functions] if functions else None,
+                tool_choice=function_call,
+                user=str(agent_state.user_id),
+            )
+        else:
+            data = dict(
+                # NOTE: don't pass model to Azure calls, that is the deployment_id
+                # model=agent_config.model,
+                messages=messages,
+                functions=functions,
+                function_call=function_call,
+                user=str(agent_state.user_id),
+            )
+        return azure_openai_chat_completions_request(
+            resource_name=credentials.azure_endpoint,
+            deployment_id=azure_deployment,
+            api_version=credentials.azure_version,
+            api_key=credentials.azure_key,
+            data=data,
+        )
+
+    elif agent_state.llm_config.model_endpoint_type == "google_ai":
+        if not use_tool_naming:
+            raise NotImplementedError("Only tool calling supported on Google AI API requests")
+
+        # NOTE: until Google AI supports CoT / text alongside function calls,
+        # we need to put it in a kwarg (unless we want to split the message into two)
+        google_ai_inner_thoughts_in_kwarg = True
+
+        if functions is not None:
+            tools = [{"type": "function", "function": f} for f in functions]
+            tools = [Tool(**t) for t in tools]
+            tools = convert_tools_to_google_ai_format(tools, inner_thoughts_in_kwargs=google_ai_inner_thoughts_in_kwarg)
+        else:
+            tools = None
+
+        return google_ai_chat_completions_request(
+            inner_thoughts_in_kwargs=google_ai_inner_thoughts_in_kwarg,
+            service_endpoint=credentials.google_ai_service_endpoint,
+            model=agent_state.llm_config.model,
+            api_key=credentials.google_ai_key,
+            # see structure of payload here: https://ai.google.dev/docs/function_calling
+            data=dict(
+                contents=[m.to_google_ai_dict() for m in messages],
+                tools=tools,
+            ),
+        )
+
+    elif agent_state.llm_config.model_endpoint_type == "anthropic":
+        if not use_tool_naming:
+            raise NotImplementedError("Only tool calling supported on Anthropic API requests")
+
+        if functions is not None:
+            tools = [{"type": "function", "function": f} for f in functions]
+            tools = [Tool(**t) for t in tools]
+        else:
+            tools = None
+
+        return anthropic_chat_completions_request(
+            url=agent_state.llm_config.model_endpoint,
+            api_key=credentials.anthropic_key,
+            data=ChatCompletionRequest(
+                model=agent_state.llm_config.model,
+                messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
+                tools=[{"type": "function", "function": f} for f in functions] if functions else None,
+                # tool_choice=function_call,
+                # user=str(agent_state.user_id),
+                # NOTE: max_tokens is required for Anthropic API
+                max_tokens=1024,  # TODO make dynamic
+            ),
+        )
+
+    # local model
+    else:
+        return get_chat_completion(
+            model=agent_state.llm_config.model,
+            messages=messages,
+            functions=functions,
+            functions_python=functions_python,
+            function_call=function_call,
+            context_window=agent_state.llm_config.context_window,
+            endpoint=agent_state.llm_config.model_endpoint,
+            endpoint_type=agent_state.llm_config.model_endpoint_type,
+            wrapper=agent_state.llm_config.model_wrapper,
+            user=str(agent_state.user_id),
+            # hint
+            first_message=first_message,
+            # auth-related
+            auth_type=credentials.openllm_auth_type,
+            auth_key=credentials.openllm_key,
+        )

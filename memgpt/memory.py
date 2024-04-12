@@ -3,10 +3,10 @@ import datetime
 import uuid
 from typing import Optional, List, Tuple, Union
 
-from memgpt.constants import MESSAGE_SUMMARY_WARNING_FRAC
+from memgpt.constants import MESSAGE_SUMMARY_WARNING_FRAC, MESSAGE_SUMMARY_REQUEST_ACK
 from memgpt.utils import get_local_time, printd, count_tokens, validate_date_format, extract_date_from_timestamp
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
-from memgpt.llm_api_tools import create
+from memgpt.llm_api.llm_api_tools import create
 from memgpt.data_types import Message, Passage, AgentState
 from memgpt.embeddings import embedding_model, query_embedding, parse_and_chunk_text
 
@@ -102,16 +102,22 @@ class CoreMemory(object):
             raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
 
 
+def _format_summary_history(message_history: List[Message]):
+    # TODO use existing prompt formatters for this (eg ChatML)
+    return "\n".join([f"{m.role}: {m.text}" for m in message_history])
+
+
 def summarize_messages(
     agent_state: AgentState,
-    message_sequence_to_summarize,
+    message_sequence_to_summarize: List[Message],
+    insert_acknowledgement_assistant_message: bool = True,
 ):
     """Summarize a message sequence using GPT"""
     # we need the context_window
     context_window = agent_state.llm_config.context_window
 
     summary_prompt = SUMMARY_PROMPT_SYSTEM
-    summary_input = str(message_sequence_to_summarize)
+    summary_input = _format_summary_history(message_sequence_to_summarize)
     summary_input_tkns = count_tokens(summary_input)
     if summary_input_tkns > MESSAGE_SUMMARY_WARNING_FRAC * context_window:
         trunc_ratio = (MESSAGE_SUMMARY_WARNING_FRAC * context_window / summary_input_tkns) * 0.8  # For good measure...
@@ -120,10 +126,14 @@ def summarize_messages(
             [summarize_messages(agent_state, message_sequence_to_summarize=message_sequence_to_summarize[:cutoff])]
             + message_sequence_to_summarize[cutoff:]
         )
-    message_sequence = [
-        {"role": "system", "content": summary_prompt},
-        {"role": "user", "content": summary_input},
-    ]
+
+    dummy_user_id = uuid.uuid4()
+    dummy_agent_id = uuid.uuid4()
+    message_sequence = []
+    message_sequence.append(Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role="system", text=summary_prompt))
+    if insert_acknowledgement_assistant_message:
+        message_sequence.append(Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role="assistant", text=MESSAGE_SUMMARY_REQUEST_ACK))
+    message_sequence.append(Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role="user", text=summary_input))
 
     response = create(
         agent_state=agent_state,
