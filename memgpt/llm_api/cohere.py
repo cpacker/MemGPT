@@ -79,7 +79,7 @@ def cohere_get_model_list(url: str, api_key: Union[str, None]) -> dict:
         printd(f"response = {response}")
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
         response = response.json()  # convert to dict from string
-        return response
+        return response["models"]
     except requests.exceptions.HTTPError as http_err:
         # Handle HTTP errors (e.g., response 4XX, 5XX)
         printd(f"Got HTTPError, exception={http_err}")

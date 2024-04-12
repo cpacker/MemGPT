@@ -22,6 +22,7 @@ from memgpt.llm_api.openai import openai_get_model_list
 from memgpt.llm_api.azure_openai import azure_openai_get_model_list
 from memgpt.llm_api.google_ai import google_ai_get_model_list, google_ai_get_model_context_window
 from memgpt.llm_api.anthropic import anthropic_get_model_list, antropic_get_model_context_window
+from memgpt.llm_api.cohere import cohere_get_model_list, cohere_get_model_context_window
 from memgpt.llm_api.llm_api_tools import LLM_API_PROVIDER_OPTIONS
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
@@ -226,6 +227,44 @@ def configure_llm_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials)
             raise KeyboardInterrupt
         provider = "anthropic"
 
+    elif provider == "cohere":
+        # check for key
+        if credentials.cohere_key is None:
+            # allow key to get pulled from env vars
+            cohere_api_key = os.getenv("COHERE_API_KEY", None)
+            # if we still can't find it, ask for it as input
+            if cohere_api_key is None:
+                while cohere_api_key is None or len(cohere_api_key) == 0:
+                    # Ask for API key as input
+                    cohere_api_key = questionary.password("Enter your Cohere API key (see https://dashboard.cohere.com/api-keys):").ask()
+                    if cohere_api_key is None:
+                        raise KeyboardInterrupt
+            credentials.cohere_key = cohere_api_key
+            credentials.save()
+        else:
+            # Give the user an opportunity to overwrite the key
+            cohere_api_key = None
+            default_input = (
+                shorten_key_middle(credentials.cohere_key) if credentials.cohere_key.startswith("sk-") else credentials.cohere_key
+            )
+            cohere_api_key = questionary.password(
+                "Enter your Cohere API key (see https://dashboard.cohere.com/api-keys):",
+                default=default_input,
+            ).ask()
+            if cohere_api_key is None:
+                raise KeyboardInterrupt
+            # If the user modified it, use the new one
+            if cohere_api_key != default_input:
+                credentials.cohere_key = cohere_api_key
+                credentials.save()
+
+        model_endpoint_type = "cohere"
+        model_endpoint = "https://api.cohere.ai/v1"
+        model_endpoint = questionary.text("Override default endpoint:", default=model_endpoint).ask()
+        if model_endpoint is None:
+            raise KeyboardInterrupt
+        provider = "cohere"
+
     else:  # local models
         # backend_options_old = ["webui", "webui-legacy", "llamacpp", "koboldcpp", "ollama", "lmstudio", "lmstudio-legacy", "vllm", "openai"]
         backend_options = builtins.list(DEFAULT_ENDPOINTS.keys())
@@ -339,6 +378,12 @@ def get_model_options(
             fetched_model_options = anthropic_get_model_list(url=model_endpoint, api_key=credentials.anthropic_key)
             model_options = [obj["name"] for obj in fetched_model_options]
 
+        elif model_endpoint_type == "cohere":
+            if credentials.cohere_key is None:
+                raise ValueError("Missing Cohere API key")
+            fetched_model_options = cohere_get_model_list(url=model_endpoint, api_key=credentials.cohere_key)
+            model_options = [obj for obj in fetched_model_options]
+
         else:
             # Attempt to do OpenAI endpoint style model fetching
             # TODO support local auth with api-key header
@@ -431,6 +476,26 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
             raise KeyboardInterrupt
 
     elif model_endpoint_type == "anthropic":
+        try:
+            fetched_model_options = get_model_options(
+                credentials=credentials, model_endpoint_type=model_endpoint_type, model_endpoint=model_endpoint
+            )
+        except Exception as e:
+            # NOTE: if this fails, it means the user's key is probably bad
+            typer.secho(
+                f"Failed to get model list from {model_endpoint} - make sure your API key and endpoints are correct!", fg=typer.colors.RED
+            )
+            raise e
+
+        model = questionary.select(
+            "Select default model:",
+            choices=fetched_model_options,
+            default=fetched_model_options[0],
+        ).ask()
+        if model is None:
+            raise KeyboardInterrupt
+
+    elif model_endpoint_type == "cohere":
         try:
             fetched_model_options = get_model_options(
                 credentials=credentials, model_endpoint_type=model_endpoint_type, model_endpoint=model_endpoint
@@ -616,6 +681,27 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
 
             context_window_input = questionary.select(
                 "Select your model's context window (see https://docs.anthropic.com/claude/docs/models-overview):",
+                choices=context_length_options,
+                default=context_length_options[0],
+            ).ask()
+            if context_window_input is None:
+                raise KeyboardInterrupt
+
+        elif model_endpoint_type == "cohere":
+            try:
+                fetched_context_window = str(
+                    cohere_get_model_context_window(url=model_endpoint, api_key=credentials.cohere_key, model=model)
+                )
+                print(f"Got context window {fetched_context_window} for model {model}")
+                context_length_options = [
+                    fetched_context_window,
+                    "custom",
+                ]
+            except Exception as e:
+                print(f"Failed to get model details for model '{model}' ({str(e)})")
+
+            context_window_input = questionary.select(
+                "Select your model's context window (see https://docs.cohere.com/docs/command-r):",
                 choices=context_length_options,
                 default=context_length_options[0],
             ).ask()
