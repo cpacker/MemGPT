@@ -14,38 +14,27 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 user_states = {}
 
 async def start(update: Update, context: CallbackContext):
-    try:
-        user_id = update.message.from_user.id
-        user_exists = await check_user_exists(user_id)
-        chat_id = update.message.chat.id
-        
-        if not user_exists:
-            # Create a new user in Supabase and MemGPT, and save their details
-            creation_response = await create_memgpt_user(user_id)
-            chat_id = update.message.chat.id
-            await context.bot.send_message(chat_id=chat_id, text=creation_response)
-        else:
-            # Inform the user that they already have an account
-            await context.bot.send_message(chat_id=chat_id, text="Welcome back! Your account is already set up.")
-        
-    except Exception as e:
-        print(f"Exception occurred: {e}")
-        await context.bot.send_message(chat_id=chat_id, text="An error occurred. Please try again.")
+    chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
+    user_exists = await check_user_exists(user_id)
+    
+    if not user_exists:
+        await create_memgpt_user(user_id)
+        await context.bot.send_message(chat_id=chat_id, text="Welcome to ƒxyz Network! Please choose a pseudonym for your interactions within our network. This will be your unique identifier and help maintain your privacy.")
+        user_states[user_id] = 'awaiting_pseudonym'
+    else:
+        await context.bot.send_message(chat_id=chat_id, text="Welcome back! Your account is already set up.")
 
 async def echo(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
     chat_id = update.message.chat.id
     message_text = update.message.text
 
-    # Check if the user is in the 'awaiting_agent_name' state
-    if user_states.get(user_id) == 'awaiting_agent_name':
-        # Create the agent with the provided name
-        response = await create_agent(user_id, message_text)
-        # Example of enhanced feedback
-        response += "\nAgent created successfully! You can now send messages to your new agent or use /menu to manage your agents."
-        await context.bot.send_message(chat_id=chat_id, text=response)
-        # Reset the user's state
-        user_states[user_id] = None
+    if user_states.get(user_id) == 'awaiting_pseudonym':
+        # Here, you would typically save the pseudonym for the user
+        user_states[user_id] = None  # Reset the state or move to the next step
+        await context.bot.send_message(chat_id=chat_id, text=f"Thank you! You are now a member of the ƒxyz Network. You can start talking and here's some information about fixiethebot...")
+        # Provide additional information about fixiethebot and how to interact with it
     else:
         # Handle other messages normally
         if update.message.chat.type == "group":
