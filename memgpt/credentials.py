@@ -35,6 +35,9 @@ class MemGPTCredentials:
     # anthropic config
     anthropic_key: Optional[str] = None
 
+    # cohere config
+    cohere_key: Optional[str] = None
+
     # azure config
     azure_auth_type: str = "api_key"
     azure_key: Optional[str] = None
@@ -82,6 +85,8 @@ class MemGPTCredentials:
                 "google_ai_service_endpoint": get_field(config, "google_ai", "service_endpoint"),
                 # anthropic
                 "anthropic_key": get_field(config, "anthropic", "key"),
+                # cohere
+                "cohere_key": get_field(config, "cohere", "key"),
                 # open llm
                 "openllm_auth_type": get_field(config, "openllm", "auth_type"),
                 "openllm_key": get_field(config, "openllm", "key"),
@@ -120,6 +125,9 @@ class MemGPTCredentials:
 
         # anthropic
         set_field(config, "anthropic", "key", self.anthropic_key)
+
+        # cohere
+        set_field(config, "cohere", "key", self.cohere_key)
 
         # openllm config
         set_field(config, "openllm", "auth_type", self.openllm_auth_type)

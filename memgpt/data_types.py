@@ -471,6 +471,108 @@ class Message(Record):
 
         return google_ai_message
 
+    def to_cohere_dict(
+        self,
+        function_call_role: Optional[str] = "SYSTEM",
+        function_call_prefix: Optional[str] = "[CHATBOT called function]",
+        function_response_role: Optional[str] = "SYSTEM",
+        function_response_prefix: Optional[str] = "[CHATBOT function returned]",
+        inner_thoughts_as_kwarg: Optional[bool] = False,
+    ) -> List[dict]:
+        """Cohere chat_history dicts only have 'role' and 'message' fields
+
+        NOTE: returns a list of dicts so that we can convert:
+          assistant [cot]: "I'll send a message"
+          assistant [func]: send_message("hi")
+          tool: {'status': 'OK'}
+        to:
+          CHATBOT.text: "I'll send a message"
+          SYSTEM.text: [CHATBOT called function] send_message("hi")
+          SYSTEM.text: [CHATBOT function returned] {'status': 'OK'}
+
+        TODO: update this prompt style once guidance from Cohere on
+        embedded function calls in multi-turn conversation become more clear
+        """
+
+        if self.role == "system":
+            """
+            The chat_history parameter should not be used for SYSTEM messages in most cases.
+            Instead, to add a SYSTEM role message at the beginning of a conversation, the preamble parameter should be used.
+            """
+            raise UserWarning(f"role 'system' messages should go in 'preamble' field for Cohere API")
+
+        elif self.role == "user":
+            assert all([v is not None for v in [self.text, self.role]]), vars(self)
+            cohere_message = [
+                {
+                    "role": "USER",
+                    "message": self.text,
+                }
+            ]
+
+        elif self.role == "assistant":
+            # NOTE: we may break this into two message - an inner thought and a function call
+            # Optionally, we could just make this a function call with the inner thought inside
+            assert self.tool_calls is not None or self.text is not None
+
+            if self.text and self.tool_calls:
+                if inner_thoughts_as_kwarg:
+                    raise NotImplementedError
+                cohere_message = [
+                    {
+                        "role": "CHATBOT",
+                        "message": self.text,
+                    },
+                ]
+                for tc in self.tool_calls:
+                    # TODO better way to pack?
+                    # function_call_text = json.dumps(tc.to_dict())
+                    function_name = tc.function["name"]
+                    function_args = json.loads(tc.function["arguments"])
+                    function_args_str = ",".join([f"{k}={v}" for k, v in function_args.items()])
+                    function_call_text = f"{function_name}({function_args_str})"
+                    cohere_message.append(
+                        {
+                            "role": function_call_role,
+                            "message": f"{function_call_prefix} {function_call_text}",
+                        }
+                    )
+            elif not self.text and self.tool_calls:
+                cohere_message = []
+                for tc in self.tool_calls:
+                    # TODO better way to pack?
+                    function_call_text = json.dumps(tc.to_dict())
+                    cohere_message.append(
+                        {
+                            "role": function_call_role,
+                            "message": f"{function_call_prefix} {function_call_text}",
+                        }
+                    )
+            elif self.text and not self.tool_calls:
+                cohere_message = [
+                    {
+                        "role": "CHATBOT",
+                        "message": self.text,
+                    }
+                ]
+            else:
+                raise ValueError("Message does not have content nor tool_calls")
+
+        elif self.role == "tool":
+            assert all([v is not None for v in [self.role, self.tool_call_id]]), vars(self)
+            function_response_text = self.text
+            cohere_message = [
+                {
+                    "role": function_response_role,
+                    "message": f"{function_response_prefix} {function_response_text}",
+                }
+            ]
+
+        else:
+            raise ValueError(self.role)
+
+        return cohere_message
+
 
 class Document(Record):
     """A document represent a document loaded into MemGPT, which is broken down into passages."""
