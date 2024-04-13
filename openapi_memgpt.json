@@ -4764,10 +4764,11 @@
             "title": "Name",
             "description": "The name of the function."
           },
-          "json_schema": {
-            "type": "object",
-            "title": "Json Schema",
-            "description": "The JSON schema of the function."
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The unique identifier of the function."
           },
           "tags": {
             "items": {
@@ -4780,7 +4781,7 @@
           "source_type": {
             "anyOf": [
               {
-                "const": "python"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -4800,12 +4801,16 @@
             ],
             "title": "Source Code",
             "description": "The source code of the function."
+          },
+          "json_schema": {
+            "type": "object",
+            "title": "Json Schema",
+            "description": "The JSON schema of the function."
           }
         },
         "type": "object",
         "required": [
           "name",
-          "json_schema",
           "tags",
           "source_code"
         ],

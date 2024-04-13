@@ -10,6 +10,9 @@ load_dotenv()
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
+# At the top of your script, add a dictionary for state management
+user_states = {}
+
 async def start(update: Update, context: CallbackContext):
     try:
         user_id = update.message.from_user.id
@@ -31,18 +34,29 @@ async def start(update: Update, context: CallbackContext):
 
 async def echo(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
+    chat_id = update.message.chat.id
     message_text = update.message.text
-    if update.message.chat.type == "group":
-        bot_username = context.bot.username
-        if bot_username in update.message.text:
-            # Echo the received message back to the sender
-            response = await send_message_to_memgpt(user_id, message_text)
-            chat_id = update.message.chat.id
-            await context.bot.send_message(chat_id=chat_id, text=response)
-    else:
-        response = await send_message_to_memgpt(user_id, message_text)
-        chat_id = update.message.chat.id
+
+    # Check if the user is in the 'awaiting_agent_name' state
+    if user_states.get(user_id) == 'awaiting_agent_name':
+        # Create the agent with the provided name
+        response = await create_agent(user_id, message_text)
+        # Example of enhanced feedback
+        response += "\nAgent created successfully! You can now send messages to your new agent or use /menu to manage your agents."
         await context.bot.send_message(chat_id=chat_id, text=response)
+        # Reset the user's state
+        user_states[user_id] = None
+    else:
+        # Handle other messages normally
+        if update.message.chat.type == "group":
+            bot_username = context.bot.username
+            if bot_username in update.message.text:
+                # Echo the received message back to the sender
+                response = await send_message_to_memgpt(user_id, message_text)
+                await context.bot.send_message(chat_id=chat_id, text=response)
+        else:
+            response = await send_message_to_memgpt(user_id, message_text)
+            await context.bot.send_message(chat_id=chat_id, text=response)
 
 async def debug(update: Update, context: CallbackContext):
     await context.bot.send_message(chat_id=update.message.from_user.id, text="Debug: Bot is running.")
@@ -120,13 +134,16 @@ async def menu(update: Update, context: CallbackContext):
 
 async def button_click(update: Update, context: CallbackContext):
     query = update.callback_query
-    
     await query.answer()
-    
     callback_data = query.data
     user_id = query.from_user.id
     chat_id = query.message.chat.id
-    if callback_data == 'list_agents':
+
+    if callback_data == 'createagent':
+        # Set the user's state to 'awaiting_agent_name'
+        user_states[user_id] = 'awaiting_agent_name'
+        await context.bot.send_message(chat_id=chat_id, text="Please send the name for your new agent.")
+    elif callback_data == 'list_agents':
         response = await list_agents(user_id)
         await context.bot.send_message(chat_id=chat_id, text=response)
     elif callback_data == 'current_agent':
@@ -135,7 +152,9 @@ async def button_click(update: Update, context: CallbackContext):
     elif callback_data == 'change_agent_buttons':
         await change_agent_buttons(update, context)
     elif callback_data == 'createagent':
-        await createagent(update, context)
+        # Set the user's state to 'awaiting_agent_name'
+        user_states[user_id] = 'awaiting_agent_name'
+        await context.bot.send_message(chat_id=chat_id, text="Please send the name for your new agent.")
     elif callback_data == 'delete_agent_buttons':
         await delete_agent_buttons(update, context)
     elif callback_data == 'check_user':
