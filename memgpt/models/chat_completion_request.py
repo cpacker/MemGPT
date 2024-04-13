@@ -14,14 +14,46 @@ class UserMessage(BaseModel):
     name: Optional[str] = None
 
 
+class ToolCallFunction(BaseModel):
+    name: str
+    arguments: str
+
+
+class ToolCall(BaseModel):
+    id: str
+    type: Literal["function"] = "function"
+    function: ToolCallFunction
+
+
 class AssistantMessage(BaseModel):
     content: Optional[str] = None
     role: str = "assistant"
     name: Optional[str] = None
-    tool_calls: Optional[List] = None
+    tool_calls: Optional[List[ToolCall]] = None
 
 
-ChatMessage = Union[SystemMessage, UserMessage, AssistantMessage]
+class ToolMessage(BaseModel):
+    content: str
+    role: str = "tool"
+    tool_call_id: str
+
+
+ChatMessage = Union[SystemMessage, UserMessage, AssistantMessage, ToolMessage]
+
+
+def cast_message_to_subtype(m_dict: dict) -> ChatMessage:
+    """Cast a dictionary to one of the individual message types"""
+    role = m_dict.get("role")
+    if role == "system":
+        return SystemMessage(**m_dict)
+    elif role == "user":
+        return UserMessage(**m_dict)
+    elif role == "assistant":
+        return AssistantMessage(**m_dict)
+    elif role == "tool":
+        return ToolMessage(**m_dict)
+    else:
+        raise ValueError("Unknown message role")
 
 
 class ResponseFormat(BaseModel):

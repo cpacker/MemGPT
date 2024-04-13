@@ -13,6 +13,7 @@ DEFAULT_ENDPOINTS = {
     "vllm": "http://localhost:8000",
     # APIs
     "openai": "https://api.openai.com",
+    "anthropic": "https://api.anthropic.com",
     "groq": "https://api.groq.com/openai",
 }
 
@@ -23,3 +24,6 @@ DEFAULT_OLLAMA_MODEL = "dolphin2.2-mistral:7b-q6_K"
 
 DEFAULT_WRAPPER = ChatMLInnerMonologueWrapper
 DEFAULT_WRAPPER_NAME = "chatml"
+
+INNER_THOUGHTS_KWARG = "inner_thoughts"
+INNER_THOUGHTS_KWARG_DESCRIPTION = "Deep inner monologue private to you only."

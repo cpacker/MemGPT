@@ -1,6 +1,7 @@
 """ This module contains the data types used by MemGPT. Each data type must include a function to create a DB model. """
 
 import uuid
+import json
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, TypeVar
 import numpy as np
@@ -18,6 +19,7 @@ from memgpt.constants import (
 from memgpt.utils import get_utc_time, create_uuid_from_string
 from memgpt.models import chat_completion_response
 from memgpt.utils import get_human_text, get_persona_text, printd, is_utc_datetime
+from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG, INNER_THOUGHTS_KWARG_DESCRIPTION
 
 
 class Record:
@@ -82,6 +84,7 @@ class Message(Record):
         created_at: Optional[datetime] = None,
         tool_calls: Optional[List[ToolCall]] = None,  # list of tool calls requested
         tool_call_id: Optional[str] = None,
+        # tool_call_name: Optional[str] = None,  # not technically OpenAI spec, but it can be helpful to have on-hand
         embedding: Optional[np.ndarray] = None,
         embedding_dim: Optional[int] = None,
         embedding_model: Optional[str] = None,
@@ -238,7 +241,7 @@ class Message(Record):
                 tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
             )
 
-    def to_openai_dict(self, max_tool_id_length=TOOL_CALL_ID_MAX_LEN):
+    def to_openai_dict(self, max_tool_id_length=TOOL_CALL_ID_MAX_LEN) -> dict:
         """Go from Message class to ChatCompletion message object"""
 
         # TODO change to pydantic casting, eg `return SystemMessageModel(self)`
@@ -285,10 +288,290 @@ class Message(Record):
                 "role": self.role,
                 "tool_call_id": self.tool_call_id[:max_tool_id_length] if max_tool_id_length else self.tool_call_id,
             }
+
         else:
             raise ValueError(self.role)
 
         return openai_message
+
+    def to_anthropic_dict(self, inner_thoughts_xml_tag="thinking") -> dict:
+        # raise NotImplementedError
+
+        def add_xml_tag(string: str, xml_tag: Optional[str]):
+            # NOTE: Anthropic docs recommends using <thinking> tag when using CoT + tool use
+            return f"<{xml_tag}>{string}</{xml_tag}" if xml_tag else string
+
+        if self.role == "system":
+            raise ValueError(f"Anthropic 'system' role not supported")
+
+        elif self.role == "user":
+            assert all([v is not None for v in [self.text, self.role]]), vars(self)
+            anthropic_message = {
+                "content": self.text,
+                "role": self.role,
+            }
+            # Optional field, do not include if null
+            if self.name is not None:
+                anthropic_message["name"] = self.name
+
+        elif self.role == "assistant":
+            assert self.tool_calls is not None or self.text is not None
+            anthropic_message = {
+                "role": self.role,
+            }
+            content = []
+            if self.text is not None:
+                content.append(
+                    {
+                        "type": "text",
+                        "text": add_xml_tag(string=self.text, xml_tag=inner_thoughts_xml_tag),
+                    }
+                )
+            if self.tool_calls is not None:
+                for tool_call in self.tool_calls:
+                    content.append(
+                        {
+                            "type": "tool_use",
+                            "id": tool_call.id,
+                            "name": tool_call.function["name"],
+                            "input": json.loads(tool_call.function["arguments"]),
+                        }
+                    )
+
+            # If the only content was text, unpack it back into a singleton
+            # TODO
+            anthropic_message["content"] = content
+
+            # Optional fields, do not include if null
+            if self.name is not None:
+                anthropic_message["name"] = self.name
+
+        elif self.role == "tool":
+            # NOTE: Anthropic uses role "user" for "tool" responses
+            assert all([v is not None for v in [self.role, self.tool_call_id]]), vars(self)
+            anthropic_message = {
+                "role": "user",  # NOTE: diff
+                "content": [
+                    # TODO support error types etc
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": self.tool_call_id,
+                        "content": self.text,
+                    }
+                ],
+            }
+
+        else:
+            raise ValueError(self.role)
+
+        return anthropic_message
+
+    def to_google_ai_dict(self, put_inner_thoughts_in_kwargs: bool = True) -> dict:
+        """Go from Message class to Google AI REST message object
+
+        type Content: https://ai.google.dev/api/rest/v1/Content / https://ai.google.dev/api/rest/v1beta/Content
+            parts[]: Part
+            role: str ('user' or 'model')
+        """
+        if self.role != "tool" and self.name is not None:
+            raise UserWarning(f"Using Google AI with non-null 'name' field ({self.name}) not yet supported.")
+
+        if self.role == "system":
+            # NOTE: Gemini API doesn't have a 'system' role, use 'user' instead
+            # https://www.reddit.com/r/Bard/comments/1b90i8o/does_gemini_have_a_system_prompt_option_while/
+            google_ai_message = {
+                "role": "user",  # NOTE: no 'system'
+                "parts": [{"text": self.text}],
+            }
+
+        elif self.role == "user":
+            assert all([v is not None for v in [self.text, self.role]]), vars(self)
+            google_ai_message = {
+                "role": "user",
+                "parts": [{"text": self.text}],
+            }
+
+        elif self.role == "assistant":
+            assert self.tool_calls is not None or self.text is not None
+            google_ai_message = {
+                "role": "model",  # NOTE: different
+            }
+
+            # NOTE: Google AI API doesn't allow non-null content + function call
+            # To get around this, just two a two part message, inner thoughts first then
+            parts = []
+            if not put_inner_thoughts_in_kwargs and self.text is not None:
+                # NOTE: ideally we do multi-part for CoT / inner thoughts + function call, but Google AI API doesn't allow it
+                raise NotImplementedError
+                parts.append({"text": self.text})
+
+            if self.tool_calls is not None:
+                # NOTE: implied support for multiple calls
+                for tool_call in self.tool_calls:
+                    function_name = tool_call.function["name"]
+                    function_args = tool_call.function["arguments"]
+                    try:
+                        # NOTE: Google AI wants actual JSON objects, not strings
+                        function_args = json.loads(function_args)
+                    except:
+                        raise UserWarning(f"Failed to parse JSON function args: {function_args}")
+                        function_args = {"args": function_args}
+
+                    if put_inner_thoughts_in_kwargs and self.text is not None:
+                        assert "inner_thoughts" not in function_args, function_args
+                        assert len(self.tool_calls) == 1
+                        function_args[INNER_THOUGHTS_KWARG] = self.text
+
+                    parts.append(
+                        {
+                            "functionCall": {
+                                "name": function_name,
+                                "args": function_args,
+                            }
+                        }
+                    )
+            else:
+                assert self.text is not None
+                parts.append({"text": self.text})
+            google_ai_message["parts"] = parts
+
+        elif self.role == "tool":
+            # NOTE: Significantly different tool calling format, more similar to function calling format
+            assert all([v is not None for v in [self.role, self.tool_call_id]]), vars(self)
+
+            if self.name is None:
+                raise UserWarning(f"Couldn't find function name on tool call, defaulting to tool ID instead.")
+                function_name = self.tool_call_id
+            else:
+                function_name = self.name
+
+            # NOTE: Google AI API wants the function response as JSON only, no string
+            try:
+                function_response = json.loads(self.text)
+            except:
+                function_response = {"function_response": self.text}
+
+            google_ai_message = {
+                "role": "function",
+                "parts": [
+                    {
+                        "functionResponse": {
+                            "name": function_name,
+                            "response": {
+                                "name": function_name,  # NOTE: name twice... why?
+                                "content": function_response,
+                            },
+                        }
+                    }
+                ],
+            }
+
+        else:
+            raise ValueError(self.role)
+
+        return google_ai_message
+
+    def to_cohere_dict(
+        self,
+        function_call_role: Optional[str] = "SYSTEM",
+        function_call_prefix: Optional[str] = "[CHATBOT called function]",
+        function_response_role: Optional[str] = "SYSTEM",
+        function_response_prefix: Optional[str] = "[CHATBOT function returned]",
+        inner_thoughts_as_kwarg: Optional[bool] = False,
+    ) -> List[dict]:
+        """Cohere chat_history dicts only have 'role' and 'message' fields
+
+        NOTE: returns a list of dicts so that we can convert:
+          assistant [cot]: "I'll send a message"
+          assistant [func]: send_message("hi")
+          tool: {'status': 'OK'}
+        to:
+          CHATBOT.text: "I'll send a message"
+          SYSTEM.text: [CHATBOT called function] send_message("hi")
+          SYSTEM.text: [CHATBOT function returned] {'status': 'OK'}
+
+        TODO: update this prompt style once guidance from Cohere on
+        embedded function calls in multi-turn conversation become more clear
+        """
+
+        if self.role == "system":
+            """
+            The chat_history parameter should not be used for SYSTEM messages in most cases.
+            Instead, to add a SYSTEM role message at the beginning of a conversation, the preamble parameter should be used.
+            """
+            raise UserWarning(f"role 'system' messages should go in 'preamble' field for Cohere API")
+
+        elif self.role == "user":
+            assert all([v is not None for v in [self.text, self.role]]), vars(self)
+            cohere_message = [
+                {
+                    "role": "USER",
+                    "message": self.text,
+                }
+            ]
+
+        elif self.role == "assistant":
+            # NOTE: we may break this into two message - an inner thought and a function call
+            # Optionally, we could just make this a function call with the inner thought inside
+            assert self.tool_calls is not None or self.text is not None
+
+            if self.text and self.tool_calls:
+                if inner_thoughts_as_kwarg:
+                    raise NotImplementedError
+                cohere_message = [
+                    {
+                        "role": "CHATBOT",
+                        "message": self.text,
+                    },
+                ]
+                for tc in self.tool_calls:
+                    # TODO better way to pack?
+                    # function_call_text = json.dumps(tc.to_dict())
+                    function_name = tc.function["name"]
+                    function_args = json.loads(tc.function["arguments"])
+                    function_args_str = ",".join([f"{k}={v}" for k, v in function_args.items()])
+                    function_call_text = f"{function_name}({function_args_str})"
+                    cohere_message.append(
+                        {
+                            "role": function_call_role,
+                            "message": f"{function_call_prefix} {function_call_text}",
+                        }
+                    )
+            elif not self.text and self.tool_calls:
+                cohere_message = []
+                for tc in self.tool_calls:
+                    # TODO better way to pack?
+                    function_call_text = json.dumps(tc.to_dict())
+                    cohere_message.append(
+                        {
+                            "role": function_call_role,
+                            "message": f"{function_call_prefix} {function_call_text}",
+                        }
+                    )
+            elif self.text and not self.tool_calls:
+                cohere_message = [
+                    {
+                        "role": "CHATBOT",
+                        "message": self.text,
+                    }
+                ]
+            else:
+                raise ValueError("Message does not have content nor tool_calls")
+
+        elif self.role == "tool":
+            assert all([v is not None for v in [self.role, self.tool_call_id]]), vars(self)
+            function_response_text = self.text
+            cohere_message = [
+                {
+                    "role": function_response_role,
+                    "message": f"{function_response_prefix} {function_response_text}",
+                }
+            ]
+
+        else:
+            raise ValueError(self.role)
+
+        return cohere_message
 
 
 class Document(Record):

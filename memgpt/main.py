@@ -1,6 +1,7 @@
 import os
 import sys
 import traceback
+import requests
 import json
 
 import questionary
@@ -11,6 +12,7 @@ from memgpt.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, JSON_ENSURE_ASCII, J
 
 console = Console()
 
+from memgpt.agent import save_agent
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.config import MemGPTConfig
@@ -192,7 +194,9 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                     else:
                         print(f"Popping last {pop_amount} messages from stack")
                         for _ in range(min(pop_amount, len(memgpt_agent.messages))):
-                            memgpt_agent.messages.pop()
+                            memgpt_agent._messages.pop()
+                        # Persist the state
+                        save_agent(agent=memgpt_agent, ms=ms)
                     continue
 
                 elif user_input.lower() == "/retry":
@@ -214,7 +218,13 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                     for x in range(len(memgpt_agent.messages) - 1, 0, -1):
                         if memgpt_agent.messages[x].get("role") == "assistant":
                             text = user_input[len("/rethink ") :].strip()
-                            memgpt_agent.messages[x].update({"content": text})
+
+                            # Do the /rethink-ing
+                            message_obj = memgpt_agent._messages[x]
+                            message_obj.text = text
+
+                            # To persist to the database, all we need to do is "re-insert" into recall memory
+                            memgpt_agent.persistence_manager.recall_memory.storage.update(record=message_obj)
                             break
                     continue
 
@@ -262,7 +272,7 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                             fg=typer.colors.GREEN,
                             bold=True,
                         )
-                    except errors.LLMError as e:
+                    except (errors.LLMError, requests.exceptions.HTTPError) as e:
                         typer.secho(
                             f"/summarize failed:\n{e}",
                             fg=typer.colors.RED,

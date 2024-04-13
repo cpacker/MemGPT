@@ -58,6 +58,10 @@ def get_chat_completion(
     global has_shown_warning
     grammar = None
 
+    # TODO: eventually just process Message object
+    if not isinstance(messages[0], dict):
+        messages = [m.to_openai_dict() for m in messages]
+
     if function_call is not None and function_call != "auto":
         raise ValueError(f"function_call == {function_call} not supported (auto or None only)")
 

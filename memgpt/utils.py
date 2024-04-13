@@ -17,7 +17,7 @@ from functools import wraps
 from typing import get_type_hints, Union, _GenericAlias
 
 
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 from contextlib import contextmanager
 import difflib
 import demjson3 as demjson
@@ -467,6 +467,13 @@ NOUN_BANK = [
     "yak",
     "zebra",
 ]
+
+
+def smart_urljoin(base_url: str, relative_url: str) -> str:
+    """urljoin is stupid and wants a trailing / at the end of the endpoint address, or it will chop the suffix off"""
+    if not base_url.endswith("/"):
+        base_url += "/"
+    return urljoin(base_url, relative_url)
 
 
 def is_utc_datetime(dt: datetime) -> bool:
