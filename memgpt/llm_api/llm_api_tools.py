@@ -20,9 +20,10 @@ from memgpt.llm_api.google_ai import (
     convert_tools_to_google_ai_format,
 )
 from memgpt.llm_api.anthropic import anthropic_chat_completions_request
+from memgpt.llm_api.cohere import cohere_chat_completions_request
 
 
-LLM_API_PROVIDER_OPTIONS = ["openai", "azure", "anthropic", "google_ai", "local"]
+LLM_API_PROVIDER_OPTIONS = ["openai", "azure", "anthropic", "google_ai", "cohere", "local"]
 
 
 def is_context_overflow_error(exception: requests.exceptions.RequestException) -> bool:
@@ -255,6 +256,31 @@ def create(
                 # user=str(agent_state.user_id),
                 # NOTE: max_tokens is required for Anthropic API
                 max_tokens=1024,  # TODO make dynamic
+            ),
+        )
+
+    elif agent_state.llm_config.model_endpoint_type == "cohere":
+        if not use_tool_naming:
+            raise NotImplementedError("Only tool calling supported on Cohere API requests")
+
+        if functions is not None:
+            tools = [{"type": "function", "function": f} for f in functions]
+            tools = [Tool(**t) for t in tools]
+        else:
+            tools = None
+
+        return cohere_chat_completions_request(
+            # url=agent_state.llm_config.model_endpoint,
+            url="https://api.cohere.ai/v1",  # TODO
+            api_key=os.getenv("COHERE_API_KEY"),  # TODO remove
+            chat_completion_request=ChatCompletionRequest(
+                model="command-r-plus",  # TODO
+                messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
+                tools=[{"type": "function", "function": f} for f in functions] if functions else None,
+                tool_choice=function_call,
+                # user=str(agent_state.user_id),
+                # NOTE: max_tokens is required for Anthropic API
+                # max_tokens=1024,  # TODO make dynamic
             ),
         )
 
