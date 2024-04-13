@@ -22,7 +22,7 @@ from memgpt.llm_api.openai import openai_get_model_list
 from memgpt.llm_api.azure_openai import azure_openai_get_model_list
 from memgpt.llm_api.google_ai import google_ai_get_model_list, google_ai_get_model_context_window
 from memgpt.llm_api.anthropic import anthropic_get_model_list, antropic_get_model_context_window
-from memgpt.llm_api.cohere import cohere_get_model_list, cohere_get_model_context_window
+from memgpt.llm_api.cohere import cohere_get_model_list, cohere_get_model_context_window, COHERE_VALID_MODEL_LIST
 from memgpt.llm_api.llm_api_tools import LLM_API_PROVIDER_OPTIONS
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
@@ -496,6 +496,8 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
             raise KeyboardInterrupt
 
     elif model_endpoint_type == "cohere":
+
+        fetched_model_options = []
         try:
             fetched_model_options = get_model_options(
                 credentials=credentials, model_endpoint_type=model_endpoint_type, model_endpoint=model_endpoint
@@ -507,13 +509,43 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
             )
             raise e
 
+        fetched_model_options = [m["name"] for m in fetched_model_options]
+        hardcoded_model_options = [m for m in fetched_model_options if m in COHERE_VALID_MODEL_LIST]
+
+        # First ask if the user wants to see the full model list (some may be incompatible)
+        see_all_option_str = "[see all options]"
+        other_option_str = "[enter model name manually]"
+
+        # Check if the model we have set already is even in the list (informs our default)
+        valid_model = config.default_llm_config.model in hardcoded_model_options
         model = questionary.select(
-            "Select default model:",
-            choices=fetched_model_options,
-            default=fetched_model_options[0],
+            "Select default model (recommended: command-r-plus):",
+            choices=hardcoded_model_options + [see_all_option_str, other_option_str],
+            default=config.default_llm_config.model if valid_model else hardcoded_model_options[0],
         ).ask()
         if model is None:
             raise KeyboardInterrupt
+
+        # If the user asked for the full list, show it
+        if model == see_all_option_str:
+            typer.secho(f"Warning: not all models shown are guaranteed to work with MemGPT", fg=typer.colors.RED)
+            model = questionary.select(
+                "Select default model (recommended: command-r-plus):",
+                choices=fetched_model_options + [other_option_str],
+                default=config.default_llm_config.model if valid_model else fetched_model_options[0],
+            ).ask()
+            if model is None:
+                raise KeyboardInterrupt
+
+        # Finally if the user asked to manually input, allow it
+        if model == other_option_str:
+            model = ""
+            while len(model) == 0:
+                model = questionary.text(
+                    "Enter custom model name:",
+                ).ask()
+                if model is None:
+                    raise KeyboardInterrupt
 
     else:  # local models
 

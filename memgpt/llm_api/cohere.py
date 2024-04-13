@@ -21,7 +21,7 @@ from memgpt.local_llm.utils import count_tokens
 BASE_URL = "https://api.cohere.ai/v1"
 
 # models that we know will work with MemGPT
-VALID_MODEL_LIST = [
+COHERE_VALID_MODEL_LIST = [
     "command-r-plus",
 ]
 
