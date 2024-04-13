@@ -1,6 +1,7 @@
 import copy
 import json
-
+from typing import List
+from memgpt.data_types import Message
 from memgpt.constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
 
 NO_HEARTBEAT_FUNCS = ["send_message", "pause_heartbeats"]
@@ -27,7 +28,7 @@ def insert_heartbeat(message):
     return message_copy
 
 
-def heartbeat_correction(message_history, new_message):
+def heartbeat_correction(message_history: List[Message], new_message: Message):
     """Add heartbeats where we think the agent forgot to add them themselves
 
     If the last message in the stack is a user message and the new message is an assistant func call, fix the heartbeat
@@ -38,9 +39,9 @@ def heartbeat_correction(message_history, new_message):
         return None
 
     last_message_was_user = False
-    if message_history[-1]["role"] == "user":
+    if message_history[-1].role == "user":
         try:
-            content = json.loads(message_history[-1]["content"], strict=JSON_LOADS_STRICT)
+            content = json.loads(message_history[-1].content, strict=JSON_LOADS_STRICT)
         except json.JSONDecodeError:
             return None
         # Check if it's a user message or system message
@@ -48,12 +49,15 @@ def heartbeat_correction(message_history, new_message):
             last_message_was_user = True
 
     new_message_is_heartbeat_function = False
-    if new_message["role"] == "assistant":
-        if new_message.get("function_call") or new_message.get("tool_calls"):
-            if new_message.get("function_call"):
-                function_name = new_message.get("function_call").get("name")
-            elif new_message.get("tool_calls"):
-                function_name = new_message.get("tool_calls")[0].get("function").get("name")
+    if new_message.role == "assistant":
+        if new_message.tool_calls:  # Check if it's a tool call
+            function_name = new_message.tool_calls[0].function["name"]
+
+            # if new_message.get("function_call") or new_message.get("tool_calls"):
+            #    if new_message.get("function_call"):
+            #        function_name = new_message.get("function_call").get("name")
+            #    elif new_message.get("tool_calls"):
+            #        function_name = new_message.get("tool_calls")[0].get("function").get("name")
             if function_name not in NO_HEARTBEAT_FUNCS:
                 new_message_is_heartbeat_function = True
 
@@ -63,6 +67,6 @@ def heartbeat_correction(message_history, new_message):
         return None
 
 
-def patch_function(message_history, new_message):
+def patch_function(message_history: List[Message], new_message: Message):
     corrected_output = heartbeat_correction(message_history=message_history, new_message=new_message)
     return corrected_output if corrected_output is not None else new_message

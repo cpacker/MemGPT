@@ -4,6 +4,7 @@ from datetime import datetime
 import requests
 import json
 import uuid
+from typing import List
 
 from memgpt.local_llm.grammars.gbnf_grammar_generator import create_dynamic_model_from_function, generate_gbnf_grammar_and_documentation
 from memgpt.local_llm.webui.api import get_webui_completion
@@ -31,7 +32,7 @@ grammar_supported_backends = ["koboldcpp", "llamacpp", "webui", "webui-legacy"]
 def get_chat_completion(
     model,
     # no model required (except for Ollama), since the model is fixed to whatever you set in your own backend
-    messages,
+    messages: List[Message],
     functions=None,
     functions_python=None,
     function_call="auto",
@@ -65,7 +66,7 @@ def get_chat_completion(
     documentation = None
 
     # Special case for if the call we're making is coming from the summarizer
-    if messages[0]["role"] == "system" and messages[0]["content"].strip() == SUMMARIZE_SYSTEM_MESSAGE.strip():
+    if messages[0].role == "system" and messages[0].content.strip() == SUMMARIZE_SYSTEM_MESSAGE.strip():
         llm_wrapper = simple_summary_wrapper.SimpleSummaryWrapper()
 
     # Select a default prompt formatter
