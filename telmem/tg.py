@@ -6,11 +6,9 @@ import os
 from dotenv import load_dotenv
 import re
 
-
 load_dotenv()
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-
 
 async def start(update: Update, context: CallbackContext):
     try:
