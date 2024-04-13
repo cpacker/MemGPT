@@ -35,3 +35,10 @@ COPY ./memgpt /memgpt
 EXPOSE 8083
 
 CMD ./memgpt/server/startup.sh
+
+FROM runtime as tests
+ARG MEMGPT_ENVIRONMENT=PRODUCTION
+ENV MEMGPT_ENVIRONMENT=${MEMGPT_ENVIRONMENT}
+COPY ./tests /tests
+COPY ./configs/server_config.yaml /root/.memgpt/config
+CMD  pytest /tests

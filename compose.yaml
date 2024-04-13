@@ -7,7 +7,7 @@ services:
       - POSTGRES_PASSWORD=${MEMGPT_PG_PASSWORD}
       - POSTGRES_DB=${MEMGPT_PG_DB}
     volumes:
-      - ./.pgdata:/var/lib/postgresql/data
+      - ./.persist/pgdata:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
@@ -28,9 +28,27 @@ services:
       - .env
     volumes:
       - ./memgpt:/memgpt
+      - ~/.memgpt/credentials:/root/.memgpt/credentials
+      #- ./configs/server_config.yaml:/root/.memgpt/config
+  memgpt_tests:
+    image: memgpt_tests
+    profiles:
+      - tests
+    hostname: memgpt-tests
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: tests
+      args:
+        - MEMGPT_ENVIRONMENT=DEVELOPMENT
+    depends_on:
+      - memgpt_db
+    env_file:
+      - .env
+    volumes:
+      - ./memgpt:/memgpt
       - ./tests:/tests
-      - ./configs/server_config.yaml:/root/.memgpt/config # config file
-      - ~/.memgpt/credentials:/root/.memgpt/credentials # credentials file
+      - ~/.memgpt/credentials:/root/.memgpt/credentials
   memgpt_nginx:
     hostname: memgpt-nginx
     image: nginx:stable-alpine3.17-slim
