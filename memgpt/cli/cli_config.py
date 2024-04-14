@@ -1216,7 +1216,6 @@ def delete(option: str, name: str):
             assert persona is not None, f"Persona {name} does not exist"
             ms.delete_persona(name=name, user_id=user_id)
             assert ms.get_persona(name=name, user_id=user_id) is None, f"Persona {name} still exists"
-            print([p.name for p in ms.list_personas(user_id=user_id)])
         elif option == "preset":
             preset = ms.get_preset(name=name, user_id=user_id)
             assert preset is not None, f"Preset {name} does not exist"
