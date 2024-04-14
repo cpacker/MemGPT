@@ -14,7 +14,7 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock ./
 RUN poetry lock --no-update
 RUN if [ "$MEMGPT_ENVIRONMENT" = "DEVELOPMENT"  ] ; then \
-    poetry install --no-root -E "postgres server dev" ; \
+    poetry install --no-root -E "postgres server dev autogen" ; \
     else \
     poetry install --without dev --no-root -E "postgres server" && \
     rm -rf $POETRY_CACHE_DIR ;  \
@@ -41,7 +41,7 @@ ARG MEMGPT_ENVIRONMENT=PRODUCTION
 ENV MEMGPT_ENVIRONMENT=${MEMGPT_ENVIRONMENT}
 ENV VIRTUAL_ENV=/app/.venv \
     PATH="/app/.venv/bin:$PATH"
-
+ENV PYTHONPATH=/
 WORKDIR /
 COPY ./tests /tests
 COPY ./memgpt /memgpt
