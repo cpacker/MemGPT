@@ -51,6 +51,7 @@ services:
       - ./CONTRIBUTING.md:/CONTRIBUTING.md
       - ./tests/pytest_cache:/memgpt/.pytest_cache
       - ./tests/pytest.ini:/memgpt/pytest.ini
+      - ./pyproject.toml:/pyproject.toml
       - ./memgpt:/memgpt
       - ./tests:/tests
       - ~/.memgpt/credentials:/root/.memgpt/credentials
