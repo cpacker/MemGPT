@@ -866,36 +866,6 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
     return embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model
 
 
-def configure_cli(config: MemGPTConfig, credentials: MemGPTCredentials):
-    # set: preset, default_persona, default_human, default_agent``
-    from memgpt.presets.presets import preset_options
-
-    # preset
-    default_preset = config.preset if config.preset and config.preset in preset_options else None
-    preset = questionary.select("Select default preset:", preset_options, default=default_preset).ask()
-    if preset is None:
-        raise KeyboardInterrupt
-
-    # persona
-    personas = [os.path.basename(f).replace(".txt", "") for f in utils.list_persona_files()]
-    default_persona = config.persona if config.persona and config.persona in personas else None
-    persona = questionary.select("Select default persona:", personas, default=default_persona).ask()
-    if persona is None:
-        raise KeyboardInterrupt
-
-    # human
-    humans = [os.path.basename(f).replace(".txt", "") for f in utils.list_human_files()]
-    default_human = config.human if config.human and config.human in humans else None
-    human = questionary.select("Select default human:", humans, default=default_human).ask()
-    if human is None:
-        raise KeyboardInterrupt
-
-    # TODO: figure out if we should set a default agent or not
-    agent = None
-
-    return preset, persona, human, agent
-
-
 def configure_archival_storage(config: MemGPTConfig, credentials: MemGPTCredentials):
     # Configure archival storage backend
     archival_storage_options = ["postgres", "chroma"]
@@ -988,10 +958,6 @@ def configure():
             model_endpoint=str(model_endpoint),
         )
         embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = configure_embedding_endpoint(
-            config=config,
-            credentials=credentials,
-        )
-        default_preset, default_persona, default_human, default_agent = configure_cli(
             config=config,
             credentials=credentials,
         )
