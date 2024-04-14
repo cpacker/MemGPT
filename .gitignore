@@ -1012,3 +1012,7 @@ FodyWeavers.xsd
 ## cached db data
 pgdata/
 !pgdata/.gitkeep
+
+## pytest mirrors
+memgpt/.pytest_cache/
+memgpy/pytest.ini

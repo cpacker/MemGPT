@@ -48,6 +48,9 @@ services:
     environment:
       - MEMGPT_SERVER_PASS=test_server_token
     volumes:
+      - ./CONTRIBUTING.md:/CONTRIBUTING.md
+      - ./tests/pytest_cache:/memgpt/.pytest_cache
+      - ./tests/pytest.ini:/memgpt/pytest.ini
       - ./memgpt:/memgpt
       - ./tests:/tests
       - ~/.memgpt/credentials:/root/.memgpt/credentials

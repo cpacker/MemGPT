@@ -16,9 +16,9 @@ RUN poetry lock --no-update
 RUN if [ "$MEMGPT_ENVIRONMENT" = "DEVELOPMENT"  ] ; then \
     poetry install --no-root -E "postgres server dev" ; \
     else \
-    poetry install --without dev --no-root -E "postgres server" ; \
-    fi && \
-    rm -rf $POETRY_CACHE_DIR
+    poetry install --without dev --no-root -E "postgres server" && \
+    rm -rf $POETRY_CACHE_DIR ;  \
+    fi
 
 
 # The runtime image, used to just run the code provided its virtual environment
@@ -36,9 +36,16 @@ EXPOSE 8083
 
 CMD ./memgpt/server/startup.sh
 
-FROM runtime as tests
+FROM builder as tests
 ARG MEMGPT_ENVIRONMENT=PRODUCTION
 ENV MEMGPT_ENVIRONMENT=${MEMGPT_ENVIRONMENT}
+ENV VIRTUAL_ENV=/app/.venv \
+    PATH="/app/.venv/bin:$PATH"
+
+WORKDIR /
 COPY ./tests /tests
+COPY ./memgpt /memgpt
 COPY ./configs/server_config.yaml /root/.memgpt/config
+EXPOSE 8083
+
 CMD  pytest /tests
