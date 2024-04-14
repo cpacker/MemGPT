@@ -1017,7 +1017,6 @@ def configure():
     user_id = uuid.UUID(config.anon_clientid)
     user = User(
         id=uuid.UUID(config.anon_clientid),
-        default_agent=default_agent,
     )
     if ms.get_user(user_id):
         # update user
@@ -1142,9 +1141,19 @@ def add(
         with open(filename, "r") as f:
             text = f.read()
     if option == "persona":
-        ms.add_persona(PersonaModel(name=name, text=text, user_id=user_id))
+        update = True
+        if ms.get_persona(name=name, user_id=user_id):
+            # config if user wants to overwrite
+            update = not questionary.confirm(f"Persona {name} already exists. Overwrite?").ask()
+        if update:
+            ms.add_persona(PersonaModel(name=name, text=text, user_id=user_id))
     elif option == "human":
-        ms.add_human(HumanModel(name=name, text=text, user_id=user_id))
+        update = True
+        if ms.get_human(name=name, user_id=user_id):
+            # config if user wants to overwrite
+            update = not questionary.confirm(f"Human {name} already exists. Overwrite?").ask()
+        if update:
+            ms.add_human(HumanModel(name=name, text=text, user_id=user_id))
     elif option == "preset":
         assert filename, "Must specify filename for preset"
         create_preset_from_file(filename, name, user_id, ms)
