@@ -991,10 +991,6 @@ def configure():
             embedding_dim=embedding_dim,
             embedding_model=embedding_model,
         ),
-        # cli configs
-        preset=default_preset,
-        persona=default_persona,
-        human=default_human,
         # storage
         archival_storage_type=archival_storage_type,
         archival_storage_uri=archival_storage_uri,
@@ -1141,18 +1137,27 @@ def add(
         with open(filename, "r") as f:
             text = f.read()
     if option == "persona":
-        update = True
-        if ms.get_persona(name=name, user_id=user_id):
+        persona = ms.get_persona(name=name, user_id=user_id)
+        if persona:
             # config if user wants to overwrite
-            update = not questionary.confirm(f"Persona {name} already exists. Overwrite?").ask()
-        if update:
-            ms.add_persona(PersonaModel(name=name, text=text, user_id=user_id))
+            if not questionary.confirm(f"Persona {name} already exists. Overwrite?").ask():
+                return
+            persona.text = text
+            ms.update_persona(persona)
+        else:
+            persona = PersonaModel(name=name, text=text, user_id=user_id)
+            ms.add_persona(persona)
+
     elif option == "human":
-        update = True
-        if ms.get_human(name=name, user_id=user_id):
+        human = ms.get_human(name=name, user_id=user_id)
+        if human:
             # config if user wants to overwrite
-            update = not questionary.confirm(f"Human {name} already exists. Overwrite?").ask()
-        if update:
+            if not questionary.confirm(f"Human {name} already exists. Overwrite?").ask():
+                return
+            human.text = text
+            ms.update_human(human)
+        else:
+            human = HumanModel(name=name, text=text, user_id=user_id)
             ms.add_human(HumanModel(name=name, text=text, user_id=user_id))
     elif option == "preset":
         assert filename, "Must specify filename for preset"
@@ -1203,15 +1208,23 @@ def delete(option: str, name: str):
             ms.delete_agent(agent_id=agent.id)
 
         elif option == "human":
+            human = ms.get_human(name=name, user_id=user_id)
+            assert human is not None, f"Human {name} does not exist"
             ms.delete_human(name=name, user_id=user_id)
         elif option == "persona":
+            persona = ms.get_persona(name=name, user_id=user_id)
+            assert persona is not None, f"Persona {name} does not exist"
             ms.delete_persona(name=name, user_id=user_id)
+            assert ms.get_persona(name=name, user_id=user_id) is None, f"Persona {name} still exists"
+            print([p.name for p in ms.list_personas(user_id=user_id)])
         elif option == "preset":
+            preset = ms.get_preset(name=name, user_id=user_id)
+            assert preset is not None, f"Preset {name} does not exist"
             ms.delete_preset(name=name, user_id=user_id)
         else:
             raise ValueError(f"Option {option} not implemented")
 
-        typer.secho(f"Deleted source '{name}'", fg=typer.colors.GREEN)
+        typer.secho(f"Deleted {option} '{name}'", fg=typer.colors.GREEN)
 
     except Exception as e:
-        typer.secho(f"Failed to deleted source '{name}'\n{e}", fg=typer.colors.RED)
+        typer.secho(f"Failed to delete {option}'{name}'\n{e}", fg=typer.colors.RED)
