@@ -23,7 +23,7 @@ from memgpt.llm_api.anthropic import anthropic_chat_completions_request
 from memgpt.llm_api.cohere import cohere_chat_completions_request
 
 
-LLM_API_PROVIDER_OPTIONS = ["openai", "azure", "anthropic", "google_ai", "cohere", "local"]
+LLM_API_PROVIDER_OPTIONS = ["openai", "azure", "anthropic", "google_ai", "cohere", "groq", "local"]
 
 
 def is_context_overflow_error(exception: requests.exceptions.RequestException) -> bool:
@@ -152,7 +152,7 @@ def create(
         # TODO do the same for Azure?
         if credentials.openai_key is None and agent_state.llm_config.model_endpoint == "https://api.openai.com/v1":
             # only is a problem if we are *not* using an openai proxy
-            raise ValueError(f"OpenAI key is missing from MemGPT config file")
+            raise ValueError(f"OpenAI key is missing from MemGPT credentials file")
         if use_tool_naming:
             data = ChatCompletionRequest(
                 model=agent_state.llm_config.model,
@@ -172,7 +172,41 @@ def create(
         return openai_chat_completions_request(
             url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
             api_key=credentials.openai_key,
-            data=data,
+            chat_completion_request=data,
+        )
+
+    # NOTE: basically the same as OpenAI
+    elif agent_state.llm_config.model_endpoint_type == "groq":
+
+        if credentials.groq_key is None:
+            raise ValueError(f"Groq API key is missing from MemGPT credentials file")
+        if use_tool_naming:
+            data = ChatCompletionRequest(
+                model=agent_state.llm_config.model,
+                messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
+                tools=[{"type": "function", "function": f} for f in functions] if functions else None,
+                # tool_choice=function_call,
+                # tool_choice="auto",
+                tool_choice={"type": "function", "function": {"name": "send_message"}},
+                user=str(agent_state.user_id),
+            )
+        else:
+            data = ChatCompletionRequest(
+                model=agent_state.llm_config.model,
+                messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
+                functions=functions,
+                # function_call=function_call,
+                # function_call="auto",
+                tool_choice={"type": "function", "function": {"name": "send_message"}},
+                user=str(agent_state.user_id),
+            )
+        # NOTE: using openai function since it's the same req/resp
+        return openai_chat_completions_request(
+            url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
+            api_key=credentials.groq_key,
+            chat_completion_request=data,
+            # NOTE: Groq in function calling mode doesn't seem to return non-null content, so we need to put CoT in the kwargs
+            inner_thoughts_in_tools=True,
         )
 
     # azure

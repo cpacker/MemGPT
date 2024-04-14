@@ -20,6 +20,7 @@ from memgpt.utils import get_utc_time, create_uuid_from_string
 from memgpt.models import chat_completion_response
 from memgpt.utils import get_human_text, get_persona_text, printd, is_utc_datetime
 from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG, INNER_THOUGHTS_KWARG_DESCRIPTION
+from memgpt.constants import JSON_ENSURE_ASCII
 
 
 class Record:
@@ -150,11 +151,17 @@ class Message(Record):
         model: Optional[str] = None,  # model used to make function call
         allow_functions_style: bool = False,  # allow deprecated functions style?
         created_at: Optional[datetime] = None,
+        allow_null_content: Optional[bool] = False,
+        inner_thoughts_in_kwargs: Optional[bool] = False,
     ):
         """Convert a ChatCompletion message object into a Message object (synced to DB)"""
 
         assert "role" in openai_message_dict, openai_message_dict
-        assert "content" in openai_message_dict, openai_message_dict
+        if not (allow_null_content or inner_thoughts_in_kwargs):
+            assert "content" in openai_message_dict, openai_message_dict
+        else:
+            if "content" not in openai_message_dict:
+                openai_message_dict["content"] = None
 
         # If we're going from deprecated function form
         if openai_message_dict["role"] == "function":
@@ -227,6 +234,16 @@ class Message(Record):
             else:
                 tool_calls = None
 
+            # Optionally inner thoughts may be inside the tool sections
+            if inner_thoughts_in_kwargs and openai_message_dict["role"] == "assistant" and len(tool_calls) > 0:
+                from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG, INNER_THOUGHTS_KWARG_DESCRIPTION
+
+                assert openai_message_dict["content"] is None, openai_message_dict
+                assert len(tool_calls) == 1, tool_calls
+                assert INNER_THOUGHTS_KWARG in json.loads(tool_calls[0].function["arguments"]), tool_calls
+                inner_thoughts = json.loads(tool_calls[0].function["arguments"]).pop(INNER_THOUGHTS_KWARG)
+                openai_message_dict["content"] = inner_thoughts
+
             # If we're going from tool-call style
             return Message(
                 created_at=created_at,
@@ -241,7 +258,7 @@ class Message(Record):
                 tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
             )
 
-    def to_openai_dict(self, max_tool_id_length=TOOL_CALL_ID_MAX_LEN) -> dict:
+    def to_openai_dict(self, max_tool_id_length=TOOL_CALL_ID_MAX_LEN, put_inner_thoughts_in_kwargs: bool = True) -> dict:
         """Go from Message class to ChatCompletion message object"""
 
         # TODO change to pydantic casting, eg `return SystemMessageModel(self)`
@@ -280,6 +297,15 @@ class Message(Record):
                 if max_tool_id_length:
                     for tool_call_dict in openai_message["tool_calls"]:
                         tool_call_dict["id"] = tool_call_dict["id"][:max_tool_id_length]
+
+            if put_inner_thoughts_in_kwargs:
+                openai_message["content"] = None
+                assert openai_message["tool_calls"] is not None and len(openai_message["tool_calls"]) == 1
+                for tc in openai_message["tool_calls"]:
+                    existing_args = json.loads(tc["function"]["arguments"])
+                    # TODO throw error for null case here?
+                    existing_args[INNER_THOUGHTS_KWARG] = self.text if self.text is not None else ""
+                    tc["function"]["arguments"] = json.dumps(existing_args, ensure_ascii=JSON_ENSURE_ASCII)
 
         elif self.role == "tool":
             assert all([v is not None for v in [self.role, self.tool_call_id]]), vars(self)

@@ -18,7 +18,7 @@ from memgpt.constants import LLM_MAX_TOKENS
 from memgpt.constants import MEMGPT_DIR
 from memgpt.credentials import MemGPTCredentials, SUPPORTED_AUTH_TYPES
 from memgpt.data_types import User, LLMConfig, EmbeddingConfig
-from memgpt.llm_api.openai import openai_get_model_list
+from memgpt.llm_api.openai import openai_get_model_list, openai_get_model_context_window
 from memgpt.llm_api.azure_openai import azure_openai_get_model_list
 from memgpt.llm_api.google_ai import google_ai_get_model_list, google_ai_get_model_context_window
 from memgpt.llm_api.anthropic import anthropic_get_model_list, antropic_get_model_context_window
@@ -121,6 +121,43 @@ def configure_llm_endpoint(config: MemGPTConfig, credentials: MemGPTCredentials)
         if model_endpoint is None:
             raise KeyboardInterrupt
         provider = "openai"
+
+    elif provider == "groq":
+        # NOTE: basically same as OpenAI
+        # check for key
+        if credentials.groq_key is None:
+            # allow key to get pulled from env vars
+            groq_api_key = os.getenv("GROQ_API_KEY", None)
+            # if we still can't find it, ask for it as input
+            if groq_api_key is None:
+                while groq_api_key is None or len(groq_api_key) == 0:
+                    # Ask for API key as input
+                    groq_api_key = questionary.password("Enter your Groq API key (see https://console.groq.com/keys):").ask()
+                    if groq_api_key is None:
+                        raise KeyboardInterrupt
+            credentials.groq_key = groq_api_key
+            credentials.save()
+        else:
+            # Give the user an opportunity to overwrite the key
+            groq_api_key = None
+            default_input = shorten_key_middle(credentials.groq_key) if credentials.groq_key.startswith("sk-") else credentials.groq_key
+            groq_api_key = questionary.password(
+                "Enter your Groq API key (see https://console.groq.com/keys):",
+                default=default_input,
+            ).ask()
+            if groq_api_key is None:
+                raise KeyboardInterrupt
+            # If the user modified it, use the new one
+            if groq_api_key != default_input:
+                credentials.groq_key = groq_api_key
+                credentials.save()
+
+        model_endpoint_type = "groq"
+        model_endpoint = "https://api.groq.com/openai/v1"
+        model_endpoint = questionary.text("Override default endpoint:", default=model_endpoint).ask()
+        if model_endpoint is None:
+            raise KeyboardInterrupt
+        provider = model_endpoint_type
 
     elif provider == "azure":
         # check for necessary vars
@@ -344,6 +381,13 @@ def get_model_options(
             else:
                 model_options = [obj["id"] for obj in fetched_model_options_response["data"]]
 
+        elif model_endpoint_type == "groq":
+            if credentials.groq_key is None:
+                raise ValueError("Missing Groq API key")
+            fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=credentials.groq_key)
+
+            model_options = [obj["id"] for obj in fetched_model_options_response["data"]]
+
         elif model_endpoint_type == "azure":
             if credentials.azure_key is None:
                 raise ValueError("Missing Azure key")
@@ -456,6 +500,26 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
                 ).ask()
                 if model is None:
                     raise KeyboardInterrupt
+
+    elif model_endpoint_type == "groq":
+        try:
+            fetched_model_options = get_model_options(
+                credentials=credentials, model_endpoint_type=model_endpoint_type, model_endpoint=model_endpoint
+            )
+        except Exception as e:
+            # NOTE: if this fails, it means the user's key is probably bad
+            typer.secho(
+                f"Failed to get model list from {model_endpoint} - make sure your API key and endpoints are correct!", fg=typer.colors.RED
+            )
+            raise e
+
+        model = questionary.select(
+            "Select default model:",
+            choices=fetched_model_options,
+            default=fetched_model_options[0],
+        ).ask()
+        if model is None:
+            raise KeyboardInterrupt
 
     elif model_endpoint_type == "google_ai":
         try:
@@ -734,6 +798,27 @@ def configure_model(config: MemGPTConfig, credentials: MemGPTCredentials, model_
 
             context_window_input = questionary.select(
                 "Select your model's context window (see https://docs.cohere.com/docs/command-r):",
+                choices=context_length_options,
+                default=context_length_options[0],
+            ).ask()
+            if context_window_input is None:
+                raise KeyboardInterrupt
+
+        elif model_endpoint_type == "groq":
+            try:
+                fetched_context_window = str(
+                    openai_get_model_context_window(url=model_endpoint, api_key=credentials.groq_key, model=model)
+                )
+                print(f"Got context window {fetched_context_window} for model {model}")
+                context_length_options = [
+                    fetched_context_window,
+                    "custom",
+                ]
+            except Exception as e:
+                print(f"Failed to get model details for model '{model}' ({str(e)})")
+
+            context_window_input = questionary.select(
+                "Select your model's context window (see https://console.groq.com/docs/models):",
                 choices=context_length_options,
                 default=context_length_options[0],
             ).ask()

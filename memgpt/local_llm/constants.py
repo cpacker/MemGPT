@@ -26,4 +26,6 @@ DEFAULT_WRAPPER = ChatMLInnerMonologueWrapper
 DEFAULT_WRAPPER_NAME = "chatml"
 
 INNER_THOUGHTS_KWARG = "inner_thoughts"
-INNER_THOUGHTS_KWARG_DESCRIPTION = "Deep inner monologue private to you only."
+INNER_THOUGHTS_KWARG_DESCRIPTION = (
+    "Deep inner monologue private to you only (NOT visible to the user). To send a visible message to the user, use your tools/functions."
+)
