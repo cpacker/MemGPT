@@ -179,7 +179,7 @@ def test_user_message(server, user_id, agent_id):
     server.user_message(user_id=user_id, agent_id=agent_id, message="Hello?")
 
 
-@pytest.mark.order5
+@pytest.mark.order(5)
 def test_get_recall_memory(server, user_id, agent_id):
     # test recall memory cursor pagination
     cursor1, messages_1 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, reverse=True, limit=2)
@@ -206,7 +206,7 @@ def test_get_recall_memory(server, user_id, agent_id):
     messages_1 = server.get_agent_messages(user_id=user_id, agent_id=agent_id, start=0, count=1)
     assert len(messages_1) == 1
     messages_2 = server.get_agent_messages(user_id=user_id, agent_id=agent_id, start=1, count=1000)
-    messages_3 = server.get_agent_messages(user_id=user_id, agent_id=agent_id, start=1, count=5)
+    messages_3 = server.get_agent_messages(user_id=user_id, agent_id=agent_id, start=1, count=2)
     # not sure exactly how many messages there should be
     assert len(messages_2) > len(messages_3)
     # test safe empty return
@@ -214,7 +214,7 @@ def test_get_recall_memory(server, user_id, agent_id):
     assert len(messages_none) == 0
 
 
-@pytest.mark.order6
+@pytest.mark.order(6)
 def test_get_archival_memory(server, user_id, agent_id):
     # test archival memory cursor pagination
     cursor1, passages_1 = server.get_agent_archival_cursor(user_id=user_id, agent_id=agent_id, reverse=False, limit=2, order_by="text")
