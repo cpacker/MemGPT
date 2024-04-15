@@ -77,6 +77,10 @@ class MemGPTCredentials:
                 "credentials_path": credentials_path,
             }
             config_dict = {k: v for k, v in config_dict.items() if v is not None}
+            if os.environ.get('OPENAI_API_KEY'):
+                config_dict['openai_key'] = os.environ.get('OPENAI_API_KEY') # type: ignore
+                config_dict['openai_auth_type'] = 'bearer_token'
+
             return cls(**config_dict)
 
         # create new config
