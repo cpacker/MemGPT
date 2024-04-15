@@ -228,7 +228,7 @@ def get_chat_completion(
             )
         ],
         created=get_utc_time(),
-        model=model,
+        model=model if model is not None else "local_llm",
         # "This fingerprint represents the backend configuration that the model runs with."
         # system_fingerprint=user if user is not None else "null",
         system_fingerprint=None,
@@ -244,6 +244,7 @@ def generate_grammar_and_documentation(
     add_inner_thoughts_top_level: bool,
     add_inner_thoughts_param_level: bool,
     allow_only_inner_thoughts: bool,
+    inner_thoughts_field_name: str = "inner_thoughts",
 ):
     from memgpt.utils import printd
 
@@ -255,7 +256,11 @@ def generate_grammar_and_documentation(
     # create_dynamic_model_from_function will add inner thoughts to the function parameters if add_inner_thoughts is True.
     # generate_gbnf_grammar_and_documentation will add inner thoughts to the outer object of the function parameters if add_inner_thoughts is True.
     for key, func in functions_python.items():
-        grammar_function_models.append(create_dynamic_model_from_function(func, add_inner_thoughts=add_inner_thoughts_param_level))
+        grammar_function_models.append(
+            create_dynamic_model_from_function(
+                func, add_inner_thoughts=add_inner_thoughts_param_level, inner_thoughts_field_name=inner_thoughts_field_name
+            )
+        )
     grammar, documentation = generate_gbnf_grammar_and_documentation(
         grammar_function_models,
         outer_object_name="function",
@@ -264,6 +269,7 @@ def generate_grammar_and_documentation(
         fields_prefix="params",
         add_inner_thoughts=add_inner_thoughts_top_level,
         allow_only_inner_thoughts=allow_only_inner_thoughts,
+        inner_thoughts_field_name=inner_thoughts_field_name,
     )
     printd(grammar)
     return grammar, documentation
