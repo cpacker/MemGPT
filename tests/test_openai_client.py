@@ -3,6 +3,7 @@ from logging import getLogger
 
 logger = getLogger(__name__)
 
+
 def test_openai_assistant():
     client = OpenAI(base_url="http://127.0.0.1:8080/v1")
     # create assistant

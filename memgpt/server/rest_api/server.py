@@ -116,7 +116,7 @@ def on_startup():
         app.openapi_schema = app.openapi()
 
     if app.openapi_schema:
-        app.openapi_schema["servers"] = [{"url": host} for host in settings.cors_origins ]
+        app.openapi_schema["servers"] = [{"url": host} for host in settings.cors_origins]
         app.openapi_schema["info"]["title"] = "MemGPT API"
 
     # Write out the OpenAPI schema to a file
