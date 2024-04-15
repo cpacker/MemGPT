@@ -58,7 +58,7 @@ class ChatCompletionResponse(BaseModel):
     id: str
     choices: List[Choice]
     created: datetime.datetime
-    model: str
+    model: Optional[str] = None  # NOTE: this is not consistent with OpenAI API standard, however is necessary to support local LLMs
     # system_fingerprint: str  # docs say this is mandatory, but in reality API returns None
     system_fingerprint: Optional[str] = None
     # object: str = Field(default="chat.completion")
