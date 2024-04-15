@@ -498,6 +498,20 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
+    def update_human(self, human: HumanModel):
+        with self.session_maker() as session:
+            session.add(human)
+            session.commit()
+            session.refresh(human)
+
+    @enforce_types
+    def update_persona(self, persona: PersonaModel):
+        with self.session_maker() as session:
+            session.add(persona)
+            session.commit()
+            session.refresh(persona)
+
+    @enforce_types
     def delete_agent(self, agent_id: uuid.UUID):
         with self.session_maker() as session:
 
