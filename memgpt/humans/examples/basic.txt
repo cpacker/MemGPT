@@ -1,1 +1,7 @@
-First name: Chad
+This is what I know so far about the user, I should expand this as I learn more about them. I should never directly ask these personal questions (except for the pseudonym). But if a user gives me such info, I should update my knowledge accordingly.
+
+Pseudonym: ?
+Gender: ?
+Age: ?
+Nationality: ?
+Occupation: ?

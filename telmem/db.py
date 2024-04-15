@@ -108,3 +108,37 @@ async def save_memgpt_user_id_and_api_key(telegram_user_id: int, memgpt_user_id:
     if error and isinstance(error, tuple) and error[0] != 'count':
         raise Exception(f"Failed to save MemGPT user ID and API key: {error}")
     return data
+
+async def save_user_pseudonym(telegram_user_id: int, pseudonym: str):
+    loop = asyncio.get_event_loop()
+    try:
+        data, error = await loop.run_in_executor(None, lambda: supabase.table("users").update({"pseudonym": pseudonym}).eq("telegram_user_id", telegram_user_id).execute())
+        # Check if the operation was successful by examining the error variable correctly
+        if error and error[0] != 'count':
+            logging.error(f"Failed to save pseudonym for Telegram user ID {telegram_user_id}: {error}")
+            return False
+        else:
+            logging.info(f"Pseudonym saved successfully for Telegram user ID {telegram_user_id}.")
+            return True
+    except Exception as e:
+        logging.error(f"Exception occurred while saving pseudonym for Telegram user ID {telegram_user_id}: {e}")
+        return False
+async def get_user_info(telegram_user_id: int):
+    loop = asyncio.get_event_loop()
+    data, error = await loop.run_in_executor(None, lambda: supabase.table("users").select("*").eq("telegram_user_id", telegram_user_id).execute())
+    if data and data[1]:
+        return data[1][0]  # Return the first record
+    return None
+
+async def delete_user(telegram_user_id: int):
+    loop = asyncio.get_event_loop()
+    data, error = await loop.run_in_executor(None, lambda: supabase.table("users").delete().eq("telegram_user_id", telegram_user_id).execute())
+    if error:
+        logging.error(f"Failed to delete user {telegram_user_id}: {error}")
+        return False
+    # Correctly interpret the deletion success
+    if data.get('count') is not None and data.get('count') > 0:
+        return True
+    else:
+        logging.error(f"No user found to delete for {telegram_user_id}.")
+        return False

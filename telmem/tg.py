@@ -5,7 +5,7 @@ import logging
 import os
 from dotenv import load_dotenv
 import re
-
+from db import save_user_pseudonym, get_user_info, delete_user as db_delete_user
 load_dotenv()
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -31,10 +31,18 @@ async def echo(update: Update, context: CallbackContext):
     message_text = update.message.text
 
     if user_states.get(user_id) == 'awaiting_pseudonym':
-        # Here, you would typically save the pseudonym for the user
-        user_states[user_id] = None  # Reset the state or move to the next step
-        await context.bot.send_message(chat_id=chat_id, text=f"Thank you! You are now a member of the ƒxyz Network. You can start talking and here's some information about fixiethebot...")
-        # Provide additional information about fixiethebot and how to interact with it
+        # Save the pseudonym to Supabase
+        success = await save_user_pseudonym(user_id, message_text)
+        if success:
+            user_states[user_id] = None  # Reset the state
+            await context.bot.send_message(chat_id=chat_id, text="Your agent has been created. You can now send messages to your new agent or use /menu to manage your agents.")
+        else:
+            await context.bot.send_message(chat_id=chat_id, text="There was an error saving your pseudonym. Please try again.")
+    elif user_states.get(user_id) == 'awaiting_agent_name':
+        response = await create_agent(user_id, message_text)
+        response += "\nAgent created successfully! You can change your current agent to start chatting with your new agent."
+        await context.bot.send_message(chat_id=chat_id, text=response)
+        user_states[user_id] = None
     else:
         # Handle other messages normally
         if update.message.chat.type == "group":
@@ -50,6 +58,26 @@ async def echo(update: Update, context: CallbackContext):
 async def debug(update: Update, context: CallbackContext):
     await context.bot.send_message(chat_id=update.message.from_user.id, text="Debug: Bot is running.")
 
+async def user_info(update: Update, context: CallbackContext):
+    user_id = update.callback_query.from_user.id
+    chat_id = update.callback_query.message.chat.id
+    
+    # Fetch user information from the database
+    user_info = await get_user_info(user_id)
+    if user_info:
+        message = f"Your information:\n\nPseudonym: {user_info['pseudonym']}\nPreferred Language: {user_info.get('language', 'Not set')}\nMemGPT Agent ID: {user_info.get('agent_id', 'Not set')}"
+        await context.bot.send_message(chat_id=chat_id, text=message)
+    else:
+        await context.bot.send_message(chat_id=chat_id, text="User information not found. Please register first.")
+
+async def delete_user_profile(update: Update, context: CallbackContext):
+    chat_id = update.callback_query.message.chat.id
+    keyboard = [
+        [InlineKeyboardButton("Yes", callback_data='confirm_delete_user')],
+        [InlineKeyboardButton("No", callback_data='cancel_delete_user')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await context.bot.send_message(chat_id=chat_id, text="Are you sure you want to delete your profile?", reply_markup=reply_markup)
 
 async def createagent(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
@@ -97,9 +125,10 @@ async def help_command(update: Update, context: CallbackContext):
     chat_id = update.message.chat.id
     help_text = "Available commands:\n"
     help_text += "/start - Creation of user and first agent.\n"
-    # help_text += "/debug - Check if bot is running\n"
     help_text += "/menu - Check if user is registered\n"
     help_text += "/help - Show this help message\n"
+    help_text += "/userinfo - Check your user information\n"
+    help_text += "/deleteuser - Delete your user profile\n"
     await context.bot.send_message(chat_id=chat_id, text=help_text)
 
 async def menu(update: Update, context: CallbackContext):
@@ -116,10 +145,14 @@ async def menu(update: Update, context: CallbackContext):
         [
             InlineKeyboardButton("Delete Agent", callback_data='delete_agent_buttons'),
             InlineKeyboardButton("Check User", callback_data='check_user')
+        ],
+        [
+            InlineKeyboardButton("User Info", callback_data='userinfo'),
+            InlineKeyboardButton("Delete User", callback_data='deleteuser')
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await context.bot.send_message(chat_id=update.message.chat_id, text="Please select an option:", reply_markup=reply_markup)
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="Please choose an option:", reply_markup=reply_markup)
 
 async def button_click(update: Update, context: CallbackContext):
     query = update.callback_query
@@ -140,10 +173,6 @@ async def button_click(update: Update, context: CallbackContext):
         await context.bot.send_message(chat_id=chat_id, text=response)
     elif callback_data == 'change_agent_buttons':
         await change_agent_buttons(update, context)
-    elif callback_data == 'createagent':
-        # Set the user's state to 'awaiting_agent_name'
-        user_states[user_id] = 'awaiting_agent_name'
-        await context.bot.send_message(chat_id=chat_id, text="Please send the name for your new agent.")
     elif callback_data == 'delete_agent_buttons':
         await delete_agent_buttons(update, context)
     elif callback_data == 'check_user':
@@ -157,6 +186,22 @@ async def button_click(update: Update, context: CallbackContext):
         agent_name = callback_data.split('_')[1]
         response = await delete_agent(user_id, agent_name)
         await context.bot.send_message(chat_id=chat_id, text=response)
+    elif callback_data == 'userinfo':
+        await user_info(update, context)
+    elif callback_data == 'deleteuser':
+        await delete_user_profile(update, context)
+    elif callback_data == 'confirm_delete_user':
+        user_id = update.callback_query.from_user.id
+        chat_id = update.callback_query.message.chat.id
+        # Correctly call the delete_user function from db.py
+        success = await db_delete_user(user_id)
+        if success:
+            await context.bot.send_message(chat_id=chat_id, text="Your user profile has been successfully deleted.")
+        else:
+            await context.bot.send_message(chat_id=chat_id, text="Failed to delete user profile. Please try again later.")
+    elif callback_data == 'cancel_delete_user':
+        chat_id = update.callback_query.message.chat.id
+        await context.bot.send_message(chat_id=chat_id, text="Profile deletion cancelled.")
 
 def main():
     logging.basicConfig(level=logging.DEBUG)
@@ -165,6 +210,8 @@ def main():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("menu", menu))
     application.add_handler(CommandHandler("createagent", createagent))
+    application.add_handler(CommandHandler("userinfo", user_info))
+    application.add_handler(CommandHandler("deleteuser", delete_user_profile))
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
