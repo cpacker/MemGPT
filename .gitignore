@@ -387,18 +387,7 @@ __pycache__/
 .Python
 develop-eggs/
 downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+eggs#memgpt/memgpt-server:0.3.7
 MANIFEST
 
 # PyInstaller
@@ -1018,3 +1007,12 @@ FodyWeavers.xsd
 # Additional files built by Visual Studio
 
 # End of https://www.toptal.com/developers/gitignore/api/vim,linux,macos,pydev,python,eclipse,pycharm,windows,netbeans,pycharm+all,pycharm+iml,visualstudio,jupyternotebooks,visualstudiocode,xcode,xcodeinjection
+
+
+## cached db data
+pgdata/
+!pgdata/.gitkeep
+
+## pytest mirrors
+memgpt/.pytest_cache/
+memgpy/pytest.ini
