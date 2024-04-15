@@ -74,9 +74,7 @@ class MemGPTConversableAgent(ConversableAgent):
     def attach(self, data_source: str):
         # attach new data
         config = MemGPTConfig.load()
-        source_connector = StorageConnector.get_storage_connector(
-                        TableType.PASSAGES, config, user_id=self.agent.agent_state.user_id
-                    )
+        source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id=self.agent.agent_state.user_id)
         self.agent.attach_source(data_source, source_connector, ms=self.ms)
 
     def load_and_attach(self, name: str, type: str, force=False, **kwargs):
