@@ -17,6 +17,8 @@ from memgpt.models.chat_completion_response import (
 from memgpt.models.chat_completion_request import ChatCompletionRequest
 from memgpt.models.embedding_response import EmbeddingResponse
 from memgpt.utils import smart_urljoin, get_utc_time
+from memgpt.interface import AgentInterface
+from memgpt.streaming_interface import AgentStreamingInterface
 
 
 OPENAI_SSE_DONE = "[DONE]"
@@ -76,7 +78,7 @@ def openai_chat_completions_process_stream(
     url: str,
     api_key: str,
     chat_completion_request: ChatCompletionRequest,
-    stream_inferface: Optional[str] = None,
+    stream_inferface: Optional[AgentStreamingInterface] = None,
 ) -> ChatCompletionResponse:
     """Process a streaming completion response, and return a ChatCompletionRequest at the end.
 
@@ -97,14 +99,19 @@ def openai_chat_completions_process_stream(
         ),
     )
 
+    if stream_inferface:
+        stream_inferface.stream_start()
+
     TEMP_STREAM_FINISH_REASON = "temp_null"
     TEMP_STREAM_TOOL_CALL_ID = "temp_id"
     for chunk_idx, chat_completion_chunk in enumerate(
         openai_chat_completions_request(url=url, api_key=api_key, chat_completion_request=chat_completion_request)
     ):
         assert isinstance(chat_completion_chunk, ChatCompletionChunkResponse), type(chat_completion_chunk)
-        # stream_inferface.process(chat_completion_chunk)
-        print(chat_completion_chunk)
+        # print(chat_completion_chunk)
+
+        if stream_inferface:
+            stream_inferface.process_chunk(chat_completion_chunk)
 
         if chunk_idx == 0:
             # initialize the choice objects which we will increment with the deltas
@@ -175,6 +182,10 @@ def openai_chat_completions_process_stream(
         # increment chunk counter
         chunk_idx += 1
 
+    # TODO change to a finally block
+    if stream_inferface:
+        stream_inferface.stream_end()
+
     # make sure we didn't leave temp stuff in
     assert all([c.finish_reason != TEMP_STREAM_FINISH_REASON for c in chat_completion_response.choices])
     assert all(
@@ -229,7 +240,7 @@ def openai_chat_completions_request(
                 with connect_sse(client, method="POST", url=url, json=data, headers=headers) as event_source:
                     try:
                         for sse in event_source.iter_sse():
-                            print(sse.event, sse.data, sse.id, sse.retry)
+                            # printd(sse.event, sse.data, sse.id, sse.retry)
                             if sse.data == OPENAI_SSE_DONE:
                                 # print("finished")
                                 break

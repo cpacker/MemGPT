@@ -176,6 +176,9 @@ def create(
 
         if stream:
             data.stream = True
+            from memgpt.streaming_interface import StreamingCLIInterface
+
+            stream_inferface = StreamingCLIInterface()
             return openai_chat_completions_process_stream(
                 url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
                 api_key=credentials.openai_key,
