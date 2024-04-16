@@ -175,6 +175,15 @@ def openai_chat_completions_process_stream(
         # increment chunk counter
         chunk_idx += 1
 
+    # make sure we didn't leave temp stuff in
+    assert all([c.finish_reason != TEMP_STREAM_FINISH_REASON for c in chat_completion_response.choices])
+    assert all(
+        [
+            all([tc != TEMP_STREAM_TOOL_CALL_ID for tc in c.message.tool_calls]) if c.message.tool_calls else True
+            for c in chat_completion_response.choices
+        ]
+    )
+
     # compute token usage before returning
     # TODO
     print("choices=", chat_completion_response.choices)

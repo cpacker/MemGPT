@@ -176,7 +176,6 @@ def create(
 
         if stream:
             data.stream = True
-            input("stream")
             return openai_chat_completions_process_stream(
                 url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
                 api_key=credentials.openai_key,
@@ -184,7 +183,6 @@ def create(
                 stream_inferface=stream_inferface,
             )
         else:
-            input("no stream")
             data.stream = False
             return openai_chat_completions_request(
                 url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
