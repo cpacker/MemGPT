@@ -104,87 +104,93 @@ def openai_chat_completions_process_stream(
 
     TEMP_STREAM_FINISH_REASON = "temp_null"
     TEMP_STREAM_TOOL_CALL_ID = "temp_id"
-    for chunk_idx, chat_completion_chunk in enumerate(
-        openai_chat_completions_request(url=url, api_key=api_key, chat_completion_request=chat_completion_request)
-    ):
-        assert isinstance(chat_completion_chunk, ChatCompletionChunkResponse), type(chat_completion_chunk)
-        # print(chat_completion_chunk)
 
-        if stream_inferface:
-            stream_inferface.process_chunk(chat_completion_chunk)
+    try:
+        for chunk_idx, chat_completion_chunk in enumerate(
+            openai_chat_completions_request(url=url, api_key=api_key, chat_completion_request=chat_completion_request)
+        ):
+            assert isinstance(chat_completion_chunk, ChatCompletionChunkResponse), type(chat_completion_chunk)
+            # print(chat_completion_chunk)
 
-        if chunk_idx == 0:
-            # initialize the choice objects which we will increment with the deltas
-            num_choices = len(chat_completion_chunk.choices)
-            assert num_choices > 0
-            chat_completion_response.choices = [
-                Choice(
-                    finish_reason=TEMP_STREAM_FINISH_REASON,  # NOTE: needs to be ovrerwritten
-                    index=i,
-                    message=Message(
-                        role="assistant",
-                    ),
-                )
-                for i in range(len(chat_completion_chunk.choices))
-            ]
+            if stream_inferface:
+                stream_inferface.process_chunk(chat_completion_chunk)
 
-        # add the choice delta
-        assert len(chat_completion_chunk.choices) == len(chat_completion_response.choices), chat_completion_chunk
-        for chunk_choice in chat_completion_chunk.choices:
-            if chunk_choice.finish_reason is not None:
-                chat_completion_response.choices[chunk_choice.index].finish_reason = chunk_choice.finish_reason
+            if chunk_idx == 0:
+                # initialize the choice objects which we will increment with the deltas
+                num_choices = len(chat_completion_chunk.choices)
+                assert num_choices > 0
+                chat_completion_response.choices = [
+                    Choice(
+                        finish_reason=TEMP_STREAM_FINISH_REASON,  # NOTE: needs to be ovrerwritten
+                        index=i,
+                        message=Message(
+                            role="assistant",
+                        ),
+                    )
+                    for i in range(len(chat_completion_chunk.choices))
+                ]
 
-            if chunk_choice.logprobs is not None:
-                chat_completion_response.choices[chunk_choice.index].logprobs = chunk_choice.logprobs
+            # add the choice delta
+            assert len(chat_completion_chunk.choices) == len(chat_completion_response.choices), chat_completion_chunk
+            for chunk_choice in chat_completion_chunk.choices:
+                if chunk_choice.finish_reason is not None:
+                    chat_completion_response.choices[chunk_choice.index].finish_reason = chunk_choice.finish_reason
 
-            accum_message = chat_completion_response.choices[chunk_choice.index].message
-            message_delta = chunk_choice.delta
+                if chunk_choice.logprobs is not None:
+                    chat_completion_response.choices[chunk_choice.index].logprobs = chunk_choice.logprobs
 
-            if message_delta.content is not None:
-                content_delta = message_delta.content
-                if accum_message.content is None:
-                    accum_message.content = content_delta
-                else:
-                    accum_message.content += content_delta
+                accum_message = chat_completion_response.choices[chunk_choice.index].message
+                message_delta = chunk_choice.delta
 
-            if message_delta.tool_calls is not None:
-                tool_calls_delta = message_delta.tool_calls
+                if message_delta.content is not None:
+                    content_delta = message_delta.content
+                    if accum_message.content is None:
+                        accum_message.content = content_delta
+                    else:
+                        accum_message.content += content_delta
 
-                # If this is the first tool call showing up in a chunk, initialize the list with it
-                if accum_message.tool_calls is None:
-                    accum_message.tool_calls = [
-                        ToolCall(id=TEMP_STREAM_TOOL_CALL_ID, function=FunctionCall(name="", arguments=""))
-                        for _ in range(len(tool_calls_delta))
-                    ]
+                if message_delta.tool_calls is not None:
+                    tool_calls_delta = message_delta.tool_calls
 
-                for tool_call_delta in tool_calls_delta:
-                    if tool_call_delta.id is not None:
-                        # TODO assert that we're not overwriting?
-                        # TODO += instead of =?
-                        accum_message.tool_calls[tool_call_delta.index].id = tool_call_delta.id
-                    if tool_call_delta.function is not None:
-                        if tool_call_delta.function.name is not None:
+                    # If this is the first tool call showing up in a chunk, initialize the list with it
+                    if accum_message.tool_calls is None:
+                        accum_message.tool_calls = [
+                            ToolCall(id=TEMP_STREAM_TOOL_CALL_ID, function=FunctionCall(name="", arguments=""))
+                            for _ in range(len(tool_calls_delta))
+                        ]
+
+                    for tool_call_delta in tool_calls_delta:
+                        if tool_call_delta.id is not None:
                             # TODO assert that we're not overwriting?
                             # TODO += instead of =?
-                            accum_message.tool_calls[tool_call_delta.index].function.name = tool_call_delta.function.name
-                        if tool_call_delta.function.arguments is not None:
-                            accum_message.tool_calls[tool_call_delta.index].function.arguments += tool_call_delta.function.arguments
+                            accum_message.tool_calls[tool_call_delta.index].id = tool_call_delta.id
+                        if tool_call_delta.function is not None:
+                            if tool_call_delta.function.name is not None:
+                                # TODO assert that we're not overwriting?
+                                # TODO += instead of =?
+                                accum_message.tool_calls[tool_call_delta.index].function.name = tool_call_delta.function.name
+                            if tool_call_delta.function.arguments is not None:
+                                accum_message.tool_calls[tool_call_delta.index].function.arguments += tool_call_delta.function.arguments
 
-            if message_delta.function_call is not None:
-                raise NotImplementedError(f"Old function_call style not support with stream=True")
+                if message_delta.function_call is not None:
+                    raise NotImplementedError(f"Old function_call style not support with stream=True")
 
-        # overwrite response fields based on latest chunk
-        chat_completion_response.id = chat_completion_chunk.id
-        chat_completion_response.system_fingerprint = chat_completion_chunk.system_fingerprint
-        chat_completion_response.created = chat_completion_chunk.created
-        chat_completion_response.model = chat_completion_chunk.model
+            # overwrite response fields based on latest chunk
+            chat_completion_response.id = chat_completion_chunk.id
+            chat_completion_response.system_fingerprint = chat_completion_chunk.system_fingerprint
+            chat_completion_response.created = chat_completion_chunk.created
+            chat_completion_response.model = chat_completion_chunk.model
 
-        # increment chunk counter
-        chunk_idx += 1
-
-    # TODO change to a finally block
-    if stream_inferface:
-        stream_inferface.stream_end()
+            # increment chunk counter
+            chunk_idx += 1
+    except Exception as e:
+        if stream_inferface:
+            stream_inferface.stream_end()
+        print(f"Parsing ChatCompletion stream failed with error:\n{str(e)}")
+        raise e
+    finally:
+        if stream_inferface:
+            stream_inferface.stream_end()
 
     # make sure we didn't leave temp stuff in
     assert all([c.finish_reason != TEMP_STREAM_FINISH_REASON for c in chat_completion_response.choices])
@@ -197,7 +203,7 @@ def openai_chat_completions_process_stream(
 
     # compute token usage before returning
     # TODO
-    print("choices=", chat_completion_response.choices)
+    # print("choices=", chat_completion_response.choices)
 
     return chat_completion_response
 
