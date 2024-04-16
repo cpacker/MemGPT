@@ -132,6 +132,21 @@ class SourceModel(SQLModel, table=True):
     metadata_: Optional[dict] = Field(None, sa_column=Column(JSON), description="Metadata associated with the source.")
 
 
+class JobStatus(str, Enum):
+    created = "created"
+    running = "running"
+    completed = "completed"
+    failed = "failed"
+
+
+class JobModel(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the job.", primary_key=True)
+    status: JobStatus = Field(default=JobStatus.created, description="The status of the job.")
+    created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the job was created.")
+    completed_at: Optional[datetime] = Field(None, description="The unix timestamp of when the job was completed.")
+    user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the job.")
+
+
 class PassageModel(BaseModel):
     user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user associated with the passage.")
     agent_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the agent associated with the passage.")

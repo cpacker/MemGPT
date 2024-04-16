@@ -7,12 +7,12 @@ import secrets
 from typing import Optional, List
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
-from memgpt.utils import enforce_types, printd
+from memgpt.utils import enforce_types, printd, get_utc_time
 from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig, Token, Preset
 from memgpt.config import MemGPTConfig
 from memgpt.functions.functions import load_all_function_sets
 
-from memgpt.models.pydantic_models import PersonaModel, HumanModel, ToolModel
+from memgpt.models.pydantic_models import PersonaModel, HumanModel, ToolModel, JobModel, JobStatus
 
 from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, Boolean
 from sqlalchemy import func
@@ -341,6 +341,7 @@ class MetadataStore:
                 HumanModel.__table__,
                 PersonaModel.__table__,
                 ToolModel.__table__,
+                JobModel.__table__,
             ],
         )
         self.session_maker = sessionmaker(bind=self.engine)
@@ -759,3 +760,24 @@ class MetadataStore:
         with self.session_maker() as session:
             session.query(PresetModel).filter(PresetModel.name == name).filter(PresetModel.user_id == user_id).delete()
             session.commit()
+
+    # job related functions
+    def create_job(self, job: JobModel):
+        with self.session_maker() as session:
+            session.add(job)
+            session.commit()
+
+    def update_job_status(self, job_id: uuid.UUID, status: JobStatus):
+        with self.session_maker() as session:
+            session.query(JobModel).filter(JobModel.id == job_id).update({"status": status})
+            if status == JobStatus.COMPLETED:
+                session.query(JobModel).filter(JobModel.id == job_id).update({"completed_at": get_utc_time()})
+            session.commit()
+
+    def get_job(self, job_id: uuid.UUID) -> Optional[JobModel]:
+        with self.session_maker() as session:
+            results = session.query(JobModel).filter(JobModel.id == job_id).all()
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0]
