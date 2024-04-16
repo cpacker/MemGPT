@@ -17,6 +17,7 @@ from memgpt.models.chat_completion_response import (
 from memgpt.models.chat_completion_request import ChatCompletionRequest
 from memgpt.models.embedding_response import EmbeddingResponse
 from memgpt.utils import smart_urljoin, get_utc_time
+from memgpt.local_llm.utils import num_tokens_from_messages, num_tokens_from_functions
 from memgpt.interface import AgentInterface
 from memgpt.streaming_interface import AgentStreamingInterface
 
@@ -87,24 +88,48 @@ def openai_chat_completions_process_stream(
     """
     assert chat_completion_request.stream == True
 
+    # Count the prompt tokens
+    # TODO move to post-request?
+    chat_history = [m.model_dump(exclude_none=True) for m in chat_completion_request.messages]
+    print(chat_history)
+
+    prompt_tokens = num_tokens_from_messages(
+        messages=chat_history,
+        model=chat_completion_request.model,
+    )
+    # We also need to add the cost of including the functions list to the input prompt
+    if chat_completion_request.tools is not None:
+        assert chat_completion_request.functions is None
+        prompt_tokens += num_tokens_from_functions(
+            functions=[t.function.model_dump() for t in chat_completion_request.tools],
+            model=chat_completion_request.model,
+        )
+    elif chat_completion_request.functions is not None:
+        assert chat_completion_request.tools is None
+        prompt_tokens += num_tokens_from_functions(
+            functions=[f.model_dump() for f in chat_completion_request.functions],
+            model=chat_completion_request.model,
+        )
+
+    TEMP_STREAM_RESPONSE_ID = "temp_id"
+    TEMP_STREAM_FINISH_REASON = "temp_null"
+    TEMP_STREAM_TOOL_CALL_ID = "temp_id"
     chat_completion_response = ChatCompletionResponse(
-        id="",  # NOTE: requires overwrite
+        id=TEMP_STREAM_RESPONSE_ID,
         choices=[],
         created=get_utc_time(),
         model=chat_completion_request.model,
         usage=UsageStatistics(
             completion_tokens=0,
-            prompt_tokens=0,
-            total_tokens=0,
+            prompt_tokens=prompt_tokens,
+            total_tokens=prompt_tokens,
         ),
     )
 
     if stream_inferface:
         stream_inferface.stream_start()
 
-    TEMP_STREAM_FINISH_REASON = "temp_null"
-    TEMP_STREAM_TOOL_CALL_ID = "temp_id"
-
+    n_chunks = 0  # approx == n_tokens
     try:
         for chunk_idx, chat_completion_chunk in enumerate(
             openai_chat_completions_request(url=url, api_key=api_key, chat_completion_request=chat_completion_request)
@@ -182,7 +207,8 @@ def openai_chat_completions_process_stream(
             chat_completion_response.model = chat_completion_chunk.model
 
             # increment chunk counter
-            chunk_idx += 1
+            n_chunks += 1
+
     except Exception as e:
         if stream_inferface:
             stream_inferface.stream_end()
@@ -200,11 +226,14 @@ def openai_chat_completions_process_stream(
             for c in chat_completion_response.choices
         ]
     )
+    assert chat_completion_response.id != TEMP_STREAM_RESPONSE_ID
 
     # compute token usage before returning
-    # TODO
-    # print("choices=", chat_completion_response.choices)
+    # TODO try actually computing the #tokens instead of assuming the chunks is the same
+    chat_completion_response.usage.completion_tokens = n_chunks
+    chat_completion_response.usage.total_tokens = prompt_tokens + n_chunks
 
+    # printd(chat_completion_response)
     return chat_completion_response
 
 
