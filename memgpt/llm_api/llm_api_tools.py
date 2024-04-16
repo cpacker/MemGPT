@@ -13,7 +13,7 @@ from memgpt.models.chat_completion_request import ChatCompletionRequest, Tool, c
 
 from memgpt.data_types import AgentState, Message
 
-from memgpt.llm_api.openai import openai_chat_completions_request
+from memgpt.llm_api.openai import openai_chat_completions_request, openai_chat_completions_process_stream
 from memgpt.llm_api.azure_openai import azure_openai_chat_completions_request, MODEL_TO_AZURE_ENGINE
 from memgpt.llm_api.google_ai import (
     google_ai_chat_completions_request,
@@ -134,6 +134,10 @@ def create(
     # use tool naming?
     # if false, will use deprecated 'functions' style
     use_tool_naming=True,
+    # streaming?
+    # stream=False,
+    stream=True,
+    stream_inferface=None,
 ) -> ChatCompletionResponse:
     """Return response to chat completion with backoff"""
     from memgpt.utils import printd
@@ -169,11 +173,24 @@ def create(
                 function_call=function_call,
                 user=str(agent_state.user_id),
             )
-        return openai_chat_completions_request(
-            url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
-            api_key=credentials.openai_key,
-            data=data,
-        )
+
+        if stream:
+            data.stream = True
+            input("stream")
+            return openai_chat_completions_process_stream(
+                url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
+                api_key=credentials.openai_key,
+                chat_completion_request=data,
+                stream_inferface=stream_inferface,
+            )
+        else:
+            input("no stream")
+            data.stream = False
+            return openai_chat_completions_request(
+                url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
+                api_key=credentials.openai_key,
+                chat_completion_request=data,
+            )
 
     # azure
     elif agent_state.llm_config.model_endpoint_type == "azure":
