@@ -257,6 +257,7 @@ live = Live("", console=console, refresh_per_second=10)
 # live.start()  # Start the Live display context and keep it running
 fancy = True
 separate_send_message = True
+disable_inner_mono_call = True
 
 
 class StreamingRefreshCLIInterface(AgentRefreshStreamingInterface):
@@ -318,6 +319,17 @@ class StreamingRefreshCLIInterface(AgentRefreshStreamingInterface):
     # def stream_end(self):
     #     if self.live.is_started:
     #         self.live.stop()
+
+    @staticmethod
+    def toggle_streaming(on: bool):
+        global separate_send_message
+        global disable_inner_mono_call
+        if on:
+            separate_send_message = True
+            disable_inner_mono_call = True
+        else:
+            separate_send_message = False
+            disable_inner_mono_call = False
 
     @staticmethod
     def update_output(content: str):
@@ -389,8 +401,9 @@ class StreamingRefreshCLIInterface(AgentRefreshStreamingInterface):
 
     @staticmethod
     def internal_monologue(msg: str, msg_obj: Optional[Message] = None):
-        return
-        # StreamingCLIInterface.nonstreaming_interface.internal_monologue(msg, msg_obj)
+        if disable_inner_mono_call:
+            return
+        StreamingCLIInterface.nonstreaming_interface.internal_monologue(msg, msg_obj)
 
     @staticmethod
     def assistant_message(msg: str, msg_obj: Optional[Message] = None):

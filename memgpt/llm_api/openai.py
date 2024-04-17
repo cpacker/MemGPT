@@ -132,7 +132,7 @@ def openai_chat_completions_process_stream(
     n_chunks = 0  # approx == n_tokens
     try:
         for chunk_idx, chat_completion_chunk in enumerate(
-            openai_chat_completions_request(url=url, api_key=api_key, chat_completion_request=chat_completion_request)
+            openai_chat_completions_request_stream(url=url, api_key=api_key, chat_completion_request=chat_completion_request)
         ):
             assert isinstance(chat_completion_chunk, ChatCompletionChunkResponse), type(chat_completion_chunk)
             # print(chat_completion_chunk)
@@ -242,11 +242,98 @@ def openai_chat_completions_process_stream(
     return chat_completion_response
 
 
+def _sse_post(url: str, data: dict, headers: dict) -> Generator[ChatCompletionChunkResponse, None, None]:
+
+    with httpx.Client() as client:
+        with connect_sse(client, method="POST", url=url, json=data, headers=headers) as event_source:
+            try:
+                for sse in event_source.iter_sse():
+                    # printd(sse.event, sse.data, sse.id, sse.retry)
+                    if sse.data == OPENAI_SSE_DONE:
+                        # print("finished")
+                        break
+                    else:
+                        chunk_data = json.loads(sse.data)
+                        # print("chunk_data::", chunk_data)
+                        chunk_object = ChatCompletionChunkResponse(**chunk_data)
+                        # print("chunk_object::", chunk_object)
+                        # id=chunk_data["id"],
+                        # choices=[ChunkChoice],
+                        # model=chunk_data["model"],
+                        # system_fingerprint=chunk_data["system_fingerprint"]
+                        # )
+                        yield chunk_object
+
+            except SSEError as e:
+                if "application/json" in str(e):  # Check if the error is because of JSON response
+                    response = client.post(url=url, json=data, headers=headers)  # Make the request again to get the JSON response
+                    if response.headers["Content-Type"].startswith("application/json"):
+                        error_details = response.json()  # Parse the JSON to get the error message
+                        print("Error:", error_details)
+                        print("Reqeust:", vars(response.request))
+                    else:
+                        print("Failed to retrieve JSON error message.")
+                else:
+                    print("SSEError not related to 'application/json' content type.")
+
+                # Optionally re-raise the exception if you need to propagate it
+                raise e
+
+            except Exception as e:
+                if event_source.response.request is not None:
+                    print("HTTP Request:", vars(event_source.response.request))
+                if event_source.response is not None:
+                    print("HTTP Status:", event_source.response.status_code)
+                    print("HTTP Headers:", event_source.response.headers)
+                    # print("HTTP Body:", event_source.response.text)
+                print("Exception message:", str(e))
+                raise e
+
+
+def openai_chat_completions_request_stream(
+    url: str,
+    api_key: str,
+    chat_completion_request: ChatCompletionRequest,
+) -> Generator[ChatCompletionChunkResponse, None, None]:
+    from memgpt.utils import printd
+
+    url = smart_urljoin(url, "chat/completions")
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+    data = chat_completion_request.model_dump(exclude_none=True)
+
+    printd("Request:\n", json.dumps(data, indent=2))
+
+    # If functions == None, strip from the payload
+    if "functions" in data and data["functions"] is None:
+        data.pop("functions")
+        data.pop("function_call", None)  # extra safe,  should exist always (default="auto")
+
+    if "tools" in data and data["tools"] is None:
+        data.pop("tools")
+        data.pop("tool_choice", None)  # extra safe,  should exist always (default="auto")
+
+    printd(f"Sending request to {url}")
+    try:
+        return _sse_post(url=url, data=data, headers=headers)
+    except requests.exceptions.HTTPError as http_err:
+        # Handle HTTP errors (e.g., response 4XX, 5XX)
+        printd(f"Got HTTPError, exception={http_err}, payload={data}")
+        raise http_err
+    except requests.exceptions.RequestException as req_err:
+        # Handle other requests-related errors (e.g., connection error)
+        printd(f"Got RequestException, exception={req_err}")
+        raise req_err
+    except Exception as e:
+        # Handle other potential errors
+        printd(f"Got unknown Exception, exception={e}")
+        raise e
+
+
 def openai_chat_completions_request(
     url: str,
     api_key: str,
     chat_completion_request: ChatCompletionRequest,
-) -> Union[ChatCompletionResponse, Generator[ChatCompletionChunkResponse, None, None]]:
+) -> ChatCompletionResponse:
     """Send a ChatCompletion request to an OpenAI-compatible server
 
     If request.stream == True, will yield ChatCompletionChunkResponses
@@ -273,63 +360,15 @@ def openai_chat_completions_request(
 
     printd(f"Sending request to {url}")
     try:
-        if data["stream"] == True:
+        response = requests.post(url, headers=headers, json=data)
+        printd(f"response = {response}")
+        response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
 
-            with httpx.Client() as client:
-                with connect_sse(client, method="POST", url=url, json=data, headers=headers) as event_source:
-                    try:
-                        for sse in event_source.iter_sse():
-                            # printd(sse.event, sse.data, sse.id, sse.retry)
-                            if sse.data == OPENAI_SSE_DONE:
-                                # print("finished")
-                                break
-                            else:
-                                chunk_data = json.loads(sse.data)
-                                # print("chunk_data::", chunk_data)
-                                chunk_object = ChatCompletionChunkResponse(**chunk_data)
-                                # print("chunk_object::", chunk_object)
-                                # id=chunk_data["id"],
-                                # choices=[ChunkChoice],
-                                # model=chunk_data["model"],
-                                # system_fingerprint=chunk_data["system_fingerprint"]
-                                # )
-                                yield chunk_object
+        response = response.json()  # convert to dict from string
+        printd(f"response.json = {response}")
 
-                    except SSEError as e:
-                        if "application/json" in str(e):  # Check if the error is because of JSON response
-                            response = client.post(url=url, json=data, headers=headers)  # Make the request again to get the JSON response
-                            if response.headers["Content-Type"].startswith("application/json"):
-                                error_details = response.json()  # Parse the JSON to get the error message
-                                print("Error:", error_details)
-                                print("Reqeust:", vars(response.request))
-                            else:
-                                print("Failed to retrieve JSON error message.")
-                        else:
-                            print("SSEError not related to 'application/json' content type.")
-
-                        # Optionally re-raise the exception if you need to propagate it
-                        raise e
-
-                    except Exception as e:
-                        if event_source.response.request is not None:
-                            print("HTTP Request:", vars(event_source.response.request))
-                        if event_source.response is not None:
-                            print("HTTP Status:", event_source.response.status_code)
-                            print("HTTP Headers:", event_source.response.headers)
-                            # print("HTTP Body:", event_source.response.text)
-                        print("Exception message:", str(e))
-                        raise e
-
-        else:
-            response = requests.post(url, headers=headers, json=data)
-            printd(f"response = {response}")
-            response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
-
-            response = response.json()  # convert to dict from string
-            printd(f"response.json = {response}")
-
-            response = ChatCompletionResponse(**response)  # convert to 'dot-dict' style which is the openai python client default
-            return response
+        response = ChatCompletionResponse(**response)  # convert to 'dot-dict' style which is the openai python client default
+        return response
     except requests.exceptions.HTTPError as http_err:
         # Handle HTTP errors (e.g., response 4XX, 5XX)
         printd(f"Got HTTPError, exception={http_err}, payload={data}")

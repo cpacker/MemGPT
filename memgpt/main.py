@@ -60,7 +60,10 @@ def clear_line(strip_ui=False):
         sys.stdout.flush()
 
 
-def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore, no_verify=False, cfg=None, strip_ui=False):
+def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore, no_verify=False, cfg=None, strip_ui=False, stream=False):
+    # TODO remove
+    interface.toggle_streaming(on=stream)
+
     counter = 0
     user_input = None
     skip_next_user_input = False
@@ -349,7 +352,10 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
 
         def process_agent_step(user_message, no_verify):
             new_messages, heartbeat_request, function_failed, token_warning, tokens_accumulated = memgpt_agent.step(
-                user_message, first_message=False, skip_verify=no_verify
+                user_message,
+                first_message=False,
+                skip_verify=no_verify,
+                stream=stream,
             )
 
             skip_next_user_input = False
@@ -371,10 +377,12 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                     new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                     break
                 else:
-                    # with console.status("[bold cyan]Thinking...") as status:
-                    # new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
-                    # break
-                    new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
+                    if stream:
+                        # Don't display the "Thinking..." if streaming
+                        new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
+                    else:
+                        with console.status("[bold cyan]Thinking...") as status:
+                            new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                     break
             except KeyboardInterrupt:
                 print("User interrupt occurred.")
