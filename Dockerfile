@@ -36,7 +36,8 @@ EXPOSE 8083
 
 CMD ./memgpt/server/startup.sh
 
-FROM builder as tests
+# allow for in-container development and testing
+FROM builder as development
 ARG MEMGPT_ENVIRONMENT=PRODUCTION
 ENV MEMGPT_ENVIRONMENT=${MEMGPT_ENVIRONMENT}
 ENV VIRTUAL_ENV=/app/.venv \
@@ -48,4 +49,4 @@ COPY ./memgpt /memgpt
 COPY ./configs/server_config.yaml /root/.memgpt/config
 EXPOSE 8083
 
-CMD  pytest /tests
+CMD ./memgpt/server/startup.sh

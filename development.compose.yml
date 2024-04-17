@@ -1,0 +1,28 @@
+services:
+  memgpt_server:
+    image: memgpt_server
+    hostname: memgpt-server
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+      args:
+        - MEMGPT_ENVIRONMENT=DEVELOPMENT
+    depends_on:
+      - memgpt_db
+    env_file:
+      - .env
+    environment:
+      - MEMGPT_SERVER_PASS=test_server_token
+    volumes:
+      - ./memgpt:/memgpt
+      - ~/.memgpt/credentials:/root/.memgpt/credentials
+      - ./configs/server_config.yaml:/root/.memgpt/config
+      - ./CONTRIBUTING.md:/CONTRIBUTING.md
+      - ./tests/pytest_cache:/memgpt/.pytest_cache
+      - ./tests/pytest.ini:/memgpt/pytest.ini
+      - ./pyproject.toml:/pyproject.toml
+      - ./tests:/tests
+    ports:
+      - "8083:8083"
+      - "8283:8283"
