@@ -19,7 +19,7 @@ from memgpt.models.embedding_response import EmbeddingResponse
 from memgpt.utils import smart_urljoin, get_utc_time
 from memgpt.local_llm.utils import num_tokens_from_messages, num_tokens_from_functions
 from memgpt.interface import AgentInterface
-from memgpt.streaming_interface import AgentStreamingInterface
+from memgpt.streaming_interface import AgentChunkStreamingInterface, AgentRefreshStreamingInterface
 
 
 OPENAI_SSE_DONE = "[DONE]"
@@ -79,7 +79,7 @@ def openai_chat_completions_process_stream(
     url: str,
     api_key: str,
     chat_completion_request: ChatCompletionRequest,
-    stream_inferface: Optional[AgentStreamingInterface] = None,
+    stream_inferface: Optional[Union[AgentChunkStreamingInterface, AgentRefreshStreamingInterface]] = None,
 ) -> ChatCompletionResponse:
     """Process a streaming completion response, and return a ChatCompletionRequest at the end.
 
@@ -91,7 +91,7 @@ def openai_chat_completions_process_stream(
     # Count the prompt tokens
     # TODO move to post-request?
     chat_history = [m.model_dump(exclude_none=True) for m in chat_completion_request.messages]
-    print(chat_history)
+    # print(chat_history)
 
     prompt_tokens = num_tokens_from_messages(
         messages=chat_history,
@@ -138,7 +138,12 @@ def openai_chat_completions_process_stream(
             # print(chat_completion_chunk)
 
             if stream_inferface:
-                stream_inferface.process_chunk(chat_completion_chunk)
+                if isinstance(stream_inferface, AgentChunkStreamingInterface):
+                    stream_inferface.process_chunk(chat_completion_chunk)
+                elif isinstance(stream_inferface, AgentRefreshStreamingInterface):
+                    stream_inferface.process_refresh(chat_completion_response)
+                else:
+                    raise TypeError(stream_inferface)
 
             if chunk_idx == 0:
                 # initialize the choice objects which we will increment with the deltas
@@ -255,8 +260,7 @@ def openai_chat_completions_request(
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
     data = chat_completion_request.model_dump(exclude_none=True)
 
-    # import json
-    # print(json.dumps(data, indent=2))
+    printd("Request:\n", json.dumps(data, indent=2))
 
     # If functions == None, strip from the payload
     if "functions" in data and data["functions"] is None:

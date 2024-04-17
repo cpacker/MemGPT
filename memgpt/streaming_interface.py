@@ -1,17 +1,23 @@
 from abc import ABC, abstractmethod
 import json
 import re
+import sys
 from typing import List, Optional
 
-from colorama import Fore, Style, init
+# from colorama import Fore, Style, init
+from rich.console import Console
+from rich.live import Live
+from rich.markup import escape
+from rich.style import Style
+from rich.text import Text
 
 from memgpt.utils import printd
 from memgpt.constants import CLI_WARNING_PREFIX, JSON_LOADS_STRICT
 from memgpt.data_types import Message
-from memgpt.models.chat_completion_response import ChatCompletionChunkResponse
+from memgpt.models.chat_completion_response import ChatCompletionChunkResponse, ChatCompletionResponse
 from memgpt.interface import AgentInterface, CLIInterface
 
-init(autoreset=True)
+# init(autoreset=True)
 
 # DEBUG = True  # puts full message outputs in the terminal
 DEBUG = False  # only dumps important messages in the terminal
@@ -19,7 +25,7 @@ DEBUG = False  # only dumps important messages in the terminal
 STRIP_UI = False
 
 
-class AgentStreamingInterface(ABC):
+class AgentChunkStreamingInterface(ABC):
     """Interfaces handle MemGPT-related events (observer pattern)
 
     The 'msg' args provides the scoped message, and the optional Message arg can provide additional metadata.
@@ -61,7 +67,7 @@ class AgentStreamingInterface(ABC):
         raise NotImplementedError
 
 
-class StreamingCLIInterface(AgentStreamingInterface):
+class StreamingCLIInterface(AgentChunkStreamingInterface):
     """Version of the CLI interface that attaches to a stream generator and prints along the way.
 
     When a chunk is received, we write the delta to the buffer. If the buffer type has changed,
@@ -186,6 +192,231 @@ class StreamingCLIInterface(AgentStreamingInterface):
     @staticmethod
     def print_messages(message_sequence: List[Message], dump=False):
         StreamingCLIInterface.nonstreaming_interface(message_sequence, dump)
+
+    @staticmethod
+    def print_messages_simple(message_sequence: List[Message]):
+        StreamingCLIInterface.nonstreaming_interface.print_messages_simple(message_sequence)
+
+    @staticmethod
+    def print_messages_raw(message_sequence: List[Message]):
+        StreamingCLIInterface.nonstreaming_interface.print_messages_raw(message_sequence)
+
+    @staticmethod
+    def step_yield():
+        pass
+
+
+class AgentRefreshStreamingInterface(ABC):
+    """Same as the ChunkStreamingInterface, but
+
+    The 'msg' args provides the scoped message, and the optional Message arg can provide additional metadata.
+    """
+
+    @abstractmethod
+    def user_message(self, msg: str, msg_obj: Optional[Message] = None):
+        """MemGPT receives a user message"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def internal_monologue(self, msg: str, msg_obj: Optional[Message] = None):
+        """MemGPT generates some internal monologue"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def assistant_message(self, msg: str, msg_obj: Optional[Message] = None):
+        """MemGPT uses send_message"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def function_message(self, msg: str, msg_obj: Optional[Message] = None):
+        """MemGPT calls a function"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def process_refresh(self, response: ChatCompletionResponse):
+        """Process a streaming chunk from an OpenAI-compatible server"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def stream_start(self):
+        """Any setup required before streaming begins"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def stream_end(self):
+        """Any cleanup required after streaming ends"""
+        raise NotImplementedError
+
+
+# TODO fix this vile abuse of @staticmethod
+
+# CLIInterface is static/stateless
+# nonstreaming_interface = CLIInterface()
+console = Console()
+live = Live("", console=console, refresh_per_second=10)
+# live.start()  # Start the Live display context and keep it running
+fancy = True
+separate_send_message = True
+
+
+class StreamingRefreshCLIInterface(AgentRefreshStreamingInterface):
+    """Version of the CLI interface that attaches to a stream generator and refreshes a render of the message at every step.
+
+    We maintain the partial message state in the interface state, and on each
+    process chunk we:
+        (1) update the partial message state,
+        (2) refresh/rewrite the state to the screen.
+    """
+
+    nonstreaming_interface = CLIInterface
+
+    # def __init__(self, fancy: bool = True):
+    #     """Initialize the streaming CLI interface state."""
+    #     # self.console = Console()
+
+    #     # Using `Live` with `refresh_per_second` parameter to limit the refresh rate, avoiding excessive updates
+    #     # self.live = Live("", console=self.console, refresh_per_second=10)
+    #     # self.live.start()  # Start the Live display context and keep it running
+
+    #     # Use italics / emoji?
+    #     self.fancy = fancy
+
+    # def update_output(self, content: str):
+    #     """Update the displayed output with new content."""
+    #     # We use the `Live` object's update mechanism to refresh content without clearing the console
+    #     if not fancy:
+    #         content = escape(content)
+    #     self.live.update(self.console.render_str(content), refresh=True)
+
+    # def process_refresh(self, response: ChatCompletionResponse):
+    #     """Process the response to rewrite the current output buffer."""
+    #     if not response.choices:
+    #         return  # Early exit if there are no choices
+
+    #     choice = response.choices[0]
+    #     inner_thoughts = choice.message.content if choice.message.content else ""
+    #     tool_calls = choice.message.tool_calls if choice.message.tool_calls else []
+
+    #     if self.fancy:
+    #         message_string = f"💭 [italic]{inner_thoughts}[/italic]" if inner_thoughts else ""
+    #     else:
+    #         message_string = "[inner thoughts] " + inner_thoughts if inner_thoughts else ""
+
+    #     if tool_calls:
+    #         function_call = tool_calls[0].function
+    #         function_name = function_call.name  # Function name, can be an empty string
+    #         function_args = function_call.arguments  # Function arguments, can be an empty string
+    #         if message_string:
+    #             message_string += "\n"
+    #         message_string += f"{function_name}({function_args})"
+
+    #     self.update_output(message_string)
+
+    # def stream_start(self):
+    #     self.live.start()  # Start the Live display context and keep it running
+
+    # def stream_end(self):
+    #     if self.live.is_started:
+    #         self.live.stop()
+
+    @staticmethod
+    def update_output(content: str):
+        """Update the displayed output with new content."""
+        # We use the `Live` object's update mechanism to refresh content without clearing the console
+        if not fancy:
+            content = escape(content)
+        live.update(console.render_str(content), refresh=True)
+
+    @staticmethod
+    def process_refresh(response: ChatCompletionResponse):
+        """Process the response to rewrite the current output buffer."""
+        if not response.choices:
+            return  # Early exit if there are no choices
+
+        choice = response.choices[0]
+        inner_thoughts = choice.message.content if choice.message.content else ""
+        tool_calls = choice.message.tool_calls if choice.message.tool_calls else []
+
+        if fancy:
+            message_string = f"💭 [italic]{inner_thoughts}[/italic]" if inner_thoughts else ""
+        else:
+            message_string = "[inner thoughts] " + inner_thoughts if inner_thoughts else ""
+
+        if tool_calls:
+            function_call = tool_calls[0].function
+            function_name = function_call.name  # Function name, can be an empty string
+            function_args = function_call.arguments  # Function arguments, can be an empty string
+            if message_string:
+                message_string += "\n"
+            # special case here for send_message
+            if separate_send_message and function_name == "send_message":
+                try:
+                    message = json.loads(function_args)["message"]
+                except:
+                    prefix = '{\n  "message": "'
+                    if len(function_args) < len(prefix):
+                        message = "..."
+                    elif function_args.startswith(prefix):
+                        message = function_args[len(prefix) :]
+                    else:
+                        message = function_args
+                message_string += f"🤖 [bold yellow]{message}[/bold yellow]"
+            else:
+                message_string += f"{function_name}({function_args})"
+
+        StreamingRefreshCLIInterface.update_output(message_string)
+
+    @staticmethod
+    def stream_start():
+        print()
+        live.start()  # Start the Live display context and keep it running
+
+    @staticmethod
+    def stream_end():
+        global live
+        if live.is_started:
+            live.stop()
+            print()
+            live = Live("", console=console, refresh_per_second=10)
+
+    @staticmethod
+    def important_message(msg: str):
+        StreamingCLIInterface.nonstreaming_interface.important_message(msg)
+
+    @staticmethod
+    def warning_message(msg: str):
+        StreamingCLIInterface.nonstreaming_interface.warning_message(msg)
+
+    @staticmethod
+    def internal_monologue(msg: str, msg_obj: Optional[Message] = None):
+        return
+        # StreamingCLIInterface.nonstreaming_interface.internal_monologue(msg, msg_obj)
+
+    @staticmethod
+    def assistant_message(msg: str, msg_obj: Optional[Message] = None):
+        if separate_send_message:
+            return
+        StreamingCLIInterface.nonstreaming_interface.assistant_message(msg, msg_obj)
+
+    @staticmethod
+    def memory_message(msg: str, msg_obj: Optional[Message] = None):
+        StreamingCLIInterface.nonstreaming_interface.memory_message(msg, msg_obj)
+
+    @staticmethod
+    def system_message(msg: str, msg_obj: Optional[Message] = None):
+        StreamingCLIInterface.nonstreaming_interface.system_message(msg, msg_obj)
+
+    @staticmethod
+    def user_message(msg: str, msg_obj: Optional[Message] = None, raw: bool = False, dump: bool = False, debug: bool = DEBUG):
+        StreamingCLIInterface.nonstreaming_interface.user_message(msg, msg_obj)
+
+    @staticmethod
+    def function_message(msg: str, msg_obj: Optional[Message] = None, debug: bool = DEBUG):
+        StreamingCLIInterface.nonstreaming_interface.function_message(msg, msg_obj)
+
+    @staticmethod
+    def print_messages(message_sequence: List[Message], dump=False):
+        StreamingCLIInterface.nonstreaming_interface.print_messages(message_sequence, dump)
 
     @staticmethod
     def print_messages_simple(message_sequence: List[Message]):

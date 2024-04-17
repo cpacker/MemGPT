@@ -13,7 +13,9 @@ import typer
 import questionary
 
 from memgpt.log import logger
-from memgpt.interface import CLIInterface as interface  # for printing to terminal
+
+# from memgpt.interface import CLIInterface as interface  # for printing to terminal
+from memgpt.streaming_interface import StreamingRefreshCLIInterface as interface  # for printing to terminal
 from memgpt.cli.cli_config import configure
 import memgpt.presets.presets as presets
 import memgpt.utils as utils

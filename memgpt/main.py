@@ -13,7 +13,9 @@ from memgpt.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, JSON_ENSURE_ASCII, J
 console = Console()
 
 from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.interface import CLIInterface as interface  # for printing to terminal
+
+# from memgpt.interface import CLIInterface as interface  # for printing to terminal
+from memgpt.streaming_interface import StreamingRefreshCLIInterface as interface  # for printing to terminal
 from memgpt.config import MemGPTConfig
 import memgpt.agent as agent
 import memgpt.system as system
@@ -25,6 +27,8 @@ from memgpt.metadata import MetadataStore
 
 # import benchmark
 from memgpt.benchmark.benchmark import bench
+
+interface = interface()
 
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
@@ -47,7 +51,7 @@ app.command(name="delete-agent")(delete_agent)
 
 
 def clear_line(strip_ui=False):
-    if strip_ui:
+    if True or strip_ui:
         return
     if os.name == "nt":  # for windows
         console.print("\033[A\033[K", end="")
