@@ -34,13 +34,22 @@ class UserMessageRequest(BaseModel):
         description="Timestamp to tag the message with (in ISO format). If null, timestamp will be created server-side on receipt of message.",
     )
 
-    @validator("timestamp")
-    def validate_timestamp(cls, value: Any) -> Any:
-        if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
-            raise ValueError("Timestamp must include timezone information.")
-        if value.tzinfo.utcoffset(value) != datetime.fromtimestamp(timezone.utc).utcoffset():
-            raise ValueError("Timestamp must be in UTC.")
-        return value
+    # @validator("timestamp", pre=True, always=True)
+    # def validate_timestamp(cls, value: Optional[datetime]) -> Optional[datetime]:
+    #    if value is None:
+    #        return value  # If the timestamp is None, just return None, implying default handling to set server-side
+
+    #    if not isinstance(value, datetime):
+    #        raise TypeError("Timestamp must be a datetime object with timezone information.")
+
+    #    if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+    #        raise ValueError("Timestamp must be timezone-aware.")
+
+    #    # Convert timestamp to UTC if it's not already in UTC
+    #    if value.tzinfo.utcoffset(value) != timezone.utc.utcoffset(value):
+    #        value = value.astimezone(timezone.utc)
+
+    #    return value
 
 
 class UserMessageResponse(BaseModel):
