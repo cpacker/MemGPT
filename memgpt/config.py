@@ -90,6 +90,7 @@ class MemGPTConfig:
     def load(cls) -> "MemGPTConfig":
         # avoid circular import
         from memgpt.migrate import config_is_compatible, VERSION_CUTOFF
+        from memgpt.utils import printd
 
         if not config_is_compatible(allow_empty=True):
             error_message = " ".join(
@@ -110,7 +111,7 @@ class MemGPTConfig:
 
         # insure all configuration directories exist
         cls.create_config_dir()
-        print(f"Loading config from {config_path}")
+        printd(f"Loading config from {config_path}")
         if os.path.exists(config_path):
             # read existing config
             config.read(config_path)

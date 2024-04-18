@@ -13,7 +13,7 @@ services:
       - "5432:5432"
 
   memgpt_server:
-    image: memgpt/memgpt-server:0.3.7
+    image: memgpt/memgpt-server:latest
     depends_on:
       - pgvector_db
     environment:

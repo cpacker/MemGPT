@@ -13,7 +13,9 @@ import typer
 import questionary
 
 from memgpt.log import logger
-from memgpt.interface import CLIInterface as interface  # for printing to terminal
+
+# from memgpt.interface import CLIInterface as interface  # for printing to terminal
+from memgpt.streaming_interface import StreamingRefreshCLIInterface as interface  # for printing to terminal
 from memgpt.cli.cli_config import configure
 import memgpt.presets.presets as presets
 import memgpt.utils as utils
@@ -445,6 +447,8 @@ def run(
     debug: Annotated[bool, typer.Option(help="Use --debug to enable debugging output")] = False,
     no_verify: Annotated[bool, typer.Option(help="Bypass message verification")] = False,
     yes: Annotated[bool, typer.Option("-y", help="Skip confirmation prompt and use defaults")] = False,
+    # streaming
+    stream: Annotated[bool, typer.Option(help="Enables message streaming in the CLI (if the backend supports it)")] = False,
 ):
     """Start chatting with an MemGPT agent
 
@@ -710,7 +714,9 @@ def run(
     from memgpt.main import run_agent_loop
 
     print()  # extra space
-    run_agent_loop(memgpt_agent, config, first, ms, no_verify)  # TODO: add back no_verify
+    run_agent_loop(
+        memgpt_agent=memgpt_agent, config=config, first=first, ms=ms, no_verify=no_verify, stream=stream
+    )  # TODO: add back no_verify
 
 
 def delete_agent(
