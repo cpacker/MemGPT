@@ -247,17 +247,10 @@ class AgentRefreshStreamingInterface(ABC):
         """Any cleanup required after streaming ends"""
         raise NotImplementedError
 
-
-# TODO fix this vile abuse of @staticmethod
-
-# CLIInterface is static/stateless
-# nonstreaming_interface = CLIInterface()
-console = Console()
-live = Live("", console=console, refresh_per_second=10)
-# live.start()  # Start the Live display context and keep it running
-fancy = True
-separate_send_message = True
-disable_inner_mono_call = True
+    @abstractmethod
+    def toggle_streaming(self, on: bool):
+        """Toggle streaming on/off (off = regular CLI interface)"""
+        raise NotImplementedError
 
 
 class StreamingRefreshCLIInterface(AgentRefreshStreamingInterface):
@@ -271,85 +264,48 @@ class StreamingRefreshCLIInterface(AgentRefreshStreamingInterface):
 
     nonstreaming_interface = CLIInterface
 
-    # def __init__(self, fancy: bool = True):
-    #     """Initialize the streaming CLI interface state."""
-    #     # self.console = Console()
+    def __init__(self, fancy: bool = True, separate_send_message: bool = True, disable_inner_mono_call: bool = True):
+        """Initialize the streaming CLI interface state."""
+        self.console = Console()
 
-    #     # Using `Live` with `refresh_per_second` parameter to limit the refresh rate, avoiding excessive updates
-    #     # self.live = Live("", console=self.console, refresh_per_second=10)
-    #     # self.live.start()  # Start the Live display context and keep it running
+        # Using `Live` with `refresh_per_second` parameter to limit the refresh rate, avoiding excessive updates
+        self.live = Live("", console=self.console, refresh_per_second=10)
+        # self.live.start()  # Start the Live display context and keep it running
 
-    #     # Use italics / emoji?
-    #     self.fancy = fancy
+        # Use italics / emoji?
+        self.fancy = fancy
 
-    # def update_output(self, content: str):
-    #     """Update the displayed output with new content."""
-    #     # We use the `Live` object's update mechanism to refresh content without clearing the console
-    #     if not fancy:
-    #         content = escape(content)
-    #     self.live.update(self.console.render_str(content), refresh=True)
+        self.streaming = True
+        self.separate_send_message = separate_send_message
+        self.disable_inner_mono_call = disable_inner_mono_call
 
-    # def process_refresh(self, response: ChatCompletionResponse):
-    #     """Process the response to rewrite the current output buffer."""
-    #     if not response.choices:
-    #         return  # Early exit if there are no choices
-
-    #     choice = response.choices[0]
-    #     inner_thoughts = choice.message.content if choice.message.content else ""
-    #     tool_calls = choice.message.tool_calls if choice.message.tool_calls else []
-
-    #     if self.fancy:
-    #         message_string = f"💭 [italic]{inner_thoughts}[/italic]" if inner_thoughts else ""
-    #     else:
-    #         message_string = "[inner thoughts] " + inner_thoughts if inner_thoughts else ""
-
-    #     if tool_calls:
-    #         function_call = tool_calls[0].function
-    #         function_name = function_call.name  # Function name, can be an empty string
-    #         function_args = function_call.arguments  # Function arguments, can be an empty string
-    #         if message_string:
-    #             message_string += "\n"
-    #         message_string += f"{function_name}({function_args})"
-
-    #     self.update_output(message_string)
-
-    # def stream_start(self):
-    #     self.live.start()  # Start the Live display context and keep it running
-
-    # def stream_end(self):
-    #     if self.live.is_started:
-    #         self.live.stop()
-
-    @staticmethod
-    def toggle_streaming(on: bool):
-        global separate_send_message
-        global disable_inner_mono_call
+    def toggle_streaming(self, on: bool):
+        self.streaming = on
         if on:
-            separate_send_message = True
-            disable_inner_mono_call = True
+            self.separate_send_message = True
+            self.disable_inner_mono_call = True
         else:
-            separate_send_message = False
-            disable_inner_mono_call = False
+            self.separate_send_message = False
+            self.disable_inner_mono_call = False
 
-    @staticmethod
-    def update_output(content: str):
+    def update_output(self, content: str):
         """Update the displayed output with new content."""
         # We use the `Live` object's update mechanism to refresh content without clearing the console
-        if not fancy:
+        if not self.fancy:
             content = escape(content)
-        live.update(console.render_str(content), refresh=True)
+        self.live.update(self.console.render_str(content), refresh=True)
 
-    @staticmethod
-    def process_refresh(response: ChatCompletionResponse):
+    def process_refresh(self, response: ChatCompletionResponse):
         """Process the response to rewrite the current output buffer."""
         if not response.choices:
+            self.update_output("💭 [italic]...[/italic]")
             return  # Early exit if there are no choices
 
         choice = response.choices[0]
         inner_thoughts = choice.message.content if choice.message.content else ""
         tool_calls = choice.message.tool_calls if choice.message.tool_calls else []
 
-        if fancy:
+        if self.fancy:
             message_string = f"💭 [italic]{inner_thoughts}[/italic]" if inner_thoughts else ""
         else:
             message_string = "[inner thoughts] " + inner_thoughts if inner_thoughts else ""
@@ -361,7 +317,7 @@ class StreamingRefreshCLIInterface(AgentRefreshStreamingInterface):
             if message_string:
                 message_string += "\n"
             # special case here for send_message
-            if separate_send_message and function_name == "send_message":
+            if self.separate_send_message and function_name == "send_message":
                 try:
                     message = json.loads(function_args)["message"]
                 except:
@@ -376,20 +332,20 @@ class StreamingRefreshCLIInterface(AgentRefreshStreamingInterface):
             else:
                 message_string += f"{function_name}({function_args})"
 
-        StreamingRefreshCLIInterface.update_output(message_string)
+        self.update_output(message_string)
 
-    @staticmethod
-    def stream_start():
-        print()
-        live.start()  # Start the Live display context and keep it running
-
-    @staticmethod
-    def stream_end():
-        global live
-        if live.is_started:
-            live.stop()
+    def stream_start(self):
+        if self.streaming:
             print()
-            live = Live("", console=console, refresh_per_second=10)
+            self.live.start()  # Start the Live display context and keep it running
+            self.update_output("💭 [italic]...[/italic]")
+
+    def stream_end(self):
+        if self.streaming:
+            if self.live.is_started:
+                self.live.stop()
+                print()
+                self.live = Live("", console=self.console, refresh_per_second=10)
 
     @staticmethod
     def important_message(msg: str):
@@ -399,15 +355,13 @@ class StreamingRefreshCLIInterface(AgentRefreshStreamingInterface):
     def warning_message(msg: str):
         StreamingCLIInterface.nonstreaming_interface.warning_message(msg)
 
-    @staticmethod
-    def internal_monologue(msg: str, msg_obj: Optional[Message] = None):
-        if disable_inner_mono_call:
+    def internal_monologue(self, msg: str, msg_obj: Optional[Message] = None):
+        if self.disable_inner_mono_call:
             return
         StreamingCLIInterface.nonstreaming_interface.internal_monologue(msg, msg_obj)
 
-    @staticmethod
-    def assistant_message(msg: str, msg_obj: Optional[Message] = None):
-        if separate_send_message:
+    def assistant_message(self, msg: str, msg_obj: Optional[Message] = None):
+        if self.separate_send_message:
             return
         StreamingCLIInterface.nonstreaming_interface.assistant_message(msg, msg_obj)
 

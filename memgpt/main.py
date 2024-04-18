@@ -10,12 +10,10 @@ import typer
 from rich.console import Console
 from memgpt.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, JSON_ENSURE_ASCII, JSON_LOADS_STRICT, REQ_HEARTBEAT_MESSAGE
 
-console = Console()
-
 from memgpt.agent_store.storage import StorageConnector, TableType
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
-from memgpt.streaming_interface import StreamingRefreshCLIInterface as interface  # for printing to terminal
+from memgpt.streaming_interface import AgentRefreshStreamingInterface
 from memgpt.config import MemGPTConfig
 import memgpt.agent as agent
 import memgpt.system as system
@@ -28,7 +26,7 @@ from memgpt.metadata import MetadataStore
 # import benchmark
 from memgpt.benchmark.benchmark import bench
 
-interface = interface()
+# interface = interface()
 
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
@@ -50,8 +48,8 @@ app.command(name="benchmark")(bench)
 app.command(name="delete-agent")(delete_agent)
 
 
-def clear_line(strip_ui=False):
-    if True or strip_ui:
+def clear_line(console, strip_ui=False):
+    if strip_ui:
         return
     if os.name == "nt":  # for windows
         console.print("\033[A\033[K", end="")
@@ -60,9 +58,18 @@ def clear_line(strip_ui=False):
         sys.stdout.flush()
 
 
-def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore, no_verify=False, cfg=None, strip_ui=False, stream=False):
-    # TODO remove
-    interface.toggle_streaming(on=stream)
+def run_agent_loop(
+    memgpt_agent: agent.Agent, config: MemGPTConfig, first, ms: MetadataStore, no_verify=False, cfg=None, strip_ui=False, stream=False
+):
+    if isinstance(memgpt_agent.interface, AgentRefreshStreamingInterface):
+        # memgpt_agent.interface.toggle_streaming(on=stream)
+        if not stream:
+            memgpt_agent.interface = memgpt_agent.interface.nonstreaming_interface
+
+    if hasattr(memgpt_agent.interface, "console"):
+        console = memgpt_agent.interface.console
+    else:
+        console = Console()
 
     counter = 0
     user_input = None
@@ -71,8 +78,8 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
     USER_GOES_FIRST = first
 
     if not USER_GOES_FIRST:
-        console.input("[bold cyan]Hit enter to begin (will request first MemGPT message)[/bold cyan]")
-        clear_line(strip_ui)
+        console.input("[bold cyan]Hit enter to begin (will request first MemGPT message)[/bold cyan]\n")
+        clear_line(console, strip_ui=strip_ui)
         print()
 
     multiline_input = False
@@ -80,12 +87,14 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
     while True:
         if not skip_next_user_input and (counter > 0 or USER_GOES_FIRST):
             # Ask for user input
+            print()
             user_input = questionary.text(
                 "Enter your message:",
                 multiline=multiline_input,
                 qmark=">",
             ).ask()
-            clear_line(strip_ui)
+            clear_line(console, strip_ui=strip_ui)
+            print()
 
             # Gracefully exit on Ctrl-C/D
             if user_input is None:
@@ -163,13 +172,13 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                     command = user_input.strip().split()
                     amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 0
                     if amount == 0:
-                        interface.print_messages(memgpt_agent._messages, dump=True)
+                        memgpt_agent.interface.print_messages(memgpt_agent._messages, dump=True)
                     else:
-                        interface.print_messages(memgpt_agent._messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
+                        memgpt_agent.interface.print_messages(memgpt_agent._messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
                     continue
 
                 elif user_input.lower() == "/dumpraw":
-                    interface.print_messages_raw(memgpt_agent._messages)
+                    memgpt_agent.interface.print_messages_raw(memgpt_agent._messages)
                     continue
 
                 elif user_input.lower() == "/memory":
@@ -319,7 +328,7 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
 
                 # No skip options
                 elif user_input.lower() == "/wipe":
-                    memgpt_agent = agent.Agent(interface)
+                    memgpt_agent = agent.Agent(memgpt_agent.interface)
                     user_message = None
 
                 elif user_input.lower() == "/heartbeat":
