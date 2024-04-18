@@ -57,26 +57,21 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         interface.clear()
 
         try:
-            try:
-                # print("YYY", request.config)
-                agent_state = server.create_agent(
-                    user_id=user_id,
-                    # **request.config
-                    # TODO turn into a pydantic model
-                    name=request.config["name"],
-                    preset=request.config["preset"] if "preset" in request.config else None,
-                    persona_name=request.config["persona_name"] if "persona_name" in request.config else None,
-                    human_name=request.config["human_name"] if "human_name" in request.config else None,
-                    persona=request.config["persona"] if "persona" in request.config else None,
-                    human=request.config["human"] if "human" in request.config else None,
-                    # llm_config=LLMConfigModel(
-                    # model=request.config['model'],
-                    # )
-                    function_names=request.config["function_names"].split(",") if "function_names" in request.config else None,
-                )
-            except:
-                print(f"Failed to create agent from provided config:\n{request.config}")
-                raise
+            agent_state = server.create_agent(
+                user_id=user_id,
+                # **request.config
+                # TODO turn into a pydantic model
+                name=request.config["name"],
+                preset=request.config["preset"] if "preset" in request.config else None,
+                persona_name=request.config["persona_name"] if "persona_name" in request.config else None,
+                human_name=request.config["human_name"] if "human_name" in request.config else None,
+                persona=request.config["persona"] if "persona" in request.config else None,
+                human=request.config["human"] if "human" in request.config else None,
+                # llm_config=LLMConfigModel(
+                # model=request.config['model'],
+                # )
+                function_names=request.config["function_names"].split(",") if "function_names" in request.config else None,
+            )
             llm_config = LLMConfigModel(**vars(agent_state.llm_config))
             embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
 
