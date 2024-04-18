@@ -47,7 +47,7 @@ jobs:
         MEMGPT_SERVER_PASS: test_server_token
         MEMGPT_CONFIG_PATH: configs/server_config.yaml
 
-      run: docker compose up &
+      run: docker compose up -d
 
     - name: Run server tests
       env:
