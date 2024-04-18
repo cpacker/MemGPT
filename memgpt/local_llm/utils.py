@@ -1,6 +1,7 @@
 import os
 import requests
 import tiktoken
+from typing import List
 
 import memgpt.local_llm.llm_chat_completion_wrappers.airoboros as airoboros
 import memgpt.local_llm.llm_chat_completion_wrappers.dolphin as dolphin
@@ -72,6 +73,148 @@ def load_grammar_file(grammar):
 def count_tokens(s: str, model: str = "gpt-4") -> int:
     encoding = tiktoken.encoding_for_model(model)
     return len(encoding.encode(s))
+
+
+def num_tokens_from_functions(functions: List[dict], model: str = "gpt-4"):
+    """Return the number of tokens used by a list of functions.
+
+    Copied from https://community.openai.com/t/how-to-calculate-the-tokens-when-using-function-call/266573/11
+    """
+    try:
+        encoding = tiktoken.encoding_for_model(model)
+    except KeyError:
+        print("Warning: model not found. Using cl100k_base encoding.")
+        encoding = tiktoken.get_encoding("cl100k_base")
+
+    num_tokens = 0
+    for function in functions:
+        function_tokens = len(encoding.encode(function["name"]))
+        function_tokens += len(encoding.encode(function["description"]))
+
+        if "parameters" in function:
+            parameters = function["parameters"]
+            if "properties" in parameters:
+                for propertiesKey in parameters["properties"]:
+                    function_tokens += len(encoding.encode(propertiesKey))
+                    v = parameters["properties"][propertiesKey]
+                    for field in v:
+                        if field == "type":
+                            function_tokens += 2
+                            function_tokens += len(encoding.encode(v["type"]))
+                        elif field == "description":
+                            function_tokens += 2
+                            function_tokens += len(encoding.encode(v["description"]))
+                        elif field == "enum":
+                            function_tokens -= 3
+                            for o in v["enum"]:
+                                function_tokens += 3
+                                function_tokens += len(encoding.encode(o))
+                        else:
+                            print(f"Warning: not supported field {field}")
+                function_tokens += 11
+
+        num_tokens += function_tokens
+
+    num_tokens += 12
+    return num_tokens
+
+
+def num_tokens_from_tool_calls(tool_calls: List[dict], model: str = "gpt-4"):
+    """Based on above code (num_tokens_from_functions).
+
+    Example to encode:
+    [{
+        'id': '8b6707cf-2352-4804-93db-0423f',
+        'type': 'function',
+        'function': {
+            'name': 'send_message',
+            'arguments': '{\n  "message": "More human than human is our motto."\n}'
+        }
+    }]
+    """
+    try:
+        encoding = tiktoken.encoding_for_model(model)
+    except KeyError:
+        # print("Warning: model not found. Using cl100k_base encoding.")
+        encoding = tiktoken.get_encoding("cl100k_base")
+
+    num_tokens = 0
+    for tool_call in tool_calls:
+        function_tokens = len(encoding.encode(tool_call["id"]))
+        function_tokens += 2 + len(encoding.encode(tool_call["type"]))
+        function_tokens += 2 + len(encoding.encode(tool_call["function"]["name"]))
+        function_tokens += 2 + len(encoding.encode(tool_call["function"]["arguments"]))
+
+        num_tokens += function_tokens
+
+    # TODO adjust?
+    num_tokens += 12
+    return num_tokens
+
+
+def num_tokens_from_messages(messages: List[dict], model: str = "gpt-4") -> int:
+    """Return the number of tokens used by a list of messages.
+
+    From: https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
+
+    For counting tokens in function calling RESPONSES, see:
+        https://hmarr.com/blog/counting-openai-tokens/, https://github.com/hmarr/openai-chat-tokens
+
+    For counting tokens in function calling REQUESTS, see:
+        https://community.openai.com/t/how-to-calculate-the-tokens-when-using-function-call/266573/11
+    """
+    try:
+        encoding = tiktoken.encoding_for_model(model)
+    except KeyError:
+        # print("Warning: model not found. Using cl100k_base encoding.")
+        encoding = tiktoken.get_encoding("cl100k_base")
+    if model in {
+        "gpt-3.5-turbo-0613",
+        "gpt-3.5-turbo-16k-0613",
+        "gpt-4-0314",
+        "gpt-4-32k-0314",
+        "gpt-4-0613",
+        "gpt-4-32k-0613",
+    }:
+        tokens_per_message = 3
+        tokens_per_name = 1
+    elif model == "gpt-3.5-turbo-0301":
+        tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
+        tokens_per_name = -1  # if there's a name, the role is omitted
+    elif "gpt-3.5-turbo" in model:
+        # print("Warning: gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613.")
+        return num_tokens_from_messages(messages, model="gpt-3.5-turbo-0613")
+    elif "gpt-4" in model:
+        # print("Warning: gpt-4 may update over time. Returning num tokens assuming gpt-4-0613.")
+        return num_tokens_from_messages(messages, model="gpt-4-0613")
+    else:
+        raise NotImplementedError(
+            f"""num_tokens_from_messages() is not implemented for model {model}. See https://github.com/openai/openai-python/blob/main/chatml.md for information on how messages are converted to tokens."""
+        )
+    num_tokens = 0
+    for message in messages:
+        num_tokens += tokens_per_message
+        for key, value in message.items():
+            try:
+
+                if isinstance(value, list) and key == "tool_calls":
+                    num_tokens += num_tokens_from_tool_calls(tool_calls=value, model=model)
+                    # special case for tool calling (list)
+                    # num_tokens += len(encoding.encode(value["name"]))
+                    # num_tokens += len(encoding.encode(value["arguments"]))
+
+                else:
+                    num_tokens += len(encoding.encode(value))
+
+                if key == "name":
+                    num_tokens += tokens_per_name
+
+            except TypeError as e:
+                print(f"tiktoken encoding failed on: {value}")
+                raise e
+
+    num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
+    return num_tokens
 
 
 def get_available_wrappers() -> dict:

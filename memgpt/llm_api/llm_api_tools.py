@@ -3,17 +3,18 @@ import time
 import requests
 import os
 import time
-from typing import List
+from typing import List, Optional, Union
 
 from memgpt.credentials import MemGPTCredentials
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
 from memgpt.constants import CLI_WARNING_PREFIX
 from memgpt.models.chat_completion_response import ChatCompletionResponse
 from memgpt.models.chat_completion_request import ChatCompletionRequest, Tool, cast_message_to_subtype
+from memgpt.streaming_interface import AgentChunkStreamingInterface, AgentRefreshStreamingInterface
 
 from memgpt.data_types import AgentState, Message
 
-from memgpt.llm_api.openai import openai_chat_completions_request
+from memgpt.llm_api.openai import openai_chat_completions_request, openai_chat_completions_process_stream
 from memgpt.llm_api.azure_openai import azure_openai_chat_completions_request, MODEL_TO_AZURE_ENGINE
 from memgpt.llm_api.google_ai import (
     google_ai_chat_completions_request,
@@ -126,14 +127,17 @@ def retry_with_exponential_backoff(
 def create(
     agent_state: AgentState,
     messages: List[Message],
-    functions=None,
-    functions_python=None,
-    function_call="auto",
+    functions: list = None,
+    functions_python: list = None,
+    function_call: str = "auto",
     # hint
-    first_message=False,
+    first_message: bool = False,
     # use tool naming?
     # if false, will use deprecated 'functions' style
-    use_tool_naming=True,
+    use_tool_naming: bool = True,
+    # streaming?
+    stream: bool = False,
+    stream_inferface: Optional[Union[AgentRefreshStreamingInterface, AgentChunkStreamingInterface]] = None,
 ) -> ChatCompletionResponse:
     """Return response to chat completion with backoff"""
     from memgpt.utils import printd
@@ -169,11 +173,25 @@ def create(
                 function_call=function_call,
                 user=str(agent_state.user_id),
             )
-        return openai_chat_completions_request(
-            url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
-            api_key=credentials.openai_key,
-            data=data,
-        )
+
+        if stream:
+            data.stream = True
+            assert isinstance(stream_inferface, AgentChunkStreamingInterface) or isinstance(
+                stream_inferface, AgentRefreshStreamingInterface
+            ), type(stream_inferface)
+            return openai_chat_completions_process_stream(
+                url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
+                api_key=credentials.openai_key,
+                chat_completion_request=data,
+                stream_inferface=stream_inferface,
+            )
+        else:
+            data.stream = False
+            return openai_chat_completions_request(
+                url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
+                api_key=credentials.openai_key,
+                chat_completion_request=data,
+            )
 
     # azure
     elif agent_state.llm_config.model_endpoint_type == "azure":
