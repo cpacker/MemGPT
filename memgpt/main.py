@@ -87,14 +87,16 @@ def run_agent_loop(
     while True:
         if not skip_next_user_input and (counter > 0 or USER_GOES_FIRST):
             # Ask for user input
-            print()
+            if not stream:
+                print()
             user_input = questionary.text(
                 "Enter your message:",
                 multiline=multiline_input,
                 qmark=">",
             ).ask()
             clear_line(console, strip_ui=strip_ui)
-            print()
+            if not stream:
+                print()
 
             # Gracefully exit on Ctrl-C/D
             if user_input is None:
