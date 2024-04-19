@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from tests.config import TestMGPTConfig
 
+from memgpt.settings import settings
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import EmbeddingConfig, LLMConfig
 from .utils import wipe_config, wipe_memgpt_home
@@ -43,8 +44,7 @@ def run_server():
     load_dotenv()
 
     # Use os.getenv with a fallback to os.environ.get
-    db_url = os.getenv("MEMGPT_PGURI") or os.environ.get("MEMGPT_PGURI")
-    assert db_url, "Missing MEMGPT_PGURI"
+    db_url = settings.pg_uri
 
     if os.getenv("OPENAI_API_KEY"):
         config = TestMGPTConfig(
@@ -130,11 +130,12 @@ def client(request):
         token = None
 
     client = create_client(**request.param, token=token)  # This yields control back to the test function
-    yield client
-
-    # cleanup user
-    if request.param["base_url"]:
-        admin.delete_user(test_user_id)  # Adjust as per your client's method
+    try:
+        yield client
+    finally:
+        # cleanup user
+        if request.param["base_url"]:
+            admin.delete_user(test_user_id)  # Adjust as per your client's method
 
 
 # Fixture for test agent
@@ -334,7 +335,6 @@ def test_presets(client, agent):
     # List all presets and make sure the preset is NOT in the list
     all_presets = client.list_presets()
     assert new_preset.id not in [p.id for p in all_presets], (new_preset, all_presets)
-
     # Create a preset
     client.create_preset(preset=new_preset)
 
