@@ -1,7 +1,4 @@
-import os
 from logging import CRITICAL, ERROR, WARN, WARNING, INFO, DEBUG, NOTSET
-
-MEMGPT_DIR = os.path.join(os.path.expanduser("~"), ".memgpt")
 
 # embeddings
 MAX_EMBEDDING_DIM = 4096  # maximum supported embeding size - do NOT change or else DBs will need to be reset
@@ -13,6 +10,11 @@ EMBEDDING_TO_TOKENIZER_MAP = {
 EMBEDDING_TO_TOKENIZER_DEFAULT = "cl100k_base"
 
 
+DEFAULT_HUMAN_TEXT = "An unknown user. Inquire to learn more."
+DEFAULT_PERSONA_TEXT = (
+    "I am a personal assistant. I am here to honestly converse with my user, and be helpful. My tone should be casual and conversational."
+)
+
 DEFAULT_MEMGPT_MODEL = "gpt-4"
 DEFAULT_PERSONA = "sam_pov"
 DEFAULT_HUMAN = "basic"
@@ -21,14 +23,6 @@ DEFAULT_PRESET = "memgpt_chat"
 # Used to isolate MemGPT logger instance from Dependant Libraries logging
 LOGGER_NAME = "MemGPT"
 LOGGER_DEFAULT_LEVEL = CRITICAL
-# Where to store the logs
-LOGGER_DIR = os.path.join(MEMGPT_DIR, "logs")
-# filename of the log
-LOGGER_FILENAME = "MemGPT.log"
-# Number of log files to rotate
-LOGGER_FILE_BACKUP_COUNT = 3
-# Max Log file size in bytes
-LOGGER_MAX_FILE_SIZE = 10485760
 # LOGGER_LOG_LEVEL is use to convert Text to Logging level value for logging mostly for Cli input to setting level
 LOGGER_LOG_LEVELS = {"CRITICAL": CRITICAL, "ERROR": ERROR, "WARN": WARN, "WARNING": WARNING, "INFO": INFO, "DEBUG": DEBUG, "NOTSET": NOTSET}
 

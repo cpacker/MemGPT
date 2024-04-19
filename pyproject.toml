@@ -30,16 +30,14 @@ pre-commit = {version = "^3.5.0", optional = true }
 pg8000 = {version = "^1.30.3", optional = true}
 websockets = {version = "^12.0", optional = true}
 docstring-parser = "^0.15"
-lancedb = "^0.3.3"
 httpx = "^0.25.2"
 numpy = "^1.26.2"
 demjson3 = "^3.0.6"
 tiktoken = "^0.5.1"
 pypdf = "^3.17.1"
 pyyaml = "^6.0.1"
-chromadb = "^0.4.18"
 sqlalchemy-json = "^0.7.0"
-fastapi = {version = "^0.104.1", optional = true}
+fastapi = {version = "^0.104.1"}
 uvicorn = {version = "^0.24.0.post1", optional = true}
 pytest-asyncio = {version = "^0.23.2", optional = true}
 pydantic = "^2.5.2"

@@ -1,11 +1,10 @@
 from typing import List, Optional, Dict, Literal
-from pydantic import BaseModel, Field, Json, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict
 import uuid
 from datetime import datetime
 from sqlmodel import Field, SQLModel
 
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS, MAX_EMBEDDING_DIM
-from memgpt.utils import get_human_text, get_persona_text, printd
+from memgpt.constants import DEFAULT_HUMAN_TEXT, DEFAULT_PERSONA_TEXT
 
 
 class LLMConfigModel(BaseModel):
@@ -34,8 +33,8 @@ class PresetModel(BaseModel):
     description: Optional[str] = Field(None, description="The description of the preset.")
     created_at: datetime = Field(default_factory=datetime.now, description="The unix timestamp of when the preset was created.")
     system: str = Field(..., description="The system prompt of the preset.")
-    persona: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona of the preset.")
-    human: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human of the preset.")
+    persona: str = Field(default="You are a personal assistant", description="The persona of the preset.")
+    human: str = Field(default=DEFAULT_HUMAN_TEXT, description="The human of the preset.")
     functions_schema: List[Dict] = Field(..., description="The functions schema of the preset.")
 
 
@@ -71,14 +70,14 @@ class AgentStateModel(BaseModel):
 
 
 class HumanModel(SQLModel, table=True):
-    text: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human text.")
+    text: str = Field(default="An unknown user", description="The human text.")
     name: str = Field(..., description="The name of the human.")
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the human.", primary_key=True)
     user_id: Optional[uuid.UUID] = Field(..., description="The unique identifier of the user associated with the human.")
 
 
 class PersonaModel(SQLModel, table=True):
-    text: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona text.")
+    text: str = Field(default=DEFAULT_PERSONA_TEXT, description="The persona text.")
     name: str = Field(..., description="The name of the persona.")
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the persona.", primary_key=True)
     user_id: Optional[uuid.UUID] = Field(..., description="The unique identifier of the user associated with the persona.")

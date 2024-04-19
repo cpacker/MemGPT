@@ -4,8 +4,6 @@ import uuid
 from typing import Dict, List, Union, Optional, Tuple
 
 from memgpt.data_types import AgentState, User, Preset, LLMConfig, EmbeddingConfig
-from memgpt.cli.cli import QuickstartChoice
-from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func, str_to_quickstart_choice
 from memgpt.config import MemGPTConfig
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -168,8 +166,6 @@ class LocalClient(AbstractClient):
         """
         Initializes a new instance of Client class.
         :param auto_save: indicates whether to automatically save after every message.
-        :param quickstart: allows running quickstart on client init.
-        :param config: optional config settings to apply after quickstart
         :param debug: indicates whether to display debug messages.
         """
         self.auto_save = auto_save
@@ -189,11 +185,6 @@ class LocalClient(AbstractClient):
             ms.update_user(self.user)
         else:
             ms.create_user(self.user)
-
-        # create preset records in metadata store
-        from memgpt.presets.presets import add_default_presets
-
-        add_default_presets(self.user_id, ms)
 
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface=self.interface)

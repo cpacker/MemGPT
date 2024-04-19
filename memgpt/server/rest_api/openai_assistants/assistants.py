@@ -1,11 +1,9 @@
-from fastapi import FastAPI
 import uuid
 from typing import List, Optional
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Body, HTTPException, Query, Path
-from pydantic import BaseModel, Field, constr, validator
-from starlette.responses import StreamingResponse
+from fastapi import APIRouter, Body, HTTPException, Query, Path
+from pydantic import BaseModel, Field
 
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -15,7 +13,6 @@ import uuid
 
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.interface import QueuingInterface
-from memgpt.server.rest_api.static_files import mount_static_files
 from memgpt.models.openai import (
     AssistantFile,
     MessageFile,
@@ -26,11 +23,10 @@ from memgpt.models.openai import (
     OpenAIRunStep,
     MessageRoleType,
     Text,
-    ImageFile,
     ToolCall,
     ToolCallOutput,
 )
-from memgpt.data_types import LLMConfig, EmbeddingConfig, Message
+from memgpt.data_types import Message
 from memgpt.constants import DEFAULT_PRESET
 
 router = APIRouter()

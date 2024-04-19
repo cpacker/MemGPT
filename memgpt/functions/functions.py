@@ -1,13 +1,14 @@
 import importlib
 import inspect
+import logging
 import os
 import sys
 
 
 from memgpt.functions.schema_generator import generate_schema
-from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
+from memgpt.constants import CLI_WARNING_PREFIX
 
-USER_FUNCTIONS_DIR = os.environ.get('USER_FUNCTIONS_DIR', os.path.join(MEMGPT_DIR, "functions"))
+USER_FUNCTIONS_DIR = os.environ["USER_FUNCTIONS_DIR"]
 
 sys.path.append(USER_FUNCTIONS_DIR)
 
@@ -45,9 +46,12 @@ def load_all_function_sets(merge=True):
 
     # ~/.memgpt/functions/*.py
     # create if missing
+
     if not os.path.exists(USER_FUNCTIONS_DIR):
-        os.makedirs(USER_FUNCTIONS_DIR)
+        raise Exception(f"user functions dir does not exist: {USER_FUNCTIONS_DIR}")
     user_module_files = [f for f in os.listdir(USER_FUNCTIONS_DIR) if f.endswith(".py") and f != "__init__.py"]
+
+    logging.warning(f"loading functions: {user_module_files}")
 
     # combine them both (pull from both examples and user-provided)
     # all_module_files = example_module_files + user_module_files

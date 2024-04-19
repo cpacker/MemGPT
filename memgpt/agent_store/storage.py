@@ -8,11 +8,10 @@ import uuid
 from abc import abstractmethod
 
 from typing import List, Optional, Dict
-from tqdm import tqdm
 
 
 from memgpt.config import MemGPTConfig
-from memgpt.data_types import Record, Passage, Document, Message, Source, RecordType
+from memgpt.data_types import Record, Passage, Document, Message, RecordType
 from memgpt.utils import printd
 
 
@@ -99,21 +98,6 @@ class StorageConnector:
             from memgpt.agent_store.db import PostgresStorageConnector
 
             return PostgresStorageConnector(table_type, config, user_id, agent_id)
-        elif storage_type == "chroma":
-            from memgpt.agent_store.chroma import ChromaStorageConnector
-
-            return ChromaStorageConnector(table_type, config, user_id, agent_id)
-
-        # TODO: add back
-        # elif storage_type == "lancedb":
-        #    from memgpt.agent_store.db import LanceDBConnector
-
-        #    return LanceDBConnector(agent_config=agent_config, table_type=table_type)
-
-        elif storage_type == "sqlite":
-            from memgpt.agent_store.db import SQLLiteStorageConnector
-
-            return SQLLiteStorageConnector(table_type, config, user_id, agent_id)
 
         else:
             raise NotImplementedError(f"Storage type {storage_type} not implemented")

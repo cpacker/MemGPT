@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 import logging
 import uuid
 from abc import abstractmethod
@@ -10,14 +9,11 @@ from typing import Union, Callable, Optional, List
 from fastapi import HTTPException
 
 import memgpt.constants as constants
-import memgpt.presets.presets as presets
 import memgpt.server.utils as server_utils
 import memgpt.system as system
 from memgpt.agent import Agent, save_agent
 from memgpt.agent_store.storage import StorageConnector, TableType
 
-# from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
-from memgpt.cli.cli_config import get_model_options
 from memgpt.config import MemGPTConfig
 from memgpt.constants import JSON_LOADS_STRICT, JSON_ENSURE_ASCII
 from memgpt.credentials import MemGPTCredentials
@@ -650,10 +646,6 @@ class SyncServer(LockingServer):
         if agent is not None:
             self.ms.delete_agent(agent_id=agent_id)
 
-    def initialize_default_presets(self, user_id: uuid.UUID):
-        """Add default preset options into the metadata store"""
-        presets.add_default_presets(user_id, self.ms)
-
     def create_preset(self, preset: Preset):
         """Create a new preset using a config"""
         if self.ms.get_user(user_id=preset.user_id) is None:
@@ -893,23 +885,6 @@ class SyncServer(LockingServer):
             response["defaults"] = clean_default_config
 
         return response
-
-    def get_available_models(self) -> list:
-        """Poll the LLM endpoint for a list of available models"""
-
-        credentials = MemGPTCredentials().load()
-
-        try:
-            model_options = get_model_options(
-                credentials=credentials,
-                model_endpoint_type=self.config.default_llm_config.model_endpoint_type,
-                model_endpoint=self.config.default_llm_config.model_endpoint,
-            )
-            return model_options
-
-        except Exception as e:
-            logger.exception(f"Failed to get list of available models from LLM endpoint:\n{str(e)}")
-            raise
 
     def update_agent_core_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_memory_contents: dict) -> dict:
         """Update the agents core memory block, return the new state"""

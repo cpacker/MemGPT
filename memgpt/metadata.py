@@ -6,24 +6,21 @@ import uuid
 import secrets
 from typing import Optional, List
 
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
-from memgpt.utils import get_local_time, enforce_types
+from memgpt.utils import enforce_types
 from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig, Token, Preset
 from memgpt.config import MemGPTConfig
 from memgpt.functions.functions import load_all_function_sets
 
 from memgpt.models.pydantic_models import PersonaModel, HumanModel, ToolModel
 
-from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, Boolean
+from sqlalchemy import create_engine, Column, String, BIGINT, JSON, Boolean
 from sqlalchemy import func
-from sqlalchemy.orm import sessionmaker, mapped_column, declarative_base
-from sqlalchemy.orm.session import close_all_sessions
+from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.sql import func
 from sqlalchemy import Column, BIGINT, String, DateTime
-from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy_json import mutable_json_type, MutableJson
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import TypeDecorator, CHAR
-from sqlalchemy.orm import sessionmaker, mapped_column, declarative_base
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 
 Base = declarative_base()
@@ -35,22 +32,13 @@ class CommonUUID(TypeDecorator):
     cache_ok = True
 
     def load_dialect_impl(self, dialect):
-        if dialect.name == "postgresql":
-            return dialect.type_descriptor(UUID(as_uuid=True))
-        else:
-            return dialect.type_descriptor(CHAR())
+        return dialect.type_descriptor(UUID(as_uuid=True))
 
     def process_bind_param(self, value, dialect):
-        if dialect.name == "postgresql" or value is None:
-            return value
-        else:
-            return str(value)  # Convert UUID to string for SQLite
+        return value
 
     def process_result_value(self, value, dialect):
-        if dialect.name == "postgresql" or value is None:
-            return value
-        else:
-            return uuid.UUID(value)
+        return value
 
 
 class LLMConfigColumn(TypeDecorator):
@@ -299,9 +287,6 @@ class MetadataStore:
         # TODO: get DB URI or path
         if config.metadata_storage_type == "postgres":
             self.uri = config.metadata_storage_uri
-        elif config.metadata_storage_type == "sqlite":
-            path = os.path.join(config.metadata_storage_path, "sqlite.db")
-            self.uri = f"sqlite:///{path}"
         else:
             raise ValueError(f"Invalid metadata storage type: {config.metadata_storage_type}")
 

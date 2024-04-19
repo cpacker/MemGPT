@@ -8,7 +8,6 @@ from memgpt.constants import (
     JSON_LOADS_STRICT,
     MESSAGE_CHATGPT_FUNCTION_MODEL,
     MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
-    MAX_PAUSE_HEARTBEATS,
     JSON_ENSURE_ASCII,
 )
 from memgpt.llm_api_tools import create
