@@ -138,3 +138,10 @@ Please be sure to follow the project's Code of Conduct.
 Need help or just want to say hi? We're here for you. Reach out through filing an issue on this GitHub repository or message us on our [Discord server](https://discord.gg/9GEQrxmVyE).
 
 Thanks for making MemGPT even more fantastic!
+
+## WIP - 🐋 Docker Development
+If you prefer to keep your resources isolated by developing purely in containers, you can start MemGPT in development with:
+```shell
+docker compose -f compose.yaml -f development.compose.yml up
+```
+This will volume mount your local codebase and reload the server on file changes.

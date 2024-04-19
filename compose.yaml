@@ -1,7 +1,11 @@
 services:
   memgpt_db:
     image: ankane/pgvector:v0.5.1
-    hostname: memgpt-db
+    networks:
+      default:
+        aliases:
+          - pgvector_db
+          - memgpt-db
     environment:
       - POSTGRES_USER=${MEMGPT_PG_USER}
       - POSTGRES_PASSWORD=${MEMGPT_PG_PASSWORD}
@@ -12,13 +16,8 @@ services:
     ports:
       - "5432:5432"
   memgpt_server:
-    image: memgpt_server
+    image: memgpt/memgpt-server:0.3.7
     hostname: memgpt-server
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - MEMGPT_ENVIRONMENT=DEVELOPMENT
     depends_on:
       - memgpt_db
     ports:
@@ -26,35 +25,16 @@ services:
       - "8283:8283"
     env_file:
       - .env
-    volumes:
-      - ./memgpt:/memgpt
-      - ~/.memgpt/credentials:/root/.memgpt/credentials
-      #- ./configs/server_config.yaml:/root/.memgpt/config
-  memgpt_tests:
-    image: memgpt_tests
-    profiles:
-      - tests
-    hostname: memgpt-tests
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: tests
-      args:
-        - MEMGPT_ENVIRONMENT=DEVELOPMENT
-    depends_on:
-      - memgpt_db
-    env_file:
-      - .env
     environment:
-      - MEMGPT_SERVER_PASS=test_server_token
+      - MEMGPT_PGURI=postgresql://${MEMGPT_PG_USER}:${MEMGPT_PG_PASSWORD}@pgvector_db:5432/${MEMGPT_PG_DB}
+      - MEMGPT_SERVER_PASS=${MEMGPT_SERVER_PASS} # memgpt server password
+      - MEMGPT_PG_DB=${MEMGPT_PG_DB}
+      - MEMGPT_PG_USER=${MEMGPT_PG_USER}
+      - MEMGPT_PG_PASSWORD=${MEMGPT_PG_PASSWORD}
+      - MEMGPT_PG_URL=pgvector_db
     volumes:
-      - ./CONTRIBUTING.md:/CONTRIBUTING.md
-      - ./tests/pytest_cache:/memgpt/.pytest_cache
-      - ./tests/pytest.ini:/memgpt/pytest.ini
-      - ./pyproject.toml:/pyproject.toml
-      - ./memgpt:/memgpt
-      - ./tests:/tests
-      - ~/.memgpt/credentials:/root/.memgpt/credentials
+      - ./configs/server_config.yaml:/root/.memgpt/config # config file
+      - ~/.memgpt/credentials:/root/.memgpt/credentials # credentials file
   memgpt_nginx:
     hostname: memgpt-nginx
     image: nginx:stable-alpine3.17-slim
