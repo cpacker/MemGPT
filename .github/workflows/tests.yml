@@ -51,7 +51,8 @@ jobs:
 
     - name: Run server tests
       env:
-        MEMGPT_PGURI: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+        #MEMGPT_PGURI: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+        MEMGPT_PG_POST: 8888
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
       run: |
@@ -59,7 +60,8 @@ jobs:
 
     - name: Run tests with pytest
       env:
-        MEMGPT_PGURI: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+        MEMGPT_PG_POST: 8888
+        #MEMGPT_PGURI: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
@@ -68,7 +70,8 @@ jobs:
 
     - name: Run storage tests
       env:
-        MEMGPT_PGURI: postgresql+pg8000://memgpt:memgpt@localhost:5432/memgpt
+        MEMGPT_PG_POST: 8888
+        #MEMGPT_PGURI: postgresql+pg8000://memgpt:memgpt@localhost:5432/memgpt
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
       run: |
