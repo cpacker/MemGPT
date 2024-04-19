@@ -5,11 +5,12 @@ import hashlib
 from functools import partial
 from typing import List, Optional
 
-from fastapi import APIRouter, Body, Depends, Query, HTTPException, status, UploadFile
+from fastapi import APIRouter, Body, Depends, Query, HTTPException, status, UploadFile, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from starlette.responses import StreamingResponse
 
-from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel
+from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel, JobModel, JobStatus
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -55,6 +56,41 @@ class GetSourcePassagesResponse(BaseModel):
 
 class GetSourceDocumentsResponse(BaseModel):
     documents: List[DocumentModel] = Field(..., description="List of documents from the source.")
+
+
+def load_file_to_source(server: SyncServer, user_id: uuid.UUID, source: Source, job: JobModel, file: UploadFile):
+    # update job status
+    job.status = JobStatus.running
+    server.ms.update_job(job)
+
+    try:
+        # write the file to a temporary directory (deleted after the context manager exits)
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            file_path = os.path.join(tmpdirname, file.filename)
+            with open(file_path, "wb") as buffer:
+                buffer.write(file.file.read())
+
+            # read the file
+            connector = DirectoryConnector(input_files=[file_path])
+
+            # TODO: pre-compute total number of passages?
+
+            # load the data into the source via the connector
+            num_passages, num_documents = server.load_data(user_id=user_id, source_name=source.name, connector=connector)
+    except Exception as e:
+        # job failed with error
+        error = str(e)
+        job.status = JobStatus.failed
+        job.metadata["error"] = error
+        server.ms.update_job(job)
+        # TODO: delete any associated passages/documents?
+        return 0, 0
+
+    # update job status
+    job.status = JobStatus.completed
+    job.metadata["num_passages"] = num_passages
+    job.metadata["num_documents"] = num_documents
+    server.ms.update_job(job)
 
 
 def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, password: str):
@@ -144,32 +180,58 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         """Detach a data source from an existing agent."""
         server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=user_id)
 
-    @router.post("/sources/{source_id}/upload", tags=["sources"], response_model=UploadFileToSourceResponse)
+    @router.get("/sources/status/{job_id}", tags=["sources"], response_model=JobModel)
+    async def get_job_status(
+        job_id: uuid.UUID,
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        """Get the status of a job."""
+        job = server.ms.get_job(job_id=job_id, user_id=user_id)
+        return job
+
+    @router.post("/sources/{source_id}/upload", tags=["sources"], response_model=JobModel)
     async def upload_file_to_source(
         # file: UploadFile = UploadFile(..., description="The file to upload."),
         file: UploadFile,
         source_id: uuid.UUID,
+        background_tasks: BackgroundTasks,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """Upload a file to a data source."""
         interface.clear()
         source = server.ms.get_source(source_id=source_id, user_id=user_id)
 
-        # write the file to a temporary directory (deleted after the context manager exits)
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            file_path = os.path.join(tmpdirname, file.filename)
-            with open(file_path, "wb") as buffer:
-                buffer.write(file.file.read())
+        # create job
+        job = JobModel(user_id=user_id, metadata={"type": "embedding"})
+        server.ms.create_job(job)
 
-            # read the file
-            connector = DirectoryConnector(input_files=[file_path])
+        # create background task
+        background_tasks.add_task(load_file_to_source, server, user_id, source, job, file)
 
-            # load the data into the source via the connector
-            passage_count, document_count = server.load_data(user_id=user_id, source_name=source.name, connector=connector)
+        # return job information
+        return job
 
-        # TODO: actually return added passages/documents
-        return UploadFileToSourceResponse(source=source, added_passages=passage_count, added_documents=document_count)
+        ## write the file to a temporary directory (deleted after the context manager exits)
+        # with tempfile.TemporaryDirectory() as tmpdirname:
+        #    file_path = os.path.join(tmpdirname, file.filename)
+        #    with open(file_path, "wb") as buffer:
+        #        buffer.write(file.file.read())
 
+        #    # read the file
+        #    connector = DirectoryConnector(input_files=[file_path])
+
+        #    # load the data into the source via the connector
+        #    async def load_passages(user_id, source_name, connector):
+        #        # yields passage ids
+        #        yield server.load_data(user_id=user_id, source_name=source_name, connector=connector)
+
+        #    # stream responses
+        #    return StreamingResponse(load_passages(user_id, source.name, connector), media_type="application/json")
+
+        ## TODO: actually return added passages/documents
+        ##return UploadFileToSourceResponse(source=source, added_passages=passage_count, added_documents=document_count)
+
+    @router.post("/sources/")
     @router.get("/sources/{source_id}/passages ", tags=["sources"], response_model=GetSourcePassagesResponse)
     async def list_passages(
         source_id: uuid.UUID,

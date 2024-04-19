@@ -774,6 +774,12 @@ class MetadataStore:
                 session.query(JobModel).filter(JobModel.id == job_id).update({"completed_at": get_utc_time()})
             session.commit()
 
+    def update_job(self, job: JobModel):
+        with self.session_maker() as session:
+            session.add(job)
+            session.commit()
+            session.refresh(job)
+
     def get_job(self, job_id: uuid.UUID) -> Optional[JobModel]:
         with self.session_maker() as session:
             results = session.query(JobModel).filter(JobModel.id == job_id).all()
