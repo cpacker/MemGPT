@@ -130,7 +130,7 @@ def test_load_directory(
     )
     ms.delete_user(user.id)
     ms.create_user(user)
-    ms.create_agent(agent)
+    # ms.create_agent(agent)
     user = ms.get_user(user.id)
     print("Got user:", user, embedding_config)
 
