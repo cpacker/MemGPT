@@ -39,15 +39,15 @@ jobs:
           poetry run memgpt quickstart --backend memgpt
         fi
 
-    - name: Run docker compose server
-      env:
-        MEMGPT_PG_DB:   memgpt
-        MEMGPT_PG_USER: memgpt
-        MEMGPT_PG_PASSWORD: memgpt
-        MEMGPT_SERVER_PASS: test_server_token
-        MEMGPT_CONFIG_PATH: configs/server_config.yaml
+    #- name: Run docker compose server
+    #  env:
+    #    MEMGPT_PG_DB:   memgpt
+    #    MEMGPT_PG_USER: memgpt
+    #    MEMGPT_PG_PASSWORD: memgpt
+    #    MEMGPT_SERVER_PASS: test_server_token
+    #    MEMGPT_CONFIG_PATH: configs/server_config.yaml
 
-      run: docker compose up -d
+    #  run: docker compose up -d
 
     - name: Run server tests
       env:
