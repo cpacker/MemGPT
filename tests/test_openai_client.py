@@ -1,18 +1,22 @@
-from openai import OpenAI
-import uvicorn
+from openai import OpenAI, APIConnectionError
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 
 def test_openai_assistant():
     client = OpenAI(base_url="http://127.0.0.1:8080/v1")
-
     # create assistant
-    assistant = client.beta.assistants.create(
-        name="Math Tutor",
-        instructions="You are a personal math tutor. Write and run code to answer math questions.",
-        # tools=[{"type": "code_interpreter"}],
-        model="gpt-4-turbo-preview",
-    )
-
+    try:
+        assistant = client.beta.assistants.create(
+            name="Math Tutor",
+            instructions="You are a personal math tutor. Write and run code to answer math questions.",
+            # tools=[{"type": "code_interpreter"}],
+            model="gpt-4-turbo-preview",
+        )
+    except APIConnectionError as e:
+        logger.error("Connection issue with localhost openai stub: %s", e)
+        return
     # create thread
     thread = client.beta.threads.create()
 

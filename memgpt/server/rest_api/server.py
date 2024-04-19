@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette.middleware.cors import CORSMiddleware
 
+from memgpt.settings import settings
 from memgpt.server.rest_api.admin.users import setup_admin_router
 from memgpt.server.rest_api.agents.command import setup_agents_command_router
 from memgpt.server.rest_api.agents.config import setup_agents_config_router
@@ -38,32 +39,23 @@ Start the server with:
   cd memgpt/server/rest_api
   poetry run uvicorn server:app --reload
 """
-# override config with postgres enviornment (messy, but necessary for docker compose)
-# TODO: do something less gross
-if os.getenv("POSTGRES_URI"):
-    config = MemGPTConfig.load()
-    config.archival_storage_uri = os.getenv("POSTGRES_URI")
-    config.recall_storage_uri = os.getenv("POSTGRES_URI")
-    config.metadata_storage_uri = os.getenv("POSTGRES_URI")
-    print(f"Overriding DB config URI with enviornment variable: {config.archival_storage_uri}")
-    config.save()
+
+config = MemGPTConfig.load()
+for memory_type in ("archival", "recall", "metadata"):
+    setattr(config, f"{memory_type}_storage_uri", settings.pg_uri)
+config.save()
 
 
 interface: QueuingInterface = QueuingInterface()
 server: SyncServer = SyncServer(default_interface=interface)
 
-
-SERVER_PASS_VAR = "MEMGPT_SERVER_PASS"
-password = os.getenv(SERVER_PASS_VAR)
-
-if password:
+if password := settings.server_pass:
     # if the pass was specified in the environment, use it
     print(f"Using existing admin server password from environment.")
 else:
     # Autogenerate a password for this session and dump it to stdout
     password = secrets.token_urlsafe(16)
     print(f"Generated admin server password for this session: {password}")
-
 
 security = HTTPBearer()
 
@@ -78,20 +70,11 @@ ADMIN_PREFIX = "/admin"
 API_PREFIX = "/api"
 OPENAI_API_PREFIX = "/v1"
 
-CORS_ORIGINS = [
-    "http://localhost:4200",
-    "http://localhost:4201",
-    "http://localhost:8283",
-    "http://127.0.0.1:4200",
-    "http://127.0.0.1:4201",
-    "http://127.0.0.1:8283",
-]
-
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -133,7 +116,7 @@ def on_startup():
         app.openapi_schema = app.openapi()
 
     if app.openapi_schema:
-        app.openapi_schema["servers"] = [{"url": "http://localhost:8283"}]
+        app.openapi_schema["servers"] = [{"url": host} for host in settings.cors_origins]
         app.openapi_schema["info"]["title"] = "MemGPT API"
 
     # Write out the OpenAPI schema to a file

@@ -17,6 +17,7 @@ import numpy as np
 from tqdm import tqdm
 import pandas as pd
 
+from memgpt.settings import settings
 from memgpt.config import MemGPTConfig
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
@@ -428,15 +429,8 @@ class PostgresStorageConnector(SQLStorageConnector):
         self.db_model = get_db_model(config, self.table_name, table_type, user_id, agent_id)
 
         # construct URI from enviornment variables
-        if os.getenv("MEMGPT_PGURI"):
-            self.uri = os.getenv("MEMGPT_PGURI")
-        elif os.getenv("MEMGPT_PG_DB"):
-            db = os.getenv("MEMGPT_PG_DB", "memgpt")
-            user = os.getenv("MEMGPT_PG_USER", "memgpt")
-            password = os.getenv("MEMGPT_PG_PASSWORD", "memgpt")
-            port = os.getenv("MEMGPT_PG_PORT", "5432")
-            url = os.getenv("MEMGPT_PG_URL", "localhost")
-            self.uri = f"postgresql+pg8000://{user}:{password}@{url}:{port}/{db}"
+        if settings.pg_uri:
+            self.uri = settings.pg_uri
         else:
             # use config URI
             # TODO: remove this eventually (config should NOT contain URI)
