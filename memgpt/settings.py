@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     @property
     def pg_uri(self) -> str:
-        return f"postgresql+pg8000://{self.pg_user}:{self.pg_password}@{self.pg_host}/{self.pg_db}"
+        return f"postgresql+pg8000://{self.pg_user}:{self.pg_password}@{self.pg_host}:{self.pg_port}/{self.pg_db}"
 
 
 # singleton
