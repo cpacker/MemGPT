@@ -403,6 +403,7 @@ class Agent(object):
         message_sequence: List[Message],
         function_call: str = "auto",
         first_message: bool = False,  # hint
+        stream: bool = False,  # TODO move to config?
     ) -> chat_completion_response.ChatCompletionResponse:
         """Get response from LLM API"""
         try:
@@ -414,6 +415,9 @@ class Agent(object):
                 function_call=function_call,
                 # hint
                 first_message=first_message,
+                # streaming
+                stream=stream,
+                stream_inferface=self.interface,
             )
             # special case for 'length'
             if response.choices[0].finish_reason == "length":
@@ -628,6 +632,7 @@ class Agent(object):
         skip_verify: bool = False,
         return_dicts: bool = True,  # if True, return dicts, if False, return Message objects
         recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
+        stream: bool = False,  # TODO move to config?
     ) -> Tuple[List[Union[dict, Message]], bool, bool, bool]:
         """Top-level event message handler for the MemGPT agent"""
 
@@ -710,6 +715,7 @@ class Agent(object):
                     response = self._get_ai_reply(
                         message_sequence=input_message_sequence,
                         first_message=True,  # passed through to the prompt formatter
+                        stream=stream,
                     )
                     if verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
@@ -721,6 +727,7 @@ class Agent(object):
             else:
                 response = self._get_ai_reply(
                     message_sequence=input_message_sequence,
+                    stream=stream,
                 )
 
             # Step 2: check if LLM wanted to call a function

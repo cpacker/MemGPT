@@ -16,7 +16,7 @@ services:
     ports:
       - "5432:5432"
   memgpt_server:
-    image: memgpt/memgpt-server:0.3.7
+    image: memgpt/memgpt-server:latest
     hostname: memgpt-server
     depends_on:
       - memgpt_db
