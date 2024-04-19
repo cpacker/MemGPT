@@ -247,6 +247,19 @@ class SyncServer(LockingServer):
         # Initialize the metadata store
         self.ms = MetadataStore(self.config)
 
+        # pre-fill database (users, presets, humans, personas)
+        # TODO: figure out how to handle default users  (server is technically multi-user)
+        user_id = uuid.UUID(self.config.anon_clientid)
+        user = User(
+            id=uuid.UUID(self.config.anon_clientid),
+        )
+        if self.ms.get_user(user_id):
+            # update user
+            self.ms.update_user(user)
+        else:
+            self.ms.create_user(user)
+        presets.add_default_presets(user_id, self.ms)
+
         # NOTE: removed, since server should be multi-user
         ## Create the default user
         # base_user_id = uuid.UUID(self.config.anon_clientid)
