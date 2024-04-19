@@ -4,6 +4,7 @@ import asyncio
 import logging
 import random
 from db import save_user_api_key, save_user_agent_id, get_user_api_key, get_user_agent_id, get_memgpt_user_id, check_user_exists, save_memgpt_user_id_and_api_key
+from archival import string
 
 import os
 from dotenv import load_dotenv
@@ -46,6 +47,8 @@ async def create_memgpt_user(telegram_user_id: int):
             await save_user_agent_id(telegram_user_id, agent_id)
             # Save MemGPT user ID and API key in Supabase
             await save_memgpt_user_id_and_api_key(telegram_user_id, user_memgpt_id, user_api_key)
+            # Insert archival memory about the project
+            await insert_archival(agent_id)
             return "Your MemGPT agent has been created."
         else:
             return "Failed to create MemGPT agent."
@@ -146,9 +149,27 @@ async def create_agent(telegram_user_id: int, agent_name: str):
 
 
     if agent_response.status_code == 200:
+        agents_info = await list_agents(telegram_user_id)
+
+        agent_id = await name_to_id(agents_info, agent_name)
+
+        await insert_archival(agent_id)
         return "Your MemGPT agent has been created."
     else:
         return "Failed to create MemGPT agent."
+
+async def insert_archival(agent_id: str):
+    url = f"http://localhost:8283/api/agents/{agent_id}/archival"
+    
+    payload = {
+     "content": string }
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "authorization": f"Bearer {MEMGPT_ADMIN_API_KEY}"
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
 
 async def current_agent(telegram_user_id: int):
     # Check if user already exists in Supabase

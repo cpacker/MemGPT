@@ -65,7 +65,6 @@ async def get_memgpt_user_id(telegram_user_id: int) -> str:
     
     return None
 
-
 async def save_user_api_key(telegram_user_id: int, user_api_key: str):
     loop = asyncio.get_event_loop()
     data, error = await loop.run_in_executor(None, lambda: supabase.table("users").upsert({"telegram_user_id": telegram_user_id, "api_key": user_api_key}).execute())
@@ -84,7 +83,6 @@ async def save_user_agent_id(telegram_user_id: int, agent_id: str):
         # Handle API errors
         logging.error(f"An error occurred: {e}")
 
-
 async def check_user_exists(telegram_user_id: int) -> bool:
     try:
         loop = asyncio.get_event_loop()
@@ -100,7 +98,6 @@ async def check_user_exists(telegram_user_id: int) -> bool:
     except Exception as e:
         logging.exception("Unexpected error checking if user exists", exc_info=e)
         return False
-
 
 async def save_memgpt_user_id_and_api_key(telegram_user_id: int, memgpt_user_id: str, user_api_key: str):
     loop = asyncio.get_event_loop()
@@ -123,6 +120,7 @@ async def save_user_pseudonym(telegram_user_id: int, pseudonym: str):
     except Exception as e:
         logging.error(f"Exception occurred while saving pseudonym for Telegram user ID {telegram_user_id}: {e}")
         return False
+
 async def get_user_info(telegram_user_id: int):
     loop = asyncio.get_event_loop()
     data, error = await loop.run_in_executor(None, lambda: supabase.table("users").select("*").eq("telegram_user_id", telegram_user_id).execute())
