@@ -47,19 +47,19 @@ jobs:
           poetry run memgpt quickstart --backend memgpt
         fi
 
-    - name: Run docker compose server
-      env:
-        MEMGPT_PG_DB:   memgpt
-        MEMGPT_PG_USER: memgpt
-        MEMGPT_PG_PASSWORD: memgpt
-        MEMGPT_SERVER_PASS: test_server_token
-        MEMGPT_CONFIG_PATH: configs/server_config.yaml
+    #- name: Run docker compose server
+    #  env:
+    #    MEMGPT_PG_DB:   memgpt
+    #    MEMGPT_PG_USER: memgpt
+    #    MEMGPT_PG_PASSWORD: memgpt
+    #    MEMGPT_SERVER_PASS: test_server_token
+    #    MEMGPT_CONFIG_PATH: configs/server_config.yaml
 
-      run: docker compose up -d
+    #  run: docker compose up -d
 
     - name: Run server tests
       env:
-        MEMGPT_PGURI: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+        MEMGPT_PG_PORT: 8888
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
       run: |
@@ -67,7 +67,7 @@ jobs:
 
     - name: Run tests with pytest
       env:
-        MEMGPT_PGURI: postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+        MEMGPT_PG_PORT: 8888
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
@@ -76,7 +76,7 @@ jobs:
 
     - name: Run storage tests
       env:
-        MEMGPT_PGURI: postgresql+pg8000://memgpt:memgpt@localhost:5432/memgpt
+        MEMGPT_PG_PORT: 8888
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
       run: |

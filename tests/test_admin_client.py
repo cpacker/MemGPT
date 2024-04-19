@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 
 from tests.config import TestMGPTConfig
 
+from memgpt.settings import settings
 from memgpt.server.rest_api.server import start_server
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import EmbeddingConfig, LLMConfig
@@ -31,10 +32,7 @@ def run_server():
 
     load_dotenv()
 
-    # Use os.getenv with a fallback to os.environ.get
-    db_url = os.getenv("MEMGPT_PGURI") or os.environ.get("MEMGPT_PGURI")
-    assert db_url, "Missing MEMGPT_PGURI"
-
+    db_url = settings.pg_db
     if os.getenv("OPENAI_API_KEY"):
         config = TestMGPTConfig(
             archival_storage_uri=db_url,

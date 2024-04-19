@@ -21,7 +21,6 @@ questionary = "^2.0.1"
 pytz = "^2023.3.post1"
 tqdm = "^4.66.1"
 black = {extras = ["jupyter"], version = "^24.2.0"}
-pytest = { version = "^7.4.4", optional = true }
 setuptools = "^68.2.2"
 datasets = { version = "^2.14.6", optional = true}
 prettytable = "^3.9.0"
@@ -40,7 +39,6 @@ chromadb = "^0.4.18"
 sqlalchemy-json = "^0.7.0"
 fastapi = {version = "^0.104.1", optional = true}
 uvicorn = {version = "^0.24.0.post1", optional = true}
-pytest-asyncio = {version = "^0.23.2", optional = true}
 pydantic = "^2.5.2"
 pyautogen = {version = "0.2.22", optional = true}
 html2text = "^2020.1.16"
@@ -51,18 +49,21 @@ pyright = {version = "^1.1.347", optional = true}
 qdrant-client = "^1.8.2"
 python-box = "^7.1.1"
 sqlmodel = "^0.0.16"
-pytest-order = {version = "^1.2.0", optional = true}
 autoflake = {version = "^2.3.0", optional = true}
 llama-index = "^0.10.27"
 llama-index-embeddings-openai = "^0.1.1"
 llama-index-embeddings-huggingface = {version = "^0.2.0", optional = true}
 llama-index-embeddings-azure-openai = "^0.1.6"
 python-multipart = "^0.0.9"
+pytest-order = {version = "^1.2.0", optional = true}
+pytest-asyncio = {version = "^0.23.2", optional = true}
+pytest = { version = "^7.4.4", optional = true }
+pydantic-settings = "^2.2.1"
 httpx-sse = "^0.4.0"
 
 [tool.poetry.extras]
 local = ["llama-index-embeddings-huggingface"]
-postgres = ["pgvector", "pg8000"]
+postgres = ["pgvector", "pg8000", "psycopg2-binary"]
 dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake"]
 server = ["websockets", "fastapi", "uvicorn"]
 autogen = ["pyautogen"]

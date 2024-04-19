@@ -3,6 +3,7 @@ from sqlalchemy.ext.declarative import declarative_base
 import uuid
 import pytest
 
+from memgpt.settings import settings
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.embeddings import embedding_model, query_embedding
 from memgpt.data_types import Message, Passage, EmbeddingConfig, AgentState, LLMConfig
@@ -131,11 +132,8 @@ def test_storage(
         model="gpt-4",
     )
     if storage_connector == "postgres":
-        if not os.getenv("MEMGPT_PGURI"):
-            print("Skipping test, missing PG URI")
-            return
-        TEST_MEMGPT_CONFIG.archival_storage_uri = os.environ["MEMGPT_PGURI"]
-        TEST_MEMGPT_CONFIG.recall_storage_uri = os.environ["MEMGPT_PGURI"]
+        TEST_MEMGPT_CONFIG.archival_storage_uri = settings.pg_uri
+        TEST_MEMGPT_CONFIG.recall_storage_uri = settings.pg_uri
         TEST_MEMGPT_CONFIG.archival_storage_type = "postgres"
         TEST_MEMGPT_CONFIG.recall_storage_type = "postgres"
     if storage_connector == "lancedb":
