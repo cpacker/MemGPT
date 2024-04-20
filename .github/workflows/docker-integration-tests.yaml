@@ -41,6 +41,7 @@ jobs:
         MEMGPT_PG_PASSWORD: memgpt
         MEMGPT_PG_PORT: 8888
         MEMGPT_SERVER_PASS: test_server_token
+        MEMGPT_SERVER_URL: http://memgpt.localhost/
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
       run: |
