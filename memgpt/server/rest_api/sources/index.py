@@ -103,7 +103,9 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
     async def list_sources(
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
-        """List all data sources created by a user."""
+        """
+        List all data sources created by a user.
+        """
         # Clear the interface
         interface.clear()
 
@@ -120,7 +122,9 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         request: CreateSourceRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
-        """Create a new data source."""
+        """
+        Create a new data source.
+        """
         interface.clear()
         try:
             # TODO: don't use Source and just use SourceModel once pydantic migration is complete
@@ -143,7 +147,9 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         source_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
-        """Delete a data source."""
+        """
+        Delete a data source.
+        """
         interface.clear()
         try:
             server.delete_source(source_id=source_id, user_id=user_id)
@@ -159,7 +165,9 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         agent_id: uuid.UUID = Query(..., description="The unique identifier of the agent to attach the source to."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
-        """Attach a data source to an existing agent."""
+        """
+        Attach a data source to an existing agent.
+        """
         interface.clear()
         assert isinstance(agent_id, uuid.UUID), f"Expected agent_id to be a UUID, got {agent_id}"
         assert isinstance(user_id, uuid.UUID), f"Expected user_id to be a UUID, got {user_id}"
@@ -180,7 +188,9 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         agent_id: uuid.UUID = Query(..., description="The unique identifier of the agent to detach the source from."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
-        """Detach a data source from an existing agent."""
+        """
+        Detach a data source from an existing agent.
+        """
         server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=user_id)
 
     @router.get("/sources/status/{job_id}", tags=["sources"], response_model=JobModel)
@@ -188,8 +198,9 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         job_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
-        """Get the status of a job."""
-        print("GET", job_id)
+        """
+        Get the status of a job.
+        """
         job = server.ms.get_job(job_id=job_id)
         if job is None:
             raise HTTPException(status_code=404, detail=f"Job with id={job_id} not found.")
@@ -203,7 +214,9 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         background_tasks: BackgroundTasks,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
-        """Upload a file to a data source."""
+        """
+        Upload a file to a data source.
+        """
         interface.clear()
         source = server.ms.get_source(source_id=source_id, user_id=user_id)
 
@@ -224,7 +237,9 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         source_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
-        """List all passages associated with a data source."""
+        """
+        List all passages associated with a data source.
+        """
         passages = server.list_data_source_passages(user_id=user_id, source_id=source_id)
         return GetSourcePassagesResponse(passages=passages)
 
@@ -233,7 +248,9 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         source_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
-        """List all documents associated with a data source."""
+        """
+        List all documents associated with a data source.
+        """
         documents = server.list_data_source_documents(user_id=user_id, source_id=source_id)
         return GetSourceDocumentsResponse(documents=documents)
 
