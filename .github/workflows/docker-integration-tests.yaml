@@ -22,7 +22,7 @@ jobs:
       with:
         python-version: "3.11"
         poetry-version: "1.7.1"
-        install-args: "--all-extras"
+        install-args: "-E dev"
 
     - name: Build and run docker dev server
       env:
