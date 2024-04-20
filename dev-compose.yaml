@@ -37,10 +37,3 @@ services:
     volumes:
       - ./configs/server_config.yaml:/root/.memgpt/config # config file
       - ~/.memgpt/credentials:/root/.memgpt/credentials # credentials file
-  memgpt_nginx:
-    hostname: memgpt-nginx
-    image: nginx:stable-alpine3.17-slim
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-    ports:
-      - "80:80"
