@@ -1,30 +1,29 @@
+import json
 import os
 import sys
 import traceback
-import requests
-import json
 
 import questionary
+import requests
 import typer
-
 from rich.console import Console
-from memgpt.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, JSON_ENSURE_ASCII, JSON_LOADS_STRICT, REQ_HEARTBEAT_MESSAGE
 
-from memgpt.agent_store.storage import StorageConnector, TableType
-
-# from memgpt.interface import CLIInterface as interface  # for printing to terminal
-from memgpt.streaming_interface import AgentRefreshStreamingInterface
-from memgpt.config import MemGPTConfig
 import memgpt.agent as agent
-import memgpt.system as system
 import memgpt.errors as errors
-from memgpt.cli.cli import run, version, server, open_folder, quickstart, migrate, delete_agent
-from memgpt.cli.cli_config import configure, list, add, delete
-from memgpt.cli.cli_load import app as load_app
-from memgpt.metadata import MetadataStore
+import memgpt.system as system
+from memgpt.agent_store.storage import StorageConnector, TableType
 
 # import benchmark
 from memgpt.benchmark.benchmark import bench
+from memgpt.cli.cli import delete_agent, migrate, open_folder, quickstart, run, server, version
+from memgpt.cli.cli_config import add, configure, delete, list
+from memgpt.cli.cli_load import app as load_app
+from memgpt.config import MemGPTConfig
+from memgpt.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, JSON_ENSURE_ASCII, JSON_LOADS_STRICT, REQ_HEARTBEAT_MESSAGE
+from memgpt.metadata import MetadataStore
+
+# from memgpt.interface import CLIInterface as interface  # for printing to terminal
+from memgpt.streaming_interface import AgentRefreshStreamingInterface
 
 # interface = interface()
 

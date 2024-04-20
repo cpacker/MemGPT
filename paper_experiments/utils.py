@@ -1,9 +1,10 @@
 import gzip
 import json
 from typing import List
+
 from memgpt.config import MemGPTConfig
-from memgpt.data_types import LLMConfig, EmbeddingConfig
 from memgpt.constants import LLM_MAX_TOKENS
+from memgpt.data_types import EmbeddingConfig, LLMConfig
 
 
 def load_gzipped_file(file_path):

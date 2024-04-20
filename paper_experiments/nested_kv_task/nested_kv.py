@@ -19,30 +19,22 @@ sample 30 different ordering configurations including both
 the initial key position and nesting key positions.
 """
 
-import math
-import json
 import argparse
-import uuid
+import json
+import math
 import os
-from typing import List
-from tqdm import tqdm
+import uuid
 from collections import OrderedDict
-from openai import OpenAI
-import openai
-from memgpt import MemGPT
-from memgpt.data_types import Message, AgentState, Passage
-from memgpt.cli.cli import attach
-from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.config import MemGPTConfig
-from memgpt.metadata import MetadataStore
-from memgpt.cli.cli_config import delete
-from memgpt import utils
-from memgpt.constants import MAX_PAUSE_HEARTBEATS, RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE, JSON_ENSURE_ASCII
-
 from typing import Optional
 
-from icml_experiments.utils import load_gzipped_file, get_experiment_config
+import openai
+from icml_experiments.utils import get_experiment_config, load_gzipped_file
+from tqdm import tqdm
 
+from memgpt import MemGPT, utils
+from memgpt.cli.cli_config import delete
+from memgpt.config import MemGPTConfig
+from memgpt.constants import JSON_ENSURE_ASCII
 
 # TODO: update personas
 NESTED_PERSONA = "You are MemGPT DOC-QA bot. Your job is to answer questions about documents that are stored in your archival memory. The answer to the users question will ALWAYS be in your archival memory, so remember to keep searching if you can't find the answer. DO NOT STOP SEARCHING UNTIL YOU VERIFY THAT THE VALUE IS NOT A KEY. Do not stop making nested lookups until this condition is met."  # TODO decide on a good persona/human

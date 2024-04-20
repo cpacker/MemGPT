@@ -1,14 +1,13 @@
-import uuid
 import os
+import uuid
 
 from memgpt import create_client
-from memgpt.data_types import EmbeddingConfig, Passage
-from memgpt.embeddings import embedding_model
 from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.data_types import Passage
+from memgpt.embeddings import embedding_model
 from tests import TEST_MEMGPT_CONFIG
-from .utils import wipe_config, create_config
-import uuid
 
+from .utils import create_config, wipe_config
 
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
 test_agent_state = None

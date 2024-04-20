@@ -1,4 +1,5 @@
 import os
+
 from memgpt.config import MemGPTConfig
 from memgpt.constants import MEMGPT_DIR
 

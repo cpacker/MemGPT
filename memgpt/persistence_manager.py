@@ -1,14 +1,10 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import List
 
-from memgpt.memory import (
-    BaseRecallMemory,
-    EmbeddingArchivalMemory,
-)
+from memgpt.data_types import AgentState, Message
+from memgpt.memory import BaseRecallMemory, EmbeddingArchivalMemory
 from memgpt.utils import printd
-from memgpt.data_types import Message, ToolCall, AgentState
-
-from datetime import datetime
 
 
 def parse_formatted_time(formatted_time: str):

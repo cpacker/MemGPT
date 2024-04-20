@@ -1,5 +1,3 @@
-from ...constants import LLM_MAX_TOKENS
-
 # see https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md#api-endpoints for options
 SIMPLE = {
     "stop": [

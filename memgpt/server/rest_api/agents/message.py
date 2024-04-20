@@ -1,21 +1,20 @@
 import asyncio
 import json
 import uuid
-from datetime import datetime, timezone
 from asyncio import AbstractEventLoop
+from datetime import datetime
 from enum import Enum
 from functools import partial
-from typing import List, Optional, Any
+from typing import List, Optional
 
-from fastapi import APIRouter, Body, HTTPException, Query, Depends
-from pydantic import BaseModel, Field, validator
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
 from memgpt.constants import JSON_ENSURE_ASCII
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
-from memgpt.data_types import Message
 
 router = APIRouter()
 

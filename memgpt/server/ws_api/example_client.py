@@ -5,9 +5,8 @@ import websockets
 
 import memgpt.server.ws_api.protocol as protocol
 from memgpt.constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
-from memgpt.server.constants import WS_DEFAULT_PORT, WS_CLIENT_TIMEOUT
+from memgpt.server.constants import WS_CLIENT_TIMEOUT, WS_DEFAULT_PORT
 from memgpt.server.utils import condition_to_stop_receiving, print_server_response
-
 
 # CLEAN_RESPONSES = False  # print the raw server responses (JSON)
 CLEAN_RESPONSES = True  # make the server responses cleaner

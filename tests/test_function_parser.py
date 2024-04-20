@@ -1,9 +1,8 @@
 import json
 
+import memgpt.system as system
 from memgpt.constants import JSON_ENSURE_ASCII
 from memgpt.local_llm.function_parser import patch_function
-import memgpt.system as system
-
 
 EXAMPLE_FUNCTION_CALL_SEND_MESSAGE = {
     "message_history": [

@@ -1,8 +1,7 @@
 import json
-from memgpt.constants import JSON_LOADS_STRICT
 
 import memgpt.local_llm.json_parser as json_parser
-
+from memgpt.constants import JSON_LOADS_STRICT
 
 EXAMPLE_ESCAPED_UNDERSCORES = """{
   "function":"send\_message",

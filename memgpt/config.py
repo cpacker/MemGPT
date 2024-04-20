@@ -1,16 +1,15 @@
-from memgpt.log import logger
+import configparser
 import inspect
 import json
 import os
 import uuid
-from dataclasses import dataclass, field
-import configparser
+from dataclasses import dataclass
 
 import memgpt
 import memgpt.utils as utils
-
-from memgpt.constants import MEMGPT_DIR, DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
-from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig
+from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET, MEMGPT_DIR
+from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig
+from memgpt.log import logger
 
 
 # helper functions for writing to configs
@@ -89,7 +88,7 @@ class MemGPTConfig:
     @classmethod
     def load(cls) -> "MemGPTConfig":
         # avoid circular import
-        from memgpt.migrate import config_is_compatible, VERSION_CUTOFF
+        from memgpt.migrate import VERSION_CUTOFF, config_is_compatible
         from memgpt.utils import printd
 
         if not config_is_compatible(allow_empty=True):

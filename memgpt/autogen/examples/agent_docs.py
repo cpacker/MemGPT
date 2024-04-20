@@ -12,9 +12,11 @@ Begin by doing:
 """
 
 import os
+
 import autogen
+
 from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config
-from memgpt.constants import LLM_MAX_TOKENS, DEFAULT_PRESET
+from memgpt.constants import DEFAULT_PRESET, LLM_MAX_TOKENS
 
 LLM_BACKEND = "openai"
 # LLM_BACKEND = "azure"

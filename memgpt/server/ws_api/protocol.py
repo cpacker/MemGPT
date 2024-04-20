@@ -2,7 +2,6 @@ import json
 
 from memgpt.constants import JSON_ENSURE_ASCII
 
-
 # Server -> client
 
 

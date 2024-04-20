@@ -1,28 +1,22 @@
-import random
-import time
-import requests
 import os
+import random
 import time
 from typing import List, Optional, Union
 
-from memgpt.credentials import MemGPTCredentials
-from memgpt.local_llm.chat_completion_proxy import get_chat_completion
+import requests
+
 from memgpt.constants import CLI_WARNING_PREFIX
-from memgpt.models.chat_completion_response import ChatCompletionResponse
-from memgpt.models.chat_completion_request import ChatCompletionRequest, Tool, cast_message_to_subtype
-from memgpt.streaming_interface import AgentChunkStreamingInterface, AgentRefreshStreamingInterface
-
+from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import AgentState, Message
-
-from memgpt.llm_api.openai import openai_chat_completions_request, openai_chat_completions_process_stream
-from memgpt.llm_api.azure_openai import azure_openai_chat_completions_request, MODEL_TO_AZURE_ENGINE
-from memgpt.llm_api.google_ai import (
-    google_ai_chat_completions_request,
-    convert_tools_to_google_ai_format,
-)
 from memgpt.llm_api.anthropic import anthropic_chat_completions_request
+from memgpt.llm_api.azure_openai import MODEL_TO_AZURE_ENGINE, azure_openai_chat_completions_request
 from memgpt.llm_api.cohere import cohere_chat_completions_request
-
+from memgpt.llm_api.google_ai import convert_tools_to_google_ai_format, google_ai_chat_completions_request
+from memgpt.llm_api.openai import openai_chat_completions_process_stream, openai_chat_completions_request
+from memgpt.local_llm.chat_completion_proxy import get_chat_completion
+from memgpt.models.chat_completion_request import ChatCompletionRequest, Tool, cast_message_to_subtype
+from memgpt.models.chat_completion_response import ChatCompletionResponse
+from memgpt.streaming_interface import AgentChunkStreamingInterface, AgentRefreshStreamingInterface
 
 LLM_API_PROVIDER_OPTIONS = ["openai", "azure", "anthropic", "google_ai", "cohere", "local"]
 
@@ -82,7 +76,7 @@ def retry_with_exponential_backoff(
     """Retry a function with exponential backoff."""
 
     def wrapper(*args, **kwargs):
-        from memgpt.utils import printd
+        pass
 
         # Initialize variables
         num_retries = 0

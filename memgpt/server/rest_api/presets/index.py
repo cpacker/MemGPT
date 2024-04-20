@@ -1,17 +1,17 @@
 import uuid
 from functools import partial
-from typing import List, Optional, Dict, Union
+from typing import Dict, List, Optional, Union
 
-from fastapi import APIRouter, Body, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.data_types import Preset  # TODO remove
 from memgpt.models.pydantic_models import PresetModel
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.utils import get_human_text, get_persona_text
 
 router = APIRouter()

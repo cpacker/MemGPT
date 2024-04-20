@@ -1,16 +1,14 @@
-import random
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor
-import os
 from typing import List, Tuple
-from openai import OpenAI
+
 import serpapi
+from openai import OpenAI
 
-from memgpt.data_sources.connectors import WebConnector
-from memgpt.data_types import Document, Passage
 from memgpt.credentials import MemGPTCredentials
+from memgpt.data_sources.connectors import WebConnector
 from memgpt.utils import printd
-
 
 """
 This example show how you can add a google search custom function to your MemGPT agent.
