@@ -661,84 +661,83 @@ class SyncServer(LockingServer):
         # self.ms.create_agent(agent_state)
 
         # TODO modify to do creation via preset
-        # try:
-        preset_obj = self.ms.get_preset(name=preset if preset else self.config.preset, user_id=user_id)
-        preset_override = False
-        assert preset_obj is not None, f"preset {preset if preset else self.config.preset} does not exist"
-        logger.debug(f"Attempting to create agent from preset:\n{preset_obj}")
+        try:
+            preset_obj = self.ms.get_preset(name=preset if preset else self.config.preset, user_id=user_id)
+            preset_override = False
+            assert preset_obj is not None, f"preset {preset if preset else self.config.preset} does not exist"
+            logger.debug(f"Attempting to create agent from preset:\n{preset_obj}")
 
-        # Overwrite fields in the preset if they were specified
-        if human is not None and human != preset_obj.human:
-            preset_override = True
-            preset_obj.human = human
-            # This is a check for a common bug where users were providing filenames instead of values
-            # try:
-            #    get_human_text(human)
-            #    raise ValueError(human)
-            #    raise UserWarning(
-            #        f"It looks like there is a human file named {human} - did you mean to pass the file contents to the `human` arg?"
-            #    )
-            # except:
-            #    pass
-        if persona is not None:
-            preset_override = True
-            preset_obj.persona = persona
-            # try:
-            #    get_persona_text(persona)
-            #    raise ValueError(persona)
-            #    raise UserWarning(
-            #        f"It looks like there is a persona file named {persona} - did you mean to pass the file contents to the `persona` arg?"
-            #    )
-            # except:
-            #    pass
-        if human_name is not None and human_name != preset_obj.human_name:
-            preset_override = True
-            preset_obj.human_name = human_name
-        if persona_name is not None and persona_name != preset_obj.persona_name:
-            preset_override = True
-            preset_obj.persona_name = persona_name
+            # Overwrite fields in the preset if they were specified
+            if human is not None and human != preset_obj.human:
+                preset_override = True
+                preset_obj.human = human
+                # This is a check for a common bug where users were providing filenames instead of values
+                # try:
+                #    get_human_text(human)
+                #    raise ValueError(human)
+                #    raise UserWarning(
+                #        f"It looks like there is a human file named {human} - did you mean to pass the file contents to the `human` arg?"
+                #    )
+                # except:
+                #    pass
+            if persona is not None:
+                preset_override = True
+                preset_obj.persona = persona
+                # try:
+                #    get_persona_text(persona)
+                #    raise ValueError(persona)
+                #    raise UserWarning(
+                #        f"It looks like there is a persona file named {persona} - did you mean to pass the file contents to the `persona` arg?"
+                #    )
+                # except:
+                #    pass
+            if human_name is not None and human_name != preset_obj.human_name:
+                preset_override = True
+                preset_obj.human_name = human_name
+            if persona_name is not None and persona_name != preset_obj.persona_name:
+                preset_override = True
+                preset_obj.persona_name = persona_name
 
-        llm_config = llm_config if llm_config else self.server_llm_config
-        embedding_config = embedding_config if embedding_config else self.server_embedding_config
+            llm_config = llm_config if llm_config else self.server_llm_config
+            embedding_config = embedding_config if embedding_config else self.server_embedding_config
 
-        # TODO remove (https://github.com/cpacker/MemGPT/issues/1138)
-        if function_names is not None:
-            preset_override = True
-            available_tools = self.ms.list_tools(user_id=user_id)
-            available_tools_names = [t.name for t in available_tools]
-            assert all([f_name in available_tools_names for f_name in function_names])
-            preset_obj.functions_schema = [t.json_schema for t in available_tools if t.name in function_names]
-            print("overriding preset_obj tools with:", preset_obj.functions_schema)
+            # TODO remove (https://github.com/cpacker/MemGPT/issues/1138)
+            if function_names is not None:
+                preset_override = True
+                available_tools = self.ms.list_tools(user_id=user_id)
+                available_tools_names = [t.name for t in available_tools]
+                assert all([f_name in available_tools_names for f_name in function_names])
+                preset_obj.functions_schema = [t.json_schema for t in available_tools if t.name in function_names]
+                print("overriding preset_obj tools with:", preset_obj.functions_schema)
 
-        # If the user overrode any parts of the preset, we need to create a new preset to refer back to
-        if preset_override:
-            # Change the name and uuid
-            preset_obj = Preset.clone(preset_obj=preset_obj)
-            # Then write out to the database for storage
-            self.ms.create_preset(preset=preset_obj)
+            # If the user overrode any parts of the preset, we need to create a new preset to refer back to
+            if preset_override:
+                # Change the name and uuid
+                preset_obj = Preset.clone(preset_obj=preset_obj)
+                # Then write out to the database for storage
+                self.ms.create_preset(preset=preset_obj)
 
-        agent = Agent(
-            interface=interface,
-            preset=preset_obj,
-            name=name,
-            created_by=user.id,
-            llm_config=llm_config,
-            embedding_config=embedding_config,
-            # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-            first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
-        )
-        save_agent(agent=agent, ms=self.ms)
+            agent = Agent(
+                interface=interface,
+                preset=preset_obj,
+                name=name,
+                created_by=user.id,
+                llm_config=llm_config,
+                embedding_config=embedding_config,
+                # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+            )
+            # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
+            # self.ms.update_agent(agent.agent_state)
+        except Exception as e:
+            logger.exception(e)
+            try:
+                self.ms.delete_agent(agent_id=agent.agent_state.id)
+            except Exception as delete_e:
+                logger.exception(f"Failed to delete_agent:\n{delete_e}")
+            raise e
 
-        # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
-        # self.ms.update_agent(agent.agent_state)
-        # except Exception as e:
-        #    logger.exception(e)
-        #    try:
-        #        self.ms.delete_agent(agent_id=agent.agent_state.id)
-        #    except Exception as delete_e:
-        #        logger.exception(f"Failed to delete_agent:\n{delete_e}")
-        #    raise e
-        # save_agent(agent, self.ms)
+        save_agent(agent, self.ms)
 
         logger.info(f"Created new agent from config: {agent}")
 
