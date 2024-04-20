@@ -1,17 +1,18 @@
 # type: ignore
 
-import uuid
-import typer
 import time
+import uuid
 from typing import Annotated
 
+import typer
+
 from memgpt import create_client
+from memgpt.benchmark.constants import HUMAN, PERSONA, PROMPTS, TRIES
 from memgpt.config import MemGPTConfig
-from memgpt.utils import get_human_text, get_persona_text
 
 # from memgpt.agent import Agent
 from memgpt.errors import LLMJSONParsingError
-from memgpt.benchmark.constants import TRIES, PERSONA, HUMAN, PROMPTS
+from memgpt.utils import get_human_text, get_persona_text
 
 app = typer.Typer()
 

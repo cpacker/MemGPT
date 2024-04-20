@@ -1,34 +1,32 @@
-import uuid
 import json
-import requests
-import sys
 import logging
-from pathlib import Path
 import os
 import subprocess
+import sys
+import uuid
 from enum import Enum
+from pathlib import Path
 from typing import Annotated, Optional
 
-import typer
 import questionary
+import requests
+import typer
 
+import memgpt.utils as utils
+from memgpt.agent import Agent, save_agent
+from memgpt.cli.cli_config import configure
+from memgpt.config import MemGPTConfig
+from memgpt.constants import CLI_WARNING_PREFIX, MEMGPT_DIR
+from memgpt.credentials import MemGPTCredentials
+from memgpt.data_types import EmbeddingConfig, LLMConfig, User
 from memgpt.log import logger
+from memgpt.metadata import MetadataStore
+from memgpt.migrate import migrate_all_agents, migrate_all_sources
+from memgpt.server.constants import WS_DEFAULT_PORT
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import StreamingRefreshCLIInterface as interface  # for printing to terminal
-from memgpt.cli.cli_config import configure
-import memgpt.presets.presets as presets
-import memgpt.utils as utils
-from memgpt.utils import printd, open_folder_in_explorer, suppress_stdout
-from memgpt.config import MemGPTConfig
-from memgpt.credentials import MemGPTCredentials
-from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
-from memgpt.agent import Agent, save_agent
-from memgpt.embeddings import embedding_model
-from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
-from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig, User, Passage
-from memgpt.metadata import MetadataStore
-from memgpt.migrate import migrate_all_agents, migrate_all_sources
+from memgpt.utils import open_folder_in_explorer, printd
 
 
 def migrate(
@@ -326,8 +324,7 @@ def server(
     #    server_logger.addHandler(stream_handler)
 
     if type == ServerChoice.rest_api:
-        import uvicorn
-        from memgpt.server.rest_api.server import app
+        pass
 
         if MemGPTConfig.exists():
             config = MemGPTConfig.load()
@@ -471,7 +468,7 @@ def run(
     else:
         logger.setLevel(logging.CRITICAL)
 
-    from memgpt.migrate import config_is_compatible, wipe_config_and_reconfigure, VERSION_CUTOFF
+    from memgpt.migrate import VERSION_CUTOFF, config_is_compatible, wipe_config_and_reconfigure
 
     if not config_is_compatible(allow_empty=True):
         typer.secho(f"\nYour current config file is incompatible with MemGPT versions later than {VERSION_CUTOFF}\n", fg=typer.colors.RED)

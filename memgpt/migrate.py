@@ -1,36 +1,35 @@
 import configparser
-from datetime import datetime
+import glob
+import json
 import os
 import pickle
-import glob
+import shutil
 import sys
 import traceback
 import uuid
-import json
-import shutil
-from typing import Optional, List
-import pytz
+from datetime import datetime
+from typing import List, Optional
 
+import pytz
+import questionary
 import typer
 from tqdm import tqdm
-import questionary
-
 
 from memgpt.agent import Agent, save_agent
-from memgpt.data_types import AgentState, User, Passage, Source, Message
+from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.cli.cli_config import configure
+from memgpt.config import MemGPTConfig
+from memgpt.data_types import AgentState, Message, Passage, Source, User
 from memgpt.metadata import MetadataStore
+from memgpt.persistence_manager import LocalStateManager
 from memgpt.utils import (
     MEMGPT_DIR,
-    get_utc_time,
-    version_less_than,
     OpenAIBackcompatUnpickler,
     annotate_message_json_list_with_tool_calls,
+    get_utc_time,
     parse_formatted_time,
+    version_less_than,
 )
-from memgpt.config import MemGPTConfig
-from memgpt.cli.cli_config import configure
-from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.persistence_manager import PersistenceManager, LocalStateManager
 
 # This is the version where the breaking change was made
 VERSION_CUTOFF = "0.2.12"
@@ -132,7 +131,6 @@ def migrate_source(source_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Me
     assert os.path.exists(source_path), f"Source {source_name} does not exist at {source_path}"
 
     # load state from old checkpoint file
-    from memgpt.cli.cli_load import load_index
 
     # 2. Create a new AgentState using the agent config + agent internal state
     config = MemGPTConfig.load()

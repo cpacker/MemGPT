@@ -1,14 +1,14 @@
-import uuid
 import json
+import uuid
 
-from .utils import get_local_time
 from .constants import (
     INITIAL_BOOT_MESSAGE,
-    INITIAL_BOOT_MESSAGE_SEND_MESSAGE_THOUGHT,
     INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG,
-    MESSAGE_SUMMARY_WARNING_STR,
+    INITIAL_BOOT_MESSAGE_SEND_MESSAGE_THOUGHT,
     JSON_ENSURE_ASCII,
+    MESSAGE_SUMMARY_WARNING_STR,
 )
+from .utils import get_local_time
 
 
 def get_initial_boot_messages(version="startup"):

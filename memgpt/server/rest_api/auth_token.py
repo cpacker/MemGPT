@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from memgpt.server.server import SyncServer
 

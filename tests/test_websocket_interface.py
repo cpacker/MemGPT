@@ -1,13 +1,13 @@
 import os
-import pytest
 from unittest.mock import AsyncMock
 
-from memgpt.credentials import MemGPTCredentials
-from memgpt.server.ws_api.interface import SyncWebSocketInterface
+import pytest
+
 import memgpt.presets.presets as presets
 import memgpt.system as system
+from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import AgentState
-
+from memgpt.server.ws_api.interface import SyncWebSocketInterface
 
 # def test_websockets():
 #     # Create the websocket interface

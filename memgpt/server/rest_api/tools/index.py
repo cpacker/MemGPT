@@ -1,8 +1,8 @@
 import uuid
 from functools import partial
-from typing import List, Optional, Literal
+from typing import List, Literal, Optional
 
-from fastapi import APIRouter, Depends, Body
+from fastapi import APIRouter, Body, Depends
 from pydantic import BaseModel, Field
 
 from memgpt.models.pydantic_models import ToolModel

@@ -1,4 +1,3 @@
-from memgpt.main import app
 import typer
 
 typer.secho(

@@ -1,12 +1,9 @@
 from urllib.parse import urljoin
-import requests
 
-
+from memgpt.errors import LocalLLMError
 from memgpt.local_llm.settings.settings import get_completions_settings
 from memgpt.local_llm.utils import post_json_auth_request
 from memgpt.utils import count_tokens
-from memgpt.errors import LocalLLMError
-
 
 OLLAMA_API_SUFFIX = "/api/generate"
 

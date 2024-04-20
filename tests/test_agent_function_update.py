@@ -1,18 +1,16 @@
+import inspect
 import json
 import os
-import inspect
 import uuid
 
-from memgpt import create_client
-from memgpt import constants
-from memgpt.functions.functions import USER_FUNCTIONS_DIR
-from memgpt.utils import assistant_function_to_tool
-from memgpt.models import chat_completion_response
-from tests import TEST_MEMGPT_CONFIG
-
-from tests.utils import wipe_config, create_config
-
 import pytest
+
+from memgpt import constants, create_client
+from memgpt.functions.functions import USER_FUNCTIONS_DIR
+from memgpt.models import chat_completion_response
+from memgpt.utils import assistant_function_to_tool
+from tests import TEST_MEMGPT_CONFIG
+from tests.utils import create_config, wipe_config
 
 
 def hello_world(self) -> str:

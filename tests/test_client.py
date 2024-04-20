@@ -1,24 +1,18 @@
-import uuid
 import os
-import time
 import threading
+import time
+import uuid
+
+import pytest
 from dotenv import load_dotenv
 
 from memgpt import Admin, create_client
 from memgpt.constants import DEFAULT_PRESET
-from memgpt.data_types import Preset  # TODO move to PresetModel
-from dotenv import load_dotenv
-
-from tests.config import TestMGPTConfig
-
-from memgpt.settings import settings
 from memgpt.credentials import MemGPTCredentials
+from memgpt.data_types import Preset  # TODO move to PresetModel
 from memgpt.data_types import EmbeddingConfig, LLMConfig
-from .utils import wipe_config, wipe_memgpt_home
-
-
-import pytest
-import uuid
+from memgpt.settings import settings
+from tests.config import TestMGPTConfig
 
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
 # test_preset_name = "test_preset"
@@ -35,7 +29,7 @@ test_server_token = "test_server_token"
 
 
 def run_server():
-    import uvicorn
+    pass
 
     load_dotenv()
 
@@ -94,7 +88,6 @@ def run_server():
     config.save()
     credentials.save()
 
-    from memgpt.server.rest_api.server import app
     from memgpt.server.rest_api.server import start_server
 
     print("Starting server...", config.config_path)
@@ -125,7 +118,7 @@ def client(request):
         # create user via admin client
         admin = Admin(server_url, test_server_token)
         response = admin.create_user(test_user_id)  # Adjust as per your client's method
-        user_id = response.user_id
+        response.user_id
         token = response.api_key
     else:
         # use local client (no server)

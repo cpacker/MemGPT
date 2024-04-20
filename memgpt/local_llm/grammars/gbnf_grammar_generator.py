@@ -1,15 +1,14 @@
 import inspect
 import json
+import re
 from copy import copy
-from inspect import isclass, getdoc
+from enum import Enum
+from inspect import getdoc, isclass
 from types import NoneType
+from typing import Any, Callable, List, Optional, Tuple, Type, Union, _GenericAlias, get_args, get_origin
 
 from docstring_parser import parse
-from pydantic import BaseModel, create_model, Field
-from typing import Any, Type, List, get_args, get_origin, Tuple, Union, Optional, _GenericAlias
-from enum import Enum
-from typing import Callable
-import re
+from pydantic import BaseModel, create_model
 
 
 class PydanticDataType(Enum):

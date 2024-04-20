@@ -4,8 +4,8 @@ from typing import Optional
 
 from colorama import Fore, Style, init
 
-from memgpt.data_types import Message
 from memgpt.constants import CLI_WARNING_PREFIX, JSON_LOADS_STRICT
+from memgpt.data_types import Message
 
 init(autoreset=True)
 

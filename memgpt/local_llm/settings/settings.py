@@ -1,10 +1,9 @@
 import json
 import os
 
-from memgpt.constants import MEMGPT_DIR, JSON_ENSURE_ASCII
-from memgpt.local_llm.settings.simple import settings as simple_settings
+from memgpt.constants import JSON_ENSURE_ASCII, MEMGPT_DIR
 from memgpt.local_llm.settings.deterministic_mirostat import settings as det_miro_settings
-
+from memgpt.local_llm.settings.simple import settings as simple_settings
 
 DEFAULT = "simple"
 SETTINGS_FOLDER_NAME = "settings"

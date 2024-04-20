@@ -1,22 +1,22 @@
 import os
 import uuid
+
 import pytest
 from sqlalchemy.ext.declarative import declarative_base
 
-
-# import memgpt
-from memgpt.settings import settings
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.cli.cli_load import load_directory
+from memgpt.credentials import MemGPTCredentials
+from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, User
+from memgpt.metadata import MetadataStore
 
 # from memgpt.data_sources.connectors import DirectoryConnector, load_data
+# import memgpt
 from memgpt.settings import settings
-from memgpt.credentials import MemGPTCredentials
-from memgpt.metadata import MetadataStore
-from memgpt.data_types import User, AgentState, EmbeddingConfig, LLMConfig
 from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
-from .utils import wipe_config, create_config
+
+from .utils import wipe_config
 
 
 @pytest.fixture(autouse=True)

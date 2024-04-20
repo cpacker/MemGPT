@@ -1,9 +1,10 @@
 import argparse
-import re
 import json
-import openai
+import re
+
 from openai import OpenAI
 from tqdm import tqdm
+
 from memgpt.credentials import MemGPTCredentials
 
 # Note: did not end up using since no cases of cheating were observed
