@@ -215,31 +215,9 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         # create background task
         background_tasks.add_task(load_file_to_source, server, user_id, source, job_id, file)
 
-        job = server.ms.get_job(job_id=job_id)
-        print("job created", job_id, job.metadata_)
-
         # return job information
+        job = server.ms.get_job(job_id=job_id)
         return job
-
-        ## write the file to a temporary directory (deleted after the context manager exits)
-        # with tempfile.TemporaryDirectory() as tmpdirname:
-        #    file_path = os.path.join(tmpdirname, file.filename)
-        #    with open(file_path, "wb") as buffer:
-        #        buffer.write(file.file.read())
-
-        #    # read the file
-        #    connector = DirectoryConnector(input_files=[file_path])
-
-        #    # load the data into the source via the connector
-        #    async def load_passages(user_id, source_name, connector):
-        #        # yields passage ids
-        #        yield server.load_data(user_id=user_id, source_name=source_name, connector=connector)
-
-        #    # stream responses
-        #    return StreamingResponse(load_passages(user_id, source.name, connector), media_type="application/json")
-
-        ## TODO: actually return added passages/documents
-        ##return UploadFileToSourceResponse(source=source, added_passages=passage_count, added_documents=document_count)
 
     @router.get("/sources/{source_id}/passages ", tags=["sources"], response_model=GetSourcePassagesResponse)
     async def list_passages(
