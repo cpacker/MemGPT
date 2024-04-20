@@ -1,27 +1,27 @@
 """Key idea: create drop-in replacement for agent's ChatCompletion call that runs on an OpenLLM backend"""
 
-from datetime import datetime
-import requests
 import json
 import uuid
 
+import requests
+
+from memgpt.constants import CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
+from memgpt.errors import LocalLLMConnectionError, LocalLLMError
+from memgpt.local_llm.constants import DEFAULT_WRAPPER
+from memgpt.local_llm.function_parser import patch_function
 from memgpt.local_llm.grammars.gbnf_grammar_generator import create_dynamic_model_from_function, generate_gbnf_grammar_and_documentation
+from memgpt.local_llm.groq.api import get_groq_completion
+from memgpt.local_llm.koboldcpp.api import get_koboldcpp_completion
+from memgpt.local_llm.llamacpp.api import get_llamacpp_completion
+from memgpt.local_llm.llm_chat_completion_wrappers import simple_summary_wrapper
+from memgpt.local_llm.lmstudio.api import get_lmstudio_completion
+from memgpt.local_llm.ollama.api import get_ollama_completion
+from memgpt.local_llm.utils import count_tokens, get_available_wrappers
+from memgpt.local_llm.vllm.api import get_vllm_completion
 from memgpt.local_llm.webui.api import get_webui_completion
 from memgpt.local_llm.webui.legacy_api import get_webui_completion as get_webui_completion_legacy
-from memgpt.local_llm.lmstudio.api import get_lmstudio_completion
-from memgpt.local_llm.llamacpp.api import get_llamacpp_completion
-from memgpt.local_llm.koboldcpp.api import get_koboldcpp_completion
-from memgpt.local_llm.ollama.api import get_ollama_completion
-from memgpt.local_llm.vllm.api import get_vllm_completion
-from memgpt.local_llm.groq.api import get_groq_completion
-from memgpt.local_llm.llm_chat_completion_wrappers import simple_summary_wrapper
-from memgpt.local_llm.constants import DEFAULT_WRAPPER
-from memgpt.local_llm.utils import get_available_wrappers, count_tokens
-from memgpt.local_llm.function_parser import patch_function
-from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
-from memgpt.errors import LocalLLMConnectionError, LocalLLMError
-from memgpt.constants import CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
 from memgpt.models.chat_completion_response import ChatCompletionResponse, Choice, Message, ToolCall, UsageStatistics
+from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
 from memgpt.utils import get_tool_call_id, get_utc_time
 
 has_shown_warning = False

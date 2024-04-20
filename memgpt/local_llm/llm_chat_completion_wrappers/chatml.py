@@ -1,10 +1,9 @@
 import json
 
-from memgpt.local_llm.llm_chat_completion_wrappers.wrapper_base import LLMChatCompletionWrapper
-from memgpt.local_llm.json_parser import clean_json
 from memgpt.constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
 from memgpt.errors import LLMJSONParsingError
-
+from memgpt.local_llm.json_parser import clean_json
+from memgpt.local_llm.llm_chat_completion_wrappers.wrapper_base import LLMChatCompletionWrapper
 
 PREFIX_HINT = """# Reminders:
 # Important information about yourself and the user is stored in (limited) core memory

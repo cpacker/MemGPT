@@ -1,13 +1,12 @@
 import asyncio
 import json
 
-import websockets
 import pytest
+import websockets
 
 from memgpt.constants import JSON_ENSURE_ASCII
 from memgpt.server.constants import WS_DEFAULT_PORT
 from memgpt.server.ws_api.server import WebSocketServer
-from memgpt.config import AgentConfig
 
 
 @pytest.mark.asyncio

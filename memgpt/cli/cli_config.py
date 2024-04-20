@@ -1,37 +1,32 @@
 import builtins
 import os
 import uuid
-from typing import Annotated, Optional
 from enum import Enum
-from typing import Annotated
+from typing import Annotated, Optional
 
 import questionary
 import typer
-from prettytable import PrettyTable, SINGLE_BORDER
 from prettytable.colortable import ColorTable, Themes
 from tqdm import tqdm
 
 from memgpt import utils
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
-from memgpt.constants import LLM_MAX_TOKENS
-from memgpt.constants import MEMGPT_DIR
-from memgpt.credentials import MemGPTCredentials, SUPPORTED_AUTH_TYPES
-from memgpt.data_types import User, LLMConfig, EmbeddingConfig
-from memgpt.llm_api.openai import openai_get_model_list
-from memgpt.llm_api.azure_openai import azure_openai_get_model_list
-from memgpt.llm_api.google_ai import google_ai_get_model_list, google_ai_get_model_context_window
+from memgpt.constants import LLM_MAX_TOKENS, MEMGPT_DIR
+from memgpt.credentials import SUPPORTED_AUTH_TYPES, MemGPTCredentials
+from memgpt.data_types import EmbeddingConfig, LLMConfig, Source, User
 from memgpt.llm_api.anthropic import anthropic_get_model_list, antropic_get_model_context_window
-from memgpt.llm_api.cohere import cohere_get_model_list, cohere_get_model_context_window, COHERE_VALID_MODEL_LIST
+from memgpt.llm_api.azure_openai import azure_openai_get_model_list
+from memgpt.llm_api.cohere import COHERE_VALID_MODEL_LIST, cohere_get_model_context_window, cohere_get_model_list
+from memgpt.llm_api.google_ai import google_ai_get_model_context_window, google_ai_get_model_list
 from memgpt.llm_api.llm_api_tools import LLM_API_PROVIDER_OPTIONS
+from memgpt.llm_api.openai import openai_get_model_list
 from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
 from memgpt.local_llm.utils import get_available_wrappers
-from memgpt.server.utils import shorten_key_middle
-from memgpt.data_types import User, LLMConfig, EmbeddingConfig, Source
 from memgpt.metadata import MetadataStore
-from memgpt.server.utils import shorten_key_middle
-from memgpt.models.pydantic_models import HumanModel, PersonaModel, PresetModel
+from memgpt.models.pydantic_models import HumanModel, PersonaModel
 from memgpt.presets.presets import create_preset_from_file
+from memgpt.server.utils import shorten_key_middle
 
 app = typer.Typer()
 

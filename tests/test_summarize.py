@@ -2,9 +2,8 @@ import os
 import uuid
 
 from memgpt import create_client
-from memgpt import constants
-from .utils import wipe_config, create_config
 
+from .utils import create_config, wipe_config
 
 # test_agent_id = "test_agent"
 test_agent_name = f"test_client_{str(uuid.uuid4())}"

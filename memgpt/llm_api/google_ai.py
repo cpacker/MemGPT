@@ -1,15 +1,15 @@
-import requests
 import json
 import uuid
-from typing import Union, List, Optional
+from typing import List, Optional
 
-from memgpt.models.chat_completion_response import ChatCompletionResponse, Choice, Message, ToolCall, FunctionCall, UsageStatistics
-from memgpt.models.chat_completion_request import ChatCompletionRequest, Tool
-from memgpt.models.embedding_response import EmbeddingResponse
-from memgpt.utils import smart_urljoin, get_tool_call_id, get_utc_time
-from memgpt.local_llm.utils import count_tokens
+import requests
+
+from memgpt.constants import JSON_ENSURE_ASCII, NON_USER_MSG_PREFIX
 from memgpt.local_llm.json_parser import clean_json_string_extra_backslash
-from memgpt.constants import NON_USER_MSG_PREFIX, JSON_ENSURE_ASCII
+from memgpt.local_llm.utils import count_tokens
+from memgpt.models.chat_completion_request import Tool
+from memgpt.models.chat_completion_response import ChatCompletionResponse, Choice, FunctionCall, Message, ToolCall, UsageStatistics
+from memgpt.utils import get_tool_call_id, get_utc_time
 
 # from memgpt.data_types import ToolCall
 
@@ -282,7 +282,7 @@ def convert_google_ai_response_to_chatcompletion(
 
                 # NOTE: this also involves stripping the inner monologue out of the function
                 if pull_inner_thoughts_from_args:
-                    from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG, INNER_THOUGHTS_KWARG_DESCRIPTION
+                    from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
 
                     assert INNER_THOUGHTS_KWARG in function_args, f"Couldn't find inner thoughts in function args:\n{function_call}"
                     inner_thoughts = function_args.pop(INNER_THOUGHTS_KWARG)

@@ -1,17 +1,8 @@
-import typer
-import uuid
-from typing import Optional, List, Any
 import os
+import uuid
+from typing import Any, List, Optional
+
 import numpy as np
-
-from memgpt.utils import is_valid_url, printd
-from memgpt.data_types import EmbeddingConfig
-from memgpt.credentials import MemGPTCredentials
-from memgpt.constants import MAX_EMBEDDING_DIM, EMBEDDING_TO_TOKENIZER_MAP, EMBEDDING_TO_TOKENIZER_DEFAULT
-
-# from llama_index.core.base.embeddings import BaseEmbedding
-from llama_index.core.node_parser import SentenceSplitter
-from llama_index.core import Document as LlamaIndexDocument
 
 # from llama_index.core.base.embeddings import BaseEmbedding
 # from llama_index.core.embeddings import BaseEmbedding
@@ -20,6 +11,15 @@ from llama_index.core import Document as LlamaIndexDocument
 # from llama_index.embeddings.base import BaseEmbedding
 # from llama_index.embeddings.huggingface_utils import format_text
 import tiktoken
+from llama_index.core import Document as LlamaIndexDocument
+
+# from llama_index.core.base.embeddings import BaseEmbedding
+from llama_index.core.node_parser import SentenceSplitter
+
+from memgpt.constants import EMBEDDING_TO_TOKENIZER_DEFAULT, EMBEDDING_TO_TOKENIZER_MAP, MAX_EMBEDDING_DIM
+from memgpt.credentials import MemGPTCredentials
+from memgpt.data_types import EmbeddingConfig
+from memgpt.utils import is_valid_url, printd
 
 
 def parse_and_chunk_text(text: str, chunk_size: int) -> List[str]:

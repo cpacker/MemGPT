@@ -1,11 +1,9 @@
-from urllib.parse import urljoin
-import requests
 from typing import Tuple
+from urllib.parse import urljoin
 
 from memgpt.local_llm.settings.settings import get_completions_settings
 from memgpt.local_llm.utils import post_json_auth_request
 from memgpt.utils import count_tokens
-
 
 API_CHAT_SUFFIX = "/v1/chat/completions"
 # LMSTUDIO_API_COMPLETIONS_SUFFIX = "/v1/completions"

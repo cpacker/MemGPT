@@ -1,10 +1,10 @@
-import requests
 from typing import Union
+
+import requests
 
 from memgpt.models.chat_completion_response import ChatCompletionResponse
 from memgpt.models.embedding_response import EmbeddingResponse
 from memgpt.utils import smart_urljoin
-
 
 MODEL_TO_AZURE_ENGINE = {
     "gpt-4-1106-preview": "gpt-4",

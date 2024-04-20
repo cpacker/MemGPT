@@ -1,10 +1,3 @@
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-
-from memgpt.server.server import SyncServer
-from memgpt.server.rest_api.server import app
-from memgpt.constants import DEFAULT_PRESET
-
 # TODO: modify this to run against an actual running server
 # def test_list_messages():
 #    client = TestClient(app)

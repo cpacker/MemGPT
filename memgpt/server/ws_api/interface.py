@@ -1,9 +1,8 @@
 import asyncio
 import threading
 
-
-from memgpt.interface import AgentInterface
 import memgpt.server.ws_api.protocol as protocol
+from memgpt.interface import AgentInterface
 
 
 class BaseWebSocketInterface(AgentInterface):

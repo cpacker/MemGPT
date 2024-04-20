@@ -1,13 +1,13 @@
 import os
-import pytest
 import uuid
 
-from memgpt import create_client
-from memgpt import constants
-import memgpt.functions.function_sets.base as base_functions
-from tests import TEST_MEMGPT_CONFIG
-from .utils import wipe_config, create_config
+import pytest
 
+import memgpt.functions.function_sets.base as base_functions
+from memgpt import constants, create_client
+from tests import TEST_MEMGPT_CONFIG
+
+from .utils import create_config, wipe_config
 
 # test_agent_id = "test_agent"
 client = None
