@@ -1,6 +1,7 @@
 import importlib
 import inspect
 import os
+import warnings
 import sys
 from types import ModuleType
 
@@ -78,7 +79,7 @@ def write_function(module_name: str, function_name: str, function_code: str):
         raise ValueError(error)
 
 
-def load_all_function_sets(merge: bool = True) -> dict:
+def load_all_function_sets(merge: bool = True, ignore_duplicates: bool = True) -> dict:
     from memgpt.utils import printd
 
     # functions/examples/*.py
@@ -157,8 +158,13 @@ def load_all_function_sets(merge: bool = True) -> dict:
         for set_name, function_set in schemas_and_functions.items():
             for function_name, function_info in function_set.items():
                 if function_name in merged_functions:
-                    raise ValueError(f"Duplicate function name '{function_name}' found in function set '{set_name}'")
-                merged_functions[function_name] = function_info
+                    err_msg = f"Duplicate function name '{function_name}' found in function set '{set_name}'"
+                    if ignore_duplicates:
+                        warnings.warn(err_msg, category=UserWarning, stacklevel=2)
+                    else:
+                        raise ValueError(err_msg)
+                else:
+                    merged_functions[function_name] = function_info
         return merged_functions
     else:
         # Nested dict where the top level is organized by the function set name
