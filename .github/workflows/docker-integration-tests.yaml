@@ -17,6 +17,13 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: "Setup Python, Poetry and Dependencies"
+      uses: packetcoders/action-setup-cache-python-poetry@main
+      with:
+        python-version: "3.11"
+        poetry-version: "1.7.1"
+        install-args: "-E dev"
+
     - name: Set permissions for log directory
       run: |
         mkdir -p /home/runner/.memgpt/logs
@@ -35,13 +42,6 @@ jobs:
 
     - name: Wait for service
       run: bash scripts/wait_for_service.sh http://localhost:8083 -- echo "Service is ready"
-
-    - name: "Setup Python, Poetry and Dependencies"
-      uses: packetcoders/action-setup-cache-python-poetry@main
-      with:
-        python-version: "3.11"
-        poetry-version: "1.7.1"
-        install-args: "-E dev"
 
     - name: Run tests with pytest
       env:
