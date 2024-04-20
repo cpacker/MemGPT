@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 from tests.config import TestMGPTConfig
 
 from memgpt.settings import settings
-from memgpt.server.rest_api.server import start_server
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import EmbeddingConfig, LLMConfig
 from .utils import wipe_config, wipe_memgpt_home
@@ -85,6 +84,8 @@ def run_server():
     credentials.save()
 
     # start server
+    from memgpt.server.rest_api.server import start_server
+
     start_server(debug=True)
 
 

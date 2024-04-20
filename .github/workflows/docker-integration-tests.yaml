@@ -50,5 +50,4 @@ jobs:
         MEMGPT_SERVER_URL: http://localhost:8083
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
-      run: |
-        poetry run pytest -s -vv -k tests/test_client.py
+      run: poetry run pytest -s tests/test_client.py
