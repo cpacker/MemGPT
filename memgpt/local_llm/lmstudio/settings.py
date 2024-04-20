@@ -1,4 +1,3 @@
-
 SIMPLE = {
     "stop": [
         "\nUSER:",

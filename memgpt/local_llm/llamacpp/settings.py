@@ -1,4 +1,3 @@
-
 # see https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md#api-endpoints for options
 SIMPLE = {
     "stop": [

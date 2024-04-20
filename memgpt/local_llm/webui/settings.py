@@ -1,4 +1,3 @@
-
 SIMPLE = {
     # "stopping_strings": [
     "stop": [

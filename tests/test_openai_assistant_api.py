@@ -1,5 +1,3 @@
-
-
 # TODO: modify this to run against an actual running server
 # def test_list_messages():
 #    client = TestClient(app)

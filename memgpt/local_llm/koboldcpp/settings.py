@@ -1,4 +1,3 @@
-
 # see https://lite.koboldai.net/koboldcpp_api#/v1/post_v1_generate
 SIMPLE = {
     "stop_sequence": [
