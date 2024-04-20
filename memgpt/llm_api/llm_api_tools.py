@@ -9,19 +9,14 @@ from memgpt.constants import CLI_WARNING_PREFIX
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import AgentState, Message
 from memgpt.llm_api.anthropic import anthropic_chat_completions_request
-from memgpt.llm_api.azure_openai import (MODEL_TO_AZURE_ENGINE,
-                                         azure_openai_chat_completions_request)
+from memgpt.llm_api.azure_openai import MODEL_TO_AZURE_ENGINE, azure_openai_chat_completions_request
 from memgpt.llm_api.cohere import cohere_chat_completions_request
-from memgpt.llm_api.google_ai import (convert_tools_to_google_ai_format,
-                                      google_ai_chat_completions_request)
-from memgpt.llm_api.openai import (openai_chat_completions_process_stream,
-                                   openai_chat_completions_request)
+from memgpt.llm_api.google_ai import convert_tools_to_google_ai_format, google_ai_chat_completions_request
+from memgpt.llm_api.openai import openai_chat_completions_process_stream, openai_chat_completions_request
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
-from memgpt.models.chat_completion_request import (ChatCompletionRequest, Tool,
-                                                   cast_message_to_subtype)
+from memgpt.models.chat_completion_request import ChatCompletionRequest, Tool, cast_message_to_subtype
 from memgpt.models.chat_completion_response import ChatCompletionResponse
-from memgpt.streaming_interface import (AgentChunkStreamingInterface,
-                                        AgentRefreshStreamingInterface)
+from memgpt.streaming_interface import AgentChunkStreamingInterface, AgentRefreshStreamingInterface
 
 LLM_API_PROVIDER_OPTIONS = ["openai", "azure", "anthropic", "google_ai", "cohere", "local"]
 

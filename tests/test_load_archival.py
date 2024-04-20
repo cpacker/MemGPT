@@ -9,6 +9,7 @@ from memgpt.cli.cli_load import load_directory
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, User
 from memgpt.metadata import MetadataStore
+
 # from memgpt.data_sources.connectors import DirectoryConnector, load_data
 # import memgpt
 from memgpt.settings import settings

@@ -5,8 +5,7 @@ from copy import copy
 from enum import Enum
 from inspect import getdoc, isclass
 from types import NoneType
-from typing import (Any, Callable, List, Optional, Tuple, Type, Union,
-                    _GenericAlias, get_args, get_origin)
+from typing import Any, Callable, List, Optional, Tuple, Type, Union, _GenericAlias, get_args, get_origin
 
 from docstring_parser import parse
 from pydantic import BaseModel, create_model

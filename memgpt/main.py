@@ -12,16 +12,16 @@ import memgpt.agent as agent
 import memgpt.errors as errors
 import memgpt.system as system
 from memgpt.agent_store.storage import StorageConnector, TableType
+
 # import benchmark
 from memgpt.benchmark.benchmark import bench
-from memgpt.cli.cli import (delete_agent, migrate, open_folder, quickstart,
-                            run, server, version)
+from memgpt.cli.cli import delete_agent, migrate, open_folder, quickstart, run, server, version
 from memgpt.cli.cli_config import add, configure, delete, list
 from memgpt.cli.cli_load import app as load_app
 from memgpt.config import MemGPTConfig
-from memgpt.constants import (FUNC_FAILED_HEARTBEAT_MESSAGE, JSON_ENSURE_ASCII,
-                              JSON_LOADS_STRICT, REQ_HEARTBEAT_MESSAGE)
+from memgpt.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, JSON_ENSURE_ASCII, JSON_LOADS_STRICT, REQ_HEARTBEAT_MESSAGE
 from memgpt.metadata import MetadataStore
+
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import AgentRefreshStreamingInterface
 

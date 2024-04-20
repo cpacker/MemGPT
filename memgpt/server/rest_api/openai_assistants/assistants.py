@@ -7,10 +7,19 @@ from pydantic import BaseModel, Field
 from memgpt.config import MemGPTConfig
 from memgpt.constants import DEFAULT_PRESET
 from memgpt.data_types import Message
-from memgpt.models.openai import (AssistantFile, MessageFile, MessageRoleType,
-                                  OpenAIAssistant, OpenAIMessage, OpenAIRun,
-                                  OpenAIRunStep, OpenAIThread, Text, ToolCall,
-                                  ToolCallOutput)
+from memgpt.models.openai import (
+    AssistantFile,
+    MessageFile,
+    MessageRoleType,
+    OpenAIAssistant,
+    OpenAIMessage,
+    OpenAIRun,
+    OpenAIRunStep,
+    OpenAIThread,
+    Text,
+    ToolCall,
+    ToolCallOutput,
+)
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
 from memgpt.utils import get_utc_time

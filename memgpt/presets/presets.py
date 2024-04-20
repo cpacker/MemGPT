@@ -10,8 +10,7 @@ from memgpt.metadata import MetadataStore
 from memgpt.models.pydantic_models import HumanModel, PersonaModel
 from memgpt.presets.utils import load_all_presets, load_yaml_file
 from memgpt.prompts import gpt_system
-from memgpt.utils import (get_human_text, get_persona_text, list_human_files,
-                          list_persona_files, printd)
+from memgpt.utils import get_human_text, get_persona_text, list_human_files, list_persona_files, printd
 
 available_presets = load_all_presets()
 preset_options = list(available_presets.keys())

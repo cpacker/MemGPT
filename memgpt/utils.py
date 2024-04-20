@@ -23,11 +23,16 @@ import pytz
 import tiktoken
 
 import memgpt
-from memgpt.constants import (CLI_WARNING_PREFIX, CORE_MEMORY_HUMAN_CHAR_LIMIT,
-                              CORE_MEMORY_PERSONA_CHAR_LIMIT,
-                              FUNCTION_RETURN_CHAR_LIMIT, JSON_ENSURE_ASCII,
-                              JSON_LOADS_STRICT, MEMGPT_DIR,
-                              TOOL_CALL_ID_MAX_LEN)
+from memgpt.constants import (
+    CLI_WARNING_PREFIX,
+    CORE_MEMORY_HUMAN_CHAR_LIMIT,
+    CORE_MEMORY_PERSONA_CHAR_LIMIT,
+    FUNCTION_RETURN_CHAR_LIMIT,
+    JSON_ENSURE_ASCII,
+    JSON_LOADS_STRICT,
+    MEMGPT_DIR,
+    TOOL_CALL_ID_MAX_LEN,
+)
 from memgpt.models.chat_completion_response import ChatCompletionResponse
 from memgpt.openai_backcompat.openai_object import OpenAIObject
 

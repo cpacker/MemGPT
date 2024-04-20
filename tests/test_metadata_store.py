@@ -70,8 +70,7 @@ def test_storage(storage_connector):
 
     add_default_presets(user_1.id, ms)
     preset_obj = ms.get_preset(name=DEFAULT_PRESET, user_id=user_1.id)
-    from memgpt.interface import \
-        CLIInterface as interface  # for printing to terminal
+    from memgpt.interface import CLIInterface as interface  # for printing to terminal
 
     # Overwrite fields in the preset if they were specified
     preset_obj.human = get_human_text(DEFAULT_HUMAN)

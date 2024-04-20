@@ -3,6 +3,7 @@ import uuid
 from typing import Any, List, Optional
 
 import numpy as np
+
 # from llama_index.core.base.embeddings import BaseEmbedding
 # from llama_index.core.embeddings import BaseEmbedding
 # from llama_index.core.base.embeddings.base import BaseEmbedding
@@ -11,11 +12,11 @@ import numpy as np
 # from llama_index.embeddings.huggingface_utils import format_text
 import tiktoken
 from llama_index.core import Document as LlamaIndexDocument
+
 # from llama_index.core.base.embeddings import BaseEmbedding
 from llama_index.core.node_parser import SentenceSplitter
 
-from memgpt.constants import (EMBEDDING_TO_TOKENIZER_DEFAULT,
-                              EMBEDDING_TO_TOKENIZER_MAP, MAX_EMBEDDING_DIM)
+from memgpt.constants import EMBEDDING_TO_TOKENIZER_DEFAULT, EMBEDDING_TO_TOKENIZER_MAP, MAX_EMBEDDING_DIM
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import EmbeddingConfig
 from memgpt.utils import is_valid_url, printd

@@ -22,10 +22,14 @@ from memgpt.config import MemGPTConfig
 from memgpt.data_types import AgentState, Message, Passage, Source, User
 from memgpt.metadata import MetadataStore
 from memgpt.persistence_manager import LocalStateManager
-from memgpt.utils import (MEMGPT_DIR, OpenAIBackcompatUnpickler,
-                          annotate_message_json_list_with_tool_calls,
-                          get_utc_time, parse_formatted_time,
-                          version_less_than)
+from memgpt.utils import (
+    MEMGPT_DIR,
+    OpenAIBackcompatUnpickler,
+    annotate_message_json_list_with_tool_calls,
+    get_utc_time,
+    parse_formatted_time,
+    version_less_than,
+)
 
 # This is the version where the breaking change was made
 VERSION_CUTOFF = "0.2.12"

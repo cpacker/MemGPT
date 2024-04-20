@@ -4,9 +4,24 @@ import uuid
 from typing import Dict, Iterator, List, Optional
 
 import numpy as np
-from sqlalchemy import (BIGINT, BINARY, CHAR, JSON, Column, DateTime, String,
-                        TypeDecorator, and_, asc, create_engine, desc, func,
-                        or_, select, text)
+from sqlalchemy import (
+    BIGINT,
+    BINARY,
+    CHAR,
+    JSON,
+    Column,
+    DateTime,
+    String,
+    TypeDecorator,
+    and_,
+    asc,
+    create_engine,
+    desc,
+    func,
+    or_,
+    select,
+    text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base, mapped_column, sessionmaker
 from sqlalchemy.orm.session import close_all_sessions

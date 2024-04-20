@@ -6,15 +6,19 @@ import requests
 from httpx_sse import connect_sse
 from httpx_sse._exceptions import SSEError
 
-from memgpt.local_llm.utils import (num_tokens_from_functions,
-                                    num_tokens_from_messages)
+from memgpt.local_llm.utils import num_tokens_from_functions, num_tokens_from_messages
 from memgpt.models.chat_completion_request import ChatCompletionRequest
 from memgpt.models.chat_completion_response import (
-    ChatCompletionChunkResponse, ChatCompletionResponse, Choice, FunctionCall,
-    Message, ToolCall, UsageStatistics)
+    ChatCompletionChunkResponse,
+    ChatCompletionResponse,
+    Choice,
+    FunctionCall,
+    Message,
+    ToolCall,
+    UsageStatistics,
+)
 from memgpt.models.embedding_response import EmbeddingResponse
-from memgpt.streaming_interface import (AgentChunkStreamingInterface,
-                                        AgentRefreshStreamingInterface)
+from memgpt.streaming_interface import AgentChunkStreamingInterface, AgentRefreshStreamingInterface
 from memgpt.utils import get_utc_time, smart_urljoin
 
 OPENAI_SSE_DONE = "[DONE]"

@@ -16,20 +16,20 @@ import memgpt.server.utils as server_utils
 import memgpt.system as system
 from memgpt.agent import Agent, save_agent
 from memgpt.agent_store.storage import StorageConnector, TableType
+
 # from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.cli.cli_config import get_model_options
 from memgpt.config import MemGPTConfig
 from memgpt.constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_sources.connectors import DataConnector, load_data
-from memgpt.data_types import (AgentState, EmbeddingConfig, LLMConfig, Message,
-                               Preset, Source, Token, User)
+from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, Message, Preset, Source, Token, User
+
 # TODO use custom interface
 from memgpt.interface import AgentInterface  # abstract
 from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.metadata import MetadataStore
-from memgpt.models.pydantic_models import (DocumentModel, PassageModel,
-                                           PresetModel, SourceModel, ToolModel)
+from memgpt.models.pydantic_models import DocumentModel, PassageModel, PresetModel, SourceModel, ToolModel
 from memgpt.utils import get_human_text, get_persona_text
 
 logger = logging.getLogger(__name__)
