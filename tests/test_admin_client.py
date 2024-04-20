@@ -4,8 +4,7 @@ import time
 import threading
 from dotenv import load_dotenv
 
-from memgpt import Admin, create_client
-from memgpt.constants import DEFAULT_PRESET
+from memgpt import Admin
 from dotenv import load_dotenv
 
 from tests.config import TestMGPTConfig
@@ -14,7 +13,6 @@ from memgpt.settings import settings
 from memgpt.server.rest_api.server import start_server
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import EmbeddingConfig, LLMConfig
-from .utils import wipe_config, wipe_memgpt_home
 
 
 import pytest
@@ -27,8 +25,7 @@ test_server_token = "test_server_token"
 
 
 def run_server():
-    import uvicorn
-    from memgpt.server.rest_api.server import app
+    pass
 
     load_dotenv()
 

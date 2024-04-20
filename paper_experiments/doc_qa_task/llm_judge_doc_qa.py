@@ -1,7 +1,6 @@
 import argparse
 import re
 import json
-import openai
 from openai import OpenAI
 from tqdm import tqdm
 from memgpt.credentials import MemGPTCredentials

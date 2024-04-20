@@ -2,7 +2,7 @@ import re
 import uuid
 from functools import partial
 
-from fastapi import APIRouter, Body, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional

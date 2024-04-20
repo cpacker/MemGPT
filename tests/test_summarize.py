@@ -2,7 +2,6 @@ import os
 import uuid
 
 from memgpt import create_client
-from memgpt import constants
 from .utils import wipe_config, create_config
 
 

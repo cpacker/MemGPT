@@ -6,7 +6,7 @@ from memgpt.memory import (
     EmbeddingArchivalMemory,
 )
 from memgpt.utils import printd
-from memgpt.data_types import Message, ToolCall, AgentState
+from memgpt.data_types import Message, AgentState
 
 from datetime import datetime
 

@@ -1,4 +1,3 @@
-import os
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
 import pytest
 
@@ -8,7 +7,7 @@ from memgpt.metadata import MetadataStore
 from memgpt.data_types import User, AgentState, Source, LLMConfig
 from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
-from memgpt.presets.presets import add_default_presets, add_default_humans_and_personas
+from memgpt.presets.presets import add_default_presets
 from memgpt.models.pydantic_models import HumanModel, PersonaModel
 from memgpt.models.pydantic_models import HumanModel, PersonaModel
 

@@ -1,4 +1,3 @@
-import random
 import time
 from concurrent.futures import ThreadPoolExecutor
 import os
@@ -7,7 +6,6 @@ from openai import OpenAI
 import serpapi
 
 from memgpt.data_sources.connectors import WebConnector
-from memgpt.data_types import Document, Passage
 from memgpt.credentials import MemGPTCredentials
 from memgpt.utils import printd
 

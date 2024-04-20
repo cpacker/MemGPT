@@ -1,4 +1,3 @@
-from ...constants import LLM_MAX_TOKENS
 
 SIMPLE = {
     "stop": [

@@ -8,11 +8,10 @@ import uuid
 from abc import abstractmethod
 
 from typing import List, Optional, Dict
-from tqdm import tqdm
 
 
 from memgpt.config import MemGPTConfig
-from memgpt.data_types import Record, Passage, Document, Message, Source, RecordType
+from memgpt.data_types import Record, Passage, Document, Message, RecordType
 from memgpt.utils import printd
 
 

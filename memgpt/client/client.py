@@ -1,14 +1,11 @@
 import datetime
 import requests
-from requests.exceptions import RequestException
 import uuid
 from typing import Dict, List, Union, Optional, Tuple
 import time
 
 from memgpt.data_types import AgentState, User, Preset, LLMConfig, EmbeddingConfig, Source
 from memgpt.models.pydantic_models import HumanModel, PersonaModel, PresetModel, SourceModel, JobModel, JobStatus
-from memgpt.cli.cli import QuickstartChoice
-from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func, str_to_quickstart_choice
 from memgpt.config import MemGPTConfig
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -32,7 +29,7 @@ from memgpt.server.rest_api.personas.index import ListPersonasResponse
 from memgpt.server.rest_api.tools.index import ListToolsResponse, CreateToolResponse
 from memgpt.server.rest_api.models.index import ListModelsResponse
 from memgpt.server.rest_api.presets.index import CreatePresetResponse, CreatePresetsRequest, ListPresetsResponse
-from memgpt.server.rest_api.sources.index import ListSourcesResponse, UploadFileToSourceResponse
+from memgpt.server.rest_api.sources.index import ListSourcesResponse
 
 
 def create_client(base_url: Optional[str] = None, token: Optional[str] = None):

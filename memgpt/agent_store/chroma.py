@@ -2,12 +2,12 @@ import uuid
 from typing import Optional, List, Iterator, Dict, Tuple, cast
 
 import chromadb
-from chromadb.api.types import Include, GetResult
+from chromadb.api.types import Include
 
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.utils import printd, datetime_to_timestamp, timestamp_to_datetime
 from memgpt.config import MemGPTConfig
-from memgpt.data_types import Record, Message, Passage, RecordType
+from memgpt.data_types import Record, Passage, RecordType
 
 
 class ChromaStorageConnector(StorageConnector):

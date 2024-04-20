@@ -18,7 +18,6 @@ from memgpt.models.chat_completion_request import ChatCompletionRequest
 from memgpt.models.embedding_response import EmbeddingResponse
 from memgpt.utils import smart_urljoin, get_utc_time
 from memgpt.local_llm.utils import num_tokens_from_messages, num_tokens_from_functions
-from memgpt.interface import AgentInterface
 from memgpt.streaming_interface import AgentChunkStreamingInterface, AgentRefreshStreamingInterface
 
 

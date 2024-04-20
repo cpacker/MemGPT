@@ -1,17 +1,13 @@
 # type: ignore
 
-import lancedb
 import uuid
 from datetime import datetime
-from tqdm import tqdm
 from typing import Optional, List, Iterator, Dict
 
 from memgpt.config import MemGPTConfig
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import AgentConfig, MemGPTConfig
-from memgpt.constants import MEMGPT_DIR
-from memgpt.utils import printd
-from memgpt.data_types import Record, Message, Passage, Source
+from memgpt.data_types import Record, Message, Passage
 
 from datetime import datetime
 

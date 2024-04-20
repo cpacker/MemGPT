@@ -17,16 +17,14 @@ from memgpt.log import logger
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import StreamingRefreshCLIInterface as interface  # for printing to terminal
 from memgpt.cli.cli_config import configure
-import memgpt.presets.presets as presets
 import memgpt.utils as utils
-from memgpt.utils import printd, open_folder_in_explorer, suppress_stdout
+from memgpt.utils import printd, open_folder_in_explorer
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
-from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
+from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
 from memgpt.agent import Agent, save_agent
-from memgpt.embeddings import embedding_model
-from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
-from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig, User, Passage
+from memgpt.server.constants import WS_DEFAULT_PORT
+from memgpt.data_types import LLMConfig, EmbeddingConfig, User
 from memgpt.metadata import MetadataStore
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
 
@@ -326,8 +324,7 @@ def server(
     #    server_logger.addHandler(stream_handler)
 
     if type == ServerChoice.rest_api:
-        import uvicorn
-        from memgpt.server.rest_api.server import app
+        pass
 
         if MemGPTConfig.exists():
             config = MemGPTConfig.load()

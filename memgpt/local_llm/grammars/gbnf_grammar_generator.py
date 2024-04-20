@@ -5,7 +5,7 @@ from inspect import isclass, getdoc
 from types import NoneType
 
 from docstring_parser import parse
-from pydantic import BaseModel, create_model, Field
+from pydantic import BaseModel, create_model
 from typing import Any, Type, List, get_args, get_origin, Tuple, Union, Optional, _GenericAlias
 from enum import Enum
 from typing import Callable

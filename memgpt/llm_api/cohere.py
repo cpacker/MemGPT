@@ -1,7 +1,6 @@
 import requests
 import uuid
 import json
-import re
 from typing import Union, Optional, List
 
 from memgpt.data_types import Message
@@ -15,7 +14,7 @@ from memgpt.models.chat_completion_response import (
 )
 from memgpt.models.chat_completion_request import ChatCompletionRequest, Tool
 from memgpt.utils import smart_urljoin, get_utc_time, get_tool_call_id
-from memgpt.constants import NON_USER_MSG_PREFIX, JSON_ENSURE_ASCII
+from memgpt.constants import JSON_ENSURE_ASCII
 from memgpt.local_llm.utils import count_tokens
 
 BASE_URL = "https://api.cohere.ai/v1"
@@ -168,7 +167,7 @@ def convert_cohere_response_to_chatcompletion(
             function_name = tool_call_response["name"]
             function_args = tool_call_response["parameters"]
             if inner_thoughts_in_kwargs:
-                from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG, INNER_THOUGHTS_KWARG_DESCRIPTION
+                from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
 
                 assert INNER_THOUGHTS_KWARG in function_args
                 # NOTE:

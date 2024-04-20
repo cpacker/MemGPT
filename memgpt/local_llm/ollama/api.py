@@ -1,5 +1,4 @@
 from urllib.parse import urljoin
-import requests
 
 
 from memgpt.local_llm.settings.settings import get_completions_settings

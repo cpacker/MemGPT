@@ -7,7 +7,6 @@ from typing import Annotated
 
 import questionary
 import typer
-from prettytable import PrettyTable, SINGLE_BORDER
 from prettytable.colortable import ColorTable, Themes
 from tqdm import tqdm
 
@@ -30,7 +29,7 @@ from memgpt.server.utils import shorten_key_middle
 from memgpt.data_types import User, LLMConfig, EmbeddingConfig, Source
 from memgpt.metadata import MetadataStore
 from memgpt.server.utils import shorten_key_middle
-from memgpt.models.pydantic_models import HumanModel, PersonaModel, PresetModel
+from memgpt.models.pydantic_models import HumanModel, PersonaModel
 from memgpt.presets.presets import create_preset_from_file
 
 app = typer.Typer()

@@ -1,5 +1,4 @@
 import json
-import subprocess
 import logging
 import uuid
 from abc import abstractmethod
@@ -10,7 +9,6 @@ from typing import Union, Callable, Optional, List, Tuple
 import warnings
 
 from fastapi import HTTPException
-import uvicorn
 
 import memgpt.constants as constants
 import memgpt.presets.presets as presets
@@ -1413,8 +1411,6 @@ class SyncServer(LockingServer):
 
     def create_tool(self, name: str, user_id: uuid.UUID) -> ToolModel:  # TODO: add other fields
         """Create a new tool"""
-        pass
 
     def delete_tool(self, tool_id: uuid.UUID, user_id: uuid.UUID):
         """Delete a tool"""
-        pass

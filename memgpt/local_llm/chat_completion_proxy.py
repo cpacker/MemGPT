@@ -1,6 +1,5 @@
 """Key idea: create drop-in replacement for agent's ChatCompletion call that runs on an OpenLLM backend"""
 
-from datetime import datetime
 import requests
 import json
 import uuid

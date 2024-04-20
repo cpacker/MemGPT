@@ -16,7 +16,7 @@ from memgpt.metadata import MetadataStore
 from memgpt.data_types import User, AgentState, EmbeddingConfig, LLMConfig
 from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
-from .utils import wipe_config, create_config
+from .utils import wipe_config
 
 
 @pytest.fixture(autouse=True)

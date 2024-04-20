@@ -2,7 +2,7 @@ import uuid
 import os
 
 from memgpt import create_client
-from memgpt.data_types import EmbeddingConfig, Passage
+from memgpt.data_types import Passage
 from memgpt.embeddings import embedding_model
 from memgpt.agent_store.storage import StorageConnector, TableType
 from tests import TEST_MEMGPT_CONFIG

@@ -82,7 +82,7 @@ def retry_with_exponential_backoff(
     """Retry a function with exponential backoff."""
 
     def wrapper(*args, **kwargs):
-        from memgpt.utils import printd
+        pass
 
         # Initialize variables
         num_retries = 0

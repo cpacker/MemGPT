@@ -11,7 +11,7 @@ Begin by doing:
 
 import os
 import autogen
-from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config, load_autogen_memgpt_agent
+from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config
 from memgpt.constants import LLM_MAX_TOKENS, DEFAULT_PRESET
 
 LLM_BACKEND = "openai"

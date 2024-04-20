@@ -6,8 +6,7 @@ subprocess.check_call([sys.executable, "-m", "pip", "install", "pexpect"])
 import pexpect
 
 from .constants import TIMEOUT
-from .utils import create_config, wipe_config
-from memgpt import create_client
+from .utils import create_config
 
 
 # def test_configure_memgpt():

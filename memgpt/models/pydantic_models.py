@@ -1,18 +1,16 @@
-from typing import List, Optional, Dict, Literal, Type
-from pydantic import BaseModel, Field, Json, ConfigDict
+from typing import List, Optional, Dict
+from pydantic import BaseModel, Field, ConfigDict
 
 from enum import Enum
 
 import uuid
-import base64
-import numpy as np
 from datetime import datetime
 from sqlmodel import Field, SQLModel
 from sqlalchemy_utils import ChoiceType
-from sqlalchemy import JSON, Column, BINARY, TypeDecorator, String
+from sqlalchemy import JSON, Column
 
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS, MAX_EMBEDDING_DIM
-from memgpt.utils import get_human_text, get_persona_text, printd, get_utc_time
+from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
+from memgpt.utils import get_human_text, get_persona_text, get_utc_time
 
 
 class LLMConfigModel(BaseModel):

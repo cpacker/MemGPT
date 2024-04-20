@@ -30,7 +30,7 @@ from memgpt.utils import (
 from memgpt.config import MemGPTConfig
 from memgpt.cli.cli_config import configure
 from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.persistence_manager import PersistenceManager, LocalStateManager
+from memgpt.persistence_manager import LocalStateManager
 
 # This is the version where the breaking change was made
 VERSION_CUTOFF = "0.2.12"
@@ -132,7 +132,6 @@ def migrate_source(source_name: str, data_dir: str = MEMGPT_DIR, ms: Optional[Me
     assert os.path.exists(source_path), f"Source {source_name} does not exist at {source_path}"
 
     # load state from old checkpoint file
-    from memgpt.cli.cli_load import load_index
 
     # 2. Create a new AgentState using the agent config + agent internal state
     config = MemGPTConfig.load()

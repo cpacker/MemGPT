@@ -11,12 +11,11 @@ from memgpt.autogen.interface import AutoGenInterface
 import memgpt.system as system
 import memgpt.constants as constants
 import memgpt.utils as utils
-import memgpt.presets.presets as presets
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.cli.cli_load import load_directory, load_vector_database
 from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.data_types import AgentState, User, LLMConfig, EmbeddingConfig
+from memgpt.data_types import User, LLMConfig, EmbeddingConfig
 from memgpt.utils import get_human_text, get_persona_text
 
 

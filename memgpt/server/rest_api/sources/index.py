@@ -1,14 +1,12 @@
 import uuid
 import tempfile
 import os
-import hashlib
 from functools import partial
 from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, Query, HTTPException, status, UploadFile, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from starlette.responses import StreamingResponse
 
 from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel, JobModel, JobStatus
 from memgpt.server.rest_api.auth_token import get_current_user

@@ -2,12 +2,12 @@ from typing import List
 import os
 from memgpt.data_types import AgentState, Preset
 from memgpt.interface import AgentInterface
-from memgpt.presets.utils import load_all_presets, is_valid_yaml_format, load_yaml_file
+from memgpt.presets.utils import load_all_presets, load_yaml_file
 from memgpt.utils import get_human_text, get_persona_text, printd, list_human_files, list_persona_files
 from memgpt.prompts import gpt_system
 from memgpt.functions.functions import load_all_function_sets
 from memgpt.metadata import MetadataStore
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
+from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.models.pydantic_models import HumanModel, PersonaModel
 
 import uuid
