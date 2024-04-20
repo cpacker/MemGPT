@@ -79,6 +79,8 @@ def write_function(module_name: str, function_name: str, function_code: str):
 
 
 def load_all_function_sets(merge: bool = True) -> dict:
+    from memgpt.utils import printd
+
     # functions/examples/*.py
     scripts_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of the current script
     function_sets_dir = os.path.join(scripts_dir, "function_sets")  # Path to the function_sets directory
@@ -106,7 +108,7 @@ def load_all_function_sets(merge: bool = True) -> dict:
             if dir_path == USER_FUNCTIONS_DIR:
                 # For user scripts, adjust the module name appropriately
                 module_full_path = os.path.join(dir_path, file)
-                print(f"Loading user function set from '{module_full_path}'")
+                printd(f"Loading user function set from '{module_full_path}'")
                 try:
                     spec = importlib.util.spec_from_file_location(module_name, module_full_path)
                     module = importlib.util.module_from_spec(spec)
@@ -114,18 +116,18 @@ def load_all_function_sets(merge: bool = True) -> dict:
                 except ModuleNotFoundError as e:
                     # Handle missing module imports
                     missing_package = str(e).split("'")[1]  # Extract the name of the missing package
-                    print(f"{CLI_WARNING_PREFIX}skipped loading python file '{module_full_path}'!")
-                    print(
+                    printd(f"{CLI_WARNING_PREFIX}skipped loading python file '{module_full_path}'!")
+                    printd(
                         f"'{file}' imports '{missing_package}', but '{missing_package}' is not installed locally - install python package '{missing_package}' to link functions from '{file}' to MemGPT."
                     )
                     continue
                 except SyntaxError as e:
                     # Handle syntax errors in the module
-                    print(f"{CLI_WARNING_PREFIX}skipped loading python file '{file}' due to a syntax error: {e}")
+                    printd(f"{CLI_WARNING_PREFIX}skipped loading python file '{file}' due to a syntax error: {e}")
                     continue
                 except Exception as e:
                     # Handle other general exceptions
-                    print(f"{CLI_WARNING_PREFIX}skipped loading python file '{file}': {e}")
+                    printd(f"{CLI_WARNING_PREFIX}skipped loading python file '{file}': {e}")
                     continue
             else:
                 # For built-in scripts, use the existing method
@@ -135,7 +137,7 @@ def load_all_function_sets(merge: bool = True) -> dict:
                     module = importlib.import_module(full_module_name)
                 except Exception as e:
                     # Handle other general exceptions
-                    print(f"{CLI_WARNING_PREFIX}skipped loading python module '{full_module_name}': {e}")
+                    printd(f"{CLI_WARNING_PREFIX}skipped loading python module '{full_module_name}': {e}")
                     continue
 
             try:
@@ -147,7 +149,7 @@ def load_all_function_sets(merge: bool = True) -> dict:
                     v["tags"] = tags
                 schemas_and_functions[module_name] = function_set
             except ValueError as e:
-                print(f"Error loading function set '{module_name}': {e}")
+                printd(f"Error loading function set '{module_name}': {e}")
 
     if merge:
         # Put all functions from all sets into the same level dict
