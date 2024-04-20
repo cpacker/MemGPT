@@ -1,6 +1,8 @@
 from typing import List, Optional, Dict, Literal, Type
 from pydantic import BaseModel, Field, Json, ConfigDict
-from enum import StrEnum
+
+from enum import Enum
+
 import uuid
 import base64
 import numpy as np
@@ -134,7 +136,7 @@ class SourceModel(SQLModel, table=True):
     metadata_: Optional[dict] = Field(None, sa_column=Column(JSON), description="Metadata associated with the source.")
 
 
-class JobStatus(StrEnum):
+class JobStatus(str, Enum):
     created = "created"
     running = "running"
     completed = "completed"
