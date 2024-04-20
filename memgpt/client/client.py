@@ -450,18 +450,16 @@ class RESTClient(AbstractClient):
         if response.status_code != 200:
             raise ValueError(f"Failed to upload file to source: {response.text}")
 
-        print("RESPONSE FILE", response.json(), response.status_code)
         job = JobModel(**response.json())
         if blocking:
             # wait until job is completed
             while True:
-                print("get id", job.id)
                 job = self.get_job_status(job.id)
                 if job.status == JobStatus.completed:
                     break
                 elif job.status == JobStatus.failed:
                     raise ValueError(f"Job failed: {job.metadata}")
-                time.sleep(5)
+                time.sleep(1)
         return job
 
     def create_source(self, name: str) -> Source:
@@ -469,7 +467,6 @@ class RESTClient(AbstractClient):
         payload = {"name": name}
         response = requests.post(f"{self.base_url}/api/sources", json=payload, headers=self.headers)
         response_json = response.json()
-        print("CREATE SOURCE", response_json, response.text)
         response_obj = SourceModel(**response_json)
         return Source(
             id=uuid.UUID(response_obj.id),

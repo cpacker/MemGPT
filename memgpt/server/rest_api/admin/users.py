@@ -136,7 +136,6 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
         """
         Get a list of all API keys for a user
         """
-        print("GET USERS", user_id)
         try:
             tokens = server.ms.get_all_api_keys_for_user(user_id=user_id)
             processed_tokens = [t.token for t in tokens]

@@ -53,12 +53,8 @@ def load_data(
         if document_store:
             document_store.insert(document)
 
-        print("DOCUMENT", document_count)
-
         # generate passages
         for passage_text, passage_metadata in connector.generate_passages([document], chunk_size=embedding_config.embedding_chunk_size):
-
-            print("PASSAGE", passage_count)
 
             # for some reason, llama index parsers sometimes return empty strings
             if len(passage_text) == 0:
@@ -108,7 +104,6 @@ def load_data(
                 passage_count += len(passages)
                 passages = []
 
-    print("final passages", len(passages))
     if len(passages) > 0:
         # insert passages into passage store
         passage_store.insert_many(passages)
