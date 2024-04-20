@@ -1,23 +1,18 @@
-import uuid
 import os
-import time
 import threading
+import time
+import uuid
+
+import pytest
 from dotenv import load_dotenv
 
 from memgpt import Admin, create_client
 from memgpt.constants import DEFAULT_PRESET
-from memgpt.data_types import Preset  # TODO move to PresetModel
-from dotenv import load_dotenv
-
-from tests.config import TestMGPTConfig
-
-from memgpt.settings import settings
 from memgpt.credentials import MemGPTCredentials
+from memgpt.data_types import Preset  # TODO move to PresetModel
 from memgpt.data_types import EmbeddingConfig, LLMConfig
-
-
-import pytest
-import uuid
+from memgpt.settings import settings
+from tests.config import TestMGPTConfig
 
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
 # test_preset_name = "test_preset"

@@ -1,22 +1,17 @@
-import uuid
 import os
-import time
 import threading
+import time
+import uuid
+
+import pytest
 from dotenv import load_dotenv
 
 from memgpt import Admin
-from dotenv import load_dotenv
-
-from tests.config import TestMGPTConfig
-
-from memgpt.settings import settings
-from memgpt.server.rest_api.server import start_server
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import EmbeddingConfig, LLMConfig
-
-
-import pytest
-import uuid
+from memgpt.server.rest_api.server import start_server
+from memgpt.settings import settings
+from tests.config import TestMGPTConfig
 
 test_base_url = "http://localhost:8283"
 

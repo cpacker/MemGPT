@@ -1,25 +1,21 @@
-import requests
 import json
+from typing import Generator, Optional, Union
+
 import httpx
+import requests
 from httpx_sse import connect_sse
 from httpx_sse._exceptions import SSEError
-from typing import Union, Optional, Generator
 
-from memgpt.models.chat_completion_response import (
-    ChatCompletionResponse,
-    Choice,
-    Message,
-    ToolCall,
-    FunctionCall,
-    UsageStatistics,
-    ChatCompletionChunkResponse,
-)
+from memgpt.local_llm.utils import (num_tokens_from_functions,
+                                    num_tokens_from_messages)
 from memgpt.models.chat_completion_request import ChatCompletionRequest
+from memgpt.models.chat_completion_response import (
+    ChatCompletionChunkResponse, ChatCompletionResponse, Choice, FunctionCall,
+    Message, ToolCall, UsageStatistics)
 from memgpt.models.embedding_response import EmbeddingResponse
-from memgpt.utils import smart_urljoin, get_utc_time
-from memgpt.local_llm.utils import num_tokens_from_messages, num_tokens_from_functions
-from memgpt.streaming_interface import AgentChunkStreamingInterface, AgentRefreshStreamingInterface
-
+from memgpt.streaming_interface import (AgentChunkStreamingInterface,
+                                        AgentRefreshStreamingInterface)
+from memgpt.utils import get_utc_time, smart_urljoin
 
 OPENAI_SSE_DONE = "[DONE]"
 

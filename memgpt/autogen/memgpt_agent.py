@@ -1,21 +1,22 @@
-import uuid
 import sys
-from typing import Callable, Optional, List, Dict, Union, Any, Tuple
+import uuid
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from autogen.agentchat import Agent, ConversableAgent, UserProxyAgent, GroupChat, GroupChatManager
+from autogen.agentchat import (Agent, ConversableAgent, GroupChat,
+                               GroupChatManager, UserProxyAgent)
 
-from memgpt.metadata import MetadataStore
+import memgpt.constants as constants
+import memgpt.system as system
+import memgpt.utils as utils
 from memgpt.agent import Agent as MemGPTAgent
 from memgpt.agent import save_agent
+from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.autogen.interface import AutoGenInterface
-import memgpt.system as system
-import memgpt.constants as constants
-import memgpt.utils as utils
+from memgpt.cli.cli_load import load_directory, load_vector_database
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
-from memgpt.cli.cli_load import load_directory, load_vector_database
-from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.data_types import User, LLMConfig, EmbeddingConfig
+from memgpt.data_types import EmbeddingConfig, LLMConfig, User
+from memgpt.metadata import MetadataStore
 from memgpt.utils import get_human_text, get_persona_text
 
 

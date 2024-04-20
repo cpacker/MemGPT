@@ -1,35 +1,40 @@
 import datetime
-import requests
-import uuid
-from typing import Dict, List, Union, Optional, Tuple
 import time
+import uuid
+from typing import Dict, List, Optional, Tuple, Union
 
-from memgpt.data_types import AgentState, User, Preset, LLMConfig, EmbeddingConfig, Source
-from memgpt.models.pydantic_models import HumanModel, PersonaModel, PresetModel, SourceModel, JobModel, JobStatus
+import requests
+
 from memgpt.config import MemGPTConfig
-from memgpt.server.rest_api.interface import QueuingInterface
-from memgpt.server.server import SyncServer
-from memgpt.metadata import MetadataStore
 from memgpt.data_sources.connectors import DataConnector
-
+from memgpt.data_types import (AgentState, EmbeddingConfig, LLMConfig, Preset,
+                               Source, User)
+from memgpt.metadata import MetadataStore
+from memgpt.models.pydantic_models import (HumanModel, JobModel, JobStatus,
+                                           PersonaModel, PresetModel,
+                                           SourceModel)
 # import pydantic response objects from memgpt.server.rest_api
 from memgpt.server.rest_api.agents.command import CommandResponse
 from memgpt.server.rest_api.agents.config import GetAgentResponse
+from memgpt.server.rest_api.agents.index import (CreateAgentResponse,
+                                                 ListAgentsResponse)
 from memgpt.server.rest_api.agents.memory import (
-    GetAgentMemoryResponse,
-    GetAgentArchivalMemoryResponse,
-    UpdateAgentMemoryResponse,
-    InsertAgentArchivalMemoryResponse,
-)
-from memgpt.server.rest_api.agents.index import ListAgentsResponse, CreateAgentResponse
-from memgpt.server.rest_api.agents.message import UserMessageResponse, GetAgentMessagesResponse
+    GetAgentArchivalMemoryResponse, GetAgentMemoryResponse,
+    InsertAgentArchivalMemoryResponse, UpdateAgentMemoryResponse)
+from memgpt.server.rest_api.agents.message import (GetAgentMessagesResponse,
+                                                   UserMessageResponse)
 from memgpt.server.rest_api.config.index import ConfigResponse
 from memgpt.server.rest_api.humans.index import ListHumansResponse
-from memgpt.server.rest_api.personas.index import ListPersonasResponse
-from memgpt.server.rest_api.tools.index import ListToolsResponse, CreateToolResponse
+from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.rest_api.models.index import ListModelsResponse
-from memgpt.server.rest_api.presets.index import CreatePresetResponse, CreatePresetsRequest, ListPresetsResponse
+from memgpt.server.rest_api.personas.index import ListPersonasResponse
+from memgpt.server.rest_api.presets.index import (CreatePresetResponse,
+                                                  CreatePresetsRequest,
+                                                  ListPresetsResponse)
 from memgpt.server.rest_api.sources.index import ListSourcesResponse
+from memgpt.server.rest_api.tools.index import (CreateToolResponse,
+                                                ListToolsResponse)
+from memgpt.server.server import SyncServer
 
 
 def create_client(base_url: Optional[str] = None, token: Optional[str] = None):

@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
 import json
+from abc import ABC, abstractmethod
 from typing import List, Optional
 
 # from colorama import Fore, Style, init
@@ -8,8 +8,9 @@ from rich.live import Live
 from rich.markup import escape
 
 from memgpt.data_types import Message
-from memgpt.models.chat_completion_response import ChatCompletionChunkResponse, ChatCompletionResponse
 from memgpt.interface import CLIInterface
+from memgpt.models.chat_completion_response import (
+    ChatCompletionChunkResponse, ChatCompletionResponse)
 
 # init(autoreset=True)
 

@@ -1,12 +1,10 @@
+import configparser
 import os
 from dataclasses import dataclass
-import configparser
 from typing import Optional
 
-
-from memgpt.constants import MEMGPT_DIR
 from memgpt.config import get_field, set_field
-
+from memgpt.constants import MEMGPT_DIR
 
 SUPPORTED_AUTH_TYPES = ["bearer_token", "api_key"]
 

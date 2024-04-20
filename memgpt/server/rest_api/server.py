@@ -1,15 +1,17 @@
 import json
-import uvicorn
-from typing import Optional
 import logging
 import os
 import secrets
+import subprocess
+from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import uvicorn
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.middleware.cors import CORSMiddleware
 
-from memgpt.settings import settings
+from memgpt.config import MemGPTConfig
+from memgpt.server.constants import REST_DEFAULT_PORT
 from memgpt.server.rest_api.admin.users import setup_admin_router
 from memgpt.server.rest_api.agents.command import setup_agents_command_router
 from memgpt.server.rest_api.agents.config import setup_agents_config_router
@@ -21,16 +23,15 @@ from memgpt.server.rest_api.config.index import setup_config_index_router
 from memgpt.server.rest_api.humans.index import setup_humans_index_router
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.rest_api.models.index import setup_models_index_router
-from memgpt.server.rest_api.openai_assistants.assistants import setup_openai_assistant_router
+from memgpt.server.rest_api.openai_assistants.assistants import \
+    setup_openai_assistant_router
 from memgpt.server.rest_api.personas.index import setup_personas_index_router
+from memgpt.server.rest_api.presets.index import setup_presets_index_router
+from memgpt.server.rest_api.sources.index import setup_sources_index_router
 from memgpt.server.rest_api.static_files import mount_static_files
 from memgpt.server.rest_api.tools.index import setup_tools_index_router
-from memgpt.server.rest_api.sources.index import setup_sources_index_router
-from memgpt.server.rest_api.presets.index import setup_presets_index_router
 from memgpt.server.server import SyncServer
-from memgpt.config import MemGPTConfig
-from memgpt.server.constants import REST_DEFAULT_PORT
-import subprocess
+from memgpt.settings import settings
 
 """
 Basic REST API sitting on top of the internal MemGPT python server (SyncServer)

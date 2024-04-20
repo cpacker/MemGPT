@@ -1,13 +1,12 @@
-from typing import List, Optional, Dict
-from pydantic import BaseModel, Field, ConfigDict
-
-from enum import Enum
-
 import uuid
 from datetime import datetime
-from sqlmodel import Field, SQLModel
-from sqlalchemy_utils import ChoiceType
+from enum import Enum
+from typing import Dict, List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import JSON, Column
+from sqlalchemy_utils import ChoiceType
+from sqlmodel import Field, SQLModel
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.utils import get_human_text, get_persona_text, get_utc_time

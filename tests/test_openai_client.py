@@ -1,5 +1,6 @@
-from openai import OpenAI, APIConnectionError
 from logging import getLogger
+
+from openai import APIConnectionError, OpenAI
 
 logger = getLogger(__name__)
 

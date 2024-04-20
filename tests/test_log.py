@@ -1,6 +1,7 @@
 import logging
-from memgpt.log import logger
+
 from memgpt.constants import LOGGER_LOG_LEVELS
+from memgpt.log import logger
 
 
 def test_log_debug():

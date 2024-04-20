@@ -3,7 +3,6 @@ from urllib.parse import urljoin
 from memgpt.local_llm.settings.settings import get_completions_settings
 from memgpt.local_llm.utils import count_tokens, post_json_auth_request
 
-
 LLAMACPP_API_SUFFIX = "/completion"
 
 

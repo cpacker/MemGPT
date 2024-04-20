@@ -2,13 +2,13 @@
 
 import json
 from copy import deepcopy
+from enum import Enum
 from typing import Optional, Tuple, Union
 
-from enum import Enum
+from memgpt.constants import JSON_ENSURE_ASCII
 
 # import openai
 
-from memgpt.constants import JSON_ENSURE_ASCII
 
 # from openai import api_requestor, util
 # from openai.openai_response import OpenAIResponse

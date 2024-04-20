@@ -1,13 +1,14 @@
 import os
-import requests
-import tiktoken
 from typing import List
 
+import requests
+import tiktoken
+
 import memgpt.local_llm.llm_chat_completion_wrappers.airoboros as airoboros
-import memgpt.local_llm.llm_chat_completion_wrappers.dolphin as dolphin
-import memgpt.local_llm.llm_chat_completion_wrappers.zephyr as zephyr
 import memgpt.local_llm.llm_chat_completion_wrappers.chatml as chatml
 import memgpt.local_llm.llm_chat_completion_wrappers.configurable_wrapper as configurable_wrapper
+import memgpt.local_llm.llm_chat_completion_wrappers.dolphin as dolphin
+import memgpt.local_llm.llm_chat_completion_wrappers.zephyr as zephyr
 
 
 def post_json_auth_request(uri, json_payload, auth_type, auth_key):

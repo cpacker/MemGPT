@@ -3,15 +3,12 @@
 We originally tried to use Llama Index VectorIndex, but their limited API was extremely problematic.
 """
 
-from typing import Optional, List, Iterator, Union, Tuple, Type
 import uuid
 from abc import abstractmethod
-
-from typing import List, Optional, Dict
-
+from typing import Dict, Iterator, List, Optional, Tuple, Type, Union
 
 from memgpt.config import MemGPTConfig
-from memgpt.data_types import Record, Passage, Document, Message, RecordType
+from memgpt.data_types import Document, Message, Passage, Record, RecordType
 from memgpt.utils import printd
 
 

@@ -1,36 +1,31 @@
 import configparser
-from datetime import datetime
+import glob
+import json
 import os
 import pickle
-import glob
+import shutil
 import sys
 import traceback
 import uuid
-import json
-import shutil
-from typing import Optional, List
-import pytz
+from datetime import datetime
+from typing import List, Optional
 
+import pytz
+import questionary
 import typer
 from tqdm import tqdm
-import questionary
-
 
 from memgpt.agent import Agent, save_agent
-from memgpt.data_types import AgentState, User, Passage, Source, Message
-from memgpt.metadata import MetadataStore
-from memgpt.utils import (
-    MEMGPT_DIR,
-    get_utc_time,
-    version_less_than,
-    OpenAIBackcompatUnpickler,
-    annotate_message_json_list_with_tool_calls,
-    parse_formatted_time,
-)
-from memgpt.config import MemGPTConfig
-from memgpt.cli.cli_config import configure
 from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.cli.cli_config import configure
+from memgpt.config import MemGPTConfig
+from memgpt.data_types import AgentState, Message, Passage, Source, User
+from memgpt.metadata import MetadataStore
 from memgpt.persistence_manager import LocalStateManager
+from memgpt.utils import (MEMGPT_DIR, OpenAIBackcompatUnpickler,
+                          annotate_message_json_list_with_tool_calls,
+                          get_utc_time, parse_formatted_time,
+                          version_less_than)
 
 # This is the version where the breaking change was made
 VERSION_CUTOFF = "0.2.12"

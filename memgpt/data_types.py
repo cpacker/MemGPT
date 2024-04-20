@@ -1,22 +1,18 @@
 """ This module contains the data types used by MemGPT. Each data type must include a function to create a DB model. """
 
-import uuid
 import json
+import uuid
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, TypeVar
+from typing import Dict, List, Optional, TypeVar
+
 import numpy as np
 from pydantic import BaseModel, Field
 
-from memgpt.constants import (
-    DEFAULT_HUMAN,
-    DEFAULT_PERSONA,
-    LLM_MAX_TOKENS,
-    MAX_EMBEDDING_DIM,
-    TOOL_CALL_ID_MAX_LEN,
-)
-from memgpt.utils import get_utc_time, create_uuid_from_string
-from memgpt.utils import get_human_text, get_persona_text, is_utc_datetime
+from memgpt.constants import (DEFAULT_HUMAN, DEFAULT_PERSONA, LLM_MAX_TOKENS,
+                              MAX_EMBEDDING_DIM, TOOL_CALL_ID_MAX_LEN)
 from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
+from memgpt.utils import (create_uuid_from_string, get_human_text,
+                          get_persona_text, get_utc_time, is_utc_datetime)
 
 
 class Record:

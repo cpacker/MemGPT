@@ -1,32 +1,18 @@
 import uuid
 from typing import List, Optional
 
-from fastapi import APIRouter, Body, HTTPException, Query, Path
+from fastapi import APIRouter, Body, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 
-from memgpt.server.rest_api.interface import QueuingInterface
-from memgpt.server.server import SyncServer
-
 from memgpt.config import MemGPTConfig
-import uuid
-
-from memgpt.server.server import SyncServer
-from memgpt.server.rest_api.interface import QueuingInterface
-from memgpt.models.openai import (
-    AssistantFile,
-    MessageFile,
-    OpenAIAssistant,
-    OpenAIThread,
-    OpenAIMessage,
-    OpenAIRun,
-    OpenAIRunStep,
-    MessageRoleType,
-    Text,
-    ToolCall,
-    ToolCallOutput,
-)
-from memgpt.data_types import Message
 from memgpt.constants import DEFAULT_PRESET
+from memgpt.data_types import Message
+from memgpt.models.openai import (AssistantFile, MessageFile, MessageRoleType,
+                                  OpenAIAssistant, OpenAIMessage, OpenAIRun,
+                                  OpenAIRunStep, OpenAIThread, Text, ToolCall,
+                                  ToolCallOutput)
+from memgpt.server.rest_api.interface import QueuingInterface
+from memgpt.server.server import SyncServer
 from memgpt.utils import get_utc_time
 
 router = APIRouter()

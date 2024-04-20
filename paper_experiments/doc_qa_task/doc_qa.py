@@ -16,25 +16,23 @@ from late 2018, following past work on NaturalQuestions-Open (Izacard & Grave, 2
 et al., 2021) We randomly sample a subset of 50 questions for each point in the graph.
 """
 
-import json
 import argparse
-import uuid
+import json
 import os
-from openai import OpenAI
+import uuid
 from typing import List
+
+from icml_experiments.utils import get_experiment_config, load_gzipped_file
+from openai import OpenAI
 from tqdm import tqdm
 
-from memgpt.embeddings import embedding_model
-from memgpt import MemGPT
-from memgpt.credentials import MemGPTCredentials
+from memgpt import MemGPT, utils
 from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.config import MemGPTConfig
 from memgpt.cli.cli_config import delete
-from memgpt import utils
+from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials
+from memgpt.embeddings import embedding_model
 from memgpt.utils import count_tokens
-
-from icml_experiments.utils import load_gzipped_file, get_experiment_config
-
 
 DATA_SOURCE_NAME = "wikipedia"
 DOC_QA_PERSONA = "You are MemGPT DOC-QA bot. Your job is to answer questions about documents that are stored in your archival memory. The answer to the users question will ALWAYS be in your archival memory, so remember to keep searching if you can't find the answer. Answer the questions as if though the year is 2018."  # TODO decide on a good persona/human

@@ -1,7 +1,7 @@
 import uuid
 from functools import partial
 
-from fastapi import APIRouter, Body, HTTPException, Depends
+from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from memgpt.server.rest_api.auth_token import get_current_user

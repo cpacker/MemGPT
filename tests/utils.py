@@ -1,8 +1,8 @@
 import datetime
-from typing import Dict, List, Tuple, Iterator
 import os
+from typing import Dict, Iterator, List, Tuple
 
-from memgpt.cli.cli import quickstart, QuickstartChoice
+from memgpt.cli.cli import QuickstartChoice, quickstart
 from memgpt.data_sources.connectors import DataConnector
 from memgpt.data_types import Document
 from tests import TEST_MEMGPT_CONFIG

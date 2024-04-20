@@ -8,17 +8,17 @@ memgpt load <data-connector-type> --name <dataset-name> [ADDITIONAL ARGS]
 
 """
 
-from typing import List, Optional, Annotated
-import typer
 import uuid
+from typing import Annotated, List, Optional
 
-from memgpt.data_sources.connectors import load_data, DirectoryConnector, VectorDBConnector
-from memgpt.agent_store.storage import StorageConnector
-from memgpt.config import MemGPTConfig
-from memgpt.metadata import MetadataStore
-from memgpt.data_types import Source
+import typer
+
 from memgpt.agent_store.storage import StorageConnector, TableType
-
+from memgpt.config import MemGPTConfig
+from memgpt.data_sources.connectors import (DirectoryConnector,
+                                            VectorDBConnector, load_data)
+from memgpt.data_types import Source
+from memgpt.metadata import MetadataStore
 
 app = typer.Typer()
 

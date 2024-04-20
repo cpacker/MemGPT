@@ -1,6 +1,7 @@
 import json
-from .wrapper_base import LLMChatCompletionWrapper
+
 from ...constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
+from .wrapper_base import LLMChatCompletionWrapper
 
 
 class SimpleSummaryWrapper(LLMChatCompletionWrapper):

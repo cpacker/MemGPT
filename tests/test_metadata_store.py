@@ -1,15 +1,14 @@
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
 import pytest
 
-from memgpt.settings import settings
 from memgpt.agent import Agent, save_agent
+from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
+from memgpt.data_types import AgentState, LLMConfig, Source, User
 from memgpt.metadata import MetadataStore
-from memgpt.data_types import User, AgentState, Source, LLMConfig
+from memgpt.models.pydantic_models import HumanModel, PersonaModel
+from memgpt.presets.presets import add_default_presets
+from memgpt.settings import settings
 from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
-from memgpt.presets.presets import add_default_presets
-from memgpt.models.pydantic_models import HumanModel, PersonaModel
-from memgpt.models.pydantic_models import HumanModel, PersonaModel
 
 
 # @pytest.mark.parametrize("storage_connector", ["postgres", "sqlite"])
@@ -71,7 +70,8 @@ def test_storage(storage_connector):
 
     add_default_presets(user_1.id, ms)
     preset_obj = ms.get_preset(name=DEFAULT_PRESET, user_id=user_1.id)
-    from memgpt.interface import CLIInterface as interface  # for printing to terminal
+    from memgpt.interface import \
+        CLIInterface as interface  # for printing to terminal
 
     # Overwrite fields in the preset if they were specified
     preset_obj.human = get_human_text(DEFAULT_HUMAN)

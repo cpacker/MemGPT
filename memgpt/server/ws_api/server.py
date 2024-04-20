@@ -6,10 +6,10 @@ import traceback
 
 import websockets
 
+import memgpt.server.ws_api.protocol as protocol
+from memgpt.server.constants import WS_DEFAULT_PORT
 from memgpt.server.server import SyncServer
 from memgpt.server.ws_api.interface import SyncWebSocketInterface
-from memgpt.server.constants import WS_DEFAULT_PORT
-import memgpt.server.ws_api.protocol as protocol
 
 
 class WebSocketServer:

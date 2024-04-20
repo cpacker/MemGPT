@@ -5,7 +5,7 @@ import uuid
 from memgpt.migrate import migrate_all_agents
 from memgpt.server.server import SyncServer
 
-from .utils import wipe_config, create_config
+from .utils import create_config, wipe_config
 
 
 def test_migrate_0211():

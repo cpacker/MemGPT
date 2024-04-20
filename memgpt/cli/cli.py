@@ -1,32 +1,32 @@
-import uuid
 import json
-import requests
-import sys
 import logging
-from pathlib import Path
 import os
 import subprocess
+import sys
+import uuid
 from enum import Enum
+from pathlib import Path
 from typing import Annotated, Optional
 
-import typer
 import questionary
+import requests
+import typer
 
-from memgpt.log import logger
-
-# from memgpt.interface import CLIInterface as interface  # for printing to terminal
-from memgpt.streaming_interface import StreamingRefreshCLIInterface as interface  # for printing to terminal
-from memgpt.cli.cli_config import configure
 import memgpt.utils as utils
-from memgpt.utils import printd, open_folder_in_explorer
-from memgpt.config import MemGPTConfig
-from memgpt.credentials import MemGPTCredentials
-from memgpt.constants import MEMGPT_DIR, CLI_WARNING_PREFIX
 from memgpt.agent import Agent, save_agent
-from memgpt.server.constants import WS_DEFAULT_PORT
-from memgpt.data_types import LLMConfig, EmbeddingConfig, User
+from memgpt.cli.cli_config import configure
+from memgpt.config import MemGPTConfig
+from memgpt.constants import CLI_WARNING_PREFIX, MEMGPT_DIR
+from memgpt.credentials import MemGPTCredentials
+from memgpt.data_types import EmbeddingConfig, LLMConfig, User
+from memgpt.log import logger
 from memgpt.metadata import MetadataStore
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
+from memgpt.server.constants import WS_DEFAULT_PORT
+# from memgpt.interface import CLIInterface as interface  # for printing to terminal
+from memgpt.streaming_interface import \
+    StreamingRefreshCLIInterface as interface  # for printing to terminal
+from memgpt.utils import open_folder_in_explorer, printd
 
 
 def migrate(
@@ -468,7 +468,8 @@ def run(
     else:
         logger.setLevel(logging.CRITICAL)
 
-    from memgpt.migrate import config_is_compatible, wipe_config_and_reconfigure, VERSION_CUTOFF
+    from memgpt.migrate import (VERSION_CUTOFF, config_is_compatible,
+                                wipe_config_and_reconfigure)
 
     if not config_is_compatible(allow_empty=True):
         typer.secho(f"\nYour current config file is incompatible with MemGPT versions later than {VERSION_CUTOFF}\n", fg=typer.colors.RED)

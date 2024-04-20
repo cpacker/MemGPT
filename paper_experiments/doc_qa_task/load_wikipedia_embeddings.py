@@ -1,17 +1,18 @@
-import json
-import hashlib
-import os
-import uuid
 import copy
+import hashlib
+import json
+import os
+import time
+import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from absl import app, flags
+from icml_experiments.utils import get_experiment_config
 from tqdm import tqdm
+
+from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.cli.cli_config import delete
 from memgpt.data_types import Passage
-from memgpt.agent_store.storage import StorageConnector, TableType
-
-from icml_experiments.utils import get_experiment_config
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from absl import app, flags
-import time
 
 # Create an empty list to store the JSON objects
 source_name = "wikipedia"

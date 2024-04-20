@@ -1,19 +1,21 @@
-import uuid
-import tempfile
 import os
+import tempfile
+import uuid
 from functools import partial
 from typing import List, Optional
 
-from fastapi import APIRouter, Body, Depends, Query, HTTPException, status, UploadFile, BackgroundTasks
+from fastapi import (APIRouter, BackgroundTasks, Body, Depends, HTTPException,
+                     Query, UploadFile, status)
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from memgpt.models.pydantic_models import SourceModel, PassageModel, DocumentModel, JobModel, JobStatus
+from memgpt.data_sources.connectors import DirectoryConnector
+from memgpt.data_types import Source
+from memgpt.models.pydantic_models import (DocumentModel, JobModel, JobStatus,
+                                           PassageModel, SourceModel)
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
-from memgpt.data_types import Source
-from memgpt.data_sources.connectors import DirectoryConnector
 
 router = APIRouter()
 

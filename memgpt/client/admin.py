@@ -1,16 +1,15 @@
-from typing import Optional
 import uuid
+from typing import Optional
+
 import requests
 from requests import HTTPError
 
-from memgpt.server.rest_api.admin.users import (
-    CreateUserResponse,
-    CreateAPIKeyResponse,
-    GetAPIKeysResponse,
-    DeleteAPIKeyResponse,
-    DeleteUserResponse,
-    GetAllUsersResponse,
-)
+from memgpt.server.rest_api.admin.users import (CreateAPIKeyResponse,
+                                                CreateUserResponse,
+                                                DeleteAPIKeyResponse,
+                                                DeleteUserResponse,
+                                                GetAllUsersResponse,
+                                                GetAPIKeysResponse)
 
 
 class Admin:

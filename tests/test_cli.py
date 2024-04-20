@@ -1,5 +1,5 @@
-import subprocess
 import os
+import subprocess
 import sys
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "pexpect"])
@@ -7,7 +7,6 @@ import pexpect
 
 from .constants import TIMEOUT
 from .utils import create_config
-
 
 # def test_configure_memgpt():
 #    configure_memgpt()
