@@ -1,0 +1,46 @@
+name: Run All pytest Tests
+
+env:
+  MEMGPT_PGURI: ${{ secrets.MEMGPT_PGURI }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: "Setup Python, Poetry and Dependencies"
+      uses: packetcoders/action-setup-cache-python-poetry@main
+      with:
+        python-version: "3.11"
+        poetry-version: "1.7.1"
+        install-args: "--all-extras"
+
+    - name: Build and run docker dev server
+      env:
+        MEMGPT_PG_DB:   memgpt
+        MEMGPT_PG_USER: memgpt
+        MEMGPT_PG_PASSWORD: memgpt
+        MEMGPT_SERVER_PASS: test_server_token
+
+      run: docker compose -f dev-compose.yaml up --build -d
+
+    - name: Run tests with pytest
+      env:
+        MEMGPT_PG_DB:   memgpt
+        MEMGPT_PG_USER: memgpt
+        MEMGPT_PG_PASSWORD: memgpt
+        MEMGPT_SERVER_PASS: test_server_token
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
+      run: |
+        poetry run pytest -s -vv -k tests/test_client.py
