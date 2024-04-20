@@ -34,7 +34,7 @@ jobs:
       run: docker compose -f dev-compose.yaml up --build -d
 
     - name: Wait for service
-      run: ./scripts/wait_for_service.sh http://localhost:8083 -- echo "Service is ready"
+      run: bash scripts/wait_for_service.sh http://localhost:8083 -- echo "Service is ready"
 
     - name: "Setup Python, Poetry and Dependencies"
       uses: packetcoders/action-setup-cache-python-poetry@main
