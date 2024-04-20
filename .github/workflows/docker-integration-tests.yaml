@@ -17,6 +17,12 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Set permissions for log directory
+      run: |
+        mkdir -p /home/runner/.memgpt/logs
+        sudo chown -R $USER:$USER /home/runner/.memgpt/logs
+        chmod -R 755 /home/runner/.memgpt/logs
+
     - name: "Setup Python, Poetry and Dependencies"
       uses: packetcoders/action-setup-cache-python-poetry@main
       with:
