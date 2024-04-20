@@ -12,6 +12,7 @@ import warnings
 from fastapi import HTTPException
 import uvicorn
 
+from memgpt.settings import settings
 import memgpt.constants as constants
 import memgpt.presets.presets as presets
 import memgpt.server.utils as server_utils
@@ -208,6 +209,12 @@ class SyncServer(LockingServer):
         self.config = MemGPTConfig.load()
         assert self.config.persona is not None, "Persona must be set in the config"
         assert self.config.human is not None, "Human must be set in the config"
+
+        # Update storage URI to match passed in settings
+        # TODO: very hack, fix in the future
+        for memory_type in ("archival", "recall", "metadata"):
+            setattr(self.config, f"{memory_type}_storage_uri", settings.pg_uri)
+        self.config.save()
 
         # TODO figure out how to handle credentials for the server
         self.credentials = MemGPTCredentials.load()
