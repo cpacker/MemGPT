@@ -23,13 +23,6 @@ jobs:
         sudo chown -R $USER:$USER /home/runner/.memgpt/logs
         chmod -R 755 /home/runner/.memgpt/logs
 
-    - name: "Setup Python, Poetry and Dependencies"
-      uses: packetcoders/action-setup-cache-python-poetry@main
-      with:
-        python-version: "3.11"
-        poetry-version: "1.7.1"
-        install-args: "-E dev"
-
     - name: Build and run docker dev server
       env:
         MEMGPT_PG_DB:   memgpt
@@ -39,6 +32,16 @@ jobs:
         MEMGPT_SERVER_PASS: test_server_token
 
       run: docker compose -f dev-compose.yaml up --build -d
+
+    - name: Wait for service
+      run: ./scripts/wait_for_service.sh http://localhost:8083 -- echo "Service is ready"
+
+    - name: "Setup Python, Poetry and Dependencies"
+      uses: packetcoders/action-setup-cache-python-poetry@main
+      with:
+        python-version: "3.11"
+        poetry-version: "1.7.1"
+        install-args: "-E dev"
 
     - name: Run tests with pytest
       env:
