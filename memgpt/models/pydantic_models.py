@@ -3,22 +3,6 @@ from pydantic import BaseModel, Field, Json, ConfigDict
 
 from enum import Enum
 
-# try:
-#     from enum import StrEnum
-# except ImportError:
-#     from enum import Enum
-
-#     class StrEnum(str, Enum):
-#         """
-#         Enum where members are also (and must be) strs.
-#         """
-
-#         def __new__(cls, value):
-#             member = str.__new__(cls, value)
-#             member._value_ = value
-#             return member
-
-
 import uuid
 import base64
 import numpy as np
@@ -152,7 +136,6 @@ class SourceModel(SQLModel, table=True):
     metadata_: Optional[dict] = Field(None, sa_column=Column(JSON), description="Metadata associated with the source.")
 
 
-# class JobStatus(StrEnum):
 class JobStatus(str, Enum):
     created = "created"
     running = "running"

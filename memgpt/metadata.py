@@ -557,7 +557,6 @@ class MetadataStore:
     def list_tools(self, user_id: uuid.UUID) -> List[ToolModel]:
         with self.session_maker() as session:
             available_functions = load_all_function_sets()
-            # print(available_functions)
             results = [
                 ToolModel(
                     name=k,
