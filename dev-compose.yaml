@@ -27,8 +27,6 @@ services:
     ports:
       - "8083:8083"
       - "8283:8283"
-    env_file:
-      - .env
     environment:
       - MEMGPT_SERVER_PASS=${MEMGPT_SERVER_PASS} # memgpt server password
       - MEMGPT_PG_DB=${MEMGPT_PG_DB}
