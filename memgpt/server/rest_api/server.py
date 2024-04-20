@@ -39,12 +39,10 @@ Start the server with:
   cd memgpt/server/rest_api
   poetry run uvicorn server:app --reload
 """
-
 config = MemGPTConfig.load()
 for memory_type in ("archival", "recall", "metadata"):
     setattr(config, f"{memory_type}_storage_uri", settings.pg_uri)
 config.save()
-
 
 interface: QueuingInterface = QueuingInterface()
 server: SyncServer = SyncServer(default_interface=interface)

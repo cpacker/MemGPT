@@ -97,7 +97,7 @@ def load_data(
 
             passages.append(passage)
             embedding_to_document_name[hashable_embedding] = document_name
-            if len(passages) >= embedding_config.embedding_chunk_size:
+            if len(passages) >= 100:
                 # insert passages into passage store
                 passage_store.insert_many(passages)
 
