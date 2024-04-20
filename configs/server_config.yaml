@@ -18,17 +18,17 @@ embedding_chunk_size = 300
 [archival_storage]
 type = postgres
 path = /root/.memgpt/chroma
-uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt
+uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt_test_db
 
 [recall_storage]
 type = postgres
 path = /root/.memgpt
-uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt
+uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt_test_db
 
 [metadata_storage]
 type = postgres
 path = /root/.memgpt
-uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt
+uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt_test_db
 
 [version]
 memgpt_version = 0.3.11
