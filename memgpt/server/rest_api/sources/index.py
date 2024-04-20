@@ -58,8 +58,9 @@ class GetSourceDocumentsResponse(BaseModel):
     documents: List[DocumentModel] = Field(..., description="List of documents from the source.")
 
 
-def load_file_to_source(server: SyncServer, user_id: uuid.UUID, source: Source, job: JobModel, file: UploadFile):
+def load_file_to_source(server: SyncServer, user_id: uuid.UUID, source: Source, job_id: uuid.UUID, file: UploadFile):
     # update job status
+    job = server.ms.get_job(job_id=job_id)
     job.status = JobStatus.running
     server.ms.update_job(job)
 
@@ -80,16 +81,18 @@ def load_file_to_source(server: SyncServer, user_id: uuid.UUID, source: Source, 
     except Exception as e:
         # job failed with error
         error = str(e)
+        print(error)
         job.status = JobStatus.failed
-        job.metadata["error"] = error
+        job.metadata_["error"] = error
         server.ms.update_job(job)
         # TODO: delete any associated passages/documents?
         return 0, 0
 
     # update job status
     job.status = JobStatus.completed
-    job.metadata["num_passages"] = num_passages
-    job.metadata["num_documents"] = num_documents
+    job.metadata_["num_passages"] = num_passages
+    job.metadata_["num_documents"] = num_documents
+    print("job completed", job.metadata_, job.id)
     server.ms.update_job(job)
 
 
@@ -186,7 +189,10 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """Get the status of a job."""
-        job = server.ms.get_job(job_id=job_id, user_id=user_id)
+        print("GET", job_id)
+        job = server.ms.get_job(job_id=job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail=f"Job with id={job_id} not found.")
         return job
 
     @router.post("/sources/{source_id}/upload", tags=["sources"], response_model=JobModel)
@@ -202,11 +208,15 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         source = server.ms.get_source(source_id=source_id, user_id=user_id)
 
         # create job
-        job = JobModel(user_id=user_id, metadata={"type": "embedding"})
+        job = JobModel(user_id=user_id, metadata={"type": "embedding", "filename": file.filename, "source_id": source_id})
+        job_id = job.id
         server.ms.create_job(job)
 
         # create background task
-        background_tasks.add_task(load_file_to_source, server, user_id, source, job, file)
+        background_tasks.add_task(load_file_to_source, server, user_id, source, job_id, file)
+
+        job = server.ms.get_job(job_id=job_id)
+        print("job created", job_id, job.metadata_)
 
         # return job information
         return job
@@ -231,7 +241,6 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         ## TODO: actually return added passages/documents
         ##return UploadFileToSourceResponse(source=source, added_passages=passage_count, added_documents=document_count)
 
-    @router.post("/sources/")
     @router.get("/sources/{source_id}/passages ", tags=["sources"], response_model=GetSourcePassagesResponse)
     async def list_passages(
         source_id: uuid.UUID,

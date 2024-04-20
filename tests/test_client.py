@@ -37,8 +37,6 @@ test_server_token = "test_server_token"
 
 def run_server():
     import uvicorn
-    from memgpt.server.rest_api.server import app
-    from memgpt.server.rest_api.server import start_server
 
     load_dotenv()
 
@@ -98,7 +96,10 @@ def run_server():
     config.save()
     credentials.save()
 
-    print("Starting server...")
+    from memgpt.server.rest_api.server import app
+    from memgpt.server.rest_api.server import start_server
+
+    print("Starting server...", config.config_path)
     start_server(debug=True)
 
 
@@ -106,7 +107,7 @@ def run_server():
 @pytest.fixture(
     params=[
         {"base_url": local_service_url},
-        {"base_url": docker_compose_url},  # TODO: add when docker compose added to tests
+        # {"base_url": docker_compose_url},  # TODO: add when docker compose added to tests
         # {"base_url": None} # TODO: add when implemented
     ],
     scope="module",
@@ -271,7 +272,8 @@ def test_sources(client, agent):
 
     # load a file into a source
     filename = "CONTRIBUTING.md"
-    response = client.load_file_into_source(filename=filename, source_id=source.id)
+    upload_job = client.load_file_into_source(filename=filename, source_id=source.id)
+    print("Upload job", upload_job, upload_job.status, upload_job.metadata)
 
     # TODO: make sure things run in the right order
     archival_memories = client.get_agent_archival_memory(agent_id=agent.id).archival_memory

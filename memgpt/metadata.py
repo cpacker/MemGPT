@@ -766,6 +766,7 @@ class MetadataStore:
         with self.session_maker() as session:
             session.add(job)
             session.commit()
+            session.expunge_all()
 
     def update_job_status(self, job_id: uuid.UUID, status: JobStatus):
         with self.session_maker() as session:

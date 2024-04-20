@@ -340,10 +340,9 @@ class AgentConfig:
         # functions
         functions=None,  # schema definitions ONLY (linked at runtime)
     ):
-        if name is None:
-            self.name = f"agent_{self.generate_agent_id()}"
-        else:
-            self.name = name
+
+        assert name, f"Agent name must be provided"
+        self.name = name
 
         config = MemGPTConfig.load()  # get default values
         self.persona = config.persona if persona is None else persona
@@ -395,15 +394,6 @@ class AgentConfig:
         self.agent_config_path = (
             os.path.join(MEMGPT_DIR, "agents", self.name, "config.json") if agent_config_path is None else agent_config_path
         )
-
-    def generate_agent_id(self, length=6):
-        ## random character based
-        # characters = string.ascii_lowercase + string.digits
-        # return ''.join(random.choices(characters, k=length))
-
-        # count based
-        agent_count = len(utils.list_agent_config_files())
-        return str(agent_count + 1)
 
     def attach_data_source(self, data_source: str):
         # TODO: add warning that only once source can be attached

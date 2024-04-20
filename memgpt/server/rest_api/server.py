@@ -38,15 +38,15 @@ Start the server with:
   cd memgpt/server/rest_api
   poetry run uvicorn server:app --reload
 """
-# override config with postgres enviornment (messy, but necessary for docker compose)
-# TODO: do something less gross
-if os.getenv("POSTGRES_URI"):
-    config = MemGPTConfig.load()
-    config.archival_storage_uri = os.getenv("POSTGRES_URI")
-    config.recall_storage_uri = os.getenv("POSTGRES_URI")
-    config.metadata_storage_uri = os.getenv("POSTGRES_URI")
-    print(f"Overriding DB config URI with enviornment variable: {config.archival_storage_uri}")
-    config.save()
+## override config with postgres enviornment (messy, but necessary for docker compose)
+## TODO: do something less gross
+# if os.getenv("POSTGRES_URI"):
+#    config = MemGPTConfig.load()
+#    config.archival_storage_uri = os.getenv("POSTGRES_URI")
+#    config.recall_storage_uri = os.getenv("POSTGRES_URI")
+#    config.metadata_storage_uri = os.getenv("POSTGRES_URI")
+#    print(f"Overriding DB config URI with enviornment variable: {config.archival_storage_uri}")
+#    config.save()
 
 
 interface: QueuingInterface = QueuingInterface()

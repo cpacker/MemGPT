@@ -3,9 +3,10 @@ import requests
 from requests.exceptions import RequestException
 import uuid
 from typing import Dict, List, Union, Optional, Tuple
+import time
 
 from memgpt.data_types import AgentState, User, Preset, LLMConfig, EmbeddingConfig, Source
-from memgpt.models.pydantic_models import HumanModel, PersonaModel, PresetModel, SourceModel
+from memgpt.models.pydantic_models import HumanModel, PersonaModel, PresetModel, SourceModel, JobModel, JobStatus
 from memgpt.cli.cli import QuickstartChoice
 from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func, str_to_quickstart_choice
 from memgpt.config import MemGPTConfig
@@ -436,11 +437,32 @@ class RESTClient(AbstractClient):
         response = requests.delete(f"{self.base_url}/api/sources/{str(source_id)}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete source: {response.text}"
 
-    def load_file_into_source(self, filename: str, source_id: uuid.UUID):
+    def get_job_status(self, job_id: uuid.UUID):
+        response = requests.get(f"{self.base_url}/api/sources/status/{str(job_id)}", headers=self.headers)
+        return JobModel(**response.json())
+
+    def load_file_into_source(self, filename: str, source_id: uuid.UUID, blocking=True):
         """Load {filename} and insert into source"""
         files = {"file": open(filename, "rb")}
+
+        # create job
         response = requests.post(f"{self.base_url}/api/sources/{source_id}/upload", files=files, headers=self.headers)
-        return UploadFileToSourceResponse(**response.json())
+        if response.status_code != 200:
+            raise ValueError(f"Failed to upload file to source: {response.text}")
+
+        print("RESPONSE FILE", response.json(), response.status_code)
+        job = JobModel(**response.json())
+        if blocking:
+            # wait until job is completed
+            while True:
+                print("get id", job.id)
+                job = self.get_job_status(job.id)
+                if job.status == JobStatus.completed:
+                    break
+                elif job.status == JobStatus.failed:
+                    raise ValueError(f"Job failed: {job.metadata}")
+                time.sleep(5)
+        return job
 
     def create_source(self, name: str) -> Source:
         """Create a new source"""
