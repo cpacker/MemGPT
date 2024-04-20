@@ -247,6 +247,19 @@ class SyncServer(LockingServer):
         # Initialize the metadata store
         self.ms = MetadataStore(self.config)
 
+        # pre-fill database (users, presets, humans, personas)
+        # TODO: figure out how to handle default users  (server is technically multi-user)
+        user_id = uuid.UUID(self.config.anon_clientid)
+        user = User(
+            id=uuid.UUID(self.config.anon_clientid),
+        )
+        if self.ms.get_user(user_id):
+            # update user
+            self.ms.update_user(user)
+        else:
+            self.ms.create_user(user)
+        presets.add_default_presets(user_id, self.ms)
+
         # NOTE: removed, since server should be multi-user
         ## Create the default user
         # base_user_id = uuid.UUID(self.config.anon_clientid)
@@ -805,7 +818,10 @@ class SyncServer(LockingServer):
         return agent_config
 
     # TODO make return type pydantic
-    def list_agents(self, user_id: uuid.UUID) -> dict:
+    def list_agents(
+        self,
+        user_id: uuid.UUID,
+    ) -> dict:
         """List all available agents to a user"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -859,6 +875,9 @@ class SyncServer(LockingServer):
             sources_ids = self.ms.list_attached_sources(agent_id=agent_state.id)
             sources = [self.ms.get_source(source_id=s_id) for s_id in sources_ids]
             return_dict["sources"] = [vars(s) for s in sources]
+
+        # Sort agents by "last_run" in descending order, most recent first
+        agents_states_dicts.sort(key=lambda x: x["last_run"], reverse=True)
 
         logger.info(f"Retrieved {len(agents_states)} agents for user {user_id}:\n{[vars(s) for s in agents_states]}")
         return {

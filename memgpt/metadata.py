@@ -6,6 +6,7 @@ import uuid
 import secrets
 from typing import Optional, List
 
+from memgpt.settings import settings
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
 from memgpt.utils import enforce_types, printd, get_utc_time
 from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig, Token, Preset
@@ -301,21 +302,14 @@ class PresetModel(Base):
 
 
 class MetadataStore:
+    uri: Optional[str] = None
+
     def __init__(self, config: MemGPTConfig):
         # TODO: get DB URI or path
         if config.metadata_storage_type == "postgres":
             # construct URI from enviornment variables
-            if os.getenv("MEMGPT_PGURI"):
-                self.uri = os.getenv("MEMGPT_PGURI")
-            elif os.getenv("MEMGPT_PG_DB"):
-                db = os.getenv("MEMGPT_PG_DB", "memgpt")
-                user = os.getenv("MEMGPT_PG_USER", "memgpt")
-                password = os.getenv("MEMGPT_PG_PASSWORD", "memgpt")
-                port = os.getenv("MEMGPT_PG_PORT", "5432")
-                url = os.getenv("MEMGPT_PG_URL", "localhost")
-                self.uri = f"postgresql+pg8000://{user}:{password}@{url}:{port}/{db}"
-            else:
-                self.uri = config.metadata_storage_uri
+            self.uri = settings.pg_uri if settings.pg_uri else config.metadata_storage_uri
+
         elif config.metadata_storage_type == "sqlite":
             path = os.path.join(config.metadata_storage_path, "sqlite.db")
             self.uri = f"sqlite:///{path}"
@@ -323,8 +317,7 @@ class MetadataStore:
             raise ValueError(f"Invalid metadata storage type: {config.metadata_storage_type}")
 
         # Ensure valid URI
-        if not self.uri:
-            raise ValueError("Database URI is not provided or is invalid.")
+        assert self.uri, "Database URI is not provided or is invalid."
 
         # Check if tables need to be created
         self.engine = create_engine(self.uri)
@@ -395,6 +388,8 @@ class MetadataStore:
     def create_agent(self, agent: AgentState):
         # insert into agent table
         # make sure agent.name does not already exist for user user_id
+        assert agent.state is not None, "Agent state must be provided"
+        assert len(list(agent.state.keys())) > 0, "Agent state must not be empty"
         with self.session_maker() as session:
             if session.query(AgentModel).filter(AgentModel.name == agent.name).filter(AgentModel.user_id == agent.user_id).count() > 0:
                 raise ValueError(f"Agent with name {agent.name} already exists")

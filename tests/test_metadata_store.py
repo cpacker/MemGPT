@@ -2,6 +2,7 @@ import os
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
 import pytest
 
+from memgpt.settings import settings
 from memgpt.agent import Agent, save_agent
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import User, AgentState, Source, LLMConfig
@@ -16,11 +17,8 @@ from memgpt.models.pydantic_models import HumanModel, PersonaModel
 @pytest.mark.parametrize("storage_connector", ["sqlite"])
 def test_storage(storage_connector):
     if storage_connector == "postgres":
-        if not os.getenv("MEMGPT_PGURI"):
-            print("Skipping test, missing PG URI")
-            return
-        TEST_MEMGPT_CONFIG.archival_storage_uri = os.environ["MEMGPT_PGURI"]
-        TEST_MEMGPT_CONFIG.recall_storage_uri = os.environ["MEMGPT_PGURI"]
+        TEST_MEMGPT_CONFIG.archival_storage_uri = settings.pg_uri
+        TEST_MEMGPT_CONFIG.recall_storage_uri = settings.pg_uri
         TEST_MEMGPT_CONFIG.archival_storage_type = "postgres"
         TEST_MEMGPT_CONFIG.recall_storage_type = "postgres"
     if storage_connector == "sqlite":

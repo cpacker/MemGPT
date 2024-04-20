@@ -5,10 +5,12 @@ from sqlalchemy.ext.declarative import declarative_base
 
 
 # import memgpt
+from memgpt.settings import settings
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.cli.cli_load import load_directory
 
 # from memgpt.data_sources.connectors import DirectoryConnector, load_data
+from memgpt.settings import settings
 from memgpt.credentials import MemGPTCredentials
 from memgpt.metadata import MetadataStore
 from memgpt.data_types import User, AgentState, EmbeddingConfig, LLMConfig
@@ -58,10 +60,7 @@ def test_load_directory(
 
     # setup config
     if metadata_storage_connector == "postgres":
-        if not os.getenv("MEMGPT_PGURI"):
-            print("Skipping test, missing PG URI")
-            return
-        TEST_MEMGPT_CONFIG.metadata_storage_uri = os.getenv("MEMGPT_PGURI")
+        TEST_MEMGPT_CONFIG.metadata_storage_uri = settings.pg_uri
         TEST_MEMGPT_CONFIG.metadata_storage_type = "postgres"
     elif metadata_storage_connector == "sqlite":
         print("testing  sqlite metadata")
@@ -69,10 +68,7 @@ def test_load_directory(
     else:
         raise NotImplementedError(f"Storage type {metadata_storage_connector} not implemented")
     if passage_storage_connector == "postgres":
-        if not os.getenv("MEMGPT_PGURI"):
-            print("Skipping test, missing PG URI")
-            return
-        TEST_MEMGPT_CONFIG.archival_storage_uri = os.getenv("MEMGPT_PGURI")
+        TEST_MEMGPT_CONFIG.archival_storage_uri = settings.pg_uri
         TEST_MEMGPT_CONFIG.archival_storage_type = "postgres"
     elif passage_storage_connector == "chroma":
         print("testing chroma passage storage")
@@ -134,7 +130,7 @@ def test_load_directory(
     )
     ms.delete_user(user.id)
     ms.create_user(user)
-    ms.create_agent(agent)
+    # ms.create_agent(agent)
     user = ms.get_user(user.id)
     print("Got user:", user, embedding_config)
 

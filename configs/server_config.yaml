@@ -12,28 +12,26 @@ context_window = 8192
 [embedding]
 embedding_endpoint_type = openai
 embedding_endpoint = https://api.openai.com/v1
-embedding_model = text-embedding-ada-002
 embedding_dim = 1536
 embedding_chunk_size = 300
 
 [archival_storage]
 type = postgres
 path = /root/.memgpt/chroma
-uri = postgresql://memgpt:memgpt@pgvector_db:5432/memgpt
+uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt
 
 [recall_storage]
 type = postgres
 path = /root/.memgpt
-uri = postgresql://memgpt:memgpt@pgvector_db:5432/memgpt
+uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt
 
 [metadata_storage]
 type = postgres
 path = /root/.memgpt
-uri = postgresql://memgpt:memgpt@pgvector_db:5432/memgpt
+uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt
 
 [version]
-memgpt_version = 0.3.7
+memgpt_version = 0.3.11
 
 [client]
 anon_clientid = 00000000-0000-0000-0000-000000000000
-
