@@ -121,6 +121,37 @@ async def save_user_pseudonym(telegram_user_id: int, pseudonym: str):
         logging.error(f"Exception occurred while saving pseudonym for Telegram user ID {telegram_user_id}: {e}")
         return False
 
+async def save_source_id(telegram_user_id: int, source_id: str):
+    loop = asyncio.get_event_loop()
+    try:
+        data, error = await loop.run_in_executor(None, lambda: supabase.table("users").update({"source_id": source_id}).eq("telegram_user_id", telegram_user_id).execute())
+        # Check if the operation was successful by examining the error variable correctly
+        if error and error[0] != 'count':
+            logging.error(f"Failed to save source_id for Telegram user ID {telegram_user_id}: {error}")
+            return False
+        else:
+            logging.info(f"Source_id saved successfully for Telegram user ID {telegram_user_id}.")
+            return True
+    except Exception as e:
+        logging.error(f"Exception occurred while saving source_id for Telegram user ID {telegram_user_id}: {e}")
+        return False
+
+async def get_source_id(telegram_user_id: int):
+    loop = asyncio.get_event_loop()
+    data, error = await loop.run_in_executor(None, lambda: supabase.table("users").select("source_id").eq("telegram_user_id", telegram_user_id).execute())
+    logging.info(f"Data fetched for memgpt_user_id: {data}, Error: {error}")
+
+    # Check if 'memgpt_user_id' key exists
+    if data[1][0].get('source_id'):
+        # Extracting the value of 'memgpt_user_id'
+        source_id = data[1][0]['source_id']
+        logging.info(f"Returning source_id: {source_id}")
+        return source_id
+    else:
+        logging.error("Missing 'source_id' field.")
+    
+    return None
+
 async def get_user_info(telegram_user_id: int):
     loop = asyncio.get_event_loop()
     data, error = await loop.run_in_executor(None, lambda: supabase.table("users").select("*").eq("telegram_user_id", telegram_user_id).execute())
