@@ -12,12 +12,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: "Setup Python, Poetry and Dependencies"
-      uses: packetcoders/action-setup-cache-python-poetry@v1.2.0
-      with:
-        python-version: "3.12"
-        poetry-version: "1.8.2"
-        install-args: "--all-extras"
 
     - name: Set permissions for log directory
       run: |
@@ -35,6 +29,13 @@ jobs:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       run: docker compose -f dev-compose.yaml up --build -d
+
+    - name: "Setup Python, Poetry and Dependencies"
+      uses: packetcoders/action-setup-cache-python-poetry@v1.2.0
+      with:
+        python-version: "3.12"
+        poetry-version: "1.8.2"
+        install-args: "--all-extras"
 
     - name: Wait for service
       run: bash scripts/wait_for_service.sh http://localhost:8083 -- echo "Service is ready"
