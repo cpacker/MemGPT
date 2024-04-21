@@ -32,6 +32,7 @@ jobs:
         MEMGPT_PG_PASSWORD: memgpt
         MEMGPT_PG_PORT: 8888
         MEMGPT_SERVER_PASS: test_server_token
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       run: docker compose -f dev-compose.yaml up --build -d
 
