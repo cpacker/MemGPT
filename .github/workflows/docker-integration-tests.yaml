@@ -1,8 +1,3 @@
-name: Run docker integration tests
-
-env:
-  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-
 on:
   push:
     branches: [ main ]
@@ -54,3 +49,9 @@ jobs:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
       run: poetry run pytest -s tests/test_client.py
+
+    - name: Print docker logs if tests fail
+      if: failure()
+      run: |
+        echo "Printing Docker Logs..."
+        docker compose -f dev-compose.yaml logs
