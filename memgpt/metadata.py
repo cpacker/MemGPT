@@ -545,7 +545,8 @@ class MetadataStore:
             return [r.to_record() for r in results]
 
     @enforce_types
-    def list_tools(self, user_id: uuid.UUID) -> List[ToolModel]:
+    # def list_tools(self, user_id: uuid.UUID) -> List[ToolModel]: # TODO: add when users can creat tools
+    def list_tools(self) -> List[ToolModel]:
         with self.session_maker() as session:
             available_functions = load_all_function_sets()
             results = [

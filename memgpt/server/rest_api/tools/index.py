@@ -33,20 +33,21 @@ def setup_tools_index_router(server: SyncServer, interface: QueuingInterface, pa
 
     @router.get("/tools", tags=["tools"], response_model=ListToolsResponse)
     async def list_all_tools(
-        user_id: uuid.UUID = Depends(get_current_user_with_server),
+        # user_id: uuid.UUID = Depends(get_current_user_with_server), # TODO: add back when user-specific
     ):
         """
         Get a list of all tools available to agents created by a user
         """
         # Clear the interface
         interface.clear()
-        tools = server.ms.list_tools(user_id=user_id)
+        # tools = server.ms.list_tools(user_id=user_id) TODO: add back when user-specific
+        tools = server.ms.list_tools()
         return ListToolsResponse(tools=tools)
 
     @router.post("/tools", tags=["tools"], response_model=CreateToolResponse)
     async def create_tool(
         request: CreateToolRequest = Body(...),
-        user_id: uuid.UUID = Depends(get_current_user_with_server),
+        # user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
         Create a new tool (dummy route)
