@@ -16,7 +16,7 @@ class MemGPTCredentials:
 
     # openai config
     openai_auth_type: str = "bearer_token"
-    openai_key: Optional[str] = None
+    openai_key: Optional[str] = os.getenv("OPENAI_API_KEY")
 
     # gemini config
     google_ai_key: Optional[str] = None
