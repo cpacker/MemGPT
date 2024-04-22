@@ -13,13 +13,12 @@ from memgpt.metadata import MetadataStore
 # from memgpt.data_sources.connectors import DirectoryConnector, load_data
 # import memgpt
 from memgpt.settings import settings
-from memgpt.credentials import MemGPTCredentials
-from memgpt.metadata import MetadataStore
 
-from memgpt.data_types import User, AgentState, EmbeddingConfig, LLMConfig
 from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
 from .utils import wipe_config, get_passage_storage
+
+GET_ALL_LIMIT = 1000
 
 
 
