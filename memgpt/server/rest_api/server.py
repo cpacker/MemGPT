@@ -93,7 +93,9 @@ app.include_router(setup_agents_message_router(server, interface, password), pre
 app.include_router(setup_humans_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_personas_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_models_index_router(server, interface, password), prefix=API_PREFIX)
-app.include_router(setup_tools_index_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(
+    setup_tools_index_router(server, interface, password), prefix=API_PREFIX, dependencies=[Depends(verify_password)]
+)  # admin only
 app.include_router(setup_sources_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_presets_index_router(server, interface, password), prefix=API_PREFIX)
 

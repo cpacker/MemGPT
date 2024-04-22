@@ -697,7 +697,8 @@ class SyncServer(LockingServer):
             # TODO remove (https://github.com/cpacker/MemGPT/issues/1138)
             if function_names is not None:
                 preset_override = True
-                available_tools = self.ms.list_tools(user_id=user_id)
+                # available_tools = self.ms.list_tools(user_id=user_id) # TODO: add back when user-specific
+                available_tools = self.ms.list_tools()
                 available_tools_names = [t.name for t in available_tools]
                 assert all([f_name in available_tools_names for f_name in function_names])
                 preset_obj.functions_schema = [t.json_schema for t in available_tools if t.name in function_names]
@@ -819,7 +820,8 @@ class SyncServer(LockingServer):
 
         # TODO add a get_message_obj_from_message_id(...) function
         #      this would allow grabbing Message.created_by without having to load the agent object
-        all_available_tools = self.ms.list_tools(user_id=user_id)
+        # all_available_tools = self.ms.list_tools(user_id=user_id) # TODO: add back when user-specific
+        all_available_tools = self.ms.list_tools()
 
         for agent_state, return_dict in zip(agents_states, agents_states_dicts):
 
