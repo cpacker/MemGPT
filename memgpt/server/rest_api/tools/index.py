@@ -47,7 +47,7 @@ def setup_tools_index_router(server: SyncServer, interface: QueuingInterface, pa
     @router.post("/tools", tags=["tools"], response_model=CreateToolResponse)
     async def create_tool(
         request: CreateToolRequest = Body(...),
-        # user_id: uuid.UUID = Depends(get_current_user_with_server),
+        # user_id: uuid.UUID = Depends(get_current_user_with_server), # TODO: add back when user-specific
     ):
         """
         Create a new tool (dummy route)
@@ -56,7 +56,7 @@ def setup_tools_index_router(server: SyncServer, interface: QueuingInterface, pa
 
         # check if function already exists
         if server.ms.get_tool(request.name):
-            raise Exception(f"Tool with name {request.name} already exists.")
+            raise ValueError(f"Tool with name {request.name} already exists.")
 
         # write function to ~/.memgt/functions directory
         write_function(request.name, request.name, request.source_code)
