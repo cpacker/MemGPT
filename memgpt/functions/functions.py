@@ -78,6 +78,14 @@ def write_function(module_name: str, function_name: str, function_code: str):
         raise ValueError(error)
 
 
+def read_function(module_name: str):
+    """Read a function from a file in the user functions directory"""
+    # TODO remove once functions are user-specific
+    file_path = os.path.join(USER_FUNCTIONS_DIR, f"{module_name}.py")
+    with open(file_path, "r") as f:
+        return f.read()
+
+
 def load_all_function_sets(merge: bool = True, ignore_duplicates: bool = True) -> dict:
     from memgpt.utils import printd
 

@@ -53,6 +53,10 @@ def setup_tools_index_router(server: SyncServer, interface: QueuingInterface, pa
         """
         from memgpt.functions.functions import write_function
 
+        # check if function already exists
+        if server.ms.get_tool(request.name):
+            raise Exception(f"Tool with name {request.name} already exists.")
+
         # write function to ~/.memgt/functions directory
         write_function(request.name, request.name, request.source_code)
 

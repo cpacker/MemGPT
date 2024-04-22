@@ -622,6 +622,16 @@ class MetadataStore:
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0].to_record()
 
+    @enforce_types
+    def get_tool(self, tool_name: str) -> Optional[ToolModel]:
+        # TODO: add user_id when tools can eventually be added by users
+        with self.session_maker() as session:
+            results = session.query(ToolModel).filter(ToolModel.name == tool_name).all()
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0]
+
     # agent source metadata
     @enforce_types
     def attach_source(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_id: uuid.UUID):
