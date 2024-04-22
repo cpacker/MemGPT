@@ -545,7 +545,8 @@ class MetadataStore:
             return [r.to_record() for r in results]
 
     @enforce_types
-    def list_tools(self, user_id: uuid.UUID) -> List[ToolModel]:
+    # def list_tools(self, user_id: uuid.UUID) -> List[ToolModel]: # TODO: add when users can creat tools
+    def list_tools(self) -> List[ToolModel]:
         with self.session_maker() as session:
             available_functions = load_all_function_sets()
             results = [
@@ -621,6 +622,16 @@ class MetadataStore:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0].to_record()
+
+    @enforce_types
+    def get_tool(self, tool_name: str) -> Optional[ToolModel]:
+        # TODO: add user_id when tools can eventually be added by users
+        with self.session_maker() as session:
+            results = session.query(ToolModel).filter(ToolModel.name == tool_name).all()
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0]
 
     # agent source metadata
     @enforce_types
