@@ -21,7 +21,7 @@ from memgpt.server.rest_api.agents.message import setup_agents_message_router
 from memgpt.server.rest_api.auth.index import setup_auth_router
 from memgpt.server.rest_api.config.index import setup_config_index_router
 from memgpt.server.rest_api.humans.index import setup_humans_index_router
-from memgpt.server.rest_api.interface import QueuingInterface
+from memgpt.server.rest_api.interface import QueuingInterface, StreamingServerInterface
 from memgpt.server.rest_api.models.index import setup_models_index_router
 from memgpt.server.rest_api.openai_assistants.assistants import setup_openai_assistant_router
 from memgpt.server.rest_api.personas.index import setup_personas_index_router
@@ -44,7 +44,9 @@ for memory_type in ("archival", "recall", "metadata"):
     setattr(config, f"{memory_type}_storage_uri", settings.pg_uri)
 config.save()
 
-interface: QueuingInterface = QueuingInterface()
+# interface: QueuingInterface = QueuingInterface()
+# interface: StreamingServerInterface = StreamingServerInterface()
+interface: StreamingServerInterface = StreamingServerInterface
 server: SyncServer = SyncServer(default_interface=interface)
 
 if password := settings.server_pass:

@@ -7,7 +7,7 @@ from enum import Enum
 from functools import partial
 from typing import List, Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, BackgroundTasks
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
@@ -15,6 +15,8 @@ from memgpt.constants import JSON_ENSURE_ASCII
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
+from memgpt.server.rest_api.utils import sse_async_generator, sse_formatter
+from memgpt.server.rest_api.interface import StreamingServerInterface
 
 router = APIRouter()
 
@@ -117,6 +119,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
 
     @router.post("/agents/{agent_id}/messages", tags=["agents"], response_model=UserMessageResponse)
     async def send_message(
+        background_tasks: BackgroundTasks,
         agent_id: uuid.UUID,
         request: UserMessageRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
@@ -139,50 +142,47 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         if request.stream:
             # For streaming response
             try:
-                # Start the generation process (similar to the non-streaming case)
-                # This should be a non-blocking call or run in a background task
-                # Check if server.user_message is an async function
-                if asyncio.iscoroutinefunction(message_func):
-                    # Start the async task
-                    await asyncio.create_task(
-                        message_func(
-                            user_id=user_id,
-                            agent_id=agent_id,
-                            message=request.message,
-                            timestamp=request.timestamp,
-                        )
-                    )
-                else:
 
-                    def handle_exception(exception_loop: AbstractEventLoop, context):
-                        # context["message"] will always be there; but context["exception"] may not
-                        error = context.get("exception") or context["message"]
-                        print(f"handling asyncio exception {context}")
-                        interface.error(str(error))
+                # Get the generator object off of the agent's streaming interface
+                # This will be attached to the POST SSE request used under-the-hood
+                # TODO cleanup
+                memgpt_agent = server._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+                streaming_interface = memgpt_agent.interface
+                if not isinstance(streaming_interface, StreamingServerInterface):
+                    raise ValueError(f"Agent has wrong type of interface: {type(streaming_interface)}")
 
-                    # Run the synchronous function in a thread pool
-                    loop = asyncio.get_event_loop()
-                    loop.set_exception_handler(handle_exception)
-                    loop.run_in_executor(
-                        None,
-                        message_func,
-                        user_id,
-                        agent_id,
-                        request.message,
-                        request.timestamp,
-                    )
+                print("XXX launching async task")
+                # Offload the synchronous message_func to a separate thread
+                streaming_interface.stream_start()
+                task = asyncio.create_task(asyncio.to_thread(message_func, user_id=user_id, agent_id=agent_id, message=request.message))
 
-                async def formatted_message_generator():
-                    async for message in interface.message_generator():
-                        formatted_message = f"data: {json.dumps(message, ensure_ascii=JSON_ENSURE_ASCII)}\n\n"
-                        yield formatted_message
-                        await asyncio.sleep(1)
+                # async def event_stream():
+                # async for chunk in streaming_interface.get_generator():
+                # yield sse_formatter(chunk)
+                # async def event_stream():
+                #     try:
+                #         async for chunk in streaming_interface.get_generator():
+                #             yield sse_formatter(chunk)
+                #     except Exception as e:
+                #         # Catch any exceptions that might occur during the stream processing
+                #         yield f"data: {{'error': '{str(e)}'}}\n\n"
+                #     finally:
+                #         # Always send a done message when the stream ends, whether it ended due to an error or not
+                #         yield "data: [DONE]\n\n"
 
-                # Return the streaming response using the generator
-                return StreamingResponse(formatted_message_generator(), media_type="text/event-stream")
+                print("ZZZ returning streamingresponse")
+                return StreamingResponse(
+                    sse_async_generator(streaming_interface.get_generator()),
+                    # event_stream(),
+                    media_type="text/event-stream",
+                )
             except HTTPException:
                 raise
             except Exception as e:
+                print(e)
+                import traceback
+
+                traceback.print_exc()
                 raise HTTPException(status_code=500, detail=f"{e}")
 
         else:

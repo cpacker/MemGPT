@@ -1,10 +1,13 @@
 import asyncio
+from collections import deque
 import queue
-from typing import Optional
+from typing import Optional, Generator, AsyncGenerator
 
 from memgpt.data_types import Message
 from memgpt.interface import AgentInterface
 from memgpt.utils import is_utc_datetime
+from memgpt.streaming_interface import AgentChunkStreamingInterface
+from memgpt.models.chat_completion_response import ChatCompletionChunkResponse, ChatCompletionResponse
 
 
 class QueuingInterface(AgentInterface):
@@ -145,3 +148,82 @@ class QueuingInterface(AgentInterface):
             new_message["date"] = msg_obj.created_at.isoformat()
 
         self.buffer.put(new_message)
+
+
+class StreamingServerInterface(AgentChunkStreamingInterface):
+    """Maintain a generator that is a proxy for self.process_chunk()
+
+    Usage:
+    - The main POST SSE code that launches the streaming request
+      will call .process_chunk with each incoming stream (as a handler)
+    -
+
+    NOTE: this interface is SINGLE THREADED, and meant to be used
+    with a single agent. A multi-agent implementation of this interface
+    should maintain multiple generators and index them with the request ID
+    """
+
+    def __init__(self):
+        self._chunks = deque()
+        self._event = asyncio.Event()  # Use an event to notify when chunks are available
+        self._active = True  # This should be set to False to stop the generator
+
+    async def _create_generator(self) -> AsyncGenerator:
+        """An asynchronous generator that yields chunks as they become available."""
+        while self._active:
+            # Wait until there is an item in the deque or the stream is deactivated
+            await self._event.wait()
+
+            while self._chunks:
+                yield self._chunks.popleft()
+
+            # Reset the event until a new item is pushed
+            self._event.clear()
+
+    def stream_start(self):
+        """Initialize streaming by activating the generator and clearing any old chunks."""
+        if not self._active:
+            self._active = True
+            self._chunks.clear()
+            self._event.clear()
+
+    def stream_end(self):
+        """Clean up the stream by deactivating and clearing chunks."""
+        self._active = False
+        self._event.set()  # Unblock the generator if it's waiting to allow it to complete
+
+    def process_chunk(self, chunk: ChatCompletionChunkResponse):
+        """Process a streaming chunk from an OpenAI-compatible server."""
+        print("Processed CHUNK:", chunk)
+        self._chunks.append(chunk.model_dump_json(exclude_none=True))
+        self._event.set()  # Signal that new data is available
+
+        # self._chunks.append(chunk.model_dump_json())
+        # if self._waiter and not self._waiter.done():
+        # self._waiter.set_result(None)
+
+    def get_generator(self) -> AsyncGenerator:
+        """Get the generator that yields processed chunks."""
+        if not self._active:
+            # If the stream is not active, don't return a generator that would produce values
+            raise StopIteration("The stream has not been started or has been ended.")
+        return self._create_generator()
+
+    def user_message(self, msg: str, msg_obj: Optional[Message] = None):
+        """MemGPT receives a user message"""
+        return
+
+    def internal_monologue(self, msg: str, msg_obj: Optional[Message] = None):
+        """MemGPT generates some internal monologue"""
+        return
+
+    def assistant_message(self, msg: str, msg_obj: Optional[Message] = None):
+        """MemGPT uses send_message"""
+        return
+
+    def function_message(self, msg: str, msg_obj: Optional[Message] = None):
+        """MemGPT calls a function"""
+        return
+
+    def step_yield(self):
+        return

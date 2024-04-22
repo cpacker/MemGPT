@@ -1,17 +1,21 @@
+import asyncio
 import json
-from typing import Generator
+from typing import Generator, Union, AsyncGenerator
 
 from memgpt.constants import JSON_ENSURE_ASCII
 
 SSE_FINISH_MSG = "[DONE]"  # mimic openai
+SSE_ARTIFICIAL_DELAY = 0.1
 
 
-def sse_formatter(data: dict) -> str:
+def sse_formatter(data: Union[dict, str]) -> str:
     """Prefix with 'data: ', and always include double newlines"""
-    return f"data: {json.dumps(data, ensure_ascii=JSON_ENSURE_ASCII)}\n\n"
+    assert type(data) in [dict, str], type(data)
+    data_str = json.dumps(data, ensure_ascii=JSON_ENSURE_ASCII) if isinstance(data, dict) else data
+    return f"data: {data_str}\n\n"
 
 
-def sse_generator(generator: Generator[dict, None, None]) -> Generator[str, None, None]:
+async def sse_generator(generator: Generator[dict, None, None]) -> Generator[str, None, None]:
     """Generator that returns 'data: dict' formatted items, e.g.:
 
     data: {"id":"chatcmpl-9E0PdSZ2IBzAGlQ3SEWHJ5YwzucSP","object":"chat.completion.chunk","created":1713125205,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"}"}}]},"logprobs":null,"finish_reason":null}]}
@@ -24,8 +28,30 @@ def sse_generator(generator: Generator[dict, None, None]) -> Generator[str, None
     try:
         for msg in generator:
             yield sse_formatter(msg)
-            # NOTE: do the waiting in the method that yields the sse_generator
-            # await asyncio.sleep(1)  # Sleep to prevent a tight loop, adjust time as needed
+            if SSE_ARTIFICIAL_DELAY:
+                await asyncio.sleep(SSE_ARTIFICIAL_DELAY)  # Sleep to prevent a tight loop, adjust time as needed
     except Exception as e:
         yield sse_formatter({"error": f"{str(e)}"})
     yield sse_formatter(SSE_FINISH_MSG)  # Signal that the stream is complete
+
+
+async def sse_async_generator(generator: AsyncGenerator):
+    """
+    Wraps a generator for use in Server-Sent Events (SSE), handling errors and ensuring a completion message.
+
+    Args:
+    - generator: An asynchronous generator yielding data chunks.
+
+    Yields:
+    - Formatted Server-Sent Event strings.
+    """
+    try:
+        async for chunk in generator:
+            # yield f"data: {json.dumps(chunk)}\n\n"
+            yield sse_formatter(chunk)
+    except Exception as e:
+        # yield f"data: {{'error': '{str(e)}'}}\n\n"
+        yield sse_formatter({"error": f"{str(e)}"})
+    finally:
+        # yield "data: [DONE]\n\n"
+        yield sse_formatter(SSE_FINISH_MSG)  # Signal that the stream is complete

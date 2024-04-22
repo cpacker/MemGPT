@@ -296,7 +296,7 @@ class SyncServer(LockingServer):
 
         # If an interface isn't specified, use the default
         if interface is None:
-            interface = self.default_interface
+            interface = self.default_interface()
 
         try:
             logger.info(f"Grabbing agent user_id={user_id} agent_id={agent_id} from database")
@@ -348,6 +348,7 @@ class SyncServer(LockingServer):
                 first_message=False,
                 skip_verify=no_verify,
                 return_dicts=False,
+                stream=True,  # turns on streaming if available
             )
             counter += 1
 
@@ -493,7 +494,11 @@ class SyncServer(LockingServer):
 
     @LockingServer.agent_lock_decorator
     def user_message(
-        self, user_id: uuid.UUID, agent_id: uuid.UUID, message: Union[str, Message], timestamp: Optional[datetime] = None
+        self,
+        user_id: uuid.UUID,
+        agent_id: uuid.UUID,
+        message: Union[str, Message],
+        timestamp: Optional[datetime] = None,
     ) -> None:
         """Process an incoming user message and feed it through the MemGPT agent"""
         if self.ms.get_user(user_id=user_id) is None:
@@ -542,7 +547,11 @@ class SyncServer(LockingServer):
 
     @LockingServer.agent_lock_decorator
     def system_message(
-        self, user_id: uuid.UUID, agent_id: uuid.UUID, message: Union[str, Message], timestamp: Optional[datetime] = None
+        self,
+        user_id: uuid.UUID,
+        agent_id: uuid.UUID,
+        message: Union[str, Message],
+        timestamp: Optional[datetime] = None,
     ) -> None:
         """Process an incoming system message and feed it through the MemGPT agent"""
         if self.ms.get_user(user_id=user_id) is None:
@@ -639,7 +648,7 @@ class SyncServer(LockingServer):
 
         if interface is None:
             # interface = self.default_interface_cls()
-            interface = self.default_interface
+            interface = self.default_interface()
 
         # if persistence_manager is None:
         # persistence_manager = self.default_persistence_manager_cls(agent_config=agent_config)
