@@ -10,6 +10,7 @@ from typing import Callable, List, Optional, Tuple, Union
 
 from fastapi import HTTPException
 
+from memgpt.settings import settings
 import memgpt.constants as constants
 import memgpt.presets.presets as presets
 import memgpt.server.utils as server_utils
@@ -197,8 +198,22 @@ class SyncServer(LockingServer):
         assert self.config.persona is not None, "Persona must be set in the config"
         assert self.config.human is not None, "Human must be set in the config"
 
+        # Update storage URI to match passed in settings
+        # TODO: very hack, fix in the future
+        for memory_type in ("archival", "recall", "metadata"):
+            setattr(self.config, f"{memory_type}_storage_uri", settings.pg_uri)
+        self.config.save()
+
         # TODO figure out how to handle credentials for the server
         self.credentials = MemGPTCredentials.load()
+
+        # check credentials
+        # TODO: add checks for other providers
+        if (
+            self.config.default_embedding_config.embedding_endpoint_type == "openai"
+            or self.config.default_llm_config.model_endpoint_type == "openai"
+        ):
+            assert self.credentials.openai_key is not None, "OpenAI key must be set in the credentials file"
 
         # Ensure valid database configuration
         # TODO: add back once tests are matched
@@ -665,25 +680,25 @@ class SyncServer(LockingServer):
                 preset_override = True
                 preset_obj.human = human
                 # This is a check for a common bug where users were providing filenames instead of values
-                try:
-                    get_human_text(human)
-                    raise ValueError(human)
-                    raise UserWarning(
-                        f"It looks like there is a human file named {human} - did you mean to pass the file contents to the `human` arg?"
-                    )
-                except:
-                    pass
+                # try:
+                #    get_human_text(human)
+                #    raise ValueError(human)
+                #    raise UserWarning(
+                #        f"It looks like there is a human file named {human} - did you mean to pass the file contents to the `human` arg?"
+                #    )
+                # except:
+                #    pass
             if persona is not None:
                 preset_override = True
                 preset_obj.persona = persona
-                try:
-                    get_persona_text(persona)
-                    raise ValueError(persona)
-                    raise UserWarning(
-                        f"It looks like there is a persona file named {persona} - did you mean to pass the file contents to the `persona` arg?"
-                    )
-                except:
-                    pass
+                # try:
+                #    get_persona_text(persona)
+                #    raise ValueError(persona)
+                #    raise UserWarning(
+                #        f"It looks like there is a persona file named {persona} - did you mean to pass the file contents to the `persona` arg?"
+                #    )
+                # except:
+                #    pass
             if human_name is not None and human_name != preset_obj.human_name:
                 preset_override = True
                 preset_obj.human_name = human_name
@@ -721,8 +736,6 @@ class SyncServer(LockingServer):
                 # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
                 first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
             )
-            save_agent(agent=agent, ms=self.ms)
-
             # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
             # self.ms.update_agent(agent.agent_state)
         except Exception as e:

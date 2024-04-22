@@ -77,6 +77,8 @@ def run_server():
     credentials.save()
 
     # start server
+    from memgpt.server.rest_api.server import start_server
+
     start_server(debug=True)
 
 
