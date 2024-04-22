@@ -1,7 +1,7 @@
 import os
 
+from fastapi import FastAPI, HTTPException
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from fastapi import HTTPException, FastAPI
 from starlette.staticfiles import StaticFiles
 
 

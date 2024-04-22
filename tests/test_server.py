@@ -1,17 +1,19 @@
-import uuid
-import pytest
 import os
-import memgpt.utils as utils
+import uuid
+
+import pytest
 from dotenv import load_dotenv
 
+import memgpt.utils as utils
 from tests.config import TestMGPTConfig
 
 utils.DEBUG = True
-from memgpt.settings import settings
 from memgpt.credentials import MemGPTCredentials
-from memgpt.server.server import SyncServer
 from memgpt.data_types import EmbeddingConfig, LLMConfig
-from .utils import wipe_config, wipe_memgpt_home, DummyDataConnector
+from memgpt.server.server import SyncServer
+from memgpt.settings import settings
+
+from .utils import DummyDataConnector, wipe_config, wipe_memgpt_home
 
 
 @pytest.fixture(scope="module")

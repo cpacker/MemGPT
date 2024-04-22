@@ -1,37 +1,36 @@
 import datetime
-import requests
-from requests.exceptions import RequestException
+import time
 import uuid
-from typing import Dict, List, Union, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
-from memgpt.data_types import AgentState, User, Preset, LLMConfig, EmbeddingConfig, Source
-from memgpt.models.pydantic_models import HumanModel, PersonaModel, PresetModel, SourceModel
-from memgpt.cli.cli import QuickstartChoice
-from memgpt.cli.cli import set_config_with_dict, quickstart as quickstart_func, str_to_quickstart_choice
+import requests
+
 from memgpt.config import MemGPTConfig
-from memgpt.server.rest_api.interface import QueuingInterface
-from memgpt.server.server import SyncServer
-from memgpt.metadata import MetadataStore
 from memgpt.data_sources.connectors import DataConnector
+from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, Preset, Source, User
+from memgpt.metadata import MetadataStore
+from memgpt.models.pydantic_models import HumanModel, JobModel, JobStatus, PersonaModel, PresetModel, SourceModel
 
 # import pydantic response objects from memgpt.server.rest_api
 from memgpt.server.rest_api.agents.command import CommandResponse
 from memgpt.server.rest_api.agents.config import GetAgentResponse
+from memgpt.server.rest_api.agents.index import CreateAgentResponse, ListAgentsResponse
 from memgpt.server.rest_api.agents.memory import (
-    GetAgentMemoryResponse,
     GetAgentArchivalMemoryResponse,
-    UpdateAgentMemoryResponse,
+    GetAgentMemoryResponse,
     InsertAgentArchivalMemoryResponse,
+    UpdateAgentMemoryResponse,
 )
-from memgpt.server.rest_api.agents.index import ListAgentsResponse, CreateAgentResponse
-from memgpt.server.rest_api.agents.message import UserMessageResponse, GetAgentMessagesResponse
+from memgpt.server.rest_api.agents.message import GetAgentMessagesResponse, UserMessageResponse
 from memgpt.server.rest_api.config.index import ConfigResponse
 from memgpt.server.rest_api.humans.index import ListHumansResponse
-from memgpt.server.rest_api.personas.index import ListPersonasResponse
-from memgpt.server.rest_api.tools.index import ListToolsResponse, CreateToolResponse
+from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.rest_api.models.index import ListModelsResponse
+from memgpt.server.rest_api.personas.index import ListPersonasResponse
 from memgpt.server.rest_api.presets.index import CreatePresetResponse, CreatePresetsRequest, ListPresetsResponse
-from memgpt.server.rest_api.sources.index import ListSourcesResponse, UploadFileToSourceResponse
+from memgpt.server.rest_api.sources.index import ListSourcesResponse
+from memgpt.server.rest_api.tools.index import CreateToolResponse, ListToolsResponse
+from memgpt.server.server import SyncServer
 
 
 def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
@@ -257,7 +256,7 @@ class RESTClient(AbstractClient):
         }
         response = requests.post(f"{self.base_url}/api/agents", json=payload, headers=self.headers)
         if response.status_code != 200:
-            raise ValueError(f"Failed to create agent: {response.text}")
+            raise ValueError(f"Status {response.status_code} - Failed to create agent: {response.text}")
         response_obj = CreateAgentResponse(**response.json())
         return self.get_agent_response_to_state(response_obj)
 
@@ -436,18 +435,36 @@ class RESTClient(AbstractClient):
         response = requests.delete(f"{self.base_url}/api/sources/{str(source_id)}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete source: {response.text}"
 
-    def load_file_into_source(self, filename: str, source_id: uuid.UUID):
+    def get_job_status(self, job_id: uuid.UUID):
+        response = requests.get(f"{self.base_url}/api/sources/status/{str(job_id)}", headers=self.headers)
+        return JobModel(**response.json())
+
+    def load_file_into_source(self, filename: str, source_id: uuid.UUID, blocking=True):
         """Load {filename} and insert into source"""
         files = {"file": open(filename, "rb")}
+
+        # create job
         response = requests.post(f"{self.base_url}/api/sources/{source_id}/upload", files=files, headers=self.headers)
-        return UploadFileToSourceResponse(**response.json())
+        if response.status_code != 200:
+            raise ValueError(f"Failed to upload file to source: {response.text}")
+
+        job = JobModel(**response.json())
+        if blocking:
+            # wait until job is completed
+            while True:
+                job = self.get_job_status(job.id)
+                if job.status == JobStatus.completed:
+                    break
+                elif job.status == JobStatus.failed:
+                    raise ValueError(f"Job failed: {job.metadata}")
+                time.sleep(1)
+        return job
 
     def create_source(self, name: str) -> Source:
         """Create a new source"""
         payload = {"name": name}
         response = requests.post(f"{self.base_url}/api/sources", json=payload, headers=self.headers)
         response_json = response.json()
-        print("CREATE SOURCE", response_json, response.text)
         response_obj = SourceModel(**response_json)
         return Source(
             id=uuid.UUID(response_obj.id),

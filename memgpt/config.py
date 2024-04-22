@@ -1,16 +1,15 @@
-from memgpt.log import logger
+import configparser
 import inspect
 import json
 import os
 import uuid
-from dataclasses import dataclass, field
-import configparser
+from dataclasses import dataclass
 
 import memgpt
 import memgpt.utils as utils
-
-from memgpt.constants import MEMGPT_DIR, DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
-from memgpt.data_types import AgentState, LLMConfig, EmbeddingConfig
+from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET, MEMGPT_DIR
+from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig
+from memgpt.log import logger
 
 
 # helper functions for writing to configs
@@ -89,7 +88,7 @@ class MemGPTConfig:
     @classmethod
     def load(cls) -> "MemGPTConfig":
         # avoid circular import
-        from memgpt.migrate import config_is_compatible, VERSION_CUTOFF
+        from memgpt.migrate import VERSION_CUTOFF, config_is_compatible
         from memgpt.utils import printd
 
         if not config_is_compatible(allow_empty=True):
@@ -341,10 +340,9 @@ class AgentConfig:
         # functions
         functions=None,  # schema definitions ONLY (linked at runtime)
     ):
-        if name is None:
-            self.name = f"agent_{self.generate_agent_id()}"
-        else:
-            self.name = name
+
+        assert name, f"Agent name must be provided"
+        self.name = name
 
         config = MemGPTConfig.load()  # get default values
         self.persona = config.persona if persona is None else persona
@@ -396,15 +394,6 @@ class AgentConfig:
         self.agent_config_path = (
             os.path.join(MEMGPT_DIR, "agents", self.name, "config.json") if agent_config_path is None else agent_config_path
         )
-
-    def generate_agent_id(self, length=6):
-        ## random character based
-        # characters = string.ascii_lowercase + string.digits
-        # return ''.join(random.choices(characters, k=length))
-
-        # count based
-        agent_count = len(utils.list_agent_config_files())
-        return str(agent_count + 1)
 
     def attach_data_source(self, data_source: str):
         # TODO: add warning that only once source can be attached

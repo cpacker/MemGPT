@@ -1,20 +1,16 @@
-import requests
-import uuid
 import json
 import re
-from typing import Union, Optional, List
+import uuid
+from typing import List, Optional, Union
+
+import requests
 
 from memgpt.data_types import Message
-from memgpt.models.chat_completion_response import (
-    ChatCompletionResponse,
-    UsageStatistics,
-    Choice,
-    Message as ChoiceMessage,  # NOTE: avoid conflict with our own MemGPT Message datatype
-    ToolCall,
-    FunctionCall,
-)
 from memgpt.models.chat_completion_request import ChatCompletionRequest, Tool
-from memgpt.utils import smart_urljoin, get_utc_time
+from memgpt.models.chat_completion_response import ChatCompletionResponse, Choice, FunctionCall
+from memgpt.models.chat_completion_response import Message as ChoiceMessage  # NOTE: avoid conflict with our own MemGPT Message datatype
+from memgpt.models.chat_completion_response import ToolCall, UsageStatistics
+from memgpt.utils import get_utc_time, smart_urljoin
 
 BASE_URL = "https://api.anthropic.com/v1"
 

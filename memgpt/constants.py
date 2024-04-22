@@ -1,5 +1,5 @@
 import os
-from logging import CRITICAL, ERROR, WARN, WARNING, INFO, DEBUG, NOTSET
+from logging import CRITICAL, DEBUG, ERROR, INFO, NOTSET, WARN, WARNING
 
 MEMGPT_DIR = os.path.join(os.path.expanduser("~"), ".memgpt")
 

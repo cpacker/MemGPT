@@ -1,22 +1,19 @@
 import os
-from sqlalchemy.ext.declarative import declarative_base
 import uuid
-import pytest
-
-from memgpt.settings import settings
-from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.embeddings import embedding_model, query_embedding
-from memgpt.data_types import Message, Passage, EmbeddingConfig, AgentState, LLMConfig
-from memgpt.credentials import MemGPTCredentials
-from memgpt.metadata import MetadataStore
-from memgpt.data_types import User
-from memgpt.constants import MAX_EMBEDDING_DIM
-from memgpt.utils import get_human_text, get_persona_text
-
 from datetime import datetime, timedelta
 
-from tests import TEST_MEMGPT_CONFIG
+import pytest
+from sqlalchemy.ext.declarative import declarative_base
 
+from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.constants import MAX_EMBEDDING_DIM
+from memgpt.credentials import MemGPTCredentials
+from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, Message, Passage, User
+from memgpt.embeddings import embedding_model, query_embedding
+from memgpt.metadata import MetadataStore
+from memgpt.settings import settings
+from memgpt.utils import get_human_text, get_persona_text
+from tests import TEST_MEMGPT_CONFIG
 
 # Note: the database will filter out rows that do not correspond to agent1 and test_user by default.
 texts = ["This is a test passage", "This is another test passage", "Cinderella wept"]
@@ -195,6 +192,13 @@ def test_storage(
         human=get_human_text(TEST_MEMGPT_CONFIG.human),
         llm_config=TEST_MEMGPT_CONFIG.default_llm_config,
         embedding_config=TEST_MEMGPT_CONFIG.default_embedding_config,
+        state={
+            "persona": "",
+            "human": "",
+            "system": "",
+            "functions": [],
+            "messages": [],
+        },
     )
     ms.create_user(user)
     ms.create_agent(agent)

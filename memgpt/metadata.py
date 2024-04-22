@@ -1,31 +1,22 @@
 """ Metadata store for user/agent/data_source information"""
 
-import os
 import inspect as python_inspect
-import uuid
+import os
 import secrets
-from typing import Optional, List
+import uuid
+from typing import List, Optional
 
-from memgpt.settings import settings
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_MEMGPT_MODEL, DEFAULT_PERSONA, DEFAULT_PRESET, LLM_MAX_TOKENS
-from memgpt.utils import enforce_types, printd
-from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig, Token, Preset
-from memgpt.config import MemGPTConfig
-from memgpt.functions.functions import load_all_function_sets
-
-from memgpt.models.pydantic_models import PersonaModel, HumanModel, ToolModel
-
-from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, Boolean
-from sqlalchemy import func
-from sqlalchemy.orm import sessionmaker, mapped_column, declarative_base
-from sqlalchemy.orm.session import close_all_sessions
+from sqlalchemy import BIGINT, CHAR, JSON, Boolean, Column, DateTime, String, TypeDecorator, create_engine, func, inspect
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql import func
-from sqlalchemy import Column, BIGINT, String, DateTime
-from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy_json import mutable_json_type, MutableJson
-from sqlalchemy import TypeDecorator, CHAR
-from sqlalchemy.orm import sessionmaker, mapped_column, declarative_base
 
+from memgpt.config import MemGPTConfig
+from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, Preset, Source, Token, User
+from memgpt.functions.functions import load_all_function_sets
+from memgpt.models.pydantic_models import HumanModel, JobModel, JobStatus, PersonaModel, ToolModel
+from memgpt.settings import settings
+from memgpt.utils import enforce_types, get_utc_time, printd
 
 Base = declarative_base()
 
@@ -334,6 +325,7 @@ class MetadataStore:
                 HumanModel.__table__,
                 PersonaModel.__table__,
                 ToolModel.__table__,
+                JobModel.__table__,
             ],
         )
         self.session_maker = sessionmaker(bind=self.engine)
@@ -387,6 +379,8 @@ class MetadataStore:
     def create_agent(self, agent: AgentState):
         # insert into agent table
         # make sure agent.name does not already exist for user user_id
+        assert agent.state is not None, "Agent state must be provided"
+        assert len(list(agent.state.keys())) > 0, "Agent state must not be empty"
         with self.session_maker() as session:
             if session.query(AgentModel).filter(AgentModel.name == agent.name).filter(AgentModel.user_id == agent.user_id).count() > 0:
                 raise ValueError(f"Agent with name {agent.name} already exists")
@@ -551,10 +545,10 @@ class MetadataStore:
             return [r.to_record() for r in results]
 
     @enforce_types
-    def list_tools(self, user_id: uuid.UUID) -> List[ToolModel]:
+    # def list_tools(self, user_id: uuid.UUID) -> List[ToolModel]: # TODO: add when users can creat tools
+    def list_tools(self) -> List[ToolModel]:
         with self.session_maker() as session:
             available_functions = load_all_function_sets()
-            print(available_functions)
             results = [
                 ToolModel(
                     name=k,
@@ -628,6 +622,16 @@ class MetadataStore:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0].to_record()
+
+    @enforce_types
+    def get_tool(self, tool_name: str) -> Optional[ToolModel]:
+        # TODO: add user_id when tools can eventually be added by users
+        with self.session_maker() as session:
+            results = session.query(ToolModel).filter(ToolModel.name == tool_name).all()
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0]
 
     # agent source metadata
     @enforce_types
@@ -752,3 +756,31 @@ class MetadataStore:
         with self.session_maker() as session:
             session.query(PresetModel).filter(PresetModel.name == name).filter(PresetModel.user_id == user_id).delete()
             session.commit()
+
+    # job related functions
+    def create_job(self, job: JobModel):
+        with self.session_maker() as session:
+            session.add(job)
+            session.commit()
+            session.expunge_all()
+
+    def update_job_status(self, job_id: uuid.UUID, status: JobStatus):
+        with self.session_maker() as session:
+            session.query(JobModel).filter(JobModel.id == job_id).update({"status": status})
+            if status == JobStatus.COMPLETED:
+                session.query(JobModel).filter(JobModel.id == job_id).update({"completed_at": get_utc_time()})
+            session.commit()
+
+    def update_job(self, job: JobModel):
+        with self.session_maker() as session:
+            session.add(job)
+            session.commit()
+            session.refresh(job)
+
+    def get_job(self, job_id: uuid.UUID) -> Optional[JobModel]:
+        with self.session_maker() as session:
+            results = session.query(JobModel).filter(JobModel.id == job_id).all()
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0]

@@ -1,12 +1,12 @@
-from memgpt.data_types import Passage, Document, EmbeddingConfig, Source
-from memgpt.utils import create_uuid_from_string
-from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.embeddings import embedding_model
-from memgpt.data_types import Document, Passage
+from typing import Dict, Iterator, List, Optional, Tuple
 
-from typing import List, Iterator, Dict, Tuple, Optional
 import typer
 from llama_index.core import Document as LlamaIndexDocument
+
+from memgpt.agent_store.storage import StorageConnector
+from memgpt.data_types import Document, EmbeddingConfig, Passage, Source
+from memgpt.embeddings import embedding_model
+from memgpt.utils import create_uuid_from_string
 
 
 class DataConnector:
@@ -97,7 +97,7 @@ def load_data(
 
             passages.append(passage)
             embedding_to_document_name[hashable_embedding] = document_name
-            if len(passages) >= embedding_config.embedding_chunk_size:
+            if len(passages) >= 100:
                 # insert passages into passage store
                 passage_store.insert_many(passages)
 
@@ -202,8 +202,8 @@ class VectorDBConnector(DataConnector):
         yield self.table_name, None
 
     def generate_passages(self, documents: List[Document], chunk_size: int = 1024) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Passage]:
-        from sqlalchemy import select, MetaData, Table, Inspector
         from pgvector.sqlalchemy import Vector
+        from sqlalchemy import Inspector, MetaData, Table, select
 
         metadata = MetaData()
         # Create an inspector to inspect the database

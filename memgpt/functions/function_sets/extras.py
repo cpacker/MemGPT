@@ -1,18 +1,13 @@
-from typing import Optional
-import os
 import json
-import requests
+import os
 import uuid
+from typing import Optional
 
-from memgpt.constants import (
-    JSON_LOADS_STRICT,
-    MESSAGE_CHATGPT_FUNCTION_MODEL,
-    MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
-    MAX_PAUSE_HEARTBEATS,
-    JSON_ENSURE_ASCII,
-)
-from memgpt.llm_api.llm_api_tools import create
+import requests
+
+from memgpt.constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT, MESSAGE_CHATGPT_FUNCTION_MODEL, MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE
 from memgpt.data_types import Message
+from memgpt.llm_api.llm_api_tools import create
 
 
 def message_chatgpt(self, message: str):

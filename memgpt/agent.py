@@ -1,48 +1,52 @@
 import datetime
-import uuid
 import inspect
 import json
-from pathlib import Path
 import traceback
-from typing import List, Tuple, Optional, cast, Union
+import uuid
+from pathlib import Path
+from typing import List, Optional, Tuple, Union, cast
+
 from tqdm import tqdm
 
-from memgpt.metadata import MetadataStore
-from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.data_types import AgentState, Message, LLMConfig, EmbeddingConfig, Passage, Preset
-from memgpt.models import chat_completion_response
-from memgpt.interface import AgentInterface
-from memgpt.persistence_manager import LocalStateManager
-from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
-from memgpt.memory import CoreMemory as InContextMemory, summarize_messages, ArchivalMemory, RecallMemory
-from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
-from memgpt.utils import (
-    get_utc_time,
-    create_random_username,
-    get_tool_call_id,
-    get_local_time,
-    parse_json,
-    united_diff,
-    printd,
-    count_tokens,
-    get_schema_diff,
-    validate_function_response,
-    verify_first_message_correctness,
-    create_uuid_from_string,
-    is_utc_datetime,
-)
+from memgpt.agent_store.storage import StorageConnector
 from memgpt.constants import (
-    FIRST_MESSAGE_ATTEMPTS,
-    JSON_LOADS_STRICT,
-    MESSAGE_SUMMARY_WARNING_FRAC,
-    MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
-    MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
+    CLI_WARNING_PREFIX,
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
-    LLM_MAX_TOKENS,
-    CLI_WARNING_PREFIX,
+    FIRST_MESSAGE_ATTEMPTS,
     JSON_ENSURE_ASCII,
+    JSON_LOADS_STRICT,
+    LLM_MAX_TOKENS,
+    MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
+    MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
+    MESSAGE_SUMMARY_WARNING_FRAC,
 )
+from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, Message, Passage, Preset
+from memgpt.interface import AgentInterface
+from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
+from memgpt.memory import ArchivalMemory
+from memgpt.memory import CoreMemory as InContextMemory
+from memgpt.memory import RecallMemory, summarize_messages
+from memgpt.metadata import MetadataStore
+from memgpt.models import chat_completion_response
+from memgpt.persistence_manager import LocalStateManager
+from memgpt.system import get_initial_boot_messages, get_login_event, package_function_response, package_summarize_message
+from memgpt.utils import (
+    count_tokens,
+    create_random_username,
+    create_uuid_from_string,
+    get_local_time,
+    get_schema_diff,
+    get_tool_call_id,
+    get_utc_time,
+    is_utc_datetime,
+    parse_json,
+    printd,
+    united_diff,
+    validate_function_response,
+    verify_first_message_correctness,
+)
+
 from .errors import LLMError
 from .functions.functions import USER_FUNCTIONS_DIR, load_all_function_sets
 

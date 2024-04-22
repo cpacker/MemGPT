@@ -1,6 +1,6 @@
 import os
 
-from sqlalchemy import create_engine, MetaData
+from sqlalchemy import MetaData, create_engine
 
 
 def main():

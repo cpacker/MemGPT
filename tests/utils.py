@@ -1,6 +1,6 @@
 import datetime
-from typing import Dict, List, Tuple, Iterator
 import os
+from typing import Dict, Iterator, List, Tuple
 
 import requests
 

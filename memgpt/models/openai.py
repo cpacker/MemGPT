@@ -1,6 +1,7 @@
-from typing import List, Union, Optional, Dict
 from enum import Enum
-from pydantic import BaseModel, Field, Json
+from typing import Dict, List, Optional, Union
+
+from pydantic import BaseModel, Field
 
 
 class ImageFile(BaseModel):

@@ -16,29 +16,23 @@ from late 2018, following past work on NaturalQuestions-Open (Izacard & Grave, 2
 et al., 2021) We randomly sample a subset of 50 questions for each point in the graph.
 """
 
-import json
 import argparse
-import uuid
+import json
 import os
-import openai
+import uuid
+from typing import List
+
+from icml_experiments.utils import get_experiment_config, load_gzipped_file
 from openai import OpenAI
-from typing import List, Optional
 from tqdm import tqdm
 
-from memgpt.embeddings import embedding_model
-from memgpt import MemGPT
-from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import Message, AgentState
-from memgpt.cli.cli import attach
+from memgpt import MemGPT, utils
 from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.config import MemGPTConfig
-from memgpt.metadata import MetadataStore
 from memgpt.cli.cli_config import delete
-from memgpt import utils
+from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials
+from memgpt.embeddings import embedding_model
 from memgpt.utils import count_tokens
-
-from icml_experiments.utils import load_gzipped_file, get_experiment_config
-
 
 DATA_SOURCE_NAME = "wikipedia"
 DOC_QA_PERSONA = "You are MemGPT DOC-QA bot. Your job is to answer questions about documents that are stored in your archival memory. The answer to the users question will ALWAYS be in your archival memory, so remember to keep searching if you can't find the answer. Answer the questions as if though the year is 2018."  # TODO decide on a good persona/human
@@ -94,7 +88,7 @@ def generate_docqa_baseline_response(
     archival_memory = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
     archival_memory.disable_write = True  # prevent archival memory writes
     archival_memory.filters = {"data_source": data_souce_name}
-    archival_memory_size = archival_memory.size()
+    archival_memory.size()
     print(f"Attaching archival memory with {archival_memory.size()} passages")
 
     # grab the top N documents
@@ -203,7 +197,7 @@ def generate_docqa_response(
     archival_memory = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
     archival_memory.disable_write = True  # prevent archival memory writes
     archival_memory.filters = {"data_source": data_souce_name}
-    archival_memory_size = archival_memory.size()
+    archival_memory.size()
     print(f"Attaching archival memory with {archival_memory.size()} passages")
 
     # override the agent's archival memory with table containing wikipedia embeddings
@@ -283,7 +277,7 @@ def run_docqa_task(
         # - a set of context documents one of which contains the answer (List[dict])
         # - a gold annotation that has a title of the context doc, a long answer, and a list of short answers
         question = data["question"]
-        documents = data["ctxs"]
+        data["ctxs"]
         answers = data["answers"]
 
         # The only thing we actually use here is the 'question'

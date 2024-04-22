@@ -1,5 +1,6 @@
-import os
 import glob
+import os
+
 import yaml
 
 from memgpt.constants import MEMGPT_DIR

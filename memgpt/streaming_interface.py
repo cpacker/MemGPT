@@ -1,21 +1,15 @@
-from abc import ABC, abstractmethod
 import json
-import re
-import sys
+from abc import ABC, abstractmethod
 from typing import List, Optional
 
 # from colorama import Fore, Style, init
 from rich.console import Console
 from rich.live import Live
 from rich.markup import escape
-from rich.style import Style
-from rich.text import Text
 
-from memgpt.utils import printd
-from memgpt.constants import CLI_WARNING_PREFIX, JSON_LOADS_STRICT
 from memgpt.data_types import Message
+from memgpt.interface import CLIInterface
 from memgpt.models.chat_completion_response import ChatCompletionChunkResponse, ChatCompletionResponse
-from memgpt.interface import AgentInterface, CLIInterface
 
 # init(autoreset=True)
 

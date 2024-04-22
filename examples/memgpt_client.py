@@ -1,8 +1,8 @@
 import json
-from memgpt import create_client, Admin
-from memgpt.constants import DEFAULT_PRESET, DEFAULT_HUMAN, DEFAULT_PERSONA
-from memgpt.utils import get_human_text, get_persona_text
 
+from memgpt import Admin, create_client
+from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
+from memgpt.utils import get_human_text, get_persona_text
 
 """
 Make sure you run the MemGPT server before running this example.

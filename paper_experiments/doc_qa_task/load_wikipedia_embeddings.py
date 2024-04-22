@@ -1,21 +1,18 @@
-import json
-import hashlib
-import os
-import uuid
 import copy
-from pprint import pprint
+import hashlib
+import json
+import os
+import time
+import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from absl import app, flags
+from icml_experiments.utils import get_experiment_config
 from tqdm import tqdm
-from memgpt.cli.cli_load import insert_passages_into_source
+
+from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.cli.cli_config import delete
 from memgpt.data_types import Passage
-from memgpt.config import MemGPTConfig
-from memgpt.agent_store.storage import StorageConnector, TableType
-
-from icml_experiments.utils import get_experiment_config
-from multiprocessing import Pool
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from absl import app, flags
-import time
 
 # Create an empty list to store the JSON objects
 source_name = "wikipedia"
@@ -52,7 +49,7 @@ def insert_lines(lines, conn, show_progress=False):
         embedding_dim = len(embedding)
         assert embedding_dim == 1536, f"Wrong embedding dim: {len(embedding_dim)}"
         assert len(d[1]["data"]) == 1, f"More than one embedding: {len(d[1]['data'])}"
-        metadata = d[1]["usage"]
+        d[1]["usage"]
         # print(text)
 
         passage_id = create_uuid_from_string(text)  # consistent hash for text (prevent duplicates)
@@ -148,7 +145,7 @@ def main(argv):
             print(f"Waiting for {len(futures)} futures")
             # wait for futures
             for future in tqdm(as_completed(futures)):
-                succ = future.result()
+                future.result()
 
         # check metadata
         # storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)

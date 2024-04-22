@@ -11,22 +11,23 @@ services:
       - POSTGRES_PASSWORD=${MEMGPT_PG_PASSWORD}
       - POSTGRES_DB=${MEMGPT_PG_DB}
     volumes:
-      - ./.persist/pgdata:/var/lib/postgresql/data
+      - ./.persist/pgdata-test:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
   memgpt_server:
-    image: memgpt/memgpt-server:latest
+    #image: memgpt/memgpt-server:latest
+    image: memgpt-server
     hostname: memgpt-server
+    build:
+      context: .
+      dockerfile: Dockerfile
     depends_on:
       - memgpt_db
     ports:
       - "8083:8083"
       - "8283:8283"
-    env_file:
-      - .env
     environment:
-      - POSTGRES_URI=postgresql://${MEMGPT_PG_USER}:${MEMGPT_PG_PASSWORD}@pgvector_db:5432/${MEMGPT_PG_DB} # TODO: deprecate
       - MEMGPT_SERVER_PASS=${MEMGPT_SERVER_PASS} # memgpt server password
       - MEMGPT_PG_DB=${MEMGPT_PG_DB}
       - MEMGPT_PG_USER=${MEMGPT_PG_USER}
@@ -37,10 +38,3 @@ services:
     volumes:
       - ./configs/server_config.yaml:/root/.memgpt/config # config file
       - ~/.memgpt/credentials:/root/.memgpt/credentials # credentials file
-  memgpt_nginx:
-    hostname: memgpt-nginx
-    image: nginx:stable-alpine3.17-slim
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-    ports:
-      - "80:80"
