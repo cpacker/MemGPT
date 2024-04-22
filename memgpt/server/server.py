@@ -5,6 +5,7 @@ import warnings
 from abc import abstractmethod
 from datetime import datetime
 from functools import wraps
+import os
 from threading import Lock
 from typing import Callable, List, Optional, Tuple, Union
 
@@ -213,7 +214,14 @@ class SyncServer(LockingServer):
             self.config.default_embedding_config.embedding_endpoint_type == "openai"
             or self.config.default_llm_config.model_endpoint_type == "openai"
         ):
-            assert self.credentials.openai_key is not None, "OpenAI key must be set in the credentials file"
+            if self.credentials.openai_key is None:
+                openai_api_key = os.getenv("OPENAI_API_KEY")
+                if openai_api_key is not None:
+                    self.credentials.openai_key = openai_api_key
+                    self.credentials.save()
+            else:
+                openai_api_key = self.credentials.openai_key
+            assert openai_api_key is not None, "OpenAI key must be set in the credentials file or environment variable (OPENAI_API_KEY)"
 
         # Ensure valid database configuration
         # TODO: add back once tests are matched
