@@ -38,7 +38,7 @@ def route_reply_to_memgpt_api(message):
     data = {
         "stream": False,
         "role": "system",
-        "message": f"[SMS MESSAGE] {message}",
+        "message": f"[SMS MESSAGE NOTIFICATION] {message}",
     }
 
     try:
