@@ -21,13 +21,11 @@ def send_text_message(self, message: str) -> str:
     auth_token = os.environ["TWILIO_AUTH_TOKEN"]
     client = Client(account_sid, auth_token)
 
-    # from_number = os.getenv("TWILIO_FROM_NUMBER")
-    # to_number = os.getenv("TWILIO_TO_NUMBER")
-    # assert from_number and to_number
+    from_number = os.getenv("TWILIO_FROM_NUMBER")
+    to_number = os.getenv("TWILIO_TO_NUMBER")
+    assert from_number and to_number
     # assert from_number.startswith("+1") and len(from_number) == 12, from_number
     # assert to_number.startswith("+1") and len(to_number) == 12, to_number
-    from_number = "whatsapp:+14155238886"
-    to_number = "whatsapp:+12017443124"
 
     try:
         message = client.messages.create(
