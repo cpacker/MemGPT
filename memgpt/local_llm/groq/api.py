@@ -26,6 +26,26 @@ def get_groq_completion(endpoint: str, auth_type: str, auth_key: str, model: str
             # "top_p",
             # "stream",
             # "stop",
+            # Groq only allows 4 stop tokens
+            "stop": [
+                "\nUSER",
+                "\nASSISTANT",
+                "\nFUNCTION",
+                # "\nFUNCTION RETURN",
+                # "<|im_start|>",
+                # "<|im_end|>",
+                # "<|im_sep|>",
+                # # airoboros specific
+                # "\n### ",
+                # # '\n' +
+                # # '</s>',
+                # # '<|',
+                # "\n#",
+                # # "\n\n\n",
+                # # prevent chaining function calls / multi json objects / run-on generations
+                # # NOTE: this requires the ability to patch the extra '}}' back into the prompt
+                "  }\n}\n",
+            ]
         }
     )
 
