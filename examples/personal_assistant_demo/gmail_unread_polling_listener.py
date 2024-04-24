@@ -123,7 +123,16 @@ def main():
 
                         # Optionally mark the message as read here if required
                         email_obj = process_email(msg)
-                        print(f"New email from {email_obj['from']}: {email_obj['subject']}\n{email_obj['body'][:100]}")
+                        msg_str = f"New email from {email_obj['from']}: {email_obj['subject']}, body: {email_obj['body'][:100]}"
+
+                        # Hard check to ignore emails unless
+                        # if not (
+                        #     "email@address" in email_obj["from"]
+                        # ):
+                        #     print("ignoring")
+                        # else:
+                        print(msg_str)
+                        route_reply_to_memgpt_api(msg_str)
 
             time.sleep(DELAY)  # Wait for N seconds before checking again
     except HttpError as error:

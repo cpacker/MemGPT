@@ -38,7 +38,7 @@ def route_reply_to_memgpt_api(message):
     data = {
         "stream": False,
         "role": "system",
-        "message": f"[SMS MESSAGE NOTIFICATION] {message}",
+        "message": f"[SMS MESSAGE NOTIFICATION - you MUST use send_text_message NOT send_message if you want to reply to the text thread] {message}",
     }
 
     try:
@@ -55,15 +55,20 @@ def sms_reply():
     message_body = request.form["Body"]
     from_number = request.form["From"]
 
-    print(f"New message from {from_number}: {message_body}")
+    # print(f"New message from {from_number}: {message_body}")
+    msg_str = f"New message from {from_number}: {message_body}"
+    print(msg_str)
+
+    route_reply_to_memgpt_api(msg_str)
+    return str("status = OK")
 
     # Start our response
-    resp = MessagingResponse()
+    # resp = MessagingResponse()
 
     # Add a message
-    resp.message("Hello, thanks for messaging!")
+    # resp.message("Hello, thanks for messaging!")
 
-    return str(resp)
+    # return str(resp)
 
 
 if __name__ == "__main__":
