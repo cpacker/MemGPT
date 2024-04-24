@@ -1,11 +1,11 @@
-## Personal assistant demo
+# Personal assistant demo
 
 In this example we'll create an agent preset that has access to:
 1. Gmail (can read your email)
 2. Google Calendar (can schedule events)
 3. SMS (can text you a message)
 
-# Initial setup
+## Initial setup
 
 For the Google APIs:
 ```sh
