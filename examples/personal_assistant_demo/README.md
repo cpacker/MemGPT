@@ -55,7 +55,6 @@ TRASH
 
 ## Setting up the Twilio API
 
-TODO
 Create a Twilio account and set the following variables:
 ```sh
 export TWILIO_ACCOUNT_SID=...
@@ -188,7 +187,7 @@ In the CLI:
 🧬 Creating new agent...
 ->  🤖 Using persona profile: 'sam_pov'
 ->  🧑 Using human profile: 'basic'
-🎉 Created new agent 'personalassistant12' (id=8271f819-d470-435b-9689-476380aefd27)
+🎉 Created new agent 'personalassistant' (id=8271f819-d470-435b-9689-476380aefd27)
 
 Hit enter to begin (will request first MemGPT message)
 
