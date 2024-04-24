@@ -17,12 +17,12 @@ For the Twilio API + listener:
 # Outbound API requests
 pip install --upgrade twilio
 # Listener
-TODO
+pip install --upgrade Flask flask-cors
 ```
 
 ## Setting up the Google APIs
 
-TODO
+See https://developers.google.com/gmail/api/quickstart/python
 
 ### Setup authentication for Google Calendar
 
@@ -59,7 +59,7 @@ TODO
 Create a Twilio account and set the following variables:
 ```sh
 export TWILIO_ACCOUNT_SID=...
-export TWILIO_ACCOUNT_TOKEN=...
+export TWILIO_AUTH_TOKEN=...
 export TWILIO_FROM_NUMBER=...
 export TWILIO_TO_NUMBER=...
 ```
@@ -181,4 +181,99 @@ memgpt server --debug
 
 # Example interaction 
 
-TODO
+In the CLI:
+```
+% memgpt run --preset pa_preset --persona pa_persona_strict --human charles --stream --agent personalassistant
+
+🧬 Creating new agent...
+->  🤖 Using persona profile: 'sam_pov'
+->  🧑 Using human profile: 'basic'
+🎉 Created new agent 'personalassistant12' (id=8271f819-d470-435b-9689-476380aefd27)
+
+Hit enter to begin (will request first MemGPT message)
+
+
+
+💭 Welcoming the first-time user. Maintain persona's communication style and stay engaging. Remember to use emojis for
+a more familiar conversation style.
+🤖 Hello Charles, welcome! 🎉 Let's embark on this journey together. Please, think of me as your companion in
+exploration and understanding. How can we make today a productive endeavor? 🚀
+
+> Enter your message: when you schedule 1-1s, please title them "x <> y", eg "charles <> sarah". dont forget thx
+
+💭 The user wants a specific format for scheduling 1-1 meetings. Remember this preference and add it to his profile in
+the core memory for future use. Also, acknowledge his request promptly.
+core_memory_append({
+  "name": "human",
+  "content": "When scheduling 1-1 meetings on his calendar, he prefers the title to be in the format of 'x <> y'.",
+  "request_heartbeat": true
+})
+
+⚡🧠 [function] updating memory with core_memory_append
+
+💭 Now that the user's preference is stored, send a confirmation message ensuring him that his request has been
+understood and noted. Let's keep the tone light and potentially use one of his preferred emojis.
+🤖 Absolutely, Charles. 📝 I've noted your preference for scheduling 1-1s as 'x <> y'. You can count on me! 🚀 Any
+other preferences you'd like me to keep in mind?
+
+
+> Enter your message: please don't schedule meetings without confirming with me first
+
+💭 Another important note from Charles. I should add this to his profile in my core memory. It's crucial to respect the
+user's preferences and ask for prior approval before scheduling any meetings. Let's also acknowledge his request and
+reassure him about our collaborative approach.
+core_memory_append({
+  "name": "human",
+  "content": "Prefers to confirm before scheduling any meetings.",
+  "request_heartbeat": true
+})
+
+⚡🧠 [function] updating memory with core_memory_append
+
+💭 Now, let's acknowledge Charles' preference and continue the conversation. Keep the tone friendly and proactive in
+helping him, and remember to use emojis that Charles likes, embedding them in the message subtly.
+🤖 Consider it done, Charles! 👍🏼 I'll make sure to confirm with you before scheduling any meetings. How about we
+conquer some more tasks today? 🚀
+
+> Enter your message: i'm gonna be afk for the rest of the day, if you need to reach me you gotta text me, ok? cya text
+ only thx
+
+💭 Charles is going "away from keyboard" and wants future communications via text. I should respect his preference and
+reassure him about this. Add this preference to his profile so I can recall it in future interactions while he's away.
+core_memory_append({
+  "name": "human",
+  "content": "When AFK, prefers to communicate over text message only.",
+  "request_heartbeat": true
+})
+
+⚡🧠 [function] updating memory with core_memory_append
+
+💭 Charles has expressed a preference for text messages while he's away. Let's acknowledge this request in a final text
+message to him today and wish him well. Keep in mind to use the send_text_message function instead of the regular
+send_message function now.
+send_text_message({
+  "message": "Got it, Charles! 👍 I'll reach out to you via text if there's anything. Have a great day and see you
+soon! 🙌",
+  "request_heartbeat": false
+})
+
+> Enter your message:
+```
+
+Then inside WhatsApp (or SMS if you used Twilio SMS):
+<img width="580" alt="image" src="https://github.com/cpacker/MemGPT/assets/5475622/02455f97-53b2-4c1e-9416-58e6c5a1448d">
+
+Then I sent a dummy email:
+```
+[URGENT] need to meet
+
+let's meet april 25th thurs
+
+whatever time works best for you
+
+- dave
+```
+
+Follow-up inside WhatsApp:
+<img width="587" alt="image" src="https://github.com/cpacker/MemGPT/assets/5475622/d1060c94-9b84-49d6-944e-fd1965f83fbc">
+
