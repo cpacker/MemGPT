@@ -17,30 +17,15 @@ from memgpt.config import MemGPTConfig
 import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.errors as errors
-from memgpt.cli.cli import run, version, server, open_folder, quickstart, migrate, delete_agent
-from memgpt.cli.cli_config import configure, list, add, delete
-from memgpt.cli.cli_load import app as load_app
+from memgpt.cli.cli import run, version, server, delete_agent
 from memgpt.metadata import MetadataStore
 
 # import benchmark
-from memgpt.benchmark.benchmark import bench
 
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
 app.command(name="version")(version)
-app.command(name="configure")(configure)
-app.command(name="list")(list)
-app.command(name="add")(add)
-app.command(name="delete")(delete)
 app.command(name="server")(server)
-app.command(name="folder")(open_folder)
-app.command(name="quickstart")(quickstart)
-# load data commands
-app.add_typer(load_app, name="load")
-# migration command
-app.command(name="migrate")(migrate)
-# benchmark command
-app.command(name="benchmark")(bench)
 # delete agents
 app.command(name="delete-agent")(delete_agent)
 

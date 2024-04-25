@@ -1,6 +1,6 @@
 from memgpt.data_types import Passage, Document, EmbeddingConfig, Source
 from memgpt.utils import create_uuid_from_string
-from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector
 from memgpt.embeddings import embedding_model
 from memgpt.data_types import Document, Passage
 

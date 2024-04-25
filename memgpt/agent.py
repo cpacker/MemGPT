@@ -8,7 +8,7 @@ from typing import List, Tuple, Optional, cast, Union
 from tqdm import tqdm
 
 from memgpt.metadata import MetadataStore
-from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector
 from memgpt.data_types import AgentState, Message, LLMConfig, EmbeddingConfig, Passage, Preset
 from memgpt.models import chat_completion_response
 from memgpt.interface import AgentInterface

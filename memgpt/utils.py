@@ -24,14 +24,10 @@ import demjson3 as demjson
 import pytz
 import tiktoken
 
-import memgpt
 from memgpt.constants import (
     JSON_LOADS_STRICT,
-    MEMGPT_DIR,
     FUNCTION_RETURN_CHAR_LIMIT,
     CLI_WARNING_PREFIX,
-    CORE_MEMORY_HUMAN_CHAR_LIMIT,
-    CORE_MEMORY_PERSONA_CHAR_LIMIT,
     JSON_ENSURE_ASCII,
 )
 from memgpt.models.chat_completion_response import ChatCompletionResponse
@@ -906,92 +902,6 @@ def validate_function_response(function_response_string: any, strict: bool = Fal
         function_response_string = f"{function_response_string[:FUNCTION_RETURN_CHAR_LIMIT]}... [NOTE: function output was truncated since it exceeded the character limit ({len(function_response_string)} > {FUNCTION_RETURN_CHAR_LIMIT})]"
 
     return function_response_string
-
-
-def list_agent_config_files(sort="last_modified"):
-    """List all agent config files, ignoring dotfiles."""
-    agent_dir = os.path.join(MEMGPT_DIR, "agents")
-    files = os.listdir(agent_dir)
-
-    # Remove dotfiles like .DS_Store
-    files = [file for file in files if not file.startswith(".")]
-
-    # Remove anything that's not a directory
-    files = [file for file in files if os.path.isdir(os.path.join(agent_dir, file))]
-
-    if sort is not None:
-        if sort == "last_modified":
-            # Sort the directories by last modified (most recent first)
-            files.sort(key=lambda x: os.path.getmtime(os.path.join(agent_dir, x)), reverse=True)
-        else:
-            raise ValueError(f"Unrecognized sorting option {sort}")
-
-    return files
-
-
-def list_human_files():
-    """List all humans files"""
-    defaults_dir = os.path.join(memgpt.__path__[0], "humans", "examples")
-    user_dir = os.path.join(MEMGPT_DIR, "humans")
-
-    memgpt_defaults = os.listdir(defaults_dir)
-    memgpt_defaults = [os.path.join(defaults_dir, f) for f in memgpt_defaults if f.endswith(".txt")]
-
-    if os.path.exists(user_dir):
-        user_added = os.listdir(user_dir)
-        user_added = [os.path.join(user_dir, f) for f in user_added]
-    else:
-        user_added = []
-    return memgpt_defaults + user_added
-
-
-def list_persona_files():
-    """List all personas files"""
-    defaults_dir = os.path.join(memgpt.__path__[0], "personas", "examples")
-    user_dir = os.path.join(MEMGPT_DIR, "personas")
-
-    memgpt_defaults = os.listdir(defaults_dir)
-    memgpt_defaults = [os.path.join(defaults_dir, f) for f in memgpt_defaults if f.endswith(".txt")]
-
-    if os.path.exists(user_dir):
-        user_added = os.listdir(user_dir)
-        user_added = [os.path.join(user_dir, f) for f in user_added]
-    else:
-        user_added = []
-    return memgpt_defaults + user_added
-
-
-def get_human_text(name: str, enforce_limit=True):
-    for file_path in list_human_files():
-        file = os.path.basename(file_path)
-        if f"{name}.txt" == file or name == file:
-            human_text = open(file_path, "r").read().strip()
-            if enforce_limit and len(human_text) > CORE_MEMORY_HUMAN_CHAR_LIMIT:
-                raise ValueError(f"Contents of {name}.txt is over the character limit ({len(human_text)} > {CORE_MEMORY_HUMAN_CHAR_LIMIT})")
-            return human_text
-
-    raise ValueError(f"Human {name}.txt not found")
-
-
-def get_persona_text(name: str, enforce_limit=True):
-    for file_path in list_persona_files():
-        file = os.path.basename(file_path)
-        if f"{name}.txt" == file or name == file:
-            persona_text = open(file_path, "r").read().strip()
-            if enforce_limit and len(persona_text) > CORE_MEMORY_PERSONA_CHAR_LIMIT:
-                raise ValueError(
-                    f"Contents of {name}.txt is over the character limit ({len(persona_text)} > {CORE_MEMORY_PERSONA_CHAR_LIMIT})"
-                )
-            return persona_text
-
-    raise ValueError(f"Persona {name}.txt not found")
-
-
-def get_human_text(name: str):
-    for file_path in list_human_files():
-        file = os.path.basename(file_path)
-        if f"{name}.txt" == file or name == file:
-            return open(file_path, "r").read().strip()
 
 
 def get_schema_diff(schema_a, schema_b):

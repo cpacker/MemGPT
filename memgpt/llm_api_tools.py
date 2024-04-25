@@ -6,7 +6,6 @@ from typing import Union
 import urllib
 
 from memgpt.credentials import MemGPTCredentials
-from memgpt.local_llm.chat_completion_proxy import get_chat_completion
 from memgpt.constants import CLI_WARNING_PREFIX
 from memgpt.models.chat_completion_response import ChatCompletionResponse
 from memgpt.models.embedding_response import EmbeddingResponse
@@ -340,7 +339,7 @@ def retry_with_exponential_backoff(
     """Retry a function with exponential backoff."""
 
     def wrapper(*args, **kwargs):
-        from memgpt.utils import printd
+        pass
 
         # Initialize variables
         num_retries = 0
@@ -468,20 +467,4 @@ def create(
 
     # local model
     else:
-        return get_chat_completion(
-            model=agent_state.llm_config.model,
-            messages=messages,
-            functions=functions,
-            functions_python=functions_python,
-            function_call=function_call,
-            context_window=agent_state.llm_config.context_window,
-            endpoint=agent_state.llm_config.model_endpoint,
-            endpoint_type=agent_state.llm_config.model_endpoint_type,
-            wrapper=agent_state.llm_config.model_wrapper,
-            user=str(agent_state.user_id),
-            # hint
-            first_message=first_message,
-            # auth-related
-            auth_type=credentials.openllm_auth_type,
-            auth_key=credentials.openllm_key,
-        )
+        raise ValueError(f"Unsupported model endpoint type: {agent_state.llm_config.model_endpoint_type}")

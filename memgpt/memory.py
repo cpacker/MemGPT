@@ -359,7 +359,6 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         :type archival_memory_database: str
         """
         from memgpt.agent_store.storage import StorageConnector
-        from memgpt.config import MemGPTConfig
 
         self.top_k = top_k
         self.agent_state = agent_state

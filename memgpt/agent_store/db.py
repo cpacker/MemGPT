@@ -1,13 +1,13 @@
 import os
 import base64
-from sqlalchemy import create_engine, Column, String, BIGINT, select, inspect, text, JSON, BLOB, BINARY, ARRAY, DateTime
+from sqlalchemy import create_engine, Column, String, BIGINT, select, text, JSON, BINARY, DateTime
 from sqlalchemy import func, or_, and_
 from sqlalchemy import desc, asc
 from sqlalchemy.orm import sessionmaker, mapped_column, declarative_base
 from sqlalchemy.orm.session import close_all_sessions
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy_json import mutable_json_type, MutableJson
+from sqlalchemy_json import MutableJson
 from sqlalchemy import TypeDecorator, CHAR
 import uuid
 
@@ -15,15 +15,12 @@ from tqdm import tqdm
 from typing import Optional, List, Iterator, Dict
 import numpy as np
 from tqdm import tqdm
-import pandas as pd
 
 from memgpt.config import MemGPTConfig
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
-from memgpt.utils import printd
 from memgpt.data_types import Record, Message, Passage, ToolCall, RecordType
 from memgpt.constants import MAX_EMBEDDING_DIM
-from memgpt.metadata import MetadataStore
 
 
 # Custom UUID type
@@ -38,45 +35,11 @@ class CommonUUID(TypeDecorator):
             return dialect.type_descriptor(CHAR())
 
     def process_bind_param(self, value, dialect):
-        if dialect.name == "postgresql" or value is None:
-            return value
-        else:
-            return str(value)  # Convert UUID to string for SQLite
+        return value
 
     def process_result_value(self, value, dialect):
-        if dialect.name == "postgresql" or value is None:
-            return value
-        else:
-            return uuid.UUID(value)
+        return value
 
-
-class CommonVector(TypeDecorator):
-    """Common type for representing vectors in SQLite"""
-
-    impl = BINARY
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        return dialect.type_descriptor(BINARY())
-
-    def process_bind_param(self, value, dialect):
-        if value is None:
-            return value
-        # Ensure value is a numpy array
-        if isinstance(value, list):
-            value = np.array(value, dtype=np.float32)
-        # Serialize numpy array to bytes, then encode to base64 for universal compatibility
-        return base64.b64encode(value.tobytes())
-
-    def process_result_value(self, value, dialect):
-        if not value:
-            return value
-        # Check database type and deserialize accordingly
-        if dialect.name == "sqlite":
-            # Decode from base64 and convert back to numpy array
-            value = base64.b64decode(value)
-        # For PostgreSQL, value is already in bytes
-        return np.frombuffer(value, dtype=np.float32)
 
 
 # Custom serialization / de-serialization for JSON columns
@@ -106,11 +69,8 @@ Base = declarative_base()
 
 
 def get_db_model(
-    config: MemGPTConfig,
     table_name: str,
     table_type: TableType,
-    user_id: uuid.UUID,
-    agent_id: Optional[uuid.UUID] = None,
     dialect="postgresql",
 ):
     # Define a helper function to create or get the model class
@@ -139,12 +99,10 @@ def get_db_model(
             data_source = Column(String)  # agent_name if agent, data_source name if from data source
 
             # vector storage
-            if dialect == "sqlite":
-                embedding = Column(CommonVector)
-            else:
-                from pgvector.sqlalchemy import Vector
 
-                embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
+            from pgvector.sqlalchemy import Vector
+
+            embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
             embedding_dim = Column(BIGINT)
             embedding_model = Column(String)
 
@@ -203,12 +161,9 @@ def get_db_model(
             tool_call_id = Column(String)
 
             # vector storage
-            if dialect == "sqlite":
-                embedding = Column(CommonVector)
-            else:
-                from pgvector.sqlalchemy import Vector
+            from pgvector.sqlalchemy import Vector
 
-                embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
+            embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
             embedding_dim = Column(BIGINT)
             embedding_model = Column(String)
 
@@ -432,7 +387,7 @@ class PostgresStorageConnector(SQLStorageConnector):
         else:
             raise ValueError(f"Table type {table_type} not implemented")
         # create table
-        self.db_model = get_db_model(config, self.table_name, table_type, user_id, agent_id)
+        self.db_model = get_db_model(self.table_name, table_type)
         self.engine = create_engine(self.uri)
         for c in self.db_model.__table__.columns:
             if c.name == "embedding":
@@ -500,90 +455,6 @@ class PostgresStorageConnector(SQLStorageConnector):
             # Update the record with new values from the provided Record object
             for attr, value in vars(record).items():
                 setattr(db_record, attr, value)
-
-            # Commit the changes to the database
-            session.commit()
-
-
-class SQLLiteStorageConnector(SQLStorageConnector):
-    def __init__(self, table_type: str, config: MemGPTConfig, user_id, agent_id=None):
-        super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
-
-        # get storage URI
-        if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
-            raise ValueError(f"Table type {table_type} not implemented")
-        elif table_type == TableType.RECALL_MEMORY:
-            # TODO: eventually implement URI option
-            self.path = self.config.recall_storage_path
-            if self.path is None:
-                raise ValueError(f"Must specifiy recall_storage_path in config {self.config.recall_storage_path}")
-        else:
-            raise ValueError(f"Table type {table_type} not implemented")
-
-        self.path = os.path.join(self.path, f"sqlite.db")
-
-        # Create the SQLAlchemy engine
-        self.db_model = get_db_model(config, self.table_name, table_type, user_id, agent_id, dialect="sqlite")
-        self.engine = create_engine(f"sqlite:///{self.path}")
-        Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
-        self.session_maker = sessionmaker(bind=self.engine)
-
-        import sqlite3
-
-        sqlite3.register_adapter(uuid.UUID, lambda u: u.bytes_le)
-        sqlite3.register_converter("UUID", lambda b: uuid.UUID(bytes_le=b))
-
-    def insert_many(self, records: List[RecordType], exists_ok=True, show_progress=False):
-        from sqlalchemy.dialects.sqlite import insert
-
-        # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
-        if len(records) == 0:
-            return
-        if isinstance(records[0], Passage):
-            with self.engine.connect() as conn:
-                db_records = [vars(record) for record in records]
-                # print("records", db_records)
-                stmt = insert(self.db_model.__table__).values(db_records)
-                # print(stmt)
-                if exists_ok:
-                    upsert_stmt = stmt.on_conflict_do_update(
-                        index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
-                    )
-                    print(upsert_stmt)
-                    conn.execute(upsert_stmt)
-                else:
-                    conn.execute(stmt)
-                conn.commit()
-        else:
-            with self.session_maker() as session:
-                iterable = tqdm(records) if show_progress else records
-                for record in iterable:
-                    db_record = self.db_model(**vars(record))
-                    session.add(db_record)
-                session.commit()
-
-    def insert(self, record: Record, exists_ok=True):
-        self.insert_many([record], exists_ok=exists_ok)
-
-    def update(self, record: Record):
-        """
-        Updates an existing record in the database with values from the provided record object.
-        """
-        if not record.id:
-            raise ValueError("Record must have an id.")
-
-        with self.session_maker() as session:
-            # Fetch the existing record from the database
-            db_record = session.query(self.db_model).filter_by(id=record.id).first()
-            if not db_record:
-                raise ValueError(f"Record with id {record.id} does not exist.")
-
-            # Update the database record with values from the provided record object
-            for column in self.db_model.__table__.columns:
-                column_name = column.name
-                if hasattr(record, column_name):
-                    new_value = getattr(record, column_name)
-                    setattr(db_record, column_name, new_value)
 
             # Commit the changes to the database
             session.commit()
