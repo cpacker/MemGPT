@@ -149,7 +149,9 @@ def load_all_function_sets(merge: bool = True, ignore_duplicates: bool = True) -
                     v["tags"] = tags
                 schemas_and_functions[module_name] = function_set
             except ValueError as e:
-                printd(f"Error loading function set '{module_name}': {e}")
+                err = f"Error loading function set '{module_name}': {e}"
+                printd(err)
+                warnings.warn(err)
 
     if merge:
         # Put all functions from all sets into the same level dict

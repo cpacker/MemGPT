@@ -2,6 +2,10 @@
 # You can view our full documentation here: https://docs.readme.com/docs/rdme
 name: ReadMe GitHub Action (OpenAPI) 🦉
 
+env:
+  MEMGPT_PGURI: ${{ secrets.MEMGPT_PGURI }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
 on:
   push:
     branches:
