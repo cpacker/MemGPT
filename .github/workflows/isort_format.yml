@@ -1,4 +1,4 @@
-name: isort Code Formatter
+name: Code Formatter (isort)
 
 on:
   pull_request:

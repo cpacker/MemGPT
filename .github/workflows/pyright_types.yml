@@ -1,4 +1,4 @@
-name: "Python Static Analysis"
+name: Code Formatter (Pyright type checking)"
 on:
   pull_request:
     paths:

@@ -1,4 +1,4 @@
-name: autoflake Code Formatter
+name: Code Formatter (autoflake)
 
 on:
   pull_request:

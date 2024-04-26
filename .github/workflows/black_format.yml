@@ -1,4 +1,4 @@
-name: Black Code Formatter
+name: Code Formatter (Black)
 
 on:
   pull_request:
