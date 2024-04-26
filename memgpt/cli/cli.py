@@ -25,7 +25,9 @@ from memgpt.migrate import migrate_all_agents, migrate_all_sources
 from memgpt.server.constants import WS_DEFAULT_PORT
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
-from memgpt.streaming_interface import StreamingRefreshCLIInterface as interface  # for printing to terminal
+from memgpt.streaming_interface import (
+    StreamingRefreshCLIInterface as interface,  # for printing to terminal
+)
 from memgpt.utils import open_folder_in_explorer, printd
 
 
@@ -468,7 +470,11 @@ def run(
     else:
         logger.setLevel(logging.CRITICAL)
 
-    from memgpt.migrate import VERSION_CUTOFF, config_is_compatible, wipe_config_and_reconfigure
+    from memgpt.migrate import (
+        VERSION_CUTOFF,
+        config_is_compatible,
+        wipe_config_and_reconfigure,
+    )
 
     if not config_is_compatible(allow_empty=True):
         typer.secho(f"\nYour current config file is incompatible with MemGPT versions later than {VERSION_CUTOFF}\n", fg=typer.colors.RED)

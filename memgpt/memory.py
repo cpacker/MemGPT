@@ -8,7 +8,13 @@ from memgpt.data_types import AgentState, Message, Passage
 from memgpt.embeddings import embedding_model, parse_and_chunk_text, query_embedding
 from memgpt.llm_api.llm_api_tools import create
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
-from memgpt.utils import count_tokens, extract_date_from_timestamp, get_local_time, printd, validate_date_format
+from memgpt.utils import (
+    count_tokens,
+    extract_date_from_timestamp,
+    get_local_time,
+    printd,
+    validate_date_format,
+)
 
 # from llama_index import Document
 # from llama_index.node_parser import SimpleNodeParser

@@ -3,7 +3,14 @@ import os
 import os.path
 from logging.handlers import RotatingFileHandler
 
-from memgpt.constants import LOGGER_DEFAULT_LEVEL, LOGGER_DIR, LOGGER_FILE_BACKUP_COUNT, LOGGER_FILENAME, LOGGER_MAX_FILE_SIZE, LOGGER_NAME
+from memgpt.constants import (
+    LOGGER_DEFAULT_LEVEL,
+    LOGGER_DIR,
+    LOGGER_FILE_BACKUP_COUNT,
+    LOGGER_FILENAME,
+    LOGGER_MAX_FILE_SIZE,
+    LOGGER_NAME,
+)
 
 # Checking if log directory exists
 if not os.path.exists(LOGGER_DIR):
