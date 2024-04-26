@@ -306,22 +306,10 @@ def server(
     use_ssl: Annotated[bool, typer.Option(help="Run the server using HTTPS?")] = False,
     ssl_cert: Annotated[Optional[str], typer.Option(help="Path to SSL certificate (if use_ssl is True)")] = None,
     ssl_key: Annotated[Optional[str], typer.Option(help="Path to SSL key file (if use_ssl is True)")] = None,
+    config_user: Annotated[bool, typer.Option(help="Use the user-level config instead of the server config")] = False,
     debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = False,
 ):
     """Launch a MemGPT server process"""
-
-    # if debug:
-    #    from memgpt.server.server import logger as server_logger
-
-    #    # Set the logging level
-    #    server_logger.setLevel(logging.DEBUG)
-    #    # Create a StreamHandler
-    #    stream_handler = logging.StreamHandler()
-    #    # Set the formatter (optional)
-    #    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    #    stream_handler.setFormatter(formatter)
-    #    # Add the handler to the logger
-    #    server_logger.addHandler(stream_handler)
 
     if type == ServerChoice.rest_api:
         pass
@@ -345,35 +333,6 @@ def server(
                 ssl_key=ssl_key,
                 debug=debug,
             )
-            # if use_ssl:
-            #    if ssl_cert is None:  # No certificate path provided, generate a self-signed certificate
-            #        ssl_certfile, ssl_keyfile = generate_self_signed_cert()
-            #        print(f"Running server with self-signed SSL cert: {ssl_certfile}, {ssl_keyfile}")
-            #    else:
-            #        ssl_certfile, ssl_keyfile = ssl_cert, ssl_key  # Assuming cert includes both
-            #        print(f"Running server with provided SSL cert: {ssl_certfile}, {ssl_keyfile}")
-
-            #    # This will start the server on HTTPS
-            #    assert isinstance(ssl_certfile, str) and os.path.exists(ssl_certfile), ssl_certfile
-            #    assert isinstance(ssl_keyfile, str) and os.path.exists(ssl_keyfile), ssl_keyfile
-            #    print(
-            #        f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT} --ssl-keyfile {ssl_keyfile} --ssl-certfile {ssl_certfile}"
-            #    )
-            #    uvicorn.run(
-            #        app,
-            #        host=host or "localhost",
-            #        port=port or REST_DEFAULT_PORT,
-            #        ssl_keyfile=ssl_keyfile,
-            #        ssl_certfile=ssl_certfile,
-            #    )
-            # else:
-            #    # Start the subprocess in a new session
-            #    print(f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT}")
-            #    uvicorn.run(
-            #        app,
-            #        host=host or "localhost",
-            #        port=port or REST_DEFAULT_PORT,
-            #    )
 
         except KeyboardInterrupt:
             # Handle CTRL-C

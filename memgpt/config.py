@@ -110,7 +110,7 @@ class MemGPTConfig:
 
         # insure all configuration directories exist
         cls.create_config_dir()
-        printd(f"Loading config from {config_path}")
+        print(f"Loading config from {config_path}")
         if os.path.exists(config_path):
             # read existing config
             config.read(config_path)
