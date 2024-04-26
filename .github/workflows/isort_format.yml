@@ -24,7 +24,7 @@ jobs:
         id: isort
         run: poetry run isort --check-only .
         continue-on-error: true
-      
+
       - name: Check isort Output
         if: steps.isort.outcome == 'failure'
         run: echo "isort check failed. To fix, please run `poetry run isort .`"

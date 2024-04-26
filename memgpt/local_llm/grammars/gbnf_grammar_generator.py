@@ -640,7 +640,7 @@ array  ::=
   "[" ws (
             value
     ("," ws value)*
-  )? "]" 
+  )? "]"
 
 number ::= integer | float"""
 

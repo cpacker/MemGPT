@@ -1,18 +1,30 @@
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.3.0
     hooks:
-    -   id: check-yaml
-        exclude:  'docs/.*|tests/data/.*|configs/.*'
-    -   id: end-of-file-fixer
-        exclude:  'docs/.*|tests/data/.*'
-    -   id: trailing-whitespace
-        exclude:  'docs/.*|tests/data/.*'
-    -   id: end-of-file-fixer
-        exclude:  'docs/.*|tests/data/.*'
--   repo: https://github.com/psf/black
-    rev: 22.10.0
-    hooks:
-    -   id: black
-        exclude: ^docs/
-        args: ['--line-length', '140']
+      - id: check-yaml
+        exclude: 'docs/.*|tests/data/.*|configs/.*'
+      - id: end-of-file-fixer
+        exclude: 'docs/.*|tests/data/.*'
+      - id: trailing-whitespace
+        exclude: 'docs/.*|tests/data/.*'
+
+#   - repo: https://github.com/myint/autoflake
+#     rev: v1.4  # Specify the latest version
+#     hooks:
+#       - id: autoflake
+#         args: ['--remove-all-unused-imports', '--remove-unused-variables', '--in-place', '--recursive', '--ignore-init-module-imports']
+
+#   - repo: https://github.com/pycqa/isort
+#     rev: 5.10.1  # Specify the latest version
+#     hooks:
+#       - id: isort
+#         args: ['--profile', 'black']
+#         exclude: ^docs/
+
+#   - repo: https://github.com/psf/black
+#     rev: 22.10.0
+#     hooks:
+#       - id: black
+#         exclude: ^docs/
+#         args: ['--line-length', '140']

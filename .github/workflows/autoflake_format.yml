@@ -24,7 +24,7 @@ jobs:
         id: autoflake
         run: poetry run autoflake --remove-all-unused-imports --remove-unused-variables --in-place --recursive --ignore-init-module-imports .
         continue-on-error: true
-      
+
       - name: Check Autoflake Output
         if: steps.autoflake.outcome == 'failure'
         run: echo "Autoflake check failed. To fix, please run `poetry run autoflake .`"

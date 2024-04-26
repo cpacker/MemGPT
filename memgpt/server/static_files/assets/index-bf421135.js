@@ -120,23 +120,23 @@ Error generating stack: `+s.message+`
     margin-right: `).concat(i,"px ").concat(r,`;
     `),n==="padding"&&"padding-right: ".concat(i,"px ").concat(r,";")].filter(Boolean).join(""),`
   }
-  
+
   .`).concat(wd,` {
     right: `).concat(i,"px ").concat(r,`;
   }
-  
+
   .`).concat(bd,` {
     margin-right: `).concat(i,"px ").concat(r,`;
   }
-  
+
   .`).concat(wd," .").concat(wd,` {
     right: 0 `).concat(r,`;
   }
-  
+
   .`).concat(bd," .").concat(bd,` {
     margin-right: 0 `).concat(r,`;
   }
-  
+
   body {
     `).concat(NI,": ").concat(i,`px;
   }
