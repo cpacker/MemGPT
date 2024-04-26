@@ -17,7 +17,6 @@ from sqlalchemy import (
     TypeDecorator,
     create_engine,
     func,
-    inspect,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base, sessionmaker
