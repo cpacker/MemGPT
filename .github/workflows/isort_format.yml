@@ -22,7 +22,7 @@ jobs:
 
       - name: Run isort
         id: isort
-        run: poetry run isort --check-only .
+        run: poetry run isort --profile black --check-only .
         continue-on-error: true
 
       - name: Check isort Output
