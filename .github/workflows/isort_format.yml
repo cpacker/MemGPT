@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  black-check:
+  isort-check:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -27,4 +27,6 @@ jobs:
 
       - name: Check isort Output
         if: steps.isort.outcome == 'failure'
-        run: echo "isort check failed. To fix, please run `poetry run isort .`"
+        run: |
+          echo "isort check failed. To fix, please run 'poetry run isort .'"
+          exit 1

@@ -27,7 +27,11 @@ jobs:
 
       - name: Check Black Output
         if: steps.black.outcome == 'failure'
-        run: echo "Black check failed. To fix, please run `poetry run black .`"
+        run: |
+          echo "Black check failed. To fix, please run 'poetry run black .'"
+          exit 1
+
+
 
       # (Optional) If you want to automatically fix formatting issues
       # Uncomment the following steps:

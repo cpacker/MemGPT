@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  black-check:
+  autoflake-check:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -27,4 +27,6 @@ jobs:
 
       - name: Check Autoflake Output
         if: steps.autoflake.outcome == 'failure'
-        run: echo "Autoflake check failed. To fix, please run `poetry run autoflake .`"
+        run: |
+          echo "Autoflake check failed. To fix, please run 'poetry run autoflake .'"
+          exit 1
