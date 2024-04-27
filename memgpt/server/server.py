@@ -10,7 +10,6 @@ from typing import Callable, List, Optional, Tuple, Union
 
 from fastapi import HTTPException
 
-from memgpt.settings import settings
 import memgpt.constants as constants
 import memgpt.presets.presets as presets
 import memgpt.server.utils as server_utils
@@ -24,14 +23,29 @@ from memgpt.config import MemGPTConfig
 from memgpt.constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_sources.connectors import DataConnector, load_data
-from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, Message, Preset, Source, Token, User
+from memgpt.data_types import (
+    AgentState,
+    EmbeddingConfig,
+    LLMConfig,
+    Message,
+    Preset,
+    Source,
+    Token,
+    User,
+)
 
 # TODO use custom interface
 from memgpt.interface import AgentInterface  # abstract
 from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.metadata import MetadataStore
-from memgpt.models.pydantic_models import DocumentModel, PassageModel, PresetModel, SourceModel, ToolModel
-from memgpt.utils import get_human_text, get_persona_text
+from memgpt.models.pydantic_models import (
+    DocumentModel,
+    PassageModel,
+    PresetModel,
+    SourceModel,
+    ToolModel,
+)
+from memgpt.settings import settings
 
 logger = logging.getLogger(__name__)
 

@@ -8,8 +8,14 @@ from memgpt.constants import JSON_ENSURE_ASCII
 from memgpt.data_types import Message
 from memgpt.local_llm.utils import count_tokens
 from memgpt.models.chat_completion_request import ChatCompletionRequest, Tool
-from memgpt.models.chat_completion_response import ChatCompletionResponse, Choice, FunctionCall
-from memgpt.models.chat_completion_response import Message as ChoiceMessage  # NOTE: avoid conflict with our own MemGPT Message datatype
+from memgpt.models.chat_completion_response import (
+    ChatCompletionResponse,
+    Choice,
+    FunctionCall,
+)
+from memgpt.models.chat_completion_response import (
+    Message as ChoiceMessage,  # NOTE: avoid conflict with our own MemGPT Message datatype
+)
 from memgpt.models.chat_completion_response import ToolCall, UsageStatistics
 from memgpt.utils import get_tool_call_id, get_utc_time, smart_urljoin
 
@@ -273,7 +279,10 @@ def convert_tools_to_cohere_format(tools: List[Tool], inner_thoughts_in_kwargs: 
     if inner_thoughts_in_kwargs:
         # NOTE: since Cohere doesn't allow "text" in the response when a tool call happens, if we want
         # a simultaneous CoT + tool call we need to put it inside a kwarg
-        from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG, INNER_THOUGHTS_KWARG_DESCRIPTION
+        from memgpt.local_llm.constants import (
+            INNER_THOUGHTS_KWARG,
+            INNER_THOUGHTS_KWARG_DESCRIPTION,
+        )
 
         for cohere_tool in tools_dict_list:
             cohere_tool["parameter_definitions"][INNER_THOUGHTS_KWARG] = {

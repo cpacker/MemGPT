@@ -18,7 +18,10 @@ from memgpt.models.chat_completion_response import (
     UsageStatistics,
 )
 from memgpt.models.embedding_response import EmbeddingResponse
-from memgpt.streaming_interface import AgentChunkStreamingInterface, AgentRefreshStreamingInterface
+from memgpt.streaming_interface import (
+    AgentChunkStreamingInterface,
+    AgentRefreshStreamingInterface,
+)
 from memgpt.utils import get_utc_time, smart_urljoin
 
 OPENAI_SSE_DONE = "[DONE]"

@@ -9,7 +9,10 @@ from rich.markup import escape
 
 from memgpt.data_types import Message
 from memgpt.interface import CLIInterface
-from memgpt.models.chat_completion_response import ChatCompletionChunkResponse, ChatCompletionResponse
+from memgpt.models.chat_completion_response import (
+    ChatCompletionChunkResponse,
+    ChatCompletionResponse,
+)
 
 # init(autoreset=True)
 

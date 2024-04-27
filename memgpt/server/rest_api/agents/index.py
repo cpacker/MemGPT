@@ -2,10 +2,15 @@ import uuid
 from functools import partial
 from typing import List
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends
 from pydantic import BaseModel, Field
 
-from memgpt.models.pydantic_models import AgentStateModel, EmbeddingConfigModel, LLMConfigModel, PresetModel
+from memgpt.models.pydantic_models import (
+    AgentStateModel,
+    EmbeddingConfigModel,
+    LLMConfigModel,
+    PresetModel,
+)
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer

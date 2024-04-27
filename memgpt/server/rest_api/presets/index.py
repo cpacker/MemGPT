@@ -18,10 +18,10 @@ router = APIRouter()
 
 """
 Implement the following functions:
-* List all available presets 
-* Create a new preset 
-* Delete a preset 
-* TODO update a preset 
+* List all available presets
+* Create a new preset
+* Delete a preset
+* TODO update a preset
 """
 
 

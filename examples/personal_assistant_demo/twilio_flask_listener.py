@@ -1,14 +1,13 @@
 import os
-import requests
 import sys
 
-from flask import Flask, request, Response
+import requests
+from flask import Flask, request
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-from twilio.twiml.messaging_response import MessagingResponse
 
 app = Flask(__name__)
 CORS(app)

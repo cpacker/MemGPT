@@ -7,16 +7,41 @@ import uuid
 from typing import List, Optional
 import traceback
 
-from sqlalchemy import BIGINT, CHAR, JSON, Boolean, Column, DateTime, String, TypeDecorator, create_engine, func, inspect
+from sqlalchemy import (
+    BIGINT,
+    CHAR,
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    String,
+    TypeDecorator,
+    create_engine,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql import func
 from sqlalchemy.exc import InterfaceError
 
 from memgpt.config import MemGPTConfig
-from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, Preset, Source, Token, User
+from memgpt.data_types import (
+    AgentState,
+    EmbeddingConfig,
+    LLMConfig,
+    Preset,
+    Source,
+    Token,
+    User,
+)
 from memgpt.functions.functions import load_all_function_sets
-from memgpt.models.pydantic_models import HumanModel, JobModel, JobStatus, PersonaModel, ToolModel
+from memgpt.models.pydantic_models import (
+    HumanModel,
+    JobModel,
+    JobStatus,
+    PersonaModel,
+    ToolModel,
+)
 from memgpt.settings import settings
 from memgpt.utils import enforce_types, get_utc_time, printd
 

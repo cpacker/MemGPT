@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 from memgpt import Admin
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import EmbeddingConfig, LLMConfig
-from memgpt.server.rest_api.server import start_server
 from memgpt.settings import settings
 from tests.config import TestMGPTConfig
 

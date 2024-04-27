@@ -4,10 +4,9 @@
 #   pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
 
 import os
-import traceback
-import datetime
 import os.path
-from typing import Optional, List
+import traceback
+from typing import Optional
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
