@@ -3,9 +3,9 @@
 import inspect as python_inspect
 import os
 import secrets
+import traceback
 import uuid
 from typing import List, Optional
-import traceback
 
 from sqlalchemy import (
     BIGINT,
@@ -20,9 +20,9 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.exc import InterfaceError
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql import func
-from sqlalchemy.exc import InterfaceError
 
 from memgpt.config import MemGPTConfig
 from memgpt.data_types import (
