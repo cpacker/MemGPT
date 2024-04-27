@@ -261,7 +261,7 @@ class SyncServer(LockingServer):
             embedding_model=self.config.default_embedding_config.embedding_model,
             embedding_chunk_size=self.config.default_embedding_config.embedding_chunk_size,
         )
-        assert self.server_embedding_config.embedding_model is not None, self.server_embedding_config
+        assert self.server_embedding_config.embedding_model is not None, vars(self.server_embedding_config)
 
         # Initialize the metadata store
         self.ms = MetadataStore(self.config)
