@@ -28,5 +28,7 @@ jobs:
       - name: Check Autoflake Output
         if: steps.autoflake.outcome == 'failure'
         run: |
+          poetry run autoflake --version
+          poetry run python --version
           echo "Autoflake check failed. To fix, please run 'poetry run autoflake .'"
           exit 1
