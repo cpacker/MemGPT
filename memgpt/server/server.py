@@ -207,6 +207,7 @@ class SyncServer(LockingServer):
 
         # Initialize the connection to the DB
         self.config = MemGPTConfig.load()
+        print(f"server :: loading configuration from '{self.config.config_path}'")
         assert self.config.persona is not None, "Persona must be set in the config"
         assert self.config.human is not None, "Human must be set in the config"
 
