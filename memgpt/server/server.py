@@ -208,7 +208,6 @@ class SyncServer(LockingServer):
 
         # Initialize the connection to the DB
         self.config = MemGPTConfig.load()
-        print(f"server :: loading configuration from '{self.config.config_path}'")
         assert self.config.persona is not None, "Persona must be set in the config"
         assert self.config.human is not None, "Human must be set in the config"
 
@@ -262,7 +261,7 @@ class SyncServer(LockingServer):
             embedding_model=self.config.default_embedding_config.embedding_model,
             embedding_chunk_size=self.config.default_embedding_config.embedding_chunk_size,
         )
-        assert self.server_embedding_config.embedding_model is not None, vars(self.server_embedding_config)
+        assert self.server_embedding_config.embedding_model is not None, self.server_embedding_config
 
         # Initialize the metadata store
         self.ms = MetadataStore(self.config)
