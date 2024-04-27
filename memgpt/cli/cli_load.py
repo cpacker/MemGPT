@@ -15,7 +15,11 @@ import typer
 
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
-from memgpt.data_sources.connectors import DirectoryConnector, VectorDBConnector, load_data
+from memgpt.data_sources.connectors import (
+    DirectoryConnector,
+    VectorDBConnector,
+    load_data,
+)
 from memgpt.data_types import Source
 from memgpt.metadata import MetadataStore
 

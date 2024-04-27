@@ -1,4 +1,4 @@
-name: Black Code Formatter
+name: Code Formatter (Black)
 
 on:
   pull_request:
@@ -21,7 +21,17 @@ jobs:
           install-args: "-E dev"  # TODO: change this to --group dev when PR #842 lands
 
       - name: Run Black
+        id: black
         run: poetry run black --check .
+        continue-on-error: true
+
+      - name: Check Black Output
+        if: steps.black.outcome == 'failure'
+        run: |
+          echo "Black check failed. To fix, please run 'poetry run black .'"
+          exit 1
+
+
 
       # (Optional) If you want to automatically fix formatting issues
       # Uncomment the following steps:

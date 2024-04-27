@@ -2,7 +2,13 @@ import sys
 import uuid
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from autogen.agentchat import Agent, ConversableAgent, GroupChat, GroupChatManager, UserProxyAgent
+from autogen.agentchat import (
+    Agent,
+    ConversableAgent,
+    GroupChat,
+    GroupChatManager,
+    UserProxyAgent,
+)
 
 import memgpt.constants as constants
 import memgpt.system as system

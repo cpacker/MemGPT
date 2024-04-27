@@ -1,4 +1,4 @@
-name: "Python Static Analysis"
+name: Code Formatter (Pyright type checking)"
 on:
   pull_request:
     paths:
@@ -35,4 +35,3 @@ jobs:
           python-version: ${{matrix.python-version}}
           level: "error"
         continue-on-error: true  # TODO: remove once the repo has been corrected for pyright
-

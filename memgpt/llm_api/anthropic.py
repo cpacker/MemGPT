@@ -7,8 +7,14 @@ import requests
 
 from memgpt.data_types import Message
 from memgpt.models.chat_completion_request import ChatCompletionRequest, Tool
-from memgpt.models.chat_completion_response import ChatCompletionResponse, Choice, FunctionCall
-from memgpt.models.chat_completion_response import Message as ChoiceMessage  # NOTE: avoid conflict with our own MemGPT Message datatype
+from memgpt.models.chat_completion_response import (
+    ChatCompletionResponse,
+    Choice,
+    FunctionCall,
+)
+from memgpt.models.chat_completion_response import (
+    Message as ChoiceMessage,  # NOTE: avoid conflict with our own MemGPT Message datatype
+)
 from memgpt.models.chat_completion_response import ToolCall, UsageStatistics
 from memgpt.utils import get_utc_time, smart_urljoin
 
