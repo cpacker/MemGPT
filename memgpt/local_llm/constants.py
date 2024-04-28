@@ -1,5 +1,7 @@
 # import memgpt.local_llm.llm_chat_completion_wrappers.airoboros as airoboros
-from memgpt.local_llm.llm_chat_completion_wrappers.chatml import ChatMLInnerMonologueWrapper
+from memgpt.local_llm.llm_chat_completion_wrappers.chatml import (
+    ChatMLInnerMonologueWrapper,
+)
 
 DEFAULT_ENDPOINTS = {
     # Local

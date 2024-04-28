@@ -21,7 +21,14 @@ from memgpt.constants import (
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_WARNING_FRAC,
 )
-from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, Message, Passage, Preset
+from memgpt.data_types import (
+    AgentState,
+    EmbeddingConfig,
+    LLMConfig,
+    Message,
+    Passage,
+    Preset,
+)
 from memgpt.interface import AgentInterface
 from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
 from memgpt.memory import ArchivalMemory
@@ -30,7 +37,12 @@ from memgpt.memory import RecallMemory, summarize_messages
 from memgpt.metadata import MetadataStore
 from memgpt.models import chat_completion_response
 from memgpt.persistence_manager import LocalStateManager
-from memgpt.system import get_initial_boot_messages, get_login_event, package_function_response, package_summarize_message
+from memgpt.system import (
+    get_initial_boot_messages,
+    get_login_event,
+    package_function_response,
+    package_summarize_message,
+)
 from memgpt.utils import (
     count_tokens,
     create_random_username,

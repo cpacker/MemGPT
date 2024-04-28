@@ -40,7 +40,7 @@ Getting the upcoming 10 events
 
 Similar flow, run the authentication script to generate the token:
 ```sh
-python examples/personal_assistant_demo/gmail_test_setup.py 
+python examples/personal_assistant_demo/gmail_test_setup.py
 ```
 ```
 Please visit this URL to authorize this application: https://accounts.google.com/o/oauth2/auth?response_type=...
@@ -65,7 +65,7 @@ export TWILIO_TO_NUMBER=...
 
 # Creating the agent preset
 
-## Create a custom user 
+## Create a custom user
 
 In the demo we'll show how MemGPT can programatically update its knowledge about you:
 ```
@@ -178,7 +178,7 @@ Run the MemGPT server to turn on the agent service:
 memgpt server --debug
 ```
 
-# Example interaction 
+# Example interaction
 
 In the CLI:
 ```
@@ -277,4 +277,3 @@ whatever time works best for you
 Follow-up inside WhatsApp:
 
 <img width="587" alt="image" src="https://github.com/cpacker/MemGPT/assets/5475622/d1060c94-9b84-49d6-944e-fd1965f83fbc">
-

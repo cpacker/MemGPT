@@ -19,7 +19,7 @@ You grant us a non-exclusive, worldwide, royalty free license to do the things w
 
 You can access archived versions of our policies at our repository.
 
-**DMCA Policy**. We respond to notices of alleged copyright infringement in accordance with the Digital Millennium Copyright Act ("DMCA"). If you believe that the content of a MemGPT account infringes your copyrights, you can notify us using the published email in our privacy policy. 
+**DMCA Policy**. We respond to notices of alleged copyright infringement in accordance with the Digital Millennium Copyright Act ("DMCA"). If you believe that the content of a MemGPT account infringes your copyrights, you can notify us using the published email in our privacy policy.
 
 **Our Intellectual Property**: The Services and all materials contained therein, including, without limitation, MemGPT logo, and all designs, text, graphics, pictures, information, data, software, sound files, other files, and the selection and arrangement thereof (collectively, the "MemGPT Materials") are the property of MemGPT or its licensors or users and are protected by U.S. and international intellectual property laws. You are granted a personal, limited, non-sublicensable, non-exclusive, revocable license to access and use MemGPT Materials in accordance with these Terms for the sole purpose of enabling you to use and enjoy the Services.
 

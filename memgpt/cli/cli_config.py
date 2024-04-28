@@ -15,13 +15,27 @@ from memgpt.config import MemGPTConfig
 from memgpt.constants import LLM_MAX_TOKENS, MEMGPT_DIR
 from memgpt.credentials import SUPPORTED_AUTH_TYPES, MemGPTCredentials
 from memgpt.data_types import EmbeddingConfig, LLMConfig, Source, User
-from memgpt.llm_api.anthropic import anthropic_get_model_list, antropic_get_model_context_window
+from memgpt.llm_api.anthropic import (
+    anthropic_get_model_list,
+    antropic_get_model_context_window,
+)
 from memgpt.llm_api.azure_openai import azure_openai_get_model_list
-from memgpt.llm_api.cohere import COHERE_VALID_MODEL_LIST, cohere_get_model_context_window, cohere_get_model_list
-from memgpt.llm_api.google_ai import google_ai_get_model_context_window, google_ai_get_model_list
+from memgpt.llm_api.cohere import (
+    COHERE_VALID_MODEL_LIST,
+    cohere_get_model_context_window,
+    cohere_get_model_list,
+)
+from memgpt.llm_api.google_ai import (
+    google_ai_get_model_context_window,
+    google_ai_get_model_list,
+)
 from memgpt.llm_api.llm_api_tools import LLM_API_PROVIDER_OPTIONS
 from memgpt.llm_api.openai import openai_get_model_list
-from memgpt.local_llm.constants import DEFAULT_ENDPOINTS, DEFAULT_OLLAMA_MODEL, DEFAULT_WRAPPER_NAME
+from memgpt.local_llm.constants import (
+    DEFAULT_ENDPOINTS,
+    DEFAULT_OLLAMA_MODEL,
+    DEFAULT_WRAPPER_NAME,
+)
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.metadata import MetadataStore
 from memgpt.models.pydantic_models import HumanModel, PersonaModel

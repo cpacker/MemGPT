@@ -1,18 +1,33 @@
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.3.0
     hooks:
-    -   id: check-yaml
-        exclude:  'docs/.*|tests/data/.*|configs/.*'
-    -   id: end-of-file-fixer
-        exclude:  'docs/.*|tests/data/.*'
-    -   id: trailing-whitespace
-        exclude:  'docs/.*|tests/data/.*'
-    -   id: end-of-file-fixer
-        exclude:  'docs/.*|tests/data/.*'
--   repo: https://github.com/psf/black
-    rev: 22.10.0
+      - id: check-yaml
+        exclude: 'docs/.*|tests/data/.*|configs/.*'
+      - id: end-of-file-fixer
+        exclude: 'docs/.*|tests/data/.*|memgpt/server/static_files/.*'
+      - id: trailing-whitespace
+        exclude: 'docs/.*|tests/data/.*|memgpt/server/static_files/.*'
+
+  - repo: local
     hooks:
-    -   id: black
+      - id: autoflake
+        name: autoflake
+        entry: poetry run autoflake
+        language: system
+        types: [python]
+        args: ['--remove-all-unused-imports', '--remove-unused-variables', '--in-place', '--recursive', '--ignore-init-module-imports']
+      - id: isort
+        name: isort
+        entry: poetry run isort
+        language: system
+        types: [python]
+        args: ['--profile', 'black']
         exclude: ^docs/
-        args: ['--line-length', '140']
+      - id: black
+        name: black
+        entry: poetry run black
+        language: system
+        types: [python]
+        args: ['--line-length', '140', '--target-version', 'py310', '--target-version', 'py311']
+        exclude: ^docs/

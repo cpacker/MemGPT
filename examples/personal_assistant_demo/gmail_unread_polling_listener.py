@@ -1,10 +1,10 @@
 import base64
 import os.path
-import requests
 import sys
 import time
 from email import message_from_bytes
 
+import requests
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -101,7 +101,6 @@ def main():
             token.write(creds.to_json())
 
     service = build("gmail", "v1", credentials=creds)
-    last_checked = None
     seen_ids = set()  # Set to track seen email IDs
 
     try:

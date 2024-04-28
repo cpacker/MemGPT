@@ -1,85 +1,16 @@
-import os
 import threading
 import time
 import uuid
 
 import pytest
-from dotenv import load_dotenv
 
 from memgpt import Admin
-from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import EmbeddingConfig, LLMConfig
-from memgpt.server.rest_api.server import start_server
-from memgpt.settings import settings
-from tests.config import TestMGPTConfig
+from tests.test_client import _reset_config, run_server
 
 test_base_url = "http://localhost:8283"
 
 # admin credentials
 test_server_token = "test_server_token"
-
-
-def run_server():
-    pass
-
-    load_dotenv()
-
-    db_url = settings.pg_db
-    if os.getenv("OPENAI_API_KEY"):
-        config = TestMGPTConfig(
-            archival_storage_uri=db_url,
-            recall_storage_uri=db_url,
-            metadata_storage_uri=db_url,
-            archival_storage_type="postgres",
-            recall_storage_type="postgres",
-            metadata_storage_type="postgres",
-            # embeddings
-            default_embedding_config=EmbeddingConfig(
-                embedding_endpoint_type="openai",
-                embedding_endpoint="https://api.openai.com/v1",
-                embedding_dim=1536,
-            ),
-            # llms
-            default_llm_config=LLMConfig(
-                model_endpoint_type="openai",
-                model_endpoint="https://api.openai.com/v1",
-                model="gpt-4",
-            ),
-        )
-        credentials = MemGPTCredentials(
-            openai_key=os.getenv("OPENAI_API_KEY"),
-        )
-    else:  # hosted
-        config = TestMGPTConfig(
-            archival_storage_uri=db_url,
-            recall_storage_uri=db_url,
-            metadata_storage_uri=db_url,
-            archival_storage_type="postgres",
-            recall_storage_type="postgres",
-            metadata_storage_type="postgres",
-            # embeddings
-            default_embedding_config=EmbeddingConfig(
-                embedding_endpoint_type="hugging-face",
-                embedding_endpoint="https://embeddings.memgpt.ai",
-                embedding_model="BAAI/bge-large-en-v1.5",
-                embedding_dim=1024,
-            ),
-            # llms
-            default_llm_config=LLMConfig(
-                model_endpoint_type="vllm",
-                model_endpoint="https://api.memgpt.ai",
-                model="ehartford/dolphin-2.5-mixtral-8x7b",
-            ),
-        )
-        credentials = MemGPTCredentials()
-
-    config.save()
-    credentials.save()
-
-    # start server
-    from memgpt.server.rest_api.server import start_server
-
-    start_server(debug=True)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -103,6 +34,8 @@ def admin_client():
 
 
 def test_admin_client(admin_client):
+    _reset_config()
+
     # create a user
     user_id = uuid.uuid4()
     create_user1_response = admin_client.create_user(user_id)
