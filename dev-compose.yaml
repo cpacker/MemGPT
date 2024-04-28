@@ -37,4 +37,4 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
       - ./configs/server_config.yaml:/root/.memgpt/config # config file
-      - ~/.memgpt/credentials:/root/.memgpt/credentials # credentials file
+      # ~/.memgpt/credentials:/root/.memgpt/credentials # credentials file
