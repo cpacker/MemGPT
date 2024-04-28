@@ -1,22 +1,18 @@
 import asyncio
-import json
 import uuid
-from asyncio import AbstractEventLoop
 from datetime import datetime
 from enum import Enum
 from functools import partial
 from typing import List, Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
-from memgpt.constants import JSON_ENSURE_ASCII
 from memgpt.server.rest_api.auth_token import get_current_user
-from memgpt.server.rest_api.interface import QueuingInterface
+from memgpt.server.rest_api.interface import QueuingInterface, StreamingServerInterface
+from memgpt.server.rest_api.utils import sse_async_generator
 from memgpt.server.server import SyncServer
-from memgpt.server.rest_api.utils import sse_async_generator, sse_formatter
-from memgpt.server.rest_api.interface import StreamingServerInterface
 
 router = APIRouter()
 

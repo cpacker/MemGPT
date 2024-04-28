@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Generator, Union, AsyncGenerator
+from typing import AsyncGenerator, Generator, Union
 
 from memgpt.constants import JSON_ENSURE_ASCII
 

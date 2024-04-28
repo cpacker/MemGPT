@@ -20,7 +20,7 @@ from memgpt.server.rest_api.agents.message import setup_agents_message_router
 from memgpt.server.rest_api.auth.index import setup_auth_router
 from memgpt.server.rest_api.config.index import setup_config_index_router
 from memgpt.server.rest_api.humans.index import setup_humans_index_router
-from memgpt.server.rest_api.interface import QueuingInterface, StreamingServerInterface
+from memgpt.server.rest_api.interface import StreamingServerInterface
 from memgpt.server.rest_api.models.index import setup_models_index_router
 from memgpt.server.rest_api.openai_assistants.assistants import (
     setup_openai_assistant_router,

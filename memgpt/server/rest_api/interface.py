@@ -1,13 +1,13 @@
 import asyncio
-from collections import deque
 import queue
-from typing import Optional, Generator, AsyncGenerator
+from collections import deque
+from typing import AsyncGenerator, Optional
 
 from memgpt.data_types import Message
 from memgpt.interface import AgentInterface
-from memgpt.utils import is_utc_datetime
+from memgpt.models.chat_completion_response import ChatCompletionChunkResponse
 from memgpt.streaming_interface import AgentChunkStreamingInterface
-from memgpt.models.chat_completion_response import ChatCompletionChunkResponse, ChatCompletionResponse
+from memgpt.utils import is_utc_datetime
 
 
 class QueuingInterface(AgentInterface):
