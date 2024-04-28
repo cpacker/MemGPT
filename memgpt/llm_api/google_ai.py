@@ -8,7 +8,14 @@ from memgpt.constants import JSON_ENSURE_ASCII, NON_USER_MSG_PREFIX
 from memgpt.local_llm.json_parser import clean_json_string_extra_backslash
 from memgpt.local_llm.utils import count_tokens
 from memgpt.models.chat_completion_request import Tool
-from memgpt.models.chat_completion_response import ChatCompletionResponse, Choice, FunctionCall, Message, ToolCall, UsageStatistics
+from memgpt.models.chat_completion_response import (
+    ChatCompletionResponse,
+    Choice,
+    FunctionCall,
+    Message,
+    ToolCall,
+    UsageStatistics,
+)
 from memgpt.utils import get_tool_call_id, get_utc_time
 
 # from memgpt.data_types import ToolCall
@@ -219,7 +226,10 @@ def convert_tools_to_google_ai_format(tools: List[Tool], inner_thoughts_in_kwarg
             param_fields["type"] = param_fields["type"].upper()
         # Add inner thoughts
         if inner_thoughts_in_kwargs:
-            from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG, INNER_THOUGHTS_KWARG_DESCRIPTION
+            from memgpt.local_llm.constants import (
+                INNER_THOUGHTS_KWARG,
+                INNER_THOUGHTS_KWARG_DESCRIPTION,
+            )
 
             func["parameters"]["properties"][INNER_THOUGHTS_KWARG] = {
                 "type": "STRING",

@@ -1,0 +1,12 @@
+system_prompt: "memgpt_chat"
+functions:
+  - "send_message"
+  - "pause_heartbeats"
+  - "core_memory_append"
+  - "core_memory_replace"
+  - "conversation_search"
+  - "conversation_search_date"
+  - "archival_memory_insert"
+  - "archival_memory_search"
+  - "schedule_event"
+  - "send_text_message"

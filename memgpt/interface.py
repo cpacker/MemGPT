@@ -154,7 +154,6 @@ class CLIInterface(AgentInterface):
 
     @staticmethod
     def function_message(msg: str, msg_obj: Optional[Message] = None, debug: bool = DEBUG):
-
         def print_function_message(icon, msg, color=Fore.RED, printf=print):
             if STRIP_UI:
                 printf(f"⚡{icon} [function] {msg}")

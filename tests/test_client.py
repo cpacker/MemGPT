@@ -23,17 +23,12 @@ client = None
 test_agent_state_post_message = None
 test_user_id = uuid.uuid4()
 
-local_service_url = "http://localhost:8283"
-docker_compose_url = "http://localhost:8083"
 
 # admin credentials
 test_server_token = "test_server_token"
 
 
-def run_server():
-    pass
-
-    load_dotenv()
+def _reset_config():
 
     # Use os.getenv with a fallback to os.environ.get
     db_url = settings.pg_uri
@@ -50,8 +45,8 @@ def run_server():
             default_embedding_config=EmbeddingConfig(
                 embedding_endpoint_type="openai",
                 embedding_endpoint="https://api.openai.com/v1",
-                embedding_dim=1536,
                 embedding_model="text-embedding-ada-002",
+                embedding_dim=1536,
             ),
             # llms
             default_llm_config=LLMConfig(
@@ -89,46 +84,58 @@ def run_server():
 
     config.save()
     credentials.save()
+    print("_reset_config :: ", config.config_path)
+
+
+def run_server():
+
+    load_dotenv()
+
+    _reset_config()
 
     from memgpt.server.rest_api.server import start_server
 
-    print("Starting server...", config.config_path)
+    print("Starting server...")
     start_server(debug=True)
 
 
 # Fixture to create clients with different configurations
 @pytest.fixture(
-    params=[
-        {"base_url": local_service_url},
-        # {"base_url": docker_compose_url},  # TODO: add when docker compose added to tests
-        # {"base_url": None} # TODO: add when implemented
+    params=[  # whether to use REST API server
+        {"server": True},
+        # {"server": False} # TODO: add when implemented
     ],
     scope="module",
 )
-# @pytest.fixture(params=[{"base_url": test_base_url}], scope="module")
 def client(request):
-    print("CLIENT", request.param["base_url"])
-    if request.param["base_url"]:
-        if request.param["base_url"] == local_service_url:
-            # start server
+    if request.param["server"]:
+        # get URL from enviornment
+        server_url = os.getenv("MEMGPT_SERVER_URL")
+        if server_url is None:
+            # run server in thread
+            # NOTE: must set MEMGPT_SERVER_PASS enviornment variable
+            server_url = "http://localhost:8283"
             print("Starting server thread")
             thread = threading.Thread(target=run_server, daemon=True)
             thread.start()
             time.sleep(5)
-
-        admin = Admin(request.param["base_url"], test_server_token)
+        print("Running client tests with server:", server_url)
+        # create user via admin client
+        admin = Admin(server_url, test_server_token)
         response = admin.create_user(test_user_id)  # Adjust as per your client's method
         response.user_id
         token = response.api_key
     else:
+        # use local client (no server)
         token = None
+        server_url = None
 
-    client = create_client(**request.param, token=token)  # This yields control back to the test function
+    client = create_client(base_url=server_url, token=token)  # This yields control back to the test function
     try:
         yield client
     finally:
         # cleanup user
-        if request.param["base_url"]:
+        if server_url:
             admin.delete_user(test_user_id)  # Adjust as per your client's method
 
 
@@ -144,6 +151,8 @@ def agent(client):
 
 
 def test_agent(client, agent):
+    _reset_config()
+
     # test client.rename_agent
     new_name = "RenamedTestAgent"
     client.rename_agent(agent_id=agent.id, new_name=new_name)
@@ -158,6 +167,8 @@ def test_agent(client, agent):
 
 
 def test_memory(client, agent):
+    _reset_config()
+
     memory_response = client.get_agent_memory(agent_id=agent.id)
     print("MEMORY", memory_response)
 
@@ -171,6 +182,8 @@ def test_memory(client, agent):
 
 
 def test_agent_interactions(client, agent):
+    _reset_config()
+
     message = "Hello, agent!"
     message_response = client.user_message(agent_id=str(agent.id), message=message)
 
@@ -180,6 +193,8 @@ def test_agent_interactions(client, agent):
 
 
 def test_archival_memory(client, agent):
+    _reset_config()
+
     memory_content = "Archival memory content"
     insert_response = client.insert_archival_memory(agent_id=agent.id, memory=memory_content)
     assert insert_response, "Inserting archival memory failed"
@@ -195,6 +210,8 @@ def test_archival_memory(client, agent):
 
 
 def test_messages(client, agent):
+    _reset_config()
+
     send_message_response = client.send_message(agent_id=agent.id, message="Test message", role="user")
     assert send_message_response, "Sending message failed"
 
@@ -203,6 +220,8 @@ def test_messages(client, agent):
 
 
 def test_humans_personas(client, agent):
+    _reset_config()
+
     humans_response = client.list_humans()
     print("HUMANS", humans_response)
 
@@ -230,6 +249,8 @@ def test_humans_personas(client, agent):
 
 
 def test_config(client, agent):
+    _reset_config()
+
     models_response = client.list_models()
     print("MODELS", models_response)
 
@@ -240,6 +261,7 @@ def test_config(client, agent):
 
 
 def test_sources(client, agent):
+    _reset_config()
 
     if not hasattr(client, "base_url"):
         pytest.skip("Skipping test_sources because base_url is None")
@@ -296,6 +318,7 @@ def test_sources(client, agent):
 
 
 def test_presets(client, agent):
+    _reset_config()
 
     new_preset = Preset(
         # user_id=client.user_id,

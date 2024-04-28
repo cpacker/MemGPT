@@ -1,0 +1,34 @@
+name: Code Formatter (autoflake)
+
+on:
+  pull_request:
+    paths:
+      - '**.py'
+  workflow_dispatch:
+
+jobs:
+  autoflake-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: "Setup Python, Poetry and Dependencies"
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: "3.12"
+          poetry-version: "1.8.2"
+          install-args: "-E dev"  # TODO: change this to --group dev when PR #842 lands
+
+      - name: Run Autoflake
+        id: autoflake
+        run: poetry run autoflake --remove-all-unused-imports --remove-unused-variables --in-place --recursive --ignore-init-module-imports .
+        continue-on-error: true
+
+      - name: Check Autoflake Output
+        if: steps.autoflake.outcome == 'failure'
+        run: |
+          poetry run autoflake --version
+          poetry run python --version
+          echo "Autoflake check failed. To fix, please run 'poetry run autoflake .'"
+          exit 1

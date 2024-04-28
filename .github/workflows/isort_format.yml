@@ -1,0 +1,34 @@
+name: Code Formatter (isort)
+
+on:
+  pull_request:
+    paths:
+      - '**.py'
+  workflow_dispatch:
+
+jobs:
+  isort-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: "Setup Python, Poetry and Dependencies"
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: "3.12"
+          poetry-version: "1.8.2"
+          install-args: "-E dev"  # TODO: change this to --group dev when PR #842 lands
+
+      - name: Run isort
+        id: isort
+        run: poetry run isort --profile black --check-only .
+        continue-on-error: true
+
+      - name: Check isort Output
+        if: steps.isort.outcome == 'failure'
+        run: |
+          poetry run isort --version
+          poetry run python --version
+          echo "isort check failed. To fix, please run 'poetry run isort --profile black .'"
+          exit 1

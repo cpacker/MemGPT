@@ -7,9 +7,23 @@ import requests
 
 from memgpt.config import MemGPTConfig
 from memgpt.data_sources.connectors import DataConnector
-from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, Preset, Source, User
+from memgpt.data_types import (
+    AgentState,
+    EmbeddingConfig,
+    LLMConfig,
+    Preset,
+    Source,
+    User,
+)
 from memgpt.metadata import MetadataStore
-from memgpt.models.pydantic_models import HumanModel, JobModel, JobStatus, PersonaModel, PresetModel, SourceModel
+from memgpt.models.pydantic_models import (
+    HumanModel,
+    JobModel,
+    JobStatus,
+    PersonaModel,
+    PresetModel,
+    SourceModel,
+)
 
 # import pydantic response objects from memgpt.server.rest_api
 from memgpt.server.rest_api.agents.command import CommandResponse
@@ -21,13 +35,20 @@ from memgpt.server.rest_api.agents.memory import (
     InsertAgentArchivalMemoryResponse,
     UpdateAgentMemoryResponse,
 )
-from memgpt.server.rest_api.agents.message import GetAgentMessagesResponse, UserMessageResponse
+from memgpt.server.rest_api.agents.message import (
+    GetAgentMessagesResponse,
+    UserMessageResponse,
+)
 from memgpt.server.rest_api.config.index import ConfigResponse
 from memgpt.server.rest_api.humans.index import ListHumansResponse
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.rest_api.models.index import ListModelsResponse
 from memgpt.server.rest_api.personas.index import ListPersonasResponse
-from memgpt.server.rest_api.presets.index import CreatePresetResponse, CreatePresetsRequest, ListPresetsResponse
+from memgpt.server.rest_api.presets.index import (
+    CreatePresetResponse,
+    CreatePresetsRequest,
+    ListPresetsResponse,
+)
 from memgpt.server.rest_api.sources.index import ListSourcesResponse
 from memgpt.server.rest_api.tools.index import CreateToolResponse, ListToolsResponse
 from memgpt.server.server import SyncServer
@@ -256,7 +277,7 @@ class RESTClient(AbstractClient):
         }
         response = requests.post(f"{self.base_url}/api/agents", json=payload, headers=self.headers)
         if response.status_code != 200:
-            raise ValueError(f"Failed to create agent: {response.text}")
+            raise ValueError(f"Status {response.status_code} - Failed to create agent: {response.text}")
         response_obj = CreateAgentResponse(**response.json())
         return self.get_agent_response_to_state(response_obj)
 

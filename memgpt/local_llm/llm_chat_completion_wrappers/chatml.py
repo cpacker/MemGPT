@@ -3,7 +3,9 @@ import json
 from memgpt.constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
 from memgpt.errors import LLMJSONParsingError
 from memgpt.local_llm.json_parser import clean_json
-from memgpt.local_llm.llm_chat_completion_wrappers.wrapper_base import LLMChatCompletionWrapper
+from memgpt.local_llm.llm_chat_completion_wrappers.wrapper_base import (
+    LLMChatCompletionWrapper,
+)
 
 PREFIX_HINT = """# Reminders:
 # Important information about yourself and the user is stored in (limited) core memory
@@ -74,7 +76,10 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
         func_str += f"\n  description: {schema['description']}"
         func_str += f"\n  params:"
         if add_inner_thoughts:
-            from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG, INNER_THOUGHTS_KWARG_DESCRIPTION
+            from memgpt.local_llm.constants import (
+                INNER_THOUGHTS_KWARG,
+                INNER_THOUGHTS_KWARG_DESCRIPTION,
+            )
 
             func_str += f"\n    {INNER_THOUGHTS_KWARG}: {INNER_THOUGHTS_KWARG_DESCRIPTION}"
         for param_k, param_v in schema["parameters"]["properties"].items():

@@ -10,7 +10,6 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.middleware.cors import CORSMiddleware
 
-from memgpt.config import MemGPTConfig
 from memgpt.server.constants import REST_DEFAULT_PORT
 from memgpt.server.rest_api.admin.users import setup_admin_router
 from memgpt.server.rest_api.agents.command import setup_agents_command_router
@@ -23,7 +22,9 @@ from memgpt.server.rest_api.config.index import setup_config_index_router
 from memgpt.server.rest_api.humans.index import setup_humans_index_router
 from memgpt.server.rest_api.interface import QueuingInterface, StreamingServerInterface
 from memgpt.server.rest_api.models.index import setup_models_index_router
-from memgpt.server.rest_api.openai_assistants.assistants import setup_openai_assistant_router
+from memgpt.server.rest_api.openai_assistants.assistants import (
+    setup_openai_assistant_router,
+)
 from memgpt.server.rest_api.personas.index import setup_personas_index_router
 from memgpt.server.rest_api.presets.index import setup_presets_index_router
 from memgpt.server.rest_api.sources.index import setup_sources_index_router
@@ -39,10 +40,6 @@ Start the server with:
   cd memgpt/server/rest_api
   poetry run uvicorn server:app --reload
 """
-config = MemGPTConfig.load()
-for memory_type in ("archival", "recall", "metadata"):
-    setattr(config, f"{memory_type}_storage_uri", settings.pg_uri)
-config.save()
 
 # interface: QueuingInterface = QueuingInterface()
 # interface: StreamingServerInterface = StreamingServerInterface()
@@ -95,7 +92,9 @@ app.include_router(setup_agents_message_router(server, interface, password), pre
 app.include_router(setup_humans_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_personas_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_models_index_router(server, interface, password), prefix=API_PREFIX)
-app.include_router(setup_tools_index_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(
+    setup_tools_index_router(server, interface, password), prefix=API_PREFIX, dependencies=[Depends(verify_password)]
+)  # admin only
 app.include_router(setup_sources_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_presets_index_router(server, interface, password), prefix=API_PREFIX)
 
@@ -118,11 +117,6 @@ def on_startup():
     if app.openapi_schema:
         app.openapi_schema["servers"] = [{"url": host} for host in settings.cors_origins]
         app.openapi_schema["info"]["title"] = "MemGPT API"
-
-    # Write out the OpenAPI schema to a file
-    # with open("openapi.json", "w") as file:
-    #     print(f"Writing out openapi.json file")
-    #     json.dump(app.openapi_schema, file, indent=2)
 
     # Split the API docs into MemGPT API, and OpenAI Assistants compatible API
     memgpt_api = app.openapi_schema.copy()

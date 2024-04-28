@@ -25,7 +25,9 @@ from memgpt.migrate import migrate_all_agents, migrate_all_sources
 from memgpt.server.constants import WS_DEFAULT_PORT
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
-from memgpt.streaming_interface import StreamingRefreshCLIInterface as interface  # for printing to terminal
+from memgpt.streaming_interface import (
+    StreamingRefreshCLIInterface as interface,  # for printing to terminal
+)
 from memgpt.utils import open_folder_in_explorer, printd
 
 
@@ -160,7 +162,7 @@ def quickstart(
 
                 # Load the file from the relative path
                 script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-                backup_config_path = os.path.join(script_dir, "..", "configs", "memgpt_hosted.json")
+                backup_config_path = os.path.join(script_dir, "..", "..", "configs", "memgpt_hosted.json")
                 try:
                     with open(backup_config_path, "r", encoding="utf-8") as file:
                         backup_config = json.load(file)
@@ -173,7 +175,7 @@ def quickstart(
             # Load the file from the relative path
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
             print("SCRIPT", script_dir)
-            backup_config_path = os.path.join(script_dir, "..", "configs", "memgpt_hosted.json")
+            backup_config_path = os.path.join(script_dir, "..", "..", "configs", "memgpt_hosted.json")
             print("FILE PATH", backup_config_path)
             try:
                 with open(backup_config_path, "r", encoding="utf-8") as file:
@@ -212,7 +214,7 @@ def quickstart(
 
                 # Load the file from the relative path
                 script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-                backup_config_path = os.path.join(script_dir, "..", "configs", "openai.json")
+                backup_config_path = os.path.join(script_dir, "..", "..", "configs", "openai.json")
                 try:
                     with open(backup_config_path, "r", encoding="utf-8") as file:
                         backup_config = json.load(file)
@@ -224,7 +226,7 @@ def quickstart(
         else:
             # Load the file from the relative path
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-            backup_config_path = os.path.join(script_dir, "..", "configs", "openai.json")
+            backup_config_path = os.path.join(script_dir, "..", "..", "configs", "openai.json")
             try:
                 with open(backup_config_path, "r", encoding="utf-8") as file:
                     backup_config = json.load(file)
@@ -310,19 +312,6 @@ def server(
 ):
     """Launch a MemGPT server process"""
 
-    # if debug:
-    #    from memgpt.server.server import logger as server_logger
-
-    #    # Set the logging level
-    #    server_logger.setLevel(logging.DEBUG)
-    #    # Create a StreamHandler
-    #    stream_handler = logging.StreamHandler()
-    #    # Set the formatter (optional)
-    #    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    #    stream_handler.setFormatter(formatter)
-    #    # Add the handler to the logger
-    #    server_logger.addHandler(stream_handler)
-
     if type == ServerChoice.rest_api:
         pass
 
@@ -345,35 +334,6 @@ def server(
                 ssl_key=ssl_key,
                 debug=debug,
             )
-            # if use_ssl:
-            #    if ssl_cert is None:  # No certificate path provided, generate a self-signed certificate
-            #        ssl_certfile, ssl_keyfile = generate_self_signed_cert()
-            #        print(f"Running server with self-signed SSL cert: {ssl_certfile}, {ssl_keyfile}")
-            #    else:
-            #        ssl_certfile, ssl_keyfile = ssl_cert, ssl_key  # Assuming cert includes both
-            #        print(f"Running server with provided SSL cert: {ssl_certfile}, {ssl_keyfile}")
-
-            #    # This will start the server on HTTPS
-            #    assert isinstance(ssl_certfile, str) and os.path.exists(ssl_certfile), ssl_certfile
-            #    assert isinstance(ssl_keyfile, str) and os.path.exists(ssl_keyfile), ssl_keyfile
-            #    print(
-            #        f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT} --ssl-keyfile {ssl_keyfile} --ssl-certfile {ssl_certfile}"
-            #    )
-            #    uvicorn.run(
-            #        app,
-            #        host=host or "localhost",
-            #        port=port or REST_DEFAULT_PORT,
-            #        ssl_keyfile=ssl_keyfile,
-            #        ssl_certfile=ssl_certfile,
-            #    )
-            # else:
-            #    # Start the subprocess in a new session
-            #    print(f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT}")
-            #    uvicorn.run(
-            #        app,
-            #        host=host or "localhost",
-            #        port=port or REST_DEFAULT_PORT,
-            #    )
 
         except KeyboardInterrupt:
             # Handle CTRL-C
@@ -468,7 +428,11 @@ def run(
     else:
         logger.setLevel(logging.CRITICAL)
 
-    from memgpt.migrate import VERSION_CUTOFF, config_is_compatible, wipe_config_and_reconfigure
+    from memgpt.migrate import (
+        VERSION_CUTOFF,
+        config_is_compatible,
+        wipe_config_and_reconfigure,
+    )
 
     if not config_is_compatible(allow_empty=True):
         typer.secho(f"\nYour current config file is incompatible with MemGPT versions later than {VERSION_CUTOFF}\n", fg=typer.colors.RED)

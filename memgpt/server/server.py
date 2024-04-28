@@ -23,14 +23,29 @@ from memgpt.config import MemGPTConfig
 from memgpt.constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_sources.connectors import DataConnector, load_data
-from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, Message, Preset, Source, Token, User
+from memgpt.data_types import (
+    AgentState,
+    EmbeddingConfig,
+    LLMConfig,
+    Message,
+    Preset,
+    Source,
+    Token,
+    User,
+)
 
 # TODO use custom interface
 from memgpt.interface import AgentInterface  # abstract
 from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.metadata import MetadataStore
-from memgpt.models.pydantic_models import DocumentModel, PassageModel, PresetModel, SourceModel, ToolModel
-from memgpt.utils import get_human_text, get_persona_text
+from memgpt.models.pydantic_models import (
+    DocumentModel,
+    PassageModel,
+    PresetModel,
+    SourceModel,
+    ToolModel,
+)
+from memgpt.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -194,11 +209,26 @@ class SyncServer(LockingServer):
 
         # Initialize the connection to the DB
         self.config = MemGPTConfig.load()
+        print(f"server :: loading configuration from '{self.config.config_path}'")
         assert self.config.persona is not None, "Persona must be set in the config"
         assert self.config.human is not None, "Human must be set in the config"
 
+        # Update storage URI to match passed in settings
+        # TODO: very hack, fix in the future
+        for memory_type in ("archival", "recall", "metadata"):
+            setattr(self.config, f"{memory_type}_storage_uri", settings.pg_uri)
+        self.config.save()
+
         # TODO figure out how to handle credentials for the server
         self.credentials = MemGPTCredentials.load()
+
+        # check credentials
+        # TODO: add checks for other providers
+        if (
+            self.config.default_embedding_config.embedding_endpoint_type == "openai"
+            or self.config.default_llm_config.model_endpoint_type == "openai"
+        ):
+            assert self.credentials.openai_key is not None, "OpenAI key must be set in the credentials file"
 
         # Ensure valid database configuration
         # TODO: add back once tests are matched
@@ -231,6 +261,7 @@ class SyncServer(LockingServer):
             embedding_model=self.config.default_embedding_config.embedding_model,
             embedding_chunk_size=self.config.default_embedding_config.embedding_chunk_size,
         )
+        assert self.server_embedding_config.embedding_model is not None, vars(self.server_embedding_config)
 
         # Initialize the metadata store
         self.ms = MetadataStore(self.config)
@@ -674,25 +705,25 @@ class SyncServer(LockingServer):
                 preset_override = True
                 preset_obj.human = human
                 # This is a check for a common bug where users were providing filenames instead of values
-                try:
-                    get_human_text(human)
-                    raise ValueError(human)
-                    raise UserWarning(
-                        f"It looks like there is a human file named {human} - did you mean to pass the file contents to the `human` arg?"
-                    )
-                except:
-                    pass
+                # try:
+                #    get_human_text(human)
+                #    raise ValueError(human)
+                #    raise UserWarning(
+                #        f"It looks like there is a human file named {human} - did you mean to pass the file contents to the `human` arg?"
+                #    )
+                # except:
+                #    pass
             if persona is not None:
                 preset_override = True
                 preset_obj.persona = persona
-                try:
-                    get_persona_text(persona)
-                    raise ValueError(persona)
-                    raise UserWarning(
-                        f"It looks like there is a persona file named {persona} - did you mean to pass the file contents to the `persona` arg?"
-                    )
-                except:
-                    pass
+                # try:
+                #    get_persona_text(persona)
+                #    raise ValueError(persona)
+                #    raise UserWarning(
+                #        f"It looks like there is a persona file named {persona} - did you mean to pass the file contents to the `persona` arg?"
+                #    )
+                # except:
+                #    pass
             if human_name is not None and human_name != preset_obj.human_name:
                 preset_override = True
                 preset_obj.human_name = human_name
@@ -706,7 +737,8 @@ class SyncServer(LockingServer):
             # TODO remove (https://github.com/cpacker/MemGPT/issues/1138)
             if function_names is not None:
                 preset_override = True
-                available_tools = self.ms.list_tools(user_id=user_id)
+                # available_tools = self.ms.list_tools(user_id=user_id) # TODO: add back when user-specific
+                available_tools = self.ms.list_tools()
                 available_tools_names = [t.name for t in available_tools]
                 assert all([f_name in available_tools_names for f_name in function_names])
                 preset_obj.functions_schema = [t.json_schema for t in available_tools if t.name in function_names]
@@ -729,8 +761,6 @@ class SyncServer(LockingServer):
                 # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
                 first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
             )
-            save_agent(agent=agent, ms=self.ms)
-
             # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
             # self.ms.update_agent(agent.agent_state)
         except Exception as e:
@@ -828,7 +858,8 @@ class SyncServer(LockingServer):
 
         # TODO add a get_message_obj_from_message_id(...) function
         #      this would allow grabbing Message.created_by without having to load the agent object
-        all_available_tools = self.ms.list_tools(user_id=user_id)
+        # all_available_tools = self.ms.list_tools(user_id=user_id) # TODO: add back when user-specific
+        all_available_tools = self.ms.list_tools()
 
         for agent_state, return_dict in zip(agents_states, agents_states_dicts):
 
