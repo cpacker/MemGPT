@@ -227,3 +227,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
     def step_yield(self):
         return
+
+    @staticmethod
+    def clear():
+        return
