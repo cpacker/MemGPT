@@ -31,6 +31,7 @@ def message_chatgpt(self, message: str):
         Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role="system", text=MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE),
         Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role="user", text=str(message)),
     ]
+    # TODO: this will error without an LLMConfig
     response = create(
         model=MESSAGE_CHATGPT_FUNCTION_MODEL,
         messages=message_sequence,
