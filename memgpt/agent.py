@@ -424,7 +424,9 @@ class Agent(object):
         """Get response from LLM API"""
         try:
             response = create(
-                agent_state=self.agent_state,
+                # agent_state=self.agent_state,
+                llm_config=self.agent_state.llm_config,
+                user_id=self.agent_state.user_id,
                 messages=message_sequence,
                 functions=self.functions,
                 functions_python=self.functions_python,
