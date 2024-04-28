@@ -7,6 +7,7 @@ human = basic
 model = gpt-4
 model_endpoint = https://api.openai.com/v1
 model_endpoint_type = openai
+model_wrapper = null
 context_window = 8192
 
 [embedding]
@@ -18,18 +19,18 @@ embedding_chunk_size = 300
 
 [archival_storage]
 type = postgres
-path = /Users/loaner/.memgpt/chroma
-uri = postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+path = /root/.memgpt/chroma
+uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt
 
 [recall_storage]
 type = postgres
-path = /Users/loaner/.memgpt
-uri = postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+path = /root/.memgpt
+uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt
 
 [metadata_storage]
 type = postgres
-path = /Users/loaner/.memgpt
-uri = postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+path = /root/.memgpt
+uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt
 
 [client]
 anon_clientid = 00000000-0000-0000-0000-000000000000
