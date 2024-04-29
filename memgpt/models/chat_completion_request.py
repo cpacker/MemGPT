@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Literal, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError, validator
 
 
 class SystemMessage(BaseModel):
@@ -42,6 +42,7 @@ class ToolMessage(BaseModel):
 ChatMessage = Union[SystemMessage, UserMessage, AssistantMessage, ToolMessage]
 
 
+# TODO: this might not be necessary with the validator
 def cast_message_to_subtype(m_dict: dict) -> ChatMessage:
     """Cast a dictionary to one of the individual message types"""
     role = m_dict.get("role")
@@ -120,3 +121,19 @@ class ChatCompletionRequest(BaseModel):
     # deprecated scheme
     functions: Optional[List[FunctionSchema]] = None
     function_call: Optional[FunctionCallChoice] = None
+
+    @validator("messages", pre=True, each_item=True)
+    def parse_message(cls, value):
+        if not isinstance(value, dict):
+            raise TypeError("Each message must be a dictionary.")
+        role = value.get("role")
+        if role == "system":
+            return SystemMessage(**value)
+        elif role == "user":
+            return UserMessage(**value)
+        elif role == "assistant":
+            return AssistantMessage(**value)
+        elif role == "tool":
+            return ToolMessage(**value)
+        else:
+            raise ValidationError(f"Invalid role for message: {role}")
