@@ -163,10 +163,15 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
     should maintain multiple generators and index them with the request ID
     """
 
-    def __init__(self):
+    def __init__(self, multi_step=True):
         self._chunks = deque()
         self._event = asyncio.Event()  # Use an event to notify when chunks are available
         self._active = True  # This should be set to False to stop the generator
+
+        # if multi_step = True, the stream ends when the agent yields
+        # if multi_step = False, the stream ends when the step ends
+        self.multi_step = multi_step
+        self.multi_step_indicator = "[DONE_STEP]"
 
     async def _create_generator(self) -> AsyncGenerator:
         """An asynchronous generator that yields chunks as they become available."""
@@ -189,8 +194,14 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
     def stream_end(self):
         """Clean up the stream by deactivating and clearing chunks."""
-        self._active = False
-        self._event.set()  # Unblock the generator if it's waiting to allow it to complete
+        if not self.multi_step:
+            # end the stream
+            self._active = False
+            self._event.set()  # Unblock the generator if it's waiting to allow it to complete
+        else:
+            # signal that a new step has started in the stream
+            self._chunks.append(self.multi_step_indicator)
+            self._event.set()  # Signal that new data is available
 
     def process_chunk(self, chunk: ChatCompletionChunkResponse):
         """Process a streaming chunk from an OpenAI-compatible server."""
@@ -226,7 +237,10 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         return
 
     def step_yield(self):
-        return
+        """If multi_step, this is the true 'stream_end' function."""
+        if self.multi_step:
+            self._active = False
+            self._event.set()  # Unblock the generator if it's waiting to allow it to complete
 
     @staticmethod
     def clear():
