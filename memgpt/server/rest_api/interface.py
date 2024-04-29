@@ -172,6 +172,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         # if multi_step = False, the stream ends when the step ends
         self.multi_step = multi_step
         self.multi_step_indicator = "[DONE_STEP]"
+        self.multi_step_gen_indicator = "[DONE_GEN]"
 
     async def _create_generator(self) -> AsyncGenerator:
         """An asynchronous generator that yields chunks as they become available."""
@@ -194,14 +195,17 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
     def stream_end(self):
         """Clean up the stream by deactivating and clearing chunks."""
-        if not self.multi_step:
-            # end the stream
-            self._active = False
-            self._event.set()  # Unblock the generator if it's waiting to allow it to complete
-        else:
-            # signal that a new step has started in the stream
-            self._chunks.append(self.multi_step_indicator)
-            self._event.set()  # Signal that new data is available
+        self._chunks.append(self.multi_step_gen_indicator)
+        self._event.set()  # Signal that new data is available
+
+        # if not self.multi_step:
+        #     # end the stream
+        #     self._active = False
+        #     self._event.set()  # Unblock the generator if it's waiting to allow it to complete
+        # else:
+        #     # signal that a new step has started in the stream
+        #     self._chunks.append(self.multi_step_indicator)
+        #     self._event.set()  # Signal that new data is available
 
     def process_chunk(self, chunk: ChatCompletionChunkResponse):
         """Process a streaming chunk from an OpenAI-compatible server.
@@ -311,7 +315,14 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
     def step_complete(self):
         """Signal from the agent that one 'step' finished (step = LLM response + tool execution)"""
-        return
+        if not self.multi_step:
+            # end the stream
+            self._active = False
+            self._event.set()  # Unblock the generator if it's waiting to allow it to complete
+        else:
+            # signal that a new step has started in the stream
+            self._chunks.append(self.multi_step_indicator)
+            self._event.set()  # Signal that new data is available
 
     def step_yield(self):
         """If multi_step, this is the true 'stream_end' function."""

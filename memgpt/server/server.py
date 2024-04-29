@@ -382,6 +382,7 @@ class SyncServer(LockingServer):
                 stream=True,  # turns on streaming if available
             )
             counter += 1
+            memgpt_agent.interface.step_complete()
 
             # Chain stops
             if not self.chaining:
