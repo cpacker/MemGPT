@@ -252,14 +252,20 @@ def _sse_post(url: str, data: dict, headers: dict) -> Generator[ChatCompletionCh
             # Inspect for errors before iterating (see https://github.com/florimondmanca/httpx-sse/pull/12)
             if not event_source.response.is_success:
                 # handle errors
-                print("Caught error before iterating SSE request:", vars(event_source.response))
-                print(event_source.response.read())
-                event_source.response.raise_for_status()
-                raise Exception(event_source.response.read())
-                error_details = event_source.response.json()
-                raise Exception(str(error_details))
+                from utils import printd
 
-                # TODO need to catch context length errors here and propogate them up the stack properly
+                printd("Caught error before iterating SSE request:", vars(event_source.response))
+                printd(event_source.response.read())
+
+                try:
+                    response_bytes = event_source.response.read()
+                    response_dict = json.loads(response_bytes.decode("utf-8"))
+                    error_message = response_dict["error"]["message"]
+                    # e.g.: This model's maximum context length is 8192 tokens. However, your messages resulted in 8198 tokens (7450 in the messages, 748 in the functions). Please reduce the length of the messages or functions.
+                    raise Exception(error_message)
+                except:
+                    print(f"Failed to parse SSE message, throwing SSE HTTP error up the stack")
+                    event_source.response.raise_for_status()
 
             try:
                 for sse in event_source.iter_sse():
