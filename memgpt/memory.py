@@ -142,7 +142,8 @@ def summarize_messages(
     message_sequence.append(Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role="user", text=summary_input))
 
     response = create(
-        agent_state=agent_state,
+        llm_config=agent_state.llm_config,
+        user_id=agent_state.user_id,
         messages=message_sequence,
     )
 
