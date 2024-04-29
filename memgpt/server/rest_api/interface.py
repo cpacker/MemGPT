@@ -204,14 +204,54 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
             self._event.set()  # Signal that new data is available
 
     def process_chunk(self, chunk: ChatCompletionChunkResponse):
-        """Process a streaming chunk from an OpenAI-compatible server."""
-        print("Processed CHUNK:", chunk)
-        self._chunks.append(chunk.model_dump_json(exclude_none=True))
-        self._event.set()  # Signal that new data is available
+        """Process a streaming chunk from an OpenAI-compatible server.
 
-        # self._chunks.append(chunk.model_dump_json())
-        # if self._waiter and not self._waiter.done():
-        # self._waiter.set_result(None)
+        Example data from non-streaming response looks like:
+
+        data: {"function_call": "send_message({'message': \"Ah, the age-old question, Chad. The meaning of life is as subjective as the life itself. 42, as the supercomputer 'Deep Thought' calculated in 'The Hitchhiker's Guide to the Galaxy', is indeed an answer, but maybe not the one we're after. Among other things, perhaps life is about learning, experiencing and connecting. What are your thoughts, Chad? What gives your life meaning?\"})", "date": "2024-02-29T06:07:48.844733+00:00"}
+
+        data: {"assistant_message": "Ah, the age-old question, Chad. The meaning of life is as subjective as the life itself. 42, as the supercomputer 'Deep Thought' calculated in 'The Hitchhiker's Guide to the Galaxy', is indeed an answer, but maybe not the one we're after. Among other things, perhaps life is about learning, experiencing and connecting. What are your thoughts, Chad? What gives your life meaning?", "date": "2024-02-29T06:07:49.846280+00:00"}
+
+        data: {"function_return": "None", "status": "success", "date": "2024-02-29T06:07:50.847262+00:00"}
+        """
+        # print("Processed CHUNK:", chunk)
+
+        # Example where we just pass through the raw stream from the underlying OpenAI SSE stream
+        # processed_chunk = chunk.model_dump_json(exclude_none=True)
+
+        choice = chunk.choices[0]
+        message_delta = choice.delta
+
+        # inner thoughts
+        if message_delta.content is not None:
+            processed_chunk = {
+                "internal_monologue": message_delta.content,
+            }
+        elif message_delta.tool_calls is not None and len(message_delta.tool_calls) > 0:
+            tool_call = message_delta.tool_calls[0]
+
+            tool_call_delta = {}
+            if tool_call.id:
+                tool_call_delta["id"] = tool_call.id
+            if tool_call.function:
+                if tool_call.function.arguments:
+                    tool_call_delta["arguments"] = tool_call.function.arguments
+                if tool_call.function.name:
+                    tool_call_delta["name"] = tool_call.function.name
+
+            processed_chunk = {
+                "function_call": tool_call_delta,
+            }
+        elif choice.finish_reason is not None:
+            # skip if there's a finish
+            return
+        else:
+            raise ValueError(f"Couldn't find delta in chunk: {chunk}")
+
+        processed_chunk["date"] = chunk.created.isoformat()
+
+        self._chunks.append(processed_chunk)
+        self._event.set()  # Signal that new data is available
 
     def get_generator(self) -> AsyncGenerator:
         """Get the generator that yields processed chunks."""
@@ -234,11 +274,49 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
     def function_message(self, msg: str, msg_obj: Optional[Message] = None):
         """MemGPT calls a function"""
+
+        # TODO handle 'function' messages that indicate the start of a function call
+        assert msg_obj is not None, "StreamingServerInterface requires msg_obj references for metadata"
+
+        if msg.startswith("Running "):
+            return
+            # msg = msg.replace("Running ", "")
+            # new_message = {"function_call": msg}
+
+        elif msg.startswith("Ran "):
+            return
+            # msg = msg.replace("Ran ", "Function call returned: ")
+            # new_message = {"function_call": msg}
+
+        elif msg.startswith("Success: "):
+            msg = msg.replace("Success: ", "")
+            new_message = {"function_return": msg, "status": "success"}
+
+        elif msg.startswith("Error: "):
+            msg = msg.replace("Error: ", "")
+            new_message = {"function_return": msg, "status": "error"}
+
+        else:
+            # NOTE: generic, should not happen
+            new_message = {"function_message": msg}
+
+        # add extra metadata
+        if msg_obj is not None:
+            new_message["id"] = str(msg_obj.id)
+            assert is_utc_datetime(msg_obj.created_at), msg_obj.created_at
+            new_message["date"] = msg_obj.created_at.isoformat()
+
+        self._chunks.append(new_message)
+        self._event.set()  # Signal that new data is available
+
+    def step_complete(self):
+        """Signal from the agent that one 'step' finished (step = LLM response + tool execution)"""
         return
 
     def step_yield(self):
         """If multi_step, this is the true 'stream_end' function."""
         if self.multi_step:
+            # end the stream
             self._active = False
             self._event.set()  # Unblock the generator if it's waiting to allow it to complete
 
