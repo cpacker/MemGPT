@@ -33,10 +33,16 @@ memgpt quickstart --backend memgpt
 For more advanced configuration options or to use a different [LLM backend](https://memgpt.readme.io/docs/endpoints) or [local LLMs](https://memgpt.readme.io/docs/local_llm), run `memgpt configure`. 
 
 ## Quickstart (CLI)  
-You can create and chat with a MemGPT agent by running `memgpt run` in your CLI. 
+You can create and chat with a MemGPT agent by running `memgpt run` in your CLI. The `run` command supports the following optional flags (see the [CLI documentation](https://memgpt.readme.io/docs/quickstart) for the full list of flags):
+* `--agent`: (str) Name of agent to create or to resume chatting with.
+* `--first`: (str) Allow user to sent the first message.
+* `--debug`: (bool) Show debug logs (default=False)
+* `--no-verify`: (bool) Bypass message verification (default=False)
+* `--yes`/`-y`: (bool) Skip confirmation prompt and use defaults (default=False)
+You can view the list of available in-chat commands (e.g. `/memory`, `/exit`) in the [CLI documentation](https://memgpt.readme.io/docs/quickstart).
 
 ## Quickstart (Server)  
-You can use MemGPT to depoy agents as a service. The service requires authentication with a MemGPT admin password, which can be set with running `export MEMGPT_SERVER_PASS=password`. You can start a MemGPT *service* in two ways: 
+You can use MemGPT to depoy agents as a *service*. The service requires authentication with a MemGPT admin password, which can be set with running `export MEMGPT_SERVER_PASS=password`. You can start a MemGPT service in two ways: 
 
 **Option 1 (Recommended)**: Run with docker compose  
 1. Clone the repo: `git clone git@github.com:cpacker/MemGPT.git`
@@ -51,7 +57,6 @@ Once the server is running, you can use the [Python client](https://memgpt.readm
 
 ## Documentation
 See full documentation at: https://memgpt.readme.io
-
 
 ## What open LLMs work well with MemGPT?
 When using MemGPT with open LLMs (such as those downloaded from HuggingFace), the performance of MemGPT will be highly dependent on the LLM's function calling ability.
