@@ -56,6 +56,27 @@ You can use MemGPT to depoy agents as a *service*. The service requires authenti
 
 Once the server is running, you can use the [Python client](https://memgpt.readme.io/docs/admin-client) or [REST API](https://memgpt.readme.io/reference/api) to connect to `memgpt.localhost` (if you're running with docker compose) or `localhost:8283` (if you're running with the CLI) to create users, agents, and more. 
 
+
+## Supported Backends
+MemGPT is designed to be model and provider agnostic. The LLM and embedding endpoints are supported: 
+
+| Provider            | LLM Endpoint    | Embedding Endpoint |
+|---------------------|-----------------|--------------------|
+| OpenAI              | ✅               | ✅                  |
+| Azure OpenAI        | ✅               | ✅                  |
+| Google AI (Gemini)  | ✅               | ❌                  |
+| Anthropic (Claude)  | ✅               | ❌                  |
+| Groq                | ⌛ (in-progress) | ❌                  |
+| Cohere API          | ✅               | ❌                  |
+| vLLM                | ✅               | ❌                  |
+| Ollama              | ✅               | ❌                  |
+| LM Studio           | ✅               | ❌                  |
+| koboldcpp           | ✅               | ❌                  |
+| oobabooga web UI    | ✅               | ❌                  |
+| llama.cpp           | ✅               | ❌                  |
+| HuggingFace TEI     | ❌               | ✅                  |
+
+
 ## Documentation
 See full documentation at: https://memgpt.readme.io
 
