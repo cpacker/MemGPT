@@ -363,7 +363,8 @@ def openai_chat_completions_request(
     printd(f"Sending request to {url}")
     try:
         response = requests.post(url, headers=headers, json=data)
-        printd(f"response = {response}")
+        # printd(f"response = {response}, response.text = {response.text}")
+        print(f"response = {response}, response.text = {response.text}")
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
 
         response = response.json()  # convert to dict from string
