@@ -27,7 +27,6 @@ def test_embedding_endpoints():
             print("testing", file)
             config_data = json.load(open(os.path.join(embedding_config_dir, file)))
             embedding_config = EmbeddingConfigModel(**config_data)
-            # model = embedding_model(embedding_config, user_id=uuid.UUID(int=1))
             model = embedding_model(embedding_config)
             query_text = "hello"
             query_vec = model.get_text_embedding(query_text)
