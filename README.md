@@ -4,7 +4,7 @@
 
 <div align="center">
 
- <strong>MemGPT allows you to build LLM agents with self-editing memory</strong>
+ <strong>MemGPT allows you to build LLM agents with long term memory & custom tools</strong>
 
 [![Discord](https://img.shields.io/discord/1161736243340640419?label=Discord&logo=discord&logoColor=5865F2&style=flat-square&color=5865F2)](https://discord.gg/9GEQrxmVyE)
 [![arxiv 2310.08560](https://img.shields.io/badge/arXiv-2310.08560-B31B1B?logo=arxiv&style=flat-square)](https://arxiv.org/abs/2310.08560)
@@ -12,10 +12,10 @@
 
 </div>
 
-MemGPT makes it easy to build and deploy stateful LLM agents. With MemGPT, you can build agents with:
-* Long term memory/state management
-* Connections to external data sources (RAG)
-* Defining and calling custom tools (aka. functions)
+MemGPT makes it easy to build and deploy stateful LLM agents with support for: 
+* Long term memory/state management 
+* Connections to [external data sources](https://memgpt.readme.io/docs/data_sources) (e.g. PDF files) for RAG 
+* Defining and calling [custom tools](https://memgpt.readme.io/docs/functions) (e.g. [google search](https://github.com/cpacker/MemGPT/blob/main/examples/google_search.py))
 
 ## Installation & Setup   
 Install MemGPT:
