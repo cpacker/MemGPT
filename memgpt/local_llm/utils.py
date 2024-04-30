@@ -9,6 +9,7 @@ import memgpt.local_llm.llm_chat_completion_wrappers.chatml as chatml
 import memgpt.local_llm.llm_chat_completion_wrappers.configurable_wrapper as configurable_wrapper
 import memgpt.local_llm.llm_chat_completion_wrappers.dolphin as dolphin
 import memgpt.local_llm.llm_chat_completion_wrappers.zephyr as zephyr
+import memgpt.local_llm.llm_chat_completion_wrappers.llama3 as llama3
 
 
 def post_json_auth_request(uri, json_payload, auth_type, auth_key):
@@ -70,7 +71,7 @@ def load_grammar_file(grammar):
 
     return grammar_str
 
-
+# TODO: support tokenizers/tokenizer apis available in local models
 def count_tokens(s: str, model: str = "gpt-4") -> int:
     encoding = tiktoken.encoding_for_model(model)
     return len(encoding.encode(s))
@@ -220,6 +221,9 @@ def num_tokens_from_messages(messages: List[dict], model: str = "gpt-4") -> int:
 
 def get_available_wrappers() -> dict:
     return {
+        "llama3": llama3.LLaMA3InnerMonologueWrapper(),
+        "llama3-grammar": llama3.LLaMA3InnerMonologueWrapper(),
+        "llama3-hints-grammar": llama3.LLaMA3InnerMonologueWrapper(assistant_prefix_hint=True),
         "experimental-wrapper-neural-chat-grammar-noforce": configurable_wrapper.ConfigurableJSONWrapper(
             post_prompt="### Assistant:",
             sys_prompt_start="### System:\n",
