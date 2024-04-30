@@ -20,7 +20,7 @@ MemGPT makes it easy to build and deploy stateful LLM agents. With MemGPT, you c
 ## Installation & Setup   
 Install MemGPT:
 ```sh
-pip install -U pymemgpt
+pip install pymemgpt
 ```
 To use MemGPT with OpenAI, set the enviornemnt variable `OPENAI_API_KEY` to your OpenAI key then run: 
 ```
@@ -39,6 +39,7 @@ You can create and chat with a MemGPT agent by running `memgpt run` in your CLI.
 * `--debug`: (bool) Show debug logs (default=False)
 * `--no-verify`: (bool) Bypass message verification (default=False)
 * `--yes`/`-y`: (bool) Skip confirmation prompt and use defaults (default=False)
+
 You can view the list of available in-chat commands (e.g. `/memory`, `/exit`) in the [CLI documentation](https://memgpt.readme.io/docs/quickstart).
 
 ## Quickstart (Server)  
@@ -58,6 +59,15 @@ Once the server is running, you can use the [Python client](https://memgpt.readm
 ## Documentation
 See full documentation at: https://memgpt.readme.io
 
+## Support
+For issues and feature requests, please [open a GitHub issue](https://github.com/cpacker/MemGPT/issues) or message us on our `#support` channel on [Discord](https://discord.gg/9GEQrxmVyE).
+
+## Legal notices
+By using MemGPT and related MemGPT services (such as the MemGPT endpoint or hosted service), you agree to our [privacy policy](PRIVACY.md) and [terms of service](TERMS.md).
+
+## Roadmap
+You can view (and comment on!) the MemGPT developer roadmap on GitHub: https://github.com/cpacker/MemGPT/issues/1200.
+
 ## What open LLMs work well with MemGPT?
 When using MemGPT with open LLMs (such as those downloaded from HuggingFace), the performance of MemGPT will be highly dependent on the LLM's function calling ability.
 
@@ -68,14 +78,3 @@ To evaluate the performance of a model on MemGPT, simply configure the appropria
 
 You can help track what LLMs work well with MemGPT by contributing your benchmark results via [this form](https://forms.gle/XiBGKEEPFFLNSR348), which will be used to update the spreadsheet.
 
-## Support
-For issues and feature requests, please [open a GitHub issue](https://github.com/cpacker/MemGPT/issues) or message us on our `#support` channel on [Discord](https://discord.gg/9GEQrxmVyE).
-
-## Datasets
-Datasets used in our [paper](https://arxiv.org/abs/2310.08560) can be downloaded at [Hugging Face](https://huggingface.co/MemGPT).
-
-## Legal notices
-By using MemGPT and related MemGPT services (such as the MemGPT endpoint or hosted service), you agree to our [privacy policy](PRIVACY.md) and [terms of service](TERMS.md).
-
-## Roadmap
-You can view (and comment on!) the MemGPT developer roadmap on GitHub: https://github.com/cpacker/MemGPT/issues/1200.
