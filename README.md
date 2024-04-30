@@ -6,31 +6,16 @@
 
  <strong>MemGPT allows you to build LLM agents with self-editing memory</strong>
 
- <strong>Try out our MemGPT chatbot on <a href="https://discord.gg/9GEQrxmVyE">Discord</a>!</strong>
-
- <strong>You can now run MemGPT with <a href="https://memgpt.readme.io/docs/local_llm">open/local LLMs</a> and <a href="https://memgpt.readme.io/docs/autogen">AutoGen</a>!</strong>
-
-
 [![Discord](https://img.shields.io/discord/1161736243340640419?label=Discord&logo=discord&logoColor=5865F2&style=flat-square&color=5865F2)](https://discord.gg/9GEQrxmVyE)
 [![arxiv 2310.08560](https://img.shields.io/badge/arXiv-2310.08560-B31B1B?logo=arxiv&style=flat-square)](https://arxiv.org/abs/2310.08560)
 [![Documentation](https://img.shields.io/github/v/release/cpacker/MemGPT?label=Documentation&logo=readthedocs&style=flat-square)](https://memgpt.readme.io/docs)
 
 </div>
 
-<details open>
-  <summary><h2>🤖 Create perpetual chatbots with self-editing memory!</h2></summary>
-  <div align="center">
-    <br>
-    <img src="https://research.memgpt.ai/assets/img/demo.gif" alt="MemGPT demo video" width="800">
-  </div>
-</details>
-
-<details>
- <summary><h2>🗃️ Chat with your data - talk to your local files or SQL database!</strong></h2></summary>
-  <div align="center">
-    <img src="https://research.memgpt.ai/assets/img/doc.gif" alt="MemGPT demo video for sql search" width="800">
-  </div>
-</details>
+MemGPT makes it easy to build and deploy stateful LLM agents. With MemGPT, you can build agents with:
+* Long term memory/state management
+* Connections to external data sources (RAG)
+* Defining and calling custom tools (aka. functions)
 
 ## Quick setup
 Join <a href="https://discord.gg/9GEQrxmVyE">Discord</a></strong> and message the MemGPT bot (in the `#memgpt` channel). Then run the following commands (messaged to "MemGPT Bot"):
