@@ -30,13 +30,13 @@ To use MemGPT with a free hosted endpoint, you run run:
 ```
 memgpt quickstart --backend memgpt
 ```
-For more advanced configuration options or to use a different LLM backend, run `memgpt configure`. 
+For more advanced configuration options or to use a different [LLM backend](https://memgpt.readme.io/docs/endpoints) or [local LLMs](https://memgpt.readme.io/docs/local_llm), run `memgpt configure`. 
 
 ## Quickstart (CLI)  
 You can create and chat with a MemGPT agent by running `memgpt run` in your CLI. 
 
 ## Quickstart (Server)  
-You can use MemGPT to depoy agents as a service. You can start a MemGPT *service* in two ways: 
+You can use MemGPT to depoy agents as a service. The service requires authentication with a MemGPT admin password, which can be set with running `export MEMGPT_SERVER_PASS=password`. You can start a MemGPT *service* in two ways: 
 
 **Option 1 (Recommended)**: Run with docker compose  
 1. Clone the repo: `git clone git@github.com:cpacker/MemGPT.git`
@@ -47,35 +47,7 @@ You can use MemGPT to depoy agents as a service. You can start a MemGPT *service
 1. Run `memgpt server`
 2. Go to `localhost:8283` in the browser to view the developer portal 
 
-Once the server is running, you can use the REST API to either `memgpt.localhost` (if you're running with docker compose) or `localhost:8283` (if you're running with the CLI) to create users, agents, and more. 
-
-### Python Client 
-The Python client can be connected to a running MemGPT service to 
-
-### Python Client 
-## Running MemGPT locally
-Install MemGPT:
-```sh
-pip install -U pymemgpt
-```
-
-Now, you can run MemGPT and start chatting with a MemGPT agent with:
-```sh
-memgpt run
-```
-
-If you're running MemGPT for the first time, you'll see two quickstart options:
-
-1. **OpenAI**: select this if you'd like to run MemGPT with OpenAI models like GPT-4 (requires an OpenAI API key)
-2. **MemGPT Free Endpoint**: select this if you'd like to try MemGPT on a top open LLM for free (currently variants of Mixtral 8x7b!)
-
-Neither of these options require you to have an LLM running on your own machine. If you'd like to run MemGPT with your custom LLM setup (or on OpenAI Azure), select **Other** to proceed to the advanced setup.
-
-### Advanced setup
-You can reconfigure MemGPT's default settings by running:
-```sh
-memgpt configure
-```
+Once the server is running, you can use the [Python client](https://memgpt.readme.io/docs/admin-client) or [REST API](https://memgpt.readme.io/reference/api) to connect to `memgpt.localhost` (if you're running with docker compose) or `localhost:8283` (if you're running with the CLI) to create users, agents, and more. 
 
 ## Documentation
 See full documentation at: https://memgpt.readme.io
