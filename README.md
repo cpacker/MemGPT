@@ -17,26 +17,42 @@ MemGPT makes it easy to build and deploy stateful LLM agents. With MemGPT, you c
 * Connections to external data sources (RAG)
 * Defining and calling custom tools (aka. functions)
 
-## Quick setup
-Join <a href="https://discord.gg/9GEQrxmVyE">Discord</a></strong> and message the MemGPT bot (in the `#memgpt` channel). Then run the following commands (messaged to "MemGPT Bot"):
-* `/profile` (to create your profile)
-* `/key` (to enter your OpenAI key)
-* `/create` (to create a MemGPT chatbot)
+## Installation & Setup   
+Install MemGPT:
+```sh
+pip install -U pymemgpt
+```
+To use MemGPT with OpenAI, set the enviornemnt variable `OPENAI_API_KEY` to your OpenAI key then run: 
+```
+memgpt quickstart --backend openai
+```
+To use MemGPT with a free hosted endpoint, you run run: 
+```
+memgpt quickstart --backend memgpt
+```
+For more advanced configuration options or to use a different LLM backend, run `memgpt configure`. 
 
-Make sure your privacy settings on this server are open so that MemGPT Bot can DM you: \
-MemGPT → Privacy Settings → Direct Messages set to ON
-<div align="center">
- <img src="https://research.memgpt.ai/assets/img/discord/dm_settings.png" alt="set DMs settings on MemGPT server to be open in MemGPT so that MemGPT Bot can message you" width="400">
-</div>
+## Quickstart (CLI)  
+You can create and chat with a MemGPT agent by running `memgpt run` in your CLI. 
 
-You can see the full list of available commands when you enter `/` into the message box.
-<div align="center">
- <img src="https://research.memgpt.ai/assets/img/discord/slash_commands.png" alt="MemGPT Bot slash commands" width="400">
-</div>
+## Quickstart (Server)  
+You can use MemGPT to depoy agents as a service. You can start a MemGPT *service* in two ways: 
 
-## What is MemGPT?
-Memory-GPT (or MemGPT in short) is a system that intelligently manages different memory tiers in LLMs in order to effectively provide extended context within the LLM's limited context window. For example, MemGPT knows when to push critical information to a vector database and when to retrieve it later in the chat, enabling perpetual conversations. Learn more about MemGPT in our [paper](https://arxiv.org/abs/2310.08560).
+**Option 1 (Recommended)**: Run with docker compose  
+1. Clone the repo: `git clone git@github.com:cpacker/MemGPT.git`
+2. Run `docker compose up`
+3. Go to `memgpt.localhost` in the browser to view the developer portal 
 
+**Option 2:** Run with the CLI:
+1. Run `memgpt server`
+2. Go to `localhost:8283` in the browser to view the developer portal 
+
+Once the server is running, you can use the REST API to either `memgpt.localhost` (if you're running with docker compose) or `localhost:8283` (if you're running with the CLI) to create users, agents, and more. 
+
+### Python Client 
+The Python client can be connected to a running MemGPT service to 
+
+### Python Client 
 ## Running MemGPT locally
 Install MemGPT:
 ```sh
@@ -61,76 +77,9 @@ You can reconfigure MemGPT's default settings by running:
 memgpt configure
 ```
 
-### In-chat commands
-You can run the following commands in the MemGPT CLI prompt while chatting with an agent:
-* `/exit`: Exit the CLI
-* `/attach`: Attach a loaded data source to the agent
-* `/save`: Save a checkpoint of the current agent/conversation state
-* `/dump`: View the current message log (see the contents of main context)
-* `/dump <count>`: View the last <count> messages (all if <count> is omitted)
-* `/memory`: Print the current contents of agent memory
-* `/pop`: Undo the last message in the conversation
-* `/pop <count>`: Undo the last messages in the conversation. It defaults to 3, which usually is one turn around in the conversation
-* `/retry`: Pops the last answer and tries to get another one
-* `/rethink <text>`: Will replace the inner dialog of the last assistant message with the `<text>` to help shaping the conversation
-* `/rewrite`: Will replace the last assistant answer with the given text to correct or force the answer
-* `/heartbeat`: Send a heartbeat system message to the agent
-* `/memorywarning`: Send a memory warning system message to the agent
-
-Once you exit the CLI with `/exit`, you can resume chatting with the same agent by specifying the agent name in `memgpt run --agent <NAME>`.
-
 ## Documentation
 See full documentation at: https://memgpt.readme.io
 
-## Installing from source
-To install MemGPT from source, start by cloning the repo:
-```sh
-git clone git@github.com:cpacker/MemGPT.git
-```
-
-Then navigate to the main `MemGPT` directory, and do:
-```sh
-pip install -e .
-```
-
-Now, you should be able to run `memgpt` from the command-line using the downloaded source code.
-
-If you are having dependency issues using `pip install -e .`, we recommend you install the package using Poetry (see below). Installing MemGPT from source using Poetry will ensure that you are using exact package versions that have been tested for the production build.
-
-<details>
- <summary>
-  <strong>Installing from source (using Poetry)</strong>
- </summary>
-
-First, install Poetry using [the official instructions here](https://python-poetry.org/docs/#installing-with-the-official-installer).
-
-Then, you can install MemGPT from source with:
-```sh
-git clone git@github.com:cpacker/MemGPT.git
-poetry shell
-poetry install
-```
-</details>
-
-## Python integration (for developers)
-
-The fastest way to integrate MemGPT with your own Python projects is through the MemGPT client:
-```python
-from memgpt import create_client
-
-# Connect to the server as a user
-client = create_client()
-
-# Create an agent
-agent_info = client.create_agent(
-  name="my_agent",
-  persona="You are a friendly agent.",
-  human="Bob is a friendly human."
-)
-
-# Send a message to the agent
-messages = client.user_message(agent_id=agent_info.id, message="Hello, agent!")
-```
 
 ## What open LLMs work well with MemGPT?
 When using MemGPT with open LLMs (such as those downloaded from HuggingFace), the performance of MemGPT will be highly dependent on the LLM's function calling ability.
