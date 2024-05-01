@@ -46,9 +46,10 @@ You can view the list of available in-chat commands (e.g. `/memory`, `/exit`) in
 You can use MemGPT to depoy agents as a *service*. The service requires authentication with a MemGPT admin password, which can be set with running `export MEMGPT_SERVER_PASS=password`. You can start a MemGPT service in two ways: 
 
 **Option 1 (Recommended)**: Run with docker compose  
-1. Clone the repo: `git clone git@github.com:cpacker/MemGPT.git`
-2. Run `docker compose up`
-3. Go to `memgpt.localhost` in the browser to view the developer portal 
+1. [Install docker on your system](https://docs.docker.com/get-docker/)
+2. Clone the repo: `git clone git@github.com:cpacker/MemGPT.git`
+3. Run `docker compose up`
+4. Go to `memgpt.localhost` in the browser to view the developer portal 
 
 **Option 2:** Run with the CLI:
 1. Run `memgpt server`
@@ -66,7 +67,7 @@ MemGPT is designed to be model and provider agnostic. The following LLM and embe
 | Azure OpenAI        | ✅               | ✅                  |
 | Google AI (Gemini)  | ✅               | ❌                  |
 | Anthropic (Claude)  | ✅               | ❌                  |
-| Groq                | ⌛ (in-progress) | ❌                  |
+| Groq                | ✅ (alpha release) | ❌                  |
 | Cohere API          | ✅               | ❌                  |
 | vLLM                | ✅               | ❌                  |
 | Ollama              | ✅               | ❌                  |
