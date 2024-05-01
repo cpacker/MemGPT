@@ -4,7 +4,7 @@ excerpt: Connecting external data to your MemGPT agent
 category: 6580d34ee5e4d00068bf2a1d
 ---
 
-MemGPT supports pre-loading data into archival memory. In order to made data accessible to your agent, you must load data in with `memgpt load`, then attach the data source to your agent. You can configure where archival memory is stored by configuring the [storage backend](storage.md).
+MemGPT supports pre-loading data into archival memory. In order to made data accessible to your agent, you must load data in with `memgpt load`, then attach the data source to your agent. You can configure where archival memory is stored by configuring the [storage backend](storage).
 
 ### Viewing available data sources
 

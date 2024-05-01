@@ -42,6 +42,7 @@ class ToolMessage(BaseModel):
 ChatMessage = Union[SystemMessage, UserMessage, AssistantMessage, ToolMessage]
 
 
+# TODO: this might not be necessary with the validator
 def cast_message_to_subtype(m_dict: dict) -> ChatMessage:
     """Cast a dictionary to one of the individual message types"""
     role = m_dict.get("role")
