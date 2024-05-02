@@ -5,6 +5,7 @@ import secrets
 import subprocess
 from typing import Optional
 
+import typer
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -52,7 +53,7 @@ if password := settings.server_pass:
 else:
     # Autogenerate a password for this session and dump it to stdout
     password = secrets.token_urlsafe(16)
-    print(f"Generated admin server password for this session: {password}")
+    typer.secho(f"Generated admin server password for this session: {password}", fg=typer.colors.GREEN)
 
 security = HTTPBearer()
 

@@ -78,10 +78,10 @@ class Message(Record):
 
     def __init__(
         self,
-        user_id: uuid.UUID,
-        agent_id: uuid.UUID,
         role: str,
         text: str,
+        user_id: Optional[uuid.UUID] = None,
+        agent_id: Optional[uuid.UUID] = None,
         model: Optional[str] = None,  # model used to make function call
         name: Optional[str] = None,  # optional participant name
         created_at: Optional[datetime] = None,
