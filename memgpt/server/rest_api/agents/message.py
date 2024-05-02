@@ -141,35 +141,17 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
 
                 # Get the generator object off of the agent's streaming interface
                 # This will be attached to the POST SSE request used under-the-hood
-                # TODO cleanup
                 memgpt_agent = server._get_or_load_agent(user_id=user_id, agent_id=agent_id)
                 streaming_interface = memgpt_agent.interface
                 if not isinstance(streaming_interface, StreamingServerInterface):
                     raise ValueError(f"Agent has wrong type of interface: {type(streaming_interface)}")
 
-                print("XXX launching async task")
                 # Offload the synchronous message_func to a separate thread
                 streaming_interface.stream_start()
                 task = asyncio.create_task(asyncio.to_thread(message_func, user_id=user_id, agent_id=agent_id, message=request.message))
 
-                # async def event_stream():
-                # async for chunk in streaming_interface.get_generator():
-                # yield sse_formatter(chunk)
-                # async def event_stream():
-                #     try:
-                #         async for chunk in streaming_interface.get_generator():
-                #             yield sse_formatter(chunk)
-                #     except Exception as e:
-                #         # Catch any exceptions that might occur during the stream processing
-                #         yield f"data: {{'error': '{str(e)}'}}\n\n"
-                #     finally:
-                #         # Always send a done message when the stream ends, whether it ended due to an error or not
-                #         yield "data: [DONE]\n\n"
-
-                print("ZZZ returning streamingresponse")
                 return StreamingResponse(
                     sse_async_generator(streaming_interface.get_generator()),
-                    # event_stream(),
                     media_type="text/event-stream",
                 )
             except HTTPException:
