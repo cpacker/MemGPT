@@ -4,7 +4,7 @@ version = "0.3.13"
 packages = [
     {include = "memgpt"}
 ]
-description = "Teaching LLMs memory management for unbounded context"
+description = "Create LLM agents with long-term memory and custom tools"
 authors = [
     "MemGPT Team <hi@memgpt.ai>",
 ]
