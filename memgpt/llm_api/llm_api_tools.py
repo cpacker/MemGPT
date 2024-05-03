@@ -188,6 +188,7 @@ def create(
                 user=str(user_id),
             )
 
+        data.stream = False  # TODO remove
         if stream:
             data.stream = True
             assert isinstance(stream_inferface, AgentChunkStreamingInterface) or isinstance(
