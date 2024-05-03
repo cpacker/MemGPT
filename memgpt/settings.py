@@ -18,10 +18,8 @@ class Settings(BaseSettings):
     @property
     def memgpt_pg_uri(self) -> str:
         if self.pg_uri:
-            print("using custom pg uri", self.pg_uri)
             return self.pg_uri
         elif self.pg_db and self.pg_user and self.pg_password and self.pg_host and self.pg_port:
-            print("using  pg uri")
             return f"postgresql+pg8000://{self.pg_user}:{self.pg_password}@{self.pg_host}:{self.pg_port}/{self.pg_db}"
         else:
             return None
