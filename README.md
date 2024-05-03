@@ -43,7 +43,13 @@ You can create and chat with a MemGPT agent by running `memgpt run` in your CLI.
 You can view the list of available in-chat commands (e.g. `/memory`, `/exit`) in the [CLI documentation](https://memgpt.readme.io/docs/quickstart).
 
 ## Quickstart (Server)  
-You can use MemGPT to depoy agents as a *service*. The service requires authentication with a MemGPT admin password, which can be set with running `export MEMGPT_SERVER_PASS=password`. You can start a MemGPT service in two ways: 
+You can use MemGPT to depoy agents as a *service*. You can use a MemGPT server to run a multi-user, multi-agent application on top of supported LLM providers. 
+
+
+<img width="1000" alt="image" src="https://github.com/cpacker/MemGPT/assets/8505980/91d8fe6a-d139-477d-8ae3-59e6dd50f855">
+
+
+### Running the server 
 
 **Option 1 (Recommended)**: Run with docker compose  
 1. [Install docker on your system](https://docs.docker.com/get-docker/)
@@ -55,7 +61,7 @@ You can use MemGPT to depoy agents as a *service*. The service requires authenti
 1. Run `memgpt server`
 2. Go to `localhost:8283` in the browser to view the developer portal 
 
-Once the server is running, you can use the [Python client](https://memgpt.readme.io/docs/admin-client) or [REST API](https://memgpt.readme.io/reference/api) to connect to `memgpt.localhost` (if you're running with docker compose) or `localhost:8283` (if you're running with the CLI) to create users, agents, and more. 
+Once the server is running, you can use the [Python client](https://memgpt.readme.io/docs/admin-client) or [REST API](https://memgpt.readme.io/reference/api) to connect to `memgpt.localhost` (if you're running with docker compose) or `localhost:8283` (if you're running with the CLI) to create users, agents, and more. The service requires authentication with a MemGPT admin password, which can be set with running `export MEMGPT_SERVER_PASS=password`. 
 
 
 ## Supported Endpoints & Backends 
