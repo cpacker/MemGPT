@@ -22,7 +22,7 @@ Install MemGPT:
 ```sh
 pip install pymemgpt
 ```
-To use MemGPT with OpenAI, set the enviornemnt variable `OPENAI_API_KEY` to your OpenAI key then run: 
+To use MemGPT with OpenAI, set the environment variable `OPENAI_API_KEY` to your OpenAI key then run: 
 ```
 memgpt quickstart --backend openai
 ```
