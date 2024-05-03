@@ -25,7 +25,7 @@ You can also use MemGPT to depoy agents as a *service*. You can use a MemGPT ser
 ## Installation & Setup   
 Install MemGPT:
 ```sh
-pip install pymemgpt
+pip install -U pymemgpt
 ```
 To use MemGPT with OpenAI, set the environment variable `OPENAI_API_KEY` to your OpenAI key then run: 
 ```
