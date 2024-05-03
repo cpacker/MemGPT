@@ -42,6 +42,12 @@ You can create and chat with a MemGPT agent by running `memgpt run` in your CLI.
 
 You can view the list of available in-chat commands (e.g. `/memory`, `/exit`) in the [CLI documentation](https://memgpt.readme.io/docs/quickstart).
 
+## Dev portal (alpha build)  
+MemGPT provides a developer portal that enables you to easily create, edit, monitor, and chat with your MemGPT agents. The easiest way to use the dev portal is to install MemGPT via **docker** (see instructions below).
+
+<img width="830" alt="image" src="https://github.com/cpacker/MemGPT/assets/5475622/fb3a559c-19cb-46d9-a941-4aa59a48c125">
+
+
 ## Quickstart (Server)  
 You can use MemGPT to depoy agents as a *service*. The service requires authentication with a MemGPT admin password, which can be set with running `export MEMGPT_SERVER_PASS=password`. You can start a MemGPT service in two ways: 
 
