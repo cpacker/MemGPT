@@ -31,7 +31,7 @@ test_server_token = "test_server_token"
 def _reset_config():
 
     # Use os.getenv with a fallback to os.environ.get
-    db_url = settings.pg_uri
+    db_url = settings.memgpt_pg_uri
 
     if os.getenv("OPENAI_API_KEY"):
         config = TestMGPTConfig(
