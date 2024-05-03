@@ -52,6 +52,10 @@ jobs:
     - name: Run server tests
       env:
         MEMGPT_PG_PORT: 8888
+        MEMGPT_PG_USER: memgpt
+        MEMGPT_PG_PASSWORD: memgpt
+        MEMGPT_PG_DB: memgpt
+        MEMGPT_PG_HOST: localhost
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
       run: |
@@ -60,6 +64,10 @@ jobs:
     - name: Run tests with pytest
       env:
         MEMGPT_PG_PORT: 8888
+        MEMGPT_PG_USER: memgpt
+        MEMGPT_PG_PASSWORD: memgpt
+        MEMGPT_PG_HOST: localhost
+        MEMGPT_PG_DB: memgpt
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
@@ -69,6 +77,10 @@ jobs:
     - name: Run storage tests
       env:
         MEMGPT_PG_PORT: 8888
+        MEMGPT_PG_USER: memgpt
+        MEMGPT_PG_PASSWORD: memgpt
+        MEMGPT_PG_HOST: localhost
+        MEMGPT_PG_DB: memgpt
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
       run: |
