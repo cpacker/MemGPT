@@ -147,7 +147,7 @@ def quickstart(
         # fallback to using local
         if latest:
             # Download the latest memgpt hosted config
-            url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/memgpt/configs/memgpt_hosted.json"
+            url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/configs/memgpt_hosted.json"
             response = requests.get(url)
 
             # Check if the request was successful
@@ -199,7 +199,7 @@ def quickstart(
         # if latest, try to pull the config from the repo
         # fallback to using local
         if latest:
-            url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/memgpt/configs/openai.json"
+            url = "https://raw.githubusercontent.com/cpacker/MemGPT/main/configs/openai.json"
             response = requests.get(url)
 
             # Check if the request was successful
