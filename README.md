@@ -17,6 +17,11 @@ MemGPT makes it easy to build and deploy stateful LLM agents with support for:
 * Connections to [external data sources](https://memgpt.readme.io/docs/data_sources) (e.g. PDF files) for RAG 
 * Defining and calling [custom tools](https://memgpt.readme.io/docs/functions) (e.g. [google search](https://github.com/cpacker/MemGPT/blob/main/examples/google_search.py))
 
+You can also use MemGPT to depoy agents as a *service*. You can use a MemGPT server to run a multi-user, multi-agent application on top of supported LLM providers.
+
+<img width="1000" alt="image" src="https://github.com/cpacker/MemGPT/assets/8505980/1096eb91-139a-4bc5-b908-fa585462da09">
+
+
 ## Installation & Setup   
 Install MemGPT:
 ```sh
@@ -43,13 +48,6 @@ You can create and chat with a MemGPT agent by running `memgpt run` in your CLI.
 You can view the list of available in-chat commands (e.g. `/memory`, `/exit`) in the [CLI documentation](https://memgpt.readme.io/docs/quickstart).
 
 ## Quickstart (Server)  
-You can use MemGPT to depoy agents as a *service*. You can use a MemGPT server to run a multi-user, multi-agent application on top of supported LLM providers. 
-
-
-<img width="1000" alt="image" src="https://github.com/cpacker/MemGPT/assets/8505980/91d8fe6a-d139-477d-8ae3-59e6dd50f855">
-
-
-### Running the server 
 
 **Option 1 (Recommended)**: Run with docker compose  
 1. [Install docker on your system](https://docs.docker.com/get-docker/)
