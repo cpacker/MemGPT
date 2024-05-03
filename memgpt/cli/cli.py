@@ -174,13 +174,13 @@ def quickstart(
         else:
             # Load the file from the relative path
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-            print("SCRIPT", script_dir)
+            # print("SCRIPT", script_dir)
             backup_config_path = os.path.join(script_dir, "..", "..", "configs", "memgpt_hosted.json")
-            print("FILE PATH", backup_config_path)
+            # print("FILE PATH", backup_config_path)
             try:
                 with open(backup_config_path, "r", encoding="utf-8") as file:
                     backup_config = json.load(file)
-                    print(backup_config)
+                    # print(backup_config)
                 printd("Loaded config file successfully.")
                 new_config, config_was_modified = set_config_with_dict(backup_config)
             except FileNotFoundError:
@@ -505,12 +505,6 @@ def run(
 
     else:  # load config
         config = MemGPTConfig.load()
-
-        # force re-configuration is config is from old version
-        if config.memgpt_version is None:  # TODO: eventually add checks for older versions, if config changes again
-            typer.secho("MemGPT has been updated to a newer version, so re-running configuration.", fg=typer.colors.YELLOW)
-            configure()
-            config = MemGPTConfig.load()
 
     # read user id from config
     ms = MetadataStore(config)
