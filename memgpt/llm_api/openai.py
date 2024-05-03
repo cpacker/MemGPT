@@ -193,13 +193,11 @@ def openai_chat_completions_process_stream(
 
                     for tool_call_delta in tool_calls_delta:
                         if tool_call_delta.id is not None:
-                            # TODO assert that we're not overwriting?
-                            # TODO += instead of =?
+                            assert accum_message.tool_calls[tool_call_delta.index].id is None, "Overwriting existing data"
                             accum_message.tool_calls[tool_call_delta.index].id = tool_call_delta.id
                         if tool_call_delta.function is not None:
                             if tool_call_delta.function.name is not None:
-                                # TODO assert that we're not overwriting?
-                                # TODO += instead of =?
+                                assert accum_message.tool_calls[tool_call_delta.index].id is None, "Overwriting existing data"
                                 accum_message.tool_calls[tool_call_delta.index].function.name = tool_call_delta.function.name
                             if tool_call_delta.function.arguments is not None:
                                 accum_message.tool_calls[tool_call_delta.index].function.arguments += tool_call_delta.function.arguments
