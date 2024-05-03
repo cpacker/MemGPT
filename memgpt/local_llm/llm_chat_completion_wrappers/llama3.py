@@ -28,7 +28,7 @@ FIRST_PREFIX_HINT = """# Reminders:
 
 
 class LLaMA3InnerMonologueWrapper(LLMChatCompletionWrapper):
-    """ChatML-style prompt formatter, tested for use with https://huggingface.co/ehartford/dolphin-2.5-mixtral-8x7b#training"""
+    """ChatML-style prompt formatter, tested for use with https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct"""
 
     supports_first_message = True
 
