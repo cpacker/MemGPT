@@ -1,4 +1,5 @@
 import os
+import importlib.util
 
 from fastapi import FastAPI, HTTPException
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -17,7 +18,7 @@ class SPAStaticFiles(StaticFiles):
 
 
 def mount_static_files(app: FastAPI):
-    static_files_path = os.path.join(os.getcwd(), "memgpt", "server", "static_files")
+    static_files_path = os.path.join(os.path.dirname(importlib.util.find_spec("memgpt").origin), "server", "static_files")
     if os.path.exists(static_files_path):
         app.mount(
             "/",
