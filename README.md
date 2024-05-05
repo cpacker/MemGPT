@@ -17,12 +17,17 @@ MemGPT makes it easy to build and deploy stateful LLM agents with support for:
 * Connections to [external data sources](https://memgpt.readme.io/docs/data_sources) (e.g. PDF files) for RAG 
 * Defining and calling [custom tools](https://memgpt.readme.io/docs/functions) (e.g. [google search](https://github.com/cpacker/MemGPT/blob/main/examples/google_search.py))
 
+You can also use MemGPT to depoy agents as a *service*. You can use a MemGPT server to run a multi-user, multi-agent application on top of supported LLM providers.
+
+<img width="1000" alt="image" src="https://github.com/cpacker/MemGPT/assets/8505980/1096eb91-139a-4bc5-b908-fa585462da09">
+
+
 ## Installation & Setup   
 Install MemGPT:
 ```sh
-pip install pymemgpt
+pip install -U pymemgpt
 ```
-To use MemGPT with OpenAI, set the enviornemnt variable `OPENAI_API_KEY` to your OpenAI key then run: 
+To use MemGPT with OpenAI, set the environment variable `OPENAI_API_KEY` to your OpenAI key then run: 
 ```
 memgpt quickstart --backend openai
 ```
@@ -42,19 +47,24 @@ You can create and chat with a MemGPT agent by running `memgpt run` in your CLI.
 
 You can view the list of available in-chat commands (e.g. `/memory`, `/exit`) in the [CLI documentation](https://memgpt.readme.io/docs/quickstart).
 
+## Dev portal (alpha build)
+MemGPT provides a developer portal that enables you to easily create, edit, monitor, and chat with your MemGPT agents. The easiest way to use the dev portal is to install MemGPT via **docker** (see instructions below).
+
+<img width="1000" alt="image" src="https://github.com/cpacker/MemGPT/assets/5475622/071117c5-46a7-4953-bc9d-d74880e66258">
+
 ## Quickstart (Server)  
-You can use MemGPT to depoy agents as a *service*. The service requires authentication with a MemGPT admin password, which can be set with running `export MEMGPT_SERVER_PASS=password`. You can start a MemGPT service in two ways: 
 
 **Option 1 (Recommended)**: Run with docker compose  
-1. Clone the repo: `git clone git@github.com:cpacker/MemGPT.git`
-2. Run `docker compose up`
-3. Go to `memgpt.localhost` in the browser to view the developer portal 
+1. [Install docker on your system](https://docs.docker.com/get-docker/)
+2. Clone the repo: `git clone git@github.com:cpacker/MemGPT.git`
+3. Run `docker compose up`
+4. Go to `memgpt.localhost` in the browser to view the developer portal 
 
 **Option 2:** Run with the CLI:
 1. Run `memgpt server`
 2. Go to `localhost:8283` in the browser to view the developer portal 
 
-Once the server is running, you can use the [Python client](https://memgpt.readme.io/docs/admin-client) or [REST API](https://memgpt.readme.io/reference/api) to connect to `memgpt.localhost` (if you're running with docker compose) or `localhost:8283` (if you're running with the CLI) to create users, agents, and more. 
+Once the server is running, you can use the [Python client](https://memgpt.readme.io/docs/admin-client) or [REST API](https://memgpt.readme.io/reference/api) to connect to `memgpt.localhost` (if you're running with docker compose) or `localhost:8283` (if you're running with the CLI) to create users, agents, and more. The service requires authentication with a MemGPT admin password, which can be set with running `export MEMGPT_SERVER_PASS=password`. 
 
 
 ## Supported Endpoints & Backends 
@@ -66,7 +76,7 @@ MemGPT is designed to be model and provider agnostic. The following LLM and embe
 | Azure OpenAI        | ✅               | ✅                  |
 | Google AI (Gemini)  | ✅               | ❌                  |
 | Anthropic (Claude)  | ✅               | ❌                  |
-| Groq                | ⌛ (in-progress) | ❌                  |
+| Groq                | ✅ (alpha release) | ❌                  |
 | Cohere API          | ✅               | ❌                  |
 | vLLM                | ✅               | ❌                  |
 | Ollama              | ✅               | ❌                  |
