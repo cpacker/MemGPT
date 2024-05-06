@@ -1,5 +1,5 @@
-import os
 import importlib.util
+import os
 
 from fastapi import FastAPI, HTTPException
 from starlette.exceptions import HTTPException as StarletteHTTPException
