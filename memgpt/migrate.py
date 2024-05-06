@@ -84,9 +84,8 @@ def config_is_compatible(data_dir: str = MEMGPT_DIR, allow_empty=False, echo=Fal
         version = None
 
     if version is None:
-        if echo:
-            typer.secho(f"Current config version is missing", fg=typer.colors.RED)
-        return False
+        # no version -- assume pre-determined config (does not need to be migrated)
+        return True
     elif version_less_than(version, VERSION_CUTOFF):
         if echo:
             typer.secho(f"Current config version ({version}) is older than migration cutoff ({VERSION_CUTOFF})", fg=typer.colors.RED)
