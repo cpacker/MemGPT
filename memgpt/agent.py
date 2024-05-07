@@ -2,7 +2,6 @@ import datetime
 import uuid
 import inspect
 import json
-from pathlib import Path
 import traceback
 from typing import List, Tuple, Optional, cast, Union
 
@@ -39,55 +38,7 @@ from memgpt.constants import (
     JSON_ENSURE_ASCII,
 )
 from .errors import LLMError
-from .functions.functions import USER_FUNCTIONS_DIR, load_all_function_sets
-
-
-def link_functions(function_schemas: list):
-    """Link function definitions to list of function schemas"""
-
-    # need to dynamically link the functions
-    # the saved agent.functions will just have the schemas, but we need to
-    # go through the functions library and pull the respective python functions
-
-    # Available functions is a mapping from:
-    # function_name -> {
-    #   json_schema: schema
-    #   python_function: function
-    # }
-    # agent.functions is a list of schemas (OpenAI kwarg functions style, see: https://platform.openai.com/docs/api-reference/chat/create)
-    # [{'name': ..., 'description': ...}, {...}]
-    available_functions = load_all_function_sets()
-    linked_function_set = {}
-    for f_schema in function_schemas:
-        # Attempt to find the function in the existing function library
-        f_name = f_schema.get("name")
-        if f_name is None:
-            raise ValueError(f"While loading agent.state.functions encountered a bad function schema object with no name:\n{f_schema}")
-        linked_function = available_functions.get(f_name)
-        if linked_function is None:
-            raise ValueError(
-                f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
-            )
-        # Once we find a matching function, make sure the schema is identical
-        if json.dumps(f_schema, ensure_ascii=JSON_ENSURE_ASCII) != json.dumps(
-            linked_function["json_schema"], ensure_ascii=JSON_ENSURE_ASCII
-        ):
-            # error_message = (
-            #     f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different."
-            #     + f"\n>>>agent.state.functions\n{json.dumps(f_schema, indent=2, ensure_ascii=JSON_ENSURE_ASCII)}"
-            #     + f"\n>>>function library\n{json.dumps(linked_function['json_schema'], indent=2, ensure_ascii=JSON_ENSURE_ASCII)}"
-            # )
-            schema_diff = get_schema_diff(f_schema, linked_function["json_schema"])
-            error_message = (
-                f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different.\n"
-                + "".join(schema_diff)
-            )
-
-            # NOTE to handle old configs, instead of erroring here let's just warn
-            # raise ValueError(error_message)
-            printd(error_message)
-        linked_function_set[f_name] = linked_function
-    return linked_function_set
+from .functions.functions import load_all_function_sets
 
 
 def initialize_memory(ai_notes: Union[str, None], human_notes: Union[str, None]):
@@ -235,9 +186,11 @@ class Agent(object):
         if "functions" not in self.agent_state.state:
             raise ValueError(f"'functions' not found in provided AgentState")
         # Store the functions schemas (this is passed as an argument to ChatCompletion)
-        self.functions = self.agent_state.state["functions"]  # these are the schema
-        # Link the actual python functions corresponding to the schemas
-        self.functions_python = {k: v["python_function"] for k, v in link_functions(function_schemas=self.functions).items()}
+
+        all_functions = load_all_function_sets()
+        self.functions = [fs["json_schema"] for fs in all_functions.values()]
+        self.functions_python = {k: v["python_function"] for k, v in all_functions.items()}
+
         assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
 
         # Initialize the memory object
@@ -674,17 +627,6 @@ class Agent(object):
             response_message.copy()
             all_response_messages, heartbeat_request, function_failed = self._handle_ai_response(response_message)
 
-            # Add the extra metadata to the assistant response
-            # (e.g. enough metadata to enable recreating the API call)
-            # assert "api_response" not in all_response_messages[0]
-            # all_response_messages[0]["api_response"] = response_message_copy
-            # assert "api_args" not in all_response_messages[0]
-            # all_response_messages[0]["api_args"] = {
-            #     "model": self.model,
-            #     "messages": input_message_sequence,
-            #     "functions": self.functions,
-            # }
-
             # Step 4: extend the message history
             if user_message is not None:
                 if isinstance(user_message, Message):
@@ -888,48 +830,6 @@ class Agent(object):
             )
         )
 
-    def add_function(self, function_name: str) -> str:
-        if function_name in self.functions_python.keys():
-            msg = f"Function {function_name} already loaded"
-            printd(msg)
-            return msg
-
-        available_functions = load_all_function_sets()
-        if function_name not in available_functions.keys():
-            raise ValueError(f"Function {function_name} not found in function library")
-
-        self.functions.append(available_functions[function_name]["json_schema"])
-        self.functions_python[function_name] = available_functions[function_name]["python_function"]
-
-        msg = f"Added function {function_name}"
-        # self.save()
-        self.update_state()
-        printd(msg)
-        return msg
-
-    def remove_function(self, function_name: str) -> str:
-        if function_name not in self.functions_python.keys():
-            msg = f"Function {function_name} not loaded, ignoring"
-            printd(msg)
-            return msg
-
-        # only allow removal of user defined functions
-        user_func_path = Path(USER_FUNCTIONS_DIR)
-        func_path = Path(inspect.getfile(self.functions_python[function_name]))
-        is_subpath = func_path.resolve().parts[: len(user_func_path.resolve().parts)] == user_func_path.resolve().parts
-
-        if not is_subpath:
-            raise ValueError(f"Function {function_name} is not user defined and cannot be removed")
-
-        self.functions = [f_schema for f_schema in self.functions if f_schema["name"] != function_name]
-        self.functions_python.pop(function_name)
-
-        msg = f"Removed function {function_name}"
-        # self.save()
-        self.update_state()
-        printd(msg)
-        return msg
-
     def update_state(self) -> AgentState:
         updated_state = {
             "persona": self.memory.persona,
@@ -952,13 +852,6 @@ class Agent(object):
             state=updated_state,
         )
         return self.agent_state
-
-    def migrate_embedding(self, embedding_config: EmbeddingConfig):
-        """Migrate the agent to a new embedding"""
-        # TODO: archival memory
-
-        # TODO: recall memory
-        raise NotImplementedError()
 
 
 def save_agent(agent: Agent, ms: MetadataStore):

@@ -210,45 +210,6 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                         )
                     continue
 
-                elif user_input.lower().startswith("/add_function"):
-                    try:
-                        if len(user_input) < len("/add_function "):
-                            print("Missing function name after the command")
-                            continue
-                        function_name = user_input[len("/add_function ") :].strip()
-                        result = memgpt_agent.add_function(function_name)
-                        typer.secho(
-                            f"/add_function succeeded: {result}",
-                            fg=typer.colors.GREEN,
-                            bold=True,
-                        )
-                    except ValueError as e:
-                        typer.secho(
-                            f"/add_function failed:\n{e}",
-                            fg=typer.colors.RED,
-                            bold=True,
-                        )
-                        continue
-                elif user_input.lower().startswith("/remove_function"):
-                    try:
-                        if len(user_input) < len("/remove_function "):
-                            print("Missing function name after the command")
-                            continue
-                        function_name = user_input[len("/remove_function ") :].strip()
-                        result = memgpt_agent.remove_function(function_name)
-                        typer.secho(
-                            f"/remove_function succeeded: {result}",
-                            fg=typer.colors.GREEN,
-                            bold=True,
-                        )
-                    except ValueError as e:
-                        typer.secho(
-                            f"/remove_function failed:\n{e}",
-                            fg=typer.colors.RED,
-                            bold=True,
-                        )
-                        continue
-
                 # No skip options
                 elif user_input.lower() == "/wipe":
                     memgpt_agent = agent.Agent(interface)
