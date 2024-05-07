@@ -5,11 +5,9 @@ import json
 from pathlib import Path
 import traceback
 from typing import List, Tuple, Optional, cast, Union
-from tqdm import tqdm
 
 from memgpt.metadata import MetadataStore
-from memgpt.agent_store.storage import StorageConnector
-from memgpt.data_types import AgentState, Message, LLMConfig, EmbeddingConfig, Passage, Preset
+from memgpt.data_types import AgentState, Message, LLMConfig, EmbeddingConfig, Preset
 from memgpt.models import chat_completion_response
 from memgpt.interface import AgentInterface
 from memgpt.persistence_manager import LocalStateManager
@@ -27,7 +25,6 @@ from memgpt.utils import (
     get_schema_diff,
     validate_function_response,
     verify_first_message_correctness,
-    create_uuid_from_string,
 )
 from memgpt.constants import (
     FIRST_MESSAGE_ATTEMPTS,
@@ -891,31 +888,6 @@ class Agent(object):
             )
         )
 
-    # def to_agent_state(self) -> AgentState:
-    #    # The state may have change since the last time we wrote it
-    #    updated_state = {
-    #        "persona": self.memory.persona,
-    #        "human": self.memory.human,
-    #        "system": self.system,
-    #        "functions": self.functions,
-    #        "messages": [str(msg.id) for msg in self._messages],
-    #    }
-
-    #    agent_state = AgentState(
-    #        name=self.agent_state.name,
-    #        user_id=self.agent_state.user_id,
-    #        persona=self.agent_state.persona,
-    #        human=self.agent_state.human,
-    #        llm_config=self.agent_state.llm_config,
-    #        embedding_config=self.agent_state.embedding_config,
-    #        preset=self.agent_state.preset,
-    #        id=self.agent_state.id,
-    #        created_at=self.agent_state.created_at,
-    #        state=updated_state,
-    #    )
-
-    #    return agent_state
-
     def add_function(self, function_name: str) -> str:
         if function_name in self.functions_python.keys():
             msg = f"Function {function_name} already loaded"
@@ -958,24 +930,6 @@ class Agent(object):
         printd(msg)
         return msg
 
-    # def save(self):
-    #    """Save agent state locally"""
-
-    #    new_agent_state = self.to_agent_state()
-
-    #    # without this, even after Agent.__init__, agent.config.state["messages"] will be None
-    #    self.agent_state = new_agent_state
-
-    #    # Check if we need to create the agent
-    #    if not self.ms.get_agent(agent_id=new_agent_state.id, user_id=new_agent_state.user_id, agent_name=new_agent_state.name):
-    #        # print(f"Agent.save {new_agent_state.id} :: agent does not exist, creating...")
-    #        self.ms.create_agent(agent=new_agent_state)
-    #    # Otherwise, we should update the agent
-    #    else:
-    #        # print(f"Agent.save {new_agent_state.id} :: agent already exists, updating...")
-    #        print(f"Agent.save {new_agent_state.id} :: preupdate:\n\tmessages={new_agent_state.state['messages']}")
-    #        self.ms.update_agent(agent=new_agent_state)
-
     def update_state(self) -> AgentState:
         updated_state = {
             "persona": self.memory.persona,
@@ -1005,48 +959,6 @@ class Agent(object):
 
         # TODO: recall memory
         raise NotImplementedError()
-
-    def attach_source(self, source_name, source_connector: StorageConnector, ms: MetadataStore):
-        """Attach data with name `source_name` to the agent from source_connector."""
-        # TODO: eventually, adding a data source should just give access to the retriever the source table, rather than modifying archival memory
-
-        filters = {"user_id": self.agent_state.user_id, "data_source": source_name}
-        size = source_connector.size(filters)
-        # typer.secho(f"Ingesting {size} passages into {agent.name}", fg=typer.colors.GREEN)
-        page_size = 100
-        generator = source_connector.get_all_paginated(filters=filters, page_size=page_size)  # yields List[Passage]
-        all_passages = []
-        for i in tqdm(range(0, size, page_size)):
-            passages = next(generator)
-
-            # need to associated passage with agent (for filtering)
-            for passage in passages:
-                assert isinstance(passage, Passage), f"Generate yielded bad non-Passage type: {type(passage)}"
-                passage.agent_id = self.agent_state.id
-
-                # regenerate passage ID (avoid duplicates)
-                passage.id = create_uuid_from_string(f"{source_name}_{str(passage.agent_id)}_{passage.text}")
-
-            # insert into agent archival memory
-            self.persistence_manager.archival_memory.storage.insert_many(passages)
-            all_passages += passages
-
-        assert size == len(all_passages), f"Expected {size} passages, but only got {len(all_passages)}"
-
-        # save destination storage
-        self.persistence_manager.archival_memory.storage.save()
-
-        # attach to agent
-        source = ms.get_source(source_name=source_name, user_id=self.agent_state.user_id)
-        assert source is not None, f"source does not exist for source_name={source_name}, user_id={self.agent_state.user_id}"
-        source_id = source.id
-        ms.attach_source(agent_id=self.agent_state.id, source_id=source_id, user_id=self.agent_state.user_id)
-
-        total_agent_passages = self.persistence_manager.archival_memory.storage.size()
-
-        printd(
-            f"Attached data source {source_name} to agent {self.agent_state.name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
-        )
 
 
 def save_agent(agent: Agent, ms: MetadataStore):

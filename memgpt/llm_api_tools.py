@@ -12,15 +12,6 @@ from memgpt.models.embedding_response import EmbeddingResponse
 
 from memgpt.data_types import AgentState
 
-MODEL_TO_AZURE_ENGINE = {
-    "gpt-4-1106-preview": "gpt-4",
-    "gpt-4": "gpt-4",
-    "gpt-4-32k": "gpt-4-32k",
-    "gpt-3.5": "gpt-35-turbo",
-    "gpt-3.5-turbo": "gpt-35-turbo",
-    "gpt-3.5-turbo-16k": "gpt-35-turbo-16k",
-}
-
 
 def is_context_overflow_error(exception):
     from memgpt.utils import printd
@@ -70,16 +61,6 @@ def smart_urljoin(base_url, relative_url):
     return urllib.parse.urljoin(base_url, relative_url)
 
 
-def clean_azure_endpoint(raw_endpoint_name):
-    """Make sure the endpoint is of format 'https://YOUR_RESOURCE_NAME.openai.azure.com'"""
-    if raw_endpoint_name is None:
-        raise ValueError(raw_endpoint_name)
-    endpoint_address = raw_endpoint_name.strip("/").replace(".openai.azure.com", "")
-    endpoint_address = endpoint_address.replace("http://", "")
-    endpoint_address = endpoint_address.replace("https://", "")
-    return endpoint_address
-
-
 def openai_get_model_list(url: str, api_key: Union[str, None]) -> dict:
     """https://platform.openai.com/docs/api-reference/models/list"""
     from memgpt.utils import printd
@@ -89,51 +70,6 @@ def openai_get_model_list(url: str, api_key: Union[str, None]) -> dict:
     headers = {"Content-Type": "application/json"}
     if api_key is not None:
         headers["Authorization"] = f"Bearer {api_key}"
-
-    printd(f"Sending request to {url}")
-    try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
-        response = response.json()  # convert to dict from string
-        printd(f"response = {response}")
-        return response
-    except requests.exceptions.HTTPError as http_err:
-        # Handle HTTP errors (e.g., response 4XX, 5XX)
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got HTTPError, exception={http_err}, response={response}")
-        raise http_err
-    except requests.exceptions.RequestException as req_err:
-        # Handle other requests-related errors (e.g., connection error)
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got RequestException, exception={req_err}, response={response}")
-        raise req_err
-    except Exception as e:
-        # Handle other potential errors
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got unknown Exception, exception={e}, response={response}")
-        raise e
-
-
-def azure_openai_get_model_list(url: str, api_key: Union[str, None], api_version: str) -> dict:
-    """https://learn.microsoft.com/en-us/rest/api/azureopenai/models/list?view=rest-azureopenai-2023-05-15&tabs=HTTP"""
-    from memgpt.utils import printd
-
-    # https://xxx.openai.azure.com/openai/models?api-version=xxx
-    url = smart_urljoin(url, "openai")
-    url = smart_urljoin(url, f"models?api-version={api_version}")
-
-    headers = {"Content-Type": "application/json"}
-    if api_key is not None:
-        headers["api-key"] = f"{api_key}"
 
     printd(f"Sending request to {url}")
     try:
@@ -223,85 +159,6 @@ def openai_embeddings_request(url, api_key, data):
 
     url = smart_urljoin(url, "embeddings")
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
-
-    printd(f"Sending request to {url}")
-    try:
-        response = requests.post(url, headers=headers, json=data)
-        printd(f"response = {response}")
-        response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
-        response = response.json()  # convert to dict from string
-        printd(f"response.json = {response}")
-        response = EmbeddingResponse(**response)  # convert to 'dot-dict' style which is the openai python client default
-        return response
-    except requests.exceptions.HTTPError as http_err:
-        # Handle HTTP errors (e.g., response 4XX, 5XX)
-        printd(f"Got HTTPError, exception={http_err}, payload={data}")
-        raise http_err
-    except requests.exceptions.RequestException as req_err:
-        # Handle other requests-related errors (e.g., connection error)
-        printd(f"Got RequestException, exception={req_err}")
-        raise req_err
-    except Exception as e:
-        # Handle other potential errors
-        printd(f"Got unknown Exception, exception={e}")
-        raise e
-
-
-def azure_openai_chat_completions_request(resource_name, deployment_id, api_version, api_key, data):
-    """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#chat-completions"""
-    from memgpt.utils import printd
-
-    assert resource_name is not None, "Missing required field when calling Azure OpenAI"
-    assert deployment_id is not None, "Missing required field when calling Azure OpenAI"
-    assert api_version is not None, "Missing required field when calling Azure OpenAI"
-    assert api_key is not None, "Missing required field when calling Azure OpenAI"
-
-    resource_name = clean_azure_endpoint(resource_name)
-    url = f"https://{resource_name}.openai.azure.com/openai/deployments/{deployment_id}/chat/completions?api-version={api_version}"
-    headers = {"Content-Type": "application/json", "api-key": f"{api_key}"}
-
-    # If functions == None, strip from the payload
-    if "functions" in data and data["functions"] is None:
-        data.pop("functions")
-        data.pop("function_call", None)  # extra safe,  should exist always (default="auto")
-
-    if "tools" in data and data["tools"] is None:
-        data.pop("tools")
-        data.pop("tool_choice", None)  # extra safe,  should exist always (default="auto")
-
-    printd(f"Sending request to {url}")
-    try:
-        response = requests.post(url, headers=headers, json=data)
-        printd(f"response = {response}")
-        response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
-        response = response.json()  # convert to dict from string
-        printd(f"response.json = {response}")
-        # NOTE: azure openai does not include "content" in the response when it is None, so we need to add it
-        if "content" not in response["choices"][0].get("message"):
-            response["choices"][0]["message"]["content"] = None
-        response = ChatCompletionResponse(**response)  # convert to 'dot-dict' style which is the openai python client default
-        return response
-    except requests.exceptions.HTTPError as http_err:
-        # Handle HTTP errors (e.g., response 4XX, 5XX)
-        printd(f"Got HTTPError, exception={http_err}, payload={data}")
-        raise http_err
-    except requests.exceptions.RequestException as req_err:
-        # Handle other requests-related errors (e.g., connection error)
-        printd(f"Got RequestException, exception={req_err}")
-        raise req_err
-    except Exception as e:
-        # Handle other potential errors
-        printd(f"Got unknown Exception, exception={e}")
-        raise e
-
-
-def azure_openai_embeddings_request(resource_name, deployment_id, api_version, api_key, data):
-    """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings"""
-    from memgpt.utils import printd
-
-    resource_name = clean_azure_endpoint(resource_name)
-    url = f"https://{resource_name}.openai.azure.com/openai/deployments/{deployment_id}/embeddings?api-version={api_version}"
-    headers = {"Content-Type": "application/json", "api-key": f"{api_key}"}
 
     printd(f"Sending request to {url}")
     try:
@@ -429,39 +286,6 @@ def create(
         return openai_chat_completions_request(
             url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
             api_key=credentials.openai_key,
-            data=data,
-        )
-
-    # azure
-    elif agent_state.llm_config.model_endpoint_type == "azure":
-        azure_deployment = (
-            credentials.azure_deployment
-            if credentials.azure_deployment is not None
-            else MODEL_TO_AZURE_ENGINE[agent_state.llm_config.model]
-        )
-        if use_tool_naming:
-            data = dict(
-                # NOTE: don't pass model to Azure calls, that is the deployment_id
-                # model=agent_config.model,
-                messages=messages,
-                tools=[{"type": "function", "function": f} for f in functions] if functions else None,
-                tool_choice=function_call,
-                user=str(agent_state.user_id),
-            )
-        else:
-            data = dict(
-                # NOTE: don't pass model to Azure calls, that is the deployment_id
-                # model=agent_config.model,
-                messages=messages,
-                functions=functions,
-                function_call=function_call,
-                user=str(agent_state.user_id),
-            )
-        return azure_openai_chat_completions_request(
-            resource_name=credentials.azure_endpoint,
-            deployment_id=azure_deployment,
-            api_version=credentials.azure_version,
-            api_key=credentials.azure_key,
             data=data,
         )
 

@@ -11,13 +11,12 @@ from memgpt.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, JSON_ENSURE_ASCII, J
 
 console = Console()
 
-from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.config import MemGPTConfig
 import memgpt.agent as agent
 import memgpt.system as system
 import memgpt.errors as errors
-from memgpt.cli.cli import run, version, server, delete_agent
+from memgpt.cli.cli import run, version, delete_agent
 from memgpt.metadata import MetadataStore
 
 # import benchmark
@@ -25,7 +24,6 @@ from memgpt.metadata import MetadataStore
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
 app.command(name="version")(version)
-app.command(name="server")(server)
 # delete agents
 app.command(name="delete-agent")(delete_agent)
 
@@ -90,49 +88,6 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                 elif user_input.lower() == "/save" or user_input.lower() == "/savechat":
                     # memgpt_agent.save()
                     agent.save_agent(memgpt_agent, ms)
-                    continue
-                elif user_input.lower() == "/attach":
-                    # TODO: check if agent already has it
-
-                    # TODO: check to ensure source embedding dimentions/model match agents, and disallow attachment if not
-                    # TODO: alternatively, only list sources with compatible embeddings, and print warning about non-compatible sources
-
-                    data_source_options = ms.list_sources(user_id=memgpt_agent.agent_state.user_id)
-                    if len(data_source_options) == 0:
-                        typer.secho(
-                            'No sources available. You must load a souce with "memgpt load ..." before running /attach.',
-                            fg=typer.colors.RED,
-                            bold=True,
-                        )
-                        continue
-
-                    # determine what sources are valid to be attached to this agent
-                    valid_options = []
-                    invalid_options = []
-                    for source in data_source_options:
-                        if (
-                            source.embedding_model == memgpt_agent.agent_state.embedding_config.embedding_model
-                            and source.embedding_dim == memgpt_agent.agent_state.embedding_config.embedding_dim
-                        ):
-                            valid_options.append(source.name)
-                        else:
-                            # print warning about invalid sources
-                            typer.secho(
-                                f"Source {source.name} exists but has embedding dimentions {source.embedding_dim} from model {source.embedding_model}, while the agent uses embedding dimentions {memgpt_agent.agent_state.embedding_config.embedding_dim} and model {memgpt_agent.agent_state.embedding_config.embedding_model}",
-                                fg=typer.colors.YELLOW,
-                            )
-                            invalid_options.append(source.name)
-
-                    # prompt user for data source selection
-                    data_source = questionary.select("Select data source", choices=valid_options).ask()
-
-                    # attach new data
-                    # attach(memgpt_agent.agent_state.name, data_source)
-                    source_connector = StorageConnector.get_storage_connector(
-                        TableType.PASSAGES, config, user_id=memgpt_agent.agent_state.user_id
-                    )
-                    memgpt_agent.attach_source(data_source, source_connector, ms)
-
                     continue
 
                 elif user_input.lower() == "/dump" or user_input.lower().startswith("/dump "):
@@ -384,5 +339,4 @@ USER_COMMANDS = [
     ("/rewrite <text>", "changes the reply of the last agent message"),
     ("/heartbeat", "send a heartbeat system message to the agent"),
     ("/memorywarning", "send a memory warning system message to the agent"),
-    ("/attach", "attach data source to agent"),
 ]

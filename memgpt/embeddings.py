@@ -3,22 +3,13 @@ from typing import Optional, List, Any
 import os
 import numpy as np
 
-from memgpt.utils import is_valid_url, printd
+from memgpt.utils import is_valid_url
 from memgpt.data_types import EmbeddingConfig
 from memgpt.credentials import MemGPTCredentials
-from memgpt.constants import MAX_EMBEDDING_DIM, EMBEDDING_TO_TOKENIZER_MAP, EMBEDDING_TO_TOKENIZER_DEFAULT
+from memgpt.constants import MAX_EMBEDDING_DIM
 
-# from llama_index.core.base.embeddings import BaseEmbedding
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core import Document as LlamaIndexDocument
-
-# from llama_index.core.base.embeddings import BaseEmbedding
-# from llama_index.core.embeddings import BaseEmbedding
-# from llama_index.core.base.embeddings.base import BaseEmbedding
-# from llama_index.bridge.pydantic import PrivateAttr
-# from llama_index.embeddings.base import BaseEmbedding
-# from llama_index.embeddings.huggingface_utils import format_text
-import tiktoken
 
 
 def parse_and_chunk_text(text: str, chunk_size: int) -> List[str]:
@@ -26,43 +17,6 @@ def parse_and_chunk_text(text: str, chunk_size: int) -> List[str]:
     llama_index_docs = [LlamaIndexDocument(text=text)]
     nodes = parser.get_nodes_from_documents(llama_index_docs)
     return [n.text for n in nodes]
-
-
-def truncate_text(text: str, max_length: int, encoding) -> str:
-    # truncate the text based on max_length and encoding
-    encoded_text = encoding.encode(text)[:max_length]
-    return encoding.decode(encoded_text)
-
-
-def check_and_split_text(text: str, embedding_model: str) -> List[str]:
-    """Split text into chunks of max_length tokens or less"""
-
-    if embedding_model in EMBEDDING_TO_TOKENIZER_MAP:
-        encoding = tiktoken.get_encoding(EMBEDDING_TO_TOKENIZER_MAP[embedding_model])
-    else:
-        print(f"Warning: couldn't find tokenizer for model {embedding_model}, using default tokenizer {EMBEDDING_TO_TOKENIZER_DEFAULT}")
-        encoding = tiktoken.get_encoding(EMBEDDING_TO_TOKENIZER_DEFAULT)
-
-    num_tokens = len(encoding.encode(text))
-
-    # determine max length
-    if hasattr(encoding, "max_length"):
-        # TODO(fix) this is broken
-        max_length = encoding.max_length
-    else:
-        # TODO: figure out the real number
-        printd(f"Warning: couldn't find max_length for tokenizer {embedding_model}, using default max_length 8191")
-        max_length = 8191
-
-    # truncate text if too long
-    if num_tokens > max_length:
-        print(f"Warning: text is too long ({num_tokens} tokens), truncating to {max_length} tokens.")
-        # First, apply any necessary formatting
-        formatted_text = format_text(text, embedding_model)
-        # Then truncate
-        text = truncate_text(formatted_text, max_length, encoding)
-
-    return [text]
 
 
 class EmbeddingEndpoint:
@@ -167,27 +121,6 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
             additional_kwargs=additional_kwargs,
         )
         return model
-
-    elif endpoint_type == "azure":
-        assert all(
-            [
-                credentials.azure_key is not None,
-                credentials.azure_embedding_endpoint is not None,
-                credentials.azure_version is not None,
-            ]
-        )
-        from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
-
-        # https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings
-        model = "text-embedding-ada-002"
-        deployment = credentials.azure_embedding_deployment if credentials.azure_embedding_deployment is not None else model
-        return AzureOpenAIEmbedding(
-            model=model,
-            deployment_name=deployment,
-            api_key=credentials.azure_key,
-            azure_endpoint=credentials.azure_endpoint,
-            api_version=credentials.azure_version,
-        )
 
     elif endpoint_type == "hugging-face":
         return EmbeddingEndpoint(

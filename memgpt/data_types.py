@@ -391,22 +391,6 @@ class OpenAIEmbeddingConfig(EmbeddingConfig):
         self.openai_key = openai_key
 
 
-class AzureEmbeddingConfig(EmbeddingConfig):
-    def __init__(
-        self,
-        azure_key: Optional[str] = None,
-        azure_endpoint: Optional[str] = None,
-        azure_version: Optional[str] = None,
-        azure_deployment: Optional[str] = None,
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-        self.azure_key = azure_key
-        self.azure_endpoint = azure_endpoint
-        self.azure_version = azure_version
-        self.azure_deployment = azure_deployment
-
-
 class User:
     """Defines user and default configurations"""
 

@@ -12,18 +12,6 @@ class MemGPTCredentials:
     openai_auth_type: str = "bearer_token"
     openai_key: Optional[str] = None
 
-    # azure config
-    azure_auth_type: str = "api_key"
-    azure_key: Optional[str] = None
-    # base llm / model
-    azure_version: Optional[str] = None
-    azure_endpoint: Optional[str] = None
-    azure_deployment: Optional[str] = None
-    # embeddings
-    azure_embedding_version: Optional[str] = None
-    azure_embedding_endpoint: Optional[str] = None
-    azure_embedding_deployment: Optional[str] = None
-
     # custom llm API config
     openllm_auth_type: Optional[str] = None
     openllm_key: Optional[str] = None

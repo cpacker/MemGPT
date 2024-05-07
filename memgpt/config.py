@@ -66,16 +66,6 @@ class MemGPTConfig:
     # version (for backcompat)
     memgpt_version: str = memgpt.__version__
 
-    # user info
-    policies_accepted: bool = False
-
-    def __post_init__(self):
-        # ensure types
-        # self.embedding_chunk_size = int(self.embedding_chunk_size)
-        # self.embedding_dim = int(self.embedding_dim)
-        # self.context_window = int(self.context_window)
-        pass
-
     @staticmethod
     def generate_uuid() -> str:
         return uuid.UUID(int=uuid.getnode()).hex
