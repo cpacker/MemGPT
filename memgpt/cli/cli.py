@@ -1,10 +1,6 @@
 import uuid
 import sys
 import logging
-from pathlib import Path
-import os
-import subprocess
-from enum import Enum
 from typing import Annotated, Optional
 
 import typer
@@ -17,14 +13,8 @@ from memgpt.utils import printd
 from memgpt.config import MemGPTConfig
 from memgpt.constants import CLI_WARNING_PREFIX
 from memgpt.agent import Agent, save_agent
-from memgpt.server.constants import WS_DEFAULT_PORT, REST_DEFAULT_PORT
 from memgpt.data_types import User
 from memgpt.metadata import MetadataStore
-
-
-class ServerChoice(Enum):
-    rest_api = "rest"
-    ws_api = "websocket"
 
 
 def create_default_user_or_exit(config: MemGPTConfig, ms: MetadataStore):
@@ -42,137 +32,6 @@ def create_default_user_or_exit(config: MemGPTConfig, ms: MetadataStore):
         return user
 
 
-def generate_self_signed_cert(cert_path="selfsigned.crt", key_path="selfsigned.key"):
-    """Generate a self-signed SSL certificate.
-
-    NOTE: intended to be used for development only.
-    """
-    subprocess.run(
-        [
-            "openssl",
-            "req",
-            "-x509",
-            "-newkey",
-            "rsa:4096",
-            "-keyout",
-            key_path,
-            "-out",
-            cert_path,
-            "-days",
-            "365",
-            "-nodes",
-            "-subj",
-            "/C=US/ST=Denial/L=Springfield/O=Dis/CN=localhost",
-        ],
-        check=True,
-    )
-    return cert_path, key_path
-
-
-def server(
-    type: Annotated[ServerChoice, typer.Option(help="Server to run")] = "rest",
-    port: Annotated[Optional[int], typer.Option(help="Port to run the server on")] = None,
-    host: Annotated[Optional[str], typer.Option(help="Host to run the server on (default to localhost)")] = None,
-    use_ssl: Annotated[bool, typer.Option(help="Run the server using HTTPS?")] = False,
-    ssl_cert: Annotated[Optional[str], typer.Option(help="Path to SSL certificate (if use_ssl is True)")] = None,
-    ssl_key: Annotated[Optional[str], typer.Option(help="Path to SSL key file (if use_ssl is True)")] = None,
-    debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = True,
-):
-    """Launch a MemGPT server process"""
-
-    if debug:
-        from memgpt.server.server import logger as server_logger
-
-        # Set the logging level
-        server_logger.setLevel(logging.DEBUG)
-        # Create a StreamHandler
-        stream_handler = logging.StreamHandler()
-        # Set the formatter (optional)
-        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        stream_handler.setFormatter(formatter)
-        # Add the handler to the logger
-        server_logger.addHandler(stream_handler)
-
-    if type == ServerChoice.rest_api:
-        import uvicorn
-        from memgpt.server.rest_api.server import app
-
-        if MemGPTConfig.exists():
-            config = MemGPTConfig.load()
-            ms = MetadataStore(config)
-            create_default_user_or_exit(config, ms)
-        else:
-            typer.secho(f"No configuration exists. Run memgpt configure before starting the server.", fg=typer.colors.RED)
-            sys.exit(1)
-
-        try:
-            if use_ssl:
-                if ssl_cert is None:  # No certificate path provided, generate a self-signed certificate
-                    ssl_certfile, ssl_keyfile = generate_self_signed_cert()
-                    print(f"Running server with self-signed SSL cert: {ssl_certfile}, {ssl_keyfile}")
-                else:
-                    ssl_certfile, ssl_keyfile = ssl_cert, ssl_key  # Assuming cert includes both
-                    print(f"Running server with provided SSL cert: {ssl_certfile}, {ssl_keyfile}")
-
-                # This will start the server on HTTPS
-                assert isinstance(ssl_certfile, str) and os.path.exists(ssl_certfile), ssl_certfile
-                assert isinstance(ssl_keyfile, str) and os.path.exists(ssl_keyfile), ssl_keyfile
-                print(
-                    f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT} --ssl-keyfile {ssl_keyfile} --ssl-certfile {ssl_certfile}"
-                )
-                uvicorn.run(
-                    app,
-                    host=host or "localhost",
-                    port=port or REST_DEFAULT_PORT,
-                    ssl_keyfile=ssl_keyfile,
-                    ssl_certfile=ssl_certfile,
-                )
-            else:
-                # Start the subprocess in a new session
-                print(f"Running: uvicorn {app}:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT}")
-                uvicorn.run(
-                    app,
-                    host=host or "localhost",
-                    port=port or REST_DEFAULT_PORT,
-                )
-
-        except KeyboardInterrupt:
-            # Handle CTRL-C
-            typer.secho("Terminating the server...")
-            sys.exit(0)
-
-    elif type == ServerChoice.ws_api:
-        if port is None:
-            port = WS_DEFAULT_PORT
-
-        # Change to the desired directory
-        script_path = Path(__file__).resolve()
-        script_dir = script_path.parent
-
-        server_directory = os.path.join(script_dir.parent, "server", "ws_api")
-        command = f"python server.py {port}"
-
-        # Run the command
-        typer.secho(f"Running WS (websockets) server: {command} (inside {server_directory})")
-
-        process = None
-        try:
-            # Start the subprocess in a new session
-            process = subprocess.Popen(command, shell=True, start_new_session=True, cwd=server_directory)
-            process.wait()
-        except KeyboardInterrupt:
-            # Handle CTRL-C
-            if process is not None:
-                typer.secho("Terminating the server...")
-                process.terminate()
-                try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    typer.secho("Server terminated with kill()")
-            sys.exit(0)
-
-
 def run(
     persona: Annotated[Optional[str], typer.Option(help="Specify persona")] = None,
     agent: Annotated[Optional[str], typer.Option(help="Specify agent name")] = None,
@@ -188,7 +47,6 @@ def run(
     ] = None,
     # other
     first: Annotated[bool, typer.Option(help="Use --first to send the first message in the sequence")] = False,
-    strip_ui: Annotated[bool, typer.Option(help="Remove all the bells and whistles in CLI output (helpful for testing)")] = False,
     debug: Annotated[bool, typer.Option(help="Use --debug to enable debugging output")] = False,
     no_verify: Annotated[bool, typer.Option(help="Bypass message verification")] = False,
     yes: Annotated[bool, typer.Option("-y", help="Skip confirmation prompt and use defaults")] = False,
@@ -214,17 +72,7 @@ def run(
     else:
         logger.setLevel(logging.CRITICAL)
 
-    if not MemGPTConfig.exists():
-        raise Exception("No MemGPT config found")
-
-    else:  # load config
-        config = MemGPTConfig.load()
-
-        # force re-configuration is config is from old version
-        if config.memgpt_version is None:  # TODO: eventually add checks for older versions, if config changes again
-            typer.secho("MemGPT has been updated to a newer version, so re-running configuration.", fg=typer.colors.YELLOW)
-            configure()
-            config = MemGPTConfig.load()
+    config = MemGPTConfig.load()
 
     # read user id from config
     ms = MetadataStore(config)
