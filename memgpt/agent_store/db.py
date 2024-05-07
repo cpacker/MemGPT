@@ -1,6 +1,4 @@
-import os
-import base64
-from sqlalchemy import create_engine, Column, String, BIGINT, select, text, JSON, BINARY, DateTime
+from sqlalchemy import create_engine, Column, String, BIGINT, select, text, JSON, DateTime
 from sqlalchemy import func, or_, and_
 from sqlalchemy import desc, asc
 from sqlalchemy.orm import sessionmaker, mapped_column, declarative_base
@@ -13,7 +11,6 @@ import uuid
 
 from tqdm import tqdm
 from typing import Optional, List, Iterator, Dict
-import numpy as np
 from tqdm import tqdm
 
 from memgpt.config import MemGPTConfig
@@ -39,7 +36,6 @@ class CommonUUID(TypeDecorator):
 
     def process_result_value(self, value, dialect):
         return value
-
 
 
 # Custom serialization / de-serialization for JSON columns

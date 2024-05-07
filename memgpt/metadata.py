@@ -1,7 +1,5 @@
 """ Metadata store for user/agent/data_source information"""
 
-import os
-import inspect as python_inspect
 import uuid
 import secrets
 from typing import Optional, List
@@ -9,9 +7,8 @@ from typing import Optional, List
 from memgpt.utils import enforce_types
 from memgpt.data_types import AgentState, Source, User, LLMConfig, EmbeddingConfig, Token, Preset
 from memgpt.config import MemGPTConfig
-from memgpt.functions.functions import load_all_function_sets
 
-from memgpt.models.pydantic_models import PersonaModel, HumanModel, ToolModel
+from memgpt.models.pydantic_models import PersonaModel, HumanModel
 
 from sqlalchemy import create_engine, Column, String, BIGINT, JSON, Boolean
 from sqlalchemy import func
@@ -233,19 +230,6 @@ class PresetSourceMapping(Base):
         return f"<PresetSourceMapping(user_id='{self.user_id}', preset_id='{self.preset_id}', source_id='{self.source_id}')>"
 
 
-# class PresetFunctionMapping(Base):
-#    __tablename__ = "preset_function_mapping"
-#
-#    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-#    user_id = Column(CommonUUID, nullable=False)
-#    preset_id = Column(CommonUUID, nullable=False)
-#    #function_id = Column(CommonUUID, nullable=False)
-#    function = Column(String, nullable=False) # TODO: convert to ID eventually
-#
-#    def __repr__(self) -> str:
-#        return f"<PresetFunctionMapping(user_id='{self.user_id}', preset_id='{self.preset_id}', function_id='{self.function_id}')>"
-
-
 class PresetModel(Base):
     """Defines data model for storing Preset objects"""
 
@@ -313,51 +297,6 @@ class MetadataStore:
         self.session_maker = sessionmaker(bind=self.engine)
 
     @enforce_types
-    def create_api_key(self, user_id: uuid.UUID, name: Optional[str] = None) -> Token:
-        """Create an API key for a user"""
-        new_api_key = generate_api_key()
-        with self.session_maker() as session:
-            if session.query(TokenModel).filter(TokenModel.token == new_api_key).count() > 0:
-                # NOTE duplicate API keys / tokens should never happen, but if it does don't allow it
-                raise ValueError(f"Token {new_api_key} already exists")
-            # TODO store the API keys as hashed
-            token = Token(user_id=user_id, token=new_api_key, name=name)
-            session.add(TokenModel(**vars(token)))
-            session.commit()
-        return self.get_api_key(api_key=new_api_key)
-
-    @enforce_types
-    def delete_api_key(self, api_key: str):
-        """Delete an API key from the database"""
-        with self.session_maker() as session:
-            session.query(TokenModel).filter(TokenModel.token == api_key).delete()
-            session.commit()
-
-    @enforce_types
-    def get_api_key(self, api_key: str) -> Optional[Token]:
-        with self.session_maker() as session:
-            results = session.query(TokenModel).filter(TokenModel.token == api_key).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"  # should only be one result
-            return results[0].to_record()
-
-    @enforce_types
-    def get_all_api_keys_for_user(self, user_id: uuid.UUID) -> List[Token]:
-        with self.session_maker() as session:
-            results = session.query(TokenModel).filter(TokenModel.user_id == user_id).all()
-            return [r.to_record() for r in results]
-
-    @enforce_types
-    def get_user_from_api_key(self, api_key: str) -> Optional[User]:
-        """Get the user associated with a given API key"""
-        token = self.get_api_key(api_key=api_key)
-        if token is None:
-            raise ValueError(f"Token {api_key} does not exist")
-        else:
-            return self.get_user(user_id=token.user_id)
-
-    @enforce_types
     def create_agent(self, agent: AgentState):
         # insert into agent table
         # make sure agent.name does not already exist for user user_id
@@ -365,19 +304,6 @@ class MetadataStore:
             if session.query(AgentModel).filter(AgentModel.name == agent.name).filter(AgentModel.user_id == agent.user_id).count() > 0:
                 raise ValueError(f"Agent with name {agent.name} already exists")
             session.add(AgentModel(**vars(agent)))
-            session.commit()
-
-    @enforce_types
-    def create_source(self, source: Source, exists_ok=False):
-        # make sure source.name does not already exist for user
-        with self.session_maker() as session:
-            if session.query(SourceModel).filter(SourceModel.name == source.name).filter(SourceModel.user_id == source.user_id).count() > 0:
-                if not exists_ok:
-                    raise ValueError(f"Source with name {source.name} already exists for user {source.user_id}")
-                else:
-                    session.update(SourceModel(**vars(source)))
-            else:
-                session.add(SourceModel(**vars(source)))
             session.commit()
 
     @enforce_types
@@ -412,40 +338,6 @@ class MetadataStore:
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0].to_record()
 
-    # @enforce_types
-    # def set_preset_functions(self, preset_id: uuid.UUID, functions: List[str]):
-    #    preset = self.get_preset(preset_id)
-    #    if preset is None:
-    #        raise ValueError(f"Preset with id {preset_id} does not exist")
-    #    user_id = preset.user_id
-    #    with self.session_maker() as session:
-    #        for function in functions:
-    #            session.add(PresetFunctionMapping(user_id=user_id, preset_id=preset_id, function=function))
-    #        session.commit()
-
-    @enforce_types
-    def set_preset_sources(self, preset_id: uuid.UUID, sources: List[uuid.UUID]):
-        preset = self.get_preset(preset_id)
-        if preset is None:
-            raise ValueError(f"Preset with id {preset_id} does not exist")
-        user_id = preset.user_id
-        with self.session_maker() as session:
-            for source_id in sources:
-                session.add(PresetSourceMapping(user_id=user_id, preset_id=preset_id, source_id=source_id))
-            session.commit()
-
-    # @enforce_types
-    # def get_preset_functions(self, preset_id: uuid.UUID) -> List[str]:
-    #    with self.session_maker() as session:
-    #        results = session.query(PresetFunctionMapping).filter(PresetFunctionMapping.preset_id == preset_id).all()
-    #        return [r.function for r in results]
-
-    @enforce_types
-    def get_preset_sources(self, preset_id: uuid.UUID) -> List[uuid.UUID]:
-        with self.session_maker() as session:
-            results = session.query(PresetSourceMapping).filter(PresetSourceMapping.preset_id == preset_id).all()
-            return [r.source_id for r in results]
-
     @enforce_types
     def update_agent(self, agent: AgentState):
         with self.session_maker() as session:
@@ -459,26 +351,9 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def update_source(self, source: Source):
-        with self.session_maker() as session:
-            session.query(SourceModel).filter(SourceModel.id == source.id).update(vars(source))
-            session.commit()
-
-    @enforce_types
     def delete_agent(self, agent_id: uuid.UUID):
         with self.session_maker() as session:
             session.query(AgentModel).filter(AgentModel.id == agent_id).delete()
-            session.commit()
-
-    @enforce_types
-    def delete_source(self, source_id: uuid.UUID):
-        with self.session_maker() as session:
-            # delete from sources table
-            session.query(SourceModel).filter(SourceModel.id == source_id).delete()
-
-            # delete any mappings
-            session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).delete()
-
             session.commit()
 
     @enforce_types
@@ -503,25 +378,6 @@ class MetadataStore:
         with self.session_maker() as session:
             results = session.query(PresetModel).filter(PresetModel.user_id == user_id).all()
             return [r.to_record() for r in results]
-
-    @enforce_types
-    def list_tools(self, user_id: uuid.UUID) -> List[ToolModel]:
-        with self.session_maker() as session:
-            available_functions = load_all_function_sets()
-            print(available_functions)
-            results = [
-                ToolModel(
-                    name=k,
-                    json_schema=v["json_schema"],
-                    source_type="python",
-                    source_code=python_inspect.getsource(v["python_function"]),
-                )
-                for k, v in available_functions.items()
-            ]
-            print(results)
-            return results
-            # results = session.query(PresetModel).filter(PresetModel.user_id == user_id).all()
-            # return [r.to_record() for r in results]
 
     @enforce_types
     def list_agents(self, user_id: uuid.UUID) -> List[AgentState]:
@@ -559,55 +415,6 @@ class MetadataStore:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0].to_record()
-
-    @enforce_types
-    def get_all_users(self) -> List[User]:
-        # TODO make paginated
-        with self.session_maker() as session:
-            results = session.query(UserModel).all()
-            return [r.to_record() for r in results]
-
-    @enforce_types
-    def get_source(
-        self, source_id: Optional[uuid.UUID] = None, user_id: Optional[uuid.UUID] = None, source_name: Optional[str] = None
-    ) -> Optional[Source]:
-        with self.session_maker() as session:
-            if source_id:
-                results = session.query(SourceModel).filter(SourceModel.id == source_id).all()
-            else:
-                assert user_id is not None and source_name is not None
-                results = session.query(SourceModel).filter(SourceModel.name == source_name).filter(SourceModel.user_id == user_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
-
-    # agent source metadata
-    @enforce_types
-    def attach_source(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_id: uuid.UUID):
-        with self.session_maker() as session:
-            session.add(AgentSourceMappingModel(user_id=user_id, agent_id=agent_id, source_id=source_id))
-            session.commit()
-
-    @enforce_types
-    def list_attached_sources(self, agent_id: uuid.UUID) -> List[uuid.UUID]:
-        with self.session_maker() as session:
-            results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
-            return [r.source_id for r in results]
-
-    @enforce_types
-    def list_attached_agents(self, source_id: uuid.UUID) -> List[uuid.UUID]:
-        with self.session_maker() as session:
-            results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).all()
-            return [r.agent_id for r in results]
-
-    @enforce_types
-    def detach_source(self, agent_id: uuid.UUID, source_id: uuid.UUID):
-        with self.session_maker() as session:
-            session.query(AgentSourceMappingModel).filter(
-                AgentSourceMappingModel.agent_id == agent_id, AgentSourceMappingModel.source_id == source_id
-            ).delete()
-            session.commit()
 
     @enforce_types
     def add_human(self, human: HumanModel):

@@ -3,7 +3,6 @@ import copy
 import re
 import json
 import os
-import pickle
 import platform
 import random
 import subprocess
@@ -32,7 +31,6 @@ from memgpt.constants import (
 )
 from memgpt.models.chat_completion_response import ChatCompletionResponse
 
-from memgpt.openai_backcompat.openai_object import OpenAIObject
 
 # TODO: what is this?
 # DEBUG = True
@@ -750,14 +748,6 @@ def open_folder_in_explorer(folder_path):
         subprocess.run(["xdg-open", folder_path], check=True)
     else:
         raise OSError(f"Unsupported operating system {os_name}.")
-
-
-# Custom unpickler
-class OpenAIBackcompatUnpickler(pickle.Unpickler):
-    def find_class(self, module, name):
-        if module == "openai.openai_object":
-            return OpenAIObject
-        return super().find_class(module, name)
 
 
 def count_tokens(s: str, model: str = "gpt-4") -> int:
