@@ -24,7 +24,13 @@ class MessageRoleType(str, Enum):
 
 class UserMessageRequest(BaseModel):
     message: str = Field(..., description="The message content to be processed by the agent.")
-    stream: bool = Field(default=False, description="Flag to determine if the response should be streamed. Set to True for streaming.")
+    stream_steps: bool = Field(
+        default=False, description="Flag to determine if the response should be streamed. Set to True for streaming agent steps."
+    )
+    stream_tokens: bool = Field(
+        default=False,
+        description="Flag to determine if individual tokens should be streamed. Set to True for token streaming (requires stream = True).",
+    )
     role: MessageRoleType = Field(default=MessageRoleType.user, description="Role of the message sender (either 'user' or 'system')")
     timestamp: Optional[datetime] = Field(
         None,
@@ -135,42 +141,49 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         else:
             raise HTTPException(status_code=500, detail=f"Bad role {request.role}")
 
-        if request.stream:
-            # For streaming response
-            try:
+        if request.stream_steps and request.stream_tokens:
+            raise HTTPException(status_code=400, detail="stream_steps must be 'true' if stream_tokens is 'true'")
 
-                # Get the generator object off of the agent's streaming interface
-                # This will be attached to the POST SSE request used under-the-hood
-                memgpt_agent = server._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-                streaming_interface = memgpt_agent.interface
-                if not isinstance(streaming_interface, StreamingServerInterface):
-                    raise ValueError(f"Agent has wrong type of interface: {type(streaming_interface)}")
+        # For streaming response
+        try:
 
-                # Offload the synchronous message_func to a separate thread
-                streaming_interface.stream_start()
-                task = asyncio.create_task(asyncio.to_thread(message_func, user_id=user_id, agent_id=agent_id, message=request.message))
+            # Get the generator object off of the agent's streaming interface
+            # This will be attached to the POST SSE request used under-the-hood
+            memgpt_agent = server._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+            streaming_interface = memgpt_agent.interface
+            if not isinstance(streaming_interface, StreamingServerInterface):
+                raise ValueError(f"Agent has wrong type of interface: {type(streaming_interface)}")
 
+            # Enable token-streaming within the request if desired
+            streaming_interface.streaming_mode = request.stream_tokens
+
+            # Offload the synchronous message_func to a separate thread
+            streaming_interface.stream_start()
+            task = asyncio.create_task(asyncio.to_thread(message_func, user_id=user_id, agent_id=agent_id, message=request.message))
+
+            if request.stream_steps:
+                # return a stream
                 return StreamingResponse(
                     sse_async_generator(streaming_interface.get_generator()),
                     media_type="text/event-stream",
                 )
-            except HTTPException:
-                raise
-            except Exception as e:
-                print(e)
-                import traceback
+            else:
+                # buffer the stream, then return the list
+                generated_stream = []
+                async for message in streaming_interface.get_generator():
+                    generated_stream.append(message)
+                    if "data" in message and message["data"] == "[DONE]":
+                        break
+                filtered_stream = [d for d in generated_stream if d not in ["[DONE_GEN]", "[DONE_STEP]", "[DONE]"]]
+                return UserMessageResponse(messages=filtered_stream)
 
-                traceback.print_exc()
-                raise HTTPException(status_code=500, detail=f"{e}")
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(e)
+            import traceback
 
-        else:
-            interface.clear()
-            try:
-                message_func(user_id=user_id, agent_id=agent_id, message=request.message)
-            except HTTPException:
-                raise
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=str(e))
-            return UserMessageResponse(messages=interface.to_list())
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=f"{e}")
 
     return router

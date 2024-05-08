@@ -7,7 +7,7 @@ from memgpt.data_types import Message
 from memgpt.interface import AgentInterface
 from memgpt.models.chat_completion_response import ChatCompletionChunkResponse
 from memgpt.streaming_interface import AgentChunkStreamingInterface
-from memgpt.utils import is_utc_datetime
+from memgpt.utils import get_utc_time, is_utc_datetime
 
 
 class QueuingInterface(AgentInterface):
@@ -164,6 +164,9 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
     """
 
     def __init__(self, multi_step=True):
+        #
+        self.streaming_mode = False
+
         self._chunks = deque()
         self._event = asyncio.Event()  # Use an event to notify when chunks are available
         self._active = True  # This should be set to False to stop the generator
@@ -270,6 +273,17 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
     def internal_monologue(self, msg: str, msg_obj: Optional[Message] = None):
         """MemGPT generates some internal monologue"""
+        if not self.streaming_mode:
+
+            # create a fake "chunk" of a stream
+            processed_chunk = {
+                "internal_monologue": msg,
+                "date": msg_obj.created_at.isoformat() if msg_obj is not None else get_utc_time().isoformat(),
+            }
+
+            self._chunks.append(processed_chunk)
+            self._event.set()  # Signal that new data is available
+
         return
 
     def assistant_message(self, msg: str, msg_obj: Optional[Message] = None):
@@ -283,7 +297,23 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         assert msg_obj is not None, "StreamingServerInterface requires msg_obj references for metadata"
 
         if msg.startswith("Running "):
-            return
+            if not self.streaming_mode:
+                # create a fake "chunk" of a stream
+                function_call = msg_obj.tool_calls[0]
+                processed_chunk = {
+                    "function_call": {
+                        "id": function_call.id,
+                        "name": function_call.function["name"],
+                        "arguments": function_call.function["arguments"],
+                    },
+                    "date": msg_obj.created_at.isoformat(),
+                }
+
+                self._chunks.append(processed_chunk)
+                self._event.set()  # Signal that new data is available
+                return
+            else:
+                return
             # msg = msg.replace("Running ", "")
             # new_message = {"function_call": msg}
 

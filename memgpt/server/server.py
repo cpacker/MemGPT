@@ -371,6 +371,9 @@ class SyncServer(LockingServer):
         if memgpt_agent is None:
             raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
 
+        # Determine whether or not to token stream based on the capability of the interface
+        token_streaming = memgpt_agent.interface.streaming_mode if hasattr(memgpt_agent.interface, "streaming_mode") else False
+
         logger.debug(f"Starting agent step")
         no_verify = True
         next_input_message = input_message
@@ -381,7 +384,7 @@ class SyncServer(LockingServer):
                 first_message=False,
                 skip_verify=no_verify,
                 return_dicts=False,
-                stream=True,  # turns on streaming if available
+                stream=token_streaming,
             )
             counter += 1
             memgpt_agent.interface.step_complete()
