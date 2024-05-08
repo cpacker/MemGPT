@@ -246,9 +246,9 @@ class Message(Record):
 
     def to_openai_dict_search_results(self, max_tool_id_length=TOOL_CALL_ID_MAX_LEN) -> dict:
         result_json = self.to_openai_dict()
-        search_result_json = {"timestamp": self.created_at, "message":{"content": result_json["content"], "role": result_json["role"]}}   
+        search_result_json = {"timestamp": self.created_at, "message": {"content": result_json["content"], "role": result_json["role"]}}
         return search_result_json
-    
+
     def to_openai_dict(self, max_tool_id_length=TOOL_CALL_ID_MAX_LEN) -> dict:
         """Go from Message class to ChatCompletion message object"""
 
