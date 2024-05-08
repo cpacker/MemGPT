@@ -35,7 +35,6 @@ class PresetModel(BaseModel):
     system: str = Field(..., description="The system prompt of the preset.")
     persona: str = Field(default="You are a personal assistant", description="The persona of the preset.")
     human: str = Field(default=DEFAULT_HUMAN_TEXT, description="The human of the preset.")
-    functions_schema: List[Dict] = Field(..., description="The functions schema of the preset.")
 
 
 class ToolModel(BaseModel):
@@ -59,7 +58,6 @@ class AgentStateModel(BaseModel):
     preset: str = Field(..., description="The preset used by the agent.")
     persona: str = Field(..., description="The persona used by the agent.")
     human: str = Field(..., description="The human used by the agent.")
-    functions_schema: List[Dict] = Field(..., description="The functions schema used by the agent.")
 
     # llm information
     llm_config: LLMConfigModel = Field(..., description="The LLM configuration used by the agent.")

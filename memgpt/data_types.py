@@ -516,9 +516,6 @@ class Preset(BaseModel):
     system: str = Field(..., description="The system prompt of the preset.")
     persona: str = Field(default=DEFAULT_PERSONA_TEXT, description="The persona of the preset.")
     human: str = Field(default=DEFAULT_HUMAN_TEXT, description="The human of the preset.")
-    functions_schema: List[Dict] = Field(..., description="The functions schema of the preset.")
-    # functions: List[str] = Field(..., description="The functions of the preset.") # TODO: convert to ID
-    # sources: List[str] = Field(..., description="The sources of the preset.") # TODO: convert to ID
 
 
 class Function(BaseModel):

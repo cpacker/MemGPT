@@ -242,13 +242,7 @@ def create(
     agent_state: AgentState,
     messages,
     functions=None,
-    functions_python=None,
     function_call="auto",
-    # hint
-    first_message=False,
-    # use tool naming?
-    # if false, will use deprecated 'functions' style
-    use_tool_naming=True,
 ) -> ChatCompletionResponse:
     """Return response to chat completion with backoff"""
     from memgpt.utils import printd
@@ -267,22 +261,14 @@ def create(
         # TODO do the same for Azure?
         if credentials.openai_key is None:
             raise ValueError(f"OpenAI key is missing from MemGPT config file")
-        if use_tool_naming:
-            data = dict(
-                model=agent_state.llm_config.model,
-                messages=messages,
-                tools=[{"type": "function", "function": f} for f in functions] if functions else None,
-                tool_choice=function_call,
-                user=str(agent_state.user_id),
-            )
-        else:
-            data = dict(
-                model=agent_state.llm_config.model,
-                messages=messages,
-                functions=functions,
-                function_call=function_call,
-                user=str(agent_state.user_id),
-            )
+        data = dict(
+            model=agent_state.llm_config.model,
+            messages=messages,
+            tools=[{"type": "function", "function": f} for f in functions] if functions else None,
+            tool_choice=function_call,
+            user=str(agent_state.user_id),
+        )
+
         return openai_chat_completions_request(
             url=agent_state.llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
             api_key=credentials.openai_key,

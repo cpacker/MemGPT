@@ -183,10 +183,6 @@ class Agent(object):
             raise ValueError(f"'system' not found in provided AgentState")
         self.system = self.agent_state.state["system"]
 
-        if "functions" not in self.agent_state.state:
-            raise ValueError(f"'functions' not found in provided AgentState")
-        # Store the functions schemas (this is passed as an argument to ChatCompletion)
-
         all_functions = load_all_function_sets()
         self.functions = [fs["json_schema"] for fs in all_functions.values()]
         self.functions_python = {k: v["python_function"] for k, v in all_functions.items()}
@@ -200,17 +196,7 @@ class Agent(object):
             raise ValueError(f"'human' not found in provided AgentState")
         self.memory = initialize_memory(ai_notes=self.agent_state.state["persona"], human_notes=self.agent_state.state["human"])
 
-        # Interface must implement:
-        # - internal_monologue
-        # - assistant_message
-        # - function_message
-        # ...
-        # Different interfaces can handle events differently
-        # e.g., print in CLI vs send a discord message with a discord bot
         self.interface = interface
-
-        # Create the persistence manager object based on the AgentState info
-        # TODO
         self.persistence_manager = LocalStateManager(agent_state=self.agent_state)
 
         # State needed for heartbeat pausing
@@ -336,7 +322,6 @@ class Agent(object):
         self,
         message_sequence: List[dict],
         function_call: str = "auto",
-        first_message: bool = False,  # hint
     ) -> chat_completion_response.ChatCompletionResponse:
         """Get response from LLM API"""
         try:
@@ -344,10 +329,7 @@ class Agent(object):
                 agent_state=self.agent_state,
                 messages=message_sequence,
                 functions=self.functions,
-                functions_python=self.functions_python,
                 function_call=function_call,
-                # hint
-                first_message=first_message,
             )
             # special case for 'length'
             if response.choices[0].finish_reason == "length":
@@ -606,7 +588,6 @@ class Agent(object):
                 while True:
                     response = self._get_ai_reply(
                         message_sequence=input_message_sequence,
-                        first_message=True,  # passed through to the prompt formatter
                     )
                     if verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
