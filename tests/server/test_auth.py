@@ -1,7 +1,8 @@
 from pytest import fixture
 import uuid
-from httpx import AsyncClient
+from httpx import Client
 
+from memgpt.server import app
 from memgpt.metadata import MetadataStore, User, SecureTokenModel
 from memgpt.server.rest_api.auth.security import Security, EncryptedSecureKey, RawSecureKey
 
@@ -51,7 +52,7 @@ class TestAuthUnit:
         control_key = EncryptedSecureKey(key_id=secure_token.id, encrypted_secret=secure_token.token)
         # bad token
         assert not security.verify_secure_key(raw_key, control_key)
-
+        breakpoint()
         # bad id (sanity check)
         new_bad_key = security.decode_raw_api_key(api_key=api_key)
         new_bad_key.key_id = secure_token.id + 1
@@ -61,6 +62,9 @@ class TestAuthUnit:
 
 class TestAuth:
 
-    def test_login(self, client: AsyncClient):
+    def test_login(self):
+
+        client = Client(app=app, base_url="/v1")
+
         response = client.post("/login", json={"username": "test", "password": "test"})
         assert response.status_code == 200
