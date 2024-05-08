@@ -151,12 +151,11 @@ class Agent(object):
                 human=preset.human,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
-                preset=preset.name,  # TODO link via preset.id instead of name?
+                preset=preset.name,
                 state={
                     "persona": preset.persona,
                     "human": preset.human,
                     "system": preset.system,
-                    "functions": preset.functions_schema,
                     "messages": None,
                 },
             )

@@ -426,12 +426,6 @@ class AgentState:
         llm_config: LLMConfig,
         embedding_config: EmbeddingConfig,
         preset: str,
-        # (in-context) state contains:
-        # persona: str  # the current persona text
-        # human: str  # the current human text
-        # system: str,  # system prompt (not required if initializing with a preset)
-        # functions: dict,  # schema definitions ONLY (function code linked at runtime)
-        # messages: List[dict],  # in-context messages
         id: Optional[uuid.UUID] = None,
         state: Optional[dict] = None,
         created_at: Optional[datetime] = None,

@@ -72,7 +72,6 @@ class Server(object):
         user_id: uuid.UUID,
         agent_config: Union[dict, AgentState],
         interface: Union[AgentInterface, None],
-        # persistence_manager: Union[PersistenceManager, None],
     ) -> str:
         """Create a new agent using a config"""
         raise NotImplementedError
