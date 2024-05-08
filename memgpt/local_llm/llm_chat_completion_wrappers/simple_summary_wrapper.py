@@ -108,7 +108,7 @@ class SimpleSummaryWrapper(LLMChatCompletionWrapper):
             elif message["role"] == "assistant":
                 prompt += f"\nASSISTANT: {message['content']}"
                 # need to add the function call if there was one
-                if message["function_call"]:
+                if "function_call" in message and message["function_call"]:
                     prompt += f"\n{create_function_call(message['function_call'])}"
             elif message["role"] in ["function", "tool"]:
                 # TODO find a good way to add this
