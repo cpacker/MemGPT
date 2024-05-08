@@ -695,7 +695,6 @@ def verify_first_message_correctness(
         if contains_special_characters(monologue):
             printd(f"First message internal monologue contained special characters: {response_message}")
             return False
-        # if 'functions' in monologue or 'send_message' in monologue or 'inner thought' in monologue.lower():
         if "functions" in monologue or "send_message" in monologue:
             # Sometimes the syntax won't be correct and internal syntax will leak into message.context
             printd(f"First message internal monologue contained reserved words: {response_message}")

@@ -246,8 +246,6 @@ class PresetModel(Base):
     preset = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    functions_schema = Column(JSON)
-
     def __repr__(self) -> str:
         return f"<Preset(id='{self.id}', name='{self.name}')>"
 
@@ -262,7 +260,6 @@ class PresetModel(Base):
             persona=self.persona,
             preset=self.preset,
             created_at=self.created_at,
-            functions_schema=self.functions_schema,
         )
 
 
