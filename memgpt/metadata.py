@@ -5,14 +5,16 @@ import os
 import secrets
 import traceback
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Tuple, TYPE_CHECKING
 
 from sqlalchemy import (
     BIGINT,
     CHAR,
+    Integer,
     JSON,
     Boolean,
     Column,
+    ForeignKey,
     DateTime,
     String,
     TypeDecorator,
@@ -21,7 +23,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.exc import InterfaceError
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker, relationship, mapped_column, Mapped
 from sqlalchemy.sql import func
 
 from memgpt.config import MemGPTConfig
@@ -35,6 +37,7 @@ from memgpt.data_types import (
     User,
 )
 from memgpt.functions.functions import load_all_function_sets
+from memgpt.server.rest_api.auth.security import Security, RawSecureKey
 from memgpt.models.pydantic_models import (
     HumanModel,
     JobModel,
@@ -44,6 +47,9 @@ from memgpt.models.pydantic_models import (
 )
 from memgpt.settings import settings
 from memgpt.utils import enforce_types, get_utc_time, printd
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 Base = declarative_base()
 
@@ -159,6 +165,35 @@ class TokenModel(Base):
             name=self.name,
         )
 
+class SecureTokenModel(Base):
+    __tablename__ = "secure_tokens"
+
+    id = Column(BIGINT().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    user_id:Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    token = Column(String, nullable=False)
+    name = Column(String)
+
+    # relationships
+    user = relationship(UserModel, primaryjoin="SecureTokenModel.user_id == UserModel.id", backref="secure_tokens")
+
+    @classmethod
+    def create(cls, session:"Session", user_id:uuid.UUID, name:str=None) -> Tuple[str, "SecureTokenModel"]:
+        """creates the newly created secure token and its unstored API key
+        Returns:
+            Tuple[str, SecureTokenModel]: the API key and the secure token model
+        """
+        # TODO: a base for this method belongs in an ABC model class
+        security = Security()
+        secret, hashed_secret = security.get_hashed_pair()
+        candidate = cls(user_id=user_id,
+                        token=hashed_secret,
+                        name=name)
+
+        session.add(candidate)
+        session.commit()
+        session.refresh(candidate)
+        api_key = security.encode_raw_secure_key(RawSecureKey(key_id=candidate.id, raw_secret=secret))
+        return api_key, candidate
 
 def generate_api_key(prefix="sk-", length=51) -> str:
     # Generate 'length // 2' bytes because each byte becomes two hex digits. Adjust length for prefix.
@@ -348,6 +383,7 @@ class MetadataStore:
                     SourceModel.__table__,
                     AgentSourceMappingModel.__table__,
                     TokenModel.__table__,
+                    SecureTokenModel.__table__,
                     PresetModel.__table__,
                     PresetSourceMapping.__table__,
                     HumanModel.__table__,
