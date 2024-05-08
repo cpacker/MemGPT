@@ -49,7 +49,14 @@ class TestAuthUnit:
         bad_key = security.encode_raw_secure_key(RawSecureKey(key_id=secure_token.id, raw_secret="this is a bad key"))
         raw_key = security.decode_raw_api_key(bad_key)
         control_key = EncryptedSecureKey(key_id=secure_token.id, encrypted_secret=secure_token.token)
+        # bad token
         assert not security.verify_secure_key(raw_key, control_key)
+
+        # bad id (sanity check)
+        new_bad_key = security.decode_raw_api_key(api_key=api_key)
+        new_bad_key.key_id = secure_token.id + 1
+        assert not security.verify_secure_key(new_bad_key, control_key)
+
 
 
 class TestAuth:

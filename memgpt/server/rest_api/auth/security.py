@@ -53,7 +53,9 @@ class Security:
         Returns:
             bool: True if the secret matches the encrypted secret, False otherwise
         """
-        return self.secret_context.verify(candidate_key.raw_secret, target_key.encrypted_secret)
+        return all(
+            ((candidate_key.key_id == target_key.key_id),
+            self.secret_context.verify(candidate_key.raw_secret, target_key.encrypted_secret),))
 
 
     def create_jwt_auth_token(self, data: dict) -> str:
