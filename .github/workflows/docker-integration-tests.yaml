@@ -1,3 +1,5 @@
+name: Run Docker integration tests
+
 on:
   push:
     branches: [ main ]
