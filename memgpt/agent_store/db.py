@@ -540,9 +540,7 @@ class PostgresStorageConnector(SQLStorageConnector):
     def query_date(self, start_date, end_date, limit=None, offset=0):
         filters = self.get_filters({})
         _start_date = self.str_to_datetime(start_date)
-        print(f"{start_date}->{_start_date}")
         _end_date = self.str_to_datetime(end_date)
-        print(f"{end_date}->{_end_date}")
         with self.session_maker() as session:
             query = (
                 session.query(self.db_model)
