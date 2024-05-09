@@ -3,9 +3,9 @@ import uuid
 from datetime import datetime
 from enum import Enum
 from functools import partial
-from typing import List, Optional
+from typing import List, Optional, Union
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
@@ -73,6 +73,70 @@ class GetAgentMessagesResponse(BaseModel):
     messages: list = Field(..., description="List of message objects.")
 
 
+async def send_message_to_agent(
+    server: SyncServer,
+    agent_id: uuid.UUID,
+    user_id: uuid.UUID,
+    role: str,
+    message: str,
+    stream_steps: bool,
+    stream_tokens: bool,
+) -> Union[StreamingResponse, UserMessageResponse]:
+    """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
+
+    if role == "user" or role is None:
+        message_func = server.user_message
+    elif role == "system":
+        message_func = server.system_message
+    else:
+        raise HTTPException(status_code=500, detail=f"Bad role {role}")
+
+    if stream_steps and stream_tokens:
+        raise HTTPException(status_code=400, detail="stream_steps must be 'true' if stream_tokens is 'true'")
+
+    # For streaming response
+    try:
+
+        # Get the generator object off of the agent's streaming interface
+        # This will be attached to the POST SSE request used under-the-hood
+        memgpt_agent = server._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        streaming_interface = memgpt_agent.interface
+        if not isinstance(streaming_interface, StreamingServerInterface):
+            raise ValueError(f"Agent has wrong type of interface: {type(streaming_interface)}")
+
+        # Enable token-streaming within the request if desired
+        streaming_interface.streaming_mode = stream_tokens
+
+        # Offload the synchronous message_func to a separate thread
+        streaming_interface.stream_start()
+        task = asyncio.create_task(asyncio.to_thread(message_func, user_id=user_id, agent_id=agent_id, message=message))
+
+        if stream_steps:
+            # return a stream
+            return StreamingResponse(
+                sse_async_generator(streaming_interface.get_generator()),
+                media_type="text/event-stream",
+            )
+        else:
+            # buffer the stream, then return the list
+            generated_stream = []
+            async for message in streaming_interface.get_generator():
+                generated_stream.append(message)
+                if "data" in message and message["data"] == "[DONE]":
+                    break
+            filtered_stream = [d for d in generated_stream if d not in ["[DONE_GEN]", "[DONE_STEP]", "[DONE]"]]
+            return UserMessageResponse(messages=filtered_stream)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(e)
+        import traceback
+
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"{e}")
+
+
 def setup_agents_message_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
@@ -121,7 +185,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
 
     @router.post("/agents/{agent_id}/messages", tags=["agents"], response_model=UserMessageResponse)
     async def send_message(
-        background_tasks: BackgroundTasks,
+        # background_tasks: BackgroundTasks,
         agent_id: uuid.UUID,
         request: UserMessageRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
@@ -132,6 +196,15 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         This endpoint accepts a message from a user and processes it through the agent.
         It can optionally stream the response if 'stream' is set to True.
         """
+        return send_message_to_agent(
+            server=server,
+            agent_id=agent_id,
+            user_id=user_id,
+            role=request.role,
+            message=request.message,
+            stream_steps=request.stream_steps,
+            stream_tokens=request.stream_tokens,
+        )
         # agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         if request.role == "user" or request.role is None:

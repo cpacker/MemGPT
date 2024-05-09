@@ -26,6 +26,9 @@ from memgpt.server.rest_api.models.index import setup_models_index_router
 from memgpt.server.rest_api.openai_assistants.assistants import (
     setup_openai_assistant_router,
 )
+from memgpt.server.rest_api.openai_chat_completions.chat_completions import (
+    setup_openai_chat_completions_router,
+)
 from memgpt.server.rest_api.personas.index import setup_personas_index_router
 from memgpt.server.rest_api.presets.index import setup_presets_index_router
 from memgpt.server.rest_api.sources.index import setup_sources_index_router
@@ -104,6 +107,9 @@ app.include_router(setup_config_index_router(server, interface, password), prefi
 
 # /v1/assistants endpoints
 app.include_router(setup_openai_assistant_router(server, interface), prefix=OPENAI_API_PREFIX)
+
+# /v1/chat/completions endpoints
+app.include_router(setup_openai_chat_completions_router(server, interface, password), prefix=OPENAI_API_PREFIX)
 
 # / static files
 mount_static_files(app)
