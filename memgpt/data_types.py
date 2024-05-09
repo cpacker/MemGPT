@@ -385,12 +385,6 @@ class EmbeddingConfig:
         assert self.embedding_chunk_size
 
 
-class OpenAIEmbeddingConfig(EmbeddingConfig):
-    def __init__(self, openai_key: Optional[str] = None, **kwargs):
-        super().__init__(**kwargs)
-        self.openai_key = openai_key
-
-
 class User:
     """Defines user and default configurations"""
 

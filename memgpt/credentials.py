@@ -3,18 +3,11 @@ from dataclasses import dataclass
 from typing import Optional
 
 
-SUPPORTED_AUTH_TYPES = ["bearer_token", "api_key"]
-
-
 @dataclass
 class MemGPTCredentials:
     # openai config
     openai_auth_type: str = "bearer_token"
     openai_key: Optional[str] = None
-
-    # custom llm API config
-    openllm_auth_type: Optional[str] = None
-    openllm_key: Optional[str] = None
 
     @classmethod
     def load(cls) -> "MemGPTCredentials":

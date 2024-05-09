@@ -1,7 +1,6 @@
 """ Metadata store for user/agent/data_source information"""
 
 import uuid
-import secrets
 from typing import Optional, List
 
 from memgpt.utils import enforce_types
@@ -124,14 +123,6 @@ class TokenModel(Base):
             token=self.token,
             name=self.name,
         )
-
-
-def generate_api_key(prefix="sk-", length=51) -> str:
-    # Generate 'length // 2' bytes because each byte becomes two hex digits. Adjust length for prefix.
-    actual_length = max(length - len(prefix), 1) // 2  # Ensure at least 1 byte is generated
-    random_bytes = secrets.token_bytes(actual_length)
-    new_key = prefix + random_bytes.hex()
-    return new_key
 
 
 class AgentModel(Base):
@@ -354,38 +345,9 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def delete_user(self, user_id: uuid.UUID):
-        with self.session_maker() as session:
-            # delete from users table
-            session.query(UserModel).filter(UserModel.id == user_id).delete()
-
-            # delete associated agents
-            session.query(AgentModel).filter(AgentModel.user_id == user_id).delete()
-
-            # delete associated sources
-            session.query(SourceModel).filter(SourceModel.user_id == user_id).delete()
-
-            # delete associated mappings
-            session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.user_id == user_id).delete()
-
-            session.commit()
-
-    @enforce_types
-    def list_presets(self, user_id: uuid.UUID) -> List[Preset]:
-        with self.session_maker() as session:
-            results = session.query(PresetModel).filter(PresetModel.user_id == user_id).all()
-            return [r.to_record() for r in results]
-
-    @enforce_types
     def list_agents(self, user_id: uuid.UUID) -> List[AgentState]:
         with self.session_maker() as session:
             results = session.query(AgentModel).filter(AgentModel.user_id == user_id).all()
-            return [r.to_record() for r in results]
-
-    @enforce_types
-    def list_sources(self, user_id: uuid.UUID) -> List[Source]:
-        with self.session_maker() as session:
-            results = session.query(SourceModel).filter(SourceModel.user_id == user_id).all()
             return [r.to_record() for r in results]
 
     @enforce_types
@@ -423,47 +385,4 @@ class MetadataStore:
     def add_persona(self, persona: PersonaModel):
         with self.session_maker() as session:
             session.add(persona)
-            session.commit()
-
-    @enforce_types
-    def get_human(self, name: str, user_id: uuid.UUID) -> str:
-        with self.session_maker() as session:
-            results = session.query(HumanModel).filter(HumanModel.name == name).filter(HumanModel.user_id == user_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0]
-
-    @enforce_types
-    def get_persona(self, name: str, user_id: uuid.UUID) -> str:
-        with self.session_maker() as session:
-            results = session.query(PersonaModel).filter(PersonaModel.name == name).filter(PersonaModel.user_id == user_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0]
-
-    @enforce_types
-    def list_personas(self, user_id: uuid.UUID) -> List[PersonaModel]:
-        with self.session_maker() as session:
-            results = session.query(PersonaModel).filter(PersonaModel.user_id == user_id).all()
-            return results
-
-    @enforce_types
-    def list_humans(self, user_id: uuid.UUID) -> List[HumanModel]:
-        with self.session_maker() as session:
-            # if user_id matches provided user_id or if user_id is None
-            results = session.query(HumanModel).filter(HumanModel.user_id == user_id).all()
-            return results
-
-    @enforce_types
-    def delete_human(self, name: str, user_id: uuid.UUID):
-        with self.session_maker() as session:
-            session.query(HumanModel).filter(HumanModel.name == name).filter(HumanModel.user_id == user_id).delete()
-            session.commit()
-
-    @enforce_types
-    def delete_persona(self, name: str, user_id: uuid.UUID):
-        with self.session_maker() as session:
-            session.query(PersonaModel).filter(PersonaModel.name == name).filter(PersonaModel.user_id == user_id).delete()
             session.commit()

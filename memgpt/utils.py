@@ -1,23 +1,14 @@
 from datetime import datetime
-import copy
-import re
 import json
-import os
-import platform
 import random
-import subprocess
 import uuid
-import sys
-import io
 import hashlib
-from typing import List
 import inspect
 from functools import wraps
 from typing import get_type_hints, Union, _GenericAlias
 
 
 from urllib.parse import urlparse
-from contextlib import contextmanager
 import difflib
 import demjson3 as demjson
 import pytz
@@ -466,20 +457,6 @@ def get_tool_call_id() -> str:
     return str(uuid.uuid4())
 
 
-def assistant_function_to_tool(assistant_message: dict) -> dict:
-    assert "function_call" in assistant_message
-    new_msg = copy.deepcopy(assistant_message)
-    function_call = new_msg.pop("function_call")
-    new_msg["tool_calls"] = [
-        {
-            "id": get_tool_call_id(),
-            "type": "function",
-            "function": function_call,
-        }
-    ]
-    return new_msg
-
-
 def is_optional_type(hint):
     """Check if the type hint is an Optional type."""
     if isinstance(hint, _GenericAlias):
@@ -514,138 +491,6 @@ def enforce_types(func):
         return func(*args, **kwargs)
 
     return wrapper
-
-
-def annotate_message_json_list_with_tool_calls(messages: List[dict], allow_tool_roles: bool = False):
-    """Add in missing tool_call_id fields to a list of messages using function call style
-
-    Walk through the list forwards:
-    - If we encounter an assistant message that calls a function ("function_call") but doesn't have a "tool_call_id" field
-      - Generate the tool_call_id
-    - Then check if the subsequent message is a role == "function" message
-      - If so, then att
-    """
-    tool_call_index = None
-    tool_call_id = None
-    updated_messages = []
-
-    for i, message in enumerate(messages):
-        if "role" not in message:
-            raise ValueError(f"message missing 'role' field:\n{message}")
-
-        # If we find a function call w/o a tool call ID annotation, annotate it
-        if message["role"] == "assistant" and "function_call" in message:
-            if "tool_call_id" in message and message["tool_call_id"] is not None:
-                printd(f"Message already has tool_call_id")
-                tool_call_id = message["tool_call_id"]
-            else:
-                tool_call_id = str(uuid.uuid4())
-                message["tool_call_id"] = tool_call_id
-            tool_call_index = i
-
-        # After annotating the call, we expect to find a follow-up response (also unannotated)
-        elif message["role"] == "function":
-            # We should have a new tool call id in the buffer
-            if tool_call_id is None:
-                # raise ValueError(
-                print(
-                    f"Got a function call role, but did not have a saved tool_call_id ready to use (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
-                )
-                # allow a soft fail in this case
-                message["tool_call_id"] = str(uuid.uuid4())
-            elif "tool_call_id" in message:
-                raise ValueError(
-                    f"Got a function call role, but it already had a saved tool_call_id (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
-                )
-            elif i != tool_call_index + 1:
-                raise ValueError(
-                    f"Got a function call role, saved tool_call_id came earlier than i-1 (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
-                )
-            else:
-                message["tool_call_id"] = tool_call_id
-                tool_call_id = None  # wipe the buffer
-
-        elif message["role"] == "assistant" and "tool_calls" in message and message["tool_calls"] is not None:
-            if not allow_tool_roles:
-                raise NotImplementedError(
-                    f"tool_call_id annotation is meant for deprecated functions style, but got role 'assistant' with 'tool_calls' in message (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
-                )
-
-            if len(message["tool_calls"]) != 1:
-                raise NotImplementedError(
-                    f"Got unexpected format for tool_calls inside assistant message (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
-                )
-
-            assistant_tool_call = message["tool_calls"][0]
-            if "id" in assistant_tool_call and assistant_tool_call["id"] is not None:
-                printd(f"Message already has id (tool_call_id)")
-                tool_call_id = assistant_tool_call["id"]
-            else:
-                tool_call_id = str(uuid.uuid4())
-                message["tool_calls"][0]["id"] = tool_call_id
-                # also just put it at the top level for ease-of-access
-                # message["tool_call_id"] = tool_call_id
-            tool_call_index = i
-
-        elif message["role"] == "tool":
-            if not allow_tool_roles:
-                raise NotImplementedError(
-                    f"tool_call_id annotation is meant for deprecated functions style, but got role 'tool' in message (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
-                )
-
-            # if "tool_call_id" not in message or message["tool_call_id"] is None:
-            # raise ValueError(f"Got a tool call role, but there's no tool_call_id:\n{messages[:i]}\n{message}")
-
-            # We should have a new tool call id in the buffer
-            if tool_call_id is None:
-                # raise ValueError(
-                print(
-                    f"Got a tool call role, but did not have a saved tool_call_id ready to use (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
-                )
-                # allow a soft fail in this case
-                message["tool_call_id"] = str(uuid.uuid4())
-            elif "tool_call_id" in message and message["tool_call_id"] is not None:
-                if tool_call_id is not None and tool_call_id != message["tool_call_id"]:
-                    # just wipe it
-                    # raise ValueError(
-                    #     f"Got a tool call role, but it already had a saved tool_call_id (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
-                    # )
-                    message["tool_call_id"] = tool_call_id
-                    tool_call_id = None  # wipe the buffer
-                else:
-                    tool_call_id = None
-            elif i != tool_call_index + 1:
-                raise ValueError(
-                    f"Got a tool call role, saved tool_call_id came earlier than i-1 (i={i}, total={len(messages)}):\n{messages[:i]}\n{message}"
-                )
-            else:
-                message["tool_call_id"] = tool_call_id
-                tool_call_id = None  # wipe the buffer
-
-        else:
-            # eg role == 'user', nothing to do here
-            pass
-
-        updated_messages.append(copy.deepcopy(message))
-
-    return updated_messages
-
-
-def version_less_than(version_a: str, version_b: str) -> bool:
-    """Compare versions to check if version_a is less than version_b."""
-    # Regular expression to match version strings of the format int.int.int
-    version_pattern = re.compile(r"^\d+\.\d+\.\d+$")
-
-    # Assert that version strings match the required format
-    if not version_pattern.match(version_a) or not version_pattern.match(version_b):
-        raise ValueError("Version strings must be in the format 'int.int.int'")
-
-    # Split the version strings into parts
-    parts_a = [int(part) for part in version_a.split(".")]
-    parts_b = [int(part) for part in version_b.split(".")]
-
-    # Compare version parts
-    return parts_a < parts_b
 
 
 def create_random_username() -> str:
@@ -711,44 +556,6 @@ def is_valid_url(url):
         return False
 
 
-@contextmanager
-def suppress_stdout():
-    """Used to temporarily stop stdout (eg for the 'MockLLM' message)"""
-    new_stdout = io.StringIO()
-    old_stdout = sys.stdout
-    sys.stdout = new_stdout
-    try:
-        yield
-    finally:
-        sys.stdout = old_stdout
-
-
-def open_folder_in_explorer(folder_path):
-    """
-    Opens the specified folder in the system's native file explorer.
-
-    :param folder_path: Absolute path to the folder to be opened.
-    """
-    if not os.path.exists(folder_path):
-        raise ValueError(f"The specified folder {folder_path} does not exist.")
-
-    # Determine the operating system
-    os_name = platform.system()
-
-    # Open the folder based on the operating system
-    if os_name == "Windows":
-        # Windows: use 'explorer' command
-        subprocess.run(["explorer", folder_path], check=True)
-    elif os_name == "Darwin":
-        # macOS: use 'open' command
-        subprocess.run(["open", folder_path], check=True)
-    elif os_name == "Linux":
-        # Linux: use 'xdg-open' command (works for most Linux distributions)
-        subprocess.run(["xdg-open", folder_path], check=True)
-    else:
-        raise OSError(f"Unsupported operating system {os_name}.")
-
-
 def count_tokens(s: str, model: str = "gpt-4") -> int:
     encoding = tiktoken.encoding_for_model(model)
     return len(encoding.encode(s))
@@ -764,35 +571,6 @@ def united_diff(str1, str2):
     lines2 = str2.splitlines(True)
     diff = difflib.unified_diff(lines1, lines2)
     return "".join(diff)
-
-
-def parse_formatted_time(formatted_time):
-    # parse times returned by memgpt.utils.get_formatted_time()
-    return datetime.strptime(formatted_time, "%Y-%m-%d %I:%M:%S %p %Z%z")
-
-
-def datetime_to_timestamp(dt):
-    # convert datetime object to integer timestamp
-    return int(dt.timestamp())
-
-
-def timestamp_to_datetime(ts):
-    # convert integer timestamp to datetime object
-    return datetime.fromtimestamp(ts)
-
-
-def get_local_time_military():
-    # Get the current time in UTC
-    current_time_utc = datetime.now(pytz.utc)
-
-    # Convert to San Francisco's time zone (PST/PDT)
-    sf_time_zone = pytz.timezone("America/Los_Angeles")
-    local_time = current_time_utc.astimezone(sf_time_zone)
-
-    # You may format it as you desire
-    formatted_time = local_time.strftime("%Y-%m-%d %H:%M:%S %Z%z")
-
-    return formatted_time
 
 
 def get_local_time_timezone(timezone="America/Los_Angeles"):
@@ -820,14 +598,6 @@ def get_local_time(timezone=None):
         time_str = local_time.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
 
     return time_str.strip()
-
-
-def get_utc_time() -> datetime:
-    return datetime.now(pytz.utc)
-
-
-def format_datetime(dt):
-    return dt.strftime("%Y-%m-%d %I:%M:%S %p %Z%z")
 
 
 def parse_json(string) -> dict:
@@ -891,37 +661,6 @@ def validate_function_response(function_response_string: any, strict: bool = Fal
         function_response_string = f"{function_response_string[:FUNCTION_RETURN_CHAR_LIMIT]}... [NOTE: function output was truncated since it exceeded the character limit ({len(function_response_string)} > {FUNCTION_RETURN_CHAR_LIMIT})]"
 
     return function_response_string
-
-
-def get_schema_diff(schema_a, schema_b):
-    # Assuming f_schema and linked_function['json_schema'] are your JSON schemas
-    f_schema_json = json.dumps(schema_a, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
-    linked_function_json = json.dumps(schema_b, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
-
-    # Compute the difference using difflib
-    difference = list(difflib.ndiff(f_schema_json.splitlines(keepends=True), linked_function_json.splitlines(keepends=True)))
-
-    # Filter out lines that don't represent changes
-    difference = [line for line in difference if line.startswith("+ ") or line.startswith("- ")]
-
-    return "".join(difference)
-
-
-# datetime related
-def validate_date_format(date_str):
-    """Validate the given date string in the format 'YYYY-MM-DD'."""
-    try:
-        datetime.strptime(date_str, "%Y-%m-%d")
-        return True
-    except (ValueError, TypeError):
-        return False
-
-
-def extract_date_from_timestamp(timestamp):
-    """Extracts and returns the date from the given timestamp."""
-    # Extracts the date (ignoring the time and timezone)
-    match = re.match(r"(\d{4}-\d{2}-\d{2})", timestamp)
-    return match.group(1) if match else None
 
 
 def create_uuid_from_string(val: str):
