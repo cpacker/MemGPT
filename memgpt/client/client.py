@@ -23,6 +23,7 @@ from memgpt.models.pydantic_models import (
     PersonaModel,
     PresetModel,
     SourceModel,
+    ToolModel,
 )
 
 # import pydantic response objects from memgpt.server.rest_api
@@ -346,6 +347,60 @@ class RESTClient(AbstractClient):
         response = requests.post(f"{self.base_url}/api/presets", json=payload.model_dump(), headers=self.headers)
         assert response.status_code == 200, f"Failed to create preset: {response.text}"
         return CreatePresetResponse(**response.json())
+
+    def create_preset2(
+        self,
+        name: str,
+        description: Optional[str],
+        system: Optional[str],
+        persona_name: Optional[str],
+        human_name: Optional[str],
+        tools: Optional[List[ToolModel]] = None,
+        default_tools: bool = True,
+    ) -> PresetModel:
+        """Create an agent preset
+
+        :param name: Name of the preset
+        :type name: str
+        :param system: System prompt (text)
+        :type system: str
+        :param persona: Persona prompt (text)
+        :type persona: Optional[str]
+        :param human: Human prompt (text)
+        :type human: Optional[str]
+        :param tools: List of tools to connect, defaults to None
+        :type tools: Optional[List[Tool]], optional
+        :param default_tools: Whether to automatically include default tools, defaults to True
+        :type default_tools: bool, optional
+        :return: Preset object
+        :rtype: PresetModel
+        """
+        if default_tools:
+            # add default tools
+            default_preset = self.get_preset(name=DEFAULT_PRESET)
+            default_tools = default_preset.function_schema.tools
+
+        # provided tools
+        if not tools:
+            schema = {}
+        else:
+            for tool in tools:
+                schema[tool.name] = tool.json_schema
+
+        # include default tools
+        if default_tools:
+            # TODO
+            from memgpt.functions.functions import load_function_set
+
+            load_function_set()
+            return
+
+        payload = CreatePresetsRequest(
+            name=name, description=description, system=system, persona_name=persona_name, human_name=human_name, functions_schema=schema
+        )
+        response = requests.post(f"{self.base_url}/api/presets", json=payload.model_dump(), headers=self.headers)
+        assert response.status_code == 200, f"Failed to create preset: {response.text}"
+        return CreatePresetResponse(**response.json()).preset
 
     def delete_preset(self, preset_id: uuid.UUID):
         response = requests.delete(f"{self.base_url}/api/presets/{str(preset_id)}", headers=self.headers)

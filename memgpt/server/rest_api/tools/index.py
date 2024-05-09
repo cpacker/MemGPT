@@ -58,6 +58,8 @@ def setup_tools_index_router(server: SyncServer, interface: QueuingInterface, pa
         # write function to ~/.memgt/functions directory
         write_function(request.name, request.name, request.source_code)
 
+        # TODO: Use load_function_file to load function schema
+
         print("adding tool", request.name, request.tags, request.source_code)
         tool = ToolModel(name=request.name, json_schema={}, tags=request.tags, source_code=request.source_code)
         server.ms.add_tool(tool)

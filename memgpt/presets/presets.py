@@ -1,13 +1,14 @@
+import importlib
 import os
 import uuid
 from typing import List
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.data_types import AgentState, Preset
-from memgpt.functions.functions import load_all_function_sets
+from memgpt.functions.functions import load_all_function_sets, load_function_set
 from memgpt.interface import AgentInterface
 from memgpt.metadata import MetadataStore
-from memgpt.models.pydantic_models import HumanModel, PersonaModel
+from memgpt.models.pydantic_models import HumanModel, PersonaModel, ToolModel
 from memgpt.presets.utils import load_all_presets, load_yaml_file
 from memgpt.prompts import gpt_system
 from memgpt.utils import (
@@ -20,6 +21,38 @@ from memgpt.utils import (
 
 available_presets = load_all_presets()
 preset_options = list(available_presets.keys())
+
+
+def add_default_tools(user_id: uuid.UUID, ms: MetadataStore):
+    module_name = "base.py"
+    full_module_name = f"memgpt.functions.function_sets.{module_name}"
+    try:
+        module = importlib.import_module(full_module_name)
+    except Exception as e:
+        # Handle other general exceptions
+        raise e
+
+    # function tags
+    tags = ["memgpt-base"]
+
+    functions_to_schema = {}
+    try:
+        # Load the function set
+        function_set = load_function_set(module)
+        # Add the metadata tags
+        for k, v in function_set.items():
+            # print(function_set)
+            v["tags"] = tags
+            functions_to_schema[module_name] = function_set
+    except ValueError as e:
+        err = f"Error loading function set '{module_name}': {e}"
+        printd(err)
+
+    print("BASE FUNCTIONS", functions_to_schema.keys())
+
+    # create tool in db
+    for name, schema in functions_to_schema.items():
+        ms.create_tool(ToolModel(name=name, tags=["base"], source_type="python", json_schema=schema))
 
 
 def add_default_humans_and_personas(user_id: uuid.UUID, ms: MetadataStore):
@@ -88,6 +121,10 @@ def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
     """Add the default presets to the metadata store"""
     # make sure humans/personas added
     add_default_humans_and_personas(user_id=user_id, ms=ms)
+
+    # make sure base functions added
+    # TODO: pull from functions instead
+    add_default_tools(user_id=user_id, ms=ms)
 
     # add default presets
     for preset_name in preset_options:
