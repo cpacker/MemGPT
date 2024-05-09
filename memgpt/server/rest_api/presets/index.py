@@ -52,6 +52,20 @@ class CreatePresetResponse(BaseModel):
 def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
+    @router.get("/presets/{preset_name}", tags=["presets"], response_model=PresetModel)
+    async def get_preset(
+        preset_name: str,
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        """Get a preset."""
+        try:
+            preset = server.get_preset(user_id=user_id, preset_name=preset_name)
+            return preset
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{e}")
+
     @router.get("/presets", tags=["presets"], response_model=ListPresetsResponse)
     async def list_presets(
         user_id: uuid.UUID = Depends(get_current_user_with_server),

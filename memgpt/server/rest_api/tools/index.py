@@ -1,6 +1,6 @@
 from typing import List, Literal, Optional
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, Field
 
 from memgpt.models.pydantic_models import ToolModel
@@ -28,6 +28,33 @@ class CreateToolResponse(BaseModel):
 def setup_tools_index_router(server: SyncServer, interface: QueuingInterface, password: str):
     # get_current_user_with_server = partial(partial(get_current_user, server), password)
 
+    @router.delete("/tools/{tool_name}", tags=["tools"])
+    async def delete_tool(
+        tool_name: str,
+        # user_id: uuid.UUID = Depends(get_current_user_with_server), # TODO: add back when user-specific
+    ):
+        """
+        Delete a tool by name
+        """
+        # Clear the interface
+        interface.clear()
+        # tool = server.ms.delete_tool(user_id=user_id, tool_name=tool_name) TODO: add back when user-specific
+        server.ms.delete_tool(name=tool_name)
+
+    @router.get("/tools/{tool_name}", tags=["tools"], response_model=ToolModel)
+    async def get_tool(tool_name: str):
+        """
+        Get a tool by name
+        """
+        # Clear the interface
+        interface.clear()
+        # tool = server.ms.get_tool(user_id=user_id, tool_name=tool_name) TODO: add back when user-specific
+        tool = server.ms.get_tool(tool_name=tool_name)
+        if tool is None:
+            # return 404 error
+            raise HTTPException(status_code=404, detail=f"Tool with name {tool_name} not found.")
+        return tool
+
     @router.get("/tools", tags=["tools"], response_model=ListToolsResponse)
     async def list_all_tools(
         # user_id: uuid.UUID = Depends(get_current_user_with_server), # TODO: add back when user-specific
@@ -41,7 +68,7 @@ def setup_tools_index_router(server: SyncServer, interface: QueuingInterface, pa
         tools = server.ms.list_tools()
         return ListToolsResponse(tools=tools)
 
-    @router.post("/tools", tags=["tools"], response_model=CreateToolResponse)
+    @router.post("/tools", tags=["tools"], response_model=ToolModel)
     async def create_tool(
         request: CreateToolRequest = Body(...),
         # user_id: uuid.UUID = Depends(get_current_user_with_server), # TODO: add back when user-specific
@@ -65,6 +92,6 @@ def setup_tools_index_router(server: SyncServer, interface: QueuingInterface, pa
         server.ms.add_tool(tool)
 
         # TODO: insert tool information into DB as ToolModel
-        return CreateToolResponse(tool=ToolModel(name=request.name, json_schema={}, tags=[], source_code=request.source_code))
+        return ToolModel(name=request.name, json_schema={}, tags=[], source_code=request.source_code)
 
     return router

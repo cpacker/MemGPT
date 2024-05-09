@@ -803,6 +803,12 @@ class MetadataStore:
             session.query(PresetModel).filter(PresetModel.name == name).filter(PresetModel.user_id == user_id).delete()
             session.commit()
 
+    @enforce_types
+    def delete_tool(self, name: str):
+        with self.session_maker() as session:
+            session.query(ToolModel).filter(ToolModel.name == name).delete()
+            session.commit()
+
     # job related functions
     def create_job(self, job: JobModel):
         with self.session_maker() as session:

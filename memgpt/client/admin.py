@@ -1,9 +1,10 @@
 import uuid
-from typing import Optional
+from typing import List, Optional
 
 import requests
 from requests import HTTPError
 
+from memgpt.models.pydantic_models import ToolModel
 from memgpt.server.rest_api.admin.users import (
     CreateAPIKeyResponse,
     CreateUserResponse,
@@ -12,6 +13,7 @@ from memgpt.server.rest_api.admin.users import (
     GetAllUsersResponse,
     GetAPIKeysResponse,
 )
+from memgpt.server.rest_api.tools.index import ListToolsResponse
 
 
 class Admin:
@@ -46,7 +48,7 @@ class Admin:
         if response.status_code != 200:
             raise HTTPError(response.json())
         print(response.text, response.status_code)
-        return GetAPIKeysResponse(**response.json())
+        return GetAPIKeysResponse(**response.json()).api_key_list
 
     def delete_key(self, api_key: str):
         params = {"api_key": api_key}
@@ -81,3 +83,31 @@ class Admin:
             for key in keys:
                 self.delete_key(key)
             self.delete_user(user["user_id"])
+
+    # tools (currently only available for admin)
+    def create_tool(self, name: str, file_path: str, source_type: Optional[str] = "python", tags: Optional[List[str]] = None) -> ToolModel:
+        """Add a tool implemented in a file path"""
+        source_code = open(file_path, "r").read()
+        data = {"name": name, "source_code": source_code, "source_type": source_type, "tags": tags}
+        response = requests.post(f"{self.base_url}/api/tools", json=data, headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create tool: {response.text}")
+        return ToolModel(**response.json())
+
+    def list_tools(self) -> ListToolsResponse:
+        response = requests.get(f"{self.base_url}/api/tools", headers=self.headers)
+        return ListToolsResponse(**response.json())
+
+    def delete_tool(self, name: str):
+        response = requests.delete(f"{self.base_url}/api/tools/{name}", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to delete tool: {response.text}")
+        return response.json()
+
+    def get_tool(self, name: str):
+        response = requests.get(f"{self.base_url}/api/tools/{name}", headers=self.headers)
+        if response.status_code == 404:
+            return None
+        elif response.status_code != 200:
+            raise ValueError(f"Failed to get tool: {response.text}")
+        return ToolModel(**response.json())

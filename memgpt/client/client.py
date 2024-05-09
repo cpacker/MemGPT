@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import requests
 
 from memgpt.config import MemGPTConfig
+from memgpt.constants import DEFAULT_PRESET
 from memgpt.data_sources.connectors import DataConnector
 from memgpt.data_types import (
     AgentState,
@@ -260,7 +261,7 @@ class RESTClient(AbstractClient):
     def create_agent(
         self,
         name: Optional[str] = None,
-        preset: Optional[str] = None,
+        preset: Optional[str] = None,  # TODO: this should actually be re-named preset_name
         persona: Optional[str] = None,
         human: Optional[str] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
@@ -268,6 +269,7 @@ class RESTClient(AbstractClient):
     ) -> AgentState:
         if embedding_config or llm_config:
             raise ValueError("Cannot override embedding_config or llm_config when creating agent via REST API")
+        # TODO: distinguish between name and objects
         payload = {
             "config": {
                 "name": name,
@@ -347,6 +349,11 @@ class RESTClient(AbstractClient):
         response = requests.post(f"{self.base_url}/api/presets", json=payload.model_dump(), headers=self.headers)
         assert response.status_code == 200, f"Failed to create preset: {response.text}"
         return CreatePresetResponse(**response.json())
+
+    def get_preset(self, name: str) -> PresetModel:
+        response = requests.get(f"{self.base_url}/api/presets/{name}", headers=self.headers)
+        assert response.status_code == 200, f"Failed to get preset: {response.text}"
+        return PresetModel(**response.json())
 
     def create_preset2(
         self,
