@@ -1,4 +1,3 @@
-import datetime
 import uuid
 import inspect
 import json
@@ -21,7 +20,6 @@ from memgpt.utils import (
     united_diff,
     printd,
     count_tokens,
-    get_schema_diff,
     validate_function_response,
     verify_first_message_correctness,
 )
@@ -197,10 +195,6 @@ class Agent(object):
 
         self.interface = interface
         self.persistence_manager = LocalStateManager(agent_state=self.agent_state)
-
-        # State needed for heartbeat pausing
-        self.pause_heartbeats_start = None
-        self.pause_heartbeats_minutes = 0
 
         self.first_message_verify_mono = first_message_verify_mono
 
@@ -777,17 +771,6 @@ class Agent(object):
         self.agent_alerted_about_memory_pressure = False
 
         printd(f"Ran summarizer, messages length {prior_len} -> {len(self.messages)}")
-
-    def heartbeat_is_paused(self):
-        """Check if there's a requested pause on timed heartbeats"""
-
-        # Check if the pause has been initiated
-        if self.pause_heartbeats_start is None:
-            return False
-
-        # Check if it's been more than pause_heartbeats_minutes since pause_heartbeats_start
-        elapsed_time = datetime.datetime.now() - self.pause_heartbeats_start
-        return elapsed_time.total_seconds() < self.pause_heartbeats_minutes * 60
 
     def rebuild_memory(self):
         """Rebuilds the system message with the latest memory object"""

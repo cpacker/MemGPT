@@ -1,9 +1,8 @@
 from abc import ABC, abstractmethod
-import datetime
 from typing import Optional, List, Tuple
 
 from memgpt.constants import MESSAGE_SUMMARY_WARNING_FRAC
-from memgpt.utils import get_local_time, printd, count_tokens, validate_date_format, extract_date_from_timestamp
+from memgpt.utils import get_local_time, printd, count_tokens
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
 from memgpt.llm_api_tools import create
 from memgpt.data_types import Message, Passage, AgentState
@@ -62,14 +61,6 @@ class CoreMemory(object):
 
         self.human = new_human
         return len(self.human)
-
-    def edit(self, field, content):
-        if field == "persona":
-            return self.edit_persona(content)
-        elif field == "human":
-            return self.edit_human(content)
-        else:
-            raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
 
     def edit_append(self, field, content, sep="\n"):
         if field == "persona":
@@ -178,108 +169,6 @@ class RecallMemory(ABC):
     @abstractmethod
     def insert(self, message: Message):
         """Insert message into recall memory"""
-
-
-class DummyRecallMemory(RecallMemory):
-    """Dummy in-memory version of a recall memory database (eg run on MongoDB)
-
-    Recall memory here is basically just a full conversation history with the user.
-    Queryable via string matching, or date matching.
-
-    Recall Memory: The AI's capability to search through past interactions,
-    effectively allowing it to 'remember' prior engagements with a user.
-    """
-
-    def __init__(self, message_database=None, restrict_search_to_summaries=False):
-        self._message_logs = [] if message_database is None else message_database  # consists of full message dicts
-
-        # If true, the pool of messages that can be queried are the automated summaries only
-        # (generated when the conversation window needs to be shortened)
-        self.restrict_search_to_summaries = restrict_search_to_summaries
-
-    def __len__(self):
-        return len(self._message_logs)
-
-    def __repr__(self) -> str:
-        # don't dump all the conversations, just statistics
-        system_count = user_count = assistant_count = function_count = other_count = 0
-        for msg in self._message_logs:
-            role = msg["message"]["role"]
-            if role == "system":
-                system_count += 1
-            elif role == "user":
-                user_count += 1
-            elif role == "assistant":
-                assistant_count += 1
-            elif role == "function":
-                function_count += 1
-            else:
-                other_count += 1
-        memory_str = (
-            f"Statistics:"
-            + f"\n{len(self._message_logs)} total messages"
-            + f"\n{system_count} system"
-            + f"\n{user_count} user"
-            + f"\n{assistant_count} assistant"
-            + f"\n{function_count} function"
-            + f"\n{other_count} other"
-        )
-        return f"\n### RECALL MEMORY ###" + f"\n{memory_str}"
-
-    def insert(self, message):
-        raise NotImplementedError("This should be handled by the PersistenceManager, recall memory is just a search layer on top")
-
-    def text_search(self, query_string, count=None, start=None):
-        # in the dummy version, run an (inefficient) case-insensitive match search
-        message_pool = [d for d in self._message_logs if d["message"]["role"] not in ["system", "function"]]
-
-        printd(
-            f"recall_memory.text_search: searching for {query_string} (c={count}, s={start}) in {len(self._message_logs)} total messages"
-        )
-        matches = [
-            d for d in message_pool if d["message"]["content"] is not None and query_string.lower() in d["message"]["content"].lower()
-        ]
-        printd(f"recall_memory - matches:\n{matches[start:start+count]}")
-
-        # start/count support paging through results
-        if start is not None and count is not None:
-            return matches[start : start + count], len(matches)
-        elif start is None and count is not None:
-            return matches[:count], len(matches)
-        elif start is not None and count is None:
-            return matches[start:], len(matches)
-        else:
-            return matches, len(matches)
-
-    def date_search(self, start_date, end_date, count=None, start=None):
-        message_pool = [d for d in self._message_logs if d["message"]["role"] not in ["system", "function"]]
-
-        # First, validate the start_date and end_date format
-        if not validate_date_format(start_date) or not validate_date_format(end_date):
-            raise ValueError("Invalid date format. Expected format: YYYY-MM-DD")
-
-        # Convert dates to datetime objects for comparison
-        start_date_dt = datetime.datetime.strptime(start_date, "%Y-%m-%d")
-        end_date_dt = datetime.datetime.strptime(end_date, "%Y-%m-%d")
-
-        # Next, match items inside self._message_logs
-        matches = [
-            d
-            for d in message_pool
-            if start_date_dt <= datetime.datetime.strptime(extract_date_from_timestamp(d["timestamp"]), "%Y-%m-%d") <= end_date_dt
-        ]
-
-        # start/count support paging through results
-        start = int(start) if start is None else start
-        count = int(count) if count is None else count
-        if start is not None and count is not None:
-            return matches[start : start + count], len(matches)
-        elif start is None and count is not None:
-            return matches[:count], len(matches)
-        elif start is not None and count is None:
-            return matches[start:], len(matches)
-        else:
-            return matches, len(matches)
 
 
 class BaseRecallMemory(RecallMemory):

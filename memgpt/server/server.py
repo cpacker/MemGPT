@@ -4,12 +4,11 @@ import uuid
 from abc import abstractmethod
 from functools import wraps
 from threading import Lock
-from typing import Union, Callable, Optional, List
+from typing import Union, Callable, Optional
 
 from fastapi import HTTPException
 
 import memgpt.constants as constants
-import memgpt.server.utils as server_utils
 import memgpt.system as system
 from memgpt.agent import Agent, save_agent
 
@@ -42,11 +41,6 @@ class Server(object):
         raise NotImplementedError
 
     @abstractmethod
-    def get_agent_messages(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
-        """Paginated query of in-context messages in agent message queue"""
-        raise NotImplementedError
-
-    @abstractmethod
     def get_agent_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> dict:
         """Return the memory of an agent (core memory + non-core statistics)"""
         raise NotImplementedError
@@ -54,11 +48,6 @@ class Server(object):
     @abstractmethod
     def get_agent_config(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> dict:
         """Return the config of an agent"""
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_server_config(self, user_id: uuid.UUID) -> dict:
-        """Return the base config"""
         raise NotImplementedError
 
     @abstractmethod
@@ -654,137 +643,6 @@ class SyncServer(LockingServer):
 
         return memory_obj
 
-    def get_in_context_message_ids(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> List[uuid.UUID]:
-        """Get the message ids of the in-context messages in the agent's memory"""
-        # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-        return [m.id for m in memgpt_agent._messages]
-
-    def get_agent_message(self, agent_id: uuid.UUID, message_id: uuid.UUID) -> Message:
-        """Get message based on agent and message ID"""
-        agent_state = self.ms.get_agent(agent_id=agent_id)
-        if agent_state is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
-        user_id = agent_state.user_id
-
-        # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-
-        message = memgpt_agent.persistence_manager.recall_memory.storage.get(message_id=message_id)
-        return message
-
-    def get_agent_messages(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
-        """Paginated query of all messages in agent message queue"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
-
-        # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-
-        if start < 0 or count < 0:
-            raise ValueError("Start and count values should be non-negative")
-
-        if start + count < len(memgpt_agent._messages):  # messages can be returned from whats in memory
-            # Reverse the list to make it in reverse chronological order
-            reversed_messages = memgpt_agent._messages[::-1]
-            # Check if start is within the range of the list
-            if start >= len(reversed_messages):
-                raise IndexError("Start index is out of range")
-
-            # Calculate the end index, ensuring it does not exceed the list length
-            end_index = min(start + count, len(reversed_messages))
-
-            # Slice the list for pagination
-            messages = reversed_messages[start:end_index]
-
-        else:
-            # need to access persistence manager for additional messages
-            db_iterator = memgpt_agent.persistence_manager.recall_memory.storage.get_all_paginated(page_size=count, offset=start)
-
-            # get a single page of messages
-            # TODO: handle stop iteration
-            page = next(db_iterator, [])
-
-            # return messages in reverse chronological order
-            messages = sorted(page, key=lambda x: x.created_at, reverse=True)
-
-        # convert to json
-        json_messages = [vars(record) for record in messages]
-        return json_messages
-
-    def get_agent_archival(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
-        """Paginated query of all messages in agent archival memory"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
-
-        # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-
-        # iterate over records
-        db_iterator = memgpt_agent.persistence_manager.archival_memory.storage.get_all_paginated(page_size=count, offset=start)
-
-        # get a single page of messages
-        page = next(db_iterator, [])
-        json_passages = [vars(record) for record in page]
-        return json_passages
-
-    def get_agent_archival_cursor(
-        self,
-        user_id: uuid.UUID,
-        agent_id: uuid.UUID,
-        after: Optional[uuid.UUID] = None,
-        before: Optional[uuid.UUID] = None,
-        limit: Optional[int] = 100,
-        order_by: Optional[str] = "created_at",
-        reverse: Optional[bool] = False,
-    ):
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
-
-        # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-
-        # iterate over recorde
-        cursor, records = memgpt_agent.persistence_manager.archival_memory.storage.get_all_cursor(
-            after=after, before=before, limit=limit, order_by=order_by, reverse=reverse
-        )
-        json_records = [vars(record) for record in records]
-        return cursor, json_records
-
-    def get_agent_recall_cursor(
-        self,
-        user_id: uuid.UUID,
-        agent_id: uuid.UUID,
-        after: Optional[uuid.UUID] = None,
-        before: Optional[uuid.UUID] = None,
-        limit: Optional[int] = 100,
-        order_by: Optional[str] = "created_at",
-        order: Optional[str] = "asc",
-        reverse: Optional[bool] = False,
-    ):
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
-
-        # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-
-        # iterate over records
-        cursor, records = memgpt_agent.persistence_manager.recall_memory.storage.get_all_cursor(
-            after=after, before=before, limit=limit, order_by=order_by, reverse=reverse
-        )
-        json_records = [vars(record) for record in records]
-
-        # TODO: mark what is in-context versus not
-        return cursor, json_records
-
     def get_agent_config(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> AgentState:
         """Return the config of an agent"""
         if self.ms.get_user(user_id=user_id) is None:
@@ -795,32 +653,6 @@ class SyncServer(LockingServer):
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
         return memgpt_agent.agent_state
-
-    def get_server_config(self, include_defaults: bool = False) -> dict:
-        """Return the base config"""
-
-        def clean_keys(config):
-            config_copy = config.copy()
-            for k, v in config.items():
-                if k == "key" or "_key" in k:
-                    config_copy[k] = server_utils.shorten_key_middle(v, chars_each_side=5)
-            return config_copy
-
-        # TODO: do we need a seperate server config?
-        base_config = vars(self.config)
-        clean_base_config = clean_keys(base_config)
-        clean_base_config["default_llm_config"] = vars(clean_base_config["default_llm_config"])
-        clean_base_config["default_embedding_config"] = vars(clean_base_config["default_embedding_config"])
-        response = {"config": clean_base_config}
-
-        if include_defaults:
-            default_config = vars(MemGPTConfig())
-            clean_default_config = clean_keys(default_config)
-            clean_default_config["default_llm_config"] = vars(clean_default_config["default_llm_config"])
-            clean_default_config["default_embedding_config"] = vars(clean_default_config["default_embedding_config"])
-            response["defaults"] = clean_default_config
-
-        return response
 
     def update_agent_core_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_memory_contents: dict) -> dict:
         """Update the agents core memory block, return the new state"""

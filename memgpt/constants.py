@@ -1,13 +1,7 @@
-from logging import CRITICAL, ERROR, WARN, WARNING, INFO, DEBUG, NOTSET
+from logging import CRITICAL
 
 # embeddings
 MAX_EMBEDDING_DIM = 4096  # maximum supported embeding size - do NOT change or else DBs will need to be reset
-
-# tokenizers
-EMBEDDING_TO_TOKENIZER_MAP = {
-    "text-embedding-ada-002": "cl100k_base",
-}
-EMBEDDING_TO_TOKENIZER_DEFAULT = "cl100k_base"
 
 
 DEFAULT_HUMAN_TEXT = "An unknown user. Inquire to learn more."
@@ -15,7 +9,7 @@ DEFAULT_PERSONA_TEXT = (
     "I am a personal assistant. I am here to honestly converse with my user, and be helpful. My tone should be casual and conversational."
 )
 
-DEFAULT_MEMGPT_MODEL = "gpt-4"
+
 DEFAULT_PERSONA = "sam_pov"
 DEFAULT_HUMAN = "basic"
 DEFAULT_PRESET = "memgpt_chat"
@@ -23,8 +17,7 @@ DEFAULT_PRESET = "memgpt_chat"
 # Used to isolate MemGPT logger instance from Dependant Libraries logging
 LOGGER_NAME = "MemGPT"
 LOGGER_DEFAULT_LEVEL = CRITICAL
-# LOGGER_LOG_LEVEL is use to convert Text to Logging level value for logging mostly for Cli input to setting level
-LOGGER_LOG_LEVELS = {"CRITICAL": CRITICAL, "ERROR": ERROR, "WARN": WARN, "WARNING": WARNING, "INFO": INFO, "DEBUG": DEBUG, "NOTSET": NOTSET}
+
 
 FIRST_MESSAGE_ATTEMPTS = 10
 
@@ -91,8 +84,6 @@ FUNCTION_RETURN_CHAR_LIMIT = 3000  # ~300 words
 
 MAX_PAUSE_HEARTBEATS = 360  # in min
 
-MESSAGE_CHATGPT_FUNCTION_MODEL = "gpt-3.5-turbo"
-MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE = "You are a helpful assistant. Keep your responses short and concise."
 
 #### Functions related
 

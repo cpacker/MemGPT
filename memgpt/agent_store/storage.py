@@ -3,7 +3,7 @@
 We originally tried to use Llama Index VectorIndex, but their limited API was extremely problematic.
 """
 
-from typing import Optional, List, Iterator, Union, Tuple, Type
+from typing import Optional, List, Union, Tuple, Type
 import uuid
 from abc import abstractmethod
 
@@ -117,10 +117,6 @@ class StorageConnector:
         pass
 
     @abstractmethod
-    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: int = 1000) -> Iterator[List[RecordType]]:
-        pass
-
-    @abstractmethod
     def get_all(self, filters: Optional[Dict] = {}, limit=10) -> List[RecordType]:
         pass
 
@@ -150,10 +146,6 @@ class StorageConnector:
 
     @abstractmethod
     def query_text(self, query):
-        pass
-
-    @abstractmethod
-    def delete_table(self):
         pass
 
     @abstractmethod

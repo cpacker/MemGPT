@@ -38,39 +38,9 @@ class AgentInterface(ABC):
         """MemGPT calls a function"""
         raise NotImplementedError
 
-    # @abstractmethod
-    # @staticmethod
-    # def print_messages():
-    #     raise NotImplementedError
-
-    # @abstractmethod
-    # @staticmethod
-    # def print_messages_raw():
-    #     raise NotImplementedError
-
-    # @abstractmethod
-    # @staticmethod
-    # def step_yield():
-    #     raise NotImplementedError
-
 
 class CLIInterface(AgentInterface):
     """Basic interface for dumping agent events to the command-line"""
-
-    @staticmethod
-    def important_message(msg):
-        fstr = f"{Fore.MAGENTA}{Style.BRIGHT}{{msg}}{Style.RESET_ALL}"
-        if STRIP_UI:
-            fstr = "{msg}"
-        print(fstr.format(msg=msg))
-
-    @staticmethod
-    def warning_message(msg):
-        fstr = f"{Fore.RED}{Style.BRIGHT}{{msg}}{Style.RESET_ALL}"
-        if STRIP_UI:
-            fstr = "{msg}"
-        else:
-            print(fstr.format(msg=msg))
 
     @staticmethod
     def internal_monologue(msg):
@@ -83,13 +53,6 @@ class CLIInterface(AgentInterface):
     @staticmethod
     def assistant_message(msg):
         fstr = f"{Fore.YELLOW}{Style.BRIGHT}🤖 {Fore.YELLOW}{{msg}}{Style.RESET_ALL}"
-        if STRIP_UI:
-            fstr = "{msg}"
-        print(fstr.format(msg=msg))
-
-    @staticmethod
-    def memory_message(msg):
-        fstr = f"{Fore.LIGHTMAGENTA_EX}{Style.BRIGHT}🧠 {Fore.LIGHTMAGENTA_EX}{{msg}}{Style.RESET_ALL}"
         if STRIP_UI:
             fstr = "{msg}"
         print(fstr.format(msg=msg))
@@ -266,21 +229,6 @@ class CLIInterface(AgentInterface):
                 CLIInterface.function_message(content, debug=dump)
             elif role == "tool":
                 CLIInterface.function_message(content, debug=dump)
-            else:
-                print(f"Unknown role: {content}")
-
-    @staticmethod
-    def print_messages_simple(message_sequence):
-        for msg in message_sequence:
-            role = msg["role"]
-            content = msg["content"]
-
-            if role == "system":
-                CLIInterface.system_message(content)
-            elif role == "assistant":
-                CLIInterface.assistant_message(content)
-            elif role == "user":
-                CLIInterface.user_message(content, raw=True)
             else:
                 print(f"Unknown role: {content}")
 

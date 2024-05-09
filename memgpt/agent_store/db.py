@@ -1,8 +1,6 @@
 from sqlalchemy import create_engine, Column, String, BIGINT, select, text, JSON, DateTime
-from sqlalchemy import func, or_, and_
-from sqlalchemy import desc, asc
+from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker, mapped_column, declarative_base
-from sqlalchemy.orm.session import close_all_sessions
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy_json import MutableJson
@@ -10,7 +8,7 @@ from sqlalchemy import TypeDecorator, CHAR
 import uuid
 
 from tqdm import tqdm
-from typing import Optional, List, Iterator, Dict
+from typing import Optional, List, Dict
 from tqdm import tqdm
 
 from memgpt.config import MemGPTConfig
@@ -208,75 +206,6 @@ class SQLStorageConnector(StorageConnector):
         all_filters = [getattr(self.db_model, key) == value for key, value in filter_conditions.items()]
         return all_filters
 
-    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000, offset=0) -> Iterator[List[RecordType]]:
-        filters = self.get_filters(filters)
-        while True:
-            # Retrieve a chunk of records with the given page_size
-            with self.session_maker() as session:
-                db_record_chunk = session.query(self.db_model).filter(*filters).offset(offset).limit(page_size).all()
-
-            # If the chunk is empty, we've retrieved all records
-            if not db_record_chunk:
-                break
-
-            # Yield a list of Record objects converted from the chunk
-            yield [record.to_record() for record in db_record_chunk]
-
-            # Increment the offset to get the next chunk in the next iteration
-            offset += page_size
-
-    def get_all_cursor(
-        self,
-        filters: Optional[Dict] = {},
-        after: uuid.UUID = None,
-        before: uuid.UUID = None,
-        limit: Optional[int] = 1000,
-        order_by: str = "created_at",
-        reverse: bool = False,
-    ):
-        """Get all that returns a cursor (record.id) and records"""
-        filters = self.get_filters(filters)
-
-        # generate query
-        with self.session_maker() as session:
-            query = session.query(self.db_model).filter(*filters)
-            # query = query.order_by(asc(self.db_model.id))
-
-            # records are sorted by the order_by field first, and then by the ID if two fields are the same
-            if reverse:
-                query = query.order_by(desc(getattr(self.db_model, order_by)), asc(self.db_model.id))
-            else:
-                query = query.order_by(asc(getattr(self.db_model, order_by)), asc(self.db_model.id))
-
-            # cursor logic: filter records based on before/after ID
-            if after:
-                after_value = getattr(self.get(id=after), order_by)
-                if reverse:  # if reverse, then we want to get records that are less than the after_value
-                    sort_exp = getattr(self.db_model, order_by) < after_value
-                else:  # otherwise, we want to get records that are greater than the after_value
-                    sort_exp = getattr(self.db_model, order_by) > after_value
-                query = query.filter(
-                    or_(sort_exp, and_(getattr(self.db_model, order_by) == after_value, self.db_model.id > after))  # tiebreaker case
-                )
-            if before:
-                before_value = getattr(self.get(id=before), order_by)
-                if reverse:
-                    sort_exp = getattr(self.db_model, order_by) > before_value
-                else:
-                    sort_exp = getattr(self.db_model, order_by) < before_value
-                query = query.filter(or_(sort_exp, and_(getattr(self.db_model, order_by) == before_value, self.db_model.id < before)))
-
-            # get records
-            db_record_chunk = query.limit(limit).all()
-        if not db_record_chunk:
-            return None
-        records = [record.to_record() for record in db_record_chunk]
-        next_cursor = db_record_chunk[-1].id
-        assert isinstance(next_cursor, uuid.UUID)
-
-        # return (cursor, list[records])
-        return (next_cursor, records)
-
     def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[RecordType]:
         filters = self.get_filters(filters)
         with self.session_maker() as session:
@@ -311,12 +240,6 @@ class SQLStorageConnector(StorageConnector):
     def save(self):
         return
 
-    def list_data_sources(self):
-        assert self.table_type == TableType.ARCHIVAL_MEMORY, f"list_data_sources only implemented for ARCHIVAL_MEMORY"
-        with self.session_maker() as session:
-            unique_data_sources = session.query(self.db_model.data_source).filter(*self.filters).distinct().all()
-        return unique_data_sources
-
     def query_date(self, start_date, end_date, offset=0, limit=None):
         filters = self.get_filters({})
         with self.session_maker() as session:
@@ -347,13 +270,6 @@ class SQLStorageConnector(StorageConnector):
             results = query.all()
         # return [self.type(**vars(result)) for result in results]
         return [result.to_record() for result in results]
-
-    # Should be used only in tests!
-    def delete_table(self):
-        close_all_sessions()
-        with self.session_maker() as session:
-            self.db_model.__table__.drop(session.bind)
-            session.commit()
 
     def delete(self, filters: Optional[Dict] = {}):
         filters = self.get_filters(filters)

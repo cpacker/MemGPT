@@ -171,25 +171,6 @@ def package_summarize_message(summary, summary_length, hidden_message_count, tot
     return json.dumps(packaged_message, ensure_ascii=JSON_ENSURE_ASCII)
 
 
-def package_summarize_message_no_summary(hidden_message_count, timestamp=None, message=None):
-    """Add useful metadata to the summary message"""
-
-    # Package the message with time and location
-    formatted_time = get_local_time() if timestamp is None else timestamp
-    context_message = (
-        message
-        if message
-        else f"Note: {hidden_message_count} prior messages with the user have been hidden from view due to conversation memory constraints. Older messages are stored in Recall Memory and can be viewed using functions."
-    )
-    packaged_message = {
-        "type": "system_alert",
-        "message": context_message,
-        "time": formatted_time,
-    }
-
-    return json.dumps(packaged_message, ensure_ascii=JSON_ENSURE_ASCII)
-
-
 def get_token_limit_warning():
     formatted_time = get_local_time()
     packaged_message = {

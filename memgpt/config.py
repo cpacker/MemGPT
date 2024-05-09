@@ -54,10 +54,6 @@ class MemGPTConfig:
     # full names of modules
     functions_modules: Set[str] = field(default_factory=set)
 
-    @staticmethod
-    def generate_uuid() -> str:
-        return uuid.UUID(int=uuid.getnode()).hex
-
     @classmethod
     def load(cls) -> "MemGPTConfig":
 
