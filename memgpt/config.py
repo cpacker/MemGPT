@@ -171,7 +171,6 @@ class MemGPTConfig:
                 "config_path": config_path,
                 "memgpt_version": get_field(config, "version", "memgpt_version"),
             }
-
             # Don't include null values
             config_dict = {k: v for k, v in config_dict.items() if v is not None}
 
