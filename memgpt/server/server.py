@@ -1278,6 +1278,7 @@ class SyncServer(LockingServer):
     def api_key_to_user(self, api_key: str) -> uuid.UUID:
         """Decode an API key to a user"""
         user = self.ms.get_user_from_api_key(api_key=api_key)
+        print("got user", api_key, user.id)
         if user is None:
             raise HTTPException(status_code=403, detail="Invalid credentials")
         else:
