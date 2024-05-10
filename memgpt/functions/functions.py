@@ -76,6 +76,7 @@ def write_function(module_name: str, function_name: str, function_code: str):
     # raise error if function cannot be loaded
     if not succ:
         raise ValueError(error)
+    return file_path
 
 
 def load_function_file(filepath: str) -> dict:

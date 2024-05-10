@@ -52,7 +52,7 @@ from memgpt.server.rest_api.presets.index import (
     ListPresetsResponse,
 )
 from memgpt.server.rest_api.sources.index import ListSourcesResponse
-from memgpt.server.rest_api.tools.index import CreateToolResponse, ListToolsResponse
+from memgpt.server.rest_api.tools.index import CreateToolResponse
 from memgpt.server.server import SyncServer
 
 
@@ -358,10 +358,10 @@ class RESTClient(AbstractClient):
     def create_preset2(
         self,
         name: str,
-        description: Optional[str],
-        system: Optional[str],
-        persona_name: Optional[str],
-        human_name: Optional[str],
+        description: Optional[str] = None,
+        system: Optional[str] = None,
+        persona_name: Optional[str] = None,
+        human_name: Optional[str] = None,
         tools: Optional[List[ToolModel]] = None,
         default_tools: bool = True,
     ) -> PresetModel:
@@ -382,25 +382,21 @@ class RESTClient(AbstractClient):
         :return: Preset object
         :rtype: PresetModel
         """
-        if default_tools:
-            # add default tools
-            default_preset = self.get_preset(name=DEFAULT_PRESET)
-            default_tools = default_preset.function_schema.tools
-
         # provided tools
-        if not tools:
-            schema = {}
-        else:
+        schema = []
+        if tools:
             for tool in tools:
-                schema[tool.name] = tool.json_schema
+                schema.append(tool.json_schema)
 
         # include default tools
         if default_tools:
             # TODO
-            from memgpt.functions.functions import load_function_set
-
-            load_function_set()
-            return
+            # from memgpt.functions.functions import load_function_set
+            # load_function_set()
+            # return
+            default_preset = self.get_preset(name=DEFAULT_PRESET)
+            for function in default_preset.functions_schema:
+                schema.append(function)
 
         payload = CreatePresetsRequest(
             name=name, description=description, system=system, persona_name=persona_name, human_name=human_name, functions_schema=schema
@@ -579,23 +575,6 @@ class RESTClient(AbstractClient):
     def get_config(self) -> ConfigResponse:
         response = requests.get(f"{self.base_url}/api/config", headers=self.headers)
         return ConfigResponse(**response.json())
-
-    # tools
-
-    def create_tool(
-        self, name: str, file_path: str, source_type: Optional[str] = "python", tags: Optional[List[str]] = None
-    ) -> CreateToolResponse:
-        """Add a tool implemented in a file path"""
-        source_code = open(file_path, "r").read()
-        data = {"name": name, "source_code": source_code, "source_type": source_type, "tags": tags}
-        response = requests.post(f"{self.base_url}/api/tools", json=data, headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to create tool: {response.text}")
-        return CreateToolResponse(**response.json())
-
-    def list_tools(self) -> ListToolsResponse:
-        response = requests.get(f"{self.base_url}/api/tools", headers=self.headers)
-        return ListToolsResponse(**response.json())
 
 
 class LocalClient(AbstractClient):
