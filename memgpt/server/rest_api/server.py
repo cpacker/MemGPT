@@ -48,7 +48,7 @@ Start the server with:
 # interface: QueuingInterface = QueuingInterface()
 # interface: StreamingServerInterface = StreamingServerInterface()
 interface: StreamingServerInterface = StreamingServerInterface
-server: SyncServer = SyncServer(default_interface=interface)
+server: SyncServer = SyncServer(default_interface_factory=lambda: interface())
 
 if password := settings.server_pass:
     # if the pass was specified in the environment, use it

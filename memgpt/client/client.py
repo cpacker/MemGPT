@@ -574,7 +574,7 @@ class LocalClient(AbstractClient):
         add_default_presets(self.user_id, ms)
 
         self.interface = QueuingInterface(debug=debug)
-        self.server = SyncServer(default_interface=self.interface)
+        self.server = SyncServer(default_interface_factory=lambda: self.interface)
 
     def list_agents(self):
         self.interface.clear()
