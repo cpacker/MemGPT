@@ -685,7 +685,7 @@ class SyncServer(LockingServer):
 
         if interface is None:
             # interface = self.default_interface_cls()
-            interface = self.default_interface()
+            interface = self.default_interface
 
         # if persistence_manager is None:
         # persistence_manager = self.default_persistence_manager_cls(agent_config=agent_config)
