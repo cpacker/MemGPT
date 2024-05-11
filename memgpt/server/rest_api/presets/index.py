@@ -1,14 +1,15 @@
 import uuid
 from functools import partial
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
+from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
 from memgpt.data_types import Preset  # TODO remove
-from memgpt.models.pydantic_models import PresetModel
+from memgpt.models.pydantic_models import HumanModel, PersonaModel, PresetModel
+from memgpt.prompts import gpt_system
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -32,17 +33,18 @@ class ListPresetsResponse(BaseModel):
 class CreatePresetsRequest(BaseModel):
     # TODO is there a cleaner way to create the request from the PresetModel (need to drop fields though)?
     name: str = Field(..., description="The name of the preset.")
-    id: Optional[Union[uuid.UUID, str]] = Field(default_factory=uuid.uuid4, description="The unique identifier of the preset.")
+    id: Optional[str] = Field(None, description="The unique identifier of the preset.")
     # user_id: uuid.UUID = Field(..., description="The unique identifier of the user who created the preset.")
     description: Optional[str] = Field(None, description="The description of the preset.")
     # created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the preset was created.")
-    system: str = Field(..., description="The system prompt of the preset.")  # TODO: make optional and allow defaults
-    persona: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona of the preset.")
-    human: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human of the preset.")
+    system: Optional[str] = Field(None, description="The system prompt of the preset.")  # TODO: make optional and allow defaults
+    persona: Optional[str] = Field(default=None, description="The persona of the preset.")
+    human: Optional[str] = Field(default=None, description="The human of the preset.")
     functions_schema: List[Dict] = Field(..., description="The functions schema of the preset.")
     # TODO
     persona_name: Optional[str] = Field(None, description="The name of the persona of the preset.")
     human_name: Optional[str] = Field(None, description="The name of the human of the preset.")
+    system_name: Optional[str] = Field(None, description="The name of the system prompt of the preset.")
 
 
 class CreatePresetResponse(BaseModel):
@@ -88,26 +90,62 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """Create a preset."""
-        try:
-            if isinstance(request.id, str):
-                request.id = uuid.UUID(request.id)
-            # new_preset = PresetModel(
-            new_preset = Preset(
-                user_id=user_id,
-                id=request.id,
-                name=request.name,
-                description=request.description,
-                system=request.system,
-                persona=request.persona,
-                human=request.human,
-                functions_schema=request.functions_schema,
-                persona_name=request.persona_name,
-                human_name=request.human_name,
-            )
-            preset = server.create_preset(preset=new_preset)
+        print("CREATE PRESET")
+        if isinstance(request.id, str):
+            request.id = uuid.UUID(request.id)
+        # new_preset = PresetModel(
 
-            # TODO remove once we migrate from Preset to PresetModel
-            preset = PresetModel(**vars(preset))
+        # For system/human/persona - if {system/human-personal}_name is None but the text is provied, then create a new data entry
+        if not request.system_name and request.system:
+            # new system provided without name identity
+            system_name = f"system_{request.name}_{str(uuid.uuid4())}"
+            system = request.system
+            # TODO: insert into system table
+        else:
+            system_name = request.system_name if request.system_name else DEFAULT_PRESET
+            system = request.system if request.system else gpt_system.get_system_text(system_name)
+
+        if not request.human_name and request.human:
+            # new human provided without name identity
+            human_name = f"human_{request.name}_{str(uuid.uuid4())}"
+            human = request.human
+            server.ms.add_human(HumanModel(text=human, name=human_name, user_id=user_id))
+            print(f"Created new human {human_name}")
+        else:
+            human_name = request.human_name if request.human_name else DEFAULT_HUMAN
+            human = request.human if request.human else get_human_text(human_name)
+
+        if not request.persona_name and request.persona:
+            # new persona provided without name identity
+            persona_name = f"persona_{request.name}_{str(uuid.uuid4())}"
+            persona = request.persona
+            server.ms.add_persona(PersonaModel(text=persona, name=persona_name, user_id=user_id))
+            print(f"Created new persona {persona_name}")
+        else:
+            persona_name = request.persona_name if request.persona_name else DEFAULT_PERSONA
+            persona = request.persona if request.persona else get_persona_text(persona_name)
+
+        # create preset
+        new_preset = Preset(
+            user_id=user_id,
+            id=uuid.UUID(request.id) if request.id else uuid.uuid4(),
+            name=request.name,
+            description=request.description,
+            system=system,
+            persona=persona,
+            persona_name=persona_name,
+            human=human,
+            human_name=human_name,
+            functions_schema=request.functions_schema,
+        )
+        preset = server.create_preset(preset=new_preset)
+
+        # TODO remove once we migrate from Preset to PresetModel
+        print(vars(preset))
+        args = {k: v for k, v in vars(preset).items() if k != "system_name"}  # TODO: no idea why we need to do this
+        # preset = PresetModel(**vars(preset))
+        preset = PresetModel(**args)
+        try:
 
             return CreatePresetResponse(preset=preset)
         except HTTPException:

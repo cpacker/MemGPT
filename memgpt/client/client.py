@@ -359,7 +359,7 @@ class RESTClient(AbstractClient):
         self,
         name: str,
         description: Optional[str] = None,
-        system: Optional[str] = None,
+        system_name: Optional[str] = None,
         persona_name: Optional[str] = None,
         human_name: Optional[str] = None,
         tools: Optional[List[ToolModel]] = None,
@@ -386,21 +386,30 @@ class RESTClient(AbstractClient):
         schema = []
         if tools:
             for tool in tools:
+                print("CUSOTM TOOL", tool.json_schema)
                 schema.append(tool.json_schema)
 
         # include default tools
+        default_preset = self.get_preset(name=DEFAULT_PRESET)
         if default_tools:
             # TODO
             # from memgpt.functions.functions import load_function_set
             # load_function_set()
             # return
-            default_preset = self.get_preset(name=DEFAULT_PRESET)
             for function in default_preset.functions_schema:
                 schema.append(function)
 
         payload = CreatePresetsRequest(
-            name=name, description=description, system=system, persona_name=persona_name, human_name=human_name, functions_schema=schema
+            name=name,
+            description=description,
+            system_name=system_name,
+            persona_name=persona_name,
+            human_name=human_name,
+            functions_schema=schema,
         )
+        print(schema)
+        print(human_name, persona_name, system_name, name)
+        print(payload.model_dump())
         response = requests.post(f"{self.base_url}/api/presets", json=payload.model_dump(), headers=self.headers)
         assert response.status_code == 200, f"Failed to create preset: {response.text}"
         return CreatePresetResponse(**response.json()).preset

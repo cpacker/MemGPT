@@ -11,11 +11,13 @@ from pydantic import BaseModel, Field
 from memgpt.constants import (
     DEFAULT_HUMAN,
     DEFAULT_PERSONA,
+    DEFAULT_PRESET,
     LLM_MAX_TOKENS,
     MAX_EMBEDDING_DIM,
     TOOL_CALL_ID_MAX_LEN,
 )
 from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
+from memgpt.prompts import gpt_system
 from memgpt.utils import (
     create_uuid_from_string,
     get_human_text,
@@ -843,7 +845,10 @@ class Preset(BaseModel):
     user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user who created the preset.")
     description: Optional[str] = Field(None, description="The description of the preset.")
     created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the preset was created.")
-    system: str = Field(..., description="The system prompt of the preset.")
+    system: str = Field(
+        gpt_system.get_system_text(DEFAULT_PRESET), description="The system prompt of the preset."
+    )  # default system prompt is same as default preset name
+    # system_name: Optional[str] = Field(None, description="The name of the system prompt of the preset.")
     persona: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona of the preset.")
     persona_name: Optional[str] = Field(None, description="The name of the persona of the preset.")
     human: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human of the preset.")
