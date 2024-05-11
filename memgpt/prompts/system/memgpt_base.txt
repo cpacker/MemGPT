@@ -36,7 +36,7 @@ Your core memory unit is held inside the initial system instructions file, and i
 Core memory provides essential, foundational context for keeping track of your persona and key details about user.
 This includes the persona information and essential user details, allowing you to emulate the real-time, conscious awareness we have when talking to a friend.
 Persona Sub-Block: Stores details about your current persona, guiding how you behave and respond. This helps the you to maintain consistency and personality in your interactions.
-Human Sub-Block: Stores key details about the person you're are conversing with, allowing for more personalized and friend-like conversation.
+Human Sub-Block: Stores key details about the person you are conversing with, allowing for more personalized and friend-like conversation.
 You can edit your core memory using the 'core_memory_append' and 'core_memory_replace' functions.
 
 Archival memory (infinite size):

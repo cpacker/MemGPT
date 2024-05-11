@@ -10,6 +10,9 @@ test_agent_name = f"test_client_{str(uuid.uuid4())}"
 client = None
 agent_obj = None
 
+# TODO: these tests should include looping through LLM providers, since behavior may vary across providers
+# TODO: these tests should add function calls into the summarized message sequence:W
+
 
 def create_test_agent():
     """Create a test agent that we can call functions on"""
