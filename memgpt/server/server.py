@@ -163,8 +163,8 @@ class SyncServer(LockingServer):
         self,
         chaining: bool = True,
         max_chaining_steps: bool = None,
-        # default_interface_cls: AgentInterface = CLIInterface,
-        default_interface: AgentInterface = CLIInterface(),
+        default_interface_cls: AgentInterface = CLIInterface,
+        # default_interface: AgentInterface = CLIInterface(),
         # default_persistence_manager_cls: PersistenceManager = LocalStateManager,
         # auth_mode: str = "none",  # "none, "jwt", "external"
     ):
@@ -201,8 +201,9 @@ class SyncServer(LockingServer):
         self.max_chaining_steps = max_chaining_steps
 
         # The default interface that will get assigned to agents ON LOAD
-        # self.default_interface_cls = default_interface_cls
-        self.default_interface = default_interface
+        self.default_interface_cls = default_interface_cls
+        # self.default_interface = default_interface
+        # self.default_interface = default_interface_cls()
 
         # The default persistence manager that will get assigned to agents ON CREATION
         # self.default_persistence_manager_cls = default_persistence_manager_cls
@@ -329,7 +330,7 @@ class SyncServer(LockingServer):
 
         # If an interface isn't specified, use the default
         if interface is None:
-            interface = self.default_interface()
+            interface = self.default_interface_cls()
 
         try:
             logger.info(f"Grabbing agent user_id={user_id} agent_id={agent_id} from database")
@@ -684,8 +685,8 @@ class SyncServer(LockingServer):
             raise ValueError(f"User user_id={user_id} does not exist")
 
         if interface is None:
-            # interface = self.default_interface_cls()
-            interface = self.default_interface
+            # interface = self.default_interface
+            interface = self.default_interface_cls()
 
         # if persistence_manager is None:
         # persistence_manager = self.default_persistence_manager_cls(agent_config=agent_config)
