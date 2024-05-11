@@ -26,7 +26,7 @@ class Settings(BaseSettings):
 
     # add this property to avoid being returned the default
     # reference: https://github.com/cpacker/MemGPT/issues/1362
-    @property            
+    @property
     def memgpt_pt_uri_no_default(self) -> str:
         if self.pg_uri:
             return self.pg_uri
@@ -34,6 +34,7 @@ class Settings(BaseSettings):
             return f"postgresql+pg8000://{self.pg_user}:{self.pg_password}@{self.pg_host}:{self.pg_port}/{self.pg_db}"
         else:
             return None
-    
+
+
 # singleton
 settings = Settings()
