@@ -81,6 +81,7 @@ async def send_message_to_agent(
     message: str,
     stream_steps: bool,
     stream_tokens: bool,
+    chat_completion_mode: Optional[bool] = False,
 ) -> Union[StreamingResponse, UserMessageResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
 
@@ -91,7 +92,7 @@ async def send_message_to_agent(
     else:
         raise HTTPException(status_code=500, detail=f"Bad role {role}")
 
-    if stream_steps and stream_tokens:
+    if not stream_steps and stream_tokens:
         raise HTTPException(status_code=400, detail="stream_steps must be 'true' if stream_tokens is 'true'")
 
     # For streaming response
@@ -106,6 +107,8 @@ async def send_message_to_agent(
 
         # Enable token-streaming within the request if desired
         streaming_interface.streaming_mode = stream_tokens
+        # "chatcompletion mode" does some remapping and ignores inner thoughts
+        streaming_interface.streaming_chat_completion_mode = chat_completion_mode
 
         # Offload the synchronous message_func to a separate thread
         streaming_interface.stream_start()
@@ -196,7 +199,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         This endpoint accepts a message from a user and processes it through the agent.
         It can optionally stream the response if 'stream' is set to True.
         """
-        return send_message_to_agent(
+        return await send_message_to_agent(
             server=server,
             agent_id=agent_id,
             user_id=user_id,
@@ -205,58 +208,5 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
             stream_steps=request.stream_steps,
             stream_tokens=request.stream_tokens,
         )
-        # agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
-
-        if request.role == "user" or request.role is None:
-            message_func = server.user_message
-        elif request.role == "system":
-            message_func = server.system_message
-        else:
-            raise HTTPException(status_code=500, detail=f"Bad role {request.role}")
-
-        if request.stream_steps and request.stream_tokens:
-            raise HTTPException(status_code=400, detail="stream_steps must be 'true' if stream_tokens is 'true'")
-
-        # For streaming response
-        try:
-
-            # Get the generator object off of the agent's streaming interface
-            # This will be attached to the POST SSE request used under-the-hood
-            memgpt_agent = server._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-            streaming_interface = memgpt_agent.interface
-            if not isinstance(streaming_interface, StreamingServerInterface):
-                raise ValueError(f"Agent has wrong type of interface: {type(streaming_interface)}")
-
-            # Enable token-streaming within the request if desired
-            streaming_interface.streaming_mode = request.stream_tokens
-
-            # Offload the synchronous message_func to a separate thread
-            streaming_interface.stream_start()
-            task = asyncio.create_task(asyncio.to_thread(message_func, user_id=user_id, agent_id=agent_id, message=request.message))
-
-            if request.stream_steps:
-                # return a stream
-                return StreamingResponse(
-                    sse_async_generator(streaming_interface.get_generator()),
-                    media_type="text/event-stream",
-                )
-            else:
-                # buffer the stream, then return the list
-                generated_stream = []
-                async for message in streaming_interface.get_generator():
-                    generated_stream.append(message)
-                    if "data" in message and message["data"] == "[DONE]":
-                        break
-                filtered_stream = [d for d in generated_stream if d not in ["[DONE_GEN]", "[DONE_STEP]", "[DONE]"]]
-                return UserMessageResponse(messages=filtered_stream)
-
-        except HTTPException:
-            raise
-        except Exception as e:
-            print(e)
-            import traceback
-
-            traceback.print_exc()
-            raise HTTPException(status_code=500, detail=f"{e}")
 
     return router

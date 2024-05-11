@@ -51,50 +51,77 @@ def setup_openai_chat_completions_router(server: SyncServer, interface: QueuingI
             raise HTTPException(status_code=400, detail="'messages[0].role' must be a 'user'")
 
         input_message = request.messages[0]
-        response_messages = await send_message_to_agent(
-            server=server,
-            agent_id=agent_id,
-            user_id=user_id,
-            role=input_message.role,
-            message=input_message.content,
-            stream_steps=False,
-            stream_tokens=False,
-        )
-        print(response_messages)
+        if request.stream:
+            print("Starting streaming OpenAI proxy response")
 
-        # Concatenate all send_message outputs together
-        id = ""
-        visible_message_str = ""
-        for memgpt_msg in response_messages.messages:
-            if "function_call" in memgpt_msg:
-                memgpt_function_call = memgpt_msg["function_call"]
-                if "name" in memgpt_function_call and memgpt_function_call["name"] == "send_message":
-                    try:
-                        memgpt_function_call_args = json.loads(memgpt_function_call["arguments"])
-                        visible_message_str += memgpt_function_call_args["message"]
-                        id = memgpt_function_call["id"]
-                    except:
-                        print(f"Failed to parse MemGPT message: {str(memgpt_function_call)}")
+            return await send_message_to_agent(
+                server=server,
+                agent_id=agent_id,
+                user_id=user_id,
+                role=input_message.role,
+                message=input_message.content,
+                # Turn streaming ON
+                stream_steps=True,
+                stream_tokens=True,
+                # Turn on ChatCompletion mode (eg remaps send_message to content)
+                chat_completion_mode=True,
+            )
+
+        else:
+            print("Starting non-streaming OpenAI proxy response")
+
+            response_messages = await send_message_to_agent(
+                server=server,
+                agent_id=agent_id,
+                user_id=user_id,
+                role=input_message.role,
+                message=input_message.content,
+                # Turn streaming OFF
+                stream_steps=False,
+                stream_tokens=False,
+            )
+            # print(response_messages)
+
+            # Concatenate all send_message outputs together
+            id = ""
+            visible_message_str = ""
+            created_at = None
+            for memgpt_msg in response_messages.messages:
+                if "function_call" in memgpt_msg:
+                    memgpt_function_call = memgpt_msg["function_call"]
+                    if "name" in memgpt_function_call and memgpt_function_call["name"] == "send_message":
+                        try:
+                            memgpt_function_call_args = json.loads(memgpt_function_call["arguments"])
+                            visible_message_str += memgpt_function_call_args["message"]
+                            id = memgpt_function_call["id"]
+                            created_at = memgpt_msg["date"]
+                        except:
+                            print(f"Failed to parse MemGPT message: {str(memgpt_function_call)}")
+                    else:
+                        print(f"Skipping function_call: {str(memgpt_function_call)}")
                 else:
-                    print(f"Skipping function_call: {str(memgpt_function_call)}")
-            else:
-                print(f"Skipping message: {str(memgpt_msg)}")
+                    print(f"Skipping message: {str(memgpt_msg)}")
 
-        dummy_response = ChatCompletionResponse(
-            id=id,
-            choices=[
-                Choice(
-                    finish_reason="stop",
-                    index=0,
-                    message=Message(
-                        role="assistant",
-                        content=visible_message_str,
-                    ),
-                )
-            ],
-            usage=UsageStatistics(completion_tokens=0, prompt_tokens=0, total_tokens=0),
-            created=get_utc_time(),
-        )
-        return dummy_response
+            response = ChatCompletionResponse(
+                id=id,
+                created=created_at if created_at else get_utc_time(),
+                choices=[
+                    Choice(
+                        finish_reason="stop",
+                        index=0,
+                        message=Message(
+                            role="assistant",
+                            content=visible_message_str,
+                        ),
+                    )
+                ],
+                # TODO add real usage
+                usage=UsageStatistics(
+                    completion_tokens=0,
+                    prompt_tokens=0,
+                    total_tokens=0,
+                ),
+            )
+            return response
 
     return router

@@ -150,6 +150,58 @@ class QueuingInterface(AgentInterface):
         self.buffer.put(new_message)
 
 
+class FunctionArgumentsStreamHandler:
+    """State machine that can process a stream of"""
+
+    def __init__(self, json_key="message"):
+        self.json_key = json_key
+        self.reset()
+
+    def reset(self):
+        self.in_message = False
+        self.key_buffer = ""
+        self.accumulating = False
+        self.message_started = False
+
+    def process_json_chunk(self, chunk: str) -> Optional[str]:
+        """Process a chunk from the function arguments and return the plaintext version"""
+
+        # Use strip to handle only leading and trailing whitespace in control structures
+        if self.accumulating:
+            clean_chunk = chunk.strip()
+            if self.json_key in self.key_buffer:
+                if ":" in clean_chunk:
+                    self.in_message = True
+                    self.accumulating = False
+                    return None
+            self.key_buffer += clean_chunk
+            return None
+
+        if self.in_message:
+            if chunk.strip() == '"' and self.message_started:
+                self.in_message = False
+                self.message_started = False
+                return None
+            if not self.message_started and chunk.strip() == '"':
+                self.message_started = True
+                return None
+            if self.message_started:
+                if chunk.strip().endswith('"'):
+                    self.in_message = False
+                    return chunk.rstrip('"\n')
+                return chunk
+
+        if chunk.strip() == "{":
+            self.key_buffer = ""
+            self.accumulating = True
+            return None
+        if chunk.strip() == "}":
+            self.in_message = False
+            self.message_started = False
+            return None
+        return None
+
+
 class StreamingServerInterface(AgentChunkStreamingInterface):
     """Maintain a generator that is a proxy for self.process_chunk()
 
@@ -164,8 +216,14 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
     """
 
     def __init__(self, multi_step=True):
-        #
+        # If streaming mode, ignores base interface calls like .assistant_message, etc
         self.streaming_mode = False
+        # If chat completion mode, creates a "chatcompletion-style" stream, but with concepts remapped
+        self.streaming_chat_completion_mode = False
+        self.streaming_chat_completion_mode_function_name = None  # NOTE: sadly need to track state during stream
+        # If chat completion mode, we need a special stream reader to
+        # turn function argument to send_message into a normal text stream
+        self.streaming_chat_completion_json_reader = FunctionArgumentsStreamHandler()
 
         self._chunks = deque()
         self._event = asyncio.Event()  # Use an event to notify when chunks are available
@@ -191,6 +249,8 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
     def stream_start(self):
         """Initialize streaming by activating the generator and clearing any old chunks."""
+        self.streaming_chat_completion_mode_function_name = None
+
         if not self._active:
             self._active = True
             self._chunks.clear()
@@ -198,8 +258,11 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
     def stream_end(self):
         """Clean up the stream by deactivating and clearing chunks."""
-        self._chunks.append(self.multi_step_gen_indicator)
-        self._event.set()  # Signal that new data is available
+        self.streaming_chat_completion_mode_function_name = None
+
+        if not self.streaming_chat_completion_mode:
+            self._chunks.append(self.multi_step_gen_indicator)
+            self._event.set()  # Signal that new data is available
 
         # if not self.multi_step:
         #     # end the stream
@@ -210,9 +273,8 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         #     self._chunks.append(self.multi_step_indicator)
         #     self._event.set()  # Signal that new data is available
 
-    def process_chunk(self, chunk: ChatCompletionChunkResponse):
-        """Process a streaming chunk from an OpenAI-compatible server.
-
+    def _process_chunk_to_memgpt_style(self, chunk: ChatCompletionChunkResponse) -> Optional[dict]:
+        """
         Example data from non-streaming response looks like:
 
         data: {"function_call": "send_message({'message': \"Ah, the age-old question, Chad. The meaning of life is as subjective as the life itself. 42, as the supercomputer 'Deep Thought' calculated in 'The Hitchhiker's Guide to the Galaxy', is indeed an answer, but maybe not the one we're after. Among other things, perhaps life is about learning, experiencing and connecting. What are your thoughts, Chad? What gives your life meaning?\"})", "date": "2024-02-29T06:07:48.844733+00:00"}
@@ -221,11 +283,6 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
         data: {"function_return": "None", "status": "success", "date": "2024-02-29T06:07:50.847262+00:00"}
         """
-        # print("Processed CHUNK:", chunk)
-
-        # Example where we just pass through the raw stream from the underlying OpenAI SSE stream
-        # processed_chunk = chunk.model_dump_json(exclude_none=True)
-
         choice = chunk.choices[0]
         message_delta = choice.delta
 
@@ -251,11 +308,92 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
             }
         elif choice.finish_reason is not None:
             # skip if there's a finish
-            return
+            return None
         else:
             raise ValueError(f"Couldn't find delta in chunk: {chunk}")
 
         processed_chunk["date"] = chunk.created.isoformat()
+
+        return processed_chunk
+
+    def _process_chunk_to_openai_style(self, chunk: ChatCompletionChunkResponse) -> Optional[dict]:
+        """Chunks should look like OpenAI, but be remapped from MemGPT-style concepts.
+
+        inner_thoughts are silenced:
+          - means that 'content' -> /dev/null
+        send_message is a "message"
+          - means that tool call to "send_message" should map to 'content'
+
+        TODO handle occurance of multi-step function calling
+        TODO handle partial stream of "name" in tool call
+        """
+        proxy_chunk = chunk.model_copy(deep=True)
+
+        choice = chunk.choices[0]
+        message_delta = choice.delta
+
+        # inner thoughts
+        if message_delta.content is not None:
+            # skip inner monologue
+            return None
+
+        # tool call
+        elif message_delta.tool_calls is not None and len(message_delta.tool_calls) > 0:
+            tool_call = message_delta.tool_calls[0]
+
+            if tool_call.function:
+
+                # Track the function name while streaming
+                # If we were previously on a 'send_message', we need to 'toggle' into 'content' mode
+                if tool_call.function.name:
+                    if self.streaming_chat_completion_mode_function_name is None:
+                        self.streaming_chat_completion_mode_function_name = tool_call.function.name
+                    else:
+                        self.streaming_chat_completion_mode_function_name += tool_call.function.name
+
+                    if tool_call.function.name == "send_message":
+                        # early exit to turn into content mode
+                        self.streaming_chat_completion_json_reader.reset()
+                        return None
+
+                if tool_call.function.arguments:
+                    if self.streaming_chat_completion_mode_function_name == "send_message":
+                        cleaned_func_args = self.streaming_chat_completion_json_reader.process_json_chunk(tool_call.function.arguments)
+                        if cleaned_func_args is None:
+                            return None
+                        else:
+                            # Wipe tool call
+                            proxy_chunk.choices[0].delta.tool_calls = None
+                            # Replace with 'content'
+                            proxy_chunk.choices[0].delta.content = cleaned_func_args
+
+        processed_chunk = proxy_chunk.model_dump_json(exclude_none=True)
+
+        return processed_chunk
+
+    def process_chunk(self, chunk: ChatCompletionChunkResponse):
+        """Process a streaming chunk from an OpenAI-compatible server.
+
+        Example data from non-streaming response looks like:
+
+        data: {"function_call": "send_message({'message': \"Ah, the age-old question, Chad. The meaning of life is as subjective as the life itself. 42, as the supercomputer 'Deep Thought' calculated in 'The Hitchhiker's Guide to the Galaxy', is indeed an answer, but maybe not the one we're after. Among other things, perhaps life is about learning, experiencing and connecting. What are your thoughts, Chad? What gives your life meaning?\"})", "date": "2024-02-29T06:07:48.844733+00:00"}
+
+        data: {"assistant_message": "Ah, the age-old question, Chad. The meaning of life is as subjective as the life itself. 42, as the supercomputer 'Deep Thought' calculated in 'The Hitchhiker's Guide to the Galaxy', is indeed an answer, but maybe not the one we're after. Among other things, perhaps life is about learning, experiencing and connecting. What are your thoughts, Chad? What gives your life meaning?", "date": "2024-02-29T06:07:49.846280+00:00"}
+
+        data: {"function_return": "None", "status": "success", "date": "2024-02-29T06:07:50.847262+00:00"}
+        """
+        # print("Processed CHUNK:", chunk)
+
+        # Example where we just pass through the raw stream from the underlying OpenAI SSE stream
+        # processed_chunk = chunk.model_dump_json(exclude_none=True)
+
+        if self.streaming_chat_completion_mode:
+            processed_chunk = self._process_chunk_to_openai_style(chunk)
+        else:
+            processed_chunk = self._process_chunk_to_memgpt_style(chunk)
+
+        if processed_chunk is None:
+            return
 
         self._chunks.append(processed_chunk)
         self._event.set()  # Signal that new data is available
@@ -349,7 +487,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
             # end the stream
             self._active = False
             self._event.set()  # Unblock the generator if it's waiting to allow it to complete
-        else:
+        elif not self.streaming_chat_completion_mode:
             # signal that a new step has started in the stream
             self._chunks.append(self.multi_step_indicator)
             self._event.set()  # Signal that new data is available

@@ -1,5 +1,6 @@
 import asyncio
 import json
+import traceback
 from typing import AsyncGenerator, Generator, Union
 
 from memgpt.constants import JSON_ENSURE_ASCII
@@ -10,7 +11,7 @@ SSE_ARTIFICIAL_DELAY = 0.1
 
 def sse_formatter(data: Union[dict, str]) -> str:
     """Prefix with 'data: ', and always include double newlines"""
-    assert type(data) in [dict, str], type(data)
+    assert type(data) in [dict, str], f"Expected type dict or str, got type {type(data)}"
     data_str = json.dumps(data, ensure_ascii=JSON_ENSURE_ASCII) if isinstance(data, dict) else data
     return f"data: {data_str}\n\n"
 
@@ -50,8 +51,9 @@ async def sse_async_generator(generator: AsyncGenerator):
             # yield f"data: {json.dumps(chunk)}\n\n"
             yield sse_formatter(chunk)
     except Exception as e:
-        # yield f"data: {{'error': '{str(e)}'}}\n\n"
-        yield sse_formatter({"error": f"{str(e)}"})
+        print("stream decoder hit error:", e)
+        print(traceback.print_stack())
+        yield sse_formatter({"error": "stream decoder encountered an error"})
     finally:
         # yield "data: [DONE]\n\n"
         yield sse_formatter(SSE_FINISH_MSG)  # Signal that the stream is complete
