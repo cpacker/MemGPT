@@ -50,6 +50,10 @@ class QueuingInterface(AgentInterface):
         """Enqueue a special stop message"""
         self.buffer.put("STOP")
 
+    @staticmethod
+    def step_complete():
+        pass
+
     def error(self, error: str):
         """Enqueue a special stop message"""
         self.buffer.put({"internal_error": error})
