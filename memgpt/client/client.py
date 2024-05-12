@@ -55,9 +55,6 @@ class AbstractClient(object):
     def get_agent_memory(self, agent_id: str) -> Dict:
         raise NotImplementedError
 
-    def update_agent_core_memory(self, agent_id: str, human: Optional[str] = None, persona: Optional[str] = None) -> Dict:
-        raise NotImplementedError
-
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         raise NotImplementedError
 
@@ -130,9 +127,6 @@ class RESTClient(AbstractClient):
         return agent_id
 
     def create_preset(self, preset: Preset):
-        raise NotImplementedError
-
-    def get_agent_config(self, agent_id: str) -> AgentState:
         raise NotImplementedError
 
     def get_agent_memory(self, agent_id: str) -> Dict:
@@ -232,17 +226,9 @@ class LocalClient(AbstractClient):
         preset = self.server.create_preset(preset=preset)
         return preset
 
-    def get_agent_config(self, agent_id: str) -> AgentState:
-        self.interface.clear()
-        return self.server.get_agent_config(user_id=self.user_id, agent_id=agent_id)
-
     def get_agent_memory(self, agent_id: str) -> Dict:
         self.interface.clear()
         return self.server.get_agent_memory(user_id=self.user_id, agent_id=agent_id)
-
-    def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Dict:
-        self.interface.clear()
-        return self.server.update_agent_core_memory(user_id=self.user_id, agent_id=agent_id, new_memory_contents=new_memory_contents)
 
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         self.interface.clear()

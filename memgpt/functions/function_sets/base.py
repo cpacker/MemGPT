@@ -1,9 +1,8 @@
 from typing import Optional
-import datetime
 import json
 import math
 
-from memgpt.constants import MAX_PAUSE_HEARTBEATS, RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE, JSON_ENSURE_ASCII
+from memgpt.constants import RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE, JSON_ENSURE_ASCII
 
 ### Functions / tools the agent can use
 # All functions should return a response string (or None)

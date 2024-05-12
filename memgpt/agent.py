@@ -300,15 +300,6 @@ class Agent(object):
         ]
         self._append_to_messages(added_messages_objs)
 
-    def _swap_system_message(self, new_system_message: Message):
-        assert isinstance(new_system_message, Message)
-        assert new_system_message.role == "system", new_system_message
-        assert self._messages[0].role == "system", self._messages
-
-        self.persistence_manager.swap_system_message(new_system_message)
-
-        new_messages = [new_system_message] + self._messages[1:]  # swap index 0 (system)
-        self._messages = new_messages
 
     def _get_ai_reply(
         self,
@@ -752,27 +743,6 @@ class Agent(object):
         self.agent_alerted_about_memory_pressure = False
 
         printd(f"Ran summarizer, messages length {prior_len} -> {len(self.messages)}")
-
-    def rebuild_memory(self):
-        """Rebuilds the system message with the latest memory object"""
-        curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
-        new_system_message = initialize_message_sequence(
-            self.model,
-            self.system,
-            self.memory,
-            archival_memory=self.persistence_manager.archival_memory,
-            recall_memory=self.persistence_manager.recall_memory,
-        )[0]
-
-        diff = united_diff(curr_system_message["content"], new_system_message["content"])
-        printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
-
-        # Swap the system message out
-        self._swap_system_message(
-            Message.dict_to_message(
-                agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=new_system_message
-            )
-        )
 
     def update_state(self) -> AgentState:
         updated_state = {

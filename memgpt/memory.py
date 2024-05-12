@@ -62,35 +62,6 @@ class CoreMemory(object):
         self.human = new_human
         return len(self.human)
 
-    def edit_append(self, field, content, sep="\n"):
-        if field == "persona":
-            new_content = self.persona + sep + content
-            return self.edit_persona(new_content)
-        elif field == "human":
-            new_content = self.human + sep + content
-            return self.edit_human(new_content)
-        else:
-            raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
-
-    def edit_replace(self, field, old_content, new_content):
-        if len(old_content) == 0:
-            raise ValueError("old_content cannot be an empty string (must specify old_content to replace)")
-
-        if field == "persona":
-            if old_content in self.persona:
-                new_persona = self.persona.replace(old_content, new_content)
-                return self.edit_persona(new_persona)
-            else:
-                raise ValueError("Content not found in persona (make sure to use exact string)")
-        elif field == "human":
-            if old_content in self.human:
-                new_human = self.human.replace(old_content, new_content)
-                return self.edit_human(new_human)
-            else:
-                raise ValueError("Content not found in human (make sure to use exact string)")
-        else:
-            raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
-
 
 def summarize_messages(
     agent_state: AgentState,

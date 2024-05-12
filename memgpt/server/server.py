@@ -25,7 +25,6 @@ from memgpt.data_types import (
 )
 from memgpt.interface import AgentInterface  # abstract
 
-# TODO use custom interface
 from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.metadata import MetadataStore
 
@@ -45,15 +44,6 @@ class Server(object):
         """Return the memory of an agent (core memory + non-core statistics)"""
         raise NotImplementedError
 
-    @abstractmethod
-    def get_agent_config(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> dict:
-        """Return the config of an agent"""
-        raise NotImplementedError
-
-    @abstractmethod
-    def update_agent_core_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_memory_contents: dict) -> dict:
-        """Update the agents core memory block, return the new state"""
-        raise NotImplementedError
 
     @abstractmethod
     def create_agent(
@@ -134,10 +124,7 @@ class SyncServer(LockingServer):
         self,
         chaining: bool = True,
         max_chaining_steps: bool = None,
-        # default_interface_cls: AgentInterface = CLIInterface,
         default_interface: AgentInterface = CLIInterface(),
-        # default_persistence_manager_cls: PersistenceManager = LocalStateManager,
-        # auth_mode: str = "none",  # "none, "jwt", "external"
     ):
         """Server process holds in-memory agents that are being run"""
 
@@ -642,54 +629,7 @@ class SyncServer(LockingServer):
 
         return memory_obj
 
-    def get_agent_config(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> AgentState:
-        """Return the config of an agent"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
-        # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-        return memgpt_agent.agent_state
-
-    def update_agent_core_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_memory_contents: dict) -> dict:
-        """Update the agents core memory block, return the new state"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
-
-        # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-
-        old_core_memory = self.get_agent_memory(user_id=user_id, agent_id=agent_id)["core_memory"]
-        new_core_memory = old_core_memory.copy()
-
-        modified = False
-        if "persona" in new_memory_contents and new_memory_contents["persona"] is not None:
-            new_persona = new_memory_contents["persona"]
-            if old_core_memory["persona"] != new_persona:
-                new_core_memory["persona"] = new_persona
-                memgpt_agent.memory.edit_persona(new_persona)
-                modified = True
-
-        if "human" in new_memory_contents and new_memory_contents["human"] is not None:
-            new_human = new_memory_contents["human"]
-            if old_core_memory["human"] != new_human:
-                new_core_memory["human"] = new_human
-                memgpt_agent.memory.edit_human(new_human)
-                modified = True
-
-        # If we modified the memory contents, we need to rebuild the memory block inside the system message
-        if modified:
-            memgpt_agent.rebuild_memory()
-
-        return {
-            "old_core_memory": old_core_memory,
-            "new_core_memory": new_core_memory,
-            "modified": modified,
-        }
 
     def delete_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
         """Delete an agent in the database"""
