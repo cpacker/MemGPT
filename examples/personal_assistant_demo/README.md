@@ -155,7 +155,7 @@ The MemGPT agent can send outbound SMS messages and schedule events with the new
 
 Start the Gmail listener (this will send "new email" updates to the MemGPT server when a new email arrives):
 ```sh
-python examples/personal_assistant_demo/twilio_flask_listener.py $AGENT_ID
+python examples/personal_assistant_demo/gmail_polling_listener.py $AGENT_ID
 ```
 
 ## Running the Twilio listener
