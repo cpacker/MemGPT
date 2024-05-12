@@ -12,8 +12,6 @@ init(autoreset=True)
 # DEBUG = True  # puts full message outputs in the terminal
 DEBUG = False  # only dumps important messages in the terminal
 
-STRIP_UI = False
-
 
 class AgentInterface(ABC):
     """Interfaces handle MemGPT-related events (observer pattern)"""
@@ -46,31 +44,22 @@ class CLIInterface(AgentInterface):
     def internal_monologue(msg):
         # ANSI escape code for italic is '\x1B[3m'
         fstr = f"\x1B[3m{Fore.LIGHTBLACK_EX}💭 {{msg}}{Style.RESET_ALL}"
-        if STRIP_UI:
-            fstr = "{msg}"
         print(fstr.format(msg=msg))
 
     @staticmethod
     def assistant_message(msg):
         fstr = f"{Fore.YELLOW}{Style.BRIGHT}🤖 {Fore.YELLOW}{{msg}}{Style.RESET_ALL}"
-        if STRIP_UI:
-            fstr = "{msg}"
         print(fstr.format(msg=msg))
 
     @staticmethod
     def system_message(msg):
         fstr = f"{Fore.MAGENTA}{Style.BRIGHT}🖥️ [system] {Fore.MAGENTA}{msg}{Style.RESET_ALL}"
-        if STRIP_UI:
-            fstr = "{msg}"
         print(fstr.format(msg=msg))
 
     @staticmethod
     def user_message(msg, raw=False, dump=False, debug=DEBUG):
         def print_user_message(icon, msg, printf=print):
-            if STRIP_UI:
-                printf(f"{icon} {msg}")
-            else:
-                printf(f"{Fore.GREEN}{Style.BRIGHT}{icon} {Fore.GREEN}{msg}{Style.RESET_ALL}")
+            printf(f"{Fore.GREEN}{Style.BRIGHT}{icon} {Fore.GREEN}{msg}{Style.RESET_ALL}")
 
         def printd_user_message(icon, msg):
             return print_user_message(icon, msg)
@@ -113,10 +102,7 @@ class CLIInterface(AgentInterface):
     @staticmethod
     def function_message(msg, debug=DEBUG):
         def print_function_message(icon, msg, color=Fore.RED, printf=print):
-            if STRIP_UI:
-                printf(f"⚡{icon} [function] {msg}")
-            else:
-                printf(f"{color}{Style.BRIGHT}⚡{icon} [function] {color}{msg}{Style.RESET_ALL}")
+            printf(f"{color}{Style.BRIGHT}⚡{icon} [function] {color}{msg}{Style.RESET_ALL}")
 
         def printd_function_message(icon, msg, color=Fore.RED):
             return print_function_message(icon, msg, color, printf=(print if debug else printd))
@@ -146,23 +132,14 @@ class CLIInterface(AgentInterface):
                             msg_dict = eval(function_args)
                             if function_name == "archival_memory_search":
                                 output = f'\tquery: {msg_dict["query"]}, page: {msg_dict["page"]}'
-                                if STRIP_UI:
-                                    print(output)
-                                else:
-                                    print(f"{Fore.RED}{output}{Style.RESET_ALL}")
+                                print(f"{Fore.RED}{output}{Style.RESET_ALL}")
                             elif function_name == "archival_memory_insert":
                                 output = f'\t→ {msg_dict["content"]}'
-                                if STRIP_UI:
-                                    print(output)
-                                else:
-                                    print(f"{Style.BRIGHT}{Fore.RED}{output}{Style.RESET_ALL}")
+                                print(f"{Style.BRIGHT}{Fore.RED}{output}{Style.RESET_ALL}")
                             else:
-                                if STRIP_UI:
-                                    print(f'\t {msg_dict["old_content"]}\n\t→ {msg_dict["new_content"]}')
-                                else:
-                                    print(
-                                        f'{Style.BRIGHT}\t{Fore.RED} {msg_dict["old_content"]}\n\t{Fore.GREEN}→ {msg_dict["new_content"]}{Style.RESET_ALL}'
-                                    )
+                                print(
+                                    f'{Style.BRIGHT}\t{Fore.RED} {msg_dict["old_content"]}\n\t{Fore.GREEN}→ {msg_dict["new_content"]}{Style.RESET_ALL}'
+                                )
                         except Exception as e:
                             printd(str(e))
                             printd(msg_dict)
@@ -171,10 +148,7 @@ class CLIInterface(AgentInterface):
                         try:
                             msg_dict = eval(function_args)
                             output = f'\tquery: {msg_dict["query"]}, page: {msg_dict["page"]}'
-                            if STRIP_UI:
-                                print(output)
-                            else:
-                                print(f"{Fore.RED}{output}{Style.RESET_ALL}")
+                            print(f"{Fore.RED}{output}{Style.RESET_ALL}")
                         except Exception as e:
                             printd(str(e))
                             printd(msg_dict)
@@ -209,8 +183,6 @@ class CLIInterface(AgentInterface):
                 if msg.get("function_call"):
                     if content is not None:
                         CLIInterface.internal_monologue(content)
-                    # I think the next one is not up to date
-                    # function_message(msg["function_call"])
                     args = json.loads(msg["function_call"].get("arguments"), strict=JSON_LOADS_STRICT)
                     CLIInterface.assistant_message(args.get("message"))
                     # assistant_message(content)

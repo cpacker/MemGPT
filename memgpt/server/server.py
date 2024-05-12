@@ -264,12 +264,11 @@ class SyncServer(LockingServer):
             raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
 
         logger.debug(f"Starting agent step")
-        no_verify = True
         next_input_message = input_message
         counter = 0
         while True:
             new_messages, heartbeat_request, function_failed, token_warning, tokens_accumulated = memgpt_agent.step(
-                next_input_message, first_message=False, skip_verify=no_verify
+                next_input_message, first_message=False
             )
             counter += 1
 

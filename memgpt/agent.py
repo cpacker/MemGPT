@@ -13,7 +13,6 @@ from memgpt.system import get_login_event, package_function_response, package_su
 from memgpt.memory import CoreMemory as InContextMemory, summarize_messages, ArchivalMemory, RecallMemory
 from memgpt.llm_api_tools import create, is_context_overflow_error
 from memgpt.utils import (
-    create_random_username,
     get_tool_call_id,
     get_local_time,
     parse_json,
@@ -21,7 +20,6 @@ from memgpt.utils import (
     printd,
     count_tokens,
     validate_function_response,
-    verify_first_message_correctness,
 )
 from memgpt.constants import (
     FIRST_MESSAGE_ATTEMPTS,
@@ -140,10 +138,11 @@ class Agent(object):
             assert created_by is not None, "Must provide created_by field when creating an Agent from a Preset"
             assert llm_config is not None, "Must provide llm_config field when creating an Agent from a Preset"
             assert embedding_config is not None, "Must provide embedding_config field when creating an Agent from a Preset"
+            assert name is not None, "must proide agent name"
 
             # if agent_state is also provided, override any preset values
             init_agent_state = AgentState(
-                name=name if name else create_random_username(),
+                name=name,
                 user_id=created_by,
                 persona=preset.persona,
                 human=preset.human,
@@ -527,8 +526,6 @@ class Agent(object):
         self,
         user_message: Union[Message, str],  # NOTE: should be json.dump(dict)
         first_message: bool = False,
-        first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
-        skip_verify: bool = False,
     ) -> Tuple[List[dict], bool, bool, bool]:
         """Top-level event message handler for the MemGPT agent"""
 
@@ -574,25 +571,9 @@ class Agent(object):
             if len(input_message_sequence) > 1 and input_message_sequence[-1]["role"] != "user":
                 printd(f"{CLI_WARNING_PREFIX}Attempting to run ChatCompletion without user as the last message in the queue")
 
-            # Step 1: send the conversation and available functions to GPT
-            if not skip_verify and (first_message or self.messages_total == self.messages_total_init):
-                printd(f"This is the first message. Running extra verifier on AI response.")
-                counter = 0
-                while True:
-                    response = self._get_ai_reply(
-                        message_sequence=input_message_sequence,
-                    )
-                    if verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
-                        break
-
-                    counter += 1
-                    if counter > first_message_retry_limit:
-                        raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
-
-            else:
-                response = self._get_ai_reply(
-                    message_sequence=input_message_sequence,
-                )
+            response = self._get_ai_reply(
+                message_sequence=input_message_sequence,
+            )
 
             # Step 2: check if LLM wanted to call a function
             # (if yes) Step 3: call the function

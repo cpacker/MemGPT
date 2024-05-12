@@ -493,61 +493,6 @@ def enforce_types(func):
     return wrapper
 
 
-def create_random_username() -> str:
-    """Generate a random username by combining an adjective and a noun."""
-    adjective = random.choice(ADJECTIVE_BANK).capitalize()
-    noun = random.choice(NOUN_BANK).capitalize()
-    return adjective + noun
-
-
-def verify_first_message_correctness(
-    response: ChatCompletionResponse, require_send_message: bool = True, require_monologue: bool = False
-) -> bool:
-    """Can be used to enforce that the first message always uses send_message"""
-    response_message = response.choices[0].message
-
-    # First message should be a call to send_message with a non-empty content
-    if (hasattr(response_message, "function_call") and response_message.function_call is not None) and (
-        hasattr(response_message, "tool_calls") and response_message.tool_calls is not None
-    ):
-        printd(f"First message includes both function call AND tool call: {response_message}")
-        return False
-    elif hasattr(response_message, "function_call") and response_message.function_call is not None:
-        function_call = response_message.function_call
-    elif hasattr(response_message, "tool_calls") and response_message.tool_calls is not None:
-        function_call = response_message.tool_calls[0].function
-    else:
-        printd(f"First message didn't include function call: {response_message}")
-        return False
-
-    function_name = function_call.name if function_call is not None else ""
-    if require_send_message and function_name != "send_message" and function_name != "archival_memory_search":
-        printd(f"First message function call wasn't send_message or archival_memory_search: {response_message}")
-        return False
-
-    if require_monologue and (not response_message.content or response_message.content is None or response_message.content == ""):
-        printd(f"First message missing internal monologue: {response_message}")
-        return False
-
-    if response_message.content:
-        ### Extras
-        monologue = response_message.content
-
-        def contains_special_characters(s):
-            special_characters = '(){}[]"'
-            return any(char in s for char in special_characters)
-
-        if contains_special_characters(monologue):
-            printd(f"First message internal monologue contained special characters: {response_message}")
-            return False
-        if "functions" in monologue or "send_message" in monologue:
-            # Sometimes the syntax won't be correct and internal syntax will leak into message.context
-            printd(f"First message internal monologue contained reserved words: {response_message}")
-            return False
-
-    return True
-
-
 def is_valid_url(url):
     try:
         result = urlparse(url)

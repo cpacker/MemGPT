@@ -4,7 +4,6 @@ import logging
 from typing import Annotated, Optional
 
 import typer
-import questionary
 
 from memgpt.log import logger
 from memgpt.interface import CLIInterface as interface  # for printing to terminal
@@ -46,9 +45,7 @@ def run(
         Optional[int], typer.Option(help="The context window of the LLM you are using (e.g. 8k for most Mistral 7B variants)")
     ] = None,
     # other
-    first: Annotated[bool, typer.Option(help="Use --first to send the first message in the sequence")] = False,
     debug: Annotated[bool, typer.Option(help="Use --debug to enable debugging output")] = False,
-    no_verify: Annotated[bool, typer.Option(help="Bypass message verification")] = False,
     yes: Annotated[bool, typer.Option("-y", help="Skip confirmation prompt and use defaults")] = False,
 ):
     """Start chatting with an MemGPT agent
@@ -63,9 +60,7 @@ def run(
     """
 
     # setup logger
-    # TODO: remove Utils Debug after global logging is complete.
     utils.DEBUG = debug
-    # TODO: add logging command line options for runtime log level
 
     if debug:
         logger.setLevel(logging.DEBUG)
@@ -80,30 +75,14 @@ def run(
 
     # determine agent to use, if not provided
     if not yes and not agent:
-        agents = ms.list_agents(user_id=user.id)
-        agents = [a.name for a in agents]
-
-        if len(agents) > 0 and not any([persona, human, model]):
-            print()
-            select_agent = questionary.confirm("Would you like to select an existing agent?").ask()
-            if select_agent is None:
-                raise KeyboardInterrupt
-            if select_agent:
-                agent = questionary.select("Select agent:", choices=agents).ask()
+        raise Exception("Please provide an agent name")
 
     # create agent config
     agent_state = ms.get_agent(agent_name=agent, user_id=user.id) if agent else None
     if agent and agent_state:  # use existing agent
         typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
-        # agent_config = AgentConfig.load(agent)
-        # agent_state = ms.get_agent(agent_name=agent, user_id=user_id)
         printd("Loading agent state:", agent_state.id)
         printd("Agent state:", agent_state.state)
-        # printd("State path:", agent_config.save_state_dir())
-        # printd("Persistent manager path:", agent_config.save_persistence_manager_dir())
-        # printd("Index path:", agent_config.save_agent_index_dir())
-        # persistence_manager = LocalStateManager(agent_config).load() # TODO: implement load
-        # TODO: load prior agent state
         if persona and persona != agent_state.persona:
             typer.secho(f"{CLI_WARNING_PREFIX}Overriding existing persona {agent_state.persona} with {persona}", fg=typer.colors.YELLOW)
             agent_state.persona = persona
@@ -153,8 +132,10 @@ def run(
     else:  # create new agent
         # create new agent config: override defaults with args if provided
         typer.secho("\n🧬 Creating new agent...", fg=typer.colors.WHITE)
+        if not agent:
+            raise Exception("Specify an agent name")
 
-        agent_name = agent if agent else utils.create_random_username()
+        agent_name = agent
         llm_config = config.default_llm_config
         embedding_config = config.default_embedding_config  # TODO allow overriding embedding params via CLI run
 
@@ -222,49 +203,8 @@ def run(
     from memgpt.main import run_agent_loop
 
     print()  # extra space
-    run_agent_loop(memgpt_agent, config, first, ms, no_verify)  # TODO: add back no_verify
-
-
-def delete_agent(
-    agent_name: Annotated[str, typer.Option(help="Specify agent to delete")],
-    user_id: Annotated[Optional[str], typer.Option(help="User ID to associate with the agent.")] = None,
-):
-    """Delete an agent from the database"""
-    # use client ID is no user_id provided
-    config = MemGPTConfig.load()
-    ms = MetadataStore(config)
-    if user_id is None:
-        user = create_default_user_or_exit(config, ms)
-    else:
-        user = ms.get_user(user_id=uuid.UUID(user_id))
-
-    try:
-        agent = ms.get_agent(agent_name=agent_name, user_id=user.id)
-    except Exception as e:
-        typer.secho(f"Failed to get agent {agent_name}\n{e}", fg=typer.colors.RED)
-        sys.exit(1)
-
-    if agent is None:
-        typer.secho(f"Couldn't find agent named '{agent_name}' to delete", fg=typer.colors.RED)
-        sys.exit(1)
-
-    confirm = questionary.confirm(f"Are you sure you want to delete agent '{agent_name}' (id={agent.id})?", default=False).ask()
-    if confirm is None:
-        raise KeyboardInterrupt
-    if not confirm:
-        typer.secho(f"Cancelled agent deletion '{agent_name}' (id={agent.id})", fg=typer.colors.GREEN)
-        return
-
-    try:
-        ms.delete_agent(agent_id=agent.id)
-        typer.secho(f"🕊️ Successfully deleted agent '{agent_name}' (id={agent.id})", fg=typer.colors.GREEN)
-    except Exception:
-        typer.secho(f"Failed to delete agent '{agent_name}' (id={agent.id})", fg=typer.colors.RED)
-        sys.exit(1)
-
-
-def version():
-    import memgpt
-
-    print(memgpt.__version__)
-    return memgpt.__version__
+    run_agent_loop(
+        memgpt_agent,
+        config=config,
+        ms=ms,
+    )

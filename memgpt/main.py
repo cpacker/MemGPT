@@ -1,13 +1,11 @@
-import os
 import sys
 import traceback
-import json
 
 import questionary
 import typer
 
 from rich.console import Console
-from memgpt.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, JSON_ENSURE_ASCII, JSON_LOADS_STRICT, REQ_HEARTBEAT_MESSAGE
+from memgpt.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, REQ_HEARTBEAT_MESSAGE
 
 console = Console()
 
@@ -15,52 +13,37 @@ from memgpt.interface import CLIInterface as interface  # for printing to termin
 from memgpt.config import MemGPTConfig
 import memgpt.agent as agent
 import memgpt.system as system
-import memgpt.errors as errors
-from memgpt.cli.cli import run, version, delete_agent
+from memgpt.cli.cli import run
 from memgpt.metadata import MetadataStore
 
 # import benchmark
 
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
-app.command(name="version")(version)
-# delete agents
-app.command(name="delete-agent")(delete_agent)
 
 
-def clear_line(strip_ui=False):
-    if strip_ui:
-        return
-    if os.name == "nt":  # for windows
-        console.print("\033[A\033[K", end="")
-    else:  # for linux
-        sys.stdout.write("\033[2K\033[G")
-        sys.stdout.flush()
+def clear_line():
+    sys.stdout.write("\033[2K\033[G")
+    sys.stdout.flush()
 
 
-def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore, no_verify=False, cfg=None, strip_ui=False):
+def run_agent_loop(memgpt_agent, config: MemGPTConfig, ms: MetadataStore):
     counter = 0
     user_input = None
     skip_next_user_input = False
     user_message = None
-    USER_GOES_FIRST = first
-
-    if not USER_GOES_FIRST:
-        console.input("[bold cyan]Hit enter to begin (will request first MemGPT message)[/bold cyan]")
-        clear_line(strip_ui)
-        print()
 
     multiline_input = False
     ms = MetadataStore(config)
     while True:
-        if not skip_next_user_input and (counter > 0 or USER_GOES_FIRST):
+        if not skip_next_user_input and (counter > 0):
             # Ask for user input
             user_input = questionary.text(
                 "Enter your message:",
                 multiline=multiline_input,
                 qmark=">",
             ).ask()
-            clear_line(strip_ui)
+            clear_line()
 
             # Gracefully exit on Ctrl-C/D
             if user_input is None:
@@ -158,69 +141,6 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
                             break
                     continue
 
-                elif user_input.lower() == "/rewrite" or user_input.lower().startswith("/rewrite "):
-                    # TODO this needs to also modify the persistence manager
-                    if len(user_input) < len("/rewrite "):
-                        print("Missing text after the command")
-                        continue
-                    for x in range(len(memgpt_agent.messages) - 1, 0, -1):
-                        if memgpt_agent.messages[x].get("role") == "assistant":
-                            text = user_input[len("/rewrite ") :].strip()
-                            # Get the current message content
-                            # The rewrite target is the output of send_message
-                            message_obj = memgpt_agent._messages[x]
-                            if message_obj.tool_calls is not None and len(message_obj.tool_calls) > 0:
-                                # Check that we hit an assistant send_message call
-                                name_string = message_obj.tool_calls[0].function.get("name")
-                                if name_string is None or name_string != "send_message":
-                                    print("Assistant missing send_message function call")
-                                    break  # cancel op
-                                args_string = message_obj.tool_calls[0].function.get("arguments")
-                                if args_string is None:
-                                    print("Assistant missing send_message function arguments")
-                                    break  # cancel op
-                                args_json = json.loads(args_string, strict=JSON_LOADS_STRICT)
-                                if "message" not in args_json:
-                                    print("Assistant missing send_message message argument")
-                                    break  # cancel op
-
-                                # Once we found our target, rewrite it
-                                args_json["message"] = text
-                                new_args_string = json.dumps(args_json, ensure_ascii=JSON_ENSURE_ASCII)
-                                message_obj.tool_calls[0].function["arguments"] = new_args_string
-
-                                # To persist to the database, all we need to do is "re-insert" into recall memory
-                                memgpt_agent.persistence_manager.recall_memory.storage.update(record=message_obj)
-                                break
-                    continue
-
-                elif user_input.lower() == "/summarize":
-                    try:
-                        memgpt_agent.summarize_messages_inplace()
-                        typer.secho(
-                            f"/summarize succeeded",
-                            fg=typer.colors.GREEN,
-                            bold=True,
-                        )
-                    except errors.LLMError as e:
-                        typer.secho(
-                            f"/summarize failed:\n{e}",
-                            fg=typer.colors.RED,
-                            bold=True,
-                        )
-                    continue
-
-                # No skip options
-                elif user_input.lower() == "/wipe":
-                    memgpt_agent = agent.Agent(interface)
-                    user_message = None
-
-                elif user_input.lower() == "/heartbeat":
-                    user_message = system.get_heartbeat()
-
-                elif user_input.lower() == "/memorywarning":
-                    user_message = system.get_token_limit_warning()
-
                 elif user_input.lower() == "//":
                     multiline_input = not multiline_input
                     continue
@@ -243,9 +163,9 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
 
         skip_next_user_input = False
 
-        def process_agent_step(user_message, no_verify):
+        def process_agent_step(user_message):
             new_messages, heartbeat_request, function_failed, token_warning, tokens_accumulated = memgpt_agent.step(
-                user_message, first_message=False, skip_verify=no_verify
+                user_message, first_message=False
             )
 
             skip_next_user_input = False
@@ -263,13 +183,9 @@ def run_agent_loop(memgpt_agent, config: MemGPTConfig, first, ms: MetadataStore,
 
         while True:
             try:
-                if strip_ui:
-                    new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
+                with console.status("[bold cyan]Thinking...") as _status:
+                    new_messages, user_message, skip_next_user_input = process_agent_step(user_message)
                     break
-                else:
-                    with console.status("[bold cyan]Thinking...") as status:
-                        new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
-                        break
             except KeyboardInterrupt:
                 print("User interrupt occurred.")
                 retry = questionary.confirm("Retry agent.step()?").ask()
