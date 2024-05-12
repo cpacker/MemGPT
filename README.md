@@ -56,7 +56,7 @@ MemGPT provides a developer portal that enables you to easily create, edit, moni
 
 **Option 1 (Recommended)**: Run with docker compose  
 1. [Install docker on your system](https://docs.docker.com/get-docker/)
-2. Clone the repo: `git clone git@github.com:cpacker/MemGPT.git`
+2. Clone the repo: `git clone https://github.com/cpacker/MemGPT.git`
 3. Run `docker compose up`
 4. Go to `memgpt.localhost` in the browser to view the developer portal 
 
