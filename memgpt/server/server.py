@@ -216,7 +216,7 @@ class SyncServer(LockingServer):
         # Update storage URI to match passed in settings
         # TODO: very hack, fix in the future
         for memory_type in ("archival", "recall", "metadata"):
-            if settings.memgpt_pg_uri:
+            if settings.memgpt_pg_uri_no_default:
                 # override with env
                 setattr(self.config, f"{memory_type}_storage_uri", settings.memgpt_pg_uri)
         self.config.save()

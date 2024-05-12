@@ -1,6 +1,7 @@
 import base64
 import os
 import uuid
+from datetime import datetime
 from typing import Dict, Iterator, List, Optional
 
 import numpy as np
@@ -379,7 +380,7 @@ class SQLStorageConnector(StorageConnector):
             unique_data_sources = session.query(self.db_model.data_source).filter(*self.filters).distinct().all()
         return unique_data_sources
 
-    def query_date(self, start_date, end_date, offset=0, limit=None):
+    def query_date(self, start_date, end_date, limit=None, offset=0):
         filters = self.get_filters({})
         with self.session_maker() as session:
             query = (
@@ -387,6 +388,8 @@ class SQLStorageConnector(StorageConnector):
                 .filter(*filters)
                 .filter(self.db_model.created_at >= start_date)
                 .filter(self.db_model.created_at <= end_date)
+                .filter(self.db_model.role != "system")
+                .filter(self.db_model.role != "tool")
                 .offset(offset)
             )
             if limit:
@@ -394,7 +397,7 @@ class SQLStorageConnector(StorageConnector):
             results = query.all()
         return [result.to_record() for result in results]
 
-    def query_text(self, query, offset=0, limit=None):
+    def query_text(self, query, limit=None, offset=0):
         # todo: make fuzz https://stackoverflow.com/questions/42388956/create-a-full-text-search-index-with-sqlalchemy-on-postgresql/42390204#42390204
         filters = self.get_filters({})
         with self.session_maker() as session:
@@ -402,6 +405,8 @@ class SQLStorageConnector(StorageConnector):
                 session.query(self.db_model)
                 .filter(*filters)
                 .filter(func.lower(self.db_model.text).contains(func.lower(query)))
+                .filter(self.db_model.role != "system")
+                .filter(self.db_model.role != "tool")
                 .offset(offset)
             )
             if limit:
@@ -526,6 +531,30 @@ class PostgresStorageConnector(SQLStorageConnector):
 
             # Commit the changes to the database
             session.commit()
+
+    def str_to_datetime(self, str_date):
+        val = str_date.split("-")
+        _datetime = datetime(int(val[0]), int(val[1]), int(val[2]))
+        return _datetime
+
+    def query_date(self, start_date, end_date, limit=None, offset=0):
+        filters = self.get_filters({})
+        _start_date = self.str_to_datetime(start_date)
+        _end_date = self.str_to_datetime(end_date)
+        with self.session_maker() as session:
+            query = (
+                session.query(self.db_model)
+                .filter(*filters)
+                .filter(self.db_model.created_at >= _start_date)
+                .filter(self.db_model.created_at <= _end_date)
+                .filter(self.db_model.role != "system")
+                .filter(self.db_model.role != "tool")
+                .offset(offset)
+            )
+            if limit:
+                query = query.limit(limit)
+            results = query.all()
+        return [result.to_record() for result in results]
 
 
 class SQLLiteStorageConnector(SQLStorageConnector):
