@@ -332,30 +332,30 @@ class RESTClient(AbstractClient):
         response_obj = GetAgentResponse(**response.json())
         return self.get_agent_response_to_state(response_obj)
 
-    # presets
-    def create_preset(self, preset: Preset) -> CreatePresetResponse:
-        # TODO should the arg type here be PresetModel, not Preset?
-        payload = CreatePresetsRequest(
-            id=str(preset.id),
-            name=preset.name,
-            description=preset.description,
-            system=preset.system,
-            persona=preset.persona,
-            human=preset.human,
-            persona_name=preset.persona_name,
-            human_name=preset.human_name,
-            functions_schema=preset.functions_schema,
-        )
-        response = requests.post(f"{self.base_url}/api/presets", json=payload.model_dump(), headers=self.headers)
-        assert response.status_code == 200, f"Failed to create preset: {response.text}"
-        return CreatePresetResponse(**response.json())
+    ## presets
+    # def create_preset(self, preset: Preset) -> CreatePresetResponse:
+    #    # TODO should the arg type here be PresetModel, not Preset?
+    #    payload = CreatePresetsRequest(
+    #        id=str(preset.id),
+    #        name=preset.name,
+    #        description=preset.description,
+    #        system=preset.system,
+    #        persona=preset.persona,
+    #        human=preset.human,
+    #        persona_name=preset.persona_name,
+    #        human_name=preset.human_name,
+    #        functions_schema=preset.functions_schema,
+    #    )
+    #    response = requests.post(f"{self.base_url}/api/presets", json=payload.model_dump(), headers=self.headers)
+    #    assert response.status_code == 200, f"Failed to create preset: {response.text}"
+    #    return CreatePresetResponse(**response.json())
 
     def get_preset(self, name: str) -> PresetModel:
         response = requests.get(f"{self.base_url}/api/presets/{name}", headers=self.headers)
         assert response.status_code == 200, f"Failed to get preset: {response.text}"
         return PresetModel(**response.json())
 
-    def create_preset2(
+    def create_preset(
         self,
         name: str,
         description: Optional[str] = None,
