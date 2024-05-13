@@ -76,7 +76,7 @@ def test_load_directory(
     elif passage_storage_connector == "milvus":
         print("Testing Milvus passage storage")
         TEST_MEMGPT_CONFIG.archival_storage_type = "milvus"
-        TEST_MEMGPT_CONFIG.archival_storage_uri = "localhost:19530"
+        TEST_MEMGPT_CONFIG.archival_storage_uri = "./milvus.db"
     else:
         raise NotImplementedError(f"Storage type {passage_storage_connector} not implemented")
     TEST_MEMGPT_CONFIG.save()

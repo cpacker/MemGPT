@@ -19,13 +19,11 @@ class MilvusStorageConnector(StorageConnector):
         super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
 
         assert table_type in [TableType.ARCHIVAL_MEMORY, TableType.PASSAGES], "Milvus only supports archival memory"
-        if config.archival_storage_uri and len(config.archival_storage_uri.split(":")) == 2:
-            host, port = config.archival_storage_uri.split(":")
-
-            self.client = MilvusClient(uri=f"http://{host}:{port}")
+        if config.archival_storage_uri:
+            self.client = MilvusClient(uri=config.archival_storage_uri)
             self._create_collection()
         else:
-            raise ValueError("Please set `archival_storage_uri` in the config file when using Milvus. Format it like `IP:port`")
+            raise ValueError("Please set `archival_storage_uri` in the config file when using Milvus.")
 
         # need to be converted to strings
         self.uuid_fields = ["id", "user_id", "agent_id", "source_id", "doc_id"]
@@ -57,6 +55,8 @@ class MilvusStorageConnector(StorageConnector):
                 condition = f"({key} == {value})"
             conditions.append(condition)
         filter_expr = " and ".join(conditions)
+        if len(conditions) == 1:
+            filter_expr = filter_expr[1:-1]
         return filter_expr
 
     def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: int = 1000) -> Iterator[List[RecordType]]:
@@ -114,7 +114,14 @@ class MilvusStorageConnector(StorageConnector):
     def insert_many(self, records: List[RecordType], show_progress=False):
         if not records:
             return
-        self.client.upsert(collection_name=self.table_name, data=self._records_to_list(records))
+
+        # Milvus lite currently does not support upsert, so we delete and insert instead
+        # self.client.upsert(collection_name=self.table_name, data=self._records_to_list(records))
+        ids = [str(record.id) for record in records]
+        self.client.delete(collection_name=self.table_name, ids=ids)
+        data = self._records_to_list(records)
+        self.client.insert(collection_name=self.table_name, data=data)
+
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         if not self.client.has_collection(self.table_name):

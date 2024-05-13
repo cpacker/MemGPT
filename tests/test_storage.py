@@ -165,7 +165,7 @@ def test_storage(
             print("Skipping test, Milvus only supports archival memory")
             return
         TEST_MEMGPT_CONFIG.archival_storage_type = "milvus"
-        TEST_MEMGPT_CONFIG.archival_storage_uri = "localhost:19530"
+        TEST_MEMGPT_CONFIG.archival_storage_uri = "./milvus.db"
     # get embedding model
     embed_model = None
     if os.getenv("OPENAI_API_KEY"):
