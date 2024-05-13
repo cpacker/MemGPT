@@ -22,7 +22,7 @@ def server():
     wipe_config()
     wipe_memgpt_home()
 
-    db_url = settings.pg_db
+    db_url = settings.memgpt_pg_uri
 
     if os.getenv("OPENAI_API_KEY"):
         config = TestMGPTConfig(
