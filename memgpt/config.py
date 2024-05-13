@@ -128,10 +128,10 @@ class MemGPTConfig:
             "functions_modules": function_modules,
         }
 
-        if os.environ.get("POSTGRES_URL"):
-            config_dict["recall_storage_uri"] = os.environ.get("POSTGRES_URL")
-            config_dict["metadata_storage_uri"] = os.environ.get("POSTGRES_URL")
-            config_dict["archival_storage_uri"] = os.environ.get("POSTGRES_URL")
+        if os.environ.get("DATABASE_URL"):
+            config_dict["recall_storage_uri"] = os.environ.get("DATABASE_URL")
+            config_dict["metadata_storage_uri"] = os.environ.get("DATABASE_URL")
+            config_dict["archival_storage_uri"] = os.environ.get("DATABASE_URL")
 
         # Don't include null values
         config_dict = {k: v for k, v in config_dict.items() if v is not None}
