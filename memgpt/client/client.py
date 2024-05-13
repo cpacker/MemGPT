@@ -520,7 +520,7 @@ class RESTClient(AbstractClient):
         """List loaded sources"""
         response = requests.get(f"{self.base_url}/api/sources", headers=self.headers)
         response_json = response.json()
-        return ListSourcesResponse(**response_json)
+        return ListSourcesResponse(**response_json).sources
 
     def delete_source(self, source_id: uuid.UUID):
         """Delete a source and associated data (including attached to agents)"""
@@ -556,12 +556,16 @@ class RESTClient(AbstractClient):
         """Create a new source"""
         payload = {"name": name}
         response = requests.post(f"{self.base_url}/api/sources", json=payload, headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create source: {response.text}")
         response_json = response.json()
         response_obj = SourceModel(**response_json)
+        response_obj.id = uuid.UUID(response_obj.id)
+        response_obj.user_id = uuid.UUID(response_obj.user_id)
         return Source(
-            id=uuid.UUID(response_obj.id),
+            id=response_obj.id,
             name=response_obj.name,
-            user_id=uuid.UUID(response_obj.user_id),
+            user_id=response_obj.user_id,
             created_at=response_obj.created_at,
             embedding_dim=response_obj.embedding_config["embedding_dim"],
             embedding_model=response_obj.embedding_config["embedding_model"],

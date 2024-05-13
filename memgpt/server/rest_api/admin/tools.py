@@ -25,7 +25,7 @@ class CreateToolResponse(BaseModel):
     tool: ToolModel = Field(..., description="Information about the newly created tool.")
 
 
-def setup_tools_index_router(server: SyncServer, interface: QueuingInterface, password: str):
+def setup_tools_index_router(server: SyncServer, interface: QueuingInterface):
     # get_current_user_with_server = partial(partial(get_current_user, server), password)
 
     @router.delete("/tools/{tool_name}", tags=["tools"])

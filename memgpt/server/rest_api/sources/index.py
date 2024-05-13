@@ -79,8 +79,10 @@ def load_file_to_source(server: SyncServer, user_id: uuid.UUID, source: Source, 
 
     try:
         # write the file to a temporary directory (deleted after the context manager exits)
+        print("file", file, file.filename)
         with tempfile.TemporaryDirectory() as tmpdirname:
             file_path = os.path.join(tmpdirname, file.filename)
+            print(file_path)
             with open(file_path, "wb") as buffer:
                 buffer.write(bytes)
 
@@ -94,7 +96,7 @@ def load_file_to_source(server: SyncServer, user_id: uuid.UUID, source: Source, 
     except Exception as e:
         # job failed with error
         error = str(e)
-        print(error)
+        print("ERROR LOADING", error)
         job.status = JobStatus.failed
         job.metadata_["error"] = error
         server.ms.update_job(job)
