@@ -12,7 +12,7 @@ from memgpt.utils import printd
 from memgpt.config import MemGPTConfig
 from memgpt.constants import CLI_WARNING_PREFIX
 from memgpt.agent import Agent, save_agent
-from memgpt.data_types import User
+from memgpt.data_types import Preset, User
 from memgpt.metadata import MetadataStore
 
 
@@ -172,6 +172,7 @@ def run(
         try:
             preset_obj = ms.get_preset(preset_name=preset if preset else config.preset, user_id=user.id)
             if preset_obj is None:
+                preset_obj = Preset(description='foo', system='you are a robot', human='you are a human', persona='you are a persona', name='test') # type: ignore
                 typer.secho("Couldn't find presets in database, please run `add to db`", fg=typer.colors.RED)
                 sys.exit(1)
 
