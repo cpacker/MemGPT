@@ -90,67 +90,60 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """Create a preset."""
-        print("CREATE PRESET")
-        if isinstance(request.id, str):
-            request.id = uuid.UUID(request.id)
-        # new_preset = PresetModel(
-
-        # check if preset already exists
-        # TODO: move this into a server function to create a preset
-        if server.ms.get_preset(name=request.name, user_id=user_id):
-            raise HTTPException(status_code=400, detail=f"Preset with name {request.name} already exists.")
-
-        # For system/human/persona - if {system/human-personal}_name is None but the text is provied, then create a new data entry
-        if not request.system_name and request.system:
-            # new system provided without name identity
-            system_name = f"system_{request.name}_{str(uuid.uuid4())}"
-            system = request.system
-            # TODO: insert into system table
-        else:
-            system_name = request.system_name if request.system_name else DEFAULT_PRESET
-            system = request.system if request.system else gpt_system.get_system_text(system_name)
-
-        if not request.human_name and request.human:
-            # new human provided without name identity
-            human_name = f"human_{request.name}_{str(uuid.uuid4())}"
-            human = request.human
-            server.ms.add_human(HumanModel(text=human, name=human_name, user_id=user_id))
-            print(f"Created new human {human_name}")
-        else:
-            human_name = request.human_name if request.human_name else DEFAULT_HUMAN
-            human = request.human if request.human else get_human_text(human_name)
-
-        if not request.persona_name and request.persona:
-            # new persona provided without name identity
-            persona_name = f"persona_{request.name}_{str(uuid.uuid4())}"
-            persona = request.persona
-            server.ms.add_persona(PersonaModel(text=persona, name=persona_name, user_id=user_id))
-            print(f"Created new persona {persona_name}")
-        else:
-            persona_name = request.persona_name if request.persona_name else DEFAULT_PERSONA
-            persona = request.persona if request.persona else get_persona_text(persona_name)
-
-        # create preset
-        new_preset = Preset(
-            user_id=user_id,
-            id=request.id if request.id else uuid.uuid4(),
-            name=request.name,
-            description=request.description,
-            system=system,
-            persona=persona,
-            persona_name=persona_name,
-            human=human,
-            human_name=human_name,
-            functions_schema=request.functions_schema,
-        )
-        preset = server.create_preset(preset=new_preset)
-
-        # TODO remove once we migrate from Preset to PresetModel
-        print(vars(preset))
-        args = {k: v for k, v in vars(preset).items() if k != "system_name"}  # TODO: no idea why we need to do this
-        # preset = PresetModel(**vars(preset))
-        preset = PresetModel(**args)
         try:
+            if isinstance(request.id, str):
+                request.id = uuid.UUID(request.id)
+
+            # check if preset already exists
+            # TODO: move this into a server function to create a preset
+            if server.ms.get_preset(name=request.name, user_id=user_id):
+                raise HTTPException(status_code=400, detail=f"Preset with name {request.name} already exists.")
+
+            # For system/human/persona - if {system/human-personal}_name is None but the text is provied, then create a new data entry
+            if not request.system_name and request.system:
+                # new system provided without name identity
+                system_name = f"system_{request.name}_{str(uuid.uuid4())}"
+                system = request.system
+                # TODO: insert into system table
+            else:
+                system_name = request.system_name if request.system_name else DEFAULT_PRESET
+                system = request.system if request.system else gpt_system.get_system_text(system_name)
+
+            if not request.human_name and request.human:
+                # new human provided without name identity
+                human_name = f"human_{request.name}_{str(uuid.uuid4())}"
+                human = request.human
+                server.ms.add_human(HumanModel(text=human, name=human_name, user_id=user_id))
+            else:
+                human_name = request.human_name if request.human_name else DEFAULT_HUMAN
+                human = request.human if request.human else get_human_text(human_name)
+
+            if not request.persona_name and request.persona:
+                # new persona provided without name identity
+                persona_name = f"persona_{request.name}_{str(uuid.uuid4())}"
+                persona = request.persona
+                server.ms.add_persona(PersonaModel(text=persona, name=persona_name, user_id=user_id))
+            else:
+                persona_name = request.persona_name if request.persona_name else DEFAULT_PERSONA
+                persona = request.persona if request.persona else get_persona_text(persona_name)
+
+            # create preset
+            new_preset = Preset(
+                user_id=user_id,
+                id=request.id if request.id else uuid.uuid4(),
+                name=request.name,
+                description=request.description,
+                system=system,
+                persona=persona,
+                persona_name=persona_name,
+                human=human,
+                human_name=human_name,
+                functions_schema=request.functions_schema,
+            )
+            preset = server.create_preset(preset=new_preset)
+
+            # TODO remove once we migrate from Preset to PresetModel
+            preset = PresetModel(**vars(preset))
 
             return CreatePresetResponse(preset=preset)
         except HTTPException:
