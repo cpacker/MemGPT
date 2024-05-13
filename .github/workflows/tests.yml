@@ -6,7 +6,7 @@ env:
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, test_poetry ]
   pull_request:
     branches: [ main ]
 
@@ -21,13 +21,19 @@ jobs:
     - name: Build and run container
       run: bash db/run_postgres.sh
 
-
     - name: "Setup Python, Poetry and Dependencies"
       uses: packetcoders/action-setup-cache-python-poetry@main
       with:
         python-version: "3.12"
         poetry-version: "1.8.2"
         install-args: "--all-extras"
+
+    - name: Run Milvus
+      run: |
+        wget https://raw.githubusercontent.com/milvus-io/milvus/master/scripts/standalone_embed.sh
+        bash standalone_embed.sh start
+        sleep 2
+        echo "\nMilvus server started!"
 
     - name: Initialize credentials
       env:
