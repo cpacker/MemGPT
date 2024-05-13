@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # add this property to avoid being returned the default
     # reference: https://github.com/cpacker/MemGPT/issues/1362
     @property
-    def memgpt_pt_uri_no_default(self) -> str:
+    def memgpt_pg_uri_no_default(self) -> str:
         if self.pg_uri:
             return self.pg_uri
         elif self.pg_db and self.pg_user and self.pg_password and self.pg_host and self.pg_port:

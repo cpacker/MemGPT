@@ -532,15 +532,15 @@ class PostgresStorageConnector(SQLStorageConnector):
             # Commit the changes to the database
             session.commit()
 
-    def str_to_datetime(self, str_date):
+    def str_to_datetime(self, str_date: str) -> datetime:
         val = str_date.split("-")
         _datetime = datetime(int(val[0]), int(val[1]), int(val[2]))
         return _datetime
 
     def query_date(self, start_date, end_date, limit=None, offset=0):
         filters = self.get_filters({})
-        _start_date = self.str_to_datetime(start_date)
-        _end_date = self.str_to_datetime(end_date)
+        _start_date = self.str_to_datetime(start_date) if isinstance(start_date, str) else start_date
+        _end_date = self.str_to_datetime(end_date) if isinstance(end_date, str) else end_date
         with self.session_maker() as session:
             query = (
                 session.query(self.db_model)
