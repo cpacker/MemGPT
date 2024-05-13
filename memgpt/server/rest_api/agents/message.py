@@ -26,6 +26,7 @@ class MessageRoleType(str, Enum):
 
 class UserMessageRequest(BaseModel):
     message: str = Field(..., description="The message content to be processed by the agent.")
+    name: str = Field(default="user", description="Name of the message request sender")
     stream: bool = Field(default=False, description="Flag to determine if the response should be streamed. Set to True for streaming.")
     role: MessageRoleType = Field(default=MessageRoleType.user, description="Role of the message sender (either 'user' or 'system')")
     timestamp: Optional[datetime] = Field(
