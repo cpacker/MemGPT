@@ -52,7 +52,7 @@ from memgpt.server.rest_api.presets.index import (
     ListPresetsResponse,
 )
 from memgpt.server.rest_api.sources.index import ListSourcesResponse
-from memgpt.server.rest_api.tools.index import CreateToolResponse
+from memgpt.server.rest_api.tools.index import CreateToolResponse, ListToolsResponse
 from memgpt.server.server import SyncServer
 
 
@@ -588,6 +588,22 @@ class RESTClient(AbstractClient):
     def get_config(self) -> ConfigResponse:
         response = requests.get(f"{self.base_url}/api/config", headers=self.headers)
         return ConfigResponse(**response.json())
+
+    # tools
+
+    def list_tools(self) -> ListToolsResponse:
+        response = requests.get(f"{self.base_url}/api/tools", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list tools: {response.text}")
+        return ListToolsResponse(**response.json())
+
+    def get_tool(self, name: str) -> ToolModel:
+        response = requests.get(f"{self.base_url}/api/tools/{name}", headers=self.headers)
+        if response.status_code == 404:
+            return None
+        elif response.status_code != 200:
+            raise ValueError(f"Failed to get tool: {response.text}")
+        return ToolModel(**response.json())
 
 
 class LocalClient(AbstractClient):
