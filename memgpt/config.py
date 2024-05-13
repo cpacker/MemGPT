@@ -41,14 +41,12 @@ class MemGPTConfig:
     default_embedding_config: EmbeddingConfig = field(default_factory=EmbeddingConfig)
 
     # database configs: recall
-    recall_storage_type: str = ""  # local, db
     recall_storage_uri: str = ""
 
     # database configs: metadata storage (sources, agents, data sources)
     metadata_storage_type: str = ""
     metadata_storage_uri: str = ""
 
-    archival_storage_type: str = ""
     archival_storage_uri: str = ""
 
     # full names of modules
@@ -117,9 +115,7 @@ class MemGPTConfig:
             "human": get_field(config, "defaults", "human"),
             "agent": get_field(config, "defaults", "agent"),
             # Storage related
-            "archival_storage_type": get_field(config, "archival_storage", "type"),
             "archival_storage_uri": get_field(config, "archival_storage", "uri"),
-            "recall_storage_type": get_field(config, "recall_storage", "type"),
             "recall_storage_uri": get_field(config, "recall_storage", "uri"),
             "metadata_storage_type": get_field(config, "metadata_storage", "type"),
             "metadata_storage_uri": get_field(config, "metadata_storage", "uri"),

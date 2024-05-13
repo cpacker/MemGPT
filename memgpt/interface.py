@@ -167,48 +167,5 @@ class CLIInterface(AgentInterface):
                 printd_function_message("", msg)
 
     @staticmethod
-    def print_messages(message_sequence, dump=False):
-        idx = len(message_sequence)
-        for msg in message_sequence:
-            if dump:
-                print(f"[{idx}] ", end="")
-                idx -= 1
-            role = msg["role"]
-            content = msg["content"]
-
-            if role == "system":
-                CLIInterface.system_message(content)
-            elif role == "assistant":
-                # Differentiate between internal monologue, function calls, and messages
-                if msg.get("function_call"):
-                    if content is not None:
-                        CLIInterface.internal_monologue(content)
-                    args = json.loads(msg["function_call"].get("arguments"), strict=JSON_LOADS_STRICT)
-                    CLIInterface.assistant_message(args.get("message"))
-                    # assistant_message(content)
-                elif msg.get("tool_calls"):
-                    if content is not None:
-                        CLIInterface.internal_monologue(content)
-                    function_obj = msg["tool_calls"][0].get("function")
-                    if function_obj:
-                        args = json.loads(function_obj.get("arguments"), strict=JSON_LOADS_STRICT)
-                        CLIInterface.assistant_message(args.get("message"))
-                else:
-                    CLIInterface.internal_monologue(content)
-            elif role == "user":
-                CLIInterface.user_message(content, dump=dump)
-            elif role == "function":
-                CLIInterface.function_message(content, debug=dump)
-            elif role == "tool":
-                CLIInterface.function_message(content, debug=dump)
-            else:
-                print(f"Unknown role: {content}")
-
-    @staticmethod
-    def print_messages_raw(message_sequence):
-        for msg in message_sequence:
-            print(msg)
-
-    @staticmethod
     def step_yield():
         pass

@@ -21,9 +21,6 @@ class AssistantMessage(BaseModel):
     tool_calls: Optional[List] = None
 
 
-ChatMessage = Union[SystemMessage, UserMessage, AssistantMessage]
-
-
 ## tool_choice ##
 class FunctionCall(BaseModel):
     name: str
@@ -33,10 +30,3 @@ class ToolFunctionChoice(BaseModel):
     # The type of the tool. Currently, only function is supported
     type: Literal["function"] = "function"
     function: FunctionCall
-
-
-ToolChoice = Union[Literal["none", "auto"], ToolFunctionChoice]
-
-
-## function_call ##
-FunctionCallChoice = Union[Literal["none", "auto"], FunctionCall]

@@ -22,10 +22,6 @@ class PersistenceManager(ABC):
     def append_to_messages(self, added_messages):
         pass
 
-    @abstractmethod
-    def swap_system_message(self, new_system_message):
-        pass
-
 
 class LocalStateManager(PersistenceManager):
     """In-memory state manager has nothing to manage, all agents are held in-memory"""
@@ -77,13 +73,3 @@ class LocalStateManager(PersistenceManager):
 
         # add to recall memory
         self.recall_memory.insert_many([m for m in added_messages])
-
-    def swap_system_message(self, new_system_message: Message):
-        # first tag with timestamps
-        # new_system_message = {"timestamp": get_local_time(), "message": new_system_message}
-
-        printd(f"{self.__class__.__name__}.swap_system_message")
-        # self.messages[0] = new_system_message
-
-        # add to recall memory
-        self.recall_memory.insert(new_system_message)

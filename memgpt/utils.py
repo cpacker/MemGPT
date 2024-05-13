@@ -83,7 +83,6 @@ def printd(*args, **kwargs):
         print(*args, **kwargs)
 
 
-
 def get_local_time_timezone(timezone="America/Los_Angeles"):
     # Get the current time in UTC
     current_time_utc = datetime.now(pytz.utc)

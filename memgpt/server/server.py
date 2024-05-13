@@ -44,7 +44,6 @@ class Server(object):
         """Return the memory of an agent (core memory + non-core statistics)"""
         raise NotImplementedError
 
-
     @abstractmethod
     def create_agent(
         self,
@@ -254,9 +253,7 @@ class SyncServer(LockingServer):
         next_input_message = input_message
         counter = 0
         while True:
-            new_messages, heartbeat_request, function_failed, token_warning, tokens_accumulated = memgpt_agent.step(
-                next_input_message, first_message=False
-            )
+            new_messages, heartbeat_request, function_failed, token_warning, tokens_accumulated = memgpt_agent.step(next_input_message)
             counter += 1
 
             # Chain stops
@@ -290,92 +287,7 @@ class SyncServer(LockingServer):
 
         logger.debug(f"Got command: {command}")
 
-        # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-        # print("AGENT", memgpt_agent.agent_state.id, memgpt_agent.agent_state.user_id)
-
         if command.lower() == "exit":
-            # exit not supported on server.py
-            raise ValueError(command)
-
-        elif command.lower() == "save" or command.lower() == "savechat":
-            save_agent(memgpt_agent, self.ms)
-
-        elif command.lower() == "dump" or command.lower().startswith("dump "):
-            # Check if there's an additional argument that's an integer
-            command = command.strip().split()
-            amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 0
-            if amount == 0:
-                memgpt_agent.interface.print_messages(memgpt_agent.messages, dump=True)
-            else:
-                memgpt_agent.interface.print_messages(memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
-
-        elif command.lower() == "dumpraw":
-            memgpt_agent.interface.print_messages_raw(memgpt_agent.messages)
-
-        elif command.lower() == "memory":
-            ret_str = (
-                f"\nDumping memory contents:\n"
-                + f"\n{str(memgpt_agent.memory)}"
-                + f"\n{str(memgpt_agent.persistence_manager.archival_memory)}"
-                + f"\n{str(memgpt_agent.persistence_manager.recall_memory)}"
-            )
-            return ret_str
-
-        elif command.lower() == "pop" or command.lower().startswith("pop "):
-            # Check if there's an additional argument that's an integer
-            command = command.strip().split()
-            pop_amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 3
-            n_messages = len(memgpt_agent.messages)
-            MIN_MESSAGES = 2
-            if n_messages <= MIN_MESSAGES:
-                logger.info(f"Agent only has {n_messages} messages in stack, none left to pop")
-            elif n_messages - pop_amount < MIN_MESSAGES:
-                logger.info(f"Agent only has {n_messages} messages in stack, cannot pop more than {n_messages - MIN_MESSAGES}")
-            else:
-                logger.info(f"Popping last {pop_amount} messages from stack")
-                for _ in range(min(pop_amount, len(memgpt_agent.messages))):
-                    memgpt_agent.messages.pop()
-
-        elif command.lower() == "retry":
-            # TODO this needs to also modify the persistence manager
-            logger.info(f"Retrying for another answer")
-            while len(memgpt_agent.messages) > 0:
-                if memgpt_agent.messages[-1].get("role") == "user":
-                    # we want to pop up to the last user message and send it again
-                    memgpt_agent.messages[-1].get("content")
-                    memgpt_agent.messages.pop()
-                    break
-                memgpt_agent.messages.pop()
-
-        elif command.lower() == "rethink" or command.lower().startswith("rethink "):
-            # TODO this needs to also modify the persistence manager
-            if len(command) < len("rethink "):
-                logger.warning("Missing text after the command")
-            else:
-                for x in range(len(memgpt_agent.messages) - 1, 0, -1):
-                    if memgpt_agent.messages[x].get("role") == "assistant":
-                        text = command[len("rethink ") :].strip()
-                        memgpt_agent.messages[x].update({"content": text})
-                        break
-
-        elif command.lower() == "rewrite" or command.lower().startswith("rewrite "):
-            # TODO this needs to also modify the persistence manager
-            if len(command) < len("rewrite "):
-                logger.warning("Missing text after the command")
-            else:
-                for x in range(len(memgpt_agent.messages) - 1, 0, -1):
-                    if memgpt_agent.messages[x].get("role") == "assistant":
-                        text = command[len("rewrite ") :].strip()
-                        args = json.loads(memgpt_agent.messages[x].get("function_call").get("arguments"), strict=JSON_LOADS_STRICT)
-                        args["message"] = text
-                        memgpt_agent.messages[x].get("function_call").update(
-                            {"arguments": json.dumps(args, ensure_ascii=JSON_ENSURE_ASCII)}
-                        )
-                        break
-
-        # No skip options
-        elif command.lower() == "wipe":
             # exit not supported on server.py
             raise ValueError(command)
 
@@ -521,8 +433,6 @@ class SyncServer(LockingServer):
                 created_by=user.id,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
-                # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
             )
             save_agent(agent=agent, ms=self.ms)
 
@@ -628,8 +538,6 @@ class SyncServer(LockingServer):
         }
 
         return memory_obj
-
-
 
     def delete_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
         """Delete an agent in the database"""

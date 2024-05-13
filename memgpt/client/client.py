@@ -132,9 +132,6 @@ class RESTClient(AbstractClient):
     def get_agent_memory(self, agent_id: str) -> Dict:
         raise NotImplementedError
 
-    def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Dict:
-        raise NotImplementedError
-
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         # TODO: support role? what is return_token_count?
         payload = {"agent_id": str(agent_id), "message": message}

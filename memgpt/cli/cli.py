@@ -46,7 +46,6 @@ def run(
     ] = None,
     # other
     debug: Annotated[bool, typer.Option(help="Use --debug to enable debugging output")] = False,
-    yes: Annotated[bool, typer.Option("-y", help="Skip confirmation prompt and use defaults")] = False,
 ):
     """Start chatting with an MemGPT agent
 
@@ -74,7 +73,7 @@ def run(
     user = create_default_user_or_exit(config, ms)
 
     # determine agent to use, if not provided
-    if not yes and not agent:
+    if not agent:
         raise Exception("Please provide an agent name")
 
     # create agent config
@@ -139,42 +138,11 @@ def run(
         llm_config = config.default_llm_config
         embedding_config = config.default_embedding_config  # TODO allow overriding embedding params via CLI run
 
-        # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
-        if model and model != llm_config.model:
-            typer.secho(f"{CLI_WARNING_PREFIX}Overriding default model {llm_config.model} with {model}", fg=typer.colors.YELLOW)
-            llm_config.model = model
-        if context_window is not None and int(context_window) != llm_config.context_window:
-            typer.secho(
-                f"{CLI_WARNING_PREFIX}Overriding default context window {llm_config.context_window} with {context_window}",
-                fg=typer.colors.YELLOW,
-            )
-            llm_config.context_window = context_window
-        if model_wrapper and model_wrapper != llm_config.model_wrapper:
-            typer.secho(
-                f"{CLI_WARNING_PREFIX}Overriding existing model wrapper {llm_config.model_wrapper} with {model_wrapper}",
-                fg=typer.colors.YELLOW,
-            )
-            llm_config.model_wrapper = model_wrapper
-        if model_endpoint and model_endpoint != llm_config.model_endpoint:
-            typer.secho(
-                f"{CLI_WARNING_PREFIX}Overriding existing model endpoint {llm_config.model_endpoint} with {model_endpoint}",
-                fg=typer.colors.YELLOW,
-            )
-            llm_config.model_endpoint = model_endpoint
-        if model_endpoint_type and model_endpoint_type != llm_config.model_endpoint_type:
-            typer.secho(
-                f"{CLI_WARNING_PREFIX}Overriding existing model endpoint type {llm_config.model_endpoint_type} with {model_endpoint_type}",
-                fg=typer.colors.YELLOW,
-            )
-            llm_config.model_endpoint_type = model_endpoint_type
-
         # create agent
         try:
             preset_obj = ms.get_preset(preset_name=preset if preset else config.preset, user_id=user.id)
             if preset_obj is None:
-                preset_obj = Preset(description='foo', system='you are a robot', human='you are a human', persona='you are a persona', name='test') # type: ignore
-                typer.secho("Couldn't find presets in database, please run `add to db`", fg=typer.colors.RED)
-                sys.exit(1)
+                preset_obj = Preset(description="foo", system="you are a robot", human="you are a human", persona="you are a persona", name="test", user_id=uuid.uuid4())  # type: ignore
 
             # Overwrite fields in the preset if they were specified
             preset_obj.human = human if human else config.human
@@ -190,8 +158,6 @@ def run(
                 preset=preset_obj,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
-                # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
             )
             save_agent(agent=memgpt_agent, ms=ms)
 

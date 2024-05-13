@@ -1,6 +1,5 @@
 import uuid
 import inspect
-import json
 import traceback
 from typing import List, Tuple, Optional, cast, Union
 
@@ -21,7 +20,6 @@ from memgpt.utils import (
     validate_function_response,
 )
 from memgpt.constants import (
-    JSON_LOADS_STRICT,
     MESSAGE_SUMMARY_WARNING_FRAC,
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
@@ -29,7 +27,6 @@ from memgpt.constants import (
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
     LLM_MAX_TOKENS,
     CLI_WARNING_PREFIX,
-    JSON_ENSURE_ASCII,
 )
 from .errors import LLMError
 from .functions.functions import load_all_function_sets
@@ -49,23 +46,15 @@ def initialize_memory(ai_notes: Union[str, None], human_notes: Union[str, None])
 def construct_system_with_memory(
     system: str,
     memory: InContextMemory,
-    memory_edit_timestamp: str,
-    archival_memory: ArchivalMemory = None,
-    recall_memory: RecallMemory = None,
-    include_char_count: bool = True,
 ):
     full_system_message = "\n".join(
         [
             system,
             "\n",
-            f"### Memory [last modified: {memory_edit_timestamp.strip()}]",
-            f"{len(recall_memory) if recall_memory else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
-            f"{len(archival_memory) if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
-            "\nCore memory shown below (limited in size, additional information stored in archival / recall memory):",
-            f'<persona characters="{len(memory.persona)}/{memory.persona_char_limit}">' if include_char_count else "<persona>",
+            "<persona>",
             memory.persona,
             "</persona>",
-            f'<human characters="{len(memory.human)}/{memory.human_char_limit}">' if include_char_count else "<human>",
+            "<human>",
             memory.human,
             "</human>",
         ]
@@ -74,27 +63,16 @@ def construct_system_with_memory(
 
 
 def initialize_message_sequence(
-    model: str,
     system: str,
     memory: InContextMemory,
-    archival_memory: ArchivalMemory = None,
-    recall_memory: RecallMemory = None,
-    memory_edit_timestamp: str = None,
     include_initial_boot_message: bool = True,
 ):
-    if memory_edit_timestamp is None:
-        memory_edit_timestamp = get_local_time()
 
-    full_system_message = construct_system_with_memory(
-        system, memory, memory_edit_timestamp, archival_memory=archival_memory, recall_memory=recall_memory
-    )
+    full_system_message = construct_system_with_memory(system, memory)
     first_user_message = get_login_event()  # event letting MemGPT know the user just logged in
 
     if include_initial_boot_message:
-        if model is not None and "gpt-3.5" in model:
-            initial_boot_messages = get_initial_boot_messages("startup_with_send_message_gpt35")
-        else:
-            initial_boot_messages = get_initial_boot_messages("startup_with_send_message")
+        initial_boot_messages = get_initial_boot_messages()
         messages = (
             [
                 {"role": "system", "content": full_system_message},
@@ -126,9 +104,6 @@ class Agent(object):
         name: Optional[str] = None,
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
-        # extras
-        messages_total: Optional[int] = None,  # TODO remove?
-        first_message_verify_mono: bool = True,  # TODO move to config?
     ):
         # An agent can be created from a Preset object
         if preset is not None:
@@ -193,8 +168,6 @@ class Agent(object):
         self.interface = interface
         self.persistence_manager = LocalStateManager(agent_state=self.agent_state)
 
-        self.first_message_verify_mono = first_message_verify_mono
-
         # Controls if the convo memory pressure warning is triggered
         # When an alert is sent in the message queue, set this to True (to avoid repeat alerts)
         # When the summarizer is run, set this back to False (to reset)
@@ -219,7 +192,6 @@ class Agent(object):
         else:
             # print(f"Agent.__init__ :: creating, state={agent_state.state['messages']}")
             init_messages = initialize_message_sequence(
-                self.model,
                 self.system,
                 self.memory,
             )
@@ -231,14 +203,7 @@ class Agent(object):
                     )
                 )
             assert all([isinstance(msg, Message) for msg in init_messages_objs]), (init_messages_objs, init_messages)
-            self.messages_total = 0
             self._append_to_messages(added_messages=[cast(Message, msg) for msg in init_messages_objs if msg is not None])
-
-        # Keep track of the total number of messages throughout all time
-        self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
-        # self.messages_total_init = self.messages_total
-        self.messages_total_init = len(self._messages) - 1
-        printd(f"Agent initialized, self.messages_total={self.messages_total}")
 
         # Create the agent in the DB
         # self.save()
@@ -268,7 +233,6 @@ class Agent(object):
 
         new_messages = [self._messages[0]] + added_messages + self._messages[1:]  # prepend (no system)
         self._messages = new_messages
-        self.messages_total += len(added_messages)  # still should increment the message counter (summaries are additions too)
 
     def _append_to_messages(self, added_messages: List[Message]):
         """Wrapper around self.messages.append to allow additional calls to a state/persistence manager"""
@@ -283,7 +247,6 @@ class Agent(object):
         new_messages = self._messages + added_messages  # append
 
         self._messages = new_messages
-        self.messages_total += len(added_messages)
 
     def append_to_messages(self, added_messages: List[dict]):
         """An external-facing message append, where dict-like messages are first converted to Message objects"""
@@ -297,7 +260,6 @@ class Agent(object):
             for msg in added_messages
         ]
         self._append_to_messages(added_messages_objs)
-
 
     def _get_ai_reply(
         self,
@@ -353,8 +315,6 @@ class Agent(object):
             else:
                 tool_call_id = response_message.tool_calls[0].id
                 assert tool_call_id is not None  # should be defined
-
-
 
             # role: assistant (requesting tool call, set tool call ID)
             messages.append(
@@ -512,7 +472,6 @@ class Agent(object):
     def step(
         self,
         user_message: Union[Message, str],  # NOTE: should be json.dump(dict)
-        first_message: bool = False,
     ) -> Tuple[List[dict], bool, bool, bool]:
         """Top-level event message handler for the MemGPT agent"""
 
@@ -528,26 +487,6 @@ class Agent(object):
 
                 self.interface.user_message(user_message_text)
                 packed_user_message = {"role": "user", "content": user_message_text}
-                # Special handling for AutoGen messages with 'name' field
-                try:
-                    user_message_json = json.loads(user_message_text, strict=JSON_LOADS_STRICT)
-                    # Special handling for AutoGen messages with 'name' field
-                    # Treat 'name' as a special field
-                    # If it exists in the input message, elevate it to the 'message' level
-                    if "name" in user_message_json:
-                        packed_user_message["name"] = user_message_json["name"]
-                        user_message_json.pop("name", None)
-                        packed_user_message["content"] = json.dumps(user_message_json, ensure_ascii=JSON_ENSURE_ASCII)
-                except Exception as e:
-                    print(f"{CLI_WARNING_PREFIX}handling of 'name' field failed with: {e}")
-
-                # Create the associated Message object (in the database)
-                packed_user_message_obj = Message.dict_to_message(
-                    agent_id=self.agent_state.id,
-                    user_id=self.agent_state.user_id,
-                    model=self.model,
-                    openai_message_dict=packed_user_message,
-                )
 
                 input_message_sequence = self.messages + [packed_user_message]
             # Alternatively, the requestor can send an empty user message
@@ -622,7 +561,7 @@ class Agent(object):
                 self.summarize_messages_inplace()
 
                 # Try step again
-                return self.step(user_message, first_message=first_message)
+                return self.step(user_message)
             else:
                 printd(f"step() failed with an unrecognized exception: '{str(e)}'")
                 raise e
@@ -714,11 +653,8 @@ class Agent(object):
         printd(f"Got summary: {summary}")
 
         # Metadata that's useful for the agent to see
-        all_time_message_count = self.messages_total
-        remaining_message_count = len(self.messages[cutoff:])
-        hidden_message_count = all_time_message_count - remaining_message_count
         summary_message_count = len(message_sequence_to_summarize)
-        summary_message = package_summarize_message(summary, summary_message_count, hidden_message_count, all_time_message_count)
+        summary_message = package_summarize_message(summary, summary_message_count)
         printd(f"Packaged into message: {summary_message}")
 
         prior_len = len(self.messages)

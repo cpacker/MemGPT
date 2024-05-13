@@ -19,17 +19,6 @@ LOGGER_NAME = "MemGPT"
 LOGGER_DEFAULT_LEVEL = CRITICAL
 
 
-FIRST_MESSAGE_ATTEMPTS = 10
-
-INITIAL_BOOT_MESSAGE = "Boot sequence complete. Persona activated."
-INITIAL_BOOT_MESSAGE_SEND_MESSAGE_THOUGHT = "Bootup sequence complete. Persona activated. Testing messaging functionality."
-STARTUP_QUOTES = [
-    "I think, therefore I am.",
-    "All those moments will be lost in time, like tears in rain.",
-    "More human than human is our motto.",
-]
-INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG = STARTUP_QUOTES[2]
-
 CLI_WARNING_PREFIX = "Warning: "
 
 NON_USER_MSG_PREFIX = "[This is an automated system message hidden from the user] "
@@ -81,8 +70,6 @@ CORE_MEMORY_HUMAN_CHAR_LIMIT = 2000
 
 # Function return limits
 FUNCTION_RETURN_CHAR_LIMIT = 3000  # ~300 words
-
-MAX_PAUSE_HEARTBEATS = 360  # in min
 
 
 #### Functions related

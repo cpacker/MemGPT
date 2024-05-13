@@ -11,7 +11,7 @@ from typing import List, Optional, Dict
 
 
 from memgpt.config import MemGPTConfig
-from memgpt.data_types import Record, Passage, Document, Message, RecordType
+from memgpt.data_types import Record, Passage, Message, RecordType
 from memgpt.utils import printd
 
 
@@ -20,8 +20,6 @@ from memgpt.utils import printd
 class TableType:
     ARCHIVAL_MEMORY = "archival_memory"  # recall memory table: memgpt_agent_{agent_id}
     RECALL_MEMORY = "recall_memory"  # archival memory table: memgpt_agent_recall_{agent_id}
-    PASSAGES = "passages"  # TODO
-    DOCUMENTS = "documents"  # TODO
 
 
 # table names used by MemGPT
@@ -29,10 +27,6 @@ class TableType:
 # agent tables
 RECALL_TABLE_NAME = "memgpt_recall_memory_agent"  # agent memory
 ARCHIVAL_TABLE_NAME = "memgpt_archival_memory_agent"  # agent memory
-
-# external data source tables
-PASSAGE_TABLE_NAME = "memgpt_passages"  # chunked/embedded passages (from source)
-DOCUMENT_TABLE_NAME = "memgpt_documents"  # original documents (from source)
 
 
 class StorageConnector:
@@ -42,8 +36,7 @@ class StorageConnector:
 
     def __init__(
         self,
-        table_type: Union[TableType.ARCHIVAL_MEMORY, TableType.RECALL_MEMORY, TableType.PASSAGES, TableType.DOCUMENTS],
-        config: MemGPTConfig,
+        table_type: Union[TableType.ARCHIVAL_MEMORY, TableType.RECALL_MEMORY],
         user_id,
         agent_id=None,
     ):
@@ -58,12 +51,6 @@ class StorageConnector:
         elif table_type == TableType.RECALL_MEMORY:
             self.type = Message
             self.table_name = RECALL_TABLE_NAME
-        elif table_type == TableType.DOCUMENTS:
-            self.type = Document
-            self.table_name == DOCUMENT_TABLE_NAME
-        elif table_type == TableType.PASSAGES:
-            self.type = Passage
-            self.table_name = PASSAGE_TABLE_NAME
         else:
             raise ValueError(f"Table type {table_type} not implemented")
         printd(f"Using table name {self.table_name}")
@@ -73,34 +60,19 @@ class StorageConnector:
             # agent-specific table
             assert agent_id is not None, "Agent ID must be provided for agent-specific tables"
             self.filters = {"user_id": self.user_id, "agent_id": self.agent_id}
-        elif self.table_type == TableType.PASSAGES or self.table_type == TableType.DOCUMENTS:
-            # setup base filters for user-specific tables
-            assert agent_id is None, "Agent ID must not be provided for user-specific tables"
-            self.filters = {"user_id": self.user_id}
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 
     @staticmethod
     def get_storage_connector(
-        table_type: Union[TableType.ARCHIVAL_MEMORY, TableType.RECALL_MEMORY, TableType.PASSAGES, TableType.DOCUMENTS],
+        table_type: Union[TableType.ARCHIVAL_MEMORY, TableType.RECALL_MEMORY],
         config: MemGPTConfig,
         user_id,
         agent_id=None,
     ):
-        if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
-            storage_type = config.archival_storage_type
-        elif table_type == TableType.RECALL_MEMORY:
-            storage_type = config.recall_storage_type
-        else:
-            raise ValueError(f"Table type {table_type} not implemented")
+        from memgpt.agent_store.db import PostgresStorageConnector
 
-        if storage_type == "postgres":
-            from memgpt.agent_store.db import PostgresStorageConnector
-
-            return PostgresStorageConnector(table_type, config, user_id, agent_id)
-
-        else:
-            raise NotImplementedError(f"Storage type {storage_type} not implemented")
+        return PostgresStorageConnector(table_type, config, user_id, agent_id)
 
     @staticmethod
     def get_archival_storage_connector(user_id, agent_id):

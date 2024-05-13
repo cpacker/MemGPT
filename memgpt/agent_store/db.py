@@ -75,7 +75,7 @@ def get_db_model(
         globals()[class_name] = Model
         return Model
 
-    if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
+    if table_type == TableType.ARCHIVAL_MEMORY:
         # create schema for archival memory
         class PassageModel(Base):
             """Defines data model for storing Passages (consisting of text, embedding)"""
@@ -195,7 +195,7 @@ def get_db_model(
 
 class SQLStorageConnector(StorageConnector):
     def __init__(self, table_type: str, config: MemGPTConfig, user_id, agent_id=None):
-        super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
+        super().__init__(table_type=table_type, user_id=user_id, agent_id=agent_id)
         self.config = config
 
     def get_filters(self, filters: Optional[Dict] = {}):
@@ -289,7 +289,7 @@ class PostgresStorageConnector(SQLStorageConnector):
         super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
 
         # get storage URI
-        if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
+        if table_type == TableType.ARCHIVAL_MEMORY:
             self.uri = self.config.archival_storage_uri
             if self.config.archival_storage_uri is None:
                 raise ValueError(f"Must specifiy archival_storage_uri in config {self.config.config_path}")

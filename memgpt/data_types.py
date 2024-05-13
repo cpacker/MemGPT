@@ -127,7 +127,6 @@ class Message(Record):
         agent_id: uuid.UUID,
         openai_message_dict: dict,
         model: Optional[str] = None,  # model used to make function call
-        allow_functions_style: bool = False,  # allow deprecated functions style?
         created_at: Optional[datetime] = None,
     ):
         """Convert a ChatCompletion message object into a Message object (synced to DB)"""
@@ -135,90 +134,36 @@ class Message(Record):
         assert "role" in openai_message_dict, openai_message_dict
         assert "content" in openai_message_dict, openai_message_dict
 
-        # If we're going from deprecated function form
-        if openai_message_dict["role"] == "function":
-            if not allow_functions_style:
-                raise DeprecationWarning(openai_message_dict)
-            assert "tool_call_id" in openai_message_dict, openai_message_dict
-
-            # Convert from 'function' response to a 'tool' response
-            # NOTE: this does not conventionally include a tool_call_id, it's on the caster to provide it
-            return Message(
-                created_at=created_at,
-                user_id=user_id,
-                agent_id=agent_id,
-                model=model,
-                # standard fields expected in an OpenAI ChatCompletion message object
-                role="tool",  # NOTE
-                text=openai_message_dict["content"],
-                name=openai_message_dict["name"] if "name" in openai_message_dict else None,
-                tool_calls=openai_message_dict["tool_calls"] if "tool_calls" in openai_message_dict else None,
-                tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
-            )
-
-        elif "function_call" in openai_message_dict and openai_message_dict["function_call"] is not None:
-            if not allow_functions_style:
-                raise DeprecationWarning(openai_message_dict)
-            assert openai_message_dict["role"] == "assistant", openai_message_dict
-            assert "tool_call_id" in openai_message_dict, openai_message_dict
-
-            # Convert a function_call (from an assistant message) into a tool_call
-            # NOTE: this does not conventionally include a tool_call_id (ToolCall.id), it's on the caster to provide it
-            tool_calls = [
-                ToolCall(
-                    id=openai_message_dict["tool_call_id"],  # NOTE: unconventional source, not to spec
-                    tool_call_type="function",
-                    function={
-                        "name": openai_message_dict["function_call"]["name"],
-                        "arguments": openai_message_dict["function_call"]["arguments"],
-                    },
-                )
-            ]
-
-            return Message(
-                created_at=created_at,
-                user_id=user_id,
-                agent_id=agent_id,
-                model=model,
-                # standard fields expected in an OpenAI ChatCompletion message object
-                role=openai_message_dict["role"],
-                text=openai_message_dict["content"],
-                name=openai_message_dict["name"] if "name" in openai_message_dict else None,
-                tool_calls=tool_calls,
-                tool_call_id=None,  # NOTE: None, since this field is only non-null for role=='tool'
-            )
-
+        # Basic sanity check
+        if openai_message_dict["role"] == "tool":
+            assert "tool_call_id" in openai_message_dict and openai_message_dict["tool_call_id"] is not None, openai_message_dict
         else:
-            # Basic sanity check
-            if openai_message_dict["role"] == "tool":
-                assert "tool_call_id" in openai_message_dict and openai_message_dict["tool_call_id"] is not None, openai_message_dict
-            else:
-                if "tool_call_id" in openai_message_dict:
-                    assert openai_message_dict["tool_call_id"] is None, openai_message_dict
+            if "tool_call_id" in openai_message_dict:
+                assert openai_message_dict["tool_call_id"] is None, openai_message_dict
 
-            if "tool_calls" in openai_message_dict and openai_message_dict["tool_calls"] is not None:
-                assert openai_message_dict["role"] == "assistant", openai_message_dict
+        if "tool_calls" in openai_message_dict and openai_message_dict["tool_calls"] is not None:
+            assert openai_message_dict["role"] == "assistant", openai_message_dict
 
-                tool_calls = [
-                    ToolCall(id=tool_call["id"], tool_call_type=tool_call["type"], function=tool_call["function"])
-                    for tool_call in openai_message_dict["tool_calls"]
-                ]
-            else:
-                tool_calls = None
+            tool_calls = [
+                ToolCall(id=tool_call["id"], tool_call_type=tool_call["type"], function=tool_call["function"])
+                for tool_call in openai_message_dict["tool_calls"]
+            ]
+        else:
+            tool_calls = None
 
-            # If we're going from tool-call style
-            return Message(
-                created_at=created_at,
-                user_id=user_id,
-                agent_id=agent_id,
-                model=model,
-                # standard fields expected in an OpenAI ChatCompletion message object
-                role=openai_message_dict["role"],
-                text=openai_message_dict["content"],
-                name=openai_message_dict["name"] if "name" in openai_message_dict else None,
-                tool_calls=tool_calls,
-                tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
-            )
+        # If we're going from tool-call style
+        return Message(
+            created_at=created_at,
+            user_id=user_id,
+            agent_id=agent_id,
+            model=model,
+            # standard fields expected in an OpenAI ChatCompletion message object
+            role=openai_message_dict["role"],
+            text=openai_message_dict["content"],
+            name=openai_message_dict["name"] if "name" in openai_message_dict else None,
+            tool_calls=tool_calls,
+            tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
+        )
 
     def to_openai_dict(self):
         """Go from Message class to ChatCompletion message object"""
@@ -268,23 +213,6 @@ class Message(Record):
             raise ValueError(self.role)
 
         return openai_message
-
-
-class Document(Record):
-    """A document represent a document loaded into MemGPT, which is broken down into passages."""
-
-    def __init__(self, user_id: uuid.UUID, text: str, data_source: str, id: Optional[uuid.UUID] = None, metadata: Optional[Dict] = {}):
-        if id is None:
-            # by default, generate ID as a hash of the text (avoid duplicates)
-            self.id = create_uuid_from_string("".join([text, str(user_id)]))
-        else:
-            self.id = id
-        super().__init__(id)
-        self.user_id = user_id
-        self.text = text
-        self.data_source = data_source
-        self.metadata = metadata
-        # TODO: add optional embedding?
 
 
 class Passage(Record):
