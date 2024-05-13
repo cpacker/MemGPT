@@ -24,6 +24,8 @@ class MessageRoleType(str, Enum):
 
 class UserMessageRequest(BaseModel):
     message: str = Field(..., description="The message content to be processed by the agent.")
+    name: Optional[str] = Field(default=None, description="Name of the message request sender")
+    role: MessageRoleType = Field(default=MessageRoleType.user, description="Role of the message sender (either 'user' or 'system')")
     stream_steps: bool = Field(
         default=False, description="Flag to determine if the response should be streamed. Set to True for streaming agent steps."
     )
@@ -31,7 +33,6 @@ class UserMessageRequest(BaseModel):
         default=False,
         description="Flag to determine if individual tokens should be streamed. Set to True for token streaming (requires stream = True).",
     )
-    role: MessageRoleType = Field(default=MessageRoleType.user, description="Role of the message sender (either 'user' or 'system')")
     timestamp: Optional[datetime] = Field(
         None,
         description="Timestamp to tag the message with (in ISO format). If null, timestamp will be created server-side on receipt of message.",

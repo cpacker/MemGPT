@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import requests
 
 from memgpt.config import MemGPTConfig
+from memgpt.constants import DEFAULT_PRESET
 from memgpt.data_sources.connectors import DataConnector
 from memgpt.data_types import (
     AgentState,
@@ -23,6 +24,7 @@ from memgpt.models.pydantic_models import (
     PersonaModel,
     PresetModel,
     SourceModel,
+    ToolModel,
 )
 
 # import pydantic response objects from memgpt.server.rest_api
@@ -50,7 +52,7 @@ from memgpt.server.rest_api.presets.index import (
     ListPresetsResponse,
 )
 from memgpt.server.rest_api.sources.index import ListSourcesResponse
-from memgpt.server.rest_api.tools.index import CreateToolResponse, ListToolsResponse
+from memgpt.server.rest_api.tools.index import CreateToolResponse
 from memgpt.server.server import SyncServer
 
 
@@ -259,7 +261,7 @@ class RESTClient(AbstractClient):
     def create_agent(
         self,
         name: Optional[str] = None,
-        preset: Optional[str] = None,
+        preset: Optional[str] = None,  # TODO: this should actually be re-named preset_name
         persona: Optional[str] = None,
         human: Optional[str] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
@@ -267,6 +269,7 @@ class RESTClient(AbstractClient):
     ) -> AgentState:
         if embedding_config or llm_config:
             raise ValueError("Cannot override embedding_config or llm_config when creating agent via REST API")
+        # TODO: distinguish between name and objects
         payload = {
             "config": {
                 "name": name,
@@ -329,23 +332,87 @@ class RESTClient(AbstractClient):
         response_obj = GetAgentResponse(**response.json())
         return self.get_agent_response_to_state(response_obj)
 
-    # presets
-    def create_preset(self, preset: Preset) -> CreatePresetResponse:
-        # TODO should the arg type here be PresetModel, not Preset?
+    ## presets
+    # def create_preset(self, preset: Preset) -> CreatePresetResponse:
+    #    # TODO should the arg type here be PresetModel, not Preset?
+    #    payload = CreatePresetsRequest(
+    #        id=str(preset.id),
+    #        name=preset.name,
+    #        description=preset.description,
+    #        system=preset.system,
+    #        persona=preset.persona,
+    #        human=preset.human,
+    #        persona_name=preset.persona_name,
+    #        human_name=preset.human_name,
+    #        functions_schema=preset.functions_schema,
+    #    )
+    #    response = requests.post(f"{self.base_url}/api/presets", json=payload.model_dump(), headers=self.headers)
+    #    assert response.status_code == 200, f"Failed to create preset: {response.text}"
+    #    return CreatePresetResponse(**response.json())
+
+    def get_preset(self, name: str) -> PresetModel:
+        response = requests.get(f"{self.base_url}/api/presets/{name}", headers=self.headers)
+        assert response.status_code == 200, f"Failed to get preset: {response.text}"
+        return PresetModel(**response.json())
+
+    def create_preset(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        system_name: Optional[str] = None,
+        persona_name: Optional[str] = None,
+        human_name: Optional[str] = None,
+        tools: Optional[List[ToolModel]] = None,
+        default_tools: bool = True,
+    ) -> PresetModel:
+        """Create an agent preset
+
+        :param name: Name of the preset
+        :type name: str
+        :param system: System prompt (text)
+        :type system: str
+        :param persona: Persona prompt (text)
+        :type persona: Optional[str]
+        :param human: Human prompt (text)
+        :type human: Optional[str]
+        :param tools: List of tools to connect, defaults to None
+        :type tools: Optional[List[Tool]], optional
+        :param default_tools: Whether to automatically include default tools, defaults to True
+        :type default_tools: bool, optional
+        :return: Preset object
+        :rtype: PresetModel
+        """
+        # provided tools
+        schema = []
+        if tools:
+            for tool in tools:
+                print("CUSOTM TOOL", tool.json_schema)
+                schema.append(tool.json_schema)
+
+        # include default tools
+        default_preset = self.get_preset(name=DEFAULT_PRESET)
+        if default_tools:
+            # TODO
+            # from memgpt.functions.functions import load_function_set
+            # load_function_set()
+            # return
+            for function in default_preset.functions_schema:
+                schema.append(function)
+
         payload = CreatePresetsRequest(
-            id=str(preset.id),
-            name=preset.name,
-            description=preset.description,
-            system=preset.system,
-            persona=preset.persona,
-            human=preset.human,
-            persona_name=preset.persona_name,
-            human_name=preset.human_name,
-            functions_schema=preset.functions_schema,
+            name=name,
+            description=description,
+            system_name=system_name,
+            persona_name=persona_name,
+            human_name=human_name,
+            functions_schema=schema,
         )
+        print(schema)
+        print(human_name, persona_name, system_name, name)
+        print(payload.model_dump())
         response = requests.post(f"{self.base_url}/api/presets", json=payload.model_dump(), headers=self.headers)
         assert response.status_code == 200, f"Failed to create preset: {response.text}"
-        return CreatePresetResponse(**response.json())
+        return CreatePresetResponse(**response.json()).preset
 
     def delete_preset(self, preset_id: uuid.UUID):
         response = requests.delete(f"{self.base_url}/api/presets/{str(preset_id)}", headers=self.headers)
@@ -517,23 +584,6 @@ class RESTClient(AbstractClient):
     def get_config(self) -> ConfigResponse:
         response = requests.get(f"{self.base_url}/api/config", headers=self.headers)
         return ConfigResponse(**response.json())
-
-    # tools
-
-    def create_tool(
-        self, name: str, file_path: str, source_type: Optional[str] = "python", tags: Optional[List[str]] = None
-    ) -> CreateToolResponse:
-        """Add a tool implemented in a file path"""
-        source_code = open(file_path, "r").read()
-        data = {"name": name, "source_code": source_code, "source_type": source_type, "tags": tags}
-        response = requests.post(f"{self.base_url}/api/tools", json=data, headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to create tool: {response.text}")
-        return CreateToolResponse(**response.json())
-
-    def list_tools(self) -> ListToolsResponse:
-        response = requests.get(f"{self.base_url}/api/tools", headers=self.headers)
-        return ListToolsResponse(**response.json())
 
 
 class LocalClient(AbstractClient):

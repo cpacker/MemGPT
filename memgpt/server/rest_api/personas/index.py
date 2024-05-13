@@ -40,6 +40,7 @@ def setup_personas_index_router(server: SyncServer, interface: QueuingInterface,
         request: CreatePersonaRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
+        # TODO: disallow duplicate names for personas
         interface.clear()
         new_persona = PersonaModel(text=request.text, name=request.name, user_id=user_id)
         persona_id = new_persona.id

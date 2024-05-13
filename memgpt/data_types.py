@@ -11,11 +11,13 @@ from pydantic import BaseModel, Field
 from memgpt.constants import (
     DEFAULT_HUMAN,
     DEFAULT_PERSONA,
+    DEFAULT_PRESET,
     LLM_MAX_TOKENS,
     MAX_EMBEDDING_DIM,
     TOOL_CALL_ID_MAX_LEN,
 )
 from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
+from memgpt.prompts import gpt_system
 from memgpt.utils import (
     create_uuid_from_string,
     get_human_text,
@@ -243,6 +245,11 @@ class Message(Record):
                 tool_calls=tool_calls,
                 tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
             )
+
+    def to_openai_dict_search_results(self, max_tool_id_length=TOOL_CALL_ID_MAX_LEN) -> dict:
+        result_json = self.to_openai_dict()
+        search_result_json = {"timestamp": self.created_at, "message": {"content": result_json["content"], "role": result_json["role"]}}
+        return search_result_json
 
     def to_openai_dict(self, max_tool_id_length=TOOL_CALL_ID_MAX_LEN) -> dict:
         """Go from Message class to ChatCompletion message object"""
@@ -843,7 +850,10 @@ class Preset(BaseModel):
     user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user who created the preset.")
     description: Optional[str] = Field(None, description="The description of the preset.")
     created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the preset was created.")
-    system: str = Field(..., description="The system prompt of the preset.")
+    system: str = Field(
+        gpt_system.get_system_text(DEFAULT_PRESET), description="The system prompt of the preset."
+    )  # default system prompt is same as default preset name
+    # system_name: Optional[str] = Field(None, description="The name of the system prompt of the preset.")
     persona: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona of the preset.")
     persona_name: Optional[str] = Field(None, description="The name of the persona of the preset.")
     human: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human of the preset.")
