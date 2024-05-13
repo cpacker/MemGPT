@@ -45,7 +45,6 @@ from memgpt.models.pydantic_models import (
     SourceModel,
     ToolModel,
 )
-from memgpt.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -214,12 +213,12 @@ class SyncServer(LockingServer):
         assert self.config.human is not None, "Human must be set in the config"
 
         # Update storage URI to match passed in settings
-        # TODO: very hack, fix in the future
-        for memory_type in ("archival", "recall", "metadata"):
-            if settings.memgpt_pg_uri:
-                # override with env
-                setattr(self.config, f"{memory_type}_storage_uri", settings.memgpt_pg_uri)
-        self.config.save()
+        # (NOTE: no longer needed since envs being used, I think)
+        # for memory_type in ("archival", "recall", "metadata"):
+        #    if settings.memgpt_pg_uri:
+        #        # override with env
+        #        setattr(self.config, f"{memory_type}_storage_uri", settings.memgpt_pg_uri)
+        # self.config.save()
 
         # TODO figure out how to handle credentials for the server
         self.credentials = MemGPTCredentials.load()

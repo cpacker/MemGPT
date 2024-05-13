@@ -95,6 +95,11 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
             request.id = uuid.UUID(request.id)
         # new_preset = PresetModel(
 
+        # check if preset already exists
+        # TODO: move this into a server function to create a preset
+        if server.ms.get_preset(name=request.name, user_id=user_id):
+            raise HTTPException(status_code=400, detail=f"Preset with name {request.name} already exists.")
+
         # For system/human/persona - if {system/human-personal}_name is None but the text is provied, then create a new data entry
         if not request.system_name and request.system:
             # new system provided without name identity
@@ -128,7 +133,7 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
         # create preset
         new_preset = Preset(
             user_id=user_id,
-            id=uuid.UUID(request.id) if request.id else uuid.uuid4(),
+            id=request.id if request.id else uuid.uuid4(),
             name=request.name,
             description=request.description,
             system=system,
