@@ -16,13 +16,11 @@ from memgpt.utils import (
     get_tool_call_id,
     get_local_time,
     parse_json,
-    united_diff,
     printd,
     count_tokens,
     validate_function_response,
 )
 from memgpt.constants import (
-    FIRST_MESSAGE_ATTEMPTS,
     JSON_LOADS_STRICT,
     MESSAGE_SUMMARY_WARNING_FRAC,
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
@@ -356,9 +354,7 @@ class Agent(object):
                 tool_call_id = response_message.tool_calls[0].id
                 assert tool_call_id is not None  # should be defined
 
-            # only necessary to add the tool_cal_id to a function call (antipattern)
-            # response_message_dict = response_message.model_dump()
-            # response_message_dict["tool_call_id"] = tool_call_id
+
 
             # role: assistant (requesting tool call, set tool call ID)
             messages.append(
