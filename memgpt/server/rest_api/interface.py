@@ -375,7 +375,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
         return processed_chunk
 
-    def process_chunk(self, chunk: ChatCompletionChunkResponse):
+    def process_chunk(self, chunk: ChatCompletionChunkResponse, msg_obj: Optional[Message] = None):
         """Process a streaming chunk from an OpenAI-compatible server.
 
         Example data from non-streaming response looks like:
@@ -399,6 +399,9 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         if processed_chunk is None:
             return
 
+        if msg_obj:
+            processed_chunk["id"] = str(msg_obj.id)
+
         self._chunks.append(processed_chunk)
         self._event.set()  # Signal that new data is available
 
@@ -421,6 +424,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
             processed_chunk = {
                 "internal_monologue": msg,
                 "date": msg_obj.created_at.isoformat() if msg_obj is not None else get_utc_time().isoformat(),
+                "id": str(msg_obj.id) if msg_obj is not None else None,
             }
 
             self._chunks.append(processed_chunk)
@@ -444,10 +448,11 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                 function_call = msg_obj.tool_calls[0]
                 processed_chunk = {
                     "function_call": {
-                        "id": function_call.id,
+                        # "id": function_call.id,
                         "name": function_call.function["name"],
                         "arguments": function_call.function["arguments"],
                     },
+                    "id": str(msg_obj.id),
                     "date": msg_obj.created_at.isoformat(),
                 }
 
