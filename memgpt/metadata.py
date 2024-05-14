@@ -154,9 +154,7 @@ class AgentModel(Base):
             id=self.id,
             user_id=self.user_id,
             name=self.name,
-            persona=self.persona,
             human=self.human,
-            preset=self.preset,
             created_at=self.created_at,
             llm_config=self.llm_config,
             embedding_config=self.embedding_config,
@@ -231,10 +229,7 @@ class PresetModel(Base):
     user_id = Column(CommonUUID, nullable=False)
     name = Column(String, nullable=False)
     description = Column(String)
-    system = Column(String)
     human = Column(String)
-    persona = Column(String)
-    preset = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self) -> str:
@@ -242,15 +237,12 @@ class PresetModel(Base):
 
     def to_record(self) -> Preset:
         return Preset(
-            id=self.id,
-            user_id=self.user_id,
-            name=self.name,
-            description=self.description,
-            system=self.system,
-            human=self.human,
-            persona=self.persona,
-            preset=self.preset,
-            created_at=self.created_at,
+            id=self.id, # type: ignore
+            user_id=self.user_id,  # type: ignore
+            name=self.name,  # type: ignore
+            description=self.description,  # type: ignore
+            human=self.human,  # type: ignore
+            created_at=self.created_at,  # type: ignore
         )
 
 
@@ -329,13 +321,13 @@ class MetadataStore:
     @enforce_types
     def update_agent(self, agent: AgentState):
         with self.session_maker() as session:
-            session.query(AgentModel).filter(AgentModel.id == agent.id).update(vars(agent))
+            session.query(AgentModel).filter(AgentModel.id == agent.id).update(vars(agent)) # type: ignore
             session.commit()
 
     @enforce_types
     def update_user(self, user: User):
         with self.session_maker() as session:
-            session.query(UserModel).filter(UserModel.id == user.id).update(vars(user))
+            session.query(UserModel).filter(UserModel.id == user.id).update(vars(user)) # type: ignore
             session.commit()
 
     @enforce_types

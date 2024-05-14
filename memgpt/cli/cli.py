@@ -146,9 +146,6 @@ def run(
 
             # Overwrite fields in the preset if they were specified
             preset_obj.human = human if human else config.human
-            preset_obj.persona = persona if persona else config.persona
-
-            typer.secho(f"->  🤖 Using persona profile '{preset_obj.persona}'", fg=typer.colors.WHITE)
             typer.secho(f"->  🧑 Using human profile '{preset_obj.human}'", fg=typer.colors.WHITE)
 
             memgpt_agent = Agent(

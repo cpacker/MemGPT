@@ -52,13 +52,9 @@ class AbstractClient(object):
     def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
         raise NotImplementedError
 
-    def get_agent_memory(self, agent_id: str) -> Dict:
-        raise NotImplementedError
+
 
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
-        raise NotImplementedError
-
-    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
         raise NotImplementedError
 
     def save(self):
@@ -111,8 +107,6 @@ class RESTClient(AbstractClient):
             id=uuid.UUID(response_json["agent_state"]["id"]),
             name=response_json["agent_state"]["name"],
             user_id=uuid.UUID(response_json["agent_state"]["user_id"]),
-            preset=response_json["agent_state"]["preset"],
-            persona=response_json["agent_state"]["persona"],
             human=response_json["agent_state"]["human"],
             llm_config=llm_config,
             embedding_config=embedding_config,
@@ -129,19 +123,7 @@ class RESTClient(AbstractClient):
     def create_preset(self, preset: Preset):
         raise NotImplementedError
 
-    def get_agent_memory(self, agent_id: str) -> Dict:
-        raise NotImplementedError
 
-    def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
-        # TODO: support role? what is return_token_count?
-        payload = {"agent_id": str(agent_id), "message": message}
-        response = requests.post(f"{self.base_url}/api/agents/message", json=payload, headers=self.headers)
-        response_json = response.json()
-        print(response_json)
-        return response_json
-
-    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
-        raise NotImplementedError
 
     def save(self):
         raise NotImplementedError
@@ -223,9 +205,7 @@ class LocalClient(AbstractClient):
         preset = self.server.create_preset(preset=preset)
         return preset
 
-    def get_agent_memory(self, agent_id: str) -> Dict:
-        self.interface.clear()
-        return self.server.get_agent_memory(user_id=self.user_id, agent_id=agent_id)
+
 
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         self.interface.clear()
@@ -234,10 +214,6 @@ class LocalClient(AbstractClient):
             self.save()
         else:
             return self.interface.to_list()
-
-    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
-        self.interface.clear()
-        return self.server.run_command(user_id=self.user_id, agent_id=agent_id, command=command)
 
     def save(self):
         self.server.save_agents()

@@ -9,17 +9,17 @@ from memgpt.models import chat_completion_response
 from memgpt.interface import AgentInterface
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.system import get_login_event, package_function_response, package_summarize_message, get_initial_boot_messages
-from memgpt.memory import CoreMemory as InContextMemory, summarize_messages, ArchivalMemory, RecallMemory
+from memgpt.memory import CoreMemory as InContextMemory, summarize_messages
 from memgpt.llm_api_tools import create, is_context_overflow_error
 from memgpt.utils import (
     get_tool_call_id,
-    get_local_time,
     parse_json,
     printd,
     count_tokens,
     validate_function_response,
 )
 from memgpt.constants import (
+    DEFAULT_PERSONA,
     MESSAGE_SUMMARY_WARNING_FRAC,
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
@@ -27,35 +27,36 @@ from memgpt.constants import (
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
     LLM_MAX_TOKENS,
     CLI_WARNING_PREFIX,
+    SYSTEM,
 )
 from .errors import LLMError
 from .functions.functions import load_all_function_sets
 
 
-def initialize_memory(ai_notes: Union[str, None], human_notes: Union[str, None]):
-    if ai_notes is None:
-        raise ValueError(ai_notes)
-    if human_notes is None:
-        raise ValueError(human_notes)
+def initialize_memory(ai_notes: str, human_notes: str):
+    assert(ai_notes)
+    assert(human_notes)
     memory = InContextMemory(human_char_limit=CORE_MEMORY_HUMAN_CHAR_LIMIT, persona_char_limit=CORE_MEMORY_PERSONA_CHAR_LIMIT)
     memory.edit_persona(ai_notes)
     memory.edit_human(human_notes)
     return memory
 
-
+# TODO (tbedor) this should be generated dynamically
 def construct_system_with_memory(
-    system: str,
     memory: InContextMemory,
 ):
+    
+    human = memory.human
+    assert type(human) == str
     full_system_message = "\n".join(
         [
-            system,
+            SYSTEM,
             "\n",
             "<persona>",
-            memory.persona,
+            DEFAULT_PERSONA,
             "</persona>",
             "<human>",
-            memory.human,
+            human,
             "</human>",
         ]
     )
@@ -63,31 +64,24 @@ def construct_system_with_memory(
 
 
 def initialize_message_sequence(
-    system: str,
     memory: InContextMemory,
-    include_initial_boot_message: bool = True,
 ):
 
-    full_system_message = construct_system_with_memory(system, memory)
+    full_system_message = construct_system_with_memory(memory)
     first_user_message = get_login_event()  # event letting MemGPT know the user just logged in
 
-    if include_initial_boot_message:
-        initial_boot_messages = get_initial_boot_messages()
-        messages = (
-            [
-                {"role": "system", "content": full_system_message},
-            ]
-            + initial_boot_messages
-            + [
-                {"role": "user", "content": first_user_message},
-            ]
-        )
-
-    else:
-        messages = [
+    
+    initial_boot_messages = get_initial_boot_messages()
+    messages = (
+        [
             {"role": "system", "content": full_system_message},
+        ]
+        + initial_boot_messages
+        + [
             {"role": "user", "content": first_user_message},
         ]
+    )
+
 
     return messages
 
@@ -117,15 +111,13 @@ class Agent(object):
             init_agent_state = AgentState(
                 name=name,
                 user_id=created_by,
-                persona=preset.persona,
                 human=preset.human,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
-                preset=preset.name,
                 state={
-                    "persona": preset.persona,
+                    "persona": DEFAULT_PERSONA,
                     "human": preset.human,
-                    "system": preset.system,
+                    "system": SYSTEM,
                     "messages": None,
                 },
             )
@@ -147,20 +139,12 @@ class Agent(object):
         # gpt-4, gpt-3.5-turbo, ...
         self.model = self.agent_state.llm_config.model
 
-        # Store the system instructions (used to rebuild memory)
-        if "system" not in self.agent_state.state:
-            raise ValueError(f"'system' not found in provided AgentState")
-        self.system = self.agent_state.state["system"]
-
         all_functions = load_all_function_sets()
         self.functions = [fs["json_schema"] for fs in all_functions.values()]
         self.functions_python = {k: v["python_function"] for k, v in all_functions.items()}
 
         assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
 
-        # Initialize the memory object
-        if "persona" not in self.agent_state.state:
-            raise ValueError(f"'persona' not found in provided AgentState")
         if "human" not in self.agent_state.state:
             raise ValueError(f"'human' not found in provided AgentState")
         self.memory = initialize_memory(ai_notes=self.agent_state.state["persona"], human_notes=self.agent_state.state["human"])
@@ -190,9 +174,7 @@ class Agent(object):
             self._messages.extend([cast(Message, msg) for msg in raw_messages if msg is not None])
 
         else:
-            # print(f"Agent.__init__ :: creating, state={agent_state.state['messages']}")
             init_messages = initialize_message_sequence(
-                self.system,
                 self.memory,
             )
             init_messages_objs = []
@@ -240,10 +222,7 @@ class Agent(object):
 
         self.persistence_manager.append_to_messages(added_messages)
 
-        # strip extra metadata if it exists
-        # for msg in added_messages:
-        # msg.pop("api_response", None)
-        # msg.pop("api_args", None)
+
         new_messages = self._messages + added_messages  # append
 
         self._messages = new_messages
@@ -680,7 +659,6 @@ class Agent(object):
         updated_state = {
             "persona": self.memory.persona,
             "human": self.memory.human,
-            "system": self.system,
             "functions": self.functions,
             "messages": [str(msg.id) for msg in self._messages],
         }
@@ -688,11 +666,9 @@ class Agent(object):
         self.agent_state = AgentState(
             name=self.agent_state.name,
             user_id=self.agent_state.user_id,
-            persona=self.agent_state.persona,
             human=self.agent_state.human,
             llm_config=self.agent_state.llm_config,
             embedding_config=self.agent_state.embedding_config,
-            preset=self.agent_state.preset,
             id=self.agent_state.id,
             created_at=self.agent_state.created_at,
             state=updated_state,

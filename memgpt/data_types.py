@@ -343,11 +343,9 @@ class AgentState:
         self,
         name: str,
         user_id: uuid.UUID,
-        persona: str,  # the filename where the persona was originally sourced from
         human: str,  # the filename where the human was originally sourced from
         llm_config: LLMConfig,
         embedding_config: EmbeddingConfig,
-        preset: str,
         id: Optional[uuid.UUID] = None,
         state: Optional[dict] = None,
         created_at: Optional[datetime] = None,
@@ -359,12 +357,8 @@ class AgentState:
         assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
         assert isinstance(user_id, uuid.UUID), f"UUID {user_id} must be a UUID type"
 
-        # TODO(swooders) we need to handle the case where name is None here
-        # in AgentConfig we autogenerate a name, not sure what the correct thing w/ DBs is, what about NounAdjective combos? Like giphy does? BoredGiraffe etc
         self.name = name
         self.user_id = user_id
-        self.preset = preset
-        self.persona = persona
         self.human = human
 
         self.llm_config = llm_config
@@ -429,8 +423,6 @@ class Preset(BaseModel):
     user_id: uuid.UUID = Field(..., description="The unique identifier of the user who created the preset.")
     description: Optional[str] = Field(None, description="The description of the preset.")
     created_at: datetime = Field(default_factory=datetime.now, description="The unix timestamp of when the preset was created.")
-    system: str = Field(..., description="The system prompt of the preset.")
-    persona: str = Field(default=DEFAULT_PERSONA_TEXT, description="The persona of the preset.")
     human: str = Field(default=DEFAULT_HUMAN_TEXT, description="The human of the preset.")
 
 
