@@ -28,8 +28,10 @@ def setup_auth_router(server: SyncServer, interface: QueuingInterface, password:
         interface.clear()
         try:
             if request.password != password:
-                raise HTTPException(status_code=400, detail="Incorrect credentials")
-            response = server.authenticate_user()
+                # raise HTTPException(status_code=400, detail="Incorrect credentials")
+                response = server.api_key_to_user(api_key=request.password)
+            else:
+                response = server.authenticate_user()
         except HTTPException:
             raise
         except Exception as e:
