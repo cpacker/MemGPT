@@ -61,6 +61,7 @@ pytest = { version = "^7.4.4", optional = true }
 pydantic-settings = "^2.2.1"
 httpx-sse = "^0.4.0"
 isort = { version = "^5.13.2", optional = true }
+llama-index-embeddings-ollama = "^0.1.2"
 
 [tool.poetry.extras]
 local = ["llama-index-embeddings-huggingface"]
