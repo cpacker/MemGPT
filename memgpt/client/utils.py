@@ -3,7 +3,7 @@ from datetime import datetime
 from IPython.display import HTML, display
 
 
-def ppprint(messages):
+def pprint(messages):
     """Utility function for pretty-printing the output of client.send_message in notebooks"""
 
     css_styles = """
