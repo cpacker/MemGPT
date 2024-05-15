@@ -624,6 +624,14 @@ class LocalClient(AbstractClient):
         """
         self.auto_save = auto_save
 
+        # quickstart
+        if quickstart_option == "openai":
+            quickstart(QuickstartChoice.openai)
+        elif quickstart_option == "memgpt_hosted":
+            quickstart(QuickstartChoice.memgpt_hosted)
+        elif quickstart_option:
+            raise ValueError(f"Invalid endpoint {quickstart_option}")
+
         # determine user_id (pulled from local config)
         config = MemGPTConfig.load()
         if user_id:
@@ -647,14 +655,6 @@ class LocalClient(AbstractClient):
 
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface=self.interface)
-
-        # quickstart
-        if quickstart_option == "openai":
-            quickstart(QuickstartChoice.openai)
-        elif quickstart_option == "memgpt_hosted":
-            quickstart(QuickstartChoice.memgpt_hosted)
-        else:
-            raise ValueError(f"Invalid endpoint {quickstart_option}")
 
     def list_agents(self):
         self.interface.clear()
