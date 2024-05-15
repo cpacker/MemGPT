@@ -16,7 +16,7 @@ RUN poetry lock --no-update
 RUN if [ "$MEMGPT_ENVIRONMENT" = "DEVELOPMENT"  ] ; then \
     poetry install --no-root -E "postgres server dev autogen" ; \
     else \
-    poetry install --without dev --no-root -E "postgres server" && \
+    poetry install --without dev --without local --no-root -E "postgres server" && \
     rm -rf $POETRY_CACHE_DIR ;  \
     fi
 
