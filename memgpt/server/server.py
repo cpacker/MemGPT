@@ -137,7 +137,6 @@ class LockingServer(Server):
             try:
                 # Execute the function
                 # logger.info(f"running function on agent_id = {agent_id}")
-                print("USERID", user_id)
                 return func(self, user_id, agent_id, *args, **kwargs)
             finally:
                 # Release the lock

@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import requests
 
+from memgpt.cli.cli import QuickstartChoice, quickstart
 from memgpt.config import MemGPTConfig
 from memgpt.constants import DEFAULT_PRESET
 from memgpt.data_sources.connectors import DataConnector
@@ -612,10 +613,7 @@ class RESTClient(AbstractClient):
 
 class LocalClient(AbstractClient):
     def __init__(
-        self,
-        auto_save: bool = False,
-        user_id: Optional[str] = None,
-        debug: bool = False,
+        self, auto_save: bool = False, user_id: Optional[str] = None, debug: bool = False, quickstart_option: Optional[str] = None
     ):
         """
         Initializes a new instance of Client class.
@@ -649,6 +647,14 @@ class LocalClient(AbstractClient):
 
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface=self.interface)
+
+        # quickstart
+        if quickstart_option == "openai":
+            quickstart(QuickstartChoice.openai)
+        elif quickstart_option == "memgpt_hosted":
+            quickstart(QuickstartChoice.memgpt_hosted)
+        else:
+            raise ValueError(f"Invalid endpoint {quickstart_option}")
 
     def list_agents(self):
         self.interface.clear()
@@ -714,8 +720,8 @@ class LocalClient(AbstractClient):
         self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
         if self.auto_save:
             self.save()
-        else:
-            return self.interface.to_list()
+
+        return UserMessageResponse(messages=self.interface.to_list())
 
     def run_command(self, agent_id: str, command: str) -> Union[str, None]:
         self.interface.clear()
