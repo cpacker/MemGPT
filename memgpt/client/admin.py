@@ -63,7 +63,6 @@ class Admin:
         if response.status_code != 200:
             raise HTTPError(response.json())
         response_json = response.json()
-        print(response_json)
         return CreateUserResponse(**response_json)
 
     def delete_user(self, user_id: uuid.UUID):
