@@ -86,9 +86,14 @@ def link_functions(function_schemas: list):
             raise ValueError(f"While loading agent.state.functions encountered a bad function schema object with no name:\n{f_schema}")
         linked_function = available_functions.get(f_name)
         if linked_function is None:
-            raise ValueError(
+            # raise ValueError(
+            #    f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
+            # )
+            print(
                 f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
             )
+            continue
+
         # Once we find a matching function, make sure the schema is identical
         if json.dumps(f_schema, ensure_ascii=JSON_ENSURE_ASCII) != json.dumps(
             linked_function["json_schema"], ensure_ascii=JSON_ENSURE_ASCII
