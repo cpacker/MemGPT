@@ -870,7 +870,7 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
         # configure ollama embedding endpoint
         print("reaching ollama case")
         embedding_endpoint_type = "ollama"
-        embedding_endpoint = "http://localhost:11434/api/embeddings" 
+        embedding_endpoint = "http://localhost:11434/api/embeddings"
         # Source: https://github.com/ollama/ollama/blob/main/docs/api.md#generate-embeddings:~:text=http%3A//localhost%3A11434/api/embeddings
 
         # get endpoint (is this necessary?)
@@ -884,7 +884,9 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
                 raise KeyboardInterrupt
 
         # get model type
-        default_embedding_model = config.default_embedding_config.embedding_model if config.default_embedding_config else "ollama/mxbai-embed-large"
+        default_embedding_model = (
+            config.default_embedding_config.embedding_model if config.default_embedding_config else "ollama/mxbai-embed-large"
+        )
         embedding_model = questionary.text(
             "Enter Ollama model tag (e.g. ollama/mxbai-embed-large):",
             default=default_embedding_model,
