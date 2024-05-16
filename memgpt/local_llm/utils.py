@@ -8,8 +8,8 @@ import memgpt.local_llm.llm_chat_completion_wrappers.airoboros as airoboros
 import memgpt.local_llm.llm_chat_completion_wrappers.chatml as chatml
 import memgpt.local_llm.llm_chat_completion_wrappers.configurable_wrapper as configurable_wrapper
 import memgpt.local_llm.llm_chat_completion_wrappers.dolphin as dolphin
-import memgpt.local_llm.llm_chat_completion_wrappers.zephyr as zephyr
 import memgpt.local_llm.llm_chat_completion_wrappers.llama3 as llama3
+import memgpt.local_llm.llm_chat_completion_wrappers.zephyr as zephyr
 
 
 def post_json_auth_request(uri, json_payload, auth_type, auth_key):
@@ -70,6 +70,7 @@ def load_grammar_file(grammar):
         grammar_str = file.read()
 
     return grammar_str
+
 
 # TODO: support tokenizers/tokenizer apis available in local models
 def count_tokens(s: str, model: str = "gpt-4") -> int:
