@@ -13,9 +13,9 @@
 
 </div>
 
-MemGPT makes it easy to build and deploy stateful LLM agents with support for: 
-* Long term memory/state management 
-* Connections to [external data sources](https://memgpt.readme.io/docs/data_sources) (e.g. PDF files) for RAG 
+MemGPT makes it easy to build and deploy stateful LLM agents with support for:
+* Long term memory/state management
+* Connections to [external data sources](https://memgpt.readme.io/docs/data_sources) (e.g. PDF files) for RAG
 * Defining and calling [custom tools](https://memgpt.readme.io/docs/functions) (e.g. [google search](https://github.com/cpacker/MemGPT/blob/main/examples/google_search.py))
 
 You can also use MemGPT to depoy agents as a *service*. You can use a MemGPT server to run a multi-user, multi-agent application on top of supported LLM providers.
@@ -28,17 +28,18 @@ Install MemGPT:
 ```sh
 pip install -U pymemgpt
 ```
+
 To use MemGPT with OpenAI, set the environment variable `OPENAI_API_KEY` to your OpenAI key then run: 
 ```
 memgpt quickstart --backend openai
 ```
-To use MemGPT with a free hosted endpoint, you run run: 
+To use MemGPT with a free hosted endpoint, you run run:
 ```
 memgpt quickstart --backend memgpt
 ```
-For more advanced configuration options or to use a different [LLM backend](https://memgpt.readme.io/docs/endpoints) or [local LLMs](https://memgpt.readme.io/docs/local_llm), run `memgpt configure`. 
+For more advanced configuration options or to use a different [LLM backend](https://memgpt.readme.io/docs/endpoints) or [local LLMs](https://memgpt.readme.io/docs/local_llm), run `memgpt configure`.
 
-## Quickstart (CLI)  
+## Quickstart (CLI)
 You can create and chat with a MemGPT agent by running `memgpt run` in your CLI. The `run` command supports the following optional flags (see the [CLI documentation](https://memgpt.readme.io/docs/quickstart) for the full list of flags):
 * `--agent`: (str) Name of agent to create or to resume chatting with.
 * `--first`: (str) Allow user to sent the first message.
@@ -63,13 +64,12 @@ MemGPT provides a developer portal that enables you to easily create, edit, moni
 
 **Option 2:** Run with the CLI:
 1. Run `memgpt server`
-2. Go to `localhost:8283` in the browser to view the developer portal 
+2. Go to `localhost:8283` in the browser to view the developer portal
 
 Once the server is running, you can use the [Python client](https://memgpt.readme.io/docs/admin-client) or [REST API](https://memgpt.readme.io/reference/api) to connect to `memgpt.localhost` (if you're running with docker compose) or `localhost:8283` (if you're running with the CLI) to create users, agents, and more. The service requires authentication with a MemGPT admin password, which can be set with running `export MEMGPT_SERVER_PASS=password`. 
 
-
-## Supported Endpoints & Backends 
-MemGPT is designed to be model and provider agnostic. The following LLM and embedding endpoints are supported: 
+## Supported Endpoints & Backends
+MemGPT is designed to be model and provider agnostic. The following LLM and embedding endpoints are supported:
 
 | Provider            | LLM Endpoint    | Embedding Endpoint |
 |---------------------|-----------------|--------------------|
