@@ -76,6 +76,26 @@ def write_function(module_name: str, function_name: str, function_code: str):
     # raise error if function cannot be loaded
     if not succ:
         raise ValueError(error)
+    return file_path
+
+
+def load_function_file(filepath: str) -> dict:
+    file = os.path.basename(filepath)
+    module_name = file[:-3]  # Remove '.py' from filename
+    try:
+        spec = importlib.util.spec_from_file_location(module_name, filepath)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    except ModuleNotFoundError as e:
+        # Handle missing module imports
+        missing_package = str(e).split("'")[1]  # Extract the name of the missing package
+        print(f"{CLI_WARNING_PREFIX}skipped loading python file '{filepath}'!")
+        print(
+            f"'{file}' imports '{missing_package}', but '{missing_package}' is not installed locally - install python package '{missing_package}' to link functions from '{file}' to MemGPT."
+        )
+    # load all functions in the module
+    function_dict = load_function_set(module)
+    return function_dict
 
 
 def load_all_function_sets(merge: bool = True, ignore_duplicates: bool = True) -> dict:

@@ -171,7 +171,6 @@ class MemGPTConfig:
                 "config_path": config_path,
                 "memgpt_version": get_field(config, "version", "memgpt_version"),
             }
-
             # Don't include null values
             config_dict = {k: v for k, v in config_dict.items() if v is not None}
 
@@ -272,6 +271,7 @@ class MemGPTConfig:
         with open(self.config_path, "w", encoding="utf-8") as f:
             config.write(f)
         logger.debug(f"Saved Config:  {self.config_path}")
+        print(f"Saved Config:  {self.config_path}")
 
     @staticmethod
     def exists():

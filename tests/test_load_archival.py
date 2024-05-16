@@ -60,7 +60,7 @@ def test_load_directory(
 
     # setup config
     if metadata_storage_connector == "postgres":
-        TEST_MEMGPT_CONFIG.metadata_storage_uri = settings.pg_uri
+        TEST_MEMGPT_CONFIG.metadata_storage_uri = settings.memgpt_pg_uri
         TEST_MEMGPT_CONFIG.metadata_storage_type = "postgres"
     elif metadata_storage_connector == "sqlite":
         print("testing  sqlite metadata")
@@ -68,7 +68,7 @@ def test_load_directory(
     else:
         raise NotImplementedError(f"Storage type {metadata_storage_connector} not implemented")
     if passage_storage_connector == "postgres":
-        TEST_MEMGPT_CONFIG.archival_storage_uri = settings.pg_uri
+        TEST_MEMGPT_CONFIG.archival_storage_uri = settings.memgpt_pg_uri
         TEST_MEMGPT_CONFIG.archival_storage_type = "postgres"
     elif passage_storage_connector == "chroma":
         print("testing chroma passage storage")

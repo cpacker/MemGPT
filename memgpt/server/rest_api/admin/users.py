@@ -137,6 +137,8 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
         Get a list of all API keys for a user
         """
         try:
+            if server.ms.get_user(user_id=user_id) is None:
+                raise HTTPException(status_code=404, detail=f"User does not exist")
             tokens = server.ms.get_all_api_keys_for_user(user_id=user_id)
             processed_tokens = [t.token for t in tokens]
         except HTTPException:

@@ -39,6 +39,7 @@ def setup_humans_index_router(server: SyncServer, interface: QueuingInterface, p
         request: CreateHumanRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
+        # TODO: disallow duplicate names for humans
         interface.clear()
         new_human = HumanModel(text=request.text, name=request.name, user_id=user_id)
         human_id = new_human.id
