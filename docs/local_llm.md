@@ -38,7 +38,7 @@ poetry install -E local
 
 ### Quick overview
 
-1. Put your own LLM behind a web server API (e.g. [oobabooga web UI](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui))
+1. Put your own LLM behind a web server API (e.g. [llama.cpp server](https://github.com/ggerganov/llama.cpp/tree/master/examples/server#quick-start) or [oobabooga web UI](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui))
 2. Run `memgpt configure` and when prompted select your backend/endpoint type and endpoint address (a default will be provided but you may have to override it)
 
 For example, if we are running web UI (which defaults to port 5000) on the same computer as MemGPT, running `memgpt configure` would look like this:
@@ -47,8 +47,8 @@ For example, if we are running web UI (which defaults to port 5000) on the same 
 ? Select LLM inference provider: local
 ? Select LLM backend (select 'openai' if you have an OpenAI compatible proxy): webui
 ? Enter default endpoint: http://localhost:5000
-? Select default model wrapper (recommended: airoboros-l2-70b-2.1): airoboros-l2-70b-2.1
-? Select your model's context window (for Mistral 7B models, this is probably 8k / 8192): 8192
+? Select default model wrapper (optimal choice depends on specific llm, for llama3 we recommend llama3-grammar, for legacy llms it is airoboros-l2-70b-2.1): llama3-grammar
+? Select your model's context window (for Mistral 7B models and Meta-Llama-3-8B-Instruct, this is probably 8k / 8192): 8192
 ? Select embedding provider: local
 ? Select default preset: memgpt_chat
 ? Select default persona: sam_pov
@@ -77,7 +77,7 @@ When you use local LLMs, you can specify a **model wrapper** that changes how th
 You can change the wrapper used with the `--model-wrapper` flag:
 
 ```sh
-memgpt run --model-wrapper airoboros-l2-70b-2.1
+memgpt run --model-wrapper llama3-grammar
 ```
 
 You can see the full selection of model wrappers by running `memgpt configure`:
@@ -86,8 +86,11 @@ You can see the full selection of model wrappers by running `memgpt configure`:
 ? Select LLM inference provider: local
 ? Select LLM backend (select 'openai' if you have an OpenAI compatible proxy): webui
 ? Enter default endpoint: http://localhost:5000
-? Select default model wrapper (recommended: airoboros-l2-70b-2.1): (Use arrow keys)
- » airoboros-l2-70b-2.1
+? Select default model wrapper (recommended: llama3-grammar for llama3 llms, airoboros-l2-70b-2.1 for legacy models): (Use arrow keys)
+ » llama3
+   llama3-grammar
+   llama3-hints-grammar
+   airoboros-l2-70b-2.1
    airoboros-l2-70b-2.1-grammar
    dolphin-2.1-mistral-7b
    dolphin-2.1-mistral-7b-grammar
@@ -123,6 +126,12 @@ If you would like us to support a new backend, feel free to open an issue or pul
 >
 > To see a list of recommended LLMs to use with MemGPT, visit our [Discord server](https://discord.gg/9GEQrxmVyE) and check the #model-chat channel.
 
+Most recently, one of the best models to run locally is Meta's [Llama-3-8B-Instruct](https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct) or its quantized version such as [Meta-Llama-3-8B-Instruct-Q6_K.gguf](https://huggingface.co/bartowski/Meta-Llama-3-8B-Instruct-GGUF).
+
 If you are experimenting with MemGPT and local LLMs for the first time, we recommend you try the Dolphin Mistral finetune (e.g. [ehartford/dolphin-2.2.1-mistral-7b](https://huggingface.co/ehartford/dolphin-2.2.1-mistral-7b) or a quantized variant such as [dolphin-2.2.1-mistral-7b.Q6_K.gguf](https://huggingface.co/TheBloke/dolphin-2.2.1-mistral-7B-GGUF)), and use the default `airoboros` wrapper.
 
 Generating MemGPT-compatible outputs is a harder task for an LLM than regular text output. For this reason **we strongly advise users to NOT use models below Q5 quantization** - as the model gets worse, the number of errors you will encounter while using MemGPT will dramatically increase (MemGPT will not send messages properly, edit memory properly, etc.).
+
+> 📘 Advanced LLMs / models
+>
+Enthusiasts with high-VRAM GPUS (3090,4090) or apple silicon macs with >32G VRAM might find [IQ2_XS quantization of Llama-3-70B](https://huggingface.co/MaziyarPanahi/Meta-Llama-3-70B-Instruct-GGUF) interesting, as it is currently the highest-performing opensource/openweights model. You can run it in llama.cpp with setup such as this: `./server -m Meta-Llama-3-70B-Instruct.IQ2_XS.gguf --n-gpu-layers 99 --no-mmap --ctx-size 8192 -ctk q8_0 --chat-template llama3 --host 0.0.0.0 --port 8888`.
