@@ -17,7 +17,6 @@ llm_config_path = "configs/llm_model_configs/memgpt-hosted.json"
 
 
 def test_embedding_endpoints():
-
     embedding_config_dir = "configs/embedding_model_configs"
 
     # list JSON files in directory

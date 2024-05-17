@@ -21,6 +21,8 @@ jobs:
     - name: Build and run container
       run: bash db/run_postgres.sh
 
+    - name: Start Ollama server (must already be installed locally)
+      run: ./ollama serve
 
     - name: "Setup Python, Poetry and Dependencies"
       uses: packetcoders/action-setup-cache-python-poetry@main
