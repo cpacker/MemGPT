@@ -20,7 +20,6 @@ llm_config_path = "configs/llm_model_configs/memgpt-hosted.json"
 embedding_config_dir = "configs/embedding_model_configs"
 llm_config_dir = "configs/llm_model_configs"
 
-
 def run_llm_endpoint(filename):
     config_data = json.load(open(filename, "r"))
     print(config_data)
