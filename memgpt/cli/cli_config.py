@@ -877,7 +877,7 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
 
 def configure_archival_storage(config: MemGPTConfig, credentials: MemGPTCredentials):
     # Configure archival storage backend
-    archival_storage_options = ["postgres", "chroma"]
+    archival_storage_options = ["postgres", "chroma", "milvus"]
     archival_storage_type = questionary.select(
         "Select storage backend for archival data:", archival_storage_options, default=config.archival_storage_type
     ).ask()
@@ -914,6 +914,12 @@ def configure_archival_storage(config: MemGPTConfig, credentials: MemGPTCredenti
         if chroma_type == "persistent":
             archival_storage_path = os.path.join(MEMGPT_DIR, "chroma")
 
+    if archival_storage_type == "milvus":
+        archival_storage_uri = questionary.text(
+            "Enter the Milvus connection URI (Default: localhost:19530):", default="localhost:19530"
+        ).ask()
+        if archival_storage_uri is None:
+            raise KeyboardInterrupt
     return archival_storage_type, archival_storage_uri, archival_storage_path
 
     # TODO: allow configuring embedding model

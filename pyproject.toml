@@ -46,6 +46,7 @@ docx2txt = "^0.8"
 sqlalchemy = "^2.0.25"
 pexpect = {version = "^4.9.0", optional = true}
 pyright = {version = "^1.1.347", optional = true}
+pymilvus = "^2.4.2"
 python-box = "^7.1.1"
 sqlmodel = "^0.0.16"
 autoflake = {version = "^2.3.0", optional = true}

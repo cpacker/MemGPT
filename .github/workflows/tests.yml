@@ -21,7 +21,6 @@ jobs:
     - name: Build and run container
       run: bash db/run_postgres.sh
 
-
     - name: "Setup Python, Poetry and Dependencies"
       uses: packetcoders/action-setup-cache-python-poetry@main
       with:
