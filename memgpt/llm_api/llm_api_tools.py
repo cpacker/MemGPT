@@ -159,6 +159,7 @@ def create(
     printd(f"Using model {llm_config.model_endpoint_type}, endpoint: {llm_config.model_endpoint}")
 
     # TODO eventually refactor so that credentials are passed through
+
     credentials = MemGPTCredentials.load()
 
     if function_call and not functions:
@@ -178,6 +179,7 @@ def create(
                 tools=[{"type": "function", "function": f} for f in functions] if functions else None,
                 tool_choice=function_call,
                 user=str(user_id),
+                response_format={"type": "json_object"}
             )
         else:
             data = ChatCompletionRequest(
@@ -186,6 +188,7 @@ def create(
                 functions=functions,
                 function_call=function_call,
                 user=str(user_id),
+                response_format={"type": "json_object"}
             )
 
         if stream:
