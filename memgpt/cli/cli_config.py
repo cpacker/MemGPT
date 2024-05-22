@@ -915,8 +915,9 @@ def configure_archival_storage(config: MemGPTConfig, credentials: MemGPTCredenti
             archival_storage_path = os.path.join(MEMGPT_DIR, "chroma")
 
     if archival_storage_type == "milvus":
+        default_milvus_uri = archival_storage_path = os.path.join(MEMGPT_DIR, "milvus.db")
         archival_storage_uri = questionary.text(
-            "Enter the Milvus connection URI (Default: localhost:19530):", default="localhost:19530"
+            f"Enter the Milvus connection URI (Default: {default_milvus_uri}):", default=default_milvus_uri
         ).ask()
         if archival_storage_uri is None:
             raise KeyboardInterrupt

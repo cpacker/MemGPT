@@ -112,4 +112,4 @@ You have to enable the Milvus backend by running, here is the [quickstart](https
 You can configure Milvus connection via command `memgpt configure`.
 ```sh
 ? Select storage backend for archival data: milvus
-? Enter the Milvus connection URI (Default: localhost:19530): localhost:19530
+? Enter the Milvus connection URI (Default: /Users/sarahwooders/.memgpt/milvus.db): /Users/sarahwooders/.memgpt/milvus.db
