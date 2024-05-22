@@ -58,19 +58,17 @@ def test_admin_client(admin_client):
 
     # list keys
     user1_keys = admin_client.get_keys(user_id)
-    assert len(user1_keys.api_key_list) == 2, f"Expected 2 keys, got {user1_keys}"
-    assert create_key1_response.api_key in user1_keys.api_key_list, f"Expected {create_key1_response.api_key} in {user1_keys.api_key_list}"
-    assert (
-        create_user1_response.api_key in user1_keys.api_key_list
-    ), f"Expected {create_user1_response.api_key} in {user1_keys.api_key_list}"
+    assert len(user1_keys) == 2, f"Expected 2 keys, got {user1_keys}"
+    assert create_key1_response.api_key in user1_keys, f"Expected {create_key1_response.api_key} in {user1_keys}"
+    assert create_user1_response.api_key in user1_keys, f"Expected {create_user1_response.api_key} in {user1_keys}"
 
     # delete key
     delete_key1_response = admin_client.delete_key(create_key1_response.api_key)
     assert delete_key1_response.api_key_deleted == create_key1_response.api_key
-    assert len(admin_client.get_keys(user_id).api_key_list) == 1
+    assert len(admin_client.get_keys(user_id)) == 1
     delete_key2_response = admin_client.delete_key(create_key2_response.api_key)
     assert delete_key2_response.api_key_deleted == create_key2_response.api_key
-    assert len(admin_client.get_keys(create_user_2_response.user_id).api_key_list) == 1
+    assert len(admin_client.get_keys(create_user_2_response.user_id)) == 1
 
     # delete users
     delete_user1_response = admin_client.delete_user(user_id)

@@ -53,7 +53,30 @@ To run the Postgres backend, you will need a URI to a Postgres database that sup
   bash db/run_postgres.sh
   ```
 
+5.  Configure MemGPT to use Postgres
+
+```sh
+memgpt configure
+```
+
+and selecting `postgres` for archival storage, and enter the approporate connection string.  If using docker, change the port in the default value from 5432 to 8888 as shown below.
+
+```text
+? Select LLM inference provider: openai
+? Override default endpoint: https://api.openai.com/v1
+? Select default model (recommended: gpt-4): gpt-4
+? Select embedding provider: openai
+? Select default preset: memgpt_chat
+? Select default persona: sam_pov
+? Select default human: cs_phd
+? Select storage backend for archival data: postgres
+? Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}): postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+? Select storage backend for recall data: postgres
+? Enter postgres connection string (e.g. postgresql+pg8000://{user}:{password}@{ip}:5432/{database}): postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
+```
+
 Note: You can either use a [hosted provider](https://github.com/pgvector/pgvector/issues/54) or [install pgvector](https://github.com/pgvector/pgvector#installation). You do not need to do this manually if you use our Docker container, however.
+
 
 ## Chroma
 

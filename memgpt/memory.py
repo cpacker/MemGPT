@@ -327,12 +327,12 @@ class BaseRecallMemory(RecallMemory):
 
     def text_search(self, query_string, count=None, start=None):
         results = self.storage.query_text(query_string, count, start)
-        results_json = [message.to_openai_dict() for message in results]
+        results_json = [message.to_openai_dict_search_results() for message in results]
         return results_json, len(results)
 
     def date_search(self, start_date, end_date, count=None, start=None):
         results = self.storage.query_date(start_date, end_date, count, start)
-        results_json = [message.to_openai_dict() for message in results]
+        results_json = [message.to_openai_dict_search_results() for message in results]
         return results_json, len(results)
 
     def __repr__(self) -> str:
