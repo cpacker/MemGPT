@@ -22,6 +22,7 @@ class ListAgentsResponse(BaseModel):
     num_agents: int = Field(..., description="The number of agents available to the user.")
     # TODO make return type List[AgentStateModel]
     #      also return - presets: List[PresetModel]
+    # agents: List[AgentStateModel] = Field(..., description="List of agent configurations.")
     agents: List[dict] = Field(..., description="List of agent configurations.")
 
 

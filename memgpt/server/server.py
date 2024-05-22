@@ -823,6 +823,10 @@ class SyncServer(LockingServer):
 
         return presets
 
+    def get_preset_sources(self, preset_id: uuid.UUID):
+        """Get the sources corresponding to the preset_id"""
+        return self.ms.get_preset_sources(preset_id=preset_id)
+
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:
         """Convert AgentState to a dict for a JSON response"""
         assert agent_state is not None
@@ -832,7 +836,7 @@ class SyncServer(LockingServer):
             "name": agent_state.name,
             "human": agent_state.human,
             "persona": agent_state.persona,
-            "created_at": agent_state.created_at.isoformat(),
+            "created_at": datetime.fromisoformat(agent_state.created_at.isoformat()),
         }
         return agent_config
 
@@ -858,7 +862,7 @@ class SyncServer(LockingServer):
             # Get the agent object (loaded in memory)
             memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
 
-            # TODO remove this eventually when return type get pydanticfied
+            # TODO remove this eventually when return type get pydanticated
             # this is to add persona_name and human_name so that the columns in UI can populate
             preset = self.ms.get_preset(name=agent_state.preset, user_id=user_id)
             # TODO hack for frontend, remove
@@ -893,8 +897,15 @@ class SyncServer(LockingServer):
 
             # Add information about attached sources
             sources_ids = self.ms.list_attached_sources(agent_id=agent_state.id)
+            assert all([source_id is not None and isinstance(source_id, uuid.UUID) for source_id in sources_ids])
             sources = [self.ms.get_source(source_id=s_id) for s_id in sources_ids]
+            assert all([source is not None and isinstance(source, Source)] for source in sources)
             return_dict["sources"] = [vars(s) for s in sources]
+
+            # try adding model, embeddings, and dim to return_dict
+            return_dict["model"] = memgpt_agent.model
+            return_dict["embedding_model"] = memgpt_agent.agent_state.embedding_config.embedding_model
+            return_dict["embedding_dim"] = memgpt_agent.agent_state.embedding_config.embedding_dim
 
         # Sort agents by "last_run" in descending order, most recent first
         agents_states_dicts.sort(key=lambda x: x["last_run"], reverse=True)
@@ -904,6 +915,25 @@ class SyncServer(LockingServer):
             "num_agents": len(agents_states),
             "agents": agents_states_dicts,
         }
+
+    def list_humans(self, user_id: uuid.UUID):
+        return self.ms.list_humans(user_id=user_id)
+
+    def list_personas(self, user_id: uuid.UUID):
+        return self.ms.list_personas(user_id=user_id)
+
+    def add_persona(self, name: str, persona: str):
+        """Update or create a persona."""
+        persona = self.ms.get_persona(name=name, user_id=user_id)
+        if persona:
+            # config if user wants to overwrite
+            if not questionary.confirm(f"Persona {name} already exists. Overwrite?").ask():
+                return
+            persona.text = text
+            self.ms.update_persona(persona)
+        else:
+            persona = PersonaModel(name=name, text=text, user_id=user_id)
+            self.ms.add_persona(persona)
 
     def get_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
         """Get the agent state"""
@@ -1241,34 +1271,50 @@ class SyncServer(LockingServer):
         # TODO: delete user
         pass
 
-    def delete_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
+    def delete_agent(self, user_id: uuid.UUID, agent_id: Optional[uuid.UUID] = None, agent_name: Optional[str] = None):
         """Delete an agent in the database"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Verify that the agent exists and is owned by the user
-        agent_state = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
+        agent_state = self.ms.get_agent(agent_id=agent_id, agent_name=agent_name, user_id=user_id)
         if not agent_state:
-            raise ValueError(f"Could not find agent_id={agent_id} under user_id={user_id}")
+            raise ValueError(f"Could not find agent_id={agent_id} or agent_name={agent_name} under user_id={user_id}")
         if agent_state.user_id != user_id:
-            raise ValueError(f"Could not authorize agent_id={agent_id} with user_id={user_id}")
+            raise ValueError(f"Could not authorize agent_id={agent_id} / agent_name={agent_name} with user_id={user_id}")
+
+        a_id = agent_id if agent_id is not None else agent_state.id
 
         # First, if the agent is in the in-memory cache we should remove it
         # List of {'user_id': user_id, 'agent_id': agent_id, 'agent': agent_obj} dicts
         try:
-            self.active_agents = [d for d in self.active_agents if str(d["agent_id"]) != str(agent_id)]
+            self.active_agents = [d for d in self.active_agents if str(d["agent_id"]) != str(a_id)]
         except Exception as e:
-            logger.exception(f"Failed to delete agent {agent_id} from cache via ID with:\n{str(e)}")
-            raise ValueError(f"Failed to delete agent {agent_id} from cache")
+            logger.exception(f"Failed to delete agent {a_id} from cache via ID with:\n{str(e)}")
+            raise ValueError(f"Failed to delete agent {a_id} from cache")
 
-        # Next, attempt to delete it from the actual database
+        # Next, attempt to delete from recall memory
         try:
-            self.ms.delete_agent(agent_id=agent_id)
+            recall_conn = StorageConnector.get_recall_storage_connector(user_id=user_id, agent_id=a_id)
+            recall_conn.delete({"agent_id": a_id})
+        except:
+            logger.exception(f"Failed to delete agent from recall mem {a_id} from recall memory via ID with:\n{str(e)}")
+            raise ValueError(f"Failed to delete agent agent from recall memory")
+
+        # Then, attempt to delete from archival memory
+        try:
+            archival_conn = StorageConnector.get_archival_storage_connector(user_id=user_id, agent_id=a_id)
+            archival_conn.delete({"agent_id": a_id})
+        except:
+            logger.exception(f"Failed to delete agent {a_id} from archival memory via ID with:\n{str(e)}")
+            raise ValueError(f"Failed to delete agent {a_id} from archival memory")
+
+        # Lastly, attempt to delete it from the actual database
+        try:
+            self.ms.delete_agent(agent_id=a_id)
         except Exception as e:
-            logger.exception(f"Failed to delete agent {agent_id} via ID with:\n{str(e)}")
-            raise ValueError(f"Failed to delete agent {agent_id} in database")
+            logger.exception(f"Failed to delete agent {a_id} via ID with:\n{str(e)}")
+            raise ValueError(f"Failed to delete agent {a_id} in database")
 
     def authenticate_user(self) -> uuid.UUID:
         # TODO: Implement actual authentication to enable multi user setup
@@ -1300,16 +1346,20 @@ class SyncServer(LockingServer):
         assert self.ms.get_source(source_name=name, user_id=user_id) is not None, f"Failed to create source {name}"
         return source
 
-    def delete_source(self, source_id: uuid.UUID, user_id: uuid.UUID):
+    def delete_source(self, source_id: Optional[uuid.UUID] = None, user_id: Optional[uuid.UUID] = None, source_name: Optional[str] = None):
         """Delete a data source"""
-        source = self.ms.get_source(source_id=source_id, user_id=user_id)
+        # delete metadata
+        source = self.ms.get_source(source_id=source_id, user_id=user_id, source_name=source_name)
+        assert source is not None, f"Source {source.name} does not exist"
         self.ms.delete_source(source_id)
 
         # delete data from passage store
         passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
         passage_store.delete({"data_source": source.name})
 
-        # TODO: delete data from agent passage stores (?)
+        assert (
+            passage_store.get_all({"data_source": source.name}) == []
+        ), f"Expected no passages with source {source.name}, but got {passage_store.get_all({'data_source': source.name})}"
 
     def load_data(
         self,

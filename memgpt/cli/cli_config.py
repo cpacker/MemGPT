@@ -10,7 +10,6 @@ from prettytable.colortable import ColorTable, Themes
 from tqdm import tqdm
 
 from memgpt import utils
-from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.constants import LLM_MAX_TOKENS, MEMGPT_DIR
 from memgpt.credentials import SUPPORTED_AUTH_TYPES, MemGPTCredentials
@@ -1045,42 +1044,46 @@ class ListChoice(str, Enum):
 
 @app.command()
 def list(arg: Annotated[ListChoice, typer.Argument]):
+
+    from memgpt.client.client import create_client
+
     config = MemGPTConfig.load()
-    ms = MetadataStore(config)
+    ms = MetadataStore(config=config)
     user_id = uuid.UUID(config.anon_clientid)
     table = ColorTable(theme=Themes.OCEAN)
+    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_API_KEY"))
     if arg == ListChoice.agents:
         """List all agents"""
         table.field_names = ["Name", "LLM Model", "Embedding Model", "Embedding Dim", "Persona", "Human", "Data Source", "Create Time"]
-        for agent in tqdm(ms.list_agents(user_id=user_id)):
-            source_ids = ms.list_attached_sources(agent_id=agent.id)
-            assert all([source_id is not None and isinstance(source_id, uuid.UUID) for source_id in source_ids])
-            sources = [ms.get_source(source_id=source_id) for source_id in source_ids]
-            assert all([source is not None and isinstance(source, Source)] for source in sources)
-            source_names = [source.name for source in sources if source is not None]
+        for agent in tqdm(client.list_agents()["agents"]):
+            assert all(
+                [source is not None and isinstance(source, Source)] for source in agent["sources"]
+            ), "Source not null assertion failed"
+            source_names = [source["name"] for source in agent["sources"] if source is not None]
             table.add_row(
                 [
-                    agent.name,
-                    agent.llm_config.model,
-                    agent.embedding_config.embedding_model,
-                    agent.embedding_config.embedding_dim,
-                    agent.persona,
-                    agent.human,
+                    agent["name"],
+                    agent["model"],
+                    agent["embedding_model"],
+                    agent["embedding_dim"],
+                    agent["persona"],
+                    agent["human"],
                     ",".join(source_names),
-                    utils.format_datetime(agent.created_at),
+                    utils.format_datetime(agent["created_at"]),
                 ]
             )
         print(table)
+
     elif arg == ListChoice.humans:
         """List all humans"""
         table.field_names = ["Name", "Text"]
-        for human in ms.list_humans(user_id=user_id):
+        for human in client.list_humans(user_id=user_id):
             table.add_row([human.name, human.text.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.personas:
         """List all personas"""
         table.field_names = ["Name", "Text"]
-        for persona in ms.list_personas(user_id=user_id):
+        for persona in client.list_personas(user_id=user_id):
             table.add_row([persona.name, persona.text.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.sources:
@@ -1093,18 +1096,30 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         # TODO: connect to agents
 
         # get all sources
-        for source in ms.list_sources(user_id=user_id):
-            # get attached agents
-            agent_ids = ms.list_attached_agents(source_id=source.id)
-            agent_states = [ms.get_agent(agent_id=agent_id) for agent_id in agent_ids]
-            agent_names = [agent_state.name for agent_state in agent_states if agent_state is not None]
+        # for source in ms.list_sources(user_id=user_id):
+        #     # get attached agents
+        #     agent_ids = ms.list_attached_agents(source_id=source.id)
+        #     agent_states = [ms.get_agent(agent_id=agent_id) for agent_id in agent_ids]
+        #     agent_names = [agent_state.name for agent_state in agent_states if agent_state is not None]
 
+        #     table.add_row(
+        #         [
+        #             source.name,
+        #             source.description,
+        #             source.embedding_model,
+        #             source.embedding_dim,
+        #             utils.format_datetime(source.created_at),
+        #             ",".join(agent_names),
+        #         ]
+        #     )
+        for source in client.list_sources(user_id=user_id):
+            agent_names = [agent["name"] for agent in source.metadata_["attached_agents"]]
             table.add_row(
                 [
                     source.name,
                     source.description,
-                    source.embedding_model,
-                    source.embedding_dim,
+                    source.embedding_config.embedding_model,
+                    source.embedding_config.embedding_dim,
                     utils.format_datetime(source.created_at),
                     ",".join(agent_names),
                 ]
@@ -1114,8 +1129,19 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
     elif arg == ListChoice.presets:
         """List all available presets"""
         table.field_names = ["Name", "Description", "Sources", "Functions"]
-        for preset in ms.list_presets(user_id=user_id):
-            sources = ms.get_preset_sources(preset_id=preset.id)
+        # for preset in ms.list_presets(user_id=user_id):
+        #     sources = ms.get_preset_sources(preset_id=preset.id)
+        #     table.add_row(
+        #         [
+        #             preset.name,
+        #             preset.description,
+        #             ",".join([source.name for source in sources]),
+        #             # json.dumps(preset.functions_schema, indent=4)
+        #             ",\n".join([f["name"] for f in preset.functions_schema]),
+        #         ]
+        #     )
+        for preset in client.list_presets(user_id=user_id):
+            sources = client.get_preset_sources(preset_id=preset.id)
             table.add_row(
                 [
                     preset.name,
@@ -1146,6 +1172,7 @@ def add(
         with open(filename, "r") as f:
             text = f.read()
     if option == "persona":
+        # Assumed approach: make "get_persona" and "update_persona "
         persona = ms.get_persona(name=name, user_id=user_id)
         if persona:
             # config if user wants to overwrite
@@ -1178,43 +1205,37 @@ def add(
 @app.command()
 def delete(option: str, name: str):
     """Delete a source from the archival memory."""
+    from memgpt.client.client import create_client
 
     config = MemGPTConfig.load()
     user_id = uuid.UUID(config.anon_clientid)
     ms = MetadataStore(config)
+    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_API_KEY"))
     assert ms.get_user(user_id=user_id), f"User {user_id} does not exist"
 
     try:
         # delete from metadata
         if option == "source":
-            # delete metadata
-            source = ms.get_source(source_name=name, user_id=user_id)
-            assert source is not None, f"Source {name} does not exist"
-            ms.delete_source(source_id=source.id)
+            # # delete metadata
+            # source = ms.get_source(source_name=name, user_id=user_id)
+            # assert source is not None, f"Source {name} does not exist"
+            # ms.delete_source(source_id=source.id)
 
-            # delete from passages
-            conn = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id=user_id)
-            conn.delete({"data_source": name})
+            # # delete from passages
+            # conn = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id=user_id)
+            # conn.delete({"data_source": name})
 
-            assert (
-                conn.get_all({"data_source": name}) == []
-            ), f"Expected no passages with source {name}, but got {conn.get_all({'data_source': name})}"
+            # assert (
+            #     conn.get_all({"data_source": name}) == []
+            # ), f"Expected no passages with source {name}, but got {conn.get_all({'data_source': name})}"
 
-            # TODO: should we also delete from agents?
+            # # TODO: should we also delete from agents?
+
+            client.delete_source(source_name=name)
+
         elif option == "agent":
-            agent = ms.get_agent(agent_name=name, user_id=user_id)
-            assert agent is not None, f"Agent {name} for user_id {user_id} does not exist"
 
-            # recall memory
-            recall_conn = StorageConnector.get_storage_connector(TableType.RECALL_MEMORY, config, user_id=user_id, agent_id=agent.id)
-            recall_conn.delete({"agent_id": agent.id})
-
-            # archival memory
-            archival_conn = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config, user_id=user_id, agent_id=agent.id)
-            archival_conn.delete({"agent_id": agent.id})
-
-            # metadata
-            ms.delete_agent(agent_id=agent.id)
+            client.delete_agent(agent_name=name)
 
         elif option == "human":
             human = ms.get_human(name=name, user_id=user_id)

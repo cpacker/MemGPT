@@ -665,12 +665,17 @@ def run(
             sys.exit(1)
         typer.secho(f"🎉 Created new agent '{memgpt_agent.agent_state.name}' (id={memgpt_agent.agent_state.id})", fg=typer.colors.GREEN)
 
+    # create client
+    from memgpt.client.client import create_client
+
+    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_API_KEY"))
+
     # start event loop
     from memgpt.main import run_agent_loop
 
     print()  # extra space
     run_agent_loop(
-        memgpt_agent=memgpt_agent, config=config, first=first, ms=ms, no_verify=no_verify, stream=stream
+        memgpt_agent=memgpt_agent, client=client, config=config, first=first, ms=ms, no_verify=no_verify, stream=stream
     )  # TODO: add back no_verify
 
 

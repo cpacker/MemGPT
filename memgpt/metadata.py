@@ -669,7 +669,7 @@ class MetadataStore:
             if source_id:
                 results = session.query(SourceModel).filter(SourceModel.id == source_id).all()
             else:
-                assert user_id is not None and source_name is not None
+                assert user_id is not None and source_name is not None, "Must provide either source_id or source_name"
                 results = session.query(SourceModel).filter(SourceModel.name == source_name).filter(SourceModel.user_id == user_id).all()
             if len(results) == 0:
                 return None

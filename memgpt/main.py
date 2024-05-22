@@ -26,6 +26,7 @@ from memgpt.cli.cli import (
 )
 from memgpt.cli.cli_config import add, configure, delete, list
 from memgpt.cli.cli_load import app as load_app
+from memgpt.client.client import AbstractClient
 from memgpt.config import MemGPTConfig
 from memgpt.constants import (
     FUNC_FAILED_HEARTBEAT_MESSAGE,
@@ -71,7 +72,15 @@ def clear_line(console, strip_ui=False):
 
 
 def run_agent_loop(
-    memgpt_agent: agent.Agent, config: MemGPTConfig, first, ms: MetadataStore, no_verify=False, cfg=None, strip_ui=False, stream=False
+    memgpt_agent: agent.Agent,
+    client: AbstractClient,
+    config: MemGPTConfig,
+    first,
+    ms: MetadataStore,
+    no_verify=False,
+    cfg=None,
+    strip_ui=False,
+    stream=False,
 ):
     if isinstance(memgpt_agent.interface, AgentRefreshStreamingInterface):
         # memgpt_agent.interface.toggle_streaming(on=stream)

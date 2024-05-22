@@ -56,6 +56,7 @@ from memgpt.server.rest_api.tools.index import CreateToolResponse
 from memgpt.server.server import SyncServer
 
 
+# really feel like should be able to pass user_id as optional argument
 def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
     if base_url is None:
         return LocalClient()
@@ -180,6 +181,10 @@ class AbstractClient(object):
         """Create a persona."""
         raise NotImplementedError
 
+    def add_persona(self, user_id: uuid.UUID, name: str, persona: str, text: Optional[str]):
+        """Update or create a persona."""
+        raise NotImplementedError
+
     # tools
 
     def list_tools(self):
@@ -241,10 +246,12 @@ class RESTClient(AbstractClient):
         self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
 
     # agents
-
     def list_agents(self):
         response = requests.get(f"{self.base_url}/api/agents", headers=self.headers)
         return ListAgentsResponse(**response.json())
+        # data = response.json()
+        # agents = [AgentStateModel(**agent) for agent in data["agents"]]
+        # return ListAgentsResponse(num_agents=data["num_agents"], agents=agents)
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
         response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/config", headers=self.headers)
@@ -670,8 +677,11 @@ class LocalClient(AbstractClient):
     def delete_preset(self, preset_id: uuid.UUID):
         preset = self.server.delete_preset(preset_id=preset_id, user_id=self.user_id)
 
-    def list_presets(self) -> List[PresetModel]:
+    def list_presets(self, user_id: uuid.UUID) -> List[PresetModel]:
         return self.server.list_presets(user_id=self.user_id)
+
+    def get_preset_sources(self, preset_id: uuid.UUID) -> List[uuid.UUID]:
+        return self.server.get_preset_sources(preset_id=preset_id)
 
     def get_agent_config(self, agent_id: str) -> AgentState:
         self.interface.clear()
@@ -693,6 +703,18 @@ class LocalClient(AbstractClient):
         else:
             return self.interface.to_list()
 
+    def list_humans(self, user_id: uuid.UUID):
+        return self.server.list_humans(user_id=self.user_id)
+
+    def list_personas(self, user_id: uuid.UUID):
+        return self.server.list_personas(user_id=self.user_id)
+
+    def add_persona(self, user_id: uuid.UUID, name: str, persona: str, text: Optional[str]):
+        self.server.add_persona(name=name, persona=persona)
+
+    def list_sources(self, user_id: uuid.UUID):
+        return self.server.list_all_sources(user_id=self.user_id)
+
     def run_command(self, agent_id: str, command: str) -> Union[str, None]:
         self.interface.clear()
         return self.server.run_command(user_id=self.user_id, agent_id=agent_id, command=command)
@@ -709,8 +731,11 @@ class LocalClient(AbstractClient):
     def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
         self.server.attach_source_to_agent(user_id=self.user_id, source_id=source_id, agent_id=agent_id)
 
-    def delete_agent(self, agent_id: uuid.UUID):
-        self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
+    def delete_source(self, source_id: Optional[uuid.UUID] = None, source_name: Optional[str] = None):
+        self.server.delete_source(user_id=self.user, source_name=source_name)
+
+    def delete_agent(self, agent_id: Optional[uuid.UUID] = None, agent_name: Optional[str] = None):
+        self.server.delete_agent(user_id=self.user_id, agent_id=agent_id, agent_name=agent_name)
 
     def get_agent_archival_memory(
         self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
