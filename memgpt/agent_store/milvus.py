@@ -122,7 +122,6 @@ class MilvusStorageConnector(StorageConnector):
         data = self._records_to_list(records)
         self.client.insert(collection_name=self.table_name, data=data)
 
-
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         if not self.client.has_collection(self.table_name):
             return []

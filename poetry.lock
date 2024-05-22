@@ -1000,7 +1000,7 @@ files = [
 name = "environs"
 version = "9.5.0"
 description = "simplified environment variable parsing"
-optional = false
+optional = true
 python-versions = ">=3.6"
 files = [
     {file = "environs-9.5.0-py2.py3-none-any.whl", hash = "sha256:1e549569a3de49c05f856f40bce86979e7d5ffbbc4398e7f338574c220189124"},
@@ -2329,14 +2329,14 @@ files = [
 
 [[package]]
 name = "milvus-lite"
-version = "2.4.3"
+version = "2.4.5"
 description = "A lightweight version of Milvus wrapped with Python."
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
-    {file = "milvus_lite-2.4.3-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:9abc31eccb2bfef0171bb69850d2db8722978f182de1f276d1ee11f285218231"},
-    {file = "milvus_lite-2.4.3-py3-none-macosx_11_0_arm64.whl", hash = "sha256:522aee5c1baab770cacb8e061d40eb9c37d3250bec88ad3b4a2b3583335b5a55"},
-    {file = "milvus_lite-2.4.3-py3-none-manylinux2014_x86_64.whl", hash = "sha256:5bda7c6bd99434f3a7efa234e42f5455330c50cfead57d670576aafebe747335"},
+    {file = "milvus_lite-2.4.5-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:343d5f4df801def14eb711048de8fdf24a216704e591c261cd0827770772a7ee"},
+    {file = "milvus_lite-2.4.5-py3-none-macosx_11_0_arm64.whl", hash = "sha256:73f154a82d60f933e2c991b53dd795683b196c0f5b6d36f8464422bdedddb857"},
+    {file = "milvus_lite-2.4.5-py3-none-manylinux2014_x86_64.whl", hash = "sha256:22d70c87494442882b3fceeba38ef131d1186c9b9bc363fb9550e8494b2fdaba"},
 ]
 
 [[package]]
@@ -4030,18 +4030,18 @@ torch = ["torch"]
 
 [[package]]
 name = "pymilvus"
-version = "2.4.2"
+version = "2.4.3"
 description = "Python Sdk for Milvus"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
-    {file = "pymilvus-2.4.2-py3-none-any.whl", hash = "sha256:3bf1c9ea339b3d55cabf6d3c8a55783e6c4dc2f7eb3791d51500dfd94424568b"},
-    {file = "pymilvus-2.4.2.tar.gz", hash = "sha256:b7b38e60eb7f96465104bfce64a875f73abff4fd1f9d789924394c9b847b5e6d"},
+    {file = "pymilvus-2.4.3-py3-none-any.whl", hash = "sha256:38239e89f8d739f665141d0b80908990b5f59681e889e135c234a4a45669a5c8"},
+    {file = "pymilvus-2.4.3.tar.gz", hash = "sha256:703ac29296cdce03d6dc2aaebbe959e57745c141a94150e371dc36c61c226cc1"},
 ]
 
 [package.dependencies]
 environs = "<=9.5.0"
-grpcio = ">=1.49.1,<=1.60.0"
+grpcio = ">=1.49.1,<=1.63.0"
 milvus-lite = ">=2.4.0,<2.5.0"
 pandas = ">=1.2.4"
 protobuf = ">=3.20.0"
@@ -4050,8 +4050,8 @@ ujson = ">=2.0.0"
 
 [package.extras]
 bulk-writer = ["azure-storage-blob", "minio (>=7.0.0)", "pyarrow (>=12.0.0)", "requests"]
+dev = ["black", "grpcio (==1.62.2)", "grpcio-testing (==1.62.2)", "grpcio-tools (==1.62.2)", "pytest (>=5.3.4)", "pytest-cov (>=2.8.1)", "pytest-timeout (>=1.3.4)", "ruff (>0.4.0)"]
 model = ["milvus-model (>=0.1.0)"]
-test = ["black", "grpcio-testing", "pytest (>=5.3.4)", "pytest-cov (>=2.8.1)", "pytest-timeout (>=1.3.4)", "ruff (>0.4.0)"]
 
 [[package]]
 name = "pypdf"
@@ -5576,7 +5576,7 @@ files = [
 name = "ujson"
 version = "5.10.0"
 description = "Ultra fast JSON encoder and decoder for Python"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "ujson-5.10.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:2601aa9ecdbee1118a1c2065323bda35e2c5a2cf0797ef4522d485f9d3ef65bd"},
@@ -6279,10 +6279,11 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 autogen = ["pyautogen"]
 dev = ["autoflake", "black", "datasets", "isort", "pexpect", "pre-commit", "pyright", "pytest", "pytest-asyncio", "pytest-order"]
 local = ["llama-index-embeddings-huggingface"]
+milvus = ["pymilvus"]
 postgres = ["pg8000", "pgvector"]
 server = ["fastapi", "uvicorn", "websockets"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.13,>=3.10"
-content-hash = "8cb05cab03e7b4f379d75a000e7a3359297e443ffba55b5bac4cab5b8cca4c22"
+content-hash = "3b09972bb581ee7efa283cf4d70be0ad2efd27314d974d7635f0c1f35a4b38f5"
