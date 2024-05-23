@@ -179,7 +179,7 @@ def create(
                 tools=[{"type": "function", "function": f} for f in functions] if functions else None,
                 tool_choice=function_call,
                 user=str(user_id),
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
         else:
             data = ChatCompletionRequest(
@@ -188,7 +188,7 @@ def create(
                 functions=functions,
                 function_call=function_call,
                 user=str(user_id),
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
 
         if stream:
