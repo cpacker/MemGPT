@@ -36,9 +36,11 @@ from memgpt.constants import (
 from memgpt.models.chat_completion_response import ChatCompletionResponse
 from memgpt.openai_backcompat.openai_object import OpenAIObject
 
-# TODO: what is this?
-# DEBUG = True
 DEBUG = False
+if "LOG_LEVEL" in os.environ:
+    if os.environ["LOG_LEVEL"] == "DEBUG":
+        DEBUG = True
+
 
 ADJECTIVE_BANK = [
     "beautiful",
