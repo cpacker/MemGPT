@@ -18,7 +18,7 @@ MemGPT makes it easy to build and deploy stateful LLM agents with support for:
 * Connections to [external data sources](https://memgpt.readme.io/docs/data_sources) (e.g. PDF files) for RAG
 * Defining and calling [custom tools](https://memgpt.readme.io/docs/functions) (e.g. [google search](https://github.com/cpacker/MemGPT/blob/main/examples/google_search.py))
 
-You can also use MemGPT to depoy agents as a *service*. You can use a MemGPT server to run a multi-user, multi-agent application on top of supported LLM providers.
+You can also use MemGPT to deploy agents as a *service*. You can use a MemGPT server to run a multi-user, multi-agent application on top of supported LLM providers.
 
 <img width="1000" alt="image" src="https://github.com/cpacker/MemGPT/assets/8505980/1096eb91-139a-4bc5-b908-fa585462da09">
 
