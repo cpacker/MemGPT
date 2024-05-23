@@ -179,7 +179,6 @@ def create(
                 tools=[{"type": "function", "function": f} for f in functions] if functions else None,
                 tool_choice=function_call,
                 user=str(user_id),
-                response_format={"type": "json_object"},
             )
         else:
             data = ChatCompletionRequest(
@@ -188,8 +187,11 @@ def create(
                 functions=functions,
                 function_call=function_call,
                 user=str(user_id),
-                response_format={"type": "json_object"},
             )
+            # https://platform.openai.com/docs/guides/text-generation/json-mode
+            # only supported by gpt-4o, gpt-4-turbo, or gpt-3.5-turbo
+            if "gpt-4o" in llm_config.model or  "gpt-4-turbo" in llm_config.model or  "gpt-3.5-turbo" in llm_config.model:
+                data.response_format = {"type": "json_object"}
 
         if stream:
             data.stream = True
