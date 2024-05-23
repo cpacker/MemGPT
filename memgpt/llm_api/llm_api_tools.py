@@ -190,7 +190,7 @@ def create(
             )
             # https://platform.openai.com/docs/guides/text-generation/json-mode
             # only supported by gpt-4o, gpt-4-turbo, or gpt-3.5-turbo
-            if "gpt-4o" in llm_config.model or  "gpt-4-turbo" in llm_config.model or  "gpt-3.5-turbo" in llm_config.model:
+            if "gpt-4o" in llm_config.model or "gpt-4-turbo" in llm_config.model or "gpt-3.5-turbo" in llm_config.model:
                 data.response_format = {"type": "json_object"}
 
         if stream:
