@@ -159,6 +159,7 @@ def create(
     printd(f"Using model {llm_config.model_endpoint_type}, endpoint: {llm_config.model_endpoint}")
 
     # TODO eventually refactor so that credentials are passed through
+
     credentials = MemGPTCredentials.load()
 
     if function_call and not functions:
@@ -187,6 +188,10 @@ def create(
                 function_call=function_call,
                 user=str(user_id),
             )
+            # https://platform.openai.com/docs/guides/text-generation/json-mode
+            # only supported by gpt-4o, gpt-4-turbo, or gpt-3.5-turbo
+            if "gpt-4o" in llm_config.model or "gpt-4-turbo" in llm_config.model or "gpt-3.5-turbo" in llm_config.model:
+                data.response_format = {"type": "json_object"}
 
         if stream:
             data.stream = True
