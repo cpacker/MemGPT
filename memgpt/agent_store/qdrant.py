@@ -1,13 +1,13 @@
 import os
 import uuid
-from typing import Optional, List, Iterator, Dict, cast
 from copy import deepcopy
+from typing import Dict, Iterator, List, Optional, cast
+
 from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.utils import datetime_to_timestamp, timestamp_to_datetime
 from memgpt.config import MemGPTConfig
-from memgpt.data_types import Record, Passage, RecordType
-from qdrant_client import QdrantClient, models, grpc
 from memgpt.constants import MAX_EMBEDDING_DIM
+from memgpt.data_types import Passage, Record, RecordType
+from memgpt.utils import datetime_to_timestamp, timestamp_to_datetime
 
 TEXT_PAYLOAD_KEY = "text_content"
 METADATA_PAYLOAD_KEY = "metadata"
@@ -18,6 +18,10 @@ class QdrantStorageConnector(StorageConnector):
 
     def __init__(self, table_type: str, config: MemGPTConfig, user_id, agent_id=None):
         super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
+        try:
+            from qdrant_client import QdrantClient, models
+        except ImportError as e:
+            raise ImportError("'qdrant-client' not installed. Run `pip install qdrant-client`.") from e
         assert table_type in [TableType.ARCHIVAL_MEMORY, TableType.PASSAGES], "Qdrant only supports archival memory"
         if config.archival_storage_uri and len(config.archival_storage_uri.split(":")) == 2:
             host, port = config.archival_storage_uri.split(":")
@@ -37,6 +41,8 @@ class QdrantStorageConnector(StorageConnector):
         self.uuid_fields = ["id", "user_id", "agent_id", "source_id", "doc_id"]
 
     def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: int = 10) -> Iterator[List[RecordType]]:
+        from qdrant_client import grpc
+
         filters = self.get_qdrant_filters(filters)
         next_offset = None
         stop_scrolling = False
@@ -119,7 +125,7 @@ class QdrantStorageConnector(StorageConnector):
         )
         return self.to_records(results)
 
-    def to_records(self, records: List[models.Record | models.ScoredPoint]) -> List[RecordType]:
+    def to_records(self, records: list) -> List[RecordType]:
         parsed_records = []
         for record in records:
             record = deepcopy(record)
@@ -146,6 +152,8 @@ class QdrantStorageConnector(StorageConnector):
         return parsed_records
 
     def to_points(self, records: List[RecordType]):
+        from qdrant_client import models
+
         assert all(isinstance(r, Passage) for r in records)
         points = []
         records = list(set(records))
@@ -179,6 +187,8 @@ class QdrantStorageConnector(StorageConnector):
         return points
 
     def get_qdrant_filters(self, filters: Optional[Dict] = {}):
+        from qdrant_client import models
+
         filter_conditions = {**self.filters, **filters} if filters is not None else self.filters
         must_conditions = []
         for key, value in filter_conditions.items():
