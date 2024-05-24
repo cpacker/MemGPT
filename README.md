@@ -67,7 +67,7 @@ MemGPT provides a developer portal that enables you to easily create, edit, moni
 1. Run `memgpt server`
 2. Go to `localhost:8283` in the browser to view the developer portal
 
-Once the server is running, you can use the [Python client](https://memgpt.readme.io/docs/admin-client) or [REST API](https://memgpt.readme.io/reference/api) to connect to `memgpt.localhost` (if you're running with docker compose) or `localhost:8283` (if you're running with the CLI) to create users, agents, and more.
+Once the server is running, you can use the [Python client](https://memgpt.readme.io/docs/admin-client) or [REST API](https://memgpt.readme.io/reference/api) to connect to `memgpt.localhost` (if you're running with docker compose) or `localhost:8283` (if you're running with the CLI) to create users, agents, and more. The service requires authentication with a MemGPT admin password; it is the value of `MEMGPT_SERVER_PASS` in `.env`. 
 
 ## Supported Endpoints & Backends
 MemGPT is designed to be model and provider agnostic. The following LLM and embedding endpoints are supported:
