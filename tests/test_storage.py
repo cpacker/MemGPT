@@ -22,6 +22,8 @@ from memgpt.settings import settings
 from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
 
+from .utils import with_qdrant_storage
+
 # Note: the database will filter out rows that do not correspond to agent1 and test_user by default.
 texts = ["This is a test passage", "This is another test passage", "Cinderella wept"]
 start_date = datetime(2009, 10, 5, 18, 00)
@@ -106,7 +108,7 @@ def recreate_declarative_base():
     Base.metadata.clear()
 
 
-@pytest.mark.parametrize("storage_connector", ["postgres", "chroma", "sqlite", "qdrant"])
+@pytest.mark.parametrize("storage_connector", with_qdrant_storage(["postgres", "chroma", "sqlite"]))
 # @pytest.mark.parametrize("storage_connector", ["sqlite", "chroma"])
 # @pytest.mark.parametrize("storage_connector", ["postgres"])
 @pytest.mark.parametrize("table_type", [TableType.RECALL_MEMORY, TableType.ARCHIVAL_MEMORY])
@@ -165,7 +167,7 @@ def test_storage(
             print("Skipping test, Qdrant only supports archival memory")
             return
         TEST_MEMGPT_CONFIG.archival_storage_type = "qdrant"
-        TEST_MEMGPT_CONFIG.archival_storage_path = "./test_qdrant"
+        TEST_MEMGPT_CONFIG.archival_storage_uri = "localhost:6333"
 
     # get embedding model
     embed_model = None

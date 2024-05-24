@@ -13,13 +13,12 @@ from memgpt.metadata import MetadataStore
 # from memgpt.data_sources.connectors import DirectoryConnector, load_data
 # import memgpt
 from memgpt.settings import settings
-
 from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
-from .utils import wipe_config, get_passage_storage
+
+from .utils import wipe_config, with_qdrant_storage
 
 GET_ALL_LIMIT = 1000
-
 
 
 @pytest.fixture(autouse=True)
@@ -41,7 +40,7 @@ def recreate_declarative_base():
 
 
 @pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
-@pytest.mark.parametrize("passage_storage_connector", get_passage_storage())
+@pytest.mark.parametrize("passage_storage_connector", with_qdrant_storage(["chroma", "postgres"]))
 def test_load_directory(
     metadata_storage_connector,
     passage_storage_connector,

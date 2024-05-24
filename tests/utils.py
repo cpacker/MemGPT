@@ -1,10 +1,11 @@
 import datetime
 import os
+from importlib import util
 from typing import Dict, Iterator, List, Tuple
 
 import requests
 
-from memgpt.cli.cli import quickstart, QuickstartChoice
+from memgpt.cli.cli import QuickstartChoice, quickstart
 from memgpt.data_sources.connectors import DataConnector
 from memgpt.data_types import Document
 from tests import TEST_MEMGPT_CONFIG
@@ -136,12 +137,11 @@ def qdrant_server_running() -> bool:
         return False
 
 
-# tests/load_archival_storage.py instantiates multiple storage connectors instances
-# Qdrant local doesn't support concurrent access
-# Use Qdrant server for the test if running
-def get_passage_storage():
-    storage = ["chroma", "postgres"]
-    if qdrant_server_running():
+def with_qdrant_storage(storage: list[str]):
+    """If Qdrant server is running and `qdrant_client` is installed,
+    append `'qdrant'` to the storage list"""
+
+    if util.find_spec("qdrant_client") is not None and qdrant_server_running():
         storage.append("qdrant")
 
     return storage
