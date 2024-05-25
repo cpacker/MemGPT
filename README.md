@@ -59,14 +59,15 @@ MemGPT provides a developer portal that enables you to easily create, edit, moni
 **Option 1 (Recommended)**: Run with docker compose  
 1. [Install docker on your system](https://docs.docker.com/get-docker/)
 2. Clone the repo: `git clone https://github.com/cpacker/MemGPT.git`
-3. Run `docker compose up`
-4. Go to `memgpt.localhost` in the browser to view the developer portal 
+3. Copy-paste `.env.example` to `.env` and optionally modify
+4. Run `docker compose up`
+5. Go to `memgpt.localhost` in the browser to view the developer portal 
 
 **Option 2:** Run with the CLI:
 1. Run `memgpt server`
 2. Go to `localhost:8283` in the browser to view the developer portal
 
-Once the server is running, you can use the [Python client](https://memgpt.readme.io/docs/admin-client) or [REST API](https://memgpt.readme.io/reference/api) to connect to `memgpt.localhost` (if you're running with docker compose) or `localhost:8283` (if you're running with the CLI) to create users, agents, and more. The service requires authentication with a MemGPT admin password, which can be set with running `export MEMGPT_SERVER_PASS=password`. 
+Once the server is running, you can use the [Python client](https://memgpt.readme.io/docs/admin-client) or [REST API](https://memgpt.readme.io/reference/api) to connect to `memgpt.localhost` (if you're running with docker compose) or `localhost:8283` (if you're running with the CLI) to create users, agents, and more. The service requires authentication with a MemGPT admin password; it is the value of `MEMGPT_SERVER_PASS` in `.env`. 
 
 ## Supported Endpoints & Backends
 MemGPT is designed to be model and provider agnostic. The following LLM and embedding endpoints are supported:
