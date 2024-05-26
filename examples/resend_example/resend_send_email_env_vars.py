@@ -18,8 +18,8 @@ def send_email(self, description: str):
         >>> send_email("hello")
         # Output: None. This will send an email to the you are talking to with the message "hello".
     """
-    RESEND_API_KEY = os.getenv("YOUR_RESEND_API_KEY")
-    RESEND_TARGET_EMAIL_ADDRESS = os.getenv("YOUR_EMAIL_ADDRESS")
+    RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+    RESEND_TARGET_EMAIL_ADDRESS = os.getenv("RESEND_TARGET_EMAIL_ADDRESS")
     if RESEND_API_KEY is None:
         raise Exception("User did not set the environment variable RESEND_API_KEY")
     if RESEND_TARGET_EMAIL_ADDRESS is None:

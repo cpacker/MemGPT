@@ -18,19 +18,16 @@ embedding_dim = 1536
 embedding_chunk_size = 300
 
 [archival_storage]
-type = postgres
-path = /root/.memgpt/chroma
-uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt
+type = chroma
+path = /Users/loaner/.memgpt/chroma
 
 [recall_storage]
-type = postgres
-path = /root/.memgpt
-uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt
+type = sqlite
+path = /Users/loaner/.memgpt
 
 [metadata_storage]
-type = postgres
-path = /root/.memgpt
-uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt
+type = sqlite
+path = /Users/loaner/.memgpt
 
 [client]
 anon_clientid = 00000000-0000-0000-0000-000000000000

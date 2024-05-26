@@ -66,6 +66,12 @@ Create a preset that has access to that function:
 memgpt add preset -f examples/resend_example/resend_preset.yaml --name resend_preset
 ```
 
+Make sure we set the env vars:
+```sh
+export RESEND_API_KEY=re_YOUR_RESEND_KEY
+export RESEND_TARGET_EMAIL_ADDRESS="YOUR_EMAIL@gmail.com"
+```
+
 Create an agent with that preset (disable `--stream` if you're not using a streaming-compatible backend):
 ```sh
 memgpt run --preset resend_preset --persona sam_pov --human cs_phd --stream
