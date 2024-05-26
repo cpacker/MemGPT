@@ -1,5 +1,7 @@
 # Sending emails with MemGPT using [Resend](https://resend.com/emails)
 
+Thank you to @ykhli for the suggestion and initial tool call code!
+
 ## Defining the custom tool
 
 Create an account on [Resend](https://resend.com/emails) to get an API key.
