@@ -104,3 +104,23 @@ memgpt configure
 ```
 
 and selecting `lancedb` for archival storage, and database URI (e.g. `./.lancedb`"), Empty archival uri is also handled and default uri is set at `./.lancedb`. For more checkout [lancedb docs](https://lancedb.github.io/lancedb/)
+
+
+## Milvus
+
+To enable the Milvus backend, make sure to install the required dependencies with:
+
+```sh
+pip install 'pymemgpt[milvus]'
+```
+You can configure Milvus connection via command `memgpt configure`.
+
+```sh
+...
+? Select storage backend for archival data: milvus
+? Enter the Milvus connection URI (Default: ~/.memgpt/milvus.db): ~/.memgpt/milvus.db
+```
+You just set the URI to the local file path, e.g. `~/.memgpt/milvus.db`, which will automatically invoke the local Milvus service instance through Milvus Lite.
+
+If you have large scale of data such as more than a million docs, we recommend setting up a more performant Milvus server on [docker or kubenetes](https://milvus.io/docs/quickstart.md).
+And in this case, your URI should be the server URI, e.g. `http://localhost:19530`.
