@@ -40,7 +40,7 @@ def recreate_declarative_base():
 
 
 @pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
-@pytest.mark.parametrize("passage_storage_connector", with_qdrant_storage(["chroma", "postgres"]))
+@pytest.mark.parametrize("passage_storage_connector", with_qdrant_storage(["chroma", "postgres", "milvus"]))
 def test_load_directory(
     metadata_storage_connector,
     passage_storage_connector,
@@ -79,6 +79,10 @@ def test_load_directory(
         print("Testing Qdrant passage storage")
         TEST_MEMGPT_CONFIG.archival_storage_type = "qdrant"
         TEST_MEMGPT_CONFIG.archival_storage_uri = "localhost:6333"
+    elif passage_storage_connector == "milvus":
+        print("Testing Milvus passage storage")
+        TEST_MEMGPT_CONFIG.archival_storage_type = "milvus"
+        TEST_MEMGPT_CONFIG.archival_storage_uri = "./milvus.db"
     else:
         raise NotImplementedError(f"Storage type {passage_storage_connector} not implemented")
     TEST_MEMGPT_CONFIG.save()
