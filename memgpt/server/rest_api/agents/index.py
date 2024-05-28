@@ -22,8 +22,8 @@ class ListAgentsResponse(BaseModel):
     num_agents: int = Field(..., description="The number of agents available to the user.")
     # TODO make return type List[AgentStateModel]
     #      also return - presets: List[PresetModel]
-    # agents: List[AgentStateModel] = Field(..., description="List of agent configurations.")
-    agents: List[dict] = Field(..., description="List of agent configurations.")
+    agents: List[AgentStateModel] = Field(..., description="List of agent configurations.")
+    # agents: List[dict] = Field(..., description="List of agent configurations.")
 
 
 class CreateAgentRequest(BaseModel):
@@ -49,7 +49,9 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         """
         interface.clear()
         agents_data = server.list_agents(user_id=user_id)
-        return ListAgentsResponse(**agents_data)
+        # krishna
+        return agents_data
+        # return ListAgentsResponse(**agents_data)
 
     @router.post("/agents", tags=["agents"], response_model=CreateAgentResponse)
     def create_agent(

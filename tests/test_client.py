@@ -38,9 +38,16 @@ def _reset_config():
             archival_storage_uri=db_url,
             recall_storage_uri=db_url,
             metadata_storage_uri=db_url,
-            archival_storage_type="postgres",
-            recall_storage_type="postgres",
-            metadata_storage_type="postgres",
+            # archival_storage_type="postgres",
+            # recall_storage_type="postgres",
+            # metadata_storage_type="postgres",
+            archival_storage_type="chroma",
+            recall_storage_type="sqlite",
+            metadata_storage_type="sqlite",
+            # storage types
+                # archival: chroma
+                # recall: sqlite
+                # metadata: sqlite (probably)
             # embeddings
             default_embedding_config=EmbeddingConfig(
                 embedding_endpoint_type="openai",
@@ -63,9 +70,12 @@ def _reset_config():
             archival_storage_uri=db_url,
             recall_storage_uri=db_url,
             metadata_storage_uri=db_url,
-            archival_storage_type="postgres",
-            recall_storage_type="postgres",
-            metadata_storage_type="postgres",
+            # archival_storage_type="postgres",
+            # recall_storage_type="postgres",
+            # metadata_storage_type="postgres",
+            archival_storage_type="chroma",
+            recall_storage_type="sqlite",
+            metadata_storage_type="sqlite",
             # embeddings
             default_embedding_config=EmbeddingConfig(
                 embedding_endpoint_type="hugging-face",
@@ -108,17 +118,20 @@ def run_server():
     scope="module",
 )
 def client(request):
+    # global test_server_token
     if request.param["server"]:
-        # get URL from enviornment
+        # get URL from environment
         server_url = os.getenv("MEMGPT_SERVER_URL")
         if server_url is None:
             # run server in thread
             # NOTE: must set MEMGPT_SERVER_PASS enviornment variable
+            settings.server_pass = test_server_token
             server_url = "http://localhost:8283"
             print("Starting server thread")
             thread = threading.Thread(target=run_server, daemon=True)
             thread.start()
             time.sleep(5)
+
         print("Running client tests with server:", server_url)
         # create user via admin client
         admin = Admin(server_url, test_server_token)

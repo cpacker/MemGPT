@@ -2,6 +2,7 @@ import datetime
 import time
 import uuid
 from typing import Dict, List, Optional, Tuple, Union
+from pydantic import parse_obj_as
 
 import requests
 
@@ -18,6 +19,7 @@ from memgpt.data_types import (
 )
 from memgpt.metadata import MetadataStore
 from memgpt.models.pydantic_models import (
+    AgentStateModel,
     HumanModel,
     JobModel,
     JobStatus,
@@ -55,7 +57,7 @@ from memgpt.server.rest_api.sources.index import ListSourcesResponse
 from memgpt.server.rest_api.tools.index import CreateToolResponse
 from memgpt.server.server import SyncServer
 
-
+# krishna
 # really feel like should be able to pass user_id as optional argument
 def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
     if base_url is None:
@@ -248,10 +250,26 @@ class RESTClient(AbstractClient):
     # agents
     def list_agents(self):
         response = requests.get(f"{self.base_url}/api/agents", headers=self.headers)
-        return ListAgentsResponse(**response.json())
-        # data = response.json()
-        # agents = [AgentStateModel(**agent) for agent in data["agents"]]
-        # return ListAgentsResponse(num_agents=data["num_agents"], agents=agents)
+        # return ListAgentsResponse(**response.json())
+        # krishna
+        return response.json()
+
+
+        # TODO: krishna's proposed implementation ↓
+
+        # response = requests.get(f"{self.base_url}/api/agents", headers=self.headers)
+        # response_data = response.json()
+
+        # # Parse the 'agents' field as a list of AgentStateModel objects
+        # agents = parse_obj_as(List[AgentStateModel], response_data.get('agents', []))
+
+        # # Create the ListAgentsResponse object with the parsed agents list
+        # list_agents_response = ListAgentsResponse(
+        #     num_agents=response_data.get('num_agents', 0),
+        #     agents=agents
+        # )
+
+        # return list_agents_response
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
         response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/config", headers=self.headers)
@@ -674,8 +692,25 @@ class LocalClient(AbstractClient):
         preset = self.server.create_preset(preset=preset)
         return preset
 
-    def delete_preset(self, preset_id: uuid.UUID):
-        preset = self.server.delete_preset(preset_id=preset_id, user_id=self.user_id)
+    def create_preset_from_file(
+            self, 
+            filename: str, 
+            name: str, 
+            user_id: Optional[uuid.UUID] = None, 
+    ) -> Preset:
+        return self.server.create_preset_from_file(
+            filename=filename, 
+            name=name, 
+            user_id=user_id if user_id is not None else self.user.id, 
+        )
+    
+    def get_preset(
+        self, preset_id: Optional[uuid.UUID] = None, preset_name: Optional[uuid.UUID] = None, user_id: Optional[uuid.UUID] = None
+    ) -> Preset:
+        return self.server.get_preset(preset_id, preset_name, user_id)
+    
+    def delete_preset(self, user_id: uuid.UUID, preset_id: uuid.UUID) -> Preset:
+        self.server.delete_preset(user_id, preset_id)
 
     def list_presets(self, user_id: uuid.UUID) -> List[PresetModel]:
         return self.server.list_presets(user_id=self.user_id)
@@ -705,12 +740,33 @@ class LocalClient(AbstractClient):
 
     def list_humans(self, user_id: uuid.UUID):
         return self.server.list_humans(user_id=self.user_id)
+    
+    def get_human(self, name: str, user_id: uuid.UUID):
+        return self.server.get_human(name=name, user_id=user_id)
+    
+    def add_human(self, human: HumanModel):
+        return self.server.add_human(human=human)
+    
+    def update_human(self, human: HumanModel):
+        return self.server.update_human(human=human)
+    
+    def delete_human(self, name: str, user_id: uuid.UUID):
+        return self.server.delete_human(name, user_id)
 
     def list_personas(self, user_id: uuid.UUID):
         return self.server.list_personas(user_id=self.user_id)
+    
+    def get_persona(self, name: str, user_id: uuid.UUID):
+        return self.server.get_persona(name=name, user_id=user_id)
+    
+    def update_persona(self, persona: PersonaModel):
+        self.server.update_persona(persona)
 
-    def add_persona(self, user_id: uuid.UUID, name: str, persona: str, text: Optional[str]):
-        self.server.add_persona(name=name, persona=persona)
+    def delete_persona(self, name: str, user_id: uuid.UUID):
+        self.server.delete_persona(name, user_id)
+
+    def add_persona(self, persona: PersonaModel):
+        self.server.add_persona(persona)
 
     def list_sources(self, user_id: uuid.UUID):
         return self.server.list_all_sources(user_id=self.user_id)
@@ -732,7 +788,7 @@ class LocalClient(AbstractClient):
         self.server.attach_source_to_agent(user_id=self.user_id, source_id=source_id, agent_id=agent_id)
 
     def delete_source(self, source_id: Optional[uuid.UUID] = None, source_name: Optional[str] = None):
-        self.server.delete_source(user_id=self.user, source_name=source_name)
+        self.server.delete_source(user_id=self.user.id, source_id=source_id,  source_name=source_name)
 
     def delete_agent(self, agent_id: Optional[uuid.UUID] = None, agent_name: Optional[str] = None):
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id, agent_name=agent_name)

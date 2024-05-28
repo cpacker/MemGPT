@@ -7,6 +7,7 @@ from datetime import datetime
 from functools import wraps
 from threading import Lock
 from typing import Callable, List, Optional, Tuple, Union
+from memgpt.presets.presets import create_preset_from_file
 
 from fastapi import HTTPException
 
@@ -40,10 +41,12 @@ from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.metadata import MetadataStore
 from memgpt.models.pydantic_models import (
     DocumentModel,
+    HumanModel,
     PassageModel,
     PresetModel,
     SourceModel,
     ToolModel,
+    PersonaModel
 )
 
 logger = logging.getLogger(__name__)
@@ -809,6 +812,9 @@ class SyncServer(LockingServer):
 
         self.ms.create_preset(preset)
         return preset
+    
+    def create_preset_from_file(self, filename: str, name: str, user_id: uuid.UUID):
+        return create_preset_from_file(filename, name, user_id, self.ms)
 
     def get_preset(
         self, preset_id: Optional[uuid.UUID] = None, preset_name: Optional[uuid.UUID] = None, user_id: Optional[uuid.UUID] = None
@@ -826,6 +832,10 @@ class SyncServer(LockingServer):
     def get_preset_sources(self, preset_id: uuid.UUID):
         """Get the sources corresponding to the preset_id"""
         return self.ms.get_preset_sources(preset_id=preset_id)
+
+    def add_preset():
+        assert filename, "Must specify filename for preset"
+        create_preset_from_file(filename, name, user_id, ms)
 
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:
         """Convert AgentState to a dict for a JSON response"""
@@ -918,22 +928,33 @@ class SyncServer(LockingServer):
 
     def list_humans(self, user_id: uuid.UUID):
         return self.ms.list_humans(user_id=user_id)
+    
+    def get_human(self, name: str, user_id: uuid.UUID):
+        return self.ms.get_human(name=name, user_id=user_id)
 
+    def update_human(self, human: HumanModel):
+        return self.ms.update_human(human=human)
+    
+    def add_human(self, human: HumanModel):
+        return self.ms.add_human(human=human)
+
+    def delete_human(self, name: str, user_id: uuid.UUID):
+        return self.ms.delete_human(name, user_id)
+    
     def list_personas(self, user_id: uuid.UUID):
         return self.ms.list_personas(user_id=user_id)
 
-    def add_persona(self, name: str, persona: str):
-        """Update or create a persona."""
-        persona = self.ms.get_persona(name=name, user_id=user_id)
-        if persona:
-            # config if user wants to overwrite
-            if not questionary.confirm(f"Persona {name} already exists. Overwrite?").ask():
-                return
-            persona.text = text
-            self.ms.update_persona(persona)
-        else:
-            persona = PersonaModel(name=name, text=text, user_id=user_id)
-            self.ms.add_persona(persona)
+    def get_persona(self, name: str, user_id: uuid.UUID):
+        return self.ms.get_persona(name=name, user_id=user_id)
+    
+    def update_persona(self, persona: PersonaModel):
+        self.ms.update_persona(persona)
+
+    def delete_persona(self, name: str, user_id: uuid.UUID):
+        self.ms.delete_persona(name, user_id)
+
+    def add_persona(self, persona: PersonaModel):
+        self.ms.add_persona(persona)
 
     def get_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
         """Get the agent state"""
@@ -1351,7 +1372,7 @@ class SyncServer(LockingServer):
         # delete metadata
         source = self.ms.get_source(source_id=source_id, user_id=user_id, source_name=source_name)
         assert source is not None, f"Source {source.name} does not exist"
-        self.ms.delete_source(source_id)
+        self.ms.delete_source(source.id)
 
         # delete data from passage store
         passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
