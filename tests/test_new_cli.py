@@ -21,6 +21,7 @@ def generate_random_string(length):
 
 def test_crud_human(capsys):
 
+    # Initialize values that won't interfere with existing ones
     human_1 = generate_random_string(16)
     text_1 = generate_random_string(32)
     human_2 = generate_random_string(16)
@@ -63,5 +64,8 @@ def test_crud_human(capsys):
     assert text_1 in output
     assert human_2 not in output
     assert text_2 not in output
+
+    # Clean up
+    delete("human", human_1)
 
 

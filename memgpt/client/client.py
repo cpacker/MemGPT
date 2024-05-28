@@ -651,6 +651,7 @@ class LocalClient(AbstractClient):
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface=self.interface)
 
+    # agents
     def list_agents(self):
         self.interface.clear()
         return self.server.list_agents(user_id=self.user_id)
@@ -686,6 +687,14 @@ class LocalClient(AbstractClient):
         )
         return agent_state
 
+    def get_agent_config(self, agent_id: str) -> AgentState:
+        self.interface.clear()
+        return self.server.get_agent_config(user_id=self.user_id, agent_id=agent_id)
+
+    def delete_agent(self, agent_id: Optional[uuid.UUID] = None, agent_name: Optional[str] = None):
+        self.server.delete_agent(user_id=self.user_id, agent_id=agent_id, agent_name=agent_name)
+
+    ## presets
     def create_preset(self, preset: Preset) -> Preset:
         if preset.user_id is None:
             preset.user_id = self.user_id
@@ -718,10 +727,7 @@ class LocalClient(AbstractClient):
     def get_preset_sources(self, preset_id: uuid.UUID) -> List[uuid.UUID]:
         return self.server.get_preset_sources(preset_id=preset_id)
 
-    def get_agent_config(self, agent_id: str) -> AgentState:
-        self.interface.clear()
-        return self.server.get_agent_config(user_id=self.user_id, agent_id=agent_id)
-
+    # memory
     def get_agent_memory(self, agent_id: str) -> Dict:
         self.interface.clear()
         return self.server.get_agent_memory(user_id=self.user_id, agent_id=agent_id)
@@ -730,6 +736,7 @@ class LocalClient(AbstractClient):
         self.interface.clear()
         return self.server.update_agent_core_memory(user_id=self.user_id, agent_id=agent_id, new_memory_contents=new_memory_contents)
 
+    # agent interactions
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         self.interface.clear()
         self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
@@ -738,6 +745,30 @@ class LocalClient(AbstractClient):
         else:
             return self.interface.to_list()
 
+    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
+        self.interface.clear()
+        return self.server.run_command(user_id=self.user_id, agent_id=agent_id, command=command)
+
+    def save(self):
+        self.server.save_agents()
+
+    # archival memory
+    def get_agent_archival_memory(
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ):
+        _, archival_json_records = self.server.get_agent_archival_cursor(
+            user_id=self.user_id,
+            agent_id=agent_id,
+            after=after,
+            before=before,
+            limit=limit,
+        )
+        return archival_json_records
+
+    # messages (recall memory)
+    # (No corresponding function in LocalClient)
+
+    # humans / personas
     def list_humans(self, user_id: uuid.UUID):
         return self.server.list_humans(user_id=self.user_id)
     
@@ -768,18 +799,9 @@ class LocalClient(AbstractClient):
     def add_persona(self, persona: PersonaModel):
         self.server.add_persona(persona)
 
+    # sources
     def list_sources(self, user_id: uuid.UUID):
         return self.server.list_all_sources(user_id=self.user_id)
-
-    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
-        self.interface.clear()
-        return self.server.run_command(user_id=self.user_id, agent_id=agent_id, command=command)
-
-    def save(self):
-        self.server.save_agents()
-
-    def load_data(self, connector: DataConnector, source_name: str):
-        self.server.load_data(user_id=self.user_id, connector=connector, source_name=source_name)
 
     def create_source(self, name: str):
         self.server.create_source(user_id=self.user_id, name=name)
@@ -789,18 +811,3 @@ class LocalClient(AbstractClient):
 
     def delete_source(self, source_id: Optional[uuid.UUID] = None, source_name: Optional[str] = None):
         self.server.delete_source(user_id=self.user.id, source_id=source_id,  source_name=source_name)
-
-    def delete_agent(self, agent_id: Optional[uuid.UUID] = None, agent_name: Optional[str] = None):
-        self.server.delete_agent(user_id=self.user_id, agent_id=agent_id, agent_name=agent_name)
-
-    def get_agent_archival_memory(
-        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-    ):
-        _, archival_json_records = self.server.get_agent_archival_cursor(
-            user_id=self.user_id,
-            agent_id=agent_id,
-            after=after,
-            before=before,
-            limit=limit,
-        )
-        return archival_json_records
