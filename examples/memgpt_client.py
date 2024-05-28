@@ -25,7 +25,7 @@ def main():
 
     # List available keys
     get_keys_response = admin.get_keys(user_id=user_id)
-    print(f"User {user_id} has keys: {get_keys_response.api_key_list}")
+    print(f"User {user_id} has keys: {get_keys_response}")
 
     # Connect to the server as a user
     client = create_client(base_url="http://localhost:8283", token=token)
