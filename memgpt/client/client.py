@@ -626,6 +626,8 @@ class LocalClient(AbstractClient):
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface=self.interface)
 
+    # agents
+
     def list_agents(self):
         self.interface.clear()
         return self.server.list_agents(user_id=self.user_id)
@@ -660,7 +662,18 @@ class LocalClient(AbstractClient):
             human=human,
         )
         return agent_state
+    
+    def delete_agent(self, agent_id: uuid.UUID):
+        self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
 
+    def get_agent_config(self, agent_id: str) -> AgentState:
+        self.interface.clear()
+        return self.server.get_agent_config(user_id=self.user_id, agent_id=agent_id)
+
+    
+
+
+    # presets
     def create_preset(self, preset: Preset) -> Preset:
         if preset.user_id is None:
             preset.user_id = self.user_id
@@ -672,10 +685,8 @@ class LocalClient(AbstractClient):
 
     def list_presets(self) -> List[PresetModel]:
         return self.server.list_presets(user_id=self.user_id)
-
-    def get_agent_config(self, agent_id: str) -> AgentState:
-        self.interface.clear()
-        return self.server.get_agent_config(user_id=self.user_id, agent_id=agent_id)
+    
+    # memory
 
     def get_agent_memory(self, agent_id: str) -> Dict:
         self.interface.clear()
@@ -684,6 +695,8 @@ class LocalClient(AbstractClient):
     def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Dict:
         self.interface.clear()
         return self.server.update_agent_core_memory(user_id=self.user_id, agent_id=agent_id, new_memory_contents=new_memory_contents)
+
+    # agent interactions
 
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         self.interface.clear()
@@ -700,17 +713,7 @@ class LocalClient(AbstractClient):
     def save(self):
         self.server.save_agents()
 
-    def load_data(self, connector: DataConnector, source_name: str):
-        self.server.load_data(user_id=self.user_id, connector=connector, source_name=source_name)
-
-    def create_source(self, name: str):
-        self.server.create_source(user_id=self.user_id, name=name)
-
-    def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
-        self.server.attach_source_to_agent(user_id=self.user_id, source_id=source_id, agent_id=agent_id)
-
-    def delete_agent(self, agent_id: uuid.UUID):
-        self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
+    # archival memory
 
     def get_agent_archival_memory(
         self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
@@ -723,3 +726,38 @@ class LocalClient(AbstractClient):
             limit=limit,
         )
         return archival_json_records
+    
+    # messages
+    
+    # humans / personas
+
+    def list_humans(self, user_id: uuid.UUID):
+        return self.server.list_humans(user_id=user_id if user_id else self.user_id)
+    
+    def get_human(self, name: str, user_id: uuid.UUID):
+        return self.server.get_human(name=name, user_id=user_id)
+    
+    def add_human(self, human: HumanModel):
+        return self.server.add_human(human=human)
+    
+    def update_human(self, human: HumanModel):
+        return self.server.update_human(human=human)
+    
+    def delete_human(self, name: str, user_id: uuid.UUID):
+        return self.server.delete_human(name, user_id)
+    
+    # tools
+    
+    # data sources
+
+    def load_data(self, connector: DataConnector, source_name: str):
+        self.server.load_data(user_id=self.user_id, connector=connector, source_name=source_name)
+
+    def create_source(self, name: str):
+        self.server.create_source(user_id=self.user_id, name=name)
+
+    def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
+        self.server.attach_source_to_agent(user_id=self.user_id, source_id=source_id, agent_id=agent_id)
+
+
+    
