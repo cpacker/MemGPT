@@ -121,7 +121,7 @@ def on_startup():
     memgpt_api = app.openapi_schema.copy()
     memgpt_api["paths"] = {key: value for key, value in memgpt_api["paths"].items() if not key.startswith(OPENAI_API_PREFIX)}
     memgpt_api["info"]["title"] = "MemGPT API"
-    with open("openapi_memgpt.json", "w") as file:
+    with open("openapi_memgpt.json", "w", encoding="utf-8") as file:
         print(f"Writing out openapi_memgpt.json file")
         json.dump(memgpt_api, file, indent=2)
 
@@ -132,7 +132,7 @@ def on_startup():
         if not (key.startswith(API_PREFIX) or key.startswith(ADMIN_PREFIX))
     }
     openai_assistants_api["info"]["title"] = "OpenAI Assistants API"
-    with open("openapi_assistants.json", "w") as file:
+    with open("openapi_assistants.json", "w", encoding="utf-8") as file:
         print(f"Writing out openapi_assistants.json file")
         json.dump(openai_assistants_api, file, indent=2)
 
