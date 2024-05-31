@@ -53,7 +53,7 @@ def add_default_tools(user_id: uuid.UUID, ms: MetadataStore):
 
 def add_default_humans_and_personas(user_id: uuid.UUID, ms: MetadataStore):
     for persona_file in list_persona_files():
-        text = open(persona_file, "r").read()
+        text = open(persona_file, "r", encoding="utf-8").read()
         name = os.path.basename(persona_file).replace(".txt", "")
         if ms.get_persona(user_id=user_id, name=name) is not None:
             printd(f"Persona '{name}' already exists for user '{user_id}'")
@@ -61,7 +61,7 @@ def add_default_humans_and_personas(user_id: uuid.UUID, ms: MetadataStore):
         persona = PersonaModel(name=name, text=text, user_id=user_id)
         ms.add_persona(persona)
     for human_file in list_human_files():
-        text = open(human_file, "r").read()
+        text = open(human_file, "r", encoding="utf-8").read()
         name = os.path.basename(human_file).replace(".txt", "")
         if ms.get_human(user_id=user_id, name=name) is not None:
             printd(f"Human '{name}' already exists for user '{user_id}'")
