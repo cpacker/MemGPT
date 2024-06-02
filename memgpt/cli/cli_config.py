@@ -1150,7 +1150,7 @@ def add(
     ms = MetadataStore(config)
     if filename:  # read from file
         assert text is None, "Cannot specify both text and filename"
-        with open(filename, "r") as f:
+        with open(filename, "r", encoding="utf-8") as f:
             text = f.read()
     if option == "persona":
         persona = ms.get_persona(name=name, user_id=user_id)

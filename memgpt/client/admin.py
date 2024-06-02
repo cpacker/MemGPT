@@ -87,7 +87,7 @@ class Admin:
     # tools (currently only available for admin)
     def create_tool(self, name: str, file_path: str, source_type: Optional[str] = "python", tags: Optional[List[str]] = None) -> ToolModel:
         """Add a tool implemented in a file path"""
-        source_code = open(file_path, "r").read()
+        source_code = open(file_path, "r", encoding="utf-8").read()
         data = {"name": name, "source_code": source_code, "source_type": source_type, "tags": tags}
         response = requests.post(f"{self.base_url}/api/tools", json=data, headers=self.headers)
         if response.status_code != 200:
