@@ -106,7 +106,7 @@ def recreate_declarative_base():
     Base.metadata.clear()
 
 
-@pytest.mark.parametrize("storage_connector", ["postgres", "chroma", "sqlite"])
+@pytest.mark.parametrize("storage_connector", ["postgres", "chroma", "sqlite", "milvus"])
 # @pytest.mark.parametrize("storage_connector", ["sqlite", "chroma"])
 # @pytest.mark.parametrize("storage_connector", ["postgres"])
 @pytest.mark.parametrize("table_type", [TableType.RECALL_MEMORY, TableType.ARCHIVAL_MEMORY])
@@ -160,7 +160,12 @@ def test_storage(
             print("Skipping test, sqlite only supported for recall memory")
             return
         TEST_MEMGPT_CONFIG.recall_storage_type = "sqlite"
-
+    if storage_connector == "milvus":
+        if table_type == TableType.RECALL_MEMORY:
+            print("Skipping test, Milvus only supports archival memory")
+            return
+        TEST_MEMGPT_CONFIG.archival_storage_type = "milvus"
+        TEST_MEMGPT_CONFIG.archival_storage_uri = "./milvus.db"
     # get embedding model
     embed_model = None
     if os.getenv("OPENAI_API_KEY"):

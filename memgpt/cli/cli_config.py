@@ -913,7 +913,7 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
 
 def configure_archival_storage(config: MemGPTConfig, credentials: MemGPTCredentials):
     # Configure archival storage backend
-    archival_storage_options = ["postgres", "chroma"]
+    archival_storage_options = ["postgres", "chroma", "milvus"]
     archival_storage_type = questionary.select(
         "Select storage backend for archival data:", archival_storage_options, default=config.archival_storage_type
     ).ask()
@@ -950,6 +950,13 @@ def configure_archival_storage(config: MemGPTConfig, credentials: MemGPTCredenti
         if chroma_type == "persistent":
             archival_storage_path = os.path.join(MEMGPT_DIR, "chroma")
 
+    if archival_storage_type == "milvus":
+        default_milvus_uri = archival_storage_path = os.path.join(MEMGPT_DIR, "milvus.db")
+        archival_storage_uri = questionary.text(
+            f"Enter the Milvus connection URI (Default: {default_milvus_uri}):", default=default_milvus_uri
+        ).ask()
+        if archival_storage_uri is None:
+            raise KeyboardInterrupt
     return archival_storage_type, archival_storage_uri, archival_storage_path
 
     # TODO: allow configuring embedding model
@@ -1179,7 +1186,7 @@ def add(
     ms = MetadataStore(config)
     if filename:  # read from file
         assert text is None, "Cannot specify both text and filename"
-        with open(filename, "r") as f:
+        with open(filename, "r", encoding="utf-8") as f:
             text = f.read()
     if option == "persona":
         persona = ms.get_persona(name=name, user_id=user_id)

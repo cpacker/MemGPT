@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pymemgpt"
-version = "0.3.15"
+version = "0.3.16"
 packages = [
     {include = "memgpt"}
 ]
@@ -46,6 +46,7 @@ docx2txt = "^0.8"
 sqlalchemy = "^2.0.25"
 pexpect = {version = "^4.9.0", optional = true}
 pyright = {version = "^1.1.347", optional = true}
+pymilvus = {version ="^2.4.3", optional = true}
 python-box = "^7.1.1"
 sqlmodel = "^0.0.16"
 autoflake = {version = "^2.3.0", optional = true}
@@ -66,6 +67,7 @@ llama-index-embeddings-ollama = "^0.1.2"
 [tool.poetry.extras]
 local = ["llama-index-embeddings-huggingface"]
 postgres = ["pgvector", "pg8000", "psycopg2-binary"]
+milvus = ["pymilvus"]
 dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort"]
 server = ["websockets", "fastapi", "uvicorn"]
 autogen = ["pyautogen"]
