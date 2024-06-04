@@ -21,12 +21,6 @@ jobs:
     - name: Build and run container
       run: bash db/run_postgres.sh
 
-    - name: Start Ollama Server
-      run: |
-        curl -fsSL https://ollama.com/install.sh | sh
-        ollama serve &
-        ollama pull llama3        
-
     - name: "Setup Python, Poetry and Dependencies"
       uses: packetcoders/action-setup-cache-python-poetry@main
       with:
@@ -38,11 +32,14 @@ jobs:
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        if [ -z "$OPENAI_API_KEY" ]; then
-          poetry run memgpt quickstart --backend openai
-        else
-          poetry run memgpt quickstart --backend memgpt
-        fi
+        poetry run memgpt quickstart --backend memgpt
+
+    - name: Start Ollama Server
+      run: |
+        curl -fsSL https://ollama.com/install.sh | sh
+        ollama serve &
+        ollama pull llama3        
+
 
     #- name: Run docker compose server
     #  env:
