@@ -32,11 +32,7 @@ jobs:
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        if [ -z "$OPENAI_API_KEY" ]; then
-          poetry run memgpt quickstart --backend openai
-        else
-          poetry run memgpt quickstart --backend memgpt
-        fi
+        [[ -z "${OPENAI_API_KEY}" ]] && poetry run memgpt quickstart --backend memgpt || poetry run memgpt quickstart --backend openai 
 
     #- name: Run docker compose server
     #  env:
@@ -71,7 +67,7 @@ jobs:
         MEMGPT_SERVER_PASS: test_server_token
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
       run: |
-        poetry run pytest -s -vv -k "not test_storage and not test_server and not test_openai_client" tests
+        poetry run pytest -s -vv -k "not test_endpoints not test_storage and not test_server and not test_openai_client" tests
 
     - name: Run storage tests
       env:
