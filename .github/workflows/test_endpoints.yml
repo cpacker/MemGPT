@@ -1,4 +1,4 @@
-name: Run All pytest Tests
+name: Run endpoint tests
 
 env:
   MEMGPT_PGURI: ${{ secrets.MEMGPT_PGURI }}

@@ -29,11 +29,7 @@ jobs:
 
     - name: Initialize credentials
       run: |
-        if [ -z "$OPENAI_API_KEY" ]; then
-          poetry run memgpt quickstart --backend openai
-        else
-          poetry run memgpt quickstart --backend memgpt
-        fi
+        [[ -z "${OPENAI_API_KEY}" ]] && poetry run memgpt quickstart --backend memgpt || poetry run memgpt quickstart --backend openai 
 
     #- name: Run docker compose server
     #  env:
