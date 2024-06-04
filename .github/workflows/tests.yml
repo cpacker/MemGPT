@@ -23,8 +23,8 @@ jobs:
     - name: Start Ollama Server
       run: |
         curl -fsSL https://ollama.com/install.sh | sh
-        ollama pull llama3        
         ollama serve &
+        ollama pull llama3        
 
     - name: "Setup Python, Poetry and Dependencies"
       uses: packetcoders/action-setup-cache-python-poetry@main
