@@ -162,7 +162,7 @@ def quickstart(
 
                 # Load the file from the relative path
                 script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-                backup_config_path = os.path.join(script_dir, "..", "..", "configs", "memgpt_hosted.json")
+                backup_config_path = os.path.join(script_dir, "..", "configs", "memgpt_hosted.json")
                 try:
                     with open(backup_config_path, "r", encoding="utf-8") as file:
                         backup_config = json.load(file)
@@ -175,7 +175,7 @@ def quickstart(
             # Load the file from the relative path
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
             # print("SCRIPT", script_dir)
-            backup_config_path = os.path.join(script_dir, "..", "..", "configs", "memgpt_hosted.json")
+            backup_config_path = os.path.join(script_dir, "..", "configs", "memgpt_hosted.json")
             # print("FILE PATH", backup_config_path)
             try:
                 with open(backup_config_path, "r", encoding="utf-8") as file:
@@ -214,7 +214,7 @@ def quickstart(
 
                 # Load the file from the relative path
                 script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-                backup_config_path = os.path.join(script_dir, "..", "..", "configs", "openai.json")
+                backup_config_path = os.path.join(script_dir, "..", "configs", "openai.json")
                 try:
                     with open(backup_config_path, "r", encoding="utf-8") as file:
                         backup_config = json.load(file)
@@ -226,7 +226,7 @@ def quickstart(
         else:
             # Load the file from the relative path
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-            backup_config_path = os.path.join(script_dir, "..", "..", "configs", "openai.json")
+            backup_config_path = os.path.join(script_dir, "..", "configs", "openai.json")
             try:
                 with open(backup_config_path, "r", encoding="utf-8") as file:
                     backup_config = json.load(file)
