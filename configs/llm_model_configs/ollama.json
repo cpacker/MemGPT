@@ -1,0 +1,6 @@
+{
+    "context_window": 8192,
+    "model_endpoint_type": "ollama",
+    "model_endpoint": "http://127.0.0.1:11434",
+    "model": "dolphin2.2-mistral:7b-q6_K"
+}
