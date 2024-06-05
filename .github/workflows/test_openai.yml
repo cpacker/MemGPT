@@ -1,4 +1,4 @@
-name: OpenAI Integration
+name: openai endpoints
 
 env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -34,10 +34,10 @@ jobs:
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_llm_endpoint.py
+        poetry run pytest -s -vv tests/test_endpoints.py::test_llm_endpoint_openai
 
     - name: Test embedding endpoint
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_embedding_endpoint.py
+        poetry run pytest -s -vv tests/test_endpoints.py::test_embedding_endpoint_openai

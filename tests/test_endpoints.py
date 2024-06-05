@@ -118,3 +118,13 @@ def test_llm_endpoint_openai():
 def test_embedding_endpoint_openai():
     filename = os.path.join(embedding_config_dir, "text-embedding-ada-002.json")
     run_embedding_endpoint(filename)
+
+
+def test_llm_endpoint_memgpt_hosted():
+    filename = os.path.join(llm_config_dir, "memgpt-hosted.json")
+    run_llm_endpoint(filename)
+
+
+def test_embedding_endpoint_memgpt_hosted():
+    filename = os.path.join(embedding_config_dir, "memgpt-hosted.json")
+    run_embedding_endpoint(filename)
