@@ -17,7 +17,7 @@ jobs:
     - name: Start Ollama Server
       run: |
         curl -fsSL https://ollama.com/install.sh | sh
-        ollama serve &
+        #ollama serve &
         ollama pull dolphin2.2-mistral:7b-q6_K 
         ollama pull mxbai-embed-large
 
