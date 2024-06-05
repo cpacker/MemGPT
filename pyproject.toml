@@ -62,7 +62,7 @@ pytest = { version = "^7.4.4", optional = true }
 pydantic-settings = "^2.2.1"
 httpx-sse = "^0.4.0"
 isort = { version = "^5.13.2", optional = true }
-llama-index-embeddings-ollama = "^0.1.2"
+llama-index-embeddings-ollama = {version = "^0.1.2", optional = true}
 
 [tool.poetry.extras]
 local = ["llama-index-embeddings-huggingface"]
@@ -71,6 +71,7 @@ milvus = ["pymilvus"]
 dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort"]
 server = ["websockets", "fastapi", "uvicorn"]
 autogen = ["pyautogen"]
+ollama = ["llama-index-embeddings-ollama"]
 
 [tool.black]
 line-length = 140

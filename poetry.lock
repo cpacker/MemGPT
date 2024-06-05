@@ -1968,7 +1968,7 @@ sentence-transformers = ">=2.6.1,<3.0.0"
 name = "llama-index-embeddings-ollama"
 version = "0.1.2"
 description = "llama-index embeddings ollama integration"
-optional = false
+optional = true
 python-versions = ">=3.8.1,<4.0"
 files = [
     {file = "llama_index_embeddings_ollama-0.1.2-py3-none-any.whl", hash = "sha256:ac7afabfa1134059af351b021e05e256bf86dd15e5176ffa5ab0305bcf03b33f"},
@@ -6194,10 +6194,11 @@ autogen = ["pyautogen"]
 dev = ["autoflake", "black", "datasets", "isort", "pexpect", "pre-commit", "pyright", "pytest", "pytest-asyncio", "pytest-order"]
 local = ["llama-index-embeddings-huggingface"]
 milvus = ["pymilvus"]
+ollama = ["llama-index-embeddings-ollama"]
 postgres = ["pg8000", "pgvector"]
 server = ["fastapi", "uvicorn", "websockets"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.13,>=3.10"
-content-hash = "4d71bff52c7dac63a03f23f5a36fb64134073c7062005e094cbda7028b361984"
+content-hash = "f6e4c326b977ac7129e1548eddcaa869ce31d6a25ce8e1458c0be7d492834107"
