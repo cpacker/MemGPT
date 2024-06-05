@@ -20,6 +20,7 @@ llm_config_path = "configs/llm_model_configs/memgpt-hosted.json"
 embedding_config_dir = "configs/embedding_model_configs"
 llm_config_dir = "configs/llm_model_configs"
 
+
 def run_llm_endpoint(filename):
     config_data = json.load(open(filename, "r"))
     print(config_data)
@@ -83,12 +84,12 @@ def test_embedding_endpoint_local():
     filename = os.path.join(embedding_config_dir, "local.json")
     run_embedding_endpoint(filename)
 
+
 def test_llm_endpoint_ollama():
     filename = os.path.join(llm_config_dir, "ollama.json")
     run_llm_endpoint(filename)
 
+
 def test_embedding_endpoint_ollama():
     filename = os.path.join(embedding_config_dir, "ollama.json")
     run_embedding_endpoint(filename)
-
-
