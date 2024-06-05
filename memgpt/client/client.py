@@ -666,16 +666,13 @@ class LocalClient(AbstractClient):
             human=human,
         )
         return agent_state
-    
+
     def delete_agent(self, agent_id: uuid.UUID):
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
 
     def get_agent_config(self, agent_id: str) -> AgentState:
         self.interface.clear()
         return self.server.get_agent_config(user_id=self.user_id, agent_id=agent_id)
-
-    
-
 
     # presets
     def create_preset(self, preset: Preset) -> Preset:
@@ -689,7 +686,7 @@ class LocalClient(AbstractClient):
 
     def list_presets(self) -> List[PresetModel]:
         return self.server.list_presets(user_id=self.user_id)
-    
+
     # memory
 
     def get_agent_memory(self, agent_id: str) -> Dict:
@@ -730,28 +727,28 @@ class LocalClient(AbstractClient):
             limit=limit,
         )
         return archival_json_records
-    
+
     # messages
-    
+
     # humans / personas
 
     def list_humans(self, user_id: uuid.UUID):
         return self.server.list_humans(user_id=user_id if user_id else self.user_id)
-    
+
     def get_human(self, name: str, user_id: uuid.UUID):
         return self.server.get_human(name=name, user_id=user_id)
-    
+
     def add_human(self, human: HumanModel):
         return self.server.add_human(human=human)
-    
+
     def update_human(self, human: HumanModel):
         return self.server.update_human(human=human)
-    
+
     def delete_human(self, name: str, user_id: uuid.UUID):
         return self.server.delete_human(name, user_id)
-    
+
     # tools
-    
+
     # data sources
 
     def load_data(self, connector: DataConnector, source_name: str):
@@ -762,6 +759,3 @@ class LocalClient(AbstractClient):
 
     def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
         self.server.attach_source_to_agent(user_id=self.user_id, source_id=source_id, agent_id=agent_id)
-
-
-    

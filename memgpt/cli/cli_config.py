@@ -1102,6 +1102,7 @@ class ListChoice(str, Enum):
 @app.command()
 def list(arg: Annotated[ListChoice, typer.Argument]):
     from memgpt.client.client import create_client
+
     config = MemGPTConfig.load()
     ms = MetadataStore(config)
     user_id = uuid.UUID(config.anon_clientid)
@@ -1197,6 +1198,7 @@ def add(
 ):
     """Add a person/human"""
     from memgpt.client.client import create_client
+
     config = MemGPTConfig.load()
     user_id = uuid.UUID(config.anon_clientid)
     ms = MetadataStore(config)
@@ -1239,6 +1241,7 @@ def add(
 def delete(option: str, name: str):
     """Delete a source from the archival memory."""
     from memgpt.client.client import create_client
+
     config = MemGPTConfig.load()
     user_id = uuid.UUID(config.anon_clientid)
     client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_API_KEY"))
