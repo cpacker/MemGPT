@@ -1,4 +1,4 @@
-name: Endpoint (MemGPT)
+name: Endpoint (Local)
 
 on:
   push:
@@ -19,12 +19,12 @@ jobs:
       with:
         python-version: "3.12"
         poetry-version: "1.8.2"
-        install-args: "-E dev"
-
-    - name: Test LLM endpoint
-      run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_llm_endpoint_memgpt_hosted
+        install-args: |
+          "-E dev"
+          "-E local"
 
     - name: Test embedding endpoint
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_embedding_endpoint_memgpt_hosted
+        poetry run pytest -s -vv tests/test_endpoints.py::test_embedding_endpoint_local

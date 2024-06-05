@@ -1,4 +1,4 @@
-name: Endpoint - OpenAI
+name: Endpoint (OpenAI)
 
 env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

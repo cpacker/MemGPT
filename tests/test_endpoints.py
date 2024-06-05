@@ -78,3 +78,8 @@ def test_llm_endpoint_memgpt_hosted():
 def test_embedding_endpoint_memgpt_hosted():
     filename = os.path.join(embedding_config_dir, "memgpt-hosted.json")
     run_embedding_endpoint(filename)
+
+
+def test_embedding_endpoint_local():
+    filename = os.path.join(embedding_config_dir, "local.json")
+    run_embedding_endpoint(filename)
