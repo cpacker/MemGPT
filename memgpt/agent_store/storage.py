@@ -100,6 +100,10 @@ class StorageConnector:
 
             return ChromaStorageConnector(table_type, config, user_id, agent_id)
 
+        elif storage_type == "qdrant":
+            from memgpt.agent_store.qdrant import QdrantStorageConnector
+
+            return QdrantStorageConnector(table_type, config, user_id, agent_id)
         # TODO: add back
         # elif storage_type == "lancedb":
         #    from memgpt.agent_store.db import LanceDBConnector
