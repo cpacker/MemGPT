@@ -162,7 +162,6 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
     credentials = MemGPTCredentials.load()
 
     if endpoint_type == "openai":
-        assert credentials.openai_key is not None
         from llama_index.embeddings.openai import OpenAIEmbedding
 
         additional_kwargs = {"user_id": user_id} if user_id else {}
