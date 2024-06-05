@@ -1,4 +1,4 @@
-name: memgpt-hosted endpoints
+name: Endpoint - MemGPT
 
 on:
   push:
@@ -19,7 +19,6 @@ jobs:
       with:
         python-version: "3.12"
         poetry-version: "1.8.2"
-        install-args: "--all-extras"
 
     - name: Test LLM endpoint
       run: |

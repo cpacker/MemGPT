@@ -1,4 +1,4 @@
-name: openai endpoints
+name: Endpoint - OpenAI
 
 env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -22,7 +22,6 @@ jobs:
       with:
         python-version: "3.12"
         poetry-version: "1.8.2"
-        install-args: "--all-extras"
 
     - name: Initialize credentials
       env:
