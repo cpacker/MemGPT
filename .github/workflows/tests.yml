@@ -25,7 +25,7 @@ jobs:
       with:
         python-version: "3.12"
         poetry-version: "1.8.2"
-        install-args: "-E dev -E postgres"
+        install-args: "-E dev -E postgres -E milvus"
 
     - name: Initialize credentials
       run: |
