@@ -6,8 +6,9 @@ from sqlalchemy.ext.declarative import declarative_base
 
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.cli.cli_load import load_directory
+from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, User
+from memgpt.data_types import AgentState, EmbeddingConfig, User
 from memgpt.metadata import MetadataStore
 
 # from memgpt.data_sources.connectors import DirectoryConnector, load_data
@@ -16,7 +17,7 @@ from memgpt.settings import settings
 from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
 
-from .utils import wipe_config, with_qdrant_storage
+from .utils import create_config, wipe_config, with_qdrant_storage
 
 GET_ALL_LIMIT = 1000
 
@@ -48,17 +49,18 @@ def test_load_directory(
     recreate_declarative_base,
 ):
     wipe_config()
-    TEST_MEMGPT_CONFIG.default_embedding_config = EmbeddingConfig(
-        embedding_endpoint_type="openai",
-        embedding_endpoint="https://api.openai.com/v1",
-        embedding_dim=1536,
-        embedding_model="text-embedding-ada-002",
-    )
-    TEST_MEMGPT_CONFIG.default_llm_config = LLMConfig(
-        model_endpoint_type="openai",
-        model_endpoint="https://api.openai.com/v1",
-        model="gpt-4",
-    )
+    if os.getenv("OPENAI_API_KEY"):
+        create_config("openai")
+        credentials = MemGPTCredentials(
+            openai_key=os.getenv("OPENAI_API_KEY"),
+        )
+    else:  # hosted
+        create_config("memgpt_hosted")
+        credentials = MemGPTCredentials()
+
+    config = MemGPTConfig.load()
+    TEST_MEMGPT_CONFIG.default_embedding_config = config.default_embedding_config
+    TEST_MEMGPT_CONFIG.default_llm_config = config.default_llm_config
 
     # setup config
     if metadata_storage_connector == "postgres":

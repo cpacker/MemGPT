@@ -81,7 +81,7 @@ MemGPT is designed to be model and provider agnostic. The following LLM and embe
 | Groq                | ✅ (alpha release) | ❌                  |
 | Cohere API          | ✅               | ❌                  |
 | vLLM                | ✅               | ❌                  |
-| Ollama              | ✅               | ❌                  |
+| Ollama              | ✅               | ✅                  |
 | LM Studio           | ✅               | ❌                  |
 | koboldcpp           | ✅               | ❌                  |
 | oobabooga web UI    | ✅               | ❌                  |

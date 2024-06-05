@@ -978,7 +978,7 @@ def get_human_text(name: str, enforce_limit=True):
     for file_path in list_human_files():
         file = os.path.basename(file_path)
         if f"{name}.txt" == file or name == file:
-            human_text = open(file_path, "r").read().strip()
+            human_text = open(file_path, "r", encoding="utf-8").read().strip()
             if enforce_limit and len(human_text) > CORE_MEMORY_HUMAN_CHAR_LIMIT:
                 raise ValueError(f"Contents of {name}.txt is over the character limit ({len(human_text)} > {CORE_MEMORY_HUMAN_CHAR_LIMIT})")
             return human_text
@@ -990,7 +990,7 @@ def get_persona_text(name: str, enforce_limit=True):
     for file_path in list_persona_files():
         file = os.path.basename(file_path)
         if f"{name}.txt" == file or name == file:
-            persona_text = open(file_path, "r").read().strip()
+            persona_text = open(file_path, "r", encoding="utf-8").read().strip()
             if enforce_limit and len(persona_text) > CORE_MEMORY_PERSONA_CHAR_LIMIT:
                 raise ValueError(
                     f"Contents of {name}.txt is over the character limit ({len(persona_text)} > {CORE_MEMORY_PERSONA_CHAR_LIMIT})"
@@ -1004,7 +1004,7 @@ def get_human_text(name: str):
     for file_path in list_human_files():
         file = os.path.basename(file_path)
         if f"{name}.txt" == file or name == file:
-            return open(file_path, "r").read().strip()
+            return open(file_path, "r", encoding="utf-8").read().strip()
 
 
 def get_schema_diff(schema_a, schema_b):

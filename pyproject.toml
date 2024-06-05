@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pymemgpt"
-version = "0.3.16"
+version = "0.3.17"
 packages = [
     {include = "memgpt"}
 ]
@@ -35,7 +35,7 @@ numpy = "^1.26.2"
 demjson3 = "^3.0.6"
 tiktoken = "^0.5.1"
 pyyaml = "^6.0.1"
-chromadb = "^0.4.18"
+chromadb = "^0.5.0"
 sqlalchemy-json = "^0.7.0"
 fastapi = {version = "^0.104.1", optional = true}
 uvicorn = {version = "^0.24.0.post1", optional = true}
@@ -63,6 +63,8 @@ pytest = { version = "^7.4.4", optional = true }
 pydantic-settings = "^2.2.1"
 httpx-sse = "^0.4.0"
 isort = { version = "^5.13.2", optional = true }
+llama-index-embeddings-ollama = {version = "^0.1.2", optional = true}
+protobuf = "3.20.0"
 
 [tool.poetry.extras]
 local = ["llama-index-embeddings-huggingface"]
@@ -72,6 +74,7 @@ dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets",
 server = ["websockets", "fastapi", "uvicorn"]
 autogen = ["pyautogen"]
 qdrant = ["qdrant-client"]
+ollama = ["llama-index-embeddings-ollama"]
 
 [tool.black]
 line-length = 140

@@ -71,7 +71,7 @@ class GetSourceDocumentsResponse(BaseModel):
     documents: List[DocumentModel] = Field(..., description="List of documents from the source.")
 
 
-def load_file_to_source(server: SyncServer, user_id: uuid.UUID, source: Source, job_id: uuid.UUID, file: UploadFile):
+def load_file_to_source(server: SyncServer, user_id: uuid.UUID, source: Source, job_id: uuid.UUID, file: UploadFile, bytes: bytes):
     # update job status
     job = server.ms.get_job(job_id=job_id)
     job.status = JobStatus.running
@@ -82,7 +82,7 @@ def load_file_to_source(server: SyncServer, user_id: uuid.UUID, source: Source, 
         with tempfile.TemporaryDirectory() as tmpdirname:
             file_path = os.path.join(tmpdirname, file.filename)
             with open(file_path, "wb") as buffer:
-                buffer.write(file.file.read())
+                buffer.write(bytes)
 
             # read the file
             connector = DirectoryConnector(input_files=[file_path])
@@ -232,6 +232,7 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         """
         interface.clear()
         source = server.ms.get_source(source_id=source_id, user_id=user_id)
+        bytes = file.file.read()
 
         # create job
         job = JobModel(user_id=user_id, metadata={"type": "embedding", "filename": file.filename, "source_id": source_id})
@@ -239,7 +240,7 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         server.ms.create_job(job)
 
         # create background task
-        background_tasks.add_task(load_file_to_source, server, user_id, source, job_id, file)
+        background_tasks.add_task(load_file_to_source, server, user_id, source, job_id, file, bytes)
 
         # return job information
         job = server.ms.get_job(job_id=job_id)
