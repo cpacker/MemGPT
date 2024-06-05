@@ -9,7 +9,7 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.constants import MAX_EMBEDDING_DIM
 from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import AgentState, EmbeddingConfig, Message, Passage, User
+from memgpt.data_types import AgentState, Message, Passage, User
 from memgpt.embeddings import embedding_model, query_embedding
 from memgpt.metadata import MetadataStore
 from memgpt.settings import settings
@@ -128,7 +128,7 @@ def test_storage(
         )
     else:  # hosted
         create_config("memgpt_hosted")
-        credentials = MemGPTCredentials()
+        MemGPTCredentials()
 
     config = MemGPTConfig.load()
     TEST_MEMGPT_CONFIG.default_embedding_config = config.default_embedding_config
@@ -166,21 +166,8 @@ def test_storage(
         TEST_MEMGPT_CONFIG.archival_storage_type = "milvus"
         TEST_MEMGPT_CONFIG.archival_storage_uri = "./milvus.db"
     # get embedding model
-    embed_model = None
-    if os.getenv("OPENAI_API_KEY"):
-        embedding_config = EmbeddingConfig(
-            embedding_endpoint_type="openai",
-            embedding_endpoint="https://api.openai.com/v1",
-            embedding_dim=1536,
-            # openai_key=os.getenv("OPENAI_API_KEY"),
-        )
-        credentials = MemGPTCredentials(
-            openai_key=os.getenv("OPENAI_API_KEY"),
-        )
-        credentials.save()
-    else:
-        embedding_config = EmbeddingConfig(embedding_endpoint_type="local", embedding_endpoint=None, embedding_dim=384)
-    embed_model = embedding_model(embedding_config)
+    embedding_config = TEST_MEMGPT_CONFIG.default_embedding_config
+    embed_model = embedding_model(TEST_MEMGPT_CONFIG.default_embedding_config)
 
     # create user
     ms = MetadataStore(TEST_MEMGPT_CONFIG)
