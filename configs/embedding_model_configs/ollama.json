@@ -1,0 +1,7 @@
+{
+    "embedding_endpoint_type": "ollama",
+    "embedding_endpoint": "http://127.0.0.1:11434",
+    "embedding_model": "mxbai-embed-large",
+    "embedding_dim": 512,
+    "embedding_chunk_size": 200
+}
