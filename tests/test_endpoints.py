@@ -103,6 +103,7 @@ def run_llm_endpoint(filename):
 def run_embedding_endpoint(filename):
     # load JSON file
     config_data = json.load(open(filename, "r"))
+    print(config_data)
     embedding_config = EmbeddingConfigModel(**config_data)
     model = embedding_model(embedding_config)
     query_text = "hello"
