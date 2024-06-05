@@ -108,6 +108,7 @@ def run_embedding_endpoint(filename):
     query_text = "hello"
     query_vec = model.get_text_embedding(query_text)
     print("vector dim", len(query_vec))
+    assert query_vec is not None
 
 
 def test_llm_endpoint_openai():
