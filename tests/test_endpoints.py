@@ -83,3 +83,13 @@ def test_embedding_endpoint_memgpt_hosted():
 def test_embedding_endpoint_local():
     filename = os.path.join(embedding_config_dir, "local.json")
     run_embedding_endpoint(filename)
+
+
+def test_llm_endpoint_ollama():
+    filename = os.path.join(llm_config_dir, "ollama.json")
+    run_llm_endpoint(filename)
+
+
+def test_embedding_endpoint_ollama():
+    filename = os.path.join(embedding_config_dir, "ollama.json")
+    run_embedding_endpoint(filename)
