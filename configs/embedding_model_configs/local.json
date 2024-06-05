@@ -1,0 +1,7 @@
+{
+    "embedding_endpoint": null,
+    "embedding_model": "BAAI/bge-small-en-v1.5",
+    "embedding_dim": 384,
+    "embedding_chunk_size": 300,
+    "embedding_endpoint_type": "local"
+}
