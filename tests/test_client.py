@@ -7,12 +7,12 @@ import pytest
 from dotenv import load_dotenv
 
 from memgpt import Admin, create_client
+from memgpt.config import MemGPTConfig
 from memgpt.constants import DEFAULT_PRESET
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import Preset  # TODO move to PresetModel
-from memgpt.data_types import EmbeddingConfig, LLMConfig
 from memgpt.settings import settings
-from tests.config import TestMGPTConfig
+from tests.utils import create_config
 
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
 # test_preset_name = "test_preset"
@@ -34,53 +34,23 @@ def _reset_config():
     db_url = settings.memgpt_pg_uri
 
     if os.getenv("OPENAI_API_KEY"):
-        config = TestMGPTConfig(
-            archival_storage_uri=db_url,
-            recall_storage_uri=db_url,
-            metadata_storage_uri=db_url,
-            archival_storage_type="postgres",
-            recall_storage_type="postgres",
-            metadata_storage_type="postgres",
-            # embeddings
-            default_embedding_config=EmbeddingConfig(
-                embedding_endpoint_type="openai",
-                embedding_endpoint="https://api.openai.com/v1",
-                embedding_model="text-embedding-ada-002",
-                embedding_dim=1536,
-            ),
-            # llms
-            default_llm_config=LLMConfig(
-                model_endpoint_type="openai",
-                model_endpoint="https://api.openai.com/v1",
-                model="gpt-4",
-            ),
-        )
+        create_config("openai")
         credentials = MemGPTCredentials(
             openai_key=os.getenv("OPENAI_API_KEY"),
         )
     else:  # hosted
-        config = TestMGPTConfig(
-            archival_storage_uri=db_url,
-            recall_storage_uri=db_url,
-            metadata_storage_uri=db_url,
-            archival_storage_type="postgres",
-            recall_storage_type="postgres",
-            metadata_storage_type="postgres",
-            # embeddings
-            default_embedding_config=EmbeddingConfig(
-                embedding_endpoint_type="hugging-face",
-                embedding_endpoint="https://embeddings.memgpt.ai",
-                embedding_model="BAAI/bge-large-en-v1.5",
-                embedding_dim=1024,
-            ),
-            # llms
-            default_llm_config=LLMConfig(
-                model_endpoint_type="vllm",
-                model_endpoint="https://api.memgpt.ai",
-                model="ehartford/dolphin-2.5-mixtral-8x7b",
-            ),
-        )
+        create_config("memgpt_hosted")
         credentials = MemGPTCredentials()
+
+    config = MemGPTConfig.load()
+
+    # set to use postgres
+    config.archival_storage_uri = db_url
+    config.recall_storage_uri = db_url
+    config.metadata_storage_uri = db_url
+    config.archival_storage_type = "postgres"
+    config.recall_storage_type = "postgres"
+    config.metadata_storage_type = "postgres"
 
     config.save()
     credentials.save()

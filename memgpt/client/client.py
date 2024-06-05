@@ -476,11 +476,15 @@ class RESTClient(AbstractClient):
     ) -> GetAgentMessagesResponse:
         params = {"before": before, "after": after, "limit": limit}
         response = requests.get(f"{self.base_url}/api/agents/{agent_id}/messages-cursor", params=params, headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to get messages: {response.text}")
         return GetAgentMessagesResponse(**response.json())
 
     def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
         data = {"message": message, "role": role, "stream": stream}
         response = requests.post(f"{self.base_url}/api/agents/{agent_id}/messages", json=data, headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to send message: {response.text}")
         return UserMessageResponse(**response.json())
 
     # humans / personas

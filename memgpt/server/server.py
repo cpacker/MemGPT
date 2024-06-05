@@ -223,14 +223,6 @@ class SyncServer(LockingServer):
         # TODO figure out how to handle credentials for the server
         self.credentials = MemGPTCredentials.load()
 
-        # check credentials
-        # TODO: add checks for other providers
-        if (
-            self.config.default_embedding_config.embedding_endpoint_type == "openai"
-            or self.config.default_llm_config.model_endpoint_type == "openai"
-        ):
-            assert self.credentials.openai_key is not None, "OpenAI key must be set in the credentials file"
-
         # Ensure valid database configuration
         # TODO: add back once tests are matched
         # assert (

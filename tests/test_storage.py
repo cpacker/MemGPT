@@ -6,21 +6,16 @@ import pytest
 from sqlalchemy.ext.declarative import declarative_base
 
 from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.config import MemGPTConfig
 from memgpt.constants import MAX_EMBEDDING_DIM
 from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import (
-    AgentState,
-    EmbeddingConfig,
-    LLMConfig,
-    Message,
-    Passage,
-    User,
-)
+from memgpt.data_types import AgentState, Message, Passage, User
 from memgpt.embeddings import embedding_model, query_embedding
 from memgpt.metadata import MetadataStore
 from memgpt.settings import settings
 from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
+from tests.utils import create_config, wipe_config
 
 # Note: the database will filter out rows that do not correspond to agent1 and test_user by default.
 texts = ["This is a test passage", "This is another test passage", "Cinderella wept"]
@@ -124,17 +119,21 @@ def test_storage(
     #    if 'Message' in globals():
     #        print("Removing messages", globals()['Message'])
     #        del globals()['Message']
-    TEST_MEMGPT_CONFIG.default_embedding_config = EmbeddingConfig(
-        embedding_endpoint_type="openai",
-        embedding_endpoint="https://api.openai.com/v1",
-        embedding_dim=1536,
-        embedding_model="text-embedding-ada-002",
-    )
-    TEST_MEMGPT_CONFIG.default_llm_config = LLMConfig(
-        model_endpoint_type="openai",
-        model_endpoint="https://api.openai.com/v1",
-        model="gpt-4",
-    )
+
+    wipe_config()
+    if os.getenv("OPENAI_API_KEY"):
+        create_config("openai")
+        credentials = MemGPTCredentials(
+            openai_key=os.getenv("OPENAI_API_KEY"),
+        )
+    else:  # hosted
+        create_config("memgpt_hosted")
+        MemGPTCredentials()
+
+    config = MemGPTConfig.load()
+    TEST_MEMGPT_CONFIG.default_embedding_config = config.default_embedding_config
+    TEST_MEMGPT_CONFIG.default_llm_config = config.default_llm_config
+
     if storage_connector == "postgres":
         TEST_MEMGPT_CONFIG.archival_storage_uri = settings.memgpt_pg_uri
         TEST_MEMGPT_CONFIG.recall_storage_uri = settings.memgpt_pg_uri
@@ -167,21 +166,8 @@ def test_storage(
         TEST_MEMGPT_CONFIG.archival_storage_type = "milvus"
         TEST_MEMGPT_CONFIG.archival_storage_uri = "./milvus.db"
     # get embedding model
-    embed_model = None
-    if os.getenv("OPENAI_API_KEY"):
-        embedding_config = EmbeddingConfig(
-            embedding_endpoint_type="openai",
-            embedding_endpoint="https://api.openai.com/v1",
-            embedding_dim=1536,
-            # openai_key=os.getenv("OPENAI_API_KEY"),
-        )
-        credentials = MemGPTCredentials(
-            openai_key=os.getenv("OPENAI_API_KEY"),
-        )
-        credentials.save()
-    else:
-        embedding_config = EmbeddingConfig(embedding_endpoint_type="local", embedding_endpoint=None, embedding_dim=384)
-    embed_model = embedding_model(embedding_config)
+    embedding_config = TEST_MEMGPT_CONFIG.default_embedding_config
+    embed_model = embedding_model(TEST_MEMGPT_CONFIG.default_embedding_config)
 
     # create user
     ms = MetadataStore(TEST_MEMGPT_CONFIG)
