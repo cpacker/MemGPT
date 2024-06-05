@@ -18,6 +18,7 @@ jobs:
       run: |
         curl -fsSL https://ollama.com/install.sh | sh
         ollama serve &
+        sleep 10 # wait for server
         ollama pull dolphin2.2-mistral:7b-q6_K 
         ollama pull mxbai-embed-large
 
