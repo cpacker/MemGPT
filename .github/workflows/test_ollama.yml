@@ -28,10 +28,12 @@ jobs:
         poetry-version: "1.8.2"
         install-args: "-E dev -E ollama"
 
+    - name: Test embedding endpoint
+      run: |
+        poetry run pytest -s -vv tests/test_endpoints.py::test_embedding_endpoint_ollama
+
     - name: Test LLM endpoint
       run: |
         poetry run pytest -s -vv tests/test_endpoints.py::test_llm_endpoint_ollama
 
-    - name: Test embedding endpoint
-      run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_embedding_endpoint_ollama
+
