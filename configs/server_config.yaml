@@ -20,17 +20,21 @@ embedding_chunk_size = 300
 [archival_storage]
 type = postgres
 path = /root/.memgpt/chroma
-uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt
+uri = postgresql+pg8000://swis_memgpt:swis_memgpt@pgvector_db:5432/swis_memgpt
 
 [recall_storage]
 type = postgres
 path = /root/.memgpt
-uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt
+uri = postgresql+pg8000://swis_memgpt:swis_memgpt@pgvector_db:5432/swis_memgpt
 
 [metadata_storage]
 type = postgres
 path = /root/.memgpt
-uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt
+uri = postgresql+pg8000://swis_memgpt:swis_memgpt@pgvector_db:5432/swis_memgpt
+
+[version]
+memgpt_version = 0.3.14
 
 [client]
 anon_clientid = 00000000-0000-0000-0000-000000000000
+

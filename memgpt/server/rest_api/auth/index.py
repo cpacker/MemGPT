@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
 
-router = APIRouter()
+router = APIRouter(prefix="/auth")
 
 
 class AuthResponse(BaseModel):
@@ -18,7 +18,8 @@ class AuthRequest(BaseModel):
 
 
 def setup_auth_router(server: SyncServer, interface: QueuingInterface, password: str) -> APIRouter:
-    @router.post("/auth", tags=["auth"], response_model=AuthResponse)
+
+    @router.post("/", tags=["auth"], response_model=AuthResponse)
     def authenticate_user(request: AuthRequest) -> AuthResponse:
         """
         Authenticates the user and sends response with User related data.
@@ -37,5 +38,30 @@ def setup_auth_router(server: SyncServer, interface: QueuingInterface, password:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
         return AuthResponse(uuid=response)
+
+    @router.post("/jwt-auth", tags=["auth"])
+    def login_for_access_token():
+        """
+        converts the given API key to a jwt refresh token
+        """
+        # decode and validate api token
+        # get user
+        # create refresh token for user
+        # return refresh token
+
+    @router.post("/jwt-refresh", tags=["auth"])
+    def refresh_access_token(
+        # scopes? how do we want to scope this?
+        # I think for now this is hard-keyed, something like:
+        # {"admin": bool, "agentId": str } - because a jwt should be scoped to an agent right?
+        # maybe also this is when we introduce an idea of "team" or "organization" - this is missing right now.
+
+    ):
+        """
+        creates a new jwt access token using the given refresh token
+        """
+        # decode and validate refresh token
+        # create access token for user
+        # return access token
 
     return router
