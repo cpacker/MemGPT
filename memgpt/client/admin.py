@@ -28,8 +28,9 @@ class Admin:
         self.token = token
         self.headers = {"accept": "application/json", "content-type": "application/json", "authorization": f"Bearer {token}"}
 
-    def get_users(self):
-        response = requests.get(f"{self.base_url}/admin/users", headers=self.headers)
+    def get_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = None):
+        payload = {"cursor": cursor, "limit": limit}
+        response = requests.get(f"{self.base_url}/admin/users", headers=self.headers, json=payload)
         if response.status_code != 200:
             raise HTTPError(response.json())
         return GetAllUsersResponse(**response.json())

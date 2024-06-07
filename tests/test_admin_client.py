@@ -79,3 +79,34 @@ def test_admin_client(admin_client):
     # list users
     users = admin_client.get_users()
     assert len(users.user_list) == 0, f"Expected 0 users, got {users}"
+
+
+def test_get_users_pagination(admin_client):
+    _reset_config()
+
+    page_size = 50
+    num_users = 56
+    expected_users_remainder = num_users - page_size
+
+    # create users
+    for i in range(len(num_users)):
+
+        user_id = uuid.uuid4()
+        key_name = "test_key" + f"{i}"
+
+        create_user_response = admin_client.create_user(user_id)
+        admin_client.create_key(create_user_response.user_id, key_name)
+
+    # list users in page 1
+    get_all_users_response1 = admin_client.get_users()
+    cursor1 = get_all_users_response1.cursor
+    user_list1 = get_all_users_response1.user_list
+    assert len(user_list1) == page_size
+
+    # list users in page 2 using cursor
+    get_all_users_response2 = admin_client.get_users(cursor1)
+    cursor2 = get_all_users_response2.cursor
+    user_list2 = get_all_users_response2.user_list
+
+    assert len(user_list2) == expected_users_remainder
+    assert cursor1 != cursor2
