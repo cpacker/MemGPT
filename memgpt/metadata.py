@@ -661,6 +661,8 @@ class MetadataStore:
             if cursor:
                 query = query.filter(UserModel.id > cursor)
             results = query.limit(limit).all()
+            if not results:
+                return None, []
             user_records = [r.to_record() for r in results]
             next_cursor = user_records[-1].id
             assert isinstance(next_cursor, uuid.UUID)
