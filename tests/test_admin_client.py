@@ -33,6 +33,21 @@ def admin_client():
     yield admin
 
 
+@pytest.fixture(scope="session", autouse=True)
+def before_cleanup():
+
+    # Clean up before tests run
+    print("Running setup code before tests...")
+    clean_up_users_and_keys()
+
+    # yield control to test
+    yield
+
+    # Clean up after tests run
+    print("Running clean up after tests...")
+    clean_up_users_and_keys()
+
+
 def test_admin_client(admin_client):
     _reset_config()
 
@@ -110,3 +125,25 @@ def test_get_users_pagination(admin_client):
 
     assert len(user_list2) == expected_users_remainder
     assert cursor1 != cursor2
+
+    # delete users
+    clean_up_users_and_keys()
+
+    # list users to check pagination with no users
+    users = admin_client.get_users()
+    assert len(users.user_list) == 0, f"Expected 0 users, got {users}"
+
+
+def clean_up_users_and_keys():
+    admin_client = Admin(test_base_url, test_server_token)
+    cursor = None
+
+    # clean up all keys and users
+    while admin_client.get_users(cursor).user_list:
+        users = admin_client.get_users(cursor)
+        cursor = admin_client.get_users(cursor).cursor
+        for user_id in [uuid.UUID(u["user_id"]) for u in users.user_list]:
+            keys_list = admin_client.get_keys(user_id)
+            for key in keys_list:
+                admin_client.delete_key(key)
+            admin_client.delete_user(user_id)

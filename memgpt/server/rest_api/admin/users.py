@@ -13,7 +13,7 @@ router = APIRouter()
 
 class GetAllUsersRequest(BaseModel):
     cursor: Optional[uuid.UUID] = Field(None, description="Cursor to which to start the paginated request.")
-    limit: int = Field(..., description="Maximum number of users to retrieve per page.")
+    limit: Optional[int] = Field(50, description="Maximum number of users to retrieve per page.")
 
 
 class GetAllUsersResponse(BaseModel):
@@ -60,17 +60,11 @@ class DeleteUserResponse(BaseModel):
 
 def setup_admin_router(server: SyncServer, interface: QueuingInterface):
     @router.get("/users", tags=["admin"], response_model=GetAllUsersResponse)
-    def get_all_users(
-        cursor: Optional[uuid.UUID] = Query(None, description="Cursor to which to start the paginated request."),
-        limit: int = Query(50, description="Maximum number of users to retrieve per page."),
-    ):
+    def get_all_users(request: GetAllUsersRequest = Body(...)):
         """
         Get a list of all users in the database
         """
         try:
-            # Validate with the Pydantic model
-            request = GetAllUsersRequest(cursor=cursor, limit=limit)
-
             next_cursor, users = server.ms.get_all_users(request.cursor, request.limit)
             processed_users = [{"user_id": user.id} for user in users]
         except HTTPException:
