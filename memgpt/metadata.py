@@ -655,7 +655,7 @@ class MetadataStore:
             return results[0].to_record()
 
     @enforce_types
-    def get_all_users(self, cursor: Optional[uuid.UUID], limit: int) -> (Optional[uuid.UUID], List[User]):
+    def get_all_users(self, cursor: Optional[uuid.UUID], limit: Optional[int] = 50) -> (Optional[uuid.UUID], List[User]):
         with self.session_maker() as session:
             query = session.query(UserModel).order_by(UserModel.id)
             if cursor:

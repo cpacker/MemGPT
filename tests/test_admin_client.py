@@ -89,7 +89,7 @@ def test_get_users_pagination(admin_client):
     expected_users_remainder = num_users - page_size
 
     # create users
-    for i in range(len(num_users)):
+    for i in range(num_users):
 
         user_id = uuid.uuid4()
         key_name = "test_key" + f"{i}"
