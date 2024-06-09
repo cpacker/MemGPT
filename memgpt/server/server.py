@@ -137,7 +137,6 @@ class LockingServer(Server):
             try:
                 # Execute the function
                 # logger.info(f"running function on agent_id = {agent_id}")
-                print("USERID", user_id)
                 return func(self, user_id, agent_id, *args, **kwargs)
             finally:
                 # Release the lock
@@ -1054,7 +1053,6 @@ class SyncServer(LockingServer):
 
         # Assume passages
         records = memgpt_agent.persistence_manager.archival_memory.storage.get_all()
-        print("records:", records)
 
         return [dict(id=str(r.id), contents=r.text) for r in records]
 
@@ -1269,7 +1267,6 @@ class SyncServer(LockingServer):
     def api_key_to_user(self, api_key: str) -> uuid.UUID:
         """Decode an API key to a user"""
         user = self.ms.get_user_from_api_key(api_key=api_key)
-        print("got user", api_key, user.id)
         if user is None:
             raise HTTPException(status_code=403, detail="Invalid credentials")
         else:

@@ -239,7 +239,6 @@ class RESTClient(AbstractClient):
         super().__init__(debug=debug)
         self.base_url = base_url
         self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
-        self.token = token
 
     # agents
 
@@ -696,7 +695,7 @@ class LocalClient(AbstractClient):
         if self.auto_save:
             self.save()
         else:
-            return self.interface.to_list()
+            return UserMessageResponse(messages=self.interface.to_list())
 
     def run_command(self, agent_id: str, command: str) -> Union[str, None]:
         self.interface.clear()

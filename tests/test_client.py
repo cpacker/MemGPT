@@ -170,6 +170,7 @@ def test_archival_memory(client, agent):
     assert insert_response, "Inserting archival memory failed"
 
     archival_memory_response = client.get_agent_archival_memory(agent_id=agent.id, limit=1)
+    print("MEMORY")
     archival_memories = [memory.contents for memory in archival_memory_response.archival_memory]
     assert memory_content in archival_memories, f"Retrieving archival memory failed: {archival_memories}"
 

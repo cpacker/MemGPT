@@ -41,11 +41,6 @@ def add_default_tools(user_id: uuid.UUID, ms: MetadataStore):
         err = f"Error loading function set '{module_name}': {e}"
         printd(err)
 
-    from pprint import pprint
-
-    print("BASE FUNCTIONS", functions_to_schema.keys())
-    pprint(functions_to_schema)
-
     # create tool in db
     for name, schema in functions_to_schema.items():
         ms.add_tool(ToolModel(name=name, tags=["base"], source_type="python", json_schema=schema["json_schema"]))

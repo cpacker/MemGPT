@@ -87,7 +87,6 @@ class LLMConfigColumn(TypeDecorator):
         return value
 
     def process_result_value(self, value, dialect):
-        # print("GET VALUE", value)
         if value:
             return LLMConfig(**value)
         return value
@@ -400,10 +399,7 @@ class MetadataStore:
     @enforce_types
     def get_api_key(self, api_key: str) -> Optional[Token]:
         with self.session_maker() as session:
-            print("getting api key", api_key)
-            print([r.token for r in self.get_all_api_keys_for_user(user_id=uuid.UUID(int=0))])
             results = session.query(TokenModel).filter(TokenModel.token == api_key).all()
-            print("results", [r.token for r in results])
             if len(results) == 0:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"  # should only be one result
@@ -414,18 +410,15 @@ class MetadataStore:
         with self.session_maker() as session:
             results = session.query(TokenModel).filter(TokenModel.user_id == user_id).all()
             tokens = [r.to_record() for r in results]
-            print([t.token for t in tokens])
             return tokens
 
     @enforce_types
     def get_user_from_api_key(self, api_key: str) -> Optional[User]:
         """Get the user associated with a given API key"""
         token = self.get_api_key(api_key=api_key)
-        print("got api key", token.token, token is None)
         if token is None:
             raise ValueError(f"Token {api_key} does not exist")
         else:
-            print(isinstance(token.user_id, uuid.UUID), self.get_user(user_id=token.user_id))
             return self.get_user(user_id=token.user_id)
 
     @enforce_types
@@ -612,7 +605,6 @@ class MetadataStore:
                 )
                 for k, v in available_functions.items()
             ]
-            # print(results)
             return results
             # results = session.query(PresetModel).filter(PresetModel.user_id == user_id).all()
             # return [r.to_record() for r in results]
