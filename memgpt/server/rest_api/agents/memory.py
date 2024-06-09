@@ -42,6 +42,7 @@ class ArchivalMemoryObject(BaseModel):
 
 
 class GetAgentArchivalMemoryResponse(BaseModel):
+    # TODO: make this List[Passage] instead
     archival_memory: List[ArchivalMemoryObject] = Field(..., description="A list of all memory objects in archival memory.")
 
 

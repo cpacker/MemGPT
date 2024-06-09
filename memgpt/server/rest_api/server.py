@@ -12,6 +12,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.middleware.cors import CORSMiddleware
 
 from memgpt.server.constants import REST_DEFAULT_PORT
+from memgpt.server.rest_api.admin.tools import setup_tools_index_router
 from memgpt.server.rest_api.admin.users import setup_admin_router
 from memgpt.server.rest_api.agents.command import setup_agents_command_router
 from memgpt.server.rest_api.agents.config import setup_agents_config_router
@@ -30,7 +31,7 @@ from memgpt.server.rest_api.personas.index import setup_personas_index_router
 from memgpt.server.rest_api.presets.index import setup_presets_index_router
 from memgpt.server.rest_api.sources.index import setup_sources_index_router
 from memgpt.server.rest_api.static_files import mount_static_files
-from memgpt.server.rest_api.tools.index import setup_tools_index_router
+from memgpt.server.rest_api.tools.index import setup_user_tools_index_router
 from memgpt.server.server import SyncServer
 from memgpt.settings import settings
 
@@ -81,6 +82,7 @@ app.include_router(setup_auth_router(server, interface, password), prefix=API_PR
 
 # /admin/users endpoints
 app.include_router(setup_admin_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
+app.include_router(setup_tools_index_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
 
 # /api/agents endpoints
 app.include_router(setup_agents_command_router(server, interface, password), prefix=API_PREFIX)
@@ -91,9 +93,7 @@ app.include_router(setup_agents_message_router(server, interface, password), pre
 app.include_router(setup_humans_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_personas_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_models_index_router(server, interface, password), prefix=API_PREFIX)
-app.include_router(
-    setup_tools_index_router(server, interface, password), prefix=API_PREFIX, dependencies=[Depends(verify_password)]
-)  # admin only
+app.include_router(setup_user_tools_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_sources_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_presets_index_router(server, interface, password), prefix=API_PREFIX)
 

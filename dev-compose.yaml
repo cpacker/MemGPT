@@ -35,6 +35,7 @@ services:
       - MEMGPT_PG_HOST=pgvector_db
       - MEMGPT_PG_PORT=5432
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SERPAPI_API_KEY=${SERPAPI_API_KEY}
     volumes:
       - ./configs/server_config.yaml:/root/.memgpt/config # config file
       # ~/.memgpt/credentials:/root/.memgpt/credentials # credentials file
