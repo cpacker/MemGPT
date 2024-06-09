@@ -695,7 +695,7 @@ class LocalClient(AbstractClient):
         if self.auto_save:
             self.save()
         else:
-            return self.interface.to_list()
+            return UserMessageResponse(messages=self.interface.to_list())
 
     def run_command(self, agent_id: str, command: str) -> Union[str, None]:
         self.interface.clear()
