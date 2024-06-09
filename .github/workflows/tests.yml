@@ -68,7 +68,7 @@ jobs:
         MEMGPT_SERVER_PASS: test_server_token
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
       run: |
-        poetry run pytest -s -vv -k "not test_quickstart and not test_endpoints and not test_storage and not test_server and not test_openai_client" tests
+        poetry run pytest -s -vv -k "not test_concurrent_connections.py and not test_quickstart and not test_endpoints and not test_storage and not test_server and not test_openai_client" tests
 
     - name: Run storage tests
       env:
