@@ -79,6 +79,7 @@ ollama = ["llama-index-embeddings-ollama"]
 [tool.black]
 line-length = 140
 target-version = ['py310', 'py311']
+extend-exclude = "examples/*"
 
 [build-system]
 requires = ["poetry-core"]
