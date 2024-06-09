@@ -53,8 +53,6 @@ def load_data(
         if document_store:
             document_store.insert(document)
 
-        print("DOCUMENT", document_text)
-
         # generate passages
         for passage_text, passage_metadata in connector.generate_passages([document], chunk_size=embedding_config.embedding_chunk_size):
 
