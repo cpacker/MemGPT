@@ -146,11 +146,11 @@ class LockingServer(Server):
 
         return wrapper
 
-    @agent_lock_decorator
+    # @agent_lock_decorator
     def user_message(self, user_id: uuid.UUID, agent_id: uuid.UUID, message: str) -> None:
         raise NotImplementedError
 
-    @agent_lock_decorator
+    # @agent_lock_decorator
     def run_command(self, user_id: uuid.UUID, agent_id: uuid.UUID, command: str) -> Union[str, None]:
         raise NotImplementedError
 
@@ -515,7 +515,7 @@ class SyncServer(LockingServer):
             input_message = system.get_token_limit_warning()
             self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
 
-    @LockingServer.agent_lock_decorator
+    # @LockingServer.agent_lock_decorator
     def user_message(
         self, user_id: uuid.UUID, agent_id: uuid.UUID, message: Union[str, Message], timestamp: Optional[datetime] = None
     ) -> None:
@@ -564,7 +564,7 @@ class SyncServer(LockingServer):
         # Run the agent state forward
         self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
 
-    @LockingServer.agent_lock_decorator
+    # @LockingServer.agent_lock_decorator
     def system_message(
         self, user_id: uuid.UUID, agent_id: uuid.UUID, message: Union[str, Message], timestamp: Optional[datetime] = None
     ) -> None:
@@ -613,7 +613,7 @@ class SyncServer(LockingServer):
         # Run the agent state forward
         self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message)
 
-    @LockingServer.agent_lock_decorator
+    # @LockingServer.agent_lock_decorator
     def run_command(self, user_id: uuid.UUID, agent_id: uuid.UUID, command: str) -> Union[str, None]:
         """Run a command on the agent"""
         if self.ms.get_user(user_id=user_id) is None:
@@ -675,7 +675,7 @@ class SyncServer(LockingServer):
 
         # NOTE: you MUST add to the metadata store before creating the agent, otherwise the storage connectors will error on creation
         # TODO: fix this db dependency and remove
-        # self.ms.create_agent(agent_state)
+        # self.ms.#create_agent(agent_state)
 
         # TODO modify to do creation via preset
         try:
