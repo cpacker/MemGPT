@@ -240,6 +240,7 @@ class RESTClient(AbstractClient):
         super().__init__(debug=debug)
         self.base_url = base_url
         self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
+        self.token = token
 
     # agents
 

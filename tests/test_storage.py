@@ -17,6 +17,8 @@ from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
 from tests.utils import create_config, wipe_config
 
+from .utils import with_qdrant_storage
+
 # Note: the database will filter out rows that do not correspond to agent1 and test_user by default.
 texts = ["This is a test passage", "This is another test passage", "Cinderella wept"]
 start_date = datetime(2009, 10, 5, 18, 00)
@@ -101,7 +103,7 @@ def recreate_declarative_base():
     Base.metadata.clear()
 
 
-@pytest.mark.parametrize("storage_connector", ["postgres", "chroma", "sqlite", "milvus"])
+@pytest.mark.parametrize("storage_connector", with_qdrant_storage(["postgres", "chroma", "sqlite", "milvus"]))
 # @pytest.mark.parametrize("storage_connector", ["sqlite", "chroma"])
 # @pytest.mark.parametrize("storage_connector", ["postgres"])
 @pytest.mark.parametrize("table_type", [TableType.RECALL_MEMORY, TableType.ARCHIVAL_MEMORY])
@@ -159,6 +161,12 @@ def test_storage(
             print("Skipping test, sqlite only supported for recall memory")
             return
         TEST_MEMGPT_CONFIG.recall_storage_type = "sqlite"
+    if storage_connector == "qdrant":
+        if table_type == TableType.RECALL_MEMORY:
+            print("Skipping test, Qdrant only supports archival memory")
+            return
+        TEST_MEMGPT_CONFIG.archival_storage_type = "qdrant"
+        TEST_MEMGPT_CONFIG.archival_storage_uri = "localhost:6333"
     if storage_connector == "milvus":
         if table_type == TableType.RECALL_MEMORY:
             print("Skipping test, Milvus only supports archival memory")
@@ -225,7 +233,7 @@ def test_storage(
     conn.insert_many(records[1:])
     assert (
         conn.size() == 2
-    ), f"Expected 1 record, got {conn.size()}: {conn.get_all()}"  # expect 2, since storage connector filters for agent1
+    ), f"Expected 2 records, got {conn.size()}: {conn.get_all()}"  # expect 2, since storage connector filters for agent1
 
     # test: update
     # NOTE: only testing with messages

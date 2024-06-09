@@ -36,19 +36,19 @@ To run the Postgres backend, you will need a URI to a Postgres database that sup
 
 3. Configure the environment for `pgvector`. You can either:
     - Add the following line to your shell profile (e.g., `~/.bashrc`, `~/.zshrc`):
-    
+
       ```sh
       export MEMGPT_PGURI=postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
       ```
 
     - Or create a `.env` file in the root project directory with:
-    
+
       ```sh
       MEMGPT_PGURI=postgresql+pg8000://memgpt:memgpt@localhost:8888/memgpt
       ```
 
 4. Run the script from the root project directory:
-     
+
   ```sh
   bash db/run_postgres.sh
   ```
@@ -105,6 +105,20 @@ memgpt configure
 
 and selecting `lancedb` for archival storage, and database URI (e.g. `./.lancedb`"), Empty archival uri is also handled and default uri is set at `./.lancedb`. For more checkout [lancedb docs](https://lancedb.github.io/lancedb/)
 
+## Qdrant
+
+To enable the Qdrant backend, make sure to install the required dependencies with:
+
+```sh
+pip install 'pymemgpt[qdrant]'
+```
+
+You can configure Qdrant with an in-memory instance or a server using the `memgpt configure` command. You can set an API key for authentication with a Qdrant server using the `QDRANT_API_KEY` environment variable. Learn more about setting up Qdrant [here](https://qdrant.tech/documentation/guides/installation/).
+
+```sh
+? Select Qdrant backend: server
+? Enter the Qdrant instance URI (Default: localhost:6333): localhost:6333
+```
 
 ## Milvus
 
