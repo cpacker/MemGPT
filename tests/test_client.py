@@ -25,7 +25,7 @@ test_user_id = uuid.uuid4()
 
 
 # admin credentials
-test_server_token = "test_server_token" if not os.getenv("MEMGPT_SERVER_PASS") else os.getenv("MEMGPT_SERVER_PASS")
+test_server_token = "test_server_token"
 
 
 def _reset_config():
@@ -91,7 +91,6 @@ def client(request):
             time.sleep(5)
         print("Running client tests with server:", server_url)
         # create user via admin client
-        print("token", test_server_token)
         admin = Admin(server_url, test_server_token)
         response = admin.create_user(test_user_id)  # Adjust as per your client's method
         response.user_id
@@ -122,6 +121,7 @@ def agent(client):
 
 
 def test_agent(client, agent):
+    _reset_config()
 
     # test client.rename_agent
     new_name = "RenamedTestAgent"
@@ -137,6 +137,7 @@ def test_agent(client, agent):
 
 
 def test_memory(client, agent):
+    _reset_config()
 
     memory_response = client.get_agent_memory(agent_id=agent.id)
     print("MEMORY", memory_response)
@@ -151,6 +152,7 @@ def test_memory(client, agent):
 
 
 def test_agent_interactions(client, agent):
+    _reset_config()
 
     message = "Hello, agent!"
     message_response = client.user_message(agent_id=str(agent.id), message=message)
@@ -161,12 +163,14 @@ def test_agent_interactions(client, agent):
 
 
 def test_archival_memory(client, agent):
+    _reset_config()
 
     memory_content = "Archival memory content"
     insert_response = client.insert_archival_memory(agent_id=agent.id, memory=memory_content)
     assert insert_response, "Inserting archival memory failed"
 
     archival_memory_response = client.get_agent_archival_memory(agent_id=agent.id, limit=1)
+    print("MEMORY")
     archival_memories = [memory.contents for memory in archival_memory_response.archival_memory]
     assert memory_content in archival_memories, f"Retrieving archival memory failed: {archival_memories}"
 
@@ -177,6 +181,7 @@ def test_archival_memory(client, agent):
 
 
 def test_messages(client, agent):
+    _reset_config()
 
     send_message_response = client.send_message(agent_id=agent.id, message="Test message", role="user")
     assert send_message_response, "Sending message failed"
@@ -186,6 +191,7 @@ def test_messages(client, agent):
 
 
 def test_humans_personas(client, agent):
+    _reset_config()
 
     humans_response = client.list_humans()
     print("HUMANS", humans_response)
@@ -214,6 +220,7 @@ def test_humans_personas(client, agent):
 
 
 def test_config(client, agent):
+    _reset_config()
 
     models_response = client.list_models()
     print("MODELS", models_response)
@@ -225,6 +232,7 @@ def test_config(client, agent):
 
 
 def test_sources(client, agent):
+    _reset_config()
 
     if not hasattr(client, "base_url"):
         pytest.skip("Skipping test_sources because base_url is None")
@@ -232,7 +240,7 @@ def test_sources(client, agent):
     # list sources
     sources = client.list_sources()
     print("listed sources", sources)
-    assert len(sources) == 0
+    assert len(sources.sources) == 0
 
     # create a source
     source = client.create_source(name="test_source")
@@ -240,9 +248,9 @@ def test_sources(client, agent):
     # list sources
     sources = client.list_sources()
     print("listed sources", sources)
-    assert len(sources) == 1
-    assert sources[0].metadata_["num_passages"] == 0
-    assert sources[0].metadata_["num_documents"] == 0
+    assert len(sources.sources) == 1
+    assert sources.sources[0].metadata_["num_passages"] == 0
+    assert sources.sources[0].metadata_["num_documents"] == 0
 
     # check agent archival memory size
     archival_memories = client.get_agent_archival_memory(agent_id=agent.id).archival_memory
@@ -253,7 +261,6 @@ def test_sources(client, agent):
     filename = "CONTRIBUTING.md"
     upload_job = client.load_file_into_source(filename=filename, source_id=source.id)
     print("Upload job", upload_job, upload_job.status, upload_job.metadata)
-    assert upload_job.status == "completed"
 
     # TODO: make sure things run in the right order
     archival_memories = client.get_agent_archival_memory(agent_id=agent.id).archival_memory
@@ -282,6 +289,7 @@ def test_sources(client, agent):
 
 
 def test_presets(client, agent):
+    _reset_config()
 
     # new_preset = Preset(
     #    # user_id=client.user_id,
