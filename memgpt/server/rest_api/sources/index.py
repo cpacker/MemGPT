@@ -77,31 +77,29 @@ def load_file_to_source(server: SyncServer, user_id: uuid.UUID, source: Source, 
     job.status = JobStatus.running
     server.ms.update_job(job)
 
-    # try:
-    # write the file to a temporary directory (deleted after the context manager exits)
-    print("file", file, file.filename)
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        file_path = os.path.join(tmpdirname, file.filename)
-        print(file_path)
-        with open(file_path, "wb") as buffer:
-            buffer.write(file.file.read())
+    try:
+        # write the file to a temporary directory (deleted after the context manager exits)
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            file_path = os.path.join(tmpdirname, file.filename)
+            with open(file_path, "wb") as buffer:
+                buffer.write(bytes)
 
-        # read the file
-        connector = DirectoryConnector(input_files=[file_path])
+            # read the file
+            connector = DirectoryConnector(input_files=[file_path])
 
-        # TODO: pre-compute total number of passages?
+            # TODO: pre-compute total number of passages?
 
-        # load the data into the source via the connector
-        num_passages, num_documents = server.load_data(user_id=user_id, source_name=source.name, connector=connector)
-    # except Exception as e:
-    #    # job failed with error
-    #    error = str(e)
-    #    print("ERROR LOADING", error)
-    #    job.status = JobStatus.failed
-    #    job.metadata_["error"] = error
-    #    server.ms.update_job(job)
-    #    # TODO: delete any associated passages/documents?
-    #    return 0, 0
+            # load the data into the source via the connector
+            num_passages, num_documents = server.load_data(user_id=user_id, source_name=source.name, connector=connector)
+    except Exception as e:
+        # job failed with error
+        error = str(e)
+        print(error)
+        job.status = JobStatus.failed
+        job.metadata_["error"] = error
+        server.ms.update_job(job)
+        # TODO: delete any associated passages/documents?
+        return 0, 0
 
     # update job status
     job.status = JobStatus.completed
