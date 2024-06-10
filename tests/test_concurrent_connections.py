@@ -121,13 +121,14 @@ def test_concurrent_messages(admin_client):
             response = client.send_message(agent_id=agent.id, message=message, role="user")
             et = time.time()
             print(f"Message sent from {st} to {et}")
+            print(response.messages)
             results.append((st, et))
         except Exception as e:
             print("ERROR", e)
 
     threads = []
     print("Starting threads...")
-    for i in range(2):
+    for i in range(5):
         thread = threading.Thread(target=_send_message)
         threads.append(thread)
         thread.start()
