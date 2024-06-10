@@ -128,7 +128,6 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         This endpoint accepts a message from a user and processes it through the agent.
         It can optionally stream the response if 'stream' is set to True.
         """
-        # agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
 
         if request.role == "user" or request.role is None:
             message_func = server.user_message
@@ -136,6 +135,12 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
             message_func = server.system_message
         else:
             raise HTTPException(status_code=500, detail=f"Bad role {request.role}")
+
+        def handle_exception(exception_loop: AbstractEventLoop, context):
+            # context["message"] will always be there; but context["exception"] may not
+            error = context.get("exception") or context["message"]
+            print(f"handling asyncio exception {context}")
+            interface.error(str(error))
 
         if request.stream:
             # For streaming response
@@ -154,12 +159,6 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
                         )
                     )
                 else:
-
-                    def handle_exception(exception_loop: AbstractEventLoop, context):
-                        # context["message"] will always be there; but context["exception"] may not
-                        error = context.get("exception") or context["message"]
-                        print(f"handling asyncio exception {context}")
-                        interface.error(str(error))
 
                     # Run the synchronous function in a thread pool
                     loop = asyncio.get_event_loop()
@@ -189,7 +188,18 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         else:
             interface.clear()
             try:
-                message_func(user_id=user_id, agent_id=agent_id, message=request.message)
+                # message_func(user_id=user_id, agent_id=agent_id, message=request.message)
+                # call in thread pool to prevent blocking
+                loop = asyncio.get_event_loop()
+                loop.set_exception_handler(handle_exception)
+                task = loop.run_in_executor(
+                    None,
+                    message_func,
+                    user_id,
+                    agent_id,
+                    request.message,
+                )
+                await task
             except HTTPException:
                 raise
             except Exception as e:
