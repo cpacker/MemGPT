@@ -17,6 +17,7 @@ from sqlalchemy import (
     String,
     TypeDecorator,
     create_engine,
+    desc,
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -647,11 +648,19 @@ class MetadataStore:
             return results[0].to_record()
 
     @enforce_types
-    def get_all_users(self) -> List[User]:
-        # TODO make paginated
+    def get_all_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50) -> (Optional[uuid.UUID], List[User]):
         with self.session_maker() as session:
-            results = session.query(UserModel).all()
-            return [r.to_record() for r in results]
+            query = session.query(UserModel).order_by(desc(UserModel.id))
+            if cursor:
+                query = query.filter(UserModel.id < cursor)
+            results = query.limit(limit).all()
+            if not results:
+                return None, []
+            user_records = [r.to_record() for r in results]
+            next_cursor = user_records[-1].id
+            assert isinstance(next_cursor, uuid.UUID)
+
+            return next_cursor, user_records
 
     @enforce_types
     def get_source(
