@@ -204,7 +204,6 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
                 raise
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
-            print("FINISHED", user_id)
             return UserMessageResponse(messages=interface.to_list())
 
     return router
