@@ -136,8 +136,8 @@ def test_storage(
         model="gpt-4",
     )
     if storage_connector == "postgres":
-        TEST_MEMGPT_CONFIG.archival_storage_uri = settings.memgpt_pg_uri
-        TEST_MEMGPT_CONFIG.recall_storage_uri = settings.memgpt_pg_uri
+        TEST_MEMGPT_CONFIG.archival_storage_uri = settings.pg_uri
+        TEST_MEMGPT_CONFIG.recall_storage_uri = settings.pg_uri
         TEST_MEMGPT_CONFIG.archival_storage_type = "postgres"
         TEST_MEMGPT_CONFIG.recall_storage_type = "postgres"
     if storage_connector == "lancedb":

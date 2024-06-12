@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
 import json
 import logging
 import uuid
@@ -6,7 +7,6 @@ from abc import abstractmethod
 from datetime import datetime
 from functools import wraps
 from threading import Lock
-from typing import Callable, List, Optional, Tuple, Union
 
 from fastapi import HTTPException
 
@@ -46,6 +46,9 @@ from memgpt.models.pydantic_models import (
     ToolModel,
 )
 from memgpt.settings import settings
+
+if TYPE_CHECKING:
+    from configparser import ConfigParser
 
 logger = logging.getLogger(__name__)
 
@@ -167,6 +170,7 @@ class SyncServer(LockingServer):
         default_interface: AgentInterface = CLIInterface(),
         # default_persistence_manager_cls: PersistenceManager = LocalStateManager,
         # auth_mode: str = "none",  # "none, "jwt", "external"
+        config: Optional["ConfigParser"] = None
     ):
         """Server process holds in-memory agents that are being run"""
 
@@ -208,17 +212,19 @@ class SyncServer(LockingServer):
         # self.default_persistence_manager_cls = default_persistence_manager_cls
 
         # Initialize the connection to the DB
-        self.config = MemGPTConfig.load()
-        print(f"server :: loading configuration from '{self.config.config_path}'")
+        self.config = config or MemGPTConfig.load()
+        msg = "server :: loading configuration as passed" if config else \
+        f"server :: loading configuration from '{self.config.config_path}'"
+        print(msg)
         assert self.config.persona is not None, "Persona must be set in the config"
         assert self.config.human is not None, "Human must be set in the config"
 
         # Update storage URI to match passed in settings
         # TODO: very hack, fix in the future
         for memory_type in ("archival", "recall", "metadata"):
-            if settings.memgpt_pg_uri:
+            if settings.pg_uri:
                 # override with env
-                setattr(self.config, f"{memory_type}_storage_uri", settings.memgpt_pg_uri)
+                setattr(self.config, f"{memory_type}_storage_uri", settings.pg_uri)
         self.config.save()
 
         # TODO figure out how to handle credentials for the server

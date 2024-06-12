@@ -12,8 +12,17 @@ services:
       - memgpt_db
     env_file:
       - .env
+    # no value syntax to not set the env at all if it is not set in .env
     environment:
       - MEMGPT_SERVER_PASS=test_server_token
+      - MEMGPT_POSTGRES_URI
+      - MEMGPT_SERVER_PASS
+      - MEMGPT_PG_DB
+      - MEMGPT_PG_USER
+      - MEMGPT_PG_PASSWORD
+      - MEMGPT_PG_HOST
+      - MEMGPT_PG_PORT
+      - OPENAI_API_KEY
     volumes:
       - ./memgpt:/memgpt
       - ~/.memgpt/credentials:/root/.memgpt/credentials
