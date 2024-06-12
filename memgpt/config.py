@@ -32,6 +32,22 @@ def set_field(config, section, field, value):
 
 @dataclass
 class MemGPTConfig:
+    """The summary line for a class docstring should fit on one line.
+
+    If the class has public attributes, they may be documented here
+    in an ``Attributes`` section and follow the same formatting as a
+    function's ``Args`` section. Alternatively, attributes may be documented
+    inline with the attribute's declaration (see __init__ method below).
+
+    Properties created with the ``@property`` decorator should be documented
+    in the property's getter method.
+
+    Attributes:
+        attr1 (str): Description of `attr1`.
+        attr2 (:obj:`int`, optional): Description of `attr2`.
+
+    """
+
     config_path: str = os.getenv("MEMGPT_CONFIG_PATH") or os.path.join(MEMGPT_DIR, "config")
     anon_clientid: str = str(uuid.UUID(int=0))
 
@@ -87,6 +103,19 @@ class MemGPTConfig:
 
     @classmethod
     def load(cls) -> "MemGPTConfig":
+        """Returns a list of :class:`bluepy.blte.Service` objects representing
+        the services offered by the device. This will perform Bluetooth service
+        discovery if this has not already been done; otherwise it will return a
+        cached list of services immediately..
+
+        :param uuids: A list of string service UUIDs to be discovered,
+            defaults to None
+        :type uuids: list, optional
+        :return: A list of the discovered :class:`bluepy.blte.Service` objects,
+            which match the provided ``uuids``
+        :rtype: list On Python 3.x, this returns a dictionary view object,
+            not a list
+        """
         # avoid circular import
         from memgpt.migrate import VERSION_CUTOFF, config_is_compatible
         from memgpt.utils import printd

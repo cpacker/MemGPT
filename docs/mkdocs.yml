@@ -1,0 +1,23 @@
+site_name: "MemGPT API Reference"
+
+theme:
+  name: "material"
+  features:
+    - navigation.instant
+    - navigation.footer
+    - navigation.indexes
+    - navigation.sections
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+
+nav:
+  - Home: index.md
+plugins:
+- mkdocstrings
+  #  custom_templates: templates
+  #  default_handler: python
+  #  handlers:
+  #    python:
+  #      options:
+  #        show_source: false
