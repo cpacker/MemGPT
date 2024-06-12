@@ -22,6 +22,8 @@ class Settings(BaseSettings):
 
     # agent configuration defaults
     default_preset: Optional[str] = "memgpt_chat"
+    # TODO: extract to vendor plugin
+    openai_api_key: Optional[str] = None
 
     @property
     def pg_uri(self) -> str:

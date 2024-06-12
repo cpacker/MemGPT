@@ -1,8 +1,5 @@
-import os
 import uuid
-
 import pytest
-from dotenv import load_dotenv
 
 import memgpt.utils as utils
 from memgpt.constants import BASE_TOOLS
@@ -74,6 +71,7 @@ def agent_id(server, user_id):
     # cleanup
     server.delete_agent(user_id, agent_state.id)
 
+from .utils import DummyDataConnector
 
 def test_error_on_nonexistent_agent(server, user_id, agent_id):
     try:
