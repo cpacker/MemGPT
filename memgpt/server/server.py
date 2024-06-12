@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
 import json
 import uuid
 import warnings
@@ -5,7 +6,6 @@ from abc import abstractmethod
 from datetime import datetime
 from functools import wraps
 from threading import Lock
-from typing import Callable, List, Optional, Tuple, Union
 
 from fastapi import HTTPException
 
@@ -153,8 +153,10 @@ class SyncServer(Server):
 
 
         # Initialize the connection to the DB
-        self.config = MemGPTConfig.load()
-        logger.info(f"loading configuration from '{self.config.config_path}'")
+        self.config = config or MemGPTConfig.load()
+        msg = "server :: loading configuration as passed" if config else \
+        f"server :: loading configuration from '{self.config.config_path}'"
+        print(msg)
         assert self.config.persona is not None, "Persona must be set in the config"
         assert self.config.human is not None, "Human must be set in the config"
 
