@@ -12,6 +12,7 @@ services:
       - memgpt_db
     env_file:
       - .env
+    # no value syntax to not set the env at all if it is not set in .env
     environment:
       - MEMGPT_SERVER_PASS=test_server_token
       - WATCHFILES_FORCE_POLLING=true
