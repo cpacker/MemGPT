@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     # configurations
     config_path: Optional[Path] = Path("~/.memgpt/config").expanduser()
 
+    # TODO: extract to vendor plugin
+    openai_api_key: Optional[str] = None
+
     @property
     def pg_uri(self) -> str:
         if self._pg_uri:
