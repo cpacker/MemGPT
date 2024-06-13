@@ -1101,9 +1101,12 @@ class ListChoice(str, Enum):
 
 @app.command()
 def list(arg: Annotated[ListChoice, typer.Argument]):
+    from memgpt.client.client import create_client
+
     config = MemGPTConfig.load()
     ms = MetadataStore(config)
     user_id = uuid.UUID(config.anon_clientid)
+    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
     table = ColorTable(theme=Themes.OCEAN)
     if arg == ListChoice.agents:
         """List all agents"""
@@ -1130,7 +1133,7 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
     elif arg == ListChoice.humans:
         """List all humans"""
         table.field_names = ["Name", "Text"]
-        for human in ms.list_humans(user_id=user_id):
+        for human in client.list_humans(user_id=user_id):
             table.add_row([human.name, human.text.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.personas:
@@ -1194,9 +1197,12 @@ def add(
     filename: Annotated[Optional[str], typer.Option("-f", help="Specify filename")] = None,
 ):
     """Add a person/human"""
+    from memgpt.client.client import create_client
+
     config = MemGPTConfig.load()
     user_id = uuid.UUID(config.anon_clientid)
     ms = MetadataStore(config)
+    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
     if filename:  # read from file
         assert text is None, "Cannot specify both text and filename"
         with open(filename, "r", encoding="utf-8") as f:
@@ -1214,16 +1220,16 @@ def add(
             ms.add_persona(persona)
 
     elif option == "human":
-        human = ms.get_human(name=name, user_id=user_id)
+        human = client.get_human(name=name, user_id=user_id)
         if human:
             # config if user wants to overwrite
             if not questionary.confirm(f"Human {name} already exists. Overwrite?").ask():
                 return
             human.text = text
-            ms.update_human(human)
+            client.update_human(human)
         else:
             human = HumanModel(name=name, text=text, user_id=user_id)
-            ms.add_human(HumanModel(name=name, text=text, user_id=user_id))
+            client.add_human(HumanModel(name=name, text=text, user_id=user_id))
     elif option == "preset":
         assert filename, "Must specify filename for preset"
         create_preset_from_file(filename, name, user_id, ms)
@@ -1234,9 +1240,11 @@ def add(
 @app.command()
 def delete(option: str, name: str):
     """Delete a source from the archival memory."""
+    from memgpt.client.client import create_client
 
     config = MemGPTConfig.load()
     user_id = uuid.UUID(config.anon_clientid)
+    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_API_KEY"))
     ms = MetadataStore(config)
     assert ms.get_user(user_id=user_id), f"User {user_id} does not exist"
 
@@ -1273,9 +1281,9 @@ def delete(option: str, name: str):
             ms.delete_agent(agent_id=agent.id)
 
         elif option == "human":
-            human = ms.get_human(name=name, user_id=user_id)
+            human = client.get_human(name=name, user_id=user_id)
             assert human is not None, f"Human {name} does not exist"
-            ms.delete_human(name=name, user_id=user_id)
+            client.delete_human(name=name, user_id=user_id)
         elif option == "persona":
             persona = ms.get_persona(name=name, user_id=user_id)
             assert persona is not None, f"Persona {name} does not exist"
