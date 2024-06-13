@@ -1,27 +1,15 @@
-import os
-
 import pytest
 
 import memgpt.functions.function_sets.base as base_functions
 from memgpt import create_client
-
-from .utils import create_config, wipe_config
-
-# test_agent_id = "test_agent"
 client = None
 
 
 @pytest.fixture(scope="module")
-def agent_obj():
+def agent_obj(config):
     """Create a test agent that we can call functions on"""
-    wipe_config()
     global client
-    if os.getenv("OPENAI_API_KEY"):
-        create_config("openai")
-    else:
-        create_config("memgpt_hosted")
-
-    client = create_client()
+    client = create_client(config=config)
 
     agent_state = client.create_agent()
 

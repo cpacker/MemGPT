@@ -54,9 +54,9 @@ from memgpt.server.server import SyncServer
 from memgpt.utils import get_human_text
 
 
-def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
+def create_client(base_url: Optional[str] = None, token: Optional[str] = None, config: Optional[MemGPTConfig] = None):
     if base_url is None:
-        return LocalClient()
+        return LocalClient(config=config)
     else:
         return RESTClient(base_url, token)
 
@@ -675,6 +675,7 @@ class LocalClient(AbstractClient):
         auto_save: bool = False,
         user_id: Optional[str] = None,
         debug: bool = False,
+        config: "MemGPTConfig" = None,
     ):
         """
         Initializes a new instance of Client class.
@@ -686,7 +687,7 @@ class LocalClient(AbstractClient):
         self.auto_save = auto_save
 
         # determine user_id (pulled from local config)
-        config = MemGPTConfig.load()
+        config = config or MemGPTConfig.load()
         if user_id:
             self.user_id = uuid.UUID(user_id)
         else:
