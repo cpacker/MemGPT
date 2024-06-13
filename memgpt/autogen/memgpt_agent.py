@@ -10,6 +10,7 @@ from autogen.agentchat import (
     UserProxyAgent,
 )
 
+from memgpt.settings import settings
 import memgpt.constants as constants
 import memgpt.system as system
 import memgpt.utils as utils
@@ -414,7 +415,7 @@ def create_memgpt_autogen_agent_from_config(
         interface_kwargs = {}
 
     # The "system message" in AutoGen becomes the persona in MemGPT
-    persona_desc = utils.get_persona_text(constants.DEFAULT_PERSONA) if system_message == "" else system_message
+    persona_desc = utils.get_persona_text(settings.persona) if system_message == "" else system_message
     # The user profile is based on the input mode
     if human_input_mode == "ALWAYS":
         user_desc = ""

@@ -1,6 +1,7 @@
 import uuid
 import pytest
 
+from memgpt.settings import settings
 import memgpt.functions.function_sets.base as base_functions
 from memgpt import constants, create_client
 from tests import TEST_MEMGPT_CONFIG
@@ -17,7 +18,7 @@ def agent_obj(config):
     client = create_client(config=config)
 
     agent_state = client.create_agent(
-        preset=constants.DEFAULT_PRESET,
+        preset=settings.preset,
     )
 
     global agent_obj

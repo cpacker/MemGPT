@@ -407,6 +407,7 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+
 nosetests.xml
 coverage.xml
 *.cover
@@ -415,7 +416,8 @@ coverage.xml
 .pytest_cache/
 **/**/pytest_cache/
 cover/
-
+# artifact from current tests
+**/**/test_chroma
 # Translations
 *.mo
 *.pot
