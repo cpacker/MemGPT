@@ -17,9 +17,6 @@ EMBEDDING_TO_TOKENIZER_DEFAULT = "cl100k_base"
 
 
 DEFAULT_MEMGPT_MODEL = "gpt-4"
-DEFAULT_PERSONA = "sam_pov"
-DEFAULT_HUMAN = "basic"
-DEFAULT_PRESET = "memgpt_chat"
 
 # Used to isolate MemGPT logger instance from Dependant Libraries logging
 LOGGER_NAME = "MemGPT"

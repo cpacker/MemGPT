@@ -2,7 +2,7 @@ import os
 import uuid
 from typing import List
 
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
+from memgpt.settings import settings
 from memgpt.data_types import AgentState, Preset
 from memgpt.functions.functions import load_all_function_sets
 from memgpt.interface import AgentInterface
@@ -55,10 +55,10 @@ def create_preset_from_file(filename: str, name: str, user_id: uuid.UUID, ms: Me
         user_id=user_id,
         name=name,
         system=gpt_system.get_system_text(preset_system_prompt),
-        persona=get_persona_text(DEFAULT_PERSONA),
-        human=get_human_text(DEFAULT_HUMAN),
-        persona_name=DEFAULT_PERSONA,
-        human_name=DEFAULT_HUMAN,
+        persona=get_persona_text(settings.persona),
+        human=get_human_text(settings.human),
+        persona_name=settings.persona,
+        human_name=settings.human,
         functions_schema=functions_schema,
     )
     ms.create_preset(preset)
@@ -75,10 +75,10 @@ def load_preset(preset_name: str, user_id: uuid.UUID):
         user_id=user_id,
         name=preset_name,
         system=gpt_system.get_system_text(preset_system_prompt),
-        persona=get_persona_text(DEFAULT_PERSONA),
-        persona_name=DEFAULT_PERSONA,
-        human=get_human_text(DEFAULT_HUMAN),
-        human_name=DEFAULT_HUMAN,
+        persona=get_persona_text(settings.persona),
+        persona_name=settings.persona,
+        human=get_human_text(settings.human),
+        human_name=settings.human,
         functions_schema=functions_schema,
     )
     return preset

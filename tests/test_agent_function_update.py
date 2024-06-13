@@ -5,6 +5,7 @@ import uuid
 
 import pytest
 
+from memgpt.settings import settings
 from memgpt import constants, create_client
 from memgpt.functions.functions import USER_FUNCTIONS_DIR
 from memgpt.models import chat_completion_response
@@ -41,7 +42,7 @@ def agent():
         client.server.create_user({"id": user_id})
 
     agent_state = client.create_agent(
-        preset=constants.DEFAULT_PRESET,
+        preset=settings.preset,
     )
 
     return client.server._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
