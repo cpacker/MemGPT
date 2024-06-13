@@ -1,19 +1,7 @@
-# Reference
-# Components
-::: memgpt.data_types.AgentState
+::: memgpt.client.client
+    options:
+      group_by_category: true
 
-# Client
-
-## `AbstractClient`
-::: memgpt.client.client.AbstractClient
-
-## `LocalClient`
-::: memgpt.client.client.LocalClient
-
-## `RESTClient`
-::: memgpt.client.client.RESTClient
-
-# Configuration 
 
 
 

@@ -12,7 +12,8 @@ theme:
     - navigation.top
 
 nav:
-  - Home: index.md
+  - Data Models: data_models.md
+  - Client: index.md
 plugins:
 - mkdocstrings
   #  custom_templates: templates

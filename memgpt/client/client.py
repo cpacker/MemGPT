@@ -56,20 +56,41 @@ from memgpt.server.rest_api.sources.index import ListSourcesResponse
 from memgpt.server.rest_api.tools.index import CreateToolResponse
 from memgpt.server.server import SyncServer
 
+""" Python clients for MemGPT.
+
+Classes:
+   AbstractClient: Description for `foo`.
+   RESTClient: Description for `foo`.
+   LocalClient: Description for `bar`.
+
+Functions:
+   create_client: Description for `baz`.
+"""
+
 
 def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
+    """Create a MemGPT client.
+
+    Args:
+        base_url (str): The base URL of the MemGPT server.
+        token (str): The user authentication token for the MemGPT server.
+
+    Returns:
+        client (LocalClient | RESTClient): The MemGPT client.
+
+    Examples:
+       Creating a local client:
+       >>> from memgpt import create_client
+       >>> client = create_client()
+
+       Creating a client for a REST server:
+       >>> from memgpt import create_client
+       >>> client = create_client(base_url="memgpt.localhost", token="user_token")
+    """
     if base_url is None:
         return LocalClient()
     else:
         return RESTClient(base_url, token)
-
-
-# """ Python clients for MemGPT.
-#
-# Classes:
-#    Abtractclient: Description for `foo`.
-#    LocalClient: Description for `bar`.
-# """
 
 
 class AbstractClient(ABC):
@@ -119,12 +140,13 @@ class AbstractClient(ABC):
     ) -> AgentState:
         """Create a new agent with the specified configuration.
 
-        Note:
-            Do not include the `self` parameter in the ``Args`` section.
-
         Args:
             name (str): The first parameter.
-            preset (str): The second parameter.
+            preset (str): Name of the preset to start the agent.
+            persona (str): Name of the persona template to start the agent
+            human (str): Name of the human template to set for the agent.
+            embedding_config (EmbeddingConfig): Embedding configuration for the agent.
+            llm_config (LLMConfig): LLM configuration for the agent.
 
         Returns:
             AgentState: The state of the created agent.
@@ -148,9 +170,23 @@ class AbstractClient(ABC):
         raise NotImplementedError
 
     def delete_preset(self, preset_id: uuid.UUID):
+        """Delete a preset.
+
+        Args:
+            preset_id (uuid.UUID): The ID of the preset.
+
+        Returns:
+            None
+        """
         raise NotImplementedError
 
-    def list_presets(self):
+    def list_presets(self) -> List[Preset]:
+        """List all available presets.
+
+        Returns:
+            presets (List[Preset]): List of presets.
+
+        """
         raise NotImplementedError
 
     # memory
