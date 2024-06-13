@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     # configurations
     config_path: Optional[Path] = Path("~/.memgpt/config").expanduser()
 
+    # application default starter settings
+    persona: Optional[str] = "sam_pov"
+    human: Optional[str] = "basic"
+    preset: Optional[str] = "memgpt_chat"
+
     # TODO: extract to vendor plugin
     openai_api_key: Optional[str] = None
 
