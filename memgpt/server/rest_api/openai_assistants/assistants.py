@@ -5,7 +5,7 @@ from fastapi import APIRouter, Body, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 
 from memgpt.config import MemGPTConfig
-from memgpt.constants import DEFAULT_PRESET
+from memgpt.settings import settings
 from memgpt.data_types import Message
 from memgpt.models.openai import (
     AssistantFile,
@@ -148,7 +148,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
     def create_assistant(request: CreateAssistantRequest = Body(...)):
         # TODO: create preset
         return OpenAIAssistant(
-            id=DEFAULT_PRESET,
+            id=settings.preset,
             name="default_preset",
             description=request.description,
             created_at=int(get_utc_time().timestamp()),
@@ -303,7 +303,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
             content=[Text(text=message.text)],
             role=message.role,
             thread_id=str(message.agent_id),
-            assistant_id=DEFAULT_PRESET,  # TODO: update this
+            assistant_id=settings.preset,  # TODO: update this
             # file_ids=message.file_ids,
             # metadata=message.metadata,
         )
@@ -343,7 +343,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
                 content=[Text(text=message["text"])],
                 role=message["role"],
                 thread_id=str(message["agent_id"]),
-                assistant_id=DEFAULT_PRESET,  # TODO: update this
+                assistant_id=settings.preset,  # TODO: update this
                 # file_ids=message.file_ids,
                 # metadata=message.metadata,
             )
@@ -368,7 +368,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
             content=[Text(text=message.text)],
             role=message.role,
             thread_id=str(message.agent_id),
-            assistant_id=DEFAULT_PRESET,  # TODO: update this
+            assistant_id=settings.preset,  # TODO: update this
             # file_ids=message.file_ids,
             # metadata=message.metadata,
         )
@@ -407,7 +407,7 @@ def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterfac
             id=run_id,
             created_at=create_time,
             thread_id=str(agent_id),
-            assistant_id=DEFAULT_PRESET,  # TODO: update this
+            assistant_id=settings.preset,  # TODO: update this
             status="completed",  # TODO: eventaully allow offline execution
             expires_at=create_time,
             model=agent.agent_state.llm_config.model,

@@ -9,7 +9,7 @@ from sqlalchemy import JSON, Column
 from sqlalchemy_utils import ChoiceType
 from sqlmodel import Field, SQLModel
 
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
+from memgpt.settings import settings
 from memgpt.utils import get_human_text, get_persona_text, get_utc_time
 
 
@@ -46,10 +46,9 @@ class PresetModel(BaseModel):
     description: Optional[str] = Field(None, description="The description of the preset.")
     created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the preset was created.")
     system: str = Field(..., description="The system prompt of the preset.")
-    system_name: Optional[str] = Field(None, description="The name of the system prompt of the preset.")
-    persona: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona of the preset.")
+    persona: str = Field(default=get_persona_text(settings.persona), description="The persona of the preset.")
     persona_name: Optional[str] = Field(None, description="The name of the persona of the preset.")
-    human: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human of the preset.")
+    human: str = Field(default=get_human_text(settings.human), description="The human of the preset.")
     human_name: Optional[str] = Field(None, description="The name of the human of the preset.")
     functions_schema: List[Dict] = Field(..., description="The functions schema of the preset.")
 
@@ -117,14 +116,14 @@ class CoreMemory(BaseModel):
 
 
 class HumanModel(SQLModel, table=True):
-    text: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human text.")
+    text: str = Field(default=get_human_text(settings.human), description="The human text.")
     name: str = Field(..., description="The name of the human.")
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the human.", primary_key=True)
     user_id: Optional[uuid.UUID] = Field(..., description="The unique identifier of the user associated with the human.")
 
 
 class PersonaModel(SQLModel, table=True):
-    text: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona text.")
+    text: str = Field(default=get_persona_text(settings.persona), description="The persona text.")
     name: str = Field(..., description="The name of the persona.")
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the persona.", primary_key=True)
     user_id: Optional[uuid.UUID] = Field(..., description="The unique identifier of the user associated with the persona.")

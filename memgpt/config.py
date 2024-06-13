@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import memgpt
 from memgpt.settings import settings
 import memgpt.utils as utils
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET, MEMGPT_DIR
+from memgpt.constants import MEMGPT_DIR
 from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig
 from memgpt.log import get_logger
 
@@ -39,11 +39,11 @@ class MemGPTConfig:
     anon_clientid: str = str(uuid.UUID(int=0))
 
     # preset
-    preset: str = DEFAULT_PRESET  # TODO: rename to system prompt
+    preset: str = settings.preset
 
     # persona parameters
-    persona: str = DEFAULT_PERSONA
-    human: str = DEFAULT_HUMAN
+    persona: str = settings.persona
+    human: str = settings.human
 
     # model parameters
     default_llm_config: LLMConfig = None

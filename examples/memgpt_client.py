@@ -1,7 +1,7 @@
 import json
 
 from memgpt import Admin, create_client
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
+from memgpt.settings import settings
 from memgpt.utils import get_human_text, get_persona_text
 
 """
@@ -33,9 +33,9 @@ def main():
     # Create an agent
     agent_info = client.create_agent(
         name="my_agent",
-        preset=DEFAULT_PRESET,
-        persona=get_persona_text(DEFAULT_PERSONA),
-        human=get_human_text(DEFAULT_HUMAN),
+        preset=settings.preset,
+        persona=get_persona_text(settings.persona),
+        human=get_human_text(settings.human),
     )
     print(f"Created agent: {agent_info.name} with ID {str(agent_info.id)}")
 

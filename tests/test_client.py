@@ -6,9 +6,8 @@ import uuid
 import pytest
 from dotenv import load_dotenv
 
+from memgpt.settings import settings
 from memgpt import Admin, create_client
-from memgpt.config import MemGPTConfig
-from memgpt.constants import DEFAULT_PRESET
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import Preset  # TODO move to PresetModel
 from memgpt.settings import settings
@@ -16,7 +15,7 @@ from tests.utils import create_config
 
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
 # test_preset_name = "test_preset"
-test_preset_name = DEFAULT_PRESET
+test_preset_name = settings.preset
 test_agent_state = None
 client = None
 

@@ -1,5 +1,6 @@
 import pytest
 
+from memgpt.settings import settings
 import memgpt.functions.function_sets.base as base_functions
 from memgpt import create_client
 client = None
@@ -11,7 +12,9 @@ def agent_obj(config):
     global client
     client = create_client(config=config)
 
-    agent_state = client.create_agent()
+    agent_state = client.create_agent(
+        preset=settings.preset,
+    )
 
     global agent_obj
     agent_obj = client.server._get_or_load_agent(user_id=client.user_id, agent_id=agent_state.id)
