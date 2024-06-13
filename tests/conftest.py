@@ -9,61 +9,43 @@ from memgpt.server.server import SyncServer
 from tests.config import TestMGPTConfig
 
 @pytest.fixture(scope="module")
-def server(tmp_path_factory):
+def config():
+    db_url = settings.pg_db
+    use_oai = settings.openai_api_key
+    config_args = {}
+    arg_pairs = (
+        (db_url, ("archival_storage_uri", "recall_storage_uri", "metadata_storage_uri")),
+        ("postgres", ("archival_storage_type", "recall_storage_type", "metadata_storage_type")),
+    )
+    for arg, keys in arg_pairs:
+        for key in keys:
+            config_args[key] = arg
+
+    default_embedding_config=EmbeddingConfig(
+        embedding_endpoint_type="openai" if use_oai else "hugging-face",
+        embedding_endpoint="https://api.openai.com/v1" if use_oai else "https://embeddings.memgpt.ai",
+        embedding_model="text-embedding-ada-002" if use_oai else "BAAI/bge-large-en-v1.5",
+        embedding_dim=1536 if use_oai else 1024,
+    )
+    default_llm_config=LLMConfig(
+        model_endpoint_type="openai" if use_oai else "vllm",
+        model_endpoint="https://api.openai.com/v1" if use_oai else "https://api.memgpt.ai",
+        model="gpt-4" if use_oai else "ehartford/dolphin-2.5-mixtral-8x7b",
+    )
+    return TestMGPTConfig(
+        default_embedding_config=default_embedding_config,
+        default_llm_config=default_llm_config,
+        **config_args,)
+
+
+@pytest.fixture(scope="module")
+def server(tmp_path_factory, config):
     settings.config_path = tmp_path_factory.mktemp("test") / "config"
     wipe_memgpt_home()
 
-    db_url = settings.pg_db # start of the conftest hook here
-
-    if settings.openai_api_key:
-        config = TestMGPTConfig(
-            archival_storage_uri=db_url,
-            recall_storage_uri=db_url,
-            metadata_storage_uri=db_url,
-            archival_storage_type="postgres",
-            recall_storage_type="postgres",
-            metadata_storage_type="postgres",
-            # embeddings
-            default_embedding_config=EmbeddingConfig(
-                embedding_endpoint_type="openai",
-                embedding_endpoint="https://api.openai.com/v1",
-                embedding_model="text-embedding-ada-002",
-                embedding_dim=1536,
-            ),
-            # llms
-            default_llm_config=LLMConfig(
-                model_endpoint_type="openai",
-                model_endpoint="https://api.openai.com/v1",
-                model="gpt-4",
-            ),
-        )
-        credentials = MemGPTCredentials(
-            openai_key=os.getenv("OPENAI_API_KEY"),
-        )
-    else:  # hosted
-        config = TestMGPTConfig(
-            archival_storage_uri=db_url,
-            recall_storage_uri=db_url,
-            metadata_storage_uri=db_url,
-            archival_storage_type="postgres",
-            recall_storage_type="postgres",
-            metadata_storage_type="postgres",
-            # embeddings
-            default_embedding_config=EmbeddingConfig(
-                embedding_endpoint_type="hugging-face",
-                embedding_endpoint="https://embeddings.memgpt.ai",
-                embedding_model="BAAI/bge-large-en-v1.5",
-                embedding_dim=1024,
-            ),
-            # llms
-            default_llm_config=LLMConfig(
-                model_endpoint_type="vllm",
-                model_endpoint="https://api.memgpt.ai",
-                model="ehartford/dolphin-2.5-mixtral-8x7b",
-            ),
-        )
-        credentials = MemGPTCredentials()
-
+    if key := settings.openai_api_key:
+        creds_config = {"openai_key": key}
+    credentials = MemGPTCredentials(**creds_config)
     config.save()
     credentials.save()
     server = SyncServer(config=config)
