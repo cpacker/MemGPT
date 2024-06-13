@@ -70,8 +70,8 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         human = request.config["human"] if "human" in request.config else None
         persona_name = request.config["persona_name"] if "persona_name" in request.config else None
         persona = request.config["persona"] if "persona" in request.config else None
-        request.config["preset"] if ("preset" in request.config and request.config["preset"]) else settings.default_preset
-        tool_names = request.config["function_names"] if ("function_names" in request.config and request.config["function_names"]) else None
+        request.config["preset"] if ("preset" in request.config and request.config["preset"]) else settings.preset
+        tool_names = request.config["function_names"]
         metadata = request.config["metadata"] if "metadata" in request.config else {}
         metadata["human"] = human_name
         metadata["persona"] = persona_name
