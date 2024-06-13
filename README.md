@@ -23,13 +23,13 @@ You can also use MemGPT to deploy agents as a *service*. You can use a MemGPT se
 <img width="1000" alt="image" src="https://github.com/cpacker/MemGPT/assets/8505980/1096eb91-139a-4bc5-b908-fa585462da09">
 
 
-## Installation & Setup   
+## Installation & Setup
 Install MemGPT:
 ```sh
 pip install -U pymemgpt
 ```
 
-To use MemGPT with OpenAI, set the environment variable `OPENAI_API_KEY` to your OpenAI key then run: 
+To use MemGPT with OpenAI, set the environment variable `OPENAI_API_KEY` to your OpenAI key then run:
 ```
 memgpt quickstart --backend openai
 ```
@@ -54,20 +54,20 @@ MemGPT provides a developer portal that enables you to easily create, edit, moni
 
 <img width="1000" alt="image" src="https://github.com/cpacker/MemGPT/assets/5475622/071117c5-46a7-4953-bc9d-d74880e66258">
 
-## Quickstart (Server)  
+## Quickstart (Server)
 
-**Option 1 (Recommended)**: Run with docker compose  
+**Option 1 (Recommended)**: Run with docker compose
 1. [Install docker on your system](https://docs.docker.com/get-docker/)
 2. Clone the repo: `git clone https://github.com/cpacker/MemGPT.git`
 3. Copy-paste `.env.example` to `.env` and optionally modify
 4. Run `docker compose up`
-5. Go to `memgpt.localhost` in the browser to view the developer portal 
+5. Go to `memgpt.localhost` in the browser to view the developer portal
 
 **Option 2:** Run with the CLI:
 1. Run `memgpt server`
 2. Go to `localhost:8283` in the browser to view the developer portal
 
-Once the server is running, you can use the [Python client](https://memgpt.readme.io/docs/admin-client) or [REST API](https://memgpt.readme.io/reference/api) to connect to `memgpt.localhost` (if you're running with docker compose) or `localhost:8283` (if you're running with the CLI) to create users, agents, and more. The service requires authentication with a MemGPT admin password; it is the value of `MEMGPT_SERVER_PASS` in `.env`. 
+Once the server is running, you can use the [Python client](https://memgpt.readme.io/docs/admin-client) or [REST API](https://memgpt.readme.io/reference/api) to connect to `memgpt.localhost` (if you're running with docker compose) or `localhost:8283` (if you're running with the CLI) to create users, agents, and more. The service requires authentication with a MemGPT admin password; it is the value of `MEMGPT_SERVER_PASS` in `.env`.
 
 ## Supported Endpoints & Backends
 MemGPT is designed to be model and provider agnostic. The following LLM and embedding endpoints are supported:
@@ -96,7 +96,7 @@ When using MemGPT with open LLMs (such as those downloaded from HuggingFace), th
 * **Report Issues or Suggest Features**: Have an issue or a feature request? Please submit them through our [GitHub Issues page](https://github.com/cpacker/MemGPT/issues).
 * **Explore the Roadmap**: Curious about future developments? View and comment on our [project roadmap](https://github.com/cpacker/MemGPT/issues/1200).
 * **Benchmark the Performance**: Want to benchmark the performance of a model on MemGPT? Follow our [Benchmarking Guidance](#benchmarking-guidance).
-* **Join Community Events**: Stay updated with the [MemGPT event calendar](https://lu.ma/berkeley-llm-meetup) or follow our [Twitter account](https://twitter.com/MemGPT). 
+* **Join Community Events**: Stay updated with the [MemGPT event calendar](https://lu.ma/berkeley-llm-meetup) or follow our [Twitter account](https://twitter.com/MemGPT).
 
 
 ## Benchmarking Guidance
@@ -104,4 +104,3 @@ To evaluate the performance of a model on MemGPT, simply configure the appropria
 
 ## Legal notices
 By using MemGPT and related MemGPT services (such as the MemGPT endpoint or hosted service), you agree to our [privacy policy](https://github.com/cpacker/MemGPT/tree/main/PRIVACY.md) and [terms of service](https://github.com/cpacker/MemGPT/tree/main/TERMS.md).
-

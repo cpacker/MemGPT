@@ -90,4 +90,3 @@ memgpt run --preset resend_preset --persona sam_pov --human cs_phd --stream
 Waiting in our inbox:
 
 <img width="500" alt="image" src="https://github.com/cpacker/MemGPT/assets/5475622/95f9b24a-98c3-493a-a787-72a2a956641a">
-
