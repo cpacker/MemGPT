@@ -1,5 +1,7 @@
 from pathlib import Path
 from typing import Optional
+from pydantic import Field
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -41,7 +43,6 @@ class Settings(BaseSettings):
             return f"postgresql+pg8000://{self.pg_user}:{self.pg_password}@{self.pg_host}:{self.pg_port}/{self.pg_db}"
         else:
             return None
-
 
 # singleton
 settings = Settings()
