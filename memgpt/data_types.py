@@ -126,6 +126,8 @@ class Message(Record):
         # if role == "assistant", this MAY be specified
         # if role != "assistant", this must be null
         assert tool_calls is None or isinstance(tool_calls, list)
+        if tool_calls is not None:
+            assert all([isinstance(tc, ToolCall) for tc in tool_calls]), f"Tool calls must be of type ToolCall, got {tool_calls}"
         self.tool_calls = tool_calls
 
         # if role == "tool", then this must be specified
@@ -750,6 +752,22 @@ class User:
 
 
 class AgentState:
+    """The summary line for a class docstring should fit on one line.
+
+    If the class has public attributes, they may be documented here
+    in an ``Attributes`` section and follow the same formatting as a
+    function's ``Args`` section. Alternatively, attributes may be documented
+    inline with the attribute's declaration (see __init__ method below).
+
+    Properties created with the ``@property`` decorator should be documented
+    in the property's getter method.
+
+    Attributes:
+        attr1 (str): Description of `attr1`.
+        attr2 (:obj:`int`, optional): Description of `attr2`.
+
+    """
+
     def __init__(
         self,
         name: str,
