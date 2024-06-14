@@ -1,4 +1,6 @@
 from typing import Optional
+from pydantic import Field
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -6,6 +8,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="memgpt_")
 
+    memgpt_dir: Optional[Path] = Field(Path.home() / ".memgpt", env="MEMGPT_DIR")
+    debug: Optional[bool] = False
     server_pass: Optional[str] = None
     pg_db: Optional[str] = None
     pg_user: Optional[str] = None
@@ -34,7 +38,6 @@ class Settings(BaseSettings):
             return f"postgresql+pg8000://{self.pg_user}:{self.pg_password}@{self.pg_host}:{self.pg_port}/{self.pg_db}"
         else:
             return None
-
 
 # singleton
 settings = Settings()

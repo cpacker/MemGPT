@@ -1,41 +1,31 @@
 import logging
-import os
-import os.path
+from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
-from memgpt.constants import (
-    LOGGER_DEFAULT_LEVEL,
-    LOGGER_DIR,
-    LOGGER_FILE_BACKUP_COUNT,
-    LOGGER_FILENAME,
-    LOGGER_MAX_FILE_SIZE,
-    LOGGER_NAME,
-)
+from memgpt.settings import settings
 
-# Checking if log directory exists
-if not os.path.exists(LOGGER_DIR):
-    os.makedirs(LOGGER_DIR, exist_ok=True)
-
-# Create logger for MemGPT
-logger = logging.getLogger(LOGGER_NAME)
-logger.setLevel(LOGGER_DEFAULT_LEVEL)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("MemGPT")
+logger.setLevel(logging.DEBUG if settings.debug else logging.INFO)
 
 # create console handler and set level to debug
 console_handler = logging.StreamHandler()
 
 # create rotatating file handler
+logfile = Path(settings.memgpt_dir / "logs" / "MemGPT.log")
+logfile.parent.mkdir(parents=True, exist_ok=True)
+logfile.touch(exist_ok=True)
 file_handler = RotatingFileHandler(
-    os.path.join(LOGGER_DIR, LOGGER_FILENAME), maxBytes=LOGGER_MAX_FILE_SIZE, backupCount=LOGGER_FILE_BACKUP_COUNT
+    logfile,
+    maxBytes=1024**2 * 10,
+    backupCount=3
 )
 
 # create formatters
 console_formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")  # not datetime
-file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-
-# add formatter to console handler
 console_handler.setFormatter(console_formatter)
 
-# add formatter for file handler
+file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(file_formatter)
 
 # add ch to logger
