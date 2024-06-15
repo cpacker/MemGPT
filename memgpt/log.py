@@ -1,33 +1,73 @@
+from typing import Optional
 import logging
+from sys import stdout
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
 from memgpt.settings import settings
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("MemGPT")
-logger.setLevel(logging.DEBUG if settings.debug else logging.INFO)
+selected_log_level = logging.DEBUG if settings.debug else logging.INFO
 
-# create console handler and set level to debug
-console_handler = logging.StreamHandler()
+def _setup_logfile() -> "Path":
+    """ensure the logger filepath is in place
 
-# create rotatating file handler
-logfile = Path(settings.memgpt_dir / "logs" / "MemGPT.log")
-logfile.parent.mkdir(parents=True, exist_ok=True)
-logfile.touch(exist_ok=True)
-file_handler = RotatingFileHandler(
-    logfile,
-    maxBytes=1024**2 * 10,
-    backupCount=3
-)
+    Returns: the logfile Path
+    """
+    logfile = Path(settings.memgpt_dir / "logs" / "MemGPT.log")
+    logfile.parent.mkdir(parents=True, exist_ok=True)
+    logfile.touch(exist_ok=True)
+    return logfile
 
-# create formatters
-console_formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")  # not datetime
-console_handler.setFormatter(console_formatter)
+# TODO: production logging should be much less invasive
+DEVELOPMENT_LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": True,
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        },
+        "no_datetime": {
+            "format": "%(name)s - %(levelname)s - %(message)s",
+        }
+    },
+    "handlers": {
+        "console": {
+            "level": selected_log_level,
+            "class": "logging.StreamHandler",
+            "stream": stdout,
+            "formatter": "no_datetime",
+        },
+        "file": {
+            "level": "DEBUG",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": _setup_logfile(),
+            "maxBytes": 1024**2 * 10,
+            "backupCount": 3,
+            "formatter": "standard",
+        },
+    },
+    "loggers": {
+        "MemGPT": {
+            "level": logging.DEBUG if settings.debug else logging.INFO,
+            "handlers": ["console","file",],
+            "propagate": False,
+        },
+        "uvicorn": {
+            "level": "INFO",
+            "handlers": ["console"],
+            "propagate": False,
+        },
+    },
+}
 
-file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-file_handler.setFormatter(file_formatter)
+def get_logger(name:Optional[str]=None) -> "logging.Logger":
+    """returns the project logger, scoped to a child name if provided
+    Args:
+        name: will define a child logger
+    """
+    logging.config.dictConfig(DEVELOPMENT_LOGGING)
+    parent_logger  = logging.getLogger("MemGPT")
+    if name:
+        return parent_logger.getChild(name)
+    return parent_logger
 
-# add ch to logger
-logger.addHandler(console_handler)
-logger.addHandler(file_handler)

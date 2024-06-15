@@ -19,7 +19,7 @@ from memgpt.config import MemGPTConfig
 from memgpt.constants import CLI_WARNING_PREFIX, MEMGPT_DIR
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import EmbeddingConfig, LLMConfig, User
-from memgpt.log import logger
+from memgpt.log import get_logger
 from memgpt.metadata import MetadataStore
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
 from memgpt.server.constants import WS_DEFAULT_PORT
@@ -30,6 +30,7 @@ from memgpt.streaming_interface import (
 )
 from memgpt.utils import open_folder_in_explorer, printd
 
+logger = get_logger(__name__)
 
 def migrate(
     debug: Annotated[bool, typer.Option(help="Print extra tracebacks for failed migrations")] = False,
@@ -342,7 +343,7 @@ def server(
 
     elif type == ServerChoice.ws_api:
         if debug:
-            from memgpt.server.server import logger as server_logger
+            from memgpt.server.server import get_logger as server_logger
 
             # Set the logging level
             server_logger.setLevel(logging.DEBUG)
