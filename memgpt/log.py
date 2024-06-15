@@ -1,5 +1,6 @@
 from typing import Optional
 import logging
+from logging.config import dictConfig
 from sys import stdout
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
@@ -65,7 +66,7 @@ def get_logger(name:Optional[str]=None) -> "logging.Logger":
     Args:
         name: will define a child logger
     """
-    logging.config.dictConfig(DEVELOPMENT_LOGGING)
+    dictConfig(DEVELOPMENT_LOGGING)
     parent_logger  = logging.getLogger("MemGPT")
     if name:
         return parent_logger.getChild(name)
