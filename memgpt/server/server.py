@@ -10,7 +10,6 @@ from typing import Callable, List, Optional, Tuple, Union
 from fastapi import HTTPException
 
 import memgpt.constants as constants
-from memgpt.log import get_logger
 import memgpt.presets.presets as presets
 import memgpt.server.utils as server_utils
 import memgpt.system as system
@@ -37,6 +36,7 @@ from memgpt.data_types import (
 # TODO use custom interface
 from memgpt.interface import AgentInterface  # abstract
 from memgpt.interface import CLIInterface  # for printing to terminal
+from memgpt.log import get_logger
 from memgpt.metadata import MetadataStore
 from memgpt.models.pydantic_models import (
     DocumentModel,

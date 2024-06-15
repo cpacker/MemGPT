@@ -1,9 +1,9 @@
-from typing import Optional
 import logging
 from logging.config import dictConfig
-from sys import stdout
-from pathlib import Path
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
+from sys import stdout
+from typing import Optional
 
 from memgpt.settings import settings
 
