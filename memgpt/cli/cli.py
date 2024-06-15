@@ -6,7 +6,7 @@ import sys
 import uuid
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Tuple
 
 import questionary
 import requests
@@ -35,7 +35,6 @@ from memgpt.utils import open_folder_in_explorer, printd
 
 logger = get_logger(__name__)
 
-
 def migrate(
     debug: Annotated[bool, typer.Option(help="Print extra tracebacks for failed migrations")] = False,
 ):
@@ -58,7 +57,7 @@ def str_to_quickstart_choice(choice_str: str) -> QuickstartChoice:
         raise ValueError(f"{choice_str} is not a valid QuickstartChoice. Valid options are: {valid_options}")
 
 
-def set_config_with_dict(new_config: dict) -> (MemGPTConfig, bool):
+def set_config_with_dict(new_config: dict) -> Tuple[MemGPTConfig, bool]:
     """_summary_
 
     Args:
@@ -347,7 +346,7 @@ def server(
 
     elif type == ServerChoice.ws_api:
         if debug:
-            from memgpt.server.server import logger as server_logger
+            from memgpt.server.server import get_logger as server_logger
 
             # Set the logging level
             server_logger.setLevel(logging.DEBUG)
