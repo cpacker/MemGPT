@@ -11,6 +11,7 @@ from typing import Callable, List, Optional, Tuple, Union
 from fastapi import HTTPException
 
 import memgpt.constants as constants
+from memgpt.log import get_logger
 import memgpt.presets.presets as presets
 import memgpt.server.utils as server_utils
 import memgpt.system as system
@@ -47,8 +48,7 @@ from memgpt.models.pydantic_models import (
     ToolModel,
 )
 
-logger = logging.getLogger(__name__)
-
+logger = get_logger(__name__)
 
 class Server(object):
     """Abstract server class that supports multi-agent multi-user"""
