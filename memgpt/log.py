@@ -1,4 +1,3 @@
-from typing import Optional
 import logging
 from logging.config import dictConfig
 from pathlib import Path
