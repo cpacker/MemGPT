@@ -10,6 +10,7 @@ from memgpt.settings import settings
 
 selected_log_level = logging.DEBUG if settings.debug else logging.INFO
 
+
 def _setup_logfile() -> "Path":
     """ensure the logger filepath is in place
 
@@ -20,17 +21,16 @@ def _setup_logfile() -> "Path":
     logfile.touch(exist_ok=True)
     return logfile
 
+
 # TODO: production logging should be much less invasive
 DEVELOPMENT_LOGGING = {
     "version": 1,
     "disable_existing_loggers": True,
     "formatters": {
-        "standard": {
-            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        },
+        "standard": {"format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"},
         "no_datetime": {
             "format": "%(name)s - %(levelname)s - %(message)s",
-        }
+        },
     },
     "handlers": {
         "console": {
@@ -51,7 +51,10 @@ DEVELOPMENT_LOGGING = {
     "loggers": {
         "MemGPT": {
             "level": logging.DEBUG if settings.debug else logging.INFO,
-            "handlers": ["console","file",],
+            "handlers": [
+                "console",
+                "file",
+            ],
             "propagate": False,
         },
         "uvicorn": {
@@ -62,14 +65,14 @@ DEVELOPMENT_LOGGING = {
     },
 }
 
-def get_logger(name:Optional[str]=None) -> "logging.Logger":
+
+def get_logger(name: Optional[str] = None) -> "logging.Logger":
     """returns the project logger, scoped to a child name if provided
     Args:
         name: will define a child logger
     """
     dictConfig(DEVELOPMENT_LOGGING)
-    parent_logger  = logging.getLogger("MemGPT")
+    parent_logger = logging.getLogger("MemGPT")
     if name:
         return parent_logger.getChild(name)
     return parent_logger
-
