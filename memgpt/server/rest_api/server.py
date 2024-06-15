@@ -181,7 +181,7 @@ def start_server(
 ):
     print("DEBUG", debug)
     if debug:
-        from memgpt.server.server import get_logger as server_logger
+        from memgpt.server.server import logger as server_logger
 
         # Set the logging level
         server_logger.setLevel(logging.DEBUG)
