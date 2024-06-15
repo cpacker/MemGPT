@@ -56,6 +56,7 @@ from memgpt.utils import create_random_username
 
 logger = get_logger(__name__)
 
+
 class Server(object):
     """Abstract server class that supports multi-agent multi-user"""
 
