@@ -49,6 +49,7 @@ from memgpt.models.pydantic_models import (
 
 logger = get_logger(__name__)
 
+
 class Server(object):
     """Abstract server class that supports multi-agent multi-user"""
 

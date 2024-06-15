@@ -32,6 +32,7 @@ from memgpt.utils import open_folder_in_explorer, printd
 
 logger = get_logger(__name__)
 
+
 def migrate(
     debug: Annotated[bool, typer.Option(help="Print extra tracebacks for failed migrations")] = False,
 ):

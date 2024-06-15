@@ -39,5 +39,6 @@ class Settings(BaseSettings):
         else:
             return None
 
+
 # singleton
 settings = Settings()
