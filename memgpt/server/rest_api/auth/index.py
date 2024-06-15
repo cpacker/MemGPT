@@ -3,9 +3,11 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from memgpt.log import get_logger
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
 
+logger = get_logger(__name__)
 router = APIRouter()
 
 
@@ -18,6 +20,7 @@ class AuthRequest(BaseModel):
 
 
 def setup_auth_router(server: SyncServer, interface: QueuingInterface, password: str) -> APIRouter:
+
     @router.post("/auth", tags=["auth"], response_model=AuthResponse)
     def authenticate_user(request: AuthRequest) -> AuthResponse:
         """
@@ -26,16 +29,10 @@ def setup_auth_router(server: SyncServer, interface: QueuingInterface, password:
         Currently, this is a placeholder that simply returns a UUID placeholder
         """
         interface.clear()
-        try:
-            if request.password != password:
-                # raise HTTPException(status_code=400, detail="Incorrect credentials")
-                response = server.api_key_to_user(api_key=request.password)
-            else:
-                response = server.authenticate_user()
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"{e}")
+        if request.password != password:
+            response = server.api_key_to_user(api_key=request.password)
+        else:
+            response = server.authenticate_user()
         return AuthResponse(uuid=response)
 
     return router
