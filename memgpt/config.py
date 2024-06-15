@@ -13,7 +13,6 @@ from memgpt.log import get_logger
 
 logger = get_logger(__name__)
 
-
 # helper functions for writing to configs
 def get_field(config, section, field):
     if section not in config:

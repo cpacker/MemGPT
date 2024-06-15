@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from memgpt.log import get_logger
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
+from memgpt.log import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter()
