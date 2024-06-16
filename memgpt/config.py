@@ -51,7 +51,7 @@ class MemGPTConfig:
     default_embedding_config: EmbeddingConfig = None
 
 # NONE OF THIS IS CONFIG ↓↓↓↓↓
-# @norton120 these are
+# @norton120 these are the metdadatastore
 
     # database configs: archival
     archival_storage_type: str = "chroma"  # local, db
