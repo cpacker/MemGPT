@@ -1,5 +1,5 @@
 # The builder image, used to build the virtual environment
-FROM python:3.12-bookworm as builder
+FROM python:3.12.2-bookworm as builder
 ARG MEMGPT_ENVIRONMENT=PRODUCTION
 ENV MEMGPT_ENVIRONMENT=${MEMGPT_ENVIRONMENT}
 RUN pip install poetry==1.8.2
@@ -22,7 +22,7 @@ RUN if [ "$MEMGPT_ENVIRONMENT" = "DEVELOPMENT"  ] ; then \
 
 
 # The runtime image, used to just run the code provided its virtual environment
-FROM python:3.12-slim-bookworm as runtime
+FROM python:3.12.2-slim-bookworm as runtime
 ARG MEMGPT_ENVIRONMENT=PRODUCTION
 ENV MEMGPT_ENVIRONMENT=${MEMGPT_ENVIRONMENT}
 ENV VIRTUAL_ENV=/app/.venv \
