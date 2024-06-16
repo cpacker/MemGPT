@@ -22,6 +22,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runtime
     depends_on:
       - memgpt_db
     ports:
