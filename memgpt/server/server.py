@@ -147,6 +147,11 @@ class SyncServer(Server):
         # self.default_interface = default_interface
         # self.default_interface = default_interface_cls()
 
+        # GH-1437 start overload refactoring for configs;
+        # metastore based on configured adapter here
+        self.metadatastore = metadatastore or get_metadatastore_adapter()
+
+
         # Initialize the connection to the DB
         self.config = MemGPTConfig.load()
         logger.info(f"loading configuration from '{self.config.config_path}'")
