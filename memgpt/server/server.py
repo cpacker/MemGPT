@@ -1,5 +1,4 @@
 import json
-import logging
 import uuid
 import warnings
 from abc import abstractmethod
@@ -37,6 +36,7 @@ from memgpt.data_types import (
 # TODO use custom interface
 from memgpt.interface import AgentInterface  # abstract
 from memgpt.interface import CLIInterface  # for printing to terminal
+from memgpt.log import get_logger
 from memgpt.metadata import MetadataStore
 from memgpt.models.pydantic_models import (
     DocumentModel,
@@ -47,7 +47,7 @@ from memgpt.models.pydantic_models import (
     ToolModel,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class Server(object):

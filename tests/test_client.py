@@ -29,7 +29,6 @@ test_server_token = "test_server_token"
 
 
 def _reset_config():
-
     # Use os.getenv with a fallback to os.environ.get
     db_url = settings.memgpt_pg_uri
 
@@ -51,14 +50,12 @@ def _reset_config():
     config.archival_storage_type = "postgres"
     config.recall_storage_type = "postgres"
     config.metadata_storage_type = "postgres"
-
     config.save()
     credentials.save()
     print("_reset_config :: ", config.config_path)
 
 
 def run_server():
-
     load_dotenv()
 
     _reset_config()

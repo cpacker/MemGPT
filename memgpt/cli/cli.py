@@ -19,7 +19,7 @@ from memgpt.config import MemGPTConfig
 from memgpt.constants import CLI_WARNING_PREFIX, MEMGPT_DIR
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import EmbeddingConfig, LLMConfig, User
-from memgpt.log import logger
+from memgpt.log import get_logger
 from memgpt.metadata import MetadataStore
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
 from memgpt.server.constants import WS_DEFAULT_PORT
@@ -29,6 +29,8 @@ from memgpt.streaming_interface import (
     StreamingRefreshCLIInterface as interface,  # for printing to terminal
 )
 from memgpt.utils import open_folder_in_explorer, printd
+
+logger = get_logger(__name__)
 
 
 def migrate(

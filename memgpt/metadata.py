@@ -418,7 +418,7 @@ class MetadataStore:
         """Get the user associated with a given API key"""
         token = self.get_api_key(api_key=api_key)
         if token is None:
-            raise ValueError(f"Token {api_key} does not exist")
+            raise ValueError(f"Provided token does not exist")
         else:
             return self.get_user(user_id=token.user_id)
 
