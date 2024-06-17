@@ -9,7 +9,9 @@ import memgpt
 import memgpt.utils as utils
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET, MEMGPT_DIR
 from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig
-from memgpt.log import logger
+from memgpt.log import get_logger
+
+logger = get_logger(__name__)
 
 
 # helper functions for writing to configs
