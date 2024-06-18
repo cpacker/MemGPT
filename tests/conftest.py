@@ -1,12 +1,21 @@
+from typing import TYPE_CHECKING
 import pytest
+from sqlalchemy import text
+from sqlalchemy.orm import sessionmaker
+
 
 from memgpt.settings import settings
+from memgpt.orm.utilities import _create_engine_for_adapter
+from memgpt.orm.base import Base
 from tests.utils import wipe_memgpt_home
 from memgpt.data_types import EmbeddingConfig, LLMConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.server.server import SyncServer
 
 from tests.config import TestMGPTConfig
+
+if TYPE_CHECKING:
+    from sqlalchemy import Session
 
 @pytest.fixture(scope="module")
 def config():
@@ -79,3 +88,26 @@ def agent_id(server, user_id):
 
     # cleanup
     server.delete_agent(user_id, agent_state.id)
+
+
+# new ORM
+@pytest.fixture(params=["sqlite_chroma","postgres",])
+def db_session(request) -> "Session":
+    """Creates a function-scoped orm session for the given test and adapter.
+    Note: both pg and sqlite/chroma will have results scoped to each test function - so 2x results
+    for each. These are cleared at the _beginning_ of each test run - so states are persisted for inspection
+    after the end of the test!
+
+    """
+    function_ = request.node.name
+    engine = _create_engine_for_adapter(adapter=request.param, database="memgpt_test")
+    with engine.begin() as connection:
+        for statement in (
+            text(f"CREATE SCHEMA IF NOT EXISTS {function_}"),
+            text(f"SET search_path TO {function_},public"),
+        ):
+            connection.execute(statement)
+        Base.metadata.drop_all(bind=connection)
+        Base.metadata.create_all(bind=connection)
+    with sessionmaker(bind=engine)() as session:
+        yield session
