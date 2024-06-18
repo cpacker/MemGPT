@@ -21,17 +21,6 @@ DEFAULT_PERSONA = "sam_pov"
 DEFAULT_HUMAN = "basic"
 DEFAULT_PRESET = "memgpt_chat"
 
-# Used to isolate MemGPT logger instance from Dependant Libraries logging
-LOGGER_NAME = "MemGPT"
-LOGGER_DEFAULT_LEVEL = CRITICAL
-# Where to store the logs
-LOGGER_DIR = os.path.join(MEMGPT_DIR, "logs")
-# filename of the log
-LOGGER_FILENAME = "MemGPT.log"
-# Number of log files to rotate
-LOGGER_FILE_BACKUP_COUNT = 3
-# Max Log file size in bytes
-LOGGER_MAX_FILE_SIZE = 10485760
 # LOGGER_LOG_LEVEL is use to convert Text to Logging level value for logging mostly for Cli input to setting level
 LOGGER_LOG_LEVELS = {"CRITICAL": CRITICAL, "ERROR": ERROR, "WARN": WARN, "WARNING": WARNING, "INFO": INFO, "DEBUG": DEBUG, "NOTSET": NOTSET}
 

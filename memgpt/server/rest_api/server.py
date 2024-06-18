@@ -12,6 +12,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.middleware.cors import CORSMiddleware
 
 from memgpt.server.constants import REST_DEFAULT_PORT
+from memgpt.server.rest_api.admin.tools import setup_tools_index_router
 from memgpt.server.rest_api.admin.users import setup_admin_router
 from memgpt.server.rest_api.agents.command import setup_agents_command_router
 from memgpt.server.rest_api.agents.config import setup_agents_config_router
@@ -82,6 +83,7 @@ app.include_router(setup_auth_router(server, interface, password), prefix=API_PR
 
 # /admin/users endpoints
 app.include_router(setup_admin_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
+app.include_router(setup_tools_index_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
 
 # /api/agents endpoints
 app.include_router(setup_agents_command_router(server, interface, password), prefix=API_PREFIX)
@@ -93,9 +95,7 @@ app.include_router(setup_users_index_router(server, interface, password), prefix
 app.include_router(setup_humans_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_personas_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_models_index_router(server, interface, password), prefix=API_PREFIX)
-app.include_router(
-    setup_tools_index_router(server, interface, password), prefix=API_PREFIX, dependencies=[Depends(verify_password)]
-)  # admin only
+app.include_router(setup_user_tools_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_sources_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_presets_index_router(server, interface, password), prefix=API_PREFIX)
 
@@ -123,7 +123,7 @@ def on_startup():
     memgpt_api = app.openapi_schema.copy()
     memgpt_api["paths"] = {key: value for key, value in memgpt_api["paths"].items() if not key.startswith(OPENAI_API_PREFIX)}
     memgpt_api["info"]["title"] = "MemGPT API"
-    with open("openapi_memgpt.json", "w") as file:
+    with open("openapi_memgpt.json", "w", encoding="utf-8") as file:
         print(f"Writing out openapi_memgpt.json file")
         json.dump(memgpt_api, file, indent=2)
 
@@ -134,7 +134,7 @@ def on_startup():
         if not (key.startswith(API_PREFIX) or key.startswith(ADMIN_PREFIX))
     }
     openai_assistants_api["info"]["title"] = "OpenAI Assistants API"
-    with open("openapi_assistants.json", "w") as file:
+    with open("openapi_assistants.json", "w", encoding="utf-8") as file:
         print(f"Writing out openapi_assistants.json file")
         json.dump(openai_assistants_api, file, indent=2)
 

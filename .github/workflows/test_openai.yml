@@ -1,0 +1,43 @@
+name: Endpoint (OpenAI)
+
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: "Setup Python, Poetry and Dependencies"
+      uses: packetcoders/action-setup-cache-python-poetry@main
+      with:
+        python-version: "3.12"
+        poetry-version: "1.8.2"
+        install-args: "-E dev"
+
+    - name: Initialize credentials
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        poetry run memgpt quickstart --backend openai
+
+    - name: Test LLM endpoint
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        poetry run pytest -s -vv tests/test_endpoints.py::test_llm_endpoint_openai
+
+    - name: Test embedding endpoint
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        poetry run pytest -s -vv tests/test_endpoints.py::test_embedding_endpoint_openai

@@ -162,7 +162,6 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
     credentials = MemGPTCredentials.load()
 
     if endpoint_type == "openai":
-        assert credentials.openai_key is not None
         from llama_index.embeddings.openai import OpenAIEmbedding
 
         additional_kwargs = {"user_id": user_id} if user_id else {}
@@ -200,6 +199,20 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
             base_url=config.embedding_endpoint,
             user=user_id,
         )
+    elif endpoint_type == "ollama":
+
+        from llama_index.embeddings.ollama import OllamaEmbedding
+
+        ollama_additional_kwargs = {}
+        callback_manager = None
+
+        model = OllamaEmbedding(
+            model_name=config.embedding_model,
+            base_url=config.embedding_endpoint,
+            ollama_additional_kwargs=ollama_additional_kwargs or {},
+            callback_manager=callback_manager or None,
+        )
+        return model
 
     else:
         return default_embedding_model()

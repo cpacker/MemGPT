@@ -46,7 +46,7 @@ def send_message(message: str):
     sends a message and prints the assistant output only.
     :param message: the message to send
     """
-    response = client.user_message(agent_id=agent_state.id, message=message)
+    response = client.user_message(agent_id=agent_info.id, message=message)
     for r in response:
         # Can also handle other types "function_call", "function_return", "function_message"
         if "assistant_message" in r:

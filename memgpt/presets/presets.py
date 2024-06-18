@@ -41,11 +41,6 @@ def add_default_tools(user_id: uuid.UUID, ms: MetadataStore):
         err = f"Error loading function set '{module_name}': {e}"
         printd(err)
 
-    from pprint import pprint
-
-    print("BASE FUNCTIONS", functions_to_schema.keys())
-    pprint(functions_to_schema)
-
     # create tool in db
     for name, schema in functions_to_schema.items():
         ms.add_tool(ToolModel(name=name, tags=["base"], source_type="python", json_schema=schema["json_schema"]))
@@ -53,7 +48,7 @@ def add_default_tools(user_id: uuid.UUID, ms: MetadataStore):
 
 def add_default_humans_and_personas(user_id: uuid.UUID, ms: MetadataStore):
     for persona_file in list_persona_files():
-        text = open(persona_file, "r").read()
+        text = open(persona_file, "r", encoding="utf-8").read()
         name = os.path.basename(persona_file).replace(".txt", "")
         if ms.get_persona(user_id=user_id, name=name) is not None:
             printd(f"Persona '{name}' already exists for user '{user_id}'")
@@ -61,7 +56,7 @@ def add_default_humans_and_personas(user_id: uuid.UUID, ms: MetadataStore):
         persona = PersonaModel(name=name, text=text, user_id=user_id)
         ms.add_persona(persona)
     for human_file in list_human_files():
-        text = open(human_file, "r").read()
+        text = open(human_file, "r", encoding="utf-8").read()
         name = os.path.basename(human_file).replace(".txt", "")
         if ms.get_human(user_id=user_id, name=name) is not None:
             printd(f"Human '{name}' already exists for user '{user_id}'")

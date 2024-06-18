@@ -25,9 +25,9 @@ jobs:
       - name: "Setup Python, Poetry and Dependencies"
         uses: packetcoders/action-setup-cache-python-poetry@main
         with:
-          python-version: "3.11"
-          poetry-version: "1.7.1"
-          install-args: "--all-extras"
+          python-version: "3.12"
+          poetry-version: "1.8.2"
+          install-args: "-E dev"
 
       - name: Generate openapi.json file
         run: |

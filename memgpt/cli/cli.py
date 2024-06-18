@@ -20,7 +20,7 @@ from memgpt.config import MemGPTConfig
 from memgpt.constants import CLI_WARNING_PREFIX, MEMGPT_DIR
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import EmbeddingConfig, LLMConfig, User
-from memgpt.log import logger
+from memgpt.log import get_logger
 from memgpt.metadata import MetadataStore
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
 from memgpt.server.constants import WS_DEFAULT_PORT
@@ -30,6 +30,8 @@ from memgpt.streaming_interface import (
     StreamingRefreshCLIInterface as interface,  # for printing to terminal
 )
 from memgpt.utils import open_folder_in_explorer, printd
+
+logger = get_logger(__name__)
 
 
 def migrate(
@@ -163,7 +165,7 @@ def quickstart(
 
                 # Load the file from the relative path
                 script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-                backup_config_path = os.path.join(script_dir, "..", "..", "configs", "memgpt_hosted.json")
+                backup_config_path = os.path.join(script_dir, "..", "configs", "memgpt_hosted.json")
                 try:
                     with open(backup_config_path, "r", encoding="utf-8") as file:
                         backup_config = json.load(file)
@@ -176,7 +178,7 @@ def quickstart(
             # Load the file from the relative path
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
             # print("SCRIPT", script_dir)
-            backup_config_path = os.path.join(script_dir, "..", "..", "configs", "memgpt_hosted.json")
+            backup_config_path = os.path.join(script_dir, "..", "configs", "memgpt_hosted.json")
             # print("FILE PATH", backup_config_path)
             try:
                 with open(backup_config_path, "r", encoding="utf-8") as file:
@@ -215,7 +217,7 @@ def quickstart(
 
                 # Load the file from the relative path
                 script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-                backup_config_path = os.path.join(script_dir, "..", "..", "configs", "openai.json")
+                backup_config_path = os.path.join(script_dir, "..", "configs", "openai.json")
                 try:
                     with open(backup_config_path, "r", encoding="utf-8") as file:
                         backup_config = json.load(file)
@@ -227,7 +229,7 @@ def quickstart(
         else:
             # Load the file from the relative path
             script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-            backup_config_path = os.path.join(script_dir, "..", "..", "configs", "openai.json")
+            backup_config_path = os.path.join(script_dir, "..", "configs", "openai.json")
             try:
                 with open(backup_config_path, "r", encoding="utf-8") as file:
                     backup_config = json.load(file)

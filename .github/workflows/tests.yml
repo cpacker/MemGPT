@@ -2,7 +2,6 @@ name: Run All pytest Tests
 
 env:
   MEMGPT_PGURI: ${{ secrets.MEMGPT_PGURI }}
-  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
 on:
   push:
@@ -14,6 +13,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
+    services:
+      qdrant:
+        image: qdrant/qdrant
+        ports:
+          - 6333:6333
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -21,23 +27,15 @@ jobs:
     - name: Build and run container
       run: bash db/run_postgres.sh
 
-
     - name: "Setup Python, Poetry and Dependencies"
       uses: packetcoders/action-setup-cache-python-poetry@main
       with:
         python-version: "3.12"
         poetry-version: "1.8.2"
-        install-args: "--all-extras"
+        install-args: "-E dev -E postgres -E milvus"
 
     - name: Initialize credentials
-      env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      run: |
-        if [ -z "$OPENAI_API_KEY" ]; then
-          poetry run memgpt quickstart --backend openai
-        else
-          poetry run memgpt quickstart --backend memgpt
-        fi
+      run: poetry run memgpt quickstart --backend memgpt
 
     #- name: Run docker compose server
     #  env:
@@ -56,7 +54,6 @@ jobs:
         MEMGPT_PG_PASSWORD: memgpt
         MEMGPT_PG_DB: memgpt
         MEMGPT_PG_HOST: localhost
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
       run: |
         poetry run pytest -s -vv tests/test_server.py
@@ -68,11 +65,10 @@ jobs:
         MEMGPT_PG_PASSWORD: memgpt
         MEMGPT_PG_HOST: localhost
         MEMGPT_PG_DB: memgpt
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
       run: |
-        poetry run pytest -s -vv -k "not test_storage and not test_server and not test_openai_client" tests
+        poetry run pytest -s -vv -k "not test_concurrent_connections.py and not test_quickstart and not test_endpoints and not test_storage and not test_server and not test_openai_client" tests
 
     - name: Run storage tests
       env:
@@ -81,7 +77,6 @@ jobs:
         MEMGPT_PG_PASSWORD: memgpt
         MEMGPT_PG_HOST: localhost
         MEMGPT_PG_DB: memgpt
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         MEMGPT_SERVER_PASS: test_server_token
       run: |
         poetry run pytest -s -vv tests/test_storage.py

@@ -28,8 +28,9 @@ class Admin:
         self.token = token
         self.headers = {"accept": "application/json", "content-type": "application/json", "authorization": f"Bearer {token}"}
 
-    def get_users(self):
-        response = requests.get(f"{self.base_url}/admin/users", headers=self.headers)
+    def get_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50):
+        payload = {"cursor": str(cursor) if cursor else None, "limit": limit}
+        response = requests.get(f"{self.base_url}/admin/users", headers=self.headers, json=payload)
         if response.status_code != 200:
             raise HTTPError(response.json())
         return GetAllUsersResponse(**response.json())
@@ -63,7 +64,6 @@ class Admin:
         if response.status_code != 200:
             raise HTTPError(response.json())
         response_json = response.json()
-        print(response_json)
         return CreateUserResponse(**response_json)
 
     def delete_user(self, user_id: uuid.UUID):
@@ -87,25 +87,25 @@ class Admin:
     # tools (currently only available for admin)
     def create_tool(self, name: str, file_path: str, source_type: Optional[str] = "python", tags: Optional[List[str]] = None) -> ToolModel:
         """Add a tool implemented in a file path"""
-        source_code = open(file_path, "r").read()
+        source_code = open(file_path, "r", encoding="utf-8").read()
         data = {"name": name, "source_code": source_code, "source_type": source_type, "tags": tags}
-        response = requests.post(f"{self.base_url}/api/tools", json=data, headers=self.headers)
+        response = requests.post(f"{self.base_url}/admin/tools", json=data, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
         return ToolModel(**response.json())
 
     def list_tools(self) -> ListToolsResponse:
-        response = requests.get(f"{self.base_url}/api/tools", headers=self.headers)
+        response = requests.get(f"{self.base_url}/admin/tools", headers=self.headers)
         return ListToolsResponse(**response.json())
 
     def delete_tool(self, name: str):
-        response = requests.delete(f"{self.base_url}/api/tools/{name}", headers=self.headers)
+        response = requests.delete(f"{self.base_url}/admin/tools/{name}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to delete tool: {response.text}")
         return response.json()
 
     def get_tool(self, name: str):
-        response = requests.get(f"{self.base_url}/api/tools/{name}", headers=self.headers)
+        response = requests.get(f"{self.base_url}/admin/tools/{name}", headers=self.headers)
         if response.status_code == 404:
             return None
         elif response.status_code != 200:

@@ -864,6 +864,42 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
             embedding_dim = int(embedding_dim)
         except Exception:
             raise ValueError(f"Failed to cast {embedding_dim} to integer.")
+    elif embedding_provider == "ollama":
+        # configure ollama embedding endpoint
+        embedding_endpoint_type = "ollama"
+        embedding_endpoint = "http://localhost:11434/api/embeddings"
+        # Source: https://github.com/ollama/ollama/blob/main/docs/api.md#generate-embeddings:~:text=http%3A//localhost%3A11434/api/embeddings
+
+        # get endpoint (is this necessary?)
+        embedding_endpoint = questionary.text("Enter Ollama API endpoint:").ask()
+        if embedding_endpoint is None:
+            raise KeyboardInterrupt
+        while not utils.is_valid_url(embedding_endpoint):
+            typer.secho(f"Endpoint must be a valid address", fg=typer.colors.YELLOW)
+            embedding_endpoint = questionary.text("Enter Ollama API endpoint:").ask()
+            if embedding_endpoint is None:
+                raise KeyboardInterrupt
+
+        # get model type
+        default_embedding_model = (
+            config.default_embedding_config.embedding_model if config.default_embedding_config else "mxbai-embed-large"
+        )
+        embedding_model = questionary.text(
+            "Enter Ollama model tag (e.g. mxbai-embed-large):",
+            default=default_embedding_model,
+        ).ask()
+        if embedding_model is None:
+            raise KeyboardInterrupt
+
+        # get model dimensions
+        default_embedding_dim = config.default_embedding_config.embedding_dim if config.default_embedding_config else "512"
+        embedding_dim = questionary.text("Enter embedding model dimensions (e.g. 512):", default=str(default_embedding_dim)).ask()
+        if embedding_dim is None:
+            raise KeyboardInterrupt
+        try:
+            embedding_dim = int(embedding_dim)
+        except Exception:
+            raise ValueError(f"Failed to cast {embedding_dim} to integer.")
     else:  # local models
         embedding_endpoint_type = "local"
         embedding_endpoint = None
@@ -875,7 +911,7 @@ def configure_embedding_endpoint(config: MemGPTConfig, credentials: MemGPTCreden
 
 def configure_archival_storage(config: MemGPTConfig, credentials: MemGPTCredentials):
     # Configure archival storage backend
-    archival_storage_options = ["postgres", "chroma"]
+    archival_storage_options = ["postgres", "chroma", "milvus", "qdrant"]
     archival_storage_type = questionary.select(
         "Select storage backend for archival data:", archival_storage_options, default=config.archival_storage_type
     ).ask()
@@ -912,6 +948,26 @@ def configure_archival_storage(config: MemGPTConfig, credentials: MemGPTCredenti
         if chroma_type == "persistent":
             archival_storage_path = os.path.join(MEMGPT_DIR, "chroma")
 
+    if archival_storage_type == "qdrant":
+        qdrant_type = questionary.select("Select Qdrant backend:", ["local", "server"], default="local").ask()
+        if qdrant_type is None:
+            raise KeyboardInterrupt
+        if qdrant_type == "server":
+            archival_storage_uri = questionary.text(
+                "Enter the Qdrant instance URI (Default: localhost:6333):", default="localhost:6333"
+            ).ask()
+            if archival_storage_uri is None:
+                raise KeyboardInterrupt
+        if qdrant_type == "local":
+            archival_storage_path = os.path.join(MEMGPT_DIR, "qdrant")
+
+    if archival_storage_type == "milvus":
+        default_milvus_uri = archival_storage_path = os.path.join(MEMGPT_DIR, "milvus.db")
+        archival_storage_uri = questionary.text(
+            f"Enter the Milvus connection URI (Default: {default_milvus_uri}):", default=default_milvus_uri
+        ).ask()
+        if archival_storage_uri is None:
+            raise KeyboardInterrupt
     return archival_storage_type, archival_storage_uri, archival_storage_path
 
     # TODO: allow configuring embedding model
@@ -1043,12 +1099,12 @@ class ListChoice(str, Enum):
 
 @app.command()
 def list(arg: Annotated[ListChoice, typer.Argument]):
-
     from memgpt.client.client import create_client
 
     config = MemGPTConfig.load()
-    ms = MetadataStore(config=config)
+    MetadataStore(config)
     uuid.UUID(config.anon_clientid)
+    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
     table = ColorTable(theme=Themes.OCEAN)
     client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
     if arg == ListChoice.agents:
@@ -1145,7 +1201,7 @@ def add(
     client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
     if filename:  # read from file
         assert text is None, "Cannot specify both text and filename"
-        with open(filename, "r") as f:
+        with open(filename, "r", encoding="utf-8") as f:
             text = f.read()
     if option == "persona":
         persona = client.get_persona(name=name, user_id=user_id)
@@ -1159,8 +1215,8 @@ def add(
             client.add_persona(name, text)
 
     elif option == "human":
-        human = client.get_human(name, user_id)
-        if human is not None:
+        human = client.get_human(name=name, user_id=user_id)
+        if human:
             # config if user wants to overwrite
             if not questionary.confirm(f"Human {name} already exists. Overwrite?").ask():
                 return
