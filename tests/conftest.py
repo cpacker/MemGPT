@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 
 
 from memgpt.settings import settings
-from memgpt.orm.utilities import _create_engine_for_adapter
+from memgpt.orm.utilities import create_engine
 from memgpt.orm.base import Base
 from tests.utils import wipe_memgpt_home
 from memgpt.data_types import EmbeddingConfig, LLMConfig
@@ -96,16 +96,20 @@ def db_session(request) -> "Session":
     """Creates a function-scoped orm session for the given test and adapter.
     Note: both pg and sqlite/chroma will have results scoped to each test function - so 2x results
     for each. These are cleared at the _beginning_ of each test run - so states are persisted for inspection
-    after the end of the test!
+    after the end of the test.
 
     """
     function_ = request.node.name
-    engine = _create_engine_for_adapter(adapter=request.param, database="memgpt_test")
-    with engine.begin() as connection:
-        for statement in (
+    engine = create_engine(storage_type=request.param, database="memgpt_test")
+    adapter_statements = {
+        "sqlite_chroma": (text(f"attach ':memory:' as {function_}"),),
+        "postgres": (
             text(f"CREATE SCHEMA IF NOT EXISTS {function_}"),
             text(f"SET search_path TO {function_},public"),
-        ):
+        ),
+    }
+    with engine.begin() as connection:
+        for statement in adapter_statements[request.param]:
             connection.execute(statement)
         Base.metadata.drop_all(bind=connection)
         Base.metadata.create_all(bind=connection)

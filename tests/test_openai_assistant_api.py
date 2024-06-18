@@ -17,7 +17,7 @@
 #
 #    # test: create agent
 #    request_body = {
-#        "assistant_name": DEFAULT_PRESET,
+#        "assistant_name": settings.preset,
 #    }
 #    print(request_body)
 #    response = client.post("/v1/threads", json=request_body)

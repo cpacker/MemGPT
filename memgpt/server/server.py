@@ -40,7 +40,7 @@ from memgpt.data_types import (
 from memgpt.interface import AgentInterface  # abstract
 from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.log import get_logger
-from memgpt.metadata import MetadataStore, get_metadatastore_adapter
+from memgpt.metadata import MetadataStore
 from memgpt.models.pydantic_models import (
     DocumentModel,
     HumanModel,
@@ -140,11 +140,6 @@ class SyncServer(Server):
 
         # The default interface that will get assigned to agents ON LOAD
         self.default_interface = default_interface
-
-        # GH-1437 start overload refactoring for configs;
-        # metastore based on configured adapter here
-        self.metadatastore = metadatastore or get_metadatastore_adapter()
-
 
         # Initialize the connection to the DB
         self.config = config or MemGPTConfig.load()

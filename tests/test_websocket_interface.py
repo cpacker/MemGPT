@@ -18,7 +18,7 @@ from memgpt.server.ws_api.interface import SyncWebSocketInterface
 
 #     # Create an agent and hook it up to the WebSocket interface
 #     memgpt_agent = presets.create_agent_from_preset(
-#         presets.DEFAULT_PRESET,
+#         presets.settings.preset,
 #         None,  # no agent config to provide
 #         "gpt-4-1106-preview",
 #         personas.get_persona_text("sam_pov"),
