@@ -45,14 +45,6 @@ from memgpt.settings import settings
 from memgpt.utils import enforce_types, get_utc_time, printd
 
 
-def get_metadata_store() -> Type["MetadataStore"]:
-    """This uses app settings to select and configure a MetadataStore
-    Returns:
-        A metadataStore Adapter (ie Posgtres, SQLiteChroma etc)
-    """
-    # GH 1437 - cut in the lookup and config here
-    raise NotImplementedError
-
 Base = declarative_base()
 
 

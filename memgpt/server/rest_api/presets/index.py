@@ -106,7 +106,7 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
                 system = request.system
                 # TODO: insert into system table
             else:
-                system_name = request.system_name if request.system_name else DEFAULT_PRESET
+                system_name = request.system_name if request.system_name else settings.preset
                 system = request.system if request.system else gpt_system.get_system_text(system_name)
 
             if not request.human_name and request.human:
@@ -115,7 +115,7 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
                 human = request.human
                 server.ms.add_human(HumanModel(text=human, name=human_name, user_id=user_id))
             else:
-                human_name = request.human_name if request.human_name else DEFAULT_HUMAN
+                human_name = request.human_name if request.human_name else settings.human
                 human = request.human if request.human else get_human_text(human_name)
 
             if not request.persona_name and request.persona:
@@ -124,7 +124,7 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
                 persona = request.persona
                 server.ms.add_persona(PersonaModel(text=persona, name=persona_name, user_id=user_id))
             else:
-                persona_name = request.persona_name if request.persona_name else DEFAULT_PERSONA
+                persona_name = request.persona_name if request.persona_name else settings.persona
                 persona = request.persona if request.persona else get_persona_text(persona_name)
 
             # create preset

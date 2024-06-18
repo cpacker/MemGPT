@@ -10,11 +10,11 @@ faker = Faker()
 class TestORMBases:
     """eyeball unit tests of accessors, id logic etc"""
 
-    def test_prefixed_ids(db_session):
+    def test_prefixed_ids(self, db_session):
 
         user = User(
             email=faker.email,
-            organization=Organization.default()
+            organization=Organization.default(db_session=db_session),
         ).create(db_session)
 
         assert user.id.startswith('user-')

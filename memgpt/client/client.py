@@ -6,7 +6,8 @@ from typing import Dict, List, Optional, Tuple, Union
 import requests
 
 from memgpt.config import MemGPTConfig
-from memgpt.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
+from memgpt.constants import BASE_TOOLS
+from memgpt.settings import settings
 from memgpt.data_sources.connectors import DataConnector
 from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, Preset, Source
 from memgpt.functions.functions import parse_source_code
@@ -399,7 +400,7 @@ class RESTClient(AbstractClient):
                 schema.append(tool.json_schema)
 
         # include default tools
-        default_preset = self.get_preset(name=DEFAULT_PRESET)
+        default_preset = self.get_preset(name=settings.preset)
         if default_tools:
             # TODO
             # from memgpt.functions.functions import load_function_set

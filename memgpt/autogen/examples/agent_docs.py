@@ -43,7 +43,7 @@ if LLM_BACKEND == "openai":
         {
             "model": model,
             "context_window": LLM_MAX_TOKENS[model],
-            "preset": settings.default_preset,
+            "preset": settings.preset,
             "model_wrapper": None,
             # OpenAI specific
             "model_endpoint_type": "openai",
@@ -82,7 +82,7 @@ elif LLM_BACKEND == "azure":
         {
             "model": model,
             "context_window": LLM_MAX_TOKENS[model],
-            "preset": settings.default_preset,
+            "preset": settings.preset,
             "model_wrapper": None,
             # Azure specific
             "model_endpoint_type": "azure",
@@ -111,7 +111,7 @@ elif LLM_BACKEND == "local":
     # MemGPT-powered agents will also use local LLMs, but they need additional setup (also they use the Completions endpoint)
     config_list_memgpt = [
         {
-            "preset": settings.default_preset,
+            "preset": settings.preset,
             "model": None,  # only required for Ollama, see: https://memgpt.readme.io/docs/ollama
             "context_window": 8192,  # the context window of your model (for Mistral 7B-based models, it's likely 8192)
             "model_wrapper": "chatml",  # chatml is the default wrapper
