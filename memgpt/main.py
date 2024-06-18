@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import traceback
+from typing import Union
 
 import questionary
 import requests
@@ -26,7 +27,7 @@ from memgpt.cli.cli import (
 )
 from memgpt.cli.cli_config import add, configure, delete, list
 from memgpt.cli.cli_load import app as load_app
-from memgpt.client.client import AbstractClient
+from memgpt.client.client import LocalClient, RESTClient
 from memgpt.config import MemGPTConfig
 from memgpt.constants import (
     FUNC_FAILED_HEARTBEAT_MESSAGE,
@@ -34,7 +35,6 @@ from memgpt.constants import (
     JSON_LOADS_STRICT,
     REQ_HEARTBEAT_MESSAGE,
 )
-from memgpt.metadata import MetadataStore
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import AgentRefreshStreamingInterface
@@ -73,10 +73,11 @@ def clear_line(console, strip_ui=False):
 
 def run_agent_loop(
     memgpt_agent: agent.Agent,
-    client: AbstractClient,
+    client: Union[LocalClient, RESTClient],
     config: MemGPTConfig,
     first,
-    ms: MetadataStore,
+    # krishna
+    # ms: MetadataStore,
     no_verify=False,
     cfg=None,
     strip_ui=False,
@@ -104,7 +105,8 @@ def run_agent_loop(
         print()
 
     multiline_input = False
-    ms = MetadataStore(config)
+    # krishna
+    # ms = MetadataStore(config)
     while True:
         if not skip_next_user_input and (counter > 0 or USER_GOES_FIRST):
             # Ask for user input
@@ -140,11 +142,15 @@ def run_agent_loop(
                 # updated agent save functions
                 if user_input.lower() == "/exit":
                     # memgpt_agent.save()
-                    agent.save_agent(memgpt_agent, ms)
+                    # krishna
+                    # agent.save_agent(memgpt_agent, ms)
+                    client.save_agent(agent=memgpt_agent)
                     break
                 elif user_input.lower() == "/save" or user_input.lower() == "/savechat":
                     # memgpt_agent.save()
-                    agent.save_agent(memgpt_agent, ms)
+                    # krishna
+                    # agent.save_agent(memgpt_agent, ms)
+                    client.save_agent(agent=memgpt_agent)
                     continue
                 elif user_input.lower() == "/attach":
                     # TODO: check if agent already has it
@@ -152,7 +158,9 @@ def run_agent_loop(
                     # TODO: check to ensure source embedding dimentions/model match agents, and disallow attachment if not
                     # TODO: alternatively, only list sources with compatible embeddings, and print warning about non-compatible sources
 
-                    data_source_options = ms.list_sources(user_id=memgpt_agent.agent_state.user_id)
+                    # krishna
+                    # data_source_options = ms.list_sources(user_id=memgpt_agent.agent_state.user_id)
+                    data_source_options = client.list_sources()
                     if len(data_source_options) == 0:
                         typer.secho(
                             'No sources available. You must load a souce with "memgpt load ..." before running /attach.',
@@ -186,7 +194,9 @@ def run_agent_loop(
                     source_connector = StorageConnector.get_storage_connector(
                         TableType.PASSAGES, config, user_id=memgpt_agent.agent_state.user_id
                     )
-                    memgpt_agent.attach_source(data_source, source_connector, ms)
+                    # krishna
+                    # memgpt_agent.attach_source(data_source, source_connector, ms)
+                    client.attach_source_to_agent(agent_id=memgpt_agent.agent_state.id, source_name=data_source)
 
                     continue
 

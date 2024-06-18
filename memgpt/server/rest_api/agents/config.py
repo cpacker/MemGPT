@@ -7,6 +7,9 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+# krishna1
+from rich import print
+
 from memgpt.models.pydantic_models import (
     AgentStateModel,
     EmbeddingConfigModel,
@@ -21,6 +24,16 @@ router = APIRouter()
 
 class AgentRenameRequest(BaseModel):
     agent_name: str = Field(..., description="New name for the agent.")
+
+
+# class GetAgentRequest(BaseModel):
+#     agent_id: Optional[uuid.UUID] = Field(..., description="The ID of the agent.")
+#     agent_name: Optional[str] = Field(..., description="The name of the agent.")
+
+
+class DeleteAgentRequest(BaseModel):
+    agent_id: Optional[uuid.UUID] = Field(..., description="The optional ID the agent.")
+    agent_name: Optional[str] = Field(..., description="The optional name of the agent.")
 
 
 class GetAgentResponse(BaseModel):
@@ -50,9 +63,10 @@ def validate_agent_name(name: str) -> str:
 def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
-    @router.get("/agents/{agent_id}/config", tags=["agents"], response_model=GetAgentResponse)
+    @router.get("/agents/config", tags=["agents"], response_model=GetAgentResponse)
     def get_agent_config(
-        agent_id: uuid.UUID,
+        agent_id: Optional[uuid.UUID] = None,
+        agent_name: Optional[str] = None,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
@@ -60,15 +74,15 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
 
         This endpoint fetches the configuration details for a given agent, identified by the user and agent IDs.
         """
-
         interface.clear()
-        if not server.ms.get_agent(user_id=user_id, agent_id=agent_id):
+        if not server.ms.get_agent(user_id=user_id, agent_id=agent_id, agent_name=agent_name):
             # agent does not exist
             raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found.")
 
-        agent_state = server.get_agent_config(user_id=user_id, agent_id=agent_id)
+        agent_state = server.get_agent_config(user_id=user_id, agent_id=agent_id, agent_name=agent_name)
+        print("agent_state config: ", agent_state)
         # get sources
-        attached_sources = server.list_attached_sources(agent_id=agent_id)
+        attached_sources = server.list_attached_sources(agent_id=agent_state.id)
 
         # configs
         llm_config = LLMConfigModel(**vars(agent_state.llm_config))
@@ -137,9 +151,9 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
             sources=attached_sources,
         )
 
-    @router.delete("/agents/{agent_id}", tags=["agents"])
+    @router.delete("/agents/delete", tags=["agents"])
     def delete_agent(
-        agent_id: uuid.UUID,
+        request: DeleteAgentRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
@@ -149,8 +163,11 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
 
         interface.clear()
         try:
-            server.delete_agent(user_id=user_id, agent_id=agent_id)
-            return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Agent agent_id={agent_id} successfully deleted"})
+            server.delete_agent(user_id=user_id, agent_id=request.agent_id, agent_name=request.agent_name)
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content={"message": f"Agent agent_id={request.agent_id} agent_name={request.agent_name} successfully deleted"},
+            )
         except HTTPException:
             raise
         except Exception as e:

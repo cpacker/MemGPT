@@ -46,6 +46,11 @@ class PresetModel(BaseModel):
     functions_schema: List[Dict] = Field(..., description="The functions schema of the preset.")
 
 
+class PresetWithMetadata(PresetModel):
+    agent_name: Optional[str] = Field(..., description="Name of the agent.")
+    first_message_verify_mono: bool = Field(..., description="first_message_verify_mono")
+
+
 class ToolModel(SQLModel, table=True):
     # TODO move into database
     name: str = Field(..., description="The name of the function.")
@@ -104,6 +109,12 @@ class CoreMemory(BaseModel):
     persona: str = Field(..., description="Persona element of the core memory.")
 
 
+class UserModel(BaseModel):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the user.", primary_key=True)
+    default_agent: Optional[str] = Field(..., description="The default agent of the user.")
+    policies_accepted: bool = Field(..., description="Whether or not the policy was accepted.")
+
+
 class HumanModel(SQLModel, table=True):
     text: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human text.")
     name: str = Field(..., description="The name of the human.")
@@ -132,6 +143,10 @@ class SourceModel(SQLModel, table=True):
     )
     # NOTE: .metadata is a reserved attribute on SQLModel
     metadata_: Optional[dict] = Field(None, sa_column=Column(JSON), description="Metadata associated with the source.")
+
+
+class AgentStateWithSourcesModel(AgentStateModel):
+    sources: List[SourceModel] = Field(..., description="List of sources")
 
 
 class JobStatus(str, Enum):

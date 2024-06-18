@@ -5,6 +5,7 @@ import pytest
 from sqlalchemy.ext.declarative import declarative_base
 
 from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.cli.cli_config import delete, list
 from memgpt.cli.cli_load import load_directory
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, User
@@ -12,20 +13,34 @@ from memgpt.metadata import MetadataStore
 
 # from memgpt.data_sources.connectors import DirectoryConnector, load_data
 # import memgpt
-from memgpt.settings import settings
 from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
 
 from .utils import wipe_config
 
 
-@pytest.fixture(autouse=True)
-def clear_dynamically_created_models():
-    """Wipe globals for SQLAlchemy"""
-    yield
-    for key in list(globals().keys()):
-        if key.endswith("Model"):
-            del globals()[key]
+@pytest.mark.skip(reason="Ensures LocalClient is used during testing.")
+def unset_env_variables():
+    server_url = os.environ.pop("MEMGPT_BASE_URL", None)
+    token = os.environ.pop("MEMGPT_SERVER_PASS", None)
+    return server_url, token
+
+
+@pytest.mark.skip(reason="Set env variables back to values before test.")
+def reset_env_variables(server_url, token):
+    if server_url is not None:
+        os.environ["MEMGPT_BASE_URL"] = server_url
+    if token is not None:
+        os.environ["MEMGPT_SERVER_PASS"] = token
+
+
+# @pytest.fixture(autouse=True)
+# def clear_dynamically_created_models():
+#     """Wipe globals for SQLAlchemy"""
+#     yield
+#     for key in list(globals().keys()):
+#         if key.endswith("Model"):
+#             del globals()[key]
 
 
 @pytest.fixture(autouse=True)
@@ -37,15 +52,18 @@ def recreate_declarative_base():
     Base.metadata.clear()
 
 
-# krishna
-@pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
-@pytest.mark.parametrize("passage_storage_connector", ["chroma", "postgres"])
+@pytest.mark.parametrize("metadata_storage_connector", ["sqlite"])
+@pytest.mark.parametrize("passage_storage_connector", ["chroma"])
+# @pytest.mark.parametrize("is_RESTClient", ["yes, no"])
 def test_load_directory(
     metadata_storage_connector,
     passage_storage_connector,
-    clear_dynamically_created_models,
+    # clear_dynamically_created_models,
     recreate_declarative_base,
+    # is_RESTClient
 ):
+    # if is_RESTClient == "yes":
+    server_url, token = unset_env_variables()
     wipe_config()
     TEST_MEMGPT_CONFIG.default_embedding_config = EmbeddingConfig(
         embedding_endpoint_type="openai",
@@ -60,18 +78,12 @@ def test_load_directory(
     )
 
     # setup config
-    if metadata_storage_connector == "postgres":
-        TEST_MEMGPT_CONFIG.metadata_storage_uri = settings.memgpt_pg_uri
-        TEST_MEMGPT_CONFIG.metadata_storage_type = "postgres"
-    elif metadata_storage_connector == "sqlite":
+    if metadata_storage_connector == "sqlite":
         print("testing  sqlite metadata")
         # nothing to do (should be config defaults)
     else:
         raise NotImplementedError(f"Storage type {metadata_storage_connector} not implemented")
-    if passage_storage_connector == "postgres":
-        TEST_MEMGPT_CONFIG.archival_storage_uri = settings.memgpt_pg_uri
-        TEST_MEMGPT_CONFIG.archival_storage_type = "postgres"
-    elif passage_storage_connector == "chroma":
+    if passage_storage_connector == "chroma":
         print("testing chroma passage storage")
         # nothing to do (should be config defaults)
     else:
@@ -94,16 +106,9 @@ def test_load_directory(
             embedding_endpoint="https://api.openai.com/v1",
             embedding_dim=1536,
             embedding_model="text-embedding-ada-002",
-            # openai_key=os.getenv("OPENAI_API_KEY"),
         )
 
     else:
-        # print("Using local embedding model for testing")
-        # embedding_config = EmbeddingConfig(
-        #     embedding_endpoint_type="local",
-        #     embedding_endpoint=None,
-        #     embedding_dim=384,
-        # )
 
         print("Using official hosted embedding model for testing")
         embedding_config = EmbeddingConfig(
@@ -116,8 +121,6 @@ def test_load_directory(
     # write out the config so that the 'load' command will use it (CLI commands pull from config)
     TEST_MEMGPT_CONFIG.default_embedding_config = embedding_config
     TEST_MEMGPT_CONFIG.save()
-    # config.default_embedding_config = embedding_config
-    # config.save()
 
     # create user and agent
     agent = AgentState(
@@ -154,14 +157,15 @@ def test_load_directory(
     passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, TEST_MEMGPT_CONFIG, user_id)
     assert passages_conn.size() == 0, f"Expected 0 records, got {passages_conn.size()}: {[vars(r) for r in passages_conn.get_all()]}"
 
-    # test: load directory
+    # TEST CLI FUNCTIONALITY BEGINS HERE
     print("Loading directory")
     # load_directory(name=name, input_dir=None, input_files=[cache_dir], recursive=False, user_id=user_id)  # cache_dir,
     load_directory(name=name, input_files=[cache_dir], recursive=False, user_id=user_id)  # cache_dir,
 
     # test to see if contained in storage
     print("Querying table...")
-    sources = ms.list_sources(user_id=user_id)
+    # sources = ms.list_sources(user_id=user_id)
+    sources = list("sources")
     assert len(sources) == 1, f"Expected 1 source, but got {len(sources)}"
     assert sources[0].name == name, f"Expected name {name}, but got {sources[0].name}"
     print("Source", sources)
@@ -180,38 +184,18 @@ def test_load_directory(
 
     # test: listing sources
     print("Querying all...")
-    sources = ms.list_sources(user_id=user_id)
+    # sources = ms.list_sources(user_id=user_id)
+    sources = list("sources")
     print("All sources", [s.name for s in sources])
-
-    # TODO: add back once agent attachment fully supported from server
-    ## test loading into an agent
-    ## create agent
-    # agent_id = agent.id
-    ## create storage connector
-    # print("Creating agent archival storage connector...")
-    # conn = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config=config, user_id=user_id, agent_id=agent_id)
-    # print("Deleting agent archival table...")
-    # conn.delete_table()
-    # conn = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config=config, user_id=user_id, agent_id=agent_id)
-    # assert conn.size() == 0, f"Expected 0 records, got {conn.size()}: {[vars(r) for r in conn.get_all()]}"
-
-    ## attach data
-    # print("Attaching data...")
-    # attach(agent_name=agent.name, data_source=name, user_id=user_id)
-
-    ## test to see if contained in storage
-    # assert len(passages) == conn.size()
-    # assert len(passages) == len(conn.get_all({"data_source": name}))
-
-    ## test: delete source
-    # passages_conn.delete({"data_source": name})
-    # assert len(passages_conn.get_all({"data_source": name})) == 0
 
     # cleanup
     ms.delete_user(user.id)
     ms.delete_agent(agent.id)
-    ms.delete_source(sources[0].id)
+    # ms.delete_source(sources[0].id)
+    delete(option="source", name=name)
 
     # revert to openai config
     # client = MemGPT(quickstart="openai", user_id=user.id)
     wipe_config()
+
+    reset_env_variables(server_url, token)

@@ -7,15 +7,17 @@ from datetime import datetime
 from functools import wraps
 from threading import Lock
 from typing import Callable, List, Optional, Tuple, Union
-from memgpt.presets.presets import create_preset_from_file
 
 from fastapi import HTTPException
+
+# krishna1
+from rich import print
 
 import memgpt.constants as constants
 import memgpt.presets.presets as presets
 import memgpt.server.utils as server_utils
 import memgpt.system as system
-from memgpt.agent import Agent, save_agent
+from memgpt.agent import Agent, save_agent, save_agent_using_state
 from memgpt.agent_store.storage import StorageConnector, TableType
 
 # from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
@@ -41,13 +43,16 @@ from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.metadata import MetadataStore
 from memgpt.models.pydantic_models import (
     DocumentModel,
+    EmbeddingConfigModel,
     HumanModel,
+    LLMConfigModel,
     PassageModel,
+    PersonaModel,
     PresetModel,
     SourceModel,
     ToolModel,
-    PersonaModel
 )
+from memgpt.presets.presets import create_preset_from_file
 
 logger = logging.getLogger(__name__)
 
@@ -211,6 +216,8 @@ class SyncServer(LockingServer):
 
         # Initialize the connection to the DB
         self.config = MemGPTConfig.load()
+        # krishna
+        print("sync server init config: ", self.config)
         print(f"server :: loading configuration from '{self.config.config_path}'")
         assert self.config.persona is not None, "Persona must be set in the config"
         assert self.config.human is not None, "Human must be set in the config"
@@ -225,14 +232,6 @@ class SyncServer(LockingServer):
 
         # TODO figure out how to handle credentials for the server
         self.credentials = MemGPTCredentials.load()
-
-        # check credentials
-        # TODO: add checks for other providers
-        if (
-            self.config.default_embedding_config.embedding_endpoint_type == "openai"
-            or self.config.default_llm_config.model_endpoint_type == "openai"
-        ):
-            assert self.credentials.openai_key is not None, "OpenAI key must be set in the credentials file"
 
         # Ensure valid database configuration
         # TODO: add back once tests are matched
@@ -289,6 +288,22 @@ class SyncServer(LockingServer):
         # if not self.ms.get_user(user_id=base_user_id):
         #    base_user = User(id=base_user_id)
         #    self.ms.create_user(base_user)
+
+    def save_agent(self, agent: Agent):
+        """Saves indicated agent"""
+        try:
+            save_agent(agent, self.ms)
+            logger.info(f"Saved agent {agent}")
+        except Exception as e:
+            logger.exception(f"Error occurred while trying to save agent {agent}:\n{e}")
+
+    def save_agent_using_state(self, agent_state: AgentState):
+        """Saves indicated agent. Ensure agent_state is already synced with state."""
+        try:
+            save_agent_using_state(agent_state, self.ms)
+            logger.info(f"Saved agent {agent_state}")
+        except Exception as e:
+            logger.exception(f"Error occurred while trying to save agent {agent_state}:\n{e}")
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
@@ -812,15 +827,17 @@ class SyncServer(LockingServer):
 
         self.ms.create_preset(preset)
         return preset
-    
+
     def create_preset_from_file(self, filename: str, name: str, user_id: uuid.UUID):
         return create_preset_from_file(filename, name, user_id, self.ms)
 
     def get_preset(
         self, preset_id: Optional[uuid.UUID] = None, preset_name: Optional[uuid.UUID] = None, user_id: Optional[uuid.UUID] = None
-    ) -> Preset:
+    ) -> PresetModel:
         """Get the preset"""
-        return self.ms.get_preset(preset_id=preset_id, name=preset_name, user_id=user_id)
+        preset = self.ms.get_preset(preset_id=preset_id, name=preset_name, user_id=user_id)
+        preset_model = PresetModel(**preset.__dict__)
+        return preset_model
 
     def list_presets(self, user_id: uuid.UUID) -> List[PresetModel]:
         # TODO update once we strip Preset in favor of PresetModel
@@ -833,9 +850,14 @@ class SyncServer(LockingServer):
         """Get the sources corresponding to the preset_id"""
         return self.ms.get_preset_sources(preset_id=preset_id)
 
-    def add_preset():
-        assert filename, "Must specify filename for preset"
-        create_preset_from_file(filename, name, user_id, ms)
+    def add_default_presets(self, user_id: uuid.UUID):
+        from memgpt.presets.presets import add_default_presets as add_default_pre
+
+        add_default_pre(user_id=user_id, ms=self.ms)
+
+    # def add_preset():
+    #     assert filename, "Must specify filename for preset"
+    #     create_preset_from_file(filename, name, user_id, ms)
 
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:
         """Convert AgentState to a dict for a JSON response"""
@@ -910,12 +932,22 @@ class SyncServer(LockingServer):
             assert all([source_id is not None and isinstance(source_id, uuid.UUID) for source_id in sources_ids])
             sources = [self.ms.get_source(source_id=s_id) for s_id in sources_ids]
             assert all([source is not None and isinstance(source, Source)] for source in sources)
-            return_dict["sources"] = [vars(s) for s in sources]
+            return_dict["sources"] = [SourceModel(vars(s).__dict__) for s in sources]
 
             # try adding model, embeddings, and dim to return_dict
             return_dict["model"] = memgpt_agent.model
             return_dict["embedding_model"] = memgpt_agent.agent_state.embedding_config.embedding_model
             return_dict["embedding_dim"] = memgpt_agent.agent_state.embedding_config.embedding_dim
+
+            # add AgentStateModel fields necessary for RESTClient "list_agents" call
+            return_dict["id"] = memgpt_agent.agent_state.id
+            return_dict["user_id"] = memgpt_agent.agent_state.user_id
+            return_dict["created_at"] = int(memgpt_agent.agent_state.created_at.timestamp())
+            return_dict["preset"] = memgpt_agent.agent_state.preset
+            return_dict["functions_schema"] = [tool.json_schema for tool in return_dict["tools"]]
+            return_dict["llm_config"] = LLMConfigModel.parse_obj(memgpt_agent.agent_state.llm_config.__dict__)
+            return_dict["embedding_config"] = EmbeddingConfigModel.parse_obj(memgpt_agent.agent_state.embedding_config.__dict__)
+            return_dict["state"] = memgpt_agent.agent_state.state
 
         # Sort agents by "last_run" in descending order, most recent first
         agents_states_dicts.sort(key=lambda x: x["last_run"], reverse=True)
@@ -928,27 +960,31 @@ class SyncServer(LockingServer):
 
     def list_humans(self, user_id: uuid.UUID):
         return self.ms.list_humans(user_id=user_id)
-    
+
     def get_human(self, name: str, user_id: uuid.UUID):
         return self.ms.get_human(name=name, user_id=user_id)
 
-    def update_human(self, human: HumanModel):
-        return self.ms.update_human(human=human)
-    
+    def update_human(self, name: str, text: str, user_id: uuid.UUID):
+        human = self.ms.get_human(name, user_id)
+        human.text = text
+        self.ms.update_human(human=human)
+
     def add_human(self, human: HumanModel):
         return self.ms.add_human(human=human)
 
     def delete_human(self, name: str, user_id: uuid.UUID):
         return self.ms.delete_human(name, user_id)
-    
+
     def list_personas(self, user_id: uuid.UUID):
         return self.ms.list_personas(user_id=user_id)
 
     def get_persona(self, name: str, user_id: uuid.UUID):
         return self.ms.get_persona(name=name, user_id=user_id)
-    
-    def update_persona(self, persona: PersonaModel):
-        self.ms.update_persona(persona)
+
+    def update_persona(self, name: str, text: str, user_id: uuid.UUID):
+        persona = self.ms.get_persona(name, user_id)
+        persona.text = text
+        self.ms.update_persona(persona=persona)
 
     def delete_persona(self, name: str, user_id: uuid.UUID):
         self.ms.delete_persona(name, user_id)
@@ -956,9 +992,9 @@ class SyncServer(LockingServer):
     def add_persona(self, persona: PersonaModel):
         self.ms.add_persona(persona)
 
-    def get_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
+    def get_agent(self, agent_id: Optional[uuid.UUID] = None, agent_name: Optional[str] = None, user_id: Optional[uuid.UUID] = None):
         """Get the agent state"""
-        return self.ms.get_agent(agent_id=agent_id, user_id=user_id)
+        return self.ms.get_agent(agent_id=agent_id, agent_name=agent_name, user_id=user_id)
 
     def get_user(self, user_id: uuid.UUID) -> User:
         """Get the user"""
@@ -1173,15 +1209,16 @@ class SyncServer(LockingServer):
         # TODO: mark what is in-context versus not
         return cursor, json_records
 
-    def get_agent_config(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> AgentState:
+    def get_agent_config(self, user_id: uuid.UUID, agent_id: Optional[uuid.UUID], agent_name: Optional[uuid.UUID]) -> AgentState:
         """Return the config of an agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+        agent_state = self.ms.get_agent(user_id=user_id, agent_id=agent_id, agent_name=agent_name)
+        if agent_state is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
         return memgpt_agent.agent_state
 
     def get_server_config(self, include_defaults: bool = False) -> dict:
@@ -1200,12 +1237,17 @@ class SyncServer(LockingServer):
         clean_base_config["default_llm_config"] = vars(clean_base_config["default_llm_config"])
         clean_base_config["default_embedding_config"] = vars(clean_base_config["default_embedding_config"])
         response = {"config": clean_base_config}
-
         if include_defaults:
             default_config = vars(MemGPTConfig())
             clean_default_config = clean_keys(default_config)
-            clean_default_config["default_llm_config"] = vars(clean_default_config["default_llm_config"])
-            clean_default_config["default_embedding_config"] = vars(clean_default_config["default_embedding_config"])
+            clean_default_config["default_llm_config"] = (
+                vars(clean_default_config["default_llm_config"]) if clean_default_config["default_llm_config"] is not None else None
+            )
+            clean_default_config["default_embedding_config"] = (
+                vars(clean_default_config["default_embedding_config"])
+                if clean_default_config["default_embedding_config"] is not None
+                else None
+            )
             response["defaults"] = clean_default_config
 
         return response
@@ -1226,6 +1268,12 @@ class SyncServer(LockingServer):
         except Exception as e:
             logger.exception(f"Failed to get list of available models from LLM endpoint:\n{str(e)}")
             raise
+
+    def update_agent(self, agent_state: AgentState):
+        # krishna1
+        print("server update_agent: ", agent_state.__dict__)
+        print("type of created_at: ", type(agent_state.created_at))
+        self.ms.update_agent(agent_state)
 
     def update_agent_core_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_memory_contents: dict) -> dict:
         """Update the agents core memory block, return the new state"""
@@ -1343,7 +1391,11 @@ class SyncServer(LockingServer):
 
     def api_key_to_user(self, api_key: str) -> uuid.UUID:
         """Decode an API key to a user"""
+        # krishna2
+        print("hitting server.py api_key_to_user")
         user = self.ms.get_user_from_api_key(api_key=api_key)
+        # krishna2
+        print("user: ", user)
         print("got user", api_key, user.id)
         if user is None:
             raise HTTPException(status_code=403, detail="Invalid credentials")
@@ -1355,13 +1407,14 @@ class SyncServer(LockingServer):
         token = self.ms.create_api_key(user_id=user_id)
         return token
 
-    def create_source(self, name: str, user_id: uuid.UUID) -> Source:  # TODO: add other fields
+    def create_source(self, name: str, user_id: uuid.UUID, description: Optional[str]) -> Source:  # TODO: add other fields
         """Create a new data source"""
         source = Source(
             name=name,
             user_id=user_id,
             embedding_model=self.config.default_embedding_config.embedding_model,
             embedding_dim=self.config.default_embedding_config.embedding_dim,
+            description=description,
         )
         self.ms.create_source(source)
         assert self.ms.get_source(source_name=name, user_id=user_id) is not None, f"Failed to create source {name}"

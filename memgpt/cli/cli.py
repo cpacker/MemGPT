@@ -13,8 +13,9 @@ import requests
 import typer
 
 import memgpt.utils as utils
-from memgpt.agent import Agent, save_agent
+from memgpt.agent import Agent
 from memgpt.cli.cli_config import configure
+from memgpt.client.client import AbstractClient, RESTClient, create_client
 from memgpt.config import MemGPTConfig
 from memgpt.constants import CLI_WARNING_PREFIX, MEMGPT_DIR
 from memgpt.credentials import MemGPTCredentials
@@ -286,12 +287,28 @@ class ServerChoice(Enum):
     ws_api = "websocket"
 
 
-def create_default_user_or_exit(config: MemGPTConfig, ms: MetadataStore):
+# krishna
+def make_default_user_or_exit(config: MemGPTConfig, ms: MetadataStore):
     user_id = uuid.UUID(config.anon_clientid)
     user = ms.get_user(user_id=user_id)
     if user is None:
         ms.create_user(User(id=user_id))
         user = ms.get_user(user_id=user_id)
+        if user is None:
+            typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
+            sys.exit(1)
+        else:
+            return user
+    else:
+        return user
+
+
+def create_default_user_or_exit(config: MemGPTConfig, client: AbstractClient):
+    user_id = uuid.UUID(config.anon_clientid) if isinstance(client, RESTClient) else client.user_id
+    user = client.get_user(user_id=user_id)
+    if user is None:
+        client.create_user(id=user_id, policies_accepted=False)
+        user = client.get_user(user_id=user_id)
         if user is None:
             typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
             sys.exit(1)
@@ -318,7 +335,11 @@ def server(
         if MemGPTConfig.exists():
             config = MemGPTConfig.load()
             ms = MetadataStore(config)
-            create_default_user_or_exit(config, ms)
+            make_default_user_or_exit(config, ms)
+            # krishna
+            # client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
+            # create_default_user_or_exit(config=config, client=client)
+
         else:
             typer.secho(f"No configuration exists. Run memgpt configure before starting the server.", fg=typer.colors.RED)
             sys.exit(1)
@@ -417,6 +438,7 @@ def run(
     :param model: Specify the LLM model
 
     """
+    # from memgpt.client.client import create_client
 
     # setup logger
     # TODO: remove Utils Debug after global logging is complete.
@@ -507,14 +529,19 @@ def run(
         config = MemGPTConfig.load()
 
     # read user id from config
-    ms = MetadataStore(config)
-    user = create_default_user_or_exit(config, ms)
+    # ms = MetadataStore(config)
+    # create_default_user_or_exit(config, ms)
+    # krishna
+    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
+    user = create_default_user_or_exit(config=config, client=client)
+    # krishna
+    print("cli run user: ", user)
     human = human if human else config.human
     persona = persona if persona else config.persona
 
     # determine agent to use, if not provided
     if not yes and not agent:
-        agents = ms.list_agents(user_id=user.id)
+        agents = client.list_agents().agents
         agents = [a.name for a in agents]
 
         if len(agents) > 0:
@@ -526,7 +553,9 @@ def run(
                 agent = questionary.select("Select agent:", choices=agents).ask()
 
     # create agent config
-    agent_state = ms.get_agent(agent_name=agent, user_id=user.id) if agent else None
+    # krishna
+    # agent_state = ms.get_agent(agent_name=agent, user_id=user.id) if agent else None
+    agent_state = client.get_agent_config(agent_name=agent) if agent else None
     if agent and agent_state:  # use existing agent
         typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
         # agent_config = AgentConfig.load(agent)
@@ -579,7 +608,9 @@ def run(
             agent_state.llm_config.model_endpoint_type = model_endpoint_type
 
         # Update the agent with any overrides
-        ms.update_agent(agent_state)
+        # krishna
+        # ms.update_agent(agent_state)
+        client.update_agent(agent_state)
 
         # create agent
         memgpt_agent = Agent(agent_state=agent_state, interface=interface())
@@ -623,16 +654,25 @@ def run(
 
         # create agent
         try:
-            preset_obj = ms.get_preset(name=preset if preset else config.preset, user_id=user.id)
-            human_obj = ms.get_human(human, user.id)
-            persona_obj = ms.get_persona(persona, user.id)
+            # krishna
+            # preset_obj = ms.get_preset(name=preset if preset else config.preset, user_id=user.id)
+            preset_obj = client.get_preset(preset_name=preset if preset else config.preset, user_id=user.id)
+            # human_obj = ms.get_human(human, user.id)
+            human_obj = client.get_human(name=human, user_id=user.id)
+            # persona_obj = ms.get_persona(persona, user.id)
+            persona_obj = client.get_persona(name=persona, user_id=user.id)
             if preset_obj is None:
                 # create preset records in metadata store
-                from memgpt.presets.presets import add_default_presets
+                pass
 
-                add_default_presets(user.id, ms)
+                # krishna
+                # just call this in server, it has its own ms object ↓
+                # add_default_presets(user.id, ms)
+                client.add_default_presets()
                 # try again
-                preset_obj = ms.get_preset(name=preset if preset else config.preset, user_id=user.id)
+                # krishna
+                # preset_obj = ms.get_preset(name=preset if preset else config.preset, user_id=user.id)
+                preset_obj = client.get_preset(preset_name=preset if preset else config.preset, user_id=user.id)
                 if preset_obj is None:
                     typer.secho("Couldn't find presets in database, please run `memgpt configure`", fg=typer.colors.RED)
                     sys.exit(1)
@@ -642,12 +682,17 @@ def run(
                 typer.secho("Couldn't find persona {persona} in database, please run `memgpt add persona`", fg=typer.colors.RED)
 
             # Overwrite fields in the preset if they were specified
-            preset_obj.human = ms.get_human(human, user.id).text
-            preset_obj.persona = ms.get_persona(persona, user.id).text
+            # krishna
+            # preset_obj.human = ms.get_human(human, user.id).text
+            preset_obj.human = client.get_human(human, user.id).text
+            # preset_obj.persona = ms.get_persona(persona, user.id).text
+            preset_obj.persona = client.get_persona(persona, user.id).text
 
             typer.secho(f"->  🤖 Using persona profile: '{preset_obj.persona_name}'", fg=typer.colors.WHITE)
             typer.secho(f"->  🧑 Using human profile: '{preset_obj.human_name}'", fg=typer.colors.WHITE)
 
+            # krishna1
+            print("cli user.id type: ", type(user.id))
             memgpt_agent = Agent(
                 interface=interface(),
                 name=agent_name,
@@ -658,7 +703,18 @@ def run(
                 # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
                 first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
             )
-            save_agent(agent=memgpt_agent, ms=ms)
+
+            # metadata_preset = PresetWithMetadata(
+            #     **dict(preset_obj),
+            #     agent_name=agent_name,
+            #     first_message_verify_mono=memgpt_agent.first_message_verify_mono
+            # )
+
+            # krishna
+            # save_agent(agent=memgpt_agent, ms=ms)
+            # client.update_agent(memgpt_agent.agent_state)
+            # client.save_agent(agent=memgpt_agent, metadata_preset=metadata_preset)
+            client.save_agent(agent=memgpt_agent)
 
         except ValueError as e:
             typer.secho(f"Failed to create agent from provided information:\n{e}", fg=typer.colors.RED)
@@ -666,16 +722,18 @@ def run(
         typer.secho(f"🎉 Created new agent '{memgpt_agent.agent_state.name}' (id={memgpt_agent.agent_state.id})", fg=typer.colors.GREEN)
 
     # create client
-    from memgpt.client.client import create_client
-
-    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_API_KEY"))
+    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
 
     # start event loop
     from memgpt.main import run_agent_loop
 
     print()  # extra space
+    # krishna
+    # run_agent_loop(
+    #     memgpt_agent=memgpt_agent, client=client, config=config, first=first, ms=ms, no_verify=no_verify, stream=stream
+    # )  # TODO: add back no_verify
     run_agent_loop(
-        memgpt_agent=memgpt_agent, client=client, config=config, first=first, ms=ms, no_verify=no_verify, stream=stream
+        memgpt_agent=memgpt_agent, client=client, config=config, first=first, no_verify=no_verify, stream=stream
     )  # TODO: add back no_verify
 
 
@@ -685,15 +743,23 @@ def delete_agent(
 ):
     """Delete an agent from the database"""
     # use client ID is no user_id provided
+    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
     config = MemGPTConfig.load()
-    ms = MetadataStore(config)
+    # krishna
+    # ms = MetadataStore(config)
     if user_id is None:
-        user = create_default_user_or_exit(config, ms)
+        # krishna
+        # user = create_default_user_or_exit(config, ms)
+        user = create_default_user_or_exit(config, client)
     else:
-        user = ms.get_user(user_id=uuid.UUID(user_id))
+        # krishna
+        # user = ms.get_user(user_id=uuid.UUID(user_id))
+        user = client.get_user(user_id=user_id)
 
     try:
-        agent = ms.get_agent(agent_name=agent_name, user_id=user.id)
+        # krishna
+        # agent = ms.get_agent(agent_name=agent_name, user_id=user.id)
+        agent = client.get_agent(agent_name=agent_name)
     except Exception as e:
         typer.secho(f"Failed to get agent {agent_name}\n{e}", fg=typer.colors.RED)
         sys.exit(1)
@@ -710,7 +776,9 @@ def delete_agent(
         return
 
     try:
-        ms.delete_agent(agent_id=agent.id)
+        # krishna
+        # ms.delete_agent(agent_id=agent.id)
+        client.delete_agent(agent_id=agent.id)
         typer.secho(f"🕊️ Successfully deleted agent '{agent_name}' (id={agent.id})", fg=typer.colors.GREEN)
     except Exception:
         typer.secho(f"Failed to delete agent '{agent_name}' (id={agent.id})", fg=typer.colors.RED)

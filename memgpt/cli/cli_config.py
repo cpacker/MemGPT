@@ -37,7 +37,6 @@ from memgpt.local_llm.constants import (
 )
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.metadata import MetadataStore
-from memgpt.models.pydantic_models import HumanModel, PersonaModel
 from memgpt.presets.presets import create_preset_from_file
 from memgpt.server.utils import shorten_key_middle
 
@@ -1049,43 +1048,42 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
 
     config = MemGPTConfig.load()
     ms = MetadataStore(config=config)
-    user_id = uuid.UUID(config.anon_clientid)
+    uuid.UUID(config.anon_clientid)
     table = ColorTable(theme=Themes.OCEAN)
     client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
     if arg == ListChoice.agents:
         """List all agents"""
         table.field_names = ["Name", "LLM Model", "Embedding Model", "Embedding Dim", "Persona", "Human", "Data Source", "Create Time"]
         agent_list = []
-        for agent in tqdm(client.list_agents()["agents"]):
-            assert all(
-                [source is not None and isinstance(source, Source)] for source in agent["sources"]
-            ), "Source not null assertion failed"
-            source_names = [source["name"] for source in agent["sources"] if source is not None]
+        for agent in tqdm(client.list_agents().agents):
+            # krishna
+            print("agent: ", agent)
+            assert all([source is not None and isinstance(source, Source)] for source in agent.sources), "Source not null assertion failed"
+            source_names = [source.name for source in agent.sources if source is not None]
             entry = [
-                    agent["name"],
-                    agent["model"],
-                    agent["embedding_model"],
-                    agent["embedding_dim"],
-                    agent["persona"],
-                    agent["human"],
-                    ",".join(source_names),
-                    utils.format_datetime(agent["created_at"]),
-                ]
+                agent.name,
+                agent.llm_config.model,
+                agent.embedding_config.embedding_model,
+                agent.embedding_config.embedding_dim,
+                agent.persona,
+                agent.human,
+                ",".join(source_names),
+                utils.format_datetime(utils.timestamp_to_datetime(agent.created_at)),
+            ]
             table.add_row(entry)
             agent_list.append(entry)
         print(table)
-        # print(agent_list)
 
     elif arg == ListChoice.humans:
         """List all humans"""
         table.field_names = ["Name", "Text"]
-        for human in client.list_humans(user_id=user_id):
+        for human in client.list_humans():
             table.add_row([human.name, human.text.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.personas:
         """List all personas"""
         table.field_names = ["Name", "Text"]
-        for persona in client.list_personas(user_id=user_id):
+        for persona in client.list_personas():
             table.add_row([persona.name, persona.text.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.sources:
@@ -1096,7 +1094,9 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         # TODO: eventually look accross all storage connections
         # TODO: add data source stats
         # TODO: connect to agents
-        for source in client.list_sources(user_id=user_id):
+        sources = client.list_sources()
+        for source in sources:
+            print(source)
             agent_names = [agent["name"] for agent in source.metadata_["attached_agents"]]
             table.add_row(
                 [
@@ -1108,12 +1108,12 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
                     ",".join(agent_names),
                 ]
             )
-
         print(table)
+        return sources
     elif arg == ListChoice.presets:
         """List all available presets"""
         table.field_names = ["Name", "Description", "Sources", "Functions"]
-        for preset in client.list_presets(user_id=user_id):
+        for preset in client.list_presets():
             sources = client.get_preset_sources(preset_id=preset.id)
             table.add_row(
                 [
@@ -1149,38 +1149,33 @@ def add(
             text = f.read()
     if option == "persona":
         persona = client.get_persona(name=name, user_id=user_id)
-        if persona:
+        if persona is not None:
             # config if user wants to overwrite
             if not questionary.confirm(f"Persona {name} already exists. Overwrite?").ask():
                 return
             persona.text = text
-            client.update_persona(persona)
+            client.update_persona(name, text)
         else:
-            persona = PersonaModel(name=name, text=text, user_id=user_id)
-            client.add_persona(persona)
+            client.add_persona(name, text)
 
     elif option == "human":
-        # human = ms.get_human(name=name, user_id=user_id)
-        human = client.get_human(name=name, user_id=user_id)
-        if human:
+        human = client.get_human(name, user_id)
+        if human is not None:
             # config if user wants to overwrite
             if not questionary.confirm(f"Human {name} already exists. Overwrite?").ask():
                 return
             human.text = text
-            # ms.update_human(human)
-            client.update_human(human)
+            client.update_human(name, text)
         else:
-            human = HumanModel(name=name, text=text, user_id=user_id)
-            # ms.add_human(HumanModel(name=name, text=text, user_id=user_id))
-            client.add_human(HumanModel(name=name, text=text, user_id=user_id))
+            client.add_human(name, text)
     elif option == "preset":
         assert filename, "Must specify filename for preset"
-        # create_preset_from_file(filename, name, user_id, ms)
-        client.create_preset_from_file(filename, name, user_id)
+        create_preset_from_file(filename, name, user_id, ms)
     else:
         typer.secho(f"Failed to add {option} '{name}'\n", fg=typer.colors.RED)
         raise ValueError(f"Unknown kind {option}")
     typer.secho(f"Added {option} '{name}'", fg=typer.colors.GREEN)
+
 
 @app.command()
 def delete(option: str, name: str):
@@ -1189,9 +1184,9 @@ def delete(option: str, name: str):
 
     config = MemGPTConfig.load()
     user_id = uuid.UUID(config.anon_clientid)
-    ms = MetadataStore(config)
-    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_API_KEY"))
-    assert ms.get_user(user_id=user_id), f"User {user_id} does not exist"
+    # ms = MetadataStore(config)
+    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
+    # assert ms.get_user(user_id=user_id), f"User {user_id} does not exist"
 
     try:
         # delete from metadata
@@ -1204,17 +1199,16 @@ def delete(option: str, name: str):
             human = client.get_human(name=name, user_id=user_id)
             assert human is not None, f"Human {name} does not exist"
             client.delete_human(name=name, user_id=user_id)
+            assert client.get_human(name=name, user_id=user_id) is None, f"Human {name} still exists"
         elif option == "persona":
-            # persona = ms.get_persona(name=name, user_id=user_id)
             persona = client.get_persona(name=name, user_id=user_id)
             assert persona is not None, f"Persona {name} does not exist"
-            # ms.delete_persona(name=name, user_id=user_id)
             client.delete_persona(name=name, user_id=user_id)
             assert client.get_persona(name=name, user_id=user_id) is None, f"Persona {name} still exists"
         elif option == "preset":
             preset = client.get_preset(preset_name=name, user_id=user_id)
             assert preset is not None, f"Preset {name} does not exist"
-            client.delete_preset(client.user.id, preset.id)
+            client.delete_preset(preset.id)
         else:
             raise ValueError(f"Option {option} not implemented")
 

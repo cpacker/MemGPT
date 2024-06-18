@@ -11,6 +11,9 @@ security = HTTPBearer()
 def get_current_user(server: SyncServer, password: str, auth: HTTPAuthorizationCredentials = Depends(security)) -> uuid.UUID:
     try:
         api_key_or_password = auth.credentials
+        # krishna2
+        print("api_key_or_password: ", api_key_or_password)
+        print("password: ", password)
         if api_key_or_password == password:
             # user is admin so we just return the default uuid
             return server.authenticate_user()

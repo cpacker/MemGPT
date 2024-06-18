@@ -3,6 +3,7 @@ import inspect
 import json
 import traceback
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple, Union, cast
 
@@ -190,6 +191,7 @@ def initialize_message_sequence(
     return messages
 
 
+@dataclass
 class Agent(object):
     def __init__(
         self,
@@ -214,6 +216,8 @@ class Agent(object):
             assert embedding_config is not None, "Must provide embedding_config field when creating an Agent from a Preset"
 
             # if agent_state is also provided, override any preset values
+            # krishna
+            print("agent.py created_by type: ", type(created_by))
             init_agent_state = AgentState(
                 name=name if name else create_random_username(),
                 user_id=created_by,
@@ -1126,6 +1130,18 @@ def save_agent(agent: Agent, ms: MetadataStore):
     agent.update_state()
     agent_state = agent.agent_state
 
+    if ms.get_agent(agent_name=agent_state.name, user_id=agent_state.user_id):
+        ms.update_agent(agent_state)
+    else:
+        ms.create_agent(agent_state)
+
+
+def save_agent_using_state(agent_state: AgentState, ms: MetadataStore):
+    """
+    Save agent to metadata store ONLY IF you are are certain
+    that the AgentState has not changed since the instantiation
+    of the Agent object.
+    """
     if ms.get_agent(agent_name=agent_state.name, user_id=agent_state.user_id):
         ms.update_agent(agent_state)
     else:
