@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     pg_host: Optional[str] = None
     pg_port: Optional[int] = None
     pg_uri: Optional[str] = None  # option to specifiy full uri
-    cors_origins: Optional[list] = ["http://memgpt.localhost", "http://localhost:8283", "http://localhost:8083"]
+    cors_origins: Optional[list] = ["http://memgpt.localhost", "http://localhost:8283", "http://localhost:8083", "http://localhost:3000"]
 
     @property
     def memgpt_pg_uri(self) -> str:
