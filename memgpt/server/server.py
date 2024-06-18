@@ -1,3 +1,6 @@
+"""See memgpt/server/README.md for context on SyncServer"""
+
+
 from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
 import json
 import uuid
