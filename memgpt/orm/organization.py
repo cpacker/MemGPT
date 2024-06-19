@@ -1,5 +1,6 @@
 from typing import Optional, TYPE_CHECKING
 from pydantic import EmailStr
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
@@ -18,5 +19,7 @@ class Organization(SqlalchemyBase):
     @classmethod
     def default(cls, db_session:"Session") -> "Organization":
         """Get the default org, or create it if it doesn't exist."""
-        raise ValueError("Kaboom! this is mid-development")
-        org = db_session.query(cls).one().scalar()
+        try:
+            return db_session.query(cls).one().scalar()
+        except NoResultFound:
+            return cls(name="Default Organization").create(db_session)

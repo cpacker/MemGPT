@@ -27,7 +27,7 @@ def create_engine(
             PATH_PARAM = 2 # avoid the magic number!
             url_parts[PATH_PARAM] = f"/{database}" if database else url_parts.path
             return sqlalchemy_create_engine(urlunsplit(url_parts))
-        case "sqlite-chroma":
+        case "sqlite_chroma":
             return sqlalchemy_create_engine(f"sqlite:///{database}")
         case _:
             raise ValueError(f"Unsupported storage_type: {storage_type}")

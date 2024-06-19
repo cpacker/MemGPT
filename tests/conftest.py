@@ -99,12 +99,13 @@ def db_session(request) -> "Session":
     after the end of the test.
 
     """
-    function_ = request.node.name
-    engine = create_engine(storage_type=request.param, database="memgpt_test")
+    function_ = request.node.name.replace("[","_").replace("]","_")
+    engine = create_engine(storage_type=request.param, database="test_memgpt")
     adapter_statements = {
         "sqlite_chroma": (text(f"attach ':memory:' as {function_}"),),
         "postgres": (
             text(f"CREATE SCHEMA IF NOT EXISTS {function_}"),
+            text(f"CREATE EXTENSION IF NOT EXISTS vector"),
             text(f"SET search_path TO {function_},public"),
         ),
     }
