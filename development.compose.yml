@@ -26,6 +26,7 @@ services:
       - ./tests/pytest.ini:/memgpt/pytest.ini
       - ./pyproject.toml:/pyproject.toml
       - ./tests:/tests
+      - ./.persist/sqlite:/sqlite
     ports:
       - "8083:8083"
       - "8283:8283"

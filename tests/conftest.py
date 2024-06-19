@@ -100,17 +100,25 @@ def db_session(request) -> "Session":
 
     """
     function_ = request.node.name.replace("[","_").replace("]","_")
-    engine = create_engine(storage_type=request.param, database="test_memgpt")
-    adapter_statements = {
-        "sqlite_chroma": (text(f"attach ':memory:' as {function_}"),),
-        "postgres": (
-            text(f"CREATE SCHEMA IF NOT EXISTS {function_}"),
-            text(f"CREATE EXTENSION IF NOT EXISTS vector"),
-            text(f"SET search_path TO {function_},public"),
-        ),
+    adapter_test_configurations = {
+        "sqlite_chroma": {
+            "statements": (text(f"attach ':memory:' as {function_}"),),
+            "database": f"/sqlite/{function_}.db"
+        },
+        "postgres": {
+            "statements":(
+                text(f"CREATE SCHEMA IF NOT EXISTS {function_}"),
+                text(f"CREATE EXTENSION IF NOT EXISTS vector"),
+                text(f"SET search_path TO {function_},public"),
+            ),
+            "database": "test_memgpt"
+        }
     }
+    adapter = adapter_test_configurations[request.param]
+    engine = create_engine(storage_type=request.param, database=adapter["database"])
+
     with engine.begin() as connection:
-        for statement in adapter_statements[request.param]:
+        for statement in adapter["statements"]:
             connection.execute(statement)
         Base.metadata.drop_all(bind=connection)
         Base.metadata.create_all(bind=connection)
