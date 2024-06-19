@@ -6,9 +6,6 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import requests
 
-# krishna1
-from rich import print
-
 from memgpt.agent import Agent
 from memgpt.config import MemGPTConfig
 from memgpt.constants import DEFAULT_PRESET
@@ -310,8 +307,6 @@ class RESTClient(AbstractClient):
 
     # agents
     def list_agents(self):
-        # krishna2
-        print("list_agents headers: ", self.headers)
         response = requests.get(f"{self.base_url}/api/agents", headers=self.headers)
         return ListAgentsResponse(**response.json())
 
@@ -400,11 +395,7 @@ class RESTClient(AbstractClient):
         params = {"agent_id": agent_id, "agent_name": agent_name}
         response = requests.get(f"{self.base_url}/api/agents/config", params=params, headers=self.headers)
         assert response.status_code == 200, f"Failed to get agent: {response.text}"
-        # krishna1
-        print("client response: ", response.json())
         response_obj = GetAgentResponse(**response.json())
-        # krishna1
-        print("client: no immediate error in response → GetAgentResponse conversion?")
         return self.get_agent_response_to_state(response_obj)
 
     def update_agent(self, agent_state: AgentState):
@@ -424,21 +415,6 @@ class RESTClient(AbstractClient):
         response = requests.post(f"{self.base_url}/api/agents/update", json=data, headers=self.headers)
         assert response.status_code == 200, f"Failed to update agent: {response.text}"
 
-    # krishna
-    # def save_agent(self, agent: Optional[Agent] = None, metadata_preset: Optional[PresetWithMetadata] = None):
-    #     # repeat same procedure of getting agent, update values as necessary
-    #     # preset
-    #     # created_by (UUID), first_message_verify_mono
-    #     data = {}
-    #     if agent:
-    #         data["agent_id"] = int(agent.agent_state.id)
-    #     else:
-    #         data = dict(metadata_preset)
-    #     # krishna2
-    #     print("save_agent headers: ", self.headers)
-    #     print("data: ", data)
-    #     response = requests.post(f"{self.base_url}/api/agents/save", json=data, headers=self.headers)
-    #     assert response.status_code == 200, f"Failed to save agent: {response.text}"
     def save_agent(self, agent: Agent):
         llm_config_model = LLMConfigModel(**agent.agent_state.llm_config.__dict__)
         embedding_config_model = EmbeddingConfigModel(**agent.agent_state.embedding_config.__dict__)
@@ -938,8 +914,6 @@ class LocalClient(AbstractClient):
     def get_preset(
         self, preset_id: Optional[uuid.UUID] = None, preset_name: Optional[str] = None, user_id: Optional[uuid.UUID] = None
     ) -> PresetModel:
-        # krishna
-        print("client preset_name: ", preset_name)
         return self.server.get_preset(preset_id=preset_id, preset_name=preset_name, user_id=user_id)
 
     def delete_preset(self, preset_id: uuid.UUID) -> Preset:

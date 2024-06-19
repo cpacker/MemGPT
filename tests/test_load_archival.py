@@ -40,7 +40,6 @@ def recreate_declarative_base():
     Base.metadata.clear()
 
 
-# krishna
 @pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
 @pytest.mark.parametrize("passage_storage_connector", with_qdrant_storage(["chroma", "postgres", "milvus"]))
 def test_load_directory(

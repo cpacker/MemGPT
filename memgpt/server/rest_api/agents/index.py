@@ -8,9 +8,6 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi import status as stat
 from pydantic import BaseModel, Field
 
-# krishna1
-from rich import print
-
 from memgpt.data_types import AgentState, LLMConfig
 from memgpt.models.pydantic_models import (
     AgentStateModel,
@@ -74,8 +71,6 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         """
         interface.clear()
         agents_data = server.list_agents(user_id=user_id)
-        # krishna
-        print("index agents_data: ", agents_data["agents"][0])
         return ListAgentsResponse(**agents_data)
 
     @router.post("/agents/create", tags=["agents"], response_model=CreateAgentResponse)
@@ -175,8 +170,6 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                 created_at=agent_state.created_at,
             ),
         )
-        # krishna1
-        # print("update_agent value: ", updated_agent)
         updated_agent = updated_agent[0]
         updated_agent.llm_config.model = request.model
         updated_agent.llm_config.context_window = request.context_window
@@ -187,60 +180,6 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         # then, perform update
         interface.clear()
         server.update_agent(agent_state=updated_agent)
-
-    # krishna
-    # @router.post("/agents/save", tags=["agents"])
-    # def save_agent(
-    #     request: Union[PresetWithMetadata, AgentIdRequest]= Body(...),
-    #     user_id: uuid.UUID = Depends(get_current_user_with_server),
-    # ):
-    #     """
-    #     Two Cases:
-    #     #1 - save_agent is called during `memgpt run`
-    #         the Preset object must be saved and we do not have access to agent_id, so PresetWithMetadata is used
-    #     #2 - save_agent is called in main.py during `run_agent_loop` (and likely other places in the future)
-    #         the Agent object was previously instantiated and saved in storage, therefore AgentIdRequest is used
-    #     """
-    #     # krishna
-    #     print("agent index request: ", request)
-
-    #     # obtain agent_state
-    #     interface.clear()
-    #     if isinstance(request, AgentIdRequest) :
-    #         agent_id = uuid.UUID(int=request.agent_id)
-    #         agent_name = None
-    #     else:
-    #         agent_id = None
-    #         agent_name = request.agent_name
-
-    #     if not server.ms.get_agent(user_id=user_id, agent_name=agent_name, agent_id=agent_id):
-    #         # agent does not exist
-    #         raise HTTPException(status_code=404, detail=f"Agent {agent_name} / {request.agent_id} not found.")
-
-    #     agent_state = server.get_agent_config(user_id=user_id, agent_name=agent_name, agent_id=agent_id)
-
-    #     # generate configs
-    #     llm_config = LLMConfigModel(**vars(agent_state.llm_config))
-    #     embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
-
-    #     # create Agent object from the following (COPY :690 OF CLI.PY):
-    #         # AgentState
-    #         # configs
-    #         # interface()
-    #         # metadata (see client.py save_agent)
-
-    #     interface.clear()
-    #     memgpt_agent = Agent(
-    #             interface=stream_interface(),
-    #             name=agent_state.name,
-    #             agent_state=agent_state,
-    #             created_by=agent_state.user_id,
-    #             preset=None if isinstance(request, AgentIdRequest) else request,
-    #             llm_config=llm_config,
-    #             embedding_config=embedding_config,
-    #             first_message_verify_mono=False if isinstance(request, AgentIdRequest) else request.first_message_verify_mono
-    #         )
-    #     server.save_agent(memgpt_agent)
 
     @router.post("/agents/save", tags=["agents"])
     def save_agent(

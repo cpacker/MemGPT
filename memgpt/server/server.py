@@ -9,9 +9,6 @@ from typing import Callable, List, Optional, Tuple, Union
 
 from fastapi import HTTPException
 
-# krishna1
-from rich import print
-
 import memgpt.constants as constants
 import memgpt.presets.presets as presets
 import memgpt.server.utils as server_utils
@@ -215,9 +212,6 @@ class SyncServer(LockingServer):
 
         # Initialize the connection to the DB
         self.config = MemGPTConfig.load()
-        # krishna
-        print("sync server init config: ", self.config)
-        print(f"server :: loading configuration from '{self.config.config_path}'")
         assert self.config.persona is not None, "Persona must be set in the config"
         assert self.config.human is not None, "Human must be set in the config"
 
@@ -1268,9 +1262,6 @@ class SyncServer(LockingServer):
             raise
 
     def update_agent(self, agent_state: AgentState):
-        # krishna1
-        print("server update_agent: ", agent_state.__dict__)
-        print("type of created_at: ", type(agent_state.created_at))
         self.ms.update_agent(agent_state)
 
     def update_agent_core_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_memory_contents: dict) -> dict:
@@ -1389,8 +1380,6 @@ class SyncServer(LockingServer):
 
     def api_key_to_user(self, api_key: str) -> uuid.UUID:
         """Decode an API key to a user"""
-        # krishna2
-        print("hitting server.py api_key_to_user")
         user = self.ms.get_user_from_api_key(api_key=api_key)
         if user is None:
             raise HTTPException(status_code=403, detail="Invalid credentials")

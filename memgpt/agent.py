@@ -221,8 +221,6 @@ class Agent(object):
             assert embedding_config is not None, "Must provide embedding_config field when creating an Agent from a Preset"
 
             # if agent_state is also provided, override any preset values
-            # krishna
-            print("agent.py created_by type: ", type(created_by))
             init_agent_state = AgentState(
                 name=name if name else create_random_username(),
                 user_id=created_by,

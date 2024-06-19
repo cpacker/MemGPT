@@ -1112,8 +1112,6 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         table.field_names = ["Name", "LLM Model", "Embedding Model", "Embedding Dim", "Persona", "Human", "Data Source", "Create Time"]
         agent_list = []
         for agent in tqdm(client.list_agents().agents):
-            # krishna
-            print("agent: ", agent)
             assert all([source is not None and isinstance(source, Source)] for source in agent.sources), "Source not null assertion failed"
             source_names = [source.name for source in agent.sources if source is not None]
             entry = [

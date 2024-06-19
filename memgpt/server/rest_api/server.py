@@ -31,7 +31,7 @@ from memgpt.server.rest_api.personas.index import setup_personas_index_router
 from memgpt.server.rest_api.presets.index import setup_presets_index_router
 from memgpt.server.rest_api.sources.index import setup_sources_index_router
 from memgpt.server.rest_api.static_files import mount_static_files
-from memgpt.server.rest_api.tools.index import setup_tools_index_router
+from memgpt.server.rest_api.tools.index import setup_user_tools_index_router
 from memgpt.server.rest_api.users.index import setup_users_index_router
 from memgpt.server.server import SyncServer
 from memgpt.settings import settings

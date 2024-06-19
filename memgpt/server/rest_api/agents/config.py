@@ -7,9 +7,6 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-# krishna1
-from rich import print
-
 from memgpt.models.pydantic_models import (
     AgentStateModel,
     EmbeddingConfigModel,
