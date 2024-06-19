@@ -13,11 +13,12 @@ class TestORMBases:
     def test_prefixed_ids(self, db_session):
 
         user = User(
-            email=faker.email,
+            email=faker.email(),
             organization=Organization.default(db_session=db_session),
         ).create(db_session)
 
         assert user.id.startswith('user-')
         assert str(user._id) in user.id
-        assert user.organization.id.startswith('organization-')
-        assert str(user.organization._id) in user.organization.id
+        with db_session as session:
+            assert user.organization.id.startswith('organization-')
+            assert str(user.organization._id) in user.organization.id
