@@ -20,5 +20,6 @@ class TestORMBases:
         assert user.id.startswith('user-')
         assert str(user._id) in user.id
         with db_session as session:
-            assert user.organization.id.startswith('organization-')
-            assert str(user.organization._id) in user.organization.id
+            session.add(user)
+            assert user.organization.id.startswith('organization-'), "Organization id is prefixed incorrectly"
+            assert str(user.organization._id) in user.organization.id, "Organization id is not using the correct uuid"
