@@ -138,7 +138,7 @@ class Admin:
 
     def list_tools(self) -> ListToolsResponse:
         response = requests.get(f"{self.base_url}/admin/tools", headers=self.headers)
-        return ListToolsResponse(**response.json())
+        return ListToolsResponse(**response.json()).tools
 
     def delete_tool(self, name: str):
         response = requests.delete(f"{self.base_url}/admin/tools/{name}", headers=self.headers)
