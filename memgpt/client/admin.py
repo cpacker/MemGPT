@@ -13,7 +13,7 @@ from memgpt.server.rest_api.admin.users import (
     GetAllUsersResponse,
     GetAPIKeysResponse,
 )
-from memgpt.server.rest_api.tools.index import ListToolsResponse
+from memgpt.server.rest_api.tools.index import CreateToolRequest, ListToolsResponse
 
 
 class Admin:
@@ -89,6 +89,48 @@ class Admin:
         """Add a tool implemented in a file path"""
         source_code = open(file_path, "r", encoding="utf-8").read()
         data = {"name": name, "source_code": source_code, "source_type": source_type, "tags": tags}
+        response = requests.post(f"{self.base_url}/admin/tools", json=data, headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create tool: {response.text}")
+        return ToolModel(**response.json())
+
+    def create_tool(
+        # self, tool: ToolModel, tags=Optional[List[str]] = None, update=True
+        self,
+        func,
+        name: Optional[str] = None,
+        update: Optional[bool] = True,
+        tags: Optional[List[str]] = None,
+    ):
+        """Create a tool
+
+        Args:
+            tool (ToolModel): Tool object
+            tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
+            update (bool, optional): Update the tool if it already exists. Defaults to True.
+
+        Returns:
+            Tool object
+        """
+        import inspect
+
+        from memgpt.functions.schema_generator import generate_schema
+
+        # TODO: check if tool already exists
+        # parse source code/schema
+        source_code = inspect.getsource(func)
+        json_schema = generate_schema(func, name)
+        from pprint import pprint
+
+        pprint(json_schema)
+        source_type = "python"
+        tool_name = json_schema["name"]
+
+        # create data
+        data = {"name": tool_name, "source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema}
+        CreateToolRequest(**data)  # validate data:w
+
+        # make REST request
         response = requests.post(f"{self.base_url}/admin/tools", json=data, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")

@@ -546,6 +546,13 @@ class MetadataStore:
             session.refresh(persona)
 
     @enforce_types
+    def update_tool(self, tool: ToolModel):
+        with self.session_maker() as session:
+            session.add(tool)
+            session.commit()
+            session.refresh(tool)
+
+    @enforce_types
     def delete_agent(self, agent_id: uuid.UUID):
         with self.session_maker() as session:
 

@@ -52,7 +52,6 @@ from memgpt.server.rest_api.presets.index import (
     ListPresetsResponse,
 )
 from memgpt.server.rest_api.sources.index import ListSourcesResponse
-from memgpt.server.rest_api.tools.index import CreateToolResponse
 from memgpt.server.server import SyncServer
 
 
@@ -186,11 +185,11 @@ class AbstractClient(object):
         """List all tools."""
         raise NotImplementedError
 
-    def create_tool(
-        self, name: str, file_path: str, source_type: Optional[str] = "python", tags: Optional[List[str]] = None
-    ) -> CreateToolResponse:
-        """Create a tool."""
-        raise NotImplementedError
+    # def create_tool(
+    #    self, name: str, file_path: str, source_type: Optional[str] = "python", tags: Optional[List[str]] = None
+    # ) -> CreateToolResponse:
+    #    """Create a tool."""
+    #    raise NotImplementedError
 
     # data sources
 

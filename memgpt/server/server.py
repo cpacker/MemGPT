@@ -1437,8 +1437,36 @@ class SyncServer(LockingServer):
 
         return sources_with_metadata
 
-    def create_tool(self, name: str, user_id: uuid.UUID) -> ToolModel:  # TODO: add other fields
-        """Create a new tool"""
+    def create_tool(
+        self, json_schema: dict, source_code: str, source_type: str, tags: Optional[List[str]] = None, exists_ok: Optional[bool] = True
+    ) -> ToolModel:  # TODO: add other fields
+        """Create a new tool
 
-    def delete_tool(self, tool_id: uuid.UUID, user_id: uuid.UUID):
+        Args:
+            TODO
+
+        Returns:
+            tool (ToolModel): Tool object
+        """
+        name = json_schema["name"]
+        tool = self.ms.get_tool(name)
+        if tool:  # check if function already exists
+            if exists_ok:
+                # update existing tool
+                tool.json_schema = json_schema
+                tool.tags = tags
+                tool.source_code = source_code
+                tool.source_type = source_type
+                self.ms.update_tool(tool)
+            else:
+                raise ValueError(f"Tool with name {name} already exists.")
+        else:
+            # create new tool
+            tool = ToolModel(name=name, json_schema=json_schema, tags=tags, source_code=source_code, source_type=source_type)
+            self.ms.add_tool(tool)
+
+        return self.ms.get_tool(name)
+
+    def delete_tool(self, name: str):
         """Delete a tool"""
+        self.ms.delete_tool(name)
