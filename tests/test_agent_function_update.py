@@ -40,9 +40,7 @@ def agent():
     if not client.server.get_user(user_id=user_id):
         client.server.create_user({"id": user_id})
 
-    agent_state = client.create_agent(
-        tools=[tool.name for tool in client.server.get_tools()],
-    )
+    agent_state = client.create_agent()
 
     return client.server._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
 
