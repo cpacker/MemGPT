@@ -1,85 +1,11 @@
-import os
 import uuid
-
 import pytest
-from dotenv import load_dotenv
 
 import memgpt.utils as utils
 
 utils.DEBUG = True
-from memgpt.config import MemGPTConfig
-from memgpt.credentials import MemGPTCredentials
-from memgpt.server.server import SyncServer
-from memgpt.settings import settings
 
-from .utils import DummyDataConnector, create_config, wipe_config, wipe_memgpt_home
-
-
-@pytest.fixture(scope="module")
-def server():
-    load_dotenv()
-    wipe_config()
-    wipe_memgpt_home()
-
-    db_url = settings.memgpt_pg_uri
-
-    # Use os.getenv with a fallback to os.environ.get
-    db_url = settings.memgpt_pg_uri
-
-    if os.getenv("OPENAI_API_KEY"):
-        create_config("openai")
-        credentials = MemGPTCredentials(
-            openai_key=os.getenv("OPENAI_API_KEY"),
-        )
-    else:  # hosted
-        create_config("memgpt_hosted")
-        credentials = MemGPTCredentials()
-
-    config = MemGPTConfig.load()
-
-    # set to use postgres
-    config.archival_storage_uri = db_url
-    config.recall_storage_uri = db_url
-    config.metadata_storage_uri = db_url
-    config.archival_storage_type = "postgres"
-    config.recall_storage_type = "postgres"
-    config.metadata_storage_type = "postgres"
-
-    config.save()
-    credentials.save()
-
-    server = SyncServer()
-    return server
-
-
-@pytest.fixture(scope="module")
-def user_id(server):
-    # create user
-    user = server.create_user()
-    print(f"Created user\n{user.id}")
-
-    # initialize with default presets
-    server.initialize_default_presets(user.id)
-    yield user.id
-
-    # cleanup
-    server.delete_user(user.id)
-
-
-@pytest.fixture(scope="module")
-def agent_id(server, user_id):
-    # create agent
-    agent_state = server.create_agent(
-        user_id=user_id,
-        name="test_agent",
-        preset="memgpt_chat",
-    )
-    print(f"Created agent\n{agent_state}")
-    yield agent_state.id
-
-    # cleanup
-    server.delete_agent(user_id, agent_state.id)
-
+from .utils import DummyDataConnector
 
 def test_error_on_nonexistent_agent(server, user_id, agent_id):
     try:

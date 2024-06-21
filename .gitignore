@@ -407,14 +407,17 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+
 nosetests.xml
 coverage.xml
 *.cover
 *.py,cover
 .hypothesis/
 .pytest_cache/
+**/**/pytest_cache/
 cover/
-
+# artifact from current tests
+**/**/test_chroma
 # Translations
 *.mo
 *.pot
@@ -1010,6 +1013,8 @@ FodyWeavers.xsd
 
 
 ## cached db data
+.persist/*
+!persist/.gitkeep
 pgdata/
 !pgdata/.gitkeep
 

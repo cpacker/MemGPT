@@ -1,7 +1,7 @@
 import pytest
 
 from memgpt.agent import Agent, save_agent
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
+from memgpt.settings import settings
 from memgpt.data_types import AgentState, LLMConfig, Source, User
 from memgpt.metadata import MetadataStore
 from memgpt.models.pydantic_models import HumanModel, PersonaModel
@@ -44,9 +44,9 @@ def test_storage(storage_connector):
     agent_1 = AgentState(
         user_id=user_1.id,
         name="agent_1",
-        preset=DEFAULT_PRESET,
-        persona=DEFAULT_PERSONA,
-        human=DEFAULT_HUMAN,
+        preset=settings.preset,
+        persona=settings.persona,
+        human=settings.human,
         llm_config=TEST_MEMGPT_CONFIG.default_llm_config,
         embedding_config=TEST_MEMGPT_CONFIG.default_embedding_config,
     )
@@ -69,12 +69,12 @@ def test_storage(storage_connector):
     from memgpt.presets.presets import add_default_presets
 
     add_default_presets(user_1.id, ms)
-    preset_obj = ms.get_preset(name=DEFAULT_PRESET, user_id=user_1.id)
+    preset_obj = ms.get_preset(name=settings.preset, user_id=user_1.id)
     from memgpt.interface import CLIInterface as interface  # for printing to terminal
 
     # Overwrite fields in the preset if they were specified
-    preset_obj.human = get_human_text(DEFAULT_HUMAN)
-    preset_obj.persona = get_persona_text(DEFAULT_PERSONA)
+    preset_obj.human = get_human_text(settings.human)
+    preset_obj.persona = get_persona_text(settings.persona)
 
     # Create the agent
     agent = Agent(

@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import requests
 
 from memgpt.config import MemGPTConfig
-from memgpt.constants import DEFAULT_PRESET
+from memgpt.settings import settings
 from memgpt.data_sources.connectors import DataConnector
 from memgpt.data_types import (
     AgentState,
@@ -56,9 +56,9 @@ from memgpt.server.rest_api.tools.index import CreateToolResponse
 from memgpt.server.server import SyncServer
 
 
-def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
+def create_client(base_url: Optional[str] = None, token: Optional[str] = None, config: Optional[MemGPTConfig] = None):
     if base_url is None:
-        return LocalClient()
+        return LocalClient(config=config)
     else:
         return RESTClient(base_url, token)
 
@@ -390,7 +390,7 @@ class RESTClient(AbstractClient):
                 schema.append(tool.json_schema)
 
         # include default tools
-        default_preset = self.get_preset(name=DEFAULT_PRESET)
+        default_preset = self.get_preset(name=settings.preset)
         if default_tools:
             # TODO
             # from memgpt.functions.functions import load_function_set
@@ -596,6 +596,7 @@ class LocalClient(AbstractClient):
         auto_save: bool = False,
         user_id: Optional[str] = None,
         debug: bool = False,
+        config: "MemGPTConfig" = None,
     ):
         """
         Initializes a new instance of Client class.
@@ -607,7 +608,7 @@ class LocalClient(AbstractClient):
         self.auto_save = auto_save
 
         # determine user_id (pulled from local config)
-        config = MemGPTConfig.load()
+        config = config or MemGPTConfig.load()
         if user_id:
             self.user_id = uuid.UUID(user_id)
         else:

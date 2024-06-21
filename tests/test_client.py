@@ -6,9 +6,8 @@ import uuid
 import pytest
 from dotenv import load_dotenv
 
+from memgpt.settings import settings
 from memgpt import Admin, create_client
-from memgpt.config import MemGPTConfig
-from memgpt.constants import DEFAULT_PRESET
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import Preset  # TODO move to PresetModel
 from memgpt.settings import settings
@@ -16,7 +15,7 @@ from tests.utils import create_config
 
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
 # test_preset_name = "test_preset"
-test_preset_name = DEFAULT_PRESET
+test_preset_name = settings.preset
 test_agent_state = None
 client = None
 
@@ -30,7 +29,7 @@ test_server_token = "test_server_token"
 
 def _reset_config():
     # Use os.getenv with a fallback to os.environ.get
-    db_url = settings.memgpt_pg_uri
+    db_url = settings.pg_uri
 
     if os.getenv("OPENAI_API_KEY"):
         create_config("openai")
@@ -81,7 +80,7 @@ def client(request):
         if server_url is None:
             # run server in thread
             # NOTE: must set MEMGPT_SERVER_PASS enviornment variable
-            server_url = "http://localhost:8283"
+            server_url = "http://localhost:8083"
             print("Starting server thread")
             thread = threading.Thread(target=run_server, daemon=True)
             thread.start()

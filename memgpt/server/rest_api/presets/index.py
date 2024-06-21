@@ -6,7 +6,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
+from memgpt.settings  import settings
 from memgpt.data_types import Preset  # TODO remove
 from memgpt.models.pydantic_models import HumanModel, PersonaModel, PresetModel
 from memgpt.prompts import gpt_system
@@ -37,9 +37,9 @@ class CreatePresetsRequest(BaseModel):
     # user_id: uuid.UUID = Field(..., description="The unique identifier of the user who created the preset.")
     description: Optional[str] = Field(None, description="The description of the preset.")
     # created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the preset was created.")
-    system: Optional[str] = Field(None, description="The system prompt of the preset.")  # TODO: make optional and allow defaults
-    persona: Optional[str] = Field(default=None, description="The persona of the preset.")
-    human: Optional[str] = Field(default=None, description="The human of the preset.")
+    system: str = Field(..., description="The system prompt of the preset.")
+    persona: str = Field(default=get_persona_text(settings.persona), description="The persona of the preset.")
+    human: str = Field(default=get_human_text(settings.human), description="The human of the preset.")
     functions_schema: List[Dict] = Field(..., description="The functions schema of the preset.")
     # TODO
     persona_name: Optional[str] = Field(None, description="The name of the persona of the preset.")
@@ -106,7 +106,7 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
                 system = request.system
                 # TODO: insert into system table
             else:
-                system_name = request.system_name if request.system_name else DEFAULT_PRESET
+                system_name = request.system_name if request.system_name else settings.preset
                 system = request.system if request.system else gpt_system.get_system_text(system_name)
 
             if not request.human_name and request.human:
@@ -115,7 +115,7 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
                 human = request.human
                 server.ms.add_human(HumanModel(text=human, name=human_name, user_id=user_id))
             else:
-                human_name = request.human_name if request.human_name else DEFAULT_HUMAN
+                human_name = request.human_name if request.human_name else settings.human
                 human = request.human if request.human else get_human_text(human_name)
 
             if not request.persona_name and request.persona:
@@ -124,7 +124,7 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
                 persona = request.persona
                 server.ms.add_persona(PersonaModel(text=persona, name=persona_name, user_id=user_id))
             else:
-                persona_name = request.persona_name if request.persona_name else DEFAULT_PERSONA
+                persona_name = request.persona_name if request.persona_name else settings.persona
                 persona = request.persona if request.persona else get_persona_text(persona_name)
 
             # create preset

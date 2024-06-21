@@ -156,7 +156,7 @@ config_list = [
 # MemGPT-powered agents will also use local LLMs, but they need additional setup (also they use the Completions endpoint)
 config_list_memgpt = [
     {
-        "preset": DEFAULT_PRESET,
+        "preset": settings.preset,
         "model": None,  # not required for web UI, only required for Ollama, see: https://memgpt.readme.io/docs/ollama
         "model_wrapper": "airoboros-l2-70b-2.1",  # airoboros is the default wrapper and should work for most models
         "model_endpoint_type": "webui",
@@ -183,7 +183,7 @@ config_list = [
 # MemGPT-powered agents will also use local LLMs, but they need additional setup (also they use the Completions endpoint)
 config_list_memgpt = [
     {
-        "preset": DEFAULT_PRESET,
+        "preset": settings.preset,
         "model": None,
         "model_wrapper": "airoboros-l2-70b-2.1",
         "model_endpoint_type": "lmstudio",
@@ -209,7 +209,7 @@ config_list = [
 # This config is for autogen agents that powered by MemGPT
 config_list_memgpt = [
     {
-        "preset": DEFAULT_PRESET,
+        "preset": settings.preset,
         "model": "gpt-4",
         "context_window": 8192,  # gpt-4 context window
         "model_wrapper": None,
@@ -240,7 +240,7 @@ config_list = [
 # This config is for autogen agents that powered by MemGPT
 config_list_memgpt = [
     {
-        "preset": DEFAULT_PRESET,
+        "preset": settings.preset,
         "model": "gpt-4",  # make sure you choose a model that you have access to deploy on your Azure account
         "model_wrapper": None,
         "context_window": 8192,  # gpt-4 context window

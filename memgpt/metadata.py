@@ -5,7 +5,7 @@ import os
 import secrets
 import traceback
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Type
 
 from sqlalchemy import (
     BIGINT,
@@ -45,6 +45,7 @@ from memgpt.models.pydantic_models import (
 )
 from memgpt.settings import settings
 from memgpt.utils import enforce_types, get_utc_time, printd
+
 
 Base = declarative_base()
 
