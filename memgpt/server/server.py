@@ -645,17 +645,21 @@ class SyncServer(LockingServer):
     def create_agent(
         self,
         user_id: uuid.UUID,
+        tools: List[str],  # list of tool names (handles) to include
+        # system: str, # system prompt
+        metadata: Optional[dict] = {},  # includes human/persona names
         name: Optional[str] = None,
-        preset: Optional[str] = None,
-        persona: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
-        human: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
-        persona_name: Optional[str] = None,
-        human_name: Optional[str] = None,
+        preset: Optional[str] = None,  # TODO: remove eventually
+        # model config
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
+        # interface
         interface: Union[AgentInterface, None] = None,
-        # persistence_manager: Union[PersistenceManager, None] = None,
-        function_names: Optional[List[str]] = None,  # TODO remove
+        # TODO: refactor this to be a more general memory configuration
+        persona: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
+        human: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
+        persona_name: Optional[str] = None,  # TODO: remove
+        human_name: Optional[str] = None,  # TODO: remove
     ) -> AgentState:
         """Create a new agent using a config"""
         if self.ms.get_user(user_id=user_id) is None:
@@ -718,15 +722,18 @@ class SyncServer(LockingServer):
             llm_config = llm_config if llm_config else self.server_llm_config
             embedding_config = embedding_config if embedding_config else self.server_embedding_config
 
-            # TODO remove (https://github.com/cpacker/MemGPT/issues/1138)
-            if function_names is not None:
-                preset_override = True
-                # available_tools = self.ms.list_tools(user_id=user_id) # TODO: add back when user-specific
-                available_tools = self.ms.list_tools()
-                available_tools_names = [t.name for t in available_tools]
-                assert all([f_name in available_tools_names for f_name in function_names])
-                preset_obj.functions_schema = [t.json_schema for t in available_tools if t.name in function_names]
-                print("overriding preset_obj tools with:", preset_obj.functions_schema)
+            ## TODO remove (https://github.com/cpacker/MemGPT/issues/1138)
+            # if function_names is not None:
+            #    preset_override = True
+            #    # available_tools = self.ms.list_tools(user_id=user_id) # TODO: add back when user-specific
+            #    available_tools = self.ms.list_tools()
+            #    available_tools_names = [t.name for t in available_tools]
+            #    assert all([f_name in available_tools_names for f_name in function_names])
+            #    preset_obj.functions_schema = [t.json_schema for t in available_tools if t.name in function_names]
+            #    print("overriding preset_obj tools with:", preset_obj.functions_schema)
+
+            # get tools
+            tool_objs = [self.ms.get_tool(name) for name in tools]
 
             # If the user overrode any parts of the preset, we need to create a new preset to refer back to
             if preset_override:
@@ -735,13 +742,25 @@ class SyncServer(LockingServer):
                 # Then write out to the database for storage
                 self.ms.create_preset(preset=preset_obj)
 
-            agent = Agent(
-                interface=interface,
-                preset=preset_obj,
+            agent_state = AgentState(
                 name=name,
-                created_by=user.id,
+                user_id=user_id,
+                persona=persona,
+                human=human,
+                tools=tools,  # name=id for tools
                 llm_config=llm_config,
                 embedding_config=embedding_config,
+            )
+
+            agent = Agent(
+                interface=interface,
+                agent_state=agent_state,
+                tools=tool_objs,
+                # preset=preset_obj,
+                # name=name,
+                # created_by=user.id,
+                # llm_config=llm_config,
+                # embedding_config=embedding_config,
                 # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
                 first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
             )

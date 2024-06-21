@@ -26,6 +26,7 @@ class ListAgentsResponse(BaseModel):
 
 
 class CreateAgentRequest(BaseModel):
+    # TODO: modify this (along with front end)
     config: dict = Field(..., description="The agent configuration object.")
 
 
@@ -60,6 +61,18 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         """
         interface.clear()
 
+        # Parse request
+        # TODO: don't just use JSON in the future
+        request.config["human_name"] if "human_name" in request.config else None
+        request.config["human"] if "human" in request.config else None
+        request.config["persona_name"] if "persona_name" in request.config else None
+        request.config["persona"] if "persona" in request.config else None
+        preset = request.config["preset"] if "preset" in request.config else None
+        tool_names = request.config["function_names"]
+
+        # get tools
+        [server.ms.get_tool(name) for name in tool_names]
+
         try:
             agent_state = server.create_agent(
                 user_id=user_id,
@@ -74,7 +87,9 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                 # llm_config=LLMConfigModel(
                 # model=request.config['model'],
                 # )
-                function_names=request.config["function_names"].split(",") if "function_names" in request.config else None,
+                # tools
+                tools=tool_names,
+                # function_names=request.config["function_names"].split(",") if "function_names" in request.config else None,
             )
             llm_config = LLMConfigModel(**vars(agent_state.llm_config))
             embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))

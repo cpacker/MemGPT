@@ -1,5 +1,4 @@
 # tool imports
-import inspect
 import uuid
 from datetime import datetime
 from enum import Enum
@@ -11,7 +10,6 @@ from sqlalchemy_utils import ChoiceType
 from sqlmodel import Field, SQLModel
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
-from memgpt.functions.schema_generator import generate_schema
 from memgpt.utils import get_human_text, get_persona_text, get_utc_time
 
 
@@ -52,7 +50,7 @@ class PresetModel(BaseModel):
 class ToolModel(SQLModel, table=True):
     # TODO move into database
     name: str = Field(..., description="The name of the function.", primary_key=True)
-    # id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the function.")
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the function.")
     tags: List[str] = Field(sa_column=Column(JSON), description="Metadata tags.")
     source_type: Optional[str] = Field(None, description="The type of the source code.")
     source_code: Optional[str] = Field(..., description="The source code of the function.")
@@ -62,18 +60,6 @@ class ToolModel(SQLModel, table=True):
     # Needed for Column(JSON)
     class Config:
         arbitrary_types_allowed = True
-
-    def _run(self):
-        # TODO: override implementation
-        pass
-
-    def _to_json_schema(self):
-        """Generate JSON schema for the tool"""
-        return generate_schema(self._run, name=self.name)
-
-    def _get_source_code(self):
-        """Get the source code of the tool"""
-        return inspect.getsource(self._run)
 
 
 class AgentToolMap(SQLModel, table=True):

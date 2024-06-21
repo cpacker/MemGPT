@@ -754,11 +754,16 @@ class AgentState:
         self,
         name: str,
         user_id: uuid.UUID,
-        persona: str,  # the filename where the persona was originally sourced from
-        human: str,  # the filename where the human was originally sourced from
+        # tools
+        tools: List[str],  # list of tools by name
+        # system prompt
+        system: str,
+        # config
+        persona: str,  # the filename where the persona was originally sourced from # TODO: remove
+        human: str,  # the filename where the human was originally sourced from # TODO: remove
         llm_config: LLMConfig,
         embedding_config: EmbeddingConfig,
-        preset: str,
+        preset: str,  # TODO: remove
         # (in-context) state contains:
         # persona: str  # the current persona text
         # human: str  # the current human text
@@ -768,6 +773,7 @@ class AgentState:
         id: Optional[uuid.UUID] = None,
         state: Optional[dict] = None,
         created_at: Optional[datetime] = None,
+        # messages (TODO: implement this)
     ):
         if id is None:
             self.id = uuid.uuid4()
@@ -793,6 +799,9 @@ class AgentState:
 
         # state
         self.state = {} if not state else state
+
+        # tools
+        self.tools = tools
 
 
 class Source:
