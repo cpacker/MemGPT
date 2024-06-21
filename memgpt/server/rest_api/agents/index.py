@@ -14,6 +14,7 @@ from memgpt.models.pydantic_models import (
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
+from memgpt.settings import settings
 
 router = APIRouter()
 
@@ -67,7 +68,7 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         request.config["human"] if "human" in request.config else None
         request.config["persona_name"] if "persona_name" in request.config else None
         request.config["persona"] if "persona" in request.config else None
-        preset = request.config["preset"] if "preset" in request.config else None
+        preset = request.config["preset"] if "preset" in request.config else settings.default_preset
         tool_names = request.config["function_names"]
 
         try:
