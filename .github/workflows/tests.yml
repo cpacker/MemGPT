@@ -35,7 +35,9 @@ jobs:
         install-args: "-E dev -E postgres -E milvus"
 
     - name: Initialize credentials
-      run: poetry run memgpt quickstart --backend memgpt
+      run: |
+        poetry install -E dev -E postgres
+        poetry run memgpt quickstart --backend memgpt
 
     #- name: Run docker compose server
     #  env:
