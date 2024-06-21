@@ -41,7 +41,7 @@ def agent():
         client.server.create_user({"id": user_id})
 
     agent_state = client.create_agent(
-        preset=constants.DEFAULT_PRESET,
+        tools=[tool.name for tool in client.server.get_tools()],
     )
 
     return client.server._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
