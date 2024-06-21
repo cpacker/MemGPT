@@ -891,6 +891,7 @@ class SyncServer(LockingServer):
             # preset = self.ms.get_preset(name=agent_state.preset, user_id=user_id)
             # TODO hack for frontend, remove
             # (top level .persona is persona_name, and nested memory.persona is the state)
+            # TODO: eventually modify this to be contained in the metadata
             return_dict["persona"] = agent_state.human
             return_dict["human"] = agent_state.persona
 
