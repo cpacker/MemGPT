@@ -582,9 +582,10 @@ def run(
 
         # Update the agent with any overrides
         ms.update_agent(agent_state)
+        tools = [ms.get_tool(tool_name) for tool_name in agent_state.tools]
 
         # create agent
-        memgpt_agent = Agent(agent_state=agent_state, interface=interface(), tools=agent_state.tools)
+        memgpt_agent = Agent(agent_state=agent_state, interface=interface(), tools=tools)
 
     else:  # create new agent
         # create new agent config: override defaults with args if provided
