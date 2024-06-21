@@ -803,6 +803,9 @@ class AgentState:
         # tools
         self.tools = tools
 
+        # system
+        self.system = system
+
 
 class Source:
     def __init__(

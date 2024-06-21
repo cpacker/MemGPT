@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import requests
 
 from memgpt.config import MemGPTConfig
-from memgpt.constants import DEFAULT_PRESET
+from memgpt.constants import BASE_TOOLS, DEFAULT_PRESET
 from memgpt.data_sources.connectors import DataConnector
 from memgpt.data_types import (
     AgentState,
@@ -265,9 +265,32 @@ class RESTClient(AbstractClient):
         human: Optional[str] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
+        # tools
+        tools: Optional[List[str]] = None,
+        include_base_tools: Optional[bool] = True,
     ) -> AgentState:
+        """
+        Create an agent
+
+        Args:
+            name (str): Name of the agent
+            tools (List[str]): List of tools (by name) to attach to the agent
+            include_base_tools (bool): Whether to include base tools (default: `True`)
+
+        Returns:
+            agent_state (AgentState): State of the the created agent.
+
+        """
         if embedding_config or llm_config:
             raise ValueError("Cannot override embedding_config or llm_config when creating agent via REST API")
+
+        # construct list of tools
+        tool_names = []
+        if tools:
+            tool_names += tools
+        if include_base_tools:
+            tool_names += BASE_TOOLS
+
         # TODO: distinguish between name and objects
         payload = {
             "config": {
@@ -275,6 +298,7 @@ class RESTClient(AbstractClient):
                 "preset": preset,
                 "persona": persona,
                 "human": human,
+                "function_names": tool_names,
             }
         }
         response = requests.post(f"{self.base_url}/api/agents", json=payload, headers=self.headers)
@@ -309,6 +333,8 @@ class RESTClient(AbstractClient):
             llm_config=llm_config,
             embedding_config=embedding_config,
             state=response.agent_state.state,
+            system=response.agent_state.system,
+            tools=response.agent_state.tools,
             # load datetime from timestampe
             created_at=datetime.datetime.fromtimestamp(response.agent_state.created_at, tz=datetime.timezone.utc),
         )

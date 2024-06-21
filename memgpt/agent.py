@@ -213,7 +213,16 @@ class Agent(object):
             assert tool_name in [tool.name for tool in tools], f"Tool name {tool_name} not included in agent tool list"
         # Store the functions schemas (this is passed as an argument to ChatCompletion)
         self.functions = {tool.name: tool.json_schema for tool in tools}
-        self.functions_python = {tool.name: tool.source_code for tool in tools}
+
+        self.functions_python = {}
+        env = {}
+        env.update(globals())
+        for tool in tools:
+            # WARNING: name may not be consistent?
+            exec(tool.module, env)
+            self.functions_python[tool.name] = env[tool.name]
+        print("KEY", env.keys())
+        # self.functions_python = {tool.name: tool.source_code for tool in tools}
         assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
 
         ## An agent can be created from a Preset object
@@ -259,9 +268,10 @@ class Agent(object):
         self.model = self.agent_state.llm_config.model
 
         # Store the system instructions (used to rebuild memory)
-        if "system" not in self.agent_state.state:
-            raise ValueError("'system' not found in provided AgentState")
-        self.system = self.agent_state.state["system"]
+        # if "system" not in self.agent_state.state:
+        #    raise ValueError("'system' not found in provided AgentState")
+        # self.system = self.agent_state.state["system"]
+        self.system = self.agent_state.system
 
         # if "functions" not in self.agent_state.state:
         #    raise ValueError(f"'functions' not found in provided AgentState")
@@ -1082,8 +1092,9 @@ class Agent(object):
             name=self.agent_state.name,
             user_id=self.agent_state.user_id,
             tools=self.functions,
-            # persona=self.agent_state.persona,
-            # human=self.agent_state.human,
+            system=self.system,
+            persona=self.agent_state.persona,  # TODO: remove
+            human=self.agent_state.human,  # TODO: remove
             ## "model_state"
             llm_config=self.agent_state.llm_config,
             embedding_config=self.agent_state.embedding_config,

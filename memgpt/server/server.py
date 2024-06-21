@@ -332,7 +332,8 @@ class SyncServer(LockingServer):
 
             # Instantiate an agent object using the state retrieved
             logger.info(f"Creating an agent object")
-            memgpt_agent = Agent(agent_state=agent_state, interface=interface)
+            tool_objs = [self.ms.get_tool(name) for name in agent_state.tools]  # get tool objects
+            memgpt_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
 
             # Add the agent to the in-memory store and return its reference
             logger.info(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
@@ -656,6 +657,7 @@ class SyncServer(LockingServer):
         # interface
         interface: Union[AgentInterface, None] = None,
         # TODO: refactor this to be a more general memory configuration
+        system: Optional[str] = None,  # prompt value
         persona: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
         human: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
         persona_name: Optional[str] = None,  # TODO: remove
@@ -687,6 +689,14 @@ class SyncServer(LockingServer):
             preset_override = False
             assert preset_obj is not None, f"preset {preset if preset else self.config.preset} does not exist"
             logger.debug(f"Attempting to create agent from preset:\n{preset_obj}")
+
+            # system prompt
+            if system is None:
+                system = preset_obj.system
+            else:
+                preset_obj.system = system
+                preset_override = True
+            print("system", preset_obj.system, system)
 
             # Overwrite fields in the preset if they were specified
             if human is not None and human != preset_obj.human:
@@ -745,11 +755,14 @@ class SyncServer(LockingServer):
             agent_state = AgentState(
                 name=name,
                 user_id=user_id,
-                persona=persona,
-                human=human,
+                persona=preset_obj.persona,  # TODO: remove
+                human=preset_obj.human,  # TODO: remove
                 tools=tools,  # name=id for tools
                 llm_config=llm_config,
                 embedding_config=embedding_config,
+                system=system,
+                preset=preset,  # TODO: remove
+                state={"persona": preset_obj.persona, "human": preset_obj.human, "system": system, "messages": []},
             )
 
             agent = Agent(

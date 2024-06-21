@@ -177,6 +177,7 @@ class AgentModel(Base):
     name = Column(String, nullable=False)
     persona = Column(String)
     human = Column(String)
+    system = Column(String)
     preset = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -186,6 +187,9 @@ class AgentModel(Base):
 
     # state
     state = Column(JSON)
+
+    # tools
+    tools = Column(JSON)
 
     def __repr__(self) -> str:
         return f"<Agent(id='{self.id}', name='{self.name}')>"
@@ -202,6 +206,8 @@ class AgentModel(Base):
             llm_config=self.llm_config,
             embedding_config=self.embedding_config,
             state=self.state,
+            tools=self.tools,
+            system=self.system,
         )
 
 

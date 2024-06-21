@@ -70,9 +70,6 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         preset = request.config["preset"] if "preset" in request.config else None
         tool_names = request.config["function_names"]
 
-        # get tools
-        [server.ms.get_tool(name) for name in tool_names]
-
         try:
             agent_state = server.create_agent(
                 user_id=user_id,
@@ -95,7 +92,10 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
             embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
 
             # TODO when get_preset returns a PresetModel instead of Preset, we can remove this packing/unpacking line
+            # TODO: remove
             preset = server.ms.get_preset(name=agent_state.preset, user_id=user_id)
+
+            print("SYSTEM", agent_state.system)
 
             return CreateAgentResponse(
                 agent_state=AgentStateModel(
@@ -109,7 +109,8 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                     embedding_config=embedding_config,
                     state=agent_state.state,
                     created_at=int(agent_state.created_at.timestamp()),
-                    functions_schema=agent_state.state["functions"],  # TODO: this is very error prone, jsut lookup the preset instead
+                    tools=tool_names,
+                    system=agent_state.system,
                 ),
                 preset=PresetModel(
                     name=preset.name,
