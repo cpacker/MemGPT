@@ -774,7 +774,7 @@ class AgentState:
         state: Optional[dict] = None,
         created_at: Optional[datetime] = None,
         # messages (TODO: implement this)
-        _metadata: Optional[dict] = None,
+        # _metadata: Optional[dict] = None,
     ):
         if id is None:
             self.id = uuid.uuid4()
@@ -809,7 +809,7 @@ class AgentState:
         self.system = system
 
         # metadata
-        self._metadata = _metadata
+        # self._metadata = _metadata
 
 
 class Source:
