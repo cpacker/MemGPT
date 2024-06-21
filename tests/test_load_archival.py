@@ -224,7 +224,6 @@ def test_load_directory(
 
     # cleanup
     ms.delete_user(user.id)
-    ms.delete_agent(agent.id)
     ms.delete_source(sources[0].id)
 
     # revert to openai config
