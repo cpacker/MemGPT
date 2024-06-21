@@ -785,6 +785,7 @@ class AgentState:
         # TODO(swooders) we need to handle the case where name is None here
         # in AgentConfig we autogenerate a name, not sure what the correct thing w/ DBs is, what about NounAdjective combos? Like giphy does? BoredGiraffe etc
         self.name = name
+        assert self.name, f"AgentState name must be a non-empty string"
         self.user_id = user_id
         self.preset = preset
         # The INITIAL values of the persona and human
