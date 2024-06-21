@@ -36,7 +36,6 @@ jobs:
 
     - name: Initialize credentials
       run: |
-        poetry install -E dev -E postgres
         poetry run memgpt quickstart --backend memgpt
 
     #- name: Run docker compose server
