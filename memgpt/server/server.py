@@ -759,8 +759,8 @@ class SyncServer(LockingServer):
             agent_state = AgentState(
                 name=name,
                 user_id=user_id,
-                persona=preset_obj.persona,  # TODO: remove
-                human=preset_obj.human,  # TODO: remove
+                persona=preset_obj.persona_name,  # TODO: remove
+                human=preset_obj.human_name,  # TODO: remove
                 tools=tools,  # name=id for tools
                 llm_config=llm_config,
                 embedding_config=embedding_config,
@@ -888,11 +888,11 @@ class SyncServer(LockingServer):
 
             # TODO remove this eventually when return type get pydanticfied
             # this is to add persona_name and human_name so that the columns in UI can populate
-            preset = self.ms.get_preset(name=agent_state.preset, user_id=user_id)
+            # preset = self.ms.get_preset(name=agent_state.preset, user_id=user_id)
             # TODO hack for frontend, remove
             # (top level .persona is persona_name, and nested memory.persona is the state)
-            return_dict["persona"] = preset.persona_name
-            return_dict["human"] = preset.human_name
+            return_dict["persona"] = agent_state.human
+            return_dict["human"] = agent_state.persona
 
             # Add information about tools
             # TODO memgpt_agent should really have a field of List[ToolModel]
