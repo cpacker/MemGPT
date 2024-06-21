@@ -110,9 +110,7 @@ def test_concurrent_messages(admin_client):
             response = admin_client.create_user()
             token = response.api_key
             client = create_client(base_url=admin_client.base_url, token=token)
-            agent = client.create_agent(
-                name=test_agent_name,
-            )
+            agent = client.create_agent()
 
             print("Agent created", agent.id)
 

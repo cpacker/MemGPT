@@ -64,10 +64,10 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
 
         # Parse request
         # TODO: don't just use JSON in the future
-        request.config["human_name"] if "human_name" in request.config else None
-        request.config["human"] if "human" in request.config else None
-        request.config["persona_name"] if "persona_name" in request.config else None
-        request.config["persona"] if "persona" in request.config else None
+        human_name = request.config["human_name"] if "human_name" in request.config else None
+        human = request.config["human"] if "human" in request.config else None
+        persona_name = request.config["persona_name"] if "persona_name" in request.config else None
+        persona = request.config["persona"] if "persona" in request.config else None
         preset = request.config["preset"] if "preset" in request.config else settings.default_preset
         tool_names = request.config["function_names"]
 
@@ -77,11 +77,11 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                 # **request.config
                 # TODO turn into a pydantic model
                 name=request.config["name"],
-                preset=request.config["preset"] if "preset" in request.config else None,
-                persona_name=request.config["persona_name"] if "persona_name" in request.config else None,
-                human_name=request.config["human_name"] if "human_name" in request.config else None,
-                persona=request.config["persona"] if "persona" in request.config else None,
-                human=request.config["human"] if "human" in request.config else None,
+                preset=preset,
+                persona_name=persona_name,
+                human_name=human_name,
+                persona=persona,
+                human=human,
                 # llm_config=LLMConfigModel(
                 # model=request.config['model'],
                 # )
