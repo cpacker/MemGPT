@@ -46,6 +46,7 @@ from memgpt.models.pydantic_models import (
     SourceModel,
     ToolModel,
 )
+from memgpt.utils import create_random_username
 
 logger = get_logger(__name__)
 
@@ -673,6 +674,9 @@ class SyncServer(LockingServer):
 
         # if persistence_manager is None:
         # persistence_manager = self.default_persistence_manager_cls(agent_config=agent_config)
+
+        if name is None:
+            name = create_random_username()
 
         logger.debug(f"Attempting to find user: {user_id}")
         user = self.ms.get_user(user_id=user_id)

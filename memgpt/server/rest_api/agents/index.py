@@ -68,8 +68,10 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         human = request.config["human"] if "human" in request.config else None
         persona_name = request.config["persona_name"] if "persona_name" in request.config else None
         persona = request.config["persona"] if "persona" in request.config else None
-        preset = request.config["preset"] if "preset" in request.config else settings.default_preset
+        preset = request.config["preset"] if ("preset" in request.config and request.config["preset"]) else settings.default_preset
         tool_names = request.config["function_names"]
+
+        print("PRESET", preset)
 
         try:
             agent_state = server.create_agent(
@@ -95,7 +97,6 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
             # TODO when get_preset returns a PresetModel instead of Preset, we can remove this packing/unpacking line
             # TODO: remove
             preset = server.ms.get_preset(name=agent_state.preset, user_id=user_id)
-
             print("SYSTEM", agent_state.system)
 
             return CreateAgentResponse(
