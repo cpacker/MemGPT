@@ -26,6 +26,7 @@ from memgpt.models.pydantic_models import (
     SourceModel,
     ToolModel,
 )
+from memgpt.presets.presets import load_module_tools
 
 # import pydantic response objects from memgpt.server.rest_api
 from memgpt.server.rest_api.agents.command import CommandResponse
@@ -682,6 +683,8 @@ class LocalClient(AbstractClient):
         if name and self.agent_exists(agent_name=name):
             raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
 
+        # TODO: implement tools support
+
         self.interface.clear()
         agent_state = self.server.create_agent(
             user_id=self.user_id,
@@ -689,6 +692,7 @@ class LocalClient(AbstractClient):
             preset=preset,
             persona=persona,
             human=human,
+            tools=[tool.name for tool in load_module_tools()],
         )
         return agent_state
 
