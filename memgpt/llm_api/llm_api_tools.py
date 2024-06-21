@@ -173,6 +173,7 @@ def create(
             # only is a problem if we are *not* using an openai proxy
             raise ValueError(f"OpenAI key is missing from MemGPT config file")
         if use_tool_naming:
+            print(functions)
             data = ChatCompletionRequest(
                 model=llm_config.model,
                 messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],

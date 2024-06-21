@@ -18,7 +18,7 @@ from memgpt.cli.cli_config import configure
 from memgpt.config import MemGPTConfig
 from memgpt.constants import CLI_WARNING_PREFIX, MEMGPT_DIR
 from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import EmbeddingConfig, LLMConfig, User
+from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, User
 from memgpt.log import get_logger
 from memgpt.metadata import MetadataStore
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
@@ -650,13 +650,25 @@ def run(
             typer.secho(f"->  🤖 Using persona profile: '{preset_obj.persona_name}'", fg=typer.colors.WHITE)
             typer.secho(f"->  🧑 Using human profile: '{preset_obj.human_name}'", fg=typer.colors.WHITE)
 
-            memgpt_agent = Agent(
-                interface=interface(),
+            agent_state = AgentState(
                 name=agent_name,
-                created_by=user.id,
-                preset=preset_obj,
+                user_id=user.id,
+                tools=list([schema["name"] for schema in preset_obj.functions_schema]),
+                system=preset_obj.system,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
+                human=preset_obj.human,
+                persona=preset_obj.persona,
+                preset=preset_obj.name,
+                state={"messages": None, "persona": preset_obj.persona, "human": preset_obj.human},
+            )
+            print("tools", agent_state.tools)
+            tools = [ms.get_tool(tool_name) for tool_name in agent_state.tools]
+
+            memgpt_agent = Agent(
+                interface=interface(),
+                agent_state=agent_state,
+                tools=tools,
                 # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
                 first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
             )

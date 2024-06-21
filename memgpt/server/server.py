@@ -762,7 +762,7 @@ class SyncServer(LockingServer):
                 embedding_config=embedding_config,
                 system=system,
                 preset=preset,  # TODO: remove
-                state={"persona": preset_obj.persona, "human": preset_obj.human, "system": system, "messages": []},
+                state={"persona": preset_obj.persona, "human": preset_obj.human, "system": system, "messages": None},
             )
 
             agent = Agent(

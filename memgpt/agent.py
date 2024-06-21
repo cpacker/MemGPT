@@ -212,8 +212,7 @@ class Agent(object):
         for tool_name in agent_state.tools:
             assert tool_name in [tool.name for tool in tools], f"Tool name {tool_name} not included in agent tool list"
         # Store the functions schemas (this is passed as an argument to ChatCompletion)
-        self.functions = {tool.name: tool.json_schema for tool in tools}
-
+        self.functions = []
         self.functions_python = {}
         env = {}
         env.update(globals())
@@ -221,6 +220,7 @@ class Agent(object):
             # WARNING: name may not be consistent?
             exec(tool.module, env)
             self.functions_python[tool.name] = env[tool.name]
+            self.functions.append(tool.json_schema)
         print("KEY", env.keys())
         # self.functions_python = {tool.name: tool.source_code for tool in tools}
         assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
@@ -1091,7 +1091,7 @@ class Agent(object):
         self.agent_state = AgentState(
             name=self.agent_state.name,
             user_id=self.agent_state.user_id,
-            tools=self.functions,
+            tools=self.agent_state.tools,
             system=self.system,
             persona=self.agent_state.persona,  # TODO: remove
             human=self.agent_state.human,  # TODO: remove
