@@ -5,6 +5,7 @@ from typing import List
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from memgpt.constants import BASE_TOOLS
 from memgpt.models.pydantic_models import (
     AgentStateModel,
     EmbeddingConfigModel,
@@ -71,6 +72,14 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         preset = request.config["preset"] if ("preset" in request.config and request.config["preset"]) else settings.default_preset
         tool_names = request.config["function_names"]
 
+        # TODO: remove this -- should be added based on create agent fields
+        print("TOOLS", tool_names, len(tool_names))
+        if tool_names is None or tool_names == "":
+            tool_names = []
+        for name in BASE_TOOLS:  # TODO: remove this
+            if name not in tool_names:
+                tool_names.append(name)
+
         print("PRESET", preset)
 
         try:
@@ -97,7 +106,6 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
             # TODO when get_preset returns a PresetModel instead of Preset, we can remove this packing/unpacking line
             # TODO: remove
             preset = server.ms.get_preset(name=agent_state.preset, user_id=user_id)
-            print("SYSTEM", agent_state.system)
 
             return CreateAgentResponse(
                 agent_state=AgentStateModel(

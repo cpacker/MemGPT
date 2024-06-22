@@ -1042,8 +1042,8 @@ class Agent(object):
             user_id=self.agent_state.user_id,
             tools=self.agent_state.tools,
             system=self.system,
-            persona=self.memory.persona,  # TODO: remove
-            human=self.memory.human,  # TODO: remove
+            persona=self.agent_state.persona,  # TODO: remove
+            human=self.agent_state.human,  # TODO: remove
             ## "model_state"
             llm_config=self.agent_state.llm_config,
             embedding_config=self.agent_state.embedding_config,
