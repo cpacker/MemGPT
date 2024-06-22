@@ -16,6 +16,8 @@ from memgpt.data_types import (
     Source,
     User,
 )
+from memgpt.functions.functions import parse_source_code
+from memgpt.functions.schema_generator import generate_schema
 from memgpt.metadata import MetadataStore
 from memgpt.models.pydantic_models import (
     HumanModel,
@@ -26,7 +28,6 @@ from memgpt.models.pydantic_models import (
     SourceModel,
     ToolModel,
 )
-from memgpt.presets.presets import load_module_tools
 
 # import pydantic response objects from memgpt.server.rest_api
 from memgpt.server.rest_api.agents.command import CommandResponse
@@ -650,6 +651,15 @@ class LocalClient(AbstractClient):
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface=self.interface)
 
+    # messages
+    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
+        self.interface.clear()
+        self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
+        if self.auto_save:
+            self.save()
+        else:
+            return UserMessageResponse(messages=self.interface.to_list())
+
     # agents
 
     def list_agents(self):
@@ -670,14 +680,24 @@ class LocalClient(AbstractClient):
     def create_agent(
         self,
         name: Optional[str] = None,
-        preset: Optional[str] = None,
+        preset: Optional[str] = None,  # TODO: this should actually be re-named preset_name
         persona: Optional[str] = None,
         human: Optional[str] = None,
+        embedding_config: Optional[EmbeddingConfig] = None,
+        llm_config: Optional[LLMConfig] = None,
+        # tools
+        tools: Optional[List[str]] = None,
+        include_base_tools: Optional[bool] = True,
     ) -> AgentState:
         if name and self.agent_exists(agent_name=name):
             raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
 
-        # TODO: implement tools support
+        # construct list of tools
+        tool_names = []
+        if tools:
+            tool_names += tools
+        if include_base_tools:
+            tool_names += BASE_TOOLS
 
         self.interface.clear()
         agent_state = self.server.create_agent(
@@ -686,7 +706,9 @@ class LocalClient(AbstractClient):
             preset=preset,
             persona=persona,
             human=human,
-            tools=[tool.name for tool in load_module_tools()],
+            llm_config=llm_config,
+            embedding_config=embedding_config,
+            tools=tool_names,
         )
         return agent_state
 
@@ -711,10 +733,9 @@ class LocalClient(AbstractClient):
         return self.server.list_presets(user_id=self.user_id)
 
     # memory
-
     def get_agent_memory(self, agent_id: str) -> Dict:
-        self.interface.clear()
-        return self.server.get_agent_memory(user_id=self.user_id, agent_id=agent_id)
+        memory = self.server.get_agent_memory(user_id=self.user_id, agent_id=agent_id)
+        return GetAgentMemoryResponse(**memory)
 
     def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Dict:
         self.interface.clear()
@@ -771,6 +792,59 @@ class LocalClient(AbstractClient):
         return self.server.delete_human(name, user_id)
 
     # tools
+    def create_tool(
+        self,
+        func,
+        name: Optional[str] = None,
+        update: Optional[bool] = True,  # TODO: actually use this
+        tags: Optional[List[str]] = None,
+    ):
+        """
+        Create a tool.
+
+        Args:
+            func (callable): The function to create a tool for.
+            tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
+            update (bool, optional): Update the tool if it already exists. Defaults to True.
+
+        Returns:
+            tool (ToolModel): The created tool.
+        """
+
+        # TODO: check if tool already exists
+        # TODO: how to load modules?
+        # parse source code/schema
+        source_code = parse_source_code(func)
+        json_schema = generate_schema(func, name)
+        source_type = "python"
+        tool_name = json_schema["name"]
+
+        # check if already exists:
+        existing_tool = self.server.ms.get_tool(tool_name)
+        if existing_tool:
+            if update:
+                # update existing tool
+                existing_tool.source_code = source_code
+                existing_tool.source_type = source_type
+                existing_tool.tags = tags
+                existing_tool.json_schema = json_schema
+                self.server.ms.update_tool(existing_tool)
+                return self.server.ms.get_tool(tool_name)
+            else:
+                raise ValueError(f"Tool {name} already exists and update=False")
+
+        tool = ToolModel(name=tool_name, source_code=source_code, source_type=source_type, tags=tags, json_schema=json_schema)
+        self.server.ms.add_tool(tool)
+        return self.server.ms.get_tool(tool_name)
+
+    def list_tools(self):
+        """List available tools.
+
+        Returns:
+            tools (List[ToolModel]): A list of available tools.
+
+        """
+        return self.server.ms.list_tools()
 
     # data sources
 
