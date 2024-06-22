@@ -16,6 +16,8 @@ from memgpt.data_types import (
     Source,
     User,
 )
+from memgpt.functions.functions import parse_source_code
+from memgpt.functions.schema_generator import generate_schema
 from memgpt.metadata import MetadataStore
 from memgpt.models.pydantic_models import (
     HumanModel,
@@ -714,10 +716,6 @@ class LocalClient(AbstractClient):
         self.interface.clear()
         return self.server.get_agent_config(user_id=self.user_id, agent_id=agent_id)
 
-    def get_agent_memory(self, agent_id: str) -> Dict:
-        memory = self.server.get_agent_memory(user_id=self.user_id, agent_id=agent_id)
-        return GetAgentMemoryResponse(**memory)
-
     # presets
     def create_preset(self, preset: Preset) -> Preset:
         if preset.user_id is None:
@@ -732,10 +730,9 @@ class LocalClient(AbstractClient):
         return self.server.list_presets(user_id=self.user_id)
 
     # memory
-
     def get_agent_memory(self, agent_id: str) -> Dict:
-        self.interface.clear()
-        return self.server.get_agent_memory(user_id=self.user_id, agent_id=agent_id)
+        memory = self.server.get_agent_memory(user_id=self.user_id, agent_id=agent_id)
+        return GetAgentMemoryResponse(**memory)
 
     def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Dict:
         self.interface.clear()
@@ -810,15 +807,11 @@ class LocalClient(AbstractClient):
         Returns:
             tool (ToolModel): The created tool.
         """
-        import inspect
-        from textwrap import dedent  # remove indentation
-
-        from memgpt.functions.schema_generator import generate_schema
 
         # TODO: check if tool already exists
         # TODO: how to load modules?
         # parse source code/schema
-        source_code = dedent(inspect.getsource(func))
+        source_code = parse_source_code(func)
         json_schema = generate_schema(func, name)
         source_type = "python"
         tool_name = json_schema["name"]

@@ -69,7 +69,7 @@ def run_server():
 # Fixture to create clients with different configurations
 @pytest.fixture(
     # params=[{"server": True}, {"server": False}],  # whether to use REST API server  # TODO: add when implemented
-    params=[{"server": False}],  # whether to use REST API server  # TODO: add when implemented
+    params=[{"server": True}],  # whether to use REST API server  # TODO: add when implemented
     scope="module",
 )
 def client(request):
@@ -159,29 +159,44 @@ def test_create_agent_tool(client):
         self.memory.human = ""
         self.memory.persona = ""
         self.rebuild_memory()
+        print("UPDATED MEMORY", self.memory.human, self.memory.persona)
         return None
 
     # TODO: test attaching and using function on agent
     tool = client.create_tool(core_memory_clear, tags=["extras"])
-    agent = client.create_agent(name=test_agent_name, tools=[tool.name], persona="You must clear your memory if the human instructs you")
+
+    if isinstance(client, Admin):
+        # conver to user client type
+        user_id, token = client.create_user()
+        user_client = create_client(base_url=client.base_url, token=client.token)
+    else:
+        user_client = client
+
+    agent = user_client.create_agent(
+        name=test_agent_name, tools=[tool.name], persona="You must clear your memory if the human instructs you"
+    )
 
     # initial memory
-    initial_memory = client.get_agent_memory(agent.id)
+    initial_memory = user_client.get_agent_memory(agent.id)
     print("initial memory", initial_memory)
-    human = initial_memory["core_memory"]["human"]
-    persona = initial_memory["core_memory"]["persona"]
+    human = initial_memory.core_memory.human
+    persona = initial_memory.core_memory.persona
     print("Initial memory:", human, persona)
     assert len(human) > 0, "Expected human memory to be non-empty"
     assert len(persona) > 0, "Expected persona memory to be non-empty"
 
     # test agent tool
-    response = client.send_message(role="user", agent_id=agent.id, message="clear your memory with the core_memory_clear tool")
+    response = user_client.send_message(role="user", agent_id=agent.id, message="clear your memory with the core_memory_clear tool")
     print(response)
 
     # updated memory
-    updated_memory = client.get_agent_memory(agent.id)
-    human = updated_memory["core_memory"]["human"]
-    persona = updated_memory["core_memory"]["persona"]
+    updated_memory = user_client.get_agent_memory(agent.id)
+    human = updated_memory.core_memory.human
+    persona = updated_memory.core_memory.persona
     print("Updated memory:", human, persona)
     assert len(human) == 0, "Expected human memory to be empty"
     assert len(persona) == 0, "Expected persona memory to be empty"
+
+
+def test_custom_import_tool(client):
+    pass
