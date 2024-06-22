@@ -692,9 +692,12 @@ class LocalClient(AbstractClient):
         if name and self.agent_exists(agent_name=name):
             raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
 
-        # TODO: implement tools support
+        # construct list of tools
+        tool_names = []
+        if tools:
+            tool_names += tools
         if include_base_tools:
-            tools += BASE_TOOLS
+            tool_names += BASE_TOOLS
 
         self.interface.clear()
         agent_state = self.server.create_agent(
@@ -705,7 +708,7 @@ class LocalClient(AbstractClient):
             human=human,
             llm_config=llm_config,
             embedding_config=embedding_config,
-            tools=tools,
+            tools=tool_names,
         )
         return agent_state
 
