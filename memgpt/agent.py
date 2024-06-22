@@ -236,7 +236,7 @@ class Agent(object):
         if "human" not in self.agent_state.state:  # TODO: remove
             raise ValueError(f"'human' not found in provided AgentState")
         self.memory = initialize_memory(ai_notes=self.agent_state.state["persona"], human_notes=self.agent_state.state["human"])
-        print("INITIALIZED MEMORY", self.memory.persona, self.memory.human)
+        printd("INITIALIZED MEMORY", self.memory.persona, self.memory.human)
 
         # Interface must implement:
         # - internal_monologue
