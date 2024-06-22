@@ -771,6 +771,48 @@ class LocalClient(AbstractClient):
         return self.server.delete_human(name, user_id)
 
     # tools
+    def create_tool(
+        self,
+        func,
+        name: Optional[str] = None,
+        update: Optional[bool] = True,  # TODO: actually use this
+        tags: Optional[List[str]] = None,
+    ):
+        """
+        Create a tool.
+
+        Args:
+            func (callable): The function to create a tool for.
+            tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
+            update (bool, optional): Update the tool if it already exists. Defaults to True.
+
+        Returns:
+            tool (ToolModel): The created tool.
+        """
+        import inspect
+
+        from memgpt.functions.schema_generator import generate_schema
+
+        # TODO: check if tool already exists
+        # TODO: how to load modules?
+        # parse source code/schema
+        source_code = inspect.getsource(func)
+        json_schema = generate_schema(func, name)
+        source_type = "python"
+        tool_name = json_schema["name"]
+
+        tool = ToolModel(name=tool_name, source_code=source_code, source_type=source_type, tags=tags, json_schema=json_schema)
+        self.server.ms.add_tool(tool)
+        return self.server.ms.get_tool(tool_name)
+
+    def list_tools(self):
+        """List available tools.
+
+        Returns:
+            tools (List[ToolModel]): A list of available tools.
+
+        """
+        return self.server.ms.list_tools()
 
     # data sources
 
