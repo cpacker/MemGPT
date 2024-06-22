@@ -127,6 +127,8 @@ class Message(Record):
         # if role == "assistant", this MAY be specified
         # if role != "assistant", this must be null
         assert tool_calls is None or isinstance(tool_calls, list)
+        if tool_calls is not None:
+            assert all([isinstance(tc, ToolCall) for tc in tool_calls]), f"Tool calls must be of type ToolCall, got {tool_calls}"
         self.tool_calls = tool_calls
 
         # if role == "tool", then this must be specified
@@ -751,6 +753,7 @@ class User:
 
 
 class AgentState:
+
     def __init__(
         self,
         name: str,
