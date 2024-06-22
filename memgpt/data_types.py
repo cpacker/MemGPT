@@ -754,11 +754,16 @@ class AgentState:
         self,
         name: str,
         user_id: uuid.UUID,
-        persona: str,  # the filename where the persona was originally sourced from
-        human: str,  # the filename where the human was originally sourced from
+        # tools
+        tools: List[str],  # list of tools by name
+        # system prompt
+        system: str,
+        # config
+        persona: str,  # the filename where the persona was originally sourced from # TODO: remove
+        human: str,  # the filename where the human was originally sourced from # TODO: remove
         llm_config: LLMConfig,
         embedding_config: EmbeddingConfig,
-        preset: str,
+        preset: str,  # TODO: remove
         # (in-context) state contains:
         # persona: str  # the current persona text
         # human: str  # the current human text
@@ -768,6 +773,8 @@ class AgentState:
         id: Optional[uuid.UUID] = None,
         state: Optional[dict] = None,
         created_at: Optional[datetime] = None,
+        # messages (TODO: implement this)
+        # _metadata: Optional[dict] = None,
     ):
         if id is None:
             self.id = uuid.uuid4()
@@ -779,6 +786,7 @@ class AgentState:
         # TODO(swooders) we need to handle the case where name is None here
         # in AgentConfig we autogenerate a name, not sure what the correct thing w/ DBs is, what about NounAdjective combos? Like giphy does? BoredGiraffe etc
         self.name = name
+        assert self.name, f"AgentState name must be a non-empty string"
         self.user_id = user_id
         self.preset = preset
         # The INITIAL values of the persona and human
@@ -793,6 +801,15 @@ class AgentState:
 
         # state
         self.state = {} if not state else state
+
+        # tools
+        self.tools = tools
+
+        # system
+        self.system = system
+
+        # metadata
+        # self._metadata = _metadata
 
 
 class Source:

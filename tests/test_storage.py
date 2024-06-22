@@ -192,12 +192,12 @@ def test_storage(
         human=get_human_text(TEST_MEMGPT_CONFIG.human),
         llm_config=TEST_MEMGPT_CONFIG.default_llm_config,
         embedding_config=TEST_MEMGPT_CONFIG.default_embedding_config,
+        system="",
+        tools=[],
         state={
             "persona": "",
             "human": "",
-            "system": "",
-            "functions": [],
-            "messages": [],
+            "messages": None,
         },
     )
     ms.create_user(user)

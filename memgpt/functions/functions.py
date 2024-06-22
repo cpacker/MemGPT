@@ -28,6 +28,7 @@ def load_function_set(module: ModuleType) -> dict:
 
             generated_schema = generate_schema(attr)
             function_dict[attr_name] = {
+                "module": inspect.getsource(module),
                 "python_function": attr,
                 "json_schema": generated_schema,
             }
