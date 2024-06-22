@@ -1016,3 +1016,4 @@ pgdata/
 ## pytest mirrors
 memgpt/.pytest_cache/
 memgpy/pytest.ini
+**/**/pytest_cache

@@ -3,6 +3,7 @@ import inspect
 import os
 import sys
 import warnings
+from textwrap import dedent  # remove indentation
 from types import ModuleType
 
 from memgpt.constants import CLI_WARNING_PREFIX, MEMGPT_DIR
@@ -11,6 +12,12 @@ from memgpt.functions.schema_generator import generate_schema
 USER_FUNCTIONS_DIR = os.path.join(MEMGPT_DIR, "functions")
 
 sys.path.append(USER_FUNCTIONS_DIR)
+
+
+def parse_source_code(func) -> str:
+    """Parse the source code of a function and remove indendation"""
+    source_code = dedent(inspect.getsource(func))
+    return source_code
 
 
 def load_function_set(module: ModuleType) -> dict:
@@ -28,6 +35,7 @@ def load_function_set(module: ModuleType) -> dict:
 
             generated_schema = generate_schema(attr)
             function_dict[attr_name] = {
+                "module": inspect.getsource(module),
                 "python_function": attr,
                 "json_schema": generated_schema,
             }

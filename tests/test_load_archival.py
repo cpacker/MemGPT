@@ -6,17 +6,19 @@ from sqlalchemy.ext.declarative import declarative_base
 
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.cli.cli_load import load_directory
+from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, User
+from memgpt.data_types import EmbeddingConfig, User
 from memgpt.metadata import MetadataStore
 
 # from memgpt.data_sources.connectors import DirectoryConnector, load_data
 # import memgpt
 from memgpt.settings import settings
-from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
 
-from .utils import wipe_config
+from .utils import create_config, wipe_config, with_qdrant_storage
+
+GET_ALL_LIMIT = 1000
 
 
 @pytest.fixture(autouse=True)
@@ -38,7 +40,7 @@ def recreate_declarative_base():
 
 
 @pytest.mark.parametrize("metadata_storage_connector", ["sqlite", "postgres"])
-@pytest.mark.parametrize("passage_storage_connector", ["chroma", "postgres", "milvus"])
+@pytest.mark.parametrize("passage_storage_connector", with_qdrant_storage(["chroma", "postgres", "milvus"]))
 def test_load_directory(
     metadata_storage_connector,
     passage_storage_connector,
@@ -46,17 +48,18 @@ def test_load_directory(
     recreate_declarative_base,
 ):
     wipe_config()
-    TEST_MEMGPT_CONFIG.default_embedding_config = EmbeddingConfig(
-        embedding_endpoint_type="openai",
-        embedding_endpoint="https://api.openai.com/v1",
-        embedding_dim=1536,
-        embedding_model="text-embedding-ada-002",
-    )
-    TEST_MEMGPT_CONFIG.default_llm_config = LLMConfig(
-        model_endpoint_type="openai",
-        model_endpoint="https://api.openai.com/v1",
-        model="gpt-4",
-    )
+    if os.getenv("OPENAI_API_KEY"):
+        create_config("openai")
+        credentials = MemGPTCredentials(
+            openai_key=os.getenv("OPENAI_API_KEY"),
+        )
+    else:  # hosted
+        create_config("memgpt_hosted")
+        credentials = MemGPTCredentials()
+
+    config = MemGPTConfig.load()
+    TEST_MEMGPT_CONFIG.default_embedding_config = config.default_embedding_config
+    TEST_MEMGPT_CONFIG.default_llm_config = config.default_llm_config
 
     # setup config
     if metadata_storage_connector == "postgres":
@@ -73,6 +76,10 @@ def test_load_directory(
     elif passage_storage_connector == "chroma":
         print("testing chroma passage storage")
         # nothing to do (should be config defaults)
+    elif passage_storage_connector == "qdrant":
+        print("Testing Qdrant passage storage")
+        TEST_MEMGPT_CONFIG.archival_storage_type = "qdrant"
+        TEST_MEMGPT_CONFIG.archival_storage_uri = "localhost:6333"
     elif passage_storage_connector == "milvus":
         print("Testing Milvus passage storage")
         TEST_MEMGPT_CONFIG.archival_storage_type = "milvus"
@@ -123,15 +130,17 @@ def test_load_directory(
     # config.save()
 
     # create user and agent
-    agent = AgentState(
-        user_id=user.id,
-        name="test_agent",
-        preset=TEST_MEMGPT_CONFIG.preset,
-        persona=get_persona_text(TEST_MEMGPT_CONFIG.persona),
-        human=get_human_text(TEST_MEMGPT_CONFIG.human),
-        llm_config=TEST_MEMGPT_CONFIG.default_llm_config,
-        embedding_config=TEST_MEMGPT_CONFIG.default_embedding_config,
-    )
+    # agent = AgentState(
+    #    user_id=user.id,
+    #    name="test_agent",
+    #    preset=TEST_MEMGPT_CONFIG.preset,
+    #    persona=get_persona_text(TEST_MEMGPT_CONFIG.persona),
+    #    human=get_human_text(TEST_MEMGPT_CONFIG.human),
+    #    llm_config=TEST_MEMGPT_CONFIG.default_llm_config,
+    #    embedding_config=TEST_MEMGPT_CONFIG.default_embedding_config,
+    #    tools=[],
+    #    system="",
+    # )
     ms.delete_user(user.id)
     ms.create_user(user)
     # ms.create_agent(agent)
@@ -155,7 +164,9 @@ def test_load_directory(
     passages_conn.delete_table()
     print("Re-creating tables...")
     passages_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, TEST_MEMGPT_CONFIG, user_id)
-    assert passages_conn.size() == 0, f"Expected 0 records, got {passages_conn.size()}: {[vars(r) for r in passages_conn.get_all()]}"
+    assert (
+        passages_conn.size() == 0
+    ), f"Expected 0 records, got {passages_conn.size()}: {[vars(r) for r in passages_conn.get_all(limit=GET_ALL_LIMIT)]}"
 
     # test: load directory
     print("Loading directory")
@@ -171,11 +182,12 @@ def test_load_directory(
 
     # test to see if contained in storage
     assert (
-        len(passages_conn.get_all()) == passages_conn.size()
-    ), f"Expected {passages_conn.size()} passages, but got {len(passages_conn.get_all())}"
-    passages = passages_conn.get_all({"data_source": name})
+        len(passages_conn.get_all(limit=GET_ALL_LIMIT)) == passages_conn.size()
+    ), f"Expected {passages_conn.size()} passages, but got {len(passages_conn.get_all(limit=GET_ALL_LIMIT))}"
+    passages = passages_conn.get_all({"data_source": name}, limit=GET_ALL_LIMIT)
     print("Source", [p.data_source for p in passages])
-    print("All sources", [p.data_source for p in passages_conn.get_all()])
+    print(passages_conn.get_all(limit=GET_ALL_LIMIT))
+    print("All sources", [p.data_source for p in passages_conn.get_all(limit=GET_ALL_LIMIT)])
     assert len(passages) > 0, f"Expected >0 passages, but got {len(passages)}"
     assert len(passages) == passages_conn.size(), f"Expected {passages_conn.size()} passages, but got {len(passages)}"
     assert [p.data_source == name for p in passages]
@@ -196,7 +208,7 @@ def test_load_directory(
     # print("Deleting agent archival table...")
     # conn.delete_table()
     # conn = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config=config, user_id=user_id, agent_id=agent_id)
-    # assert conn.size() == 0, f"Expected 0 records, got {conn.size()}: {[vars(r) for r in conn.get_all()]}"
+    # assert conn.size() == 0, f"Expected 0 records, got {conn.size()}: {[vars(r) for r in conn.get_all(limit=GET_ALL_LIMIT)]}"
 
     ## attach data
     # print("Attaching data...")
@@ -204,15 +216,14 @@ def test_load_directory(
 
     ## test to see if contained in storage
     # assert len(passages) == conn.size()
-    # assert len(passages) == len(conn.get_all({"data_source": name}))
+    # assert len(passages) == len(conn.get_all({"data_source": name}, limit=GET_ALL_LIMIT))
 
     ## test: delete source
     # passages_conn.delete({"data_source": name})
-    # assert len(passages_conn.get_all({"data_source": name})) == 0
+    # assert len(passages_conn.get_all({"data_source": name}, limit=GET_ALL_LIMIT)) == 0
 
     # cleanup
     ms.delete_user(user.id)
-    ms.delete_agent(agent.id)
     ms.delete_source(sources[0].id)
 
     # revert to openai config

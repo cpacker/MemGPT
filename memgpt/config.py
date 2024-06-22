@@ -9,7 +9,9 @@ import memgpt
 import memgpt.utils as utils
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET, MEMGPT_DIR
 from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig
-from memgpt.log import logger
+from memgpt.log import get_logger
+
+logger = get_logger(__name__)
 
 
 # helper functions for writing to configs
@@ -179,6 +181,7 @@ class MemGPTConfig:
         # create new config
         anon_clientid = MemGPTConfig.generate_uuid()
         config = cls(anon_clientid=anon_clientid, config_path=config_path)
+
         config.create_config_dir()  # create dirs
 
         return config

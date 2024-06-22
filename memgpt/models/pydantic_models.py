@@ -1,3 +1,4 @@
+# tool imports
 import uuid
 from datetime import datetime
 from enum import Enum
@@ -48,11 +49,12 @@ class PresetModel(BaseModel):
 
 class ToolModel(SQLModel, table=True):
     # TODO move into database
-    name: str = Field(..., description="The name of the function.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the function.", primary_key=True)
+    name: str = Field(..., description="The name of the function.", primary_key=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the function.")
     tags: List[str] = Field(sa_column=Column(JSON), description="Metadata tags.")
     source_type: Optional[str] = Field(None, description="The type of the source code.")
     source_code: Optional[str] = Field(..., description="The source code of the function.")
+    module: Optional[str] = Field(None, description="The module of the function.")
 
     json_schema: Dict = Field(default_factory=dict, sa_column=Column(JSON), description="The JSON schema of the function.")
 
@@ -89,7 +91,9 @@ class AgentStateModel(BaseModel):
     preset: str = Field(..., description="The preset used by the agent.")
     persona: str = Field(..., description="The persona used by the agent.")
     human: str = Field(..., description="The human used by the agent.")
-    functions_schema: List[Dict] = Field(..., description="The functions schema used by the agent.")
+    tools: List[str] = Field(..., description="The tools used by the agent.")
+    system: str = Field(..., description="The system prompt used by the agent.")
+    # functions_schema: List[Dict] = Field(..., description="The functions schema used by the agent.")
 
     # llm information
     llm_config: LLMConfigModel = Field(..., description="The LLM configuration used by the agent.")

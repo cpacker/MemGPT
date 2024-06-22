@@ -12,6 +12,7 @@ from memgpt.constants import (
     DEFAULT_HUMAN,
     DEFAULT_PERSONA,
     DEFAULT_PRESET,
+    JSON_ENSURE_ASCII,
     LLM_MAX_TOKENS,
     MAX_EMBEDDING_DIM,
     TOOL_CALL_ID_MAX_LEN,
@@ -126,6 +127,8 @@ class Message(Record):
         # if role == "assistant", this MAY be specified
         # if role != "assistant", this must be null
         assert tool_calls is None or isinstance(tool_calls, list)
+        if tool_calls is not None:
+            assert all([isinstance(tc, ToolCall) for tc in tool_calls]), f"Tool calls must be of type ToolCall, got {tool_calls}"
         self.tool_calls = tool_calls
 
         # if role == "tool", then this must be specified
@@ -551,7 +554,7 @@ class Message(Record):
                 cohere_message = []
                 for tc in self.tool_calls:
                     # TODO better way to pack?
-                    function_call_text = json.dumps(tc.to_dict())
+                    function_call_text = json.dumps(tc.to_dict(), ensure_ascii=JSON_ENSURE_ASCII)
                     cohere_message.append(
                         {
                             "role": function_call_role,
@@ -750,15 +753,21 @@ class User:
 
 
 class AgentState:
+
     def __init__(
         self,
         name: str,
         user_id: uuid.UUID,
-        persona: str,  # the filename where the persona was originally sourced from
-        human: str,  # the filename where the human was originally sourced from
+        # tools
+        tools: List[str],  # list of tools by name
+        # system prompt
+        system: str,
+        # config
+        persona: str,  # the filename where the persona was originally sourced from # TODO: remove
+        human: str,  # the filename where the human was originally sourced from # TODO: remove
         llm_config: LLMConfig,
         embedding_config: EmbeddingConfig,
-        preset: str,
+        preset: str,  # TODO: remove
         # (in-context) state contains:
         # persona: str  # the current persona text
         # human: str  # the current human text
@@ -768,6 +777,8 @@ class AgentState:
         id: Optional[uuid.UUID] = None,
         state: Optional[dict] = None,
         created_at: Optional[datetime] = None,
+        # messages (TODO: implement this)
+        # _metadata: Optional[dict] = None,
     ):
         if id is None:
             self.id = uuid.uuid4()
@@ -779,6 +790,7 @@ class AgentState:
         # TODO(swooders) we need to handle the case where name is None here
         # in AgentConfig we autogenerate a name, not sure what the correct thing w/ DBs is, what about NounAdjective combos? Like giphy does? BoredGiraffe etc
         self.name = name
+        assert self.name, f"AgentState name must be a non-empty string"
         self.user_id = user_id
         self.preset = preset
         # The INITIAL values of the persona and human
@@ -793,6 +805,15 @@ class AgentState:
 
         # state
         self.state = {} if not state else state
+
+        # tools
+        self.tools = tools
+
+        # system
+        self.system = system
+
+        # metadata
+        # self._metadata = _metadata
 
 
 class Source:

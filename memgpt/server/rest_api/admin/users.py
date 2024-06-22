@@ -11,7 +11,13 @@ from memgpt.server.server import SyncServer
 router = APIRouter()
 
 
+class GetAllUsersRequest(BaseModel):
+    cursor: Optional[uuid.UUID] = Field(None, description="Cursor to which to start the paginated request.")
+    limit: Optional[int] = Field(50, description="Maximum number of users to retrieve per page.")
+
+
 class GetAllUsersResponse(BaseModel):
+    cursor: Optional[uuid.UUID] = Field(None, description="Cursor for the next page in the response.")
     user_list: List[dict] = Field(..., description="A list of users.")
 
 
@@ -54,18 +60,18 @@ class DeleteUserResponse(BaseModel):
 
 def setup_admin_router(server: SyncServer, interface: QueuingInterface):
     @router.get("/users", tags=["admin"], response_model=GetAllUsersResponse)
-    def get_all_users():
+    def get_all_users(request: GetAllUsersRequest = Body(...)):
         """
         Get a list of all users in the database
         """
         try:
-            users = server.ms.get_all_users()
+            next_cursor, users = server.ms.get_all_users(request.cursor, request.limit)
             processed_users = [{"user_id": user.id} for user in users]
         except HTTPException:
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
-        return GetAllUsersResponse(user_list=processed_users)
+        return GetAllUsersResponse(cursor=next_cursor, user_list=processed_users)
 
     @router.post("/users", tags=["admin"], response_model=CreateUserResponse)
     def create_user(request: Optional[CreateUserRequest] = Body(None)):

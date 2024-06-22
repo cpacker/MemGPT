@@ -1,6 +1,5 @@
 """ Metadata store for user/agent/data_source information"""
 
-import inspect as python_inspect
 import os
 import secrets
 import traceback
@@ -17,6 +16,7 @@ from sqlalchemy import (
     String,
     TypeDecorator,
     create_engine,
+    desc,
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -34,7 +34,6 @@ from memgpt.data_types import (
     Token,
     User,
 )
-from memgpt.functions.functions import load_all_function_sets
 from memgpt.models.pydantic_models import (
     HumanModel,
     JobModel,
@@ -87,7 +86,6 @@ class LLMConfigColumn(TypeDecorator):
         return value
 
     def process_result_value(self, value, dialect):
-        # print("GET VALUE", value)
         if value:
             return LLMConfig(**value)
         return value
@@ -179,6 +177,7 @@ class AgentModel(Base):
     name = Column(String, nullable=False)
     persona = Column(String)
     human = Column(String)
+    system = Column(String)
     preset = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -188,6 +187,9 @@ class AgentModel(Base):
 
     # state
     state = Column(JSON)
+
+    # tools
+    tools = Column(JSON)
 
     def __repr__(self) -> str:
         return f"<Agent(id='{self.id}', name='{self.name}')>"
@@ -204,6 +206,8 @@ class AgentModel(Base):
             llm_config=self.llm_config,
             embedding_config=self.embedding_config,
             state=self.state,
+            tools=self.tools,
+            system=self.system,
         )
 
 
@@ -400,10 +404,7 @@ class MetadataStore:
     @enforce_types
     def get_api_key(self, api_key: str) -> Optional[Token]:
         with self.session_maker() as session:
-            print("getting api key", api_key)
-            print([r.token for r in self.get_all_api_keys_for_user(user_id=uuid.UUID(int=0))])
             results = session.query(TokenModel).filter(TokenModel.token == api_key).all()
-            print("results", [r.token for r in results])
             if len(results) == 0:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"  # should only be one result
@@ -414,18 +415,15 @@ class MetadataStore:
         with self.session_maker() as session:
             results = session.query(TokenModel).filter(TokenModel.user_id == user_id).all()
             tokens = [r.to_record() for r in results]
-            print([t.token for t in tokens])
             return tokens
 
     @enforce_types
     def get_user_from_api_key(self, api_key: str) -> Optional[User]:
         """Get the user associated with a given API key"""
         token = self.get_api_key(api_key=api_key)
-        print("got api key", token.token, token is None)
         if token is None:
-            raise ValueError(f"Token {api_key} does not exist")
+            raise ValueError(f"Provided token does not exist")
         else:
-            print(isinstance(token.user_id, uuid.UUID), self.get_user(user_id=token.user_id))
             return self.get_user(user_id=token.user_id)
 
     @enforce_types
@@ -552,6 +550,13 @@ class MetadataStore:
             session.refresh(persona)
 
     @enforce_types
+    def update_tool(self, tool: ToolModel):
+        with self.session_maker() as session:
+            session.add(tool)
+            session.commit()
+            session.refresh(tool)
+
+    @enforce_types
     def delete_agent(self, agent_id: uuid.UUID):
         with self.session_maker() as session:
 
@@ -601,21 +606,8 @@ class MetadataStore:
     # def list_tools(self, user_id: uuid.UUID) -> List[ToolModel]: # TODO: add when users can creat tools
     def list_tools(self) -> List[ToolModel]:
         with self.session_maker() as session:
-            available_functions = load_all_function_sets()
-            results = [
-                ToolModel(
-                    name=k,
-                    json_schema=v["json_schema"],
-                    tags=v["tags"],
-                    source_type="python",
-                    source_code=python_inspect.getsource(v["python_function"]),
-                )
-                for k, v in available_functions.items()
-            ]
-            # print(results)
+            results = session.query(ToolModel).all()
             return results
-            # results = session.query(PresetModel).filter(PresetModel.user_id == user_id).all()
-            # return [r.to_record() for r in results]
 
     @enforce_types
     def list_agents(self, user_id: uuid.UUID) -> List[AgentState]:
@@ -655,11 +647,19 @@ class MetadataStore:
             return results[0].to_record()
 
     @enforce_types
-    def get_all_users(self) -> List[User]:
-        # TODO make paginated
+    def get_all_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50) -> (Optional[uuid.UUID], List[User]):
         with self.session_maker() as session:
-            results = session.query(UserModel).all()
-            return [r.to_record() for r in results]
+            query = session.query(UserModel).order_by(desc(UserModel.id))
+            if cursor:
+                query = query.filter(UserModel.id < cursor)
+            results = query.limit(limit).all()
+            if not results:
+                return None, []
+            user_records = [r.to_record() for r in results]
+            next_cursor = user_records[-1].id
+            assert isinstance(next_cursor, uuid.UUID)
+
+            return next_cursor, user_records
 
     @enforce_types
     def get_source(

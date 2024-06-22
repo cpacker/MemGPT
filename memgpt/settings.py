@@ -1,11 +1,15 @@
+from pathlib import Path
 from typing import Optional
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="memgpt_")
 
+    memgpt_dir: Optional[Path] = Field(Path.home() / ".memgpt", env="MEMGPT_DIR")
+    debug: Optional[bool] = False
     server_pass: Optional[str] = None
     pg_db: Optional[str] = None
     pg_user: Optional[str] = None
@@ -14,6 +18,9 @@ class Settings(BaseSettings):
     pg_port: Optional[int] = None
     pg_uri: Optional[str] = None  # option to specifiy full uri
     cors_origins: Optional[list] = ["http://memgpt.localhost", "http://localhost:8283", "http://localhost:8083"]
+
+    # agent configuration defaults
+    default_preset: Optional[str] = "memgpt_chat"
 
     @property
     def memgpt_pg_uri(self) -> str:
