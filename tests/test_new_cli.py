@@ -6,6 +6,26 @@ import unittest.mock
 import pytest
 
 from memgpt.cli.cli_config import add, delete, list
+from memgpt.config import MemGPTConfig
+from memgpt.credentials import MemGPTCredentials
+from tests.utils import create_config
+
+
+def _reset_config():
+
+    if os.getenv("OPENAI_API_KEY"):
+        create_config("openai")
+        credentials = MemGPTCredentials(
+            openai_key=os.getenv("OPENAI_API_KEY"),
+        )
+    else:  # hosted
+        create_config("memgpt_hosted")
+        credentials = MemGPTCredentials()
+
+    config = MemGPTConfig.load()
+    config.save()
+    credentials.save()
+    print("_reset_config :: ", config.config_path)
 
 
 @pytest.mark.skip(reason="This is a helper function.")
@@ -31,6 +51,7 @@ def reset_env_variables(server_url, token):
 
 
 def test_crud_human(capsys):
+    _reset_config()
 
     server_url, token = unset_env_variables()
 
