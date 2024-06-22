@@ -663,7 +663,7 @@ def run(
                 preset=preset_obj.name,
                 state={"messages": None, "persona": preset_obj.persona, "human": preset_obj.human},
             )
-            print("tools", agent_state.tools)
+            typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
             tools = [ms.get_tool(tool_name) for tool_name in agent_state.tools]
 
             memgpt_agent = Agent(
