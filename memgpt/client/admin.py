@@ -4,6 +4,8 @@ from typing import List, Optional
 import requests
 from requests import HTTPError
 
+from memgpt.functions.functions import parse_source_code
+from memgpt.functions.schema_generator import generate_schema
 from memgpt.models.pydantic_models import ToolModel
 from memgpt.server.rest_api.admin.users import (
     CreateAPIKeyResponse,
@@ -101,14 +103,11 @@ class Admin:
         Returns:
             Tool object
         """
-        import inspect
-
-        from memgpt.functions.schema_generator import generate_schema
 
         # TODO: check if tool already exists
         # TODO: how to load modules?
         # parse source code/schema
-        source_code = inspect.getsource(func)
+        source_code = parse_source_code(func)
         json_schema = generate_schema(func, name)
         source_type = "python"
         tool_name = json_schema["name"]
