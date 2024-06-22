@@ -214,7 +214,7 @@ def run_agent_loop(
                     # Check if there's an additional argument that's an integer
                     command = user_input.strip().split()
                     pop_amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 3
-                    n_messages = len(memgpt_agent.messages)
+                    n_messages = len(memgpt_agent._messages)
                     MIN_MESSAGES = 2
                     if n_messages <= MIN_MESSAGES:
                         print(f"Agent only has {n_messages} messages in stack, none left to pop")
@@ -222,35 +222,42 @@ def run_agent_loop(
                         print(f"Agent only has {n_messages} messages in stack, cannot pop more than {n_messages - MIN_MESSAGES}")
                     else:
                         print(f"Popping last {pop_amount} messages from stack")
-                        for _ in range(min(pop_amount, len(memgpt_agent.messages))):
-                            memgpt_agent.messages.pop()
+                        for _ in range(min(pop_amount, len(memgpt_agent._messages))):
+                            # remove the message from the internal state of the agent
+                            deleted_message = memgpt_agent._messages.pop()
+                            # then also remove it from recall storage
+                            memgpt_agent.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
                     continue
 
                 elif user_input.lower() == "/retry":
-                    # TODO this needs to also modify the persistence manager
                     print(f"Retrying for another answer")
-                    while len(memgpt_agent.messages) > 0:
-                        if memgpt_agent.messages[-1].get("role") == "user":
+                    while len(memgpt_agent._messages) > 0:
+                        if memgpt_agent._messages[-1].role == "user":
                             # we want to pop up to the last user message and send it again
-                            user_message = memgpt_agent.messages[-1].get("content")
-                            memgpt_agent.messages.pop()
+                            user_message = memgpt_agent._messages[-1].text
+                            deleted_message = memgpt_agent._messages.pop()
+                            # then also remove it from recall storage
+                            memgpt_agent.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
                             break
-                        memgpt_agent.messages.pop()
+                        deleted_message = memgpt_agent._messages.pop()
+                        # then also remove it from recall storage
+                        memgpt_agent.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
 
                 elif user_input.lower() == "/rethink" or user_input.lower().startswith("/rethink "):
-                    # TODO this needs to also modify the persistence manager
                     if len(user_input) < len("/rethink "):
                         print("Missing text after the command")
                         continue
                     for x in range(len(memgpt_agent.messages) - 1, 0, -1):
-                        if memgpt_agent.messages[x].get("role") == "assistant":
-                            text = user_input[len("/rethink ") :].strip()
-                            memgpt_agent.messages[x].update({"content": text})
+                        msg_obj = memgpt_agent._messages[x]
+                        if msg_obj.role == "assistant":
+                            clean_new_text = user_input[len("/rethink ") :].strip()
+                            msg_obj.text = clean_new_text
+                            # To persist to the database, all we need to do is "re-insert" into recall memory
+                            memgpt_agent.persistence_manager.recall_memory.storage.update(record=msg_obj)
                             break
                     continue
 
                 elif user_input.lower() == "/rewrite" or user_input.lower().startswith("/rewrite "):
-                    # TODO this needs to also modify the persistence manager
                     if len(user_input) < len("/rewrite "):
                         print("Missing text after the command")
                         continue
