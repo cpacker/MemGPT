@@ -148,8 +148,9 @@ def test_create_agent_tool(client):
 
     if isinstance(client, Admin):
         # conver to user client type
-        user_id, token = client.create_user()
-        user_client = create_client(base_url=client.base_url, token=client.token)
+        response = client.create_user()
+        print("Created user", response.user_id, response.api_key)
+        user_client = create_client(base_url=client.base_url, token=response.api_key)
     else:
         user_client = client
 
