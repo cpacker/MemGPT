@@ -326,7 +326,6 @@ class SyncServer(LockingServer):
         try:
             logger.info(f"Grabbing agent user_id={user_id} agent_id={agent_id} from database")
             agent_state = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
-            print("GOT AGENT", agent_state.persona, agent_state.human, agent_state.state["persona"], agent_state.state["human"])
             if not agent_state:
                 logger.exception(f"agent_id {agent_id} does not exist")
                 raise ValueError(f"agent_id {agent_id} does not exist")
@@ -404,9 +403,7 @@ class SyncServer(LockingServer):
         logger.debug(f"Finished agent step")
 
         # save updated state
-        print("SAVING AGENT", memgpt_agent.memory.persona)
         save_agent(memgpt_agent, self.ms)
-        print("GET AGENT", self.ms.get_agent(agent_id=agent_id, user_id=user_id).state["persona"])
 
         return tokens_accumulated
 
@@ -958,9 +955,6 @@ class SyncServer(LockingServer):
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-
-        print("LAODED AGENT MEMORY", memgpt_agent.memory.persona, memgpt_agent.memory.human)
-
         core_memory = memgpt_agent.memory
         recall_memory = memgpt_agent.persistence_manager.recall_memory
         archival_memory = memgpt_agent.persistence_manager.archival_memory

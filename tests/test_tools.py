@@ -100,25 +100,6 @@ def client(request):
         yield client
 
 
-# def client():
-#    print("Starting server thread")
-#    thread = threading.Thread(target=run_server, daemon=True)
-#    thread.start()
-#    time.sleep(5)
-#
-#    admin = Admin(local_service_url, test_server_token)
-#    response = admin.create_user()
-#    user_id = response.user_id
-#    token = response.api_key
-#
-#    client = create_client(local_service_url, token=token)  # This yields control back to the test function
-#    yield client
-#
-#    # cleanup user
-#    if request.param["base_url"]:
-#        admin.delete_user(user_id)
-
-
 def test_create_tool(client):
     """Test creation of a simple tool"""
 
