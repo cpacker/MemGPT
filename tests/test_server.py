@@ -9,6 +9,7 @@ import memgpt.utils as utils
 utils.DEBUG = True
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
+from memgpt.presets.presets import load_module_tools
 from memgpt.server.server import SyncServer
 from memgpt.settings import settings
 
@@ -73,6 +74,7 @@ def agent_id(server, user_id):
         user_id=user_id,
         name="test_agent",
         preset="memgpt_chat",
+        tools=[tool.name for tool in load_module_tools()],
     )
     print(f"Created agent\n{agent_state}")
     yield agent_state.id
