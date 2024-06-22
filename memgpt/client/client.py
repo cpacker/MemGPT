@@ -26,7 +26,6 @@ from memgpt.models.pydantic_models import (
     SourceModel,
     ToolModel,
 )
-from memgpt.presets.presets import load_module_tools
 
 # import pydantic response objects from memgpt.server.rest_api
 from memgpt.server.rest_api.agents.command import CommandResponse
@@ -670,14 +669,21 @@ class LocalClient(AbstractClient):
     def create_agent(
         self,
         name: Optional[str] = None,
-        preset: Optional[str] = None,
+        preset: Optional[str] = None,  # TODO: this should actually be re-named preset_name
         persona: Optional[str] = None,
         human: Optional[str] = None,
+        embedding_config: Optional[EmbeddingConfig] = None,
+        llm_config: Optional[LLMConfig] = None,
+        # tools
+        tools: Optional[List[str]] = None,
+        include_base_tools: Optional[bool] = True,
     ) -> AgentState:
         if name and self.agent_exists(agent_name=name):
             raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
 
         # TODO: implement tools support
+        if include_base_tools:
+            tools += BASE_TOOLS
 
         self.interface.clear()
         agent_state = self.server.create_agent(
@@ -686,7 +692,9 @@ class LocalClient(AbstractClient):
             preset=preset,
             persona=persona,
             human=human,
-            tools=[tool.name for tool in load_module_tools()],
+            llm_config=llm_config,
+            embedding_config=embedding_config,
+            tools=tools,
         )
         return agent_state
 
@@ -800,6 +808,20 @@ class LocalClient(AbstractClient):
         json_schema = generate_schema(func, name)
         source_type = "python"
         tool_name = json_schema["name"]
+
+        # check if already exists:
+        existing_tool = self.server.ms.get_tool(tool_name)
+        if existing_tool:
+            if update:
+                # update existing tool
+                existing_tool.source_code = source_code
+                existing_tool.source_type = source_type
+                existing_tool.tags = tags
+                existing_tool.json_schema = json_schema
+                self.server.ms.update_tool(existing_tool)
+                return self.server.ms.get_tool(tool_name)
+            else:
+                raise ValueError(f"Tool {name} already exists and update=False")
 
         tool = ToolModel(name=tool_name, source_code=source_code, source_type=source_type, tags=tags, json_schema=json_schema)
         self.server.ms.add_tool(tool)
