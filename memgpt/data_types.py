@@ -12,6 +12,7 @@ from memgpt.constants import (
     DEFAULT_HUMAN,
     DEFAULT_PERSONA,
     DEFAULT_PRESET,
+    JSON_ENSURE_ASCII,
     LLM_MAX_TOKENS,
     MAX_EMBEDDING_DIM,
     TOOL_CALL_ID_MAX_LEN,
@@ -551,7 +552,7 @@ class Message(Record):
                 cohere_message = []
                 for tc in self.tool_calls:
                     # TODO better way to pack?
-                    function_call_text = json.dumps(tc.to_dict())
+                    function_call_text = json.dumps(tc.to_dict(), ensure_ascii=JSON_ENSURE_ASCII)
                     cohere_message.append(
                         {
                             "role": function_call_role,

@@ -21,6 +21,8 @@ from typing import (
 from docstring_parser import parse
 from pydantic import BaseModel, create_model
 
+from memgpt.constants import JSON_ENSURE_ASCII
+
 
 class PydanticDataType(Enum):
     """
@@ -729,7 +731,7 @@ def generate_markdown_documentation(
 
         if hasattr(model, "Config") and hasattr(model.Config, "json_schema_extra") and "example" in model.Config.json_schema_extra:
             documentation += f"  Expected Example Output for {format_model_and_field_name(model.__name__)}:\n"
-            json_example = json.dumps(model.Config.json_schema_extra["example"])
+            json_example = json.dumps(model.Config.json_schema_extra["example"], ensure_ascii=JSON_ENSURE_ASCII)
             documentation += format_multiline_description(json_example, 2) + "\n"
 
     return documentation

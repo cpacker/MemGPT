@@ -5,6 +5,7 @@ from typing import List, Optional, Union
 
 import requests
 
+from memgpt.constants import JSON_ENSURE_ASCII
 from memgpt.data_types import Message
 from memgpt.models.chat_completion_request import ChatCompletionRequest, Tool
 from memgpt.models.chat_completion_response import (
@@ -256,7 +257,7 @@ def convert_anthropic_response_to_chatcompletion(
                 type="function",
                 function=FunctionCall(
                     name=response_json["content"][1]["name"],
-                    arguments=json.dumps(response_json["content"][1]["input"]),
+                    arguments=json.dumps(response_json["content"][1]["input"], ensure_ascii=JSON_ENSURE_ASCII),
                 ),
             )
         ]
