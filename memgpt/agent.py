@@ -212,7 +212,10 @@ class Agent(object):
         env.update(globals())
         for tool in tools:
             # WARNING: name may not be consistent?
-            exec(tool.module, env)
+            if tool.module:  # execute the whole module
+                exec(tool.module, env)
+            else:
+                exec(tool.source_code, env)
             self.functions_python[tool.name] = env[tool.name]
             self.functions.append(tool.json_schema)
         assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python

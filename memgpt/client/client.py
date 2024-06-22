@@ -649,6 +649,15 @@ class LocalClient(AbstractClient):
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface=self.interface)
 
+    # messages
+    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
+        self.interface.clear()
+        self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
+        if self.auto_save:
+            self.save()
+        else:
+            return UserMessageResponse(messages=self.interface.to_list())
+
     # agents
 
     def list_agents(self):
@@ -704,6 +713,10 @@ class LocalClient(AbstractClient):
     def get_agent_config(self, agent_id: str) -> AgentState:
         self.interface.clear()
         return self.server.get_agent_config(user_id=self.user_id, agent_id=agent_id)
+
+    def get_agent_memory(self, agent_id: str) -> Dict:
+        memory = self.server.get_agent_memory(user_id=self.user_id, agent_id=agent_id)
+        return GetAgentMemoryResponse(**memory)
 
     # presets
     def create_preset(self, preset: Preset) -> Preset:
@@ -798,13 +811,14 @@ class LocalClient(AbstractClient):
             tool (ToolModel): The created tool.
         """
         import inspect
+        from textwrap import dedent  # remove indentation
 
         from memgpt.functions.schema_generator import generate_schema
 
         # TODO: check if tool already exists
         # TODO: how to load modules?
         # parse source code/schema
-        source_code = inspect.getsource(func)
+        source_code = dedent(inspect.getsource(func))
         json_schema = generate_schema(func, name)
         source_type = "python"
         tool_name = json_schema["name"]
