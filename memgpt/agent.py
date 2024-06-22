@@ -195,12 +195,6 @@ class Agent(object):
         # agents can be created from providing agent_state
         agent_state: AgentState,
         tools: List[ToolModel],
-        ## or from providing a preset (requires preset + extra fields)
-        # preset: Optional[Preset] = None,
-        # created_by: Optional[uuid.UUID] = None,
-        # name: Optional[str] = None,
-        # llm_config: Optional[LLMConfig] = None,
-        # embedding_config: Optional[EmbeddingConfig] = None,
         # extras
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
@@ -221,45 +215,7 @@ class Agent(object):
             exec(tool.module, env)
             self.functions_python[tool.name] = env[tool.name]
             self.functions.append(tool.json_schema)
-        print("KEY", env.keys())
-        # self.functions_python = {tool.name: tool.source_code for tool in tools}
         assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
-
-        ## An agent can be created from a Preset object
-        # if preset is not None:
-        #    assert agent_state is None, "Can create an agent from a Preset or AgentState (but both were provided)"
-        #    assert created_by is not None, "Must provide created_by field when creating an Agent from a Preset"
-        #    assert llm_config is not None, "Must provide llm_config field when creating an Agent from a Preset"
-        #    assert embedding_config is not None, "Must provide embedding_config field when creating an Agent from a Preset"
-
-        #    # if agent_state is also provided, override any preset values
-        #    init_agent_state = AgentState(
-        #        name=name if name else create_random_username(),
-        #        user_id=created_by,
-        #        persona=preset.persona,
-        #        human=preset.human,
-        #        llm_config=llm_config,
-        #        embedding_config=embedding_config,
-        #        preset=preset.name,  # TODO link via preset.id instead of name?
-        #        state={
-        #            "persona": preset.persona,
-        #            "human": preset.human,
-        #            "system": preset.system,
-        #            "functions": preset.functions_schema,
-        #            "messages": None,
-        #        },
-        #    )
-
-        ## An agent can also be created directly from AgentState
-        # elif agent_state is not None:
-        #    assert preset is None, "Can create an agent from a Preset or AgentState (but both were provided)"
-        #    assert agent_state.state is not None and agent_state.state != {}, "AgentState.state cannot be empty"
-
-        #    # Assume the agent_state passed in is formatted correctly
-        #    init_agent_state = agent_state
-
-        # else:
-        #    raise ValueError("Both Preset and AgentState were null (must provide one or the other)")
 
         # Hold a copy of the state that was used to init the agent
         self.agent_state = agent_state
@@ -268,23 +224,13 @@ class Agent(object):
         self.model = self.agent_state.llm_config.model
 
         # Store the system instructions (used to rebuild memory)
-        # if "system" not in self.agent_state.state:
-        #    raise ValueError("'system' not found in provided AgentState")
-        # self.system = self.agent_state.state["system"]
         self.system = self.agent_state.system
 
-        # if "functions" not in self.agent_state.state:
-        #    raise ValueError(f"'functions' not found in provided AgentState")
-        ## Store the functions schemas (this is passed as an argument to ChatCompletion)
-        # self.functions = self.agent_state.state["functions"]  # these are the schema
-        ## Link the actual python functions corresponding to the schemas
-        # self.functions_python = {k: v["python_function"] for k, v in link_functions(function_schemas=self.functions).items()}
-        # assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
-
         # Initialize the memory object
-        if "persona" not in self.agent_state.state:
+        # TODO: support more general memory types
+        if "persona" not in self.agent_state.state:  # TODO: remove
             raise ValueError(f"'persona' not found in provided AgentState")
-        if "human" not in self.agent_state.state:
+        if "human" not in self.agent_state.state:  # TODO: remove
             raise ValueError(f"'human' not found in provided AgentState")
         self.memory = initialize_memory(ai_notes=self.agent_state.state["persona"], human_notes=self.agent_state.state["human"])
 
@@ -298,7 +244,6 @@ class Agent(object):
         self.interface = interface
 
         # Create the persistence manager object based on the AgentState info
-        # TODO
         self.persistence_manager = LocalStateManager(agent_state=self.agent_state)
 
         # State needed for heartbeat pausing

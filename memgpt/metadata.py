@@ -608,20 +608,6 @@ class MetadataStore:
         with self.session_maker() as session:
             results = session.query(ToolModel).all()
             return results
-            # available_functions = load_all_function_sets()
-            # results = [
-            #    ToolModel(
-            #        name=k,
-            #        json_schema=v["json_schema"],
-            #        tags=v["tags"],
-            #        source_type="python",
-            #        source_code=python_inspect.getsource(v["python_function"]),
-            #    )
-            #    for k, v in available_functions.items()
-            # ]
-            # return results
-            # results = session.query(PresetModel).filter(PresetModel.user_id == user_id).all()
-            # return [r.to_record() for r in results]
 
     @enforce_types
     def list_agents(self, user_id: uuid.UUID) -> List[AgentState]:

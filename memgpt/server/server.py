@@ -736,16 +736,6 @@ class SyncServer(LockingServer):
             llm_config = llm_config if llm_config else self.server_llm_config
             embedding_config = embedding_config if embedding_config else self.server_embedding_config
 
-            ## TODO remove (https://github.com/cpacker/MemGPT/issues/1138)
-            # if function_names is not None:
-            #    preset_override = True
-            #    # available_tools = self.ms.list_tools(user_id=user_id) # TODO: add back when user-specific
-            #    available_tools = self.ms.list_tools()
-            #    available_tools_names = [t.name for t in available_tools]
-            #    assert all([f_name in available_tools_names for f_name in function_names])
-            #    preset_obj.functions_schema = [t.json_schema for t in available_tools if t.name in function_names]
-            #    print("overriding preset_obj tools with:", preset_obj.functions_schema)
-
             # get tools
             tool_objs = [self.ms.get_tool(name) for name in tools]
 
@@ -773,10 +763,6 @@ class SyncServer(LockingServer):
                 interface=interface,
                 agent_state=agent_state,
                 tools=tool_objs,
-                # preset=preset_obj,
-                # name=name,
-                # created_by=user.id,
-                # llm_config=llm_config,
                 # embedding_config=embedding_config,
                 # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
                 first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
@@ -888,7 +874,6 @@ class SyncServer(LockingServer):
 
             # TODO remove this eventually when return type get pydanticfied
             # this is to add persona_name and human_name so that the columns in UI can populate
-            # preset = self.ms.get_preset(name=agent_state.preset, user_id=user_id)
             # TODO hack for frontend, remove
             # (top level .persona is persona_name, and nested memory.persona is the state)
             # TODO: eventually modify this to be contained in the metadata

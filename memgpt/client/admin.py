@@ -84,28 +84,17 @@ class Admin:
                 self.delete_key(key)
             self.delete_user(user["user_id"])
 
-    # tools (currently only available for admin)
-    def create_tool(self, name: str, file_path: str, source_type: Optional[str] = "python", tags: Optional[List[str]] = None) -> ToolModel:
-        """Add a tool implemented in a file path"""
-        source_code = open(file_path, "r", encoding="utf-8").read()
-        data = {"name": name, "source_code": source_code, "source_type": source_type, "tags": tags}
-        response = requests.post(f"{self.base_url}/admin/tools", json=data, headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to create tool: {response.text}")
-        return ToolModel(**response.json())
-
     def create_tool(
-        # self, tool: ToolModel, tags=Optional[List[str]] = None, update=True
         self,
         func,
         name: Optional[str] = None,
-        update: Optional[bool] = True,
+        update: Optional[bool] = True,  # TODO: actually use this
         tags: Optional[List[str]] = None,
     ):
         """Create a tool
 
         Args:
-            tool (ToolModel): Tool object
+            func (callable): The function to create a tool for.
             tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
             update (bool, optional): Update the tool if it already exists. Defaults to True.
 
@@ -117,12 +106,10 @@ class Admin:
         from memgpt.functions.schema_generator import generate_schema
 
         # TODO: check if tool already exists
+        # TODO: how to load modules?
         # parse source code/schema
         source_code = inspect.getsource(func)
         json_schema = generate_schema(func, name)
-        from pprint import pprint
-
-        pprint(json_schema)
         source_type = "python"
         tool_name = json_schema["name"]
 

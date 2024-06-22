@@ -76,27 +76,6 @@ def setup_tools_index_router(server: SyncServer, interface: QueuingInterface):
         """
         Create a new tool
         """
-        # from memgpt.functions.functions import load_function_file, write_function
-
-        ## check if function already exists
-        # if server.ms.get_tool(request.name):
-        #    raise ValueError(f"Tool with name {request.name} already exists.")
-
-        ## write function to ~/.memgt/functions directory
-        # file_path = write_function(request.name, request.name, request.source_code)
-
-        ## TODO: Use load_function_file to load function schema
-        # schema = load_function_file(file_path)
-        # assert len(list(schema.keys())) == 1, "Function schema must have exactly one key"
-        # json_schema = list(schema.values())[0]["json_schema"]
-
-        # print("adding tool", request.name, request.tags, request.source_code)
-        # tool = ToolModel(name=request.name, json_schema=json_schema, tags=request.tags, source_code=request.source_code)
-        # tool.id
-        # server.ms.add_tool(tool)
-
-        ## TODO: insert tool information into DB as ToolModel
-        # return server.ms.get_tool(request.name)
         try:
             return server.create_tool(
                 json_schema=request.json_schema, source_code=request.source_code, source_type=request.source_type, tags=request.tags

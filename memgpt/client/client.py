@@ -186,12 +186,6 @@ class AbstractClient(object):
         """List all tools."""
         raise NotImplementedError
 
-    # def create_tool(
-    #    self, name: str, file_path: str, source_type: Optional[str] = "python", tags: Optional[List[str]] = None
-    # ) -> CreateToolResponse:
-    #    """Create a tool."""
-    #    raise NotImplementedError
-
     # data sources
 
     def list_sources(self):
