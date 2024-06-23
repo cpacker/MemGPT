@@ -73,14 +73,14 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         tool_names = request.config["function_names"]
 
         # TODO: remove this -- should be added based on create agent fields
-        print("TOOLS", tool_names, len(tool_names))
+        if isinstance(tool_names, str):  # TODO: fix this on clinet side?
+            tool_names = tool_names.split(",")
         if tool_names is None or tool_names == "":
             tool_names = []
         for name in BASE_TOOLS:  # TODO: remove this
             if name not in tool_names:
                 tool_names.append(name)
-
-        print("PRESET", preset)
+        assert isinstance(tool_names, list), "Tool names must be a list of strings."
 
         try:
             agent_state = server.create_agent(
