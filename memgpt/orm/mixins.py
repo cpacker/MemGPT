@@ -76,3 +76,20 @@ class UserMixin(Base):
     @user_id.setter
     def user_id(self, value: str) -> None:
         _relation_setter(self, "user", value)
+
+class AgentMixin(Base):
+    """Mixin for models that belong to an agent."""
+
+    __abstract__ = True
+
+    _agent_id: Mapped[UUID] = mapped_column(
+        SQLUUID(), ForeignKey("agent._id")
+    )
+
+    @property
+    def agent_id(self) -> str:
+        return _relation_getter(self, "agent")
+
+    @agent_id.setter
+    def agent_id(self, value: str) -> None:
+        _relation_setter(self, "agent", value)

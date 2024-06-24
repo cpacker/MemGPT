@@ -1,4 +1,4 @@
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, List
 from pydantic import EmailStr
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, relationship, mapped_column
@@ -17,4 +17,8 @@ class User(SqlalchemyBase, OrganizationMixin):
 
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="users")
+    agents: Mapped[List["Agent"]] = relationship("Agent",
+                                               back_populates="users",
+                                               secondary="user_agent",
+                                               doc="the agents associated with this user.")
 
