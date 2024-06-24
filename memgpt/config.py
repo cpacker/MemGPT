@@ -4,6 +4,7 @@ import json
 import os
 import uuid
 from dataclasses import dataclass
+from dataclasses import fields as dataclass_fields
 
 import memgpt
 import memgpt.utils as utils
@@ -34,6 +35,7 @@ def set_field(config, section, field, value):
 
 @dataclass
 class MemGPTConfig:
+
     config_path: str = os.getenv("MEMGPT_CONFIG_PATH") or os.path.join(MEMGPT_DIR, "config")
     anon_clientid: str = str(uuid.UUID(int=0))
 
@@ -75,6 +77,16 @@ class MemGPTConfig:
 
     # user info
     policies_accepted: bool = False
+
+    def __init__(self, **kwargs):
+        fields = {f.name: f.default for f in dataclass_fields(self.__class__)}
+
+        for key, value in kwargs.items():
+            if key in fields:
+                fields[key] = value
+
+        for key, value in fields.items():
+            setattr(self, key, value)
 
     def __post_init__(self):
         # ensure types

@@ -10,7 +10,6 @@ from prettytable.colortable import ColorTable, Themes
 from tqdm import tqdm
 
 from memgpt import utils
-from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.constants import LLM_MAX_TOKENS, MEMGPT_DIR
 from memgpt.credentials import SUPPORTED_AUTH_TYPES, MemGPTCredentials
@@ -38,7 +37,6 @@ from memgpt.local_llm.constants import (
 )
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.metadata import MetadataStore
-from memgpt.models.pydantic_models import HumanModel, PersonaModel
 from memgpt.presets.presets import create_preset_from_file
 from memgpt.server.utils import shorten_key_middle
 
@@ -1104,42 +1102,42 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
     from memgpt.client.client import create_client
 
     config = MemGPTConfig.load()
-    ms = MetadataStore(config)
-    user_id = uuid.UUID(config.anon_clientid)
+    MetadataStore(config)
+    uuid.UUID(config.anon_clientid)
     client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
     table = ColorTable(theme=Themes.OCEAN)
+    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
     if arg == ListChoice.agents:
         """List all agents"""
         table.field_names = ["Name", "LLM Model", "Embedding Model", "Embedding Dim", "Persona", "Human", "Data Source", "Create Time"]
-        for agent in tqdm(ms.list_agents(user_id=user_id)):
-            source_ids = ms.list_attached_sources(agent_id=agent.id)
-            assert all([source_id is not None and isinstance(source_id, uuid.UUID) for source_id in source_ids])
-            sources = [ms.get_source(source_id=source_id) for source_id in source_ids]
-            assert all([source is not None and isinstance(source, Source)] for source in sources)
-            source_names = [source.name for source in sources if source is not None]
-            table.add_row(
-                [
-                    agent.name,
-                    agent.llm_config.model,
-                    agent.embedding_config.embedding_model,
-                    agent.embedding_config.embedding_dim,
-                    agent.persona,
-                    agent.human,
-                    ",".join(source_names),
-                    utils.format_datetime(agent.created_at),
-                ]
-            )
+        agent_list = []
+        for agent in tqdm(client.list_agents().agents):
+            assert all([source is not None and isinstance(source, Source)] for source in agent.sources), "Source not null assertion failed"
+            source_names = [source.name for source in agent.sources if source is not None]
+            entry = [
+                agent.name,
+                agent.llm_config.model,
+                agent.embedding_config.embedding_model,
+                agent.embedding_config.embedding_dim,
+                agent.persona,
+                agent.human,
+                ",".join(source_names),
+                utils.format_datetime(utils.timestamp_to_datetime(agent.created_at)),
+            ]
+            table.add_row(entry)
+            agent_list.append(entry)
         print(table)
+
     elif arg == ListChoice.humans:
         """List all humans"""
         table.field_names = ["Name", "Text"]
-        for human in client.list_humans(user_id=user_id):
+        for human in client.list_humans():
             table.add_row([human.name, human.text.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.personas:
         """List all personas"""
         table.field_names = ["Name", "Text"]
-        for persona in ms.list_personas(user_id=user_id):
+        for persona in client.list_personas():
             table.add_row([persona.name, persona.text.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.sources:
@@ -1150,31 +1148,27 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         # TODO: eventually look accross all storage connections
         # TODO: add data source stats
         # TODO: connect to agents
-
-        # get all sources
-        for source in ms.list_sources(user_id=user_id):
-            # get attached agents
-            agent_ids = ms.list_attached_agents(source_id=source.id)
-            agent_states = [ms.get_agent(agent_id=agent_id) for agent_id in agent_ids]
-            agent_names = [agent_state.name for agent_state in agent_states if agent_state is not None]
-
+        sources = client.list_sources()
+        for source in sources:
+            print(source)
+            agent_names = [agent["name"] for agent in source.metadata_["attached_agents"]]
             table.add_row(
                 [
                     source.name,
                     source.description,
-                    source.embedding_model,
-                    source.embedding_dim,
+                    source.embedding_config.embedding_model,
+                    source.embedding_config.embedding_dim,
                     utils.format_datetime(source.created_at),
                     ",".join(agent_names),
                 ]
             )
-
         print(table)
+        return sources
     elif arg == ListChoice.presets:
         """List all available presets"""
         table.field_names = ["Name", "Description", "Sources", "Functions"]
-        for preset in ms.list_presets(user_id=user_id):
-            sources = ms.get_preset_sources(preset_id=preset.id)
+        for preset in client.list_presets():
+            sources = client.get_preset_sources(preset_id=preset.id)
             table.add_row(
                 [
                     preset.name,
@@ -1208,16 +1202,15 @@ def add(
         with open(filename, "r", encoding="utf-8") as f:
             text = f.read()
     if option == "persona":
-        persona = ms.get_persona(name=name, user_id=user_id)
-        if persona:
+        persona = client.get_persona(name=name, user_id=user_id)
+        if persona is not None:
             # config if user wants to overwrite
             if not questionary.confirm(f"Persona {name} already exists. Overwrite?").ask():
                 return
             persona.text = text
-            ms.update_persona(persona)
+            client.update_persona(name, text)
         else:
-            persona = PersonaModel(name=name, text=text, user_id=user_id)
-            ms.add_persona(persona)
+            client.add_persona(name, text)
 
     elif option == "human":
         human = client.get_human(name=name, user_id=user_id)
@@ -1226,15 +1219,16 @@ def add(
             if not questionary.confirm(f"Human {name} already exists. Overwrite?").ask():
                 return
             human.text = text
-            client.update_human(human)
+            client.update_human(name, text)
         else:
-            human = HumanModel(name=name, text=text, user_id=user_id)
-            client.add_human(HumanModel(name=name, text=text, user_id=user_id))
+            client.add_human(name, text)
     elif option == "preset":
         assert filename, "Must specify filename for preset"
         create_preset_from_file(filename, name, user_id, ms)
     else:
+        typer.secho(f"Failed to add {option} '{name}'\n", fg=typer.colors.RED)
         raise ValueError(f"Unknown kind {option}")
+    typer.secho(f"Added {option} '{name}'", fg=typer.colors.GREEN)
 
 
 @app.command()
@@ -1244,59 +1238,35 @@ def delete(option: str, name: str):
 
     config = MemGPTConfig.load()
     user_id = uuid.UUID(config.anon_clientid)
-    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_API_KEY"))
-    ms = MetadataStore(config)
-    assert ms.get_user(user_id=user_id), f"User {user_id} does not exist"
+    # ms = MetadataStore(config)
+    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
+    # assert ms.get_user(user_id=user_id), f"User {user_id} does not exist"
 
     try:
         # delete from metadata
         if option == "source":
-            # delete metadata
-            source = ms.get_source(source_name=name, user_id=user_id)
-            assert source is not None, f"Source {name} does not exist"
-            ms.delete_source(source_id=source.id)
-
-            # delete from passages
-            conn = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id=user_id)
-            conn.delete({"data_source": name})
-
-            assert (
-                conn.get_all({"data_source": name}) == []
-            ), f"Expected no passages with source {name}, but got {conn.get_all({'data_source': name})}"
-
             # TODO: should we also delete from agents?
+            client.delete_source(source_name=name)
         elif option == "agent":
-            agent = ms.get_agent(agent_name=name, user_id=user_id)
-            assert agent is not None, f"Agent {name} for user_id {user_id} does not exist"
-
-            # recall memory
-            recall_conn = StorageConnector.get_storage_connector(TableType.RECALL_MEMORY, config, user_id=user_id, agent_id=agent.id)
-            recall_conn.delete({"agent_id": agent.id})
-
-            # archival memory
-            archival_conn = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config, user_id=user_id, agent_id=agent.id)
-            archival_conn.delete({"agent_id": agent.id})
-
-            # metadata
-            ms.delete_agent(agent_id=agent.id)
-
+            client.delete_agent(agent_name=name)
         elif option == "human":
             human = client.get_human(name=name, user_id=user_id)
             assert human is not None, f"Human {name} does not exist"
             client.delete_human(name=name, user_id=user_id)
+            assert client.get_human(name=name, user_id=user_id) is None, f"Human {name} still exists"
         elif option == "persona":
-            persona = ms.get_persona(name=name, user_id=user_id)
+            persona = client.get_persona(name=name, user_id=user_id)
             assert persona is not None, f"Persona {name} does not exist"
-            ms.delete_persona(name=name, user_id=user_id)
-            assert ms.get_persona(name=name, user_id=user_id) is None, f"Persona {name} still exists"
+            client.delete_persona(name=name, user_id=user_id)
+            assert client.get_persona(name=name, user_id=user_id) is None, f"Persona {name} still exists"
         elif option == "preset":
-            preset = ms.get_preset(name=name, user_id=user_id)
+            preset = client.get_preset(preset_name=name, user_id=user_id)
             assert preset is not None, f"Preset {name} does not exist"
-            ms.delete_preset(name=name, user_id=user_id)
+            client.delete_preset(preset.id)
         else:
             raise ValueError(f"Option {option} not implemented")
 
         typer.secho(f"Deleted {option} '{name}'", fg=typer.colors.GREEN)
 
     except Exception as e:
-        typer.secho(f"Failed to delete {option}'{name}'\n{e}", fg=typer.colors.RED)
+        typer.secho(f"Failed to delete {option} '{name}'\n{e}", fg=typer.colors.RED)

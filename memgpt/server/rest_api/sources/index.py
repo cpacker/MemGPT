@@ -57,6 +57,12 @@ class UploadFileToSourceRequest(BaseModel):
     file: UploadFile = Field(..., description="The file to upload.")
 
 
+class AttachSourceRequest(BaseModel):
+    agent_id: SourceModel = Field(..., description="The ID of the agent the source is being added to.")
+    source_id: int = Field(..., description="The ID of the source.")
+    source_name: int = Field(..., description="The name of the source.")
+
+
 class UploadFileToSourceResponse(BaseModel):
     source: SourceModel = Field(..., description="The source the file was uploaded to.")
     added_passages: int = Field(..., description="The number of passages added to the source.")
@@ -141,10 +147,10 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         interface.clear()
         try:
             # TODO: don't use Source and just use SourceModel once pydantic migration is complete
-            source = server.create_source(name=request.name, user_id=user_id)
+            source = server.create_source(name=request.name, user_id=user_id, description=request.description)
             return SourceModel(
                 name=source.name,
-                description=None,  # TODO: actually store descriptions
+                description=request.description,
                 user_id=source.user_id,
                 id=source.id,
                 embedding_config=server.server_embedding_config,
@@ -172,20 +178,19 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
 
-    @router.post("/sources/{source_id}/attach", tags=["sources"], response_model=SourceModel)
+    @router.post("/sources/attach", tags=["sources"], response_model=SourceModel)
     async def attach_source_to_agent(
-        source_id: uuid.UUID,
-        agent_id: uuid.UUID = Query(..., description="The unique identifier of the agent to attach the source to."),
+        request: AttachSourceRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
         Attach a data source to an existing agent.
         """
         interface.clear()
-        assert isinstance(agent_id, uuid.UUID), f"Expected agent_id to be a UUID, got {agent_id}"
+        assert isinstance(request.agent_id, uuid.UUID), f"Expected agent_id to be a UUID, got {request.agent_id}"
         assert isinstance(user_id, uuid.UUID), f"Expected user_id to be a UUID, got {user_id}"
-        source = server.ms.get_source(source_id=source_id, user_id=user_id)
-        source = server.attach_source_to_agent(source_name=source.name, agent_id=agent_id, user_id=user_id)
+        source = server.ms.get_source(source_id=request.source_id, source_name=request.source_name, user_id=user_id)
+        source = server.attach_source_to_agent(source_name=source.name, agent_id=request.agent_id, user_id=user_id)
         return SourceModel(
             name=source.name,
             description=None,  # TODO: actually store descriptions

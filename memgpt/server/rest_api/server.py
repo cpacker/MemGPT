@@ -32,6 +32,7 @@ from memgpt.server.rest_api.presets.index import setup_presets_index_router
 from memgpt.server.rest_api.sources.index import setup_sources_index_router
 from memgpt.server.rest_api.static_files import mount_static_files
 from memgpt.server.rest_api.tools.index import setup_user_tools_index_router
+from memgpt.server.rest_api.users.index import setup_users_index_router
 from memgpt.server.server import SyncServer
 from memgpt.settings import settings
 
@@ -90,6 +91,7 @@ app.include_router(setup_agents_config_router(server, interface, password), pref
 app.include_router(setup_agents_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_agents_memory_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_agents_message_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(setup_users_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_humans_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_personas_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_models_index_router(server, interface, password), prefix=API_PREFIX)
