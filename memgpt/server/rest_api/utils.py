@@ -36,7 +36,7 @@ async def sse_generator(generator: Generator[dict, None, None]) -> Generator[str
     yield sse_formatter(SSE_FINISH_MSG)  # Signal that the stream is complete
 
 
-async def sse_async_generator(generator: AsyncGenerator):
+async def sse_async_generator(generator: AsyncGenerator, finish_message=True):
     """
     Wraps a generator for use in Server-Sent Events (SSE), handling errors and ensuring a completion message.
 
@@ -56,4 +56,5 @@ async def sse_async_generator(generator: AsyncGenerator):
         yield sse_formatter({"error": "stream decoder encountered an error"})
     finally:
         # yield "data: [DONE]\n\n"
-        yield sse_formatter(SSE_FINISH_MSG)  # Signal that the stream is complete
+        if finish_message:
+            yield sse_formatter(SSE_FINISH_MSG)  # Signal that the stream is complete

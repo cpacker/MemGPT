@@ -1,4 +1,5 @@
 import asyncio
+import json
 import queue
 from collections import deque
 from typing import AsyncGenerator, Optional
@@ -223,7 +224,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         # If streaming mode, ignores base interface calls like .assistant_message, etc
         self.streaming_mode = False
         # NOTE: flag for supporting legacy 'stream' flag where send_message is treated specially
-        self.send_message_special_case = False
+        self.nonstreaming_legacy_mode = False
         # If chat completion mode, creates a "chatcompletion-style" stream, but with concepts remapped
         self.streaming_chat_completion_mode = False
         self.streaming_chat_completion_mode_function_name = None  # NOTE: sadly need to track state during stream
@@ -266,7 +267,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         """Clean up the stream by deactivating and clearing chunks."""
         self.streaming_chat_completion_mode_function_name = None
 
-        if not self.streaming_chat_completion_mode:
+        if not self.streaming_chat_completion_mode and not self.nonstreaming_legacy_mode:
             self._chunks.append(self.multi_step_gen_indicator)
             self._event.set()  # Signal that new data is available
 
@@ -437,17 +438,17 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
     def assistant_message(self, msg: str, msg_obj: Optional[Message] = None):
         """MemGPT uses send_message"""
 
-        if not self.streaming_mode and self.send_message_special_case:
+        # if not self.streaming_mode and self.send_message_special_case:
 
-            # create a fake "chunk" of a stream
-            processed_chunk = {
-                "assistant_message": msg,
-                "date": msg_obj.created_at.isoformat() if msg_obj is not None else get_utc_time().isoformat(),
-                "id": str(msg_obj.id) if msg_obj is not None else None,
-            }
+        #     # create a fake "chunk" of a stream
+        #     processed_chunk = {
+        #         "assistant_message": msg,
+        #         "date": msg_obj.created_at.isoformat() if msg_obj is not None else get_utc_time().isoformat(),
+        #         "id": str(msg_obj.id) if msg_obj is not None else None,
+        #     }
 
-            self._chunks.append(processed_chunk)
-            self._event.set()  # Signal that new data is available
+        #     self._chunks.append(processed_chunk)
+        #     self._event.set()  # Signal that new data is available
 
         return
 
@@ -461,18 +462,54 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
             if not self.streaming_mode:
                 # create a fake "chunk" of a stream
                 function_call = msg_obj.tool_calls[0]
-                processed_chunk = {
-                    "function_call": {
-                        # "id": function_call.id,
-                        "name": function_call.function["name"],
-                        "arguments": function_call.function["arguments"],
-                    },
-                    "id": str(msg_obj.id),
-                    "date": msg_obj.created_at.isoformat(),
-                }
 
-                self._chunks.append(processed_chunk)
-                self._event.set()  # Signal that new data is available
+                if self.nonstreaming_legacy_mode:
+                    # Special case where we want to send two chunks - one first for the function call, then for send_message
+
+                    # Should be in the following legacy style:
+                    # data: {
+                    #   "function_call": "send_message({'message': 'Chad, ... ask?'})",
+                    #   "id": "771748ee-120a-453a-960d-746570b22ee5",
+                    #   "date": "2024-06-22T23:04:32.141923+00:00"
+                    # }
+                    try:
+                        func_args = json.loads(function_call.function["arguments"])
+                    except:
+                        func_args = function_call.function["arguments"]
+                    processed_chunk = {
+                        "function_call": f"{function_call.function['name']}({func_args})",
+                        "id": str(msg_obj.id),
+                        "date": msg_obj.created_at.isoformat(),
+                    }
+                    self._chunks.append(processed_chunk)
+                    self._event.set()  # Signal that new data is available
+
+                    if function_call.function["name"] == "send_message":
+                        try:
+                            processed_chunk = {
+                                "assistant_message": func_args["message"],
+                                "id": str(msg_obj.id),
+                                "date": msg_obj.created_at.isoformat(),
+                            }
+                            self._chunks.append(processed_chunk)
+                            self._event.set()  # Signal that new data is available
+                        except Exception as e:
+                            print(f"Failed to parse function message: {e}")
+
+                else:
+
+                    processed_chunk = {
+                        "function_call": {
+                            # "id": function_call.id,
+                            "name": function_call.function["name"],
+                            "arguments": function_call.function["arguments"],
+                        },
+                        "id": str(msg_obj.id),
+                        "date": msg_obj.created_at.isoformat(),
+                    }
+                    self._chunks.append(processed_chunk)
+                    self._event.set()  # Signal that new data is available
+
                 return
             else:
                 return
@@ -511,7 +548,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
             # end the stream
             self._active = False
             self._event.set()  # Unblock the generator if it's waiting to allow it to complete
-        elif not self.streaming_chat_completion_mode:
+        elif not self.streaming_chat_completion_mode and not self.nonstreaming_legacy_mode:
             # signal that a new step has started in the stream
             self._chunks.append(self.multi_step_indicator)
             self._event.set()  # Signal that new data is available

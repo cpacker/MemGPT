@@ -85,7 +85,7 @@ async def send_message_to_agent(
     user_id: uuid.UUID,
     role: str,
     message: str,
-    stream: bool,  # legacy
+    stream_legacy: bool,  # legacy
     stream_steps: bool,
     stream_tokens: bool,
     chat_completion_mode: Optional[bool] = False,
@@ -93,10 +93,11 @@ async def send_message_to_agent(
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
 
     # handle the legacy mode streaming
-    if stream:
+    if stream_legacy:
         # NOTE: override
         stream_steps = True
         stream_tokens = False
+        include_final_message = False
 
     if role == "user" or role is None:
         message_func = server.user_message
@@ -122,8 +123,11 @@ async def send_message_to_agent(
         streaming_interface.streaming_mode = stream_tokens
         # "chatcompletion mode" does some remapping and ignores inner thoughts
         streaming_interface.streaming_chat_completion_mode = chat_completion_mode
+
         # NOTE: for legacy 'stream' flag
-        streaming_interface.send_message_special_case = stream
+        streaming_interface.nonstreaming_legacy_mode = stream_legacy
+        # streaming_interface.allow_assistant_message = stream
+        # streaming_interface.function_call_legacy_mode = stream
 
         # Offload the synchronous message_func to a separate thread
         streaming_interface.stream_start()
@@ -132,7 +136,7 @@ async def send_message_to_agent(
         if stream_steps:
             # return a stream
             return StreamingResponse(
-                sse_async_generator(streaming_interface.get_generator()),
+                sse_async_generator(streaming_interface.get_generator(), finish_message=include_final_message),
                 media_type="text/event-stream",
             )
         else:
@@ -223,7 +227,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
             stream_steps=request.stream_steps,
             stream_tokens=request.stream_tokens,
             # legacy
-            stream=request.stream,
+            stream_legacy=request.stream,
         )
 
     return router
