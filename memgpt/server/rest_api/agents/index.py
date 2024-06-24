@@ -1,13 +1,18 @@
+import datetime
 import uuid
 from functools import partial
-from typing import List
+from http.client import HTTPException
+from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import status as stat
 from pydantic import BaseModel, Field
 
+from memgpt.data_types import AgentState, LLMConfig
 from memgpt.constants import BASE_TOOLS
 from memgpt.models.pydantic_models import (
     AgentStateModel,
+    AgentStateWithSourcesModel,
     EmbeddingConfigModel,
     LLMConfigModel,
     PresetModel,
@@ -15,21 +20,38 @@ from memgpt.models.pydantic_models import (
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
-from memgpt.settings import settings
+from memgpt.streaming_interface import (
+    StreamingRefreshCLIInterface as stream_interface,  # for printing to terminal
+)
 
 router = APIRouter()
 
 
 class ListAgentsResponse(BaseModel):
     num_agents: int = Field(..., description="The number of agents available to the user.")
-    # TODO make return type List[AgentStateModel]
-    #      also return - presets: List[PresetModel]
-    agents: List[dict] = Field(..., description="List of agent configurations.")
+    # TODO return - presets: List[PresetModel]
+    agents: List[AgentStateWithSourcesModel] = Field(..., description="List of agent configurations.")
 
 
 class CreateAgentRequest(BaseModel):
     # TODO: modify this (along with front end)
     config: dict = Field(..., description="The agent configuration object.")
+
+
+class UpdateAgentRequest(BaseModel):
+    agent_id: int = Field(..., description="ID of agent.")
+    agent_name: str = Field(..., description="Name of agent.")
+    persona: str = Field(..., description="Persona of agent.")
+    human: str = Field(..., description="Info about the person that the agent interacts with.")
+    model: Optional[str] = Field(..., description="Model name.")
+    context_window: Optional[int] = Field(..., description="Length of context window.")
+    model_wrapper: Optional[str] = Field(..., description="Wrapper around model.")
+    model_endpoint: Optional[str] = Field(..., description="Endpoint to reach model.")
+    model_endpoint_type: Optional[str] = Field(..., description="Model endpoint type.")
+
+
+class AgentIdRequest(BaseModel):
+    agent_id: int = Field(..., description="ID of agent.")
 
 
 class CreateAgentResponse(BaseModel):
@@ -53,7 +75,7 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         agents_data = server.list_agents(user_id=user_id)
         return ListAgentsResponse(**agents_data)
 
-    @router.post("/agents", tags=["agents"], response_model=CreateAgentResponse)
+    @router.post("/agents/create", tags=["agents"], response_model=CreateAgentResponse)
     def create_agent(
         request: CreateAgentRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
@@ -137,5 +159,75 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         except Exception as e:
             print(str(e))
             raise HTTPException(status_code=500, detail=str(e))
+
+    @router.post("/agents/update", tags=["agents"])
+    def update_agent(
+        request: UpdateAgentRequest = Body(...),
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        """
+        Updates the agent given the modified AgentState object
+        """
+        # first, get agent (source: `get_agent_config` in rest_api/agents/config.py)
+        interface.clear()
+        agent_id = uuid.UUID(int=request.agent_id)
+        if not server.ms.get_agent(user_id=user_id, agent_id=agent_id, agent_name=request.agent_name):
+            # agent does not exist
+            raise HTTPException(status_code=stat.HTTP_404_NOT_FOUND, detail=f"Agent agent_id={agent_id} not found.")
+
+        agent_state = server.get_agent_config(user_id=user_id, agent_id=agent_id, agent_name=request.agent_name)
+
+        # configs
+        llm_config = LLMConfigModel(**vars(agent_state.llm_config))
+        embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
+
+        updated_agent = (
+            AgentState(
+                id=agent_state.id,
+                name=agent_state.name,
+                user_id=agent_state.user_id,
+                preset=agent_state.preset,
+                persona=request.persona,
+                human=request.human,
+                llm_config=llm_config,
+                embedding_config=embedding_config,
+                state=agent_state.state,
+                created_at=agent_state.created_at,
+            ),
+        )
+        updated_agent = updated_agent[0]
+        updated_agent.llm_config.model = request.model
+        updated_agent.llm_config.context_window = request.context_window
+        updated_agent.llm_config.model_wrapper = request.model_wrapper
+        updated_agent.llm_config.model_endpoint = request.model_endpoint
+        updated_agent.llm_config.model_endpoint_type = request.model_endpoint_type
+
+        # then, perform update
+        interface.clear()
+        server.update_agent(agent_state=updated_agent)
+
+    @router.post("/agents/save", tags=["agents"])
+    def save_agent(
+        request: AgentStateModel = Body(...),
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        """
+        Saves the Agent to metadata store.
+        """
+
+        interface.clear()
+        agent_state = AgentState(
+            name=request.name,
+            user_id=request.user_id,
+            persona=request.persona,
+            human=request.human,
+            llm_config=LLMConfig(**request.llm_config.model_dump()),
+            embedding_config=EmbeddingConfigModel(**request.embedding_config.model_dump()),
+            preset=request.preset,
+            id=request.id,
+            state=request.state,
+            created_at=datetime.datetime.fromtimestamp(request.created_at),
+        )
+        server.save_agent_using_state(agent_state)
 
     return router

@@ -8,7 +8,13 @@ from pydantic import BaseModel, Field
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
 from memgpt.data_types import Preset  # TODO remove
-from memgpt.models.pydantic_models import HumanModel, PersonaModel, PresetModel
+from memgpt.models.pydantic_models import (
+    HumanModel,
+    PersonaModel,
+    PresetModel,
+    SourceModel,
+)
+from memgpt.presets.presets import create_preset_from_file
 from memgpt.prompts import gpt_system
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
@@ -47,8 +53,21 @@ class CreatePresetsRequest(BaseModel):
     system_name: Optional[str] = Field(None, description="The name of the system prompt of the preset.")
 
 
+class PresetFromFileRequest(BaseModel):
+    name: str = Field(..., description="The name of the preset.")
+    filename: str = Field(..., description="The name of the file.")
+
+
+class CreatePresetModelResponse(BaseModel):
+    preset: PresetModel = Field(..., description="The newly created preset model.")
+
+
 class CreatePresetResponse(BaseModel):
-    preset: PresetModel = Field(..., description="The newly created preset.")
+    preset: Preset = Field(..., description="The newly created preset.")
+
+
+class PresetSourcesResponse(BaseModel):
+    sources: List[SourceModel] = Field(..., description="The preset's sources.")
 
 
 def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, password: str):
@@ -84,7 +103,7 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
 
-    @router.post("/presets", tags=["presets"], response_model=CreatePresetResponse)
+    @router.post("/presets", tags=["presets"], response_model=CreatePresetModelResponse)
     async def create_preset(
         request: CreatePresetsRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
@@ -145,11 +164,27 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
             # TODO remove once we migrate from Preset to PresetModel
             preset = PresetModel(**vars(preset))
 
-            return CreatePresetResponse(preset=preset)
+            return CreatePresetModelResponse(preset=preset)
         except HTTPException:
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
+
+    @router.post("/presets/defaults", tags=["presets"])
+    async def add_default_presets(
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        """Add default presets."""
+        server.add_default_presets(user_id=user_id, ms=server.ms)
+
+    @router.post("/presets/file", tags=["presets"], response_model=CreatePresetResponse)
+    async def make_preset_from_file(
+        request: PresetFromFileRequest = Body(...),
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        """Create a preset from a file."""
+        preset = create_preset_from_file(filename=request.filename, name=request.name, user_id=user_id, ms=server.ms)
+        return CreatePresetResponse(preset=preset)
 
     @router.delete("/presets/{preset_id}", tags=["presets"])
     async def delete_preset(
@@ -167,5 +202,15 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
+
+    @router.get("/presets/sources/{preset_id}", tags=["presets"], response_model=PresetSourcesResponse)
+    async def get_preset_sources(
+        preset_id: uuid.UUID,
+        # request: CreatePresetsRequest = Body(...),
+        # user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        """Create a preset from a file."""
+        sources = server.ms.get_preset_sources(preset_id=preset_id)
+        return PresetSourcesResponse(sources=sources)
 
     return router

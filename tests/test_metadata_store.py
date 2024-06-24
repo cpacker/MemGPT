@@ -1,11 +1,11 @@
 import pytest
 
 from memgpt.agent import Agent, save_agent
+from memgpt.config import MemGPTConfig
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
-from memgpt.data_types import AgentState, LLMConfig, Source, User
+from memgpt.data_types import AgentState, LLMConfig, Preset, Source, User
 from memgpt.metadata import MetadataStore
 from memgpt.models.pydantic_models import HumanModel, PersonaModel
-from memgpt.presets.presets import add_default_presets
 from memgpt.settings import settings
 from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
@@ -14,6 +14,7 @@ from tests import TEST_MEMGPT_CONFIG
 # @pytest.mark.parametrize("storage_connector", ["postgres", "sqlite"])
 @pytest.mark.parametrize("storage_connector", ["sqlite"])
 def test_storage(storage_connector):
+    from memgpt.presets.presets import add_default_presets
     if storage_connector == "postgres":
         TEST_MEMGPT_CONFIG.archival_storage_uri = settings.pg_uri
         TEST_MEMGPT_CONFIG.recall_storage_uri = settings.pg_uri
@@ -41,6 +42,20 @@ def test_storage(storage_connector):
     assert len(ms.list_personas(user_id=user_1.id)) > 0, ms.list_personas(user_id=user_1.id)
 
     # generate data
+    preset_for_agent_1 = Preset(
+        name="test_agent_1_preset",
+        functions_schema=[
+            {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Functions Schema",
+            "description": "The functions schema of the preset."
+          }
+        ]
+    )
+
     agent_1 = AgentState(
         user_id=user_1.id,
         name="agent_1",
@@ -49,6 +64,13 @@ def test_storage(storage_connector):
         human=DEFAULT_HUMAN,
         llm_config=TEST_MEMGPT_CONFIG.default_llm_config,
         embedding_config=TEST_MEMGPT_CONFIG.default_embedding_config,
+        state={
+            "persona": preset_for_agent_1.persona,
+            "human": preset_for_agent_1.human,
+            "system": preset_for_agent_1.system,
+            "functions": preset_for_agent_1.functions_schema,
+            "messages": None,
+        }
     )
     source_1 = Source(user_id=user_1.id, name="source_1")
 
@@ -64,7 +86,7 @@ def test_storage(storage_connector):
 
     # test agent_state saving
     agent_state = ms.get_agent(agent_1.id).state
-    assert agent_state == {}, agent_state  # when created via create_agent, it should be empty
+    assert agent_state != {}, agent_state 
 
     from memgpt.presets.presets import add_default_presets
 
@@ -77,6 +99,7 @@ def test_storage(storage_connector):
     preset_obj.persona = get_persona_text(DEFAULT_PERSONA)
 
     # Create the agent
+    config = MemGPTConfig.load()
     agent = Agent(
         interface=interface(),
         created_by=user_1.id,
