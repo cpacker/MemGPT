@@ -50,6 +50,7 @@ from memgpt.models.pydantic_models import (
     ToolModel,
 )
 from memgpt.presets.presets import create_preset_from_file
+from memgpt.utils import create_random_username
 
 logger = get_logger(__name__)
 
@@ -351,7 +352,8 @@ class SyncServer(LockingServer):
 
             # Instantiate an agent object using the state retrieved
             logger.info(f"Creating an agent object")
-            memgpt_agent = Agent(agent_state=agent_state, interface=interface)
+            tool_objs = [self.ms.get_tool(name) for name in agent_state.tools]  # get tool objects
+            memgpt_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
 
             # Add the agent to the in-memory store and return its reference
             logger.info(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
@@ -365,6 +367,7 @@ class SyncServer(LockingServer):
     def _get_or_load_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> Agent:
         """Check if the agent is in-memory, then load"""
         logger.info(f"Checking for agent user_id={user_id} agent_id={agent_id}")
+        # TODO: consider disabling loading cached agents due to potential concurrency issues
         memgpt_agent = self._get_agent(user_id=user_id, agent_id=agent_id)
         if not memgpt_agent:
             logger.info(f"Agent not loaded, loading agent user_id={user_id} agent_id={agent_id}")
@@ -417,6 +420,9 @@ class SyncServer(LockingServer):
 
         memgpt_agent.interface.step_yield()
         logger.debug(f"Finished agent step")
+
+        # save updated state
+        save_agent(memgpt_agent, self.ms)
 
         return tokens_accumulated
 
@@ -664,17 +670,22 @@ class SyncServer(LockingServer):
     def create_agent(
         self,
         user_id: uuid.UUID,
+        tools: List[str],  # list of tool names (handles) to include
+        # system: str, # system prompt
+        metadata: Optional[dict] = {},  # includes human/persona names
         name: Optional[str] = None,
-        preset: Optional[str] = None,
-        persona: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
-        human: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
-        persona_name: Optional[str] = None,
-        human_name: Optional[str] = None,
+        preset: Optional[str] = None,  # TODO: remove eventually
+        # model config
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
+        # interface
         interface: Union[AgentInterface, None] = None,
-        # persistence_manager: Union[PersistenceManager, None] = None,
-        function_names: Optional[List[str]] = None,  # TODO remove
+        # TODO: refactor this to be a more general memory configuration
+        system: Optional[str] = None,  # prompt value
+        persona: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
+        human: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
+        persona_name: Optional[str] = None,  # TODO: remove
+        human_name: Optional[str] = None,  # TODO: remove
     ) -> AgentState:
         """Create a new agent using a config"""
         if self.ms.get_user(user_id=user_id) is None:
@@ -686,6 +697,9 @@ class SyncServer(LockingServer):
 
         # if persistence_manager is None:
         # persistence_manager = self.default_persistence_manager_cls(agent_config=agent_config)
+
+        if name is None:
+            name = create_random_username()
 
         logger.debug(f"Attempting to find user: {user_id}")
         user = self.ms.get_user(user_id=user_id)
@@ -702,6 +716,13 @@ class SyncServer(LockingServer):
             preset_override = False
             assert preset_obj is not None, f"preset {preset if preset else self.config.preset} does not exist"
             logger.debug(f"Attempting to create agent from preset:\n{preset_obj}")
+
+            # system prompt
+            if system is None:
+                system = preset_obj.system
+            else:
+                preset_obj.system = system
+                preset_override = True
 
             # Overwrite fields in the preset if they were specified
             if human is not None and human != preset_obj.human:
@@ -737,15 +758,12 @@ class SyncServer(LockingServer):
             llm_config = llm_config if llm_config else self.server_llm_config
             embedding_config = embedding_config if embedding_config else self.server_embedding_config
 
-            # TODO remove (https://github.com/cpacker/MemGPT/issues/1138)
-            if function_names is not None:
-                preset_override = True
-                # available_tools = self.ms.list_tools(user_id=user_id) # TODO: add back when user-specific
-                available_tools = self.ms.list_tools()
-                available_tools_names = [t.name for t in available_tools]
-                assert all([f_name in available_tools_names for f_name in function_names])
-                preset_obj.functions_schema = [t.json_schema for t in available_tools if t.name in function_names]
-                print("overriding preset_obj tools with:", preset_obj.functions_schema)
+            # get tools
+            tool_objs = []
+            for tool_name in tools:
+                tool_obj = self.ms.get_tool(tool_name)
+                assert tool_obj is not None, f"Tool {tool_name} does not exist"
+                tool_objs.append(tool_obj)
 
             # If the user overrode any parts of the preset, we need to create a new preset to refer back to
             if preset_override:
@@ -754,13 +772,24 @@ class SyncServer(LockingServer):
                 # Then write out to the database for storage
                 self.ms.create_preset(preset=preset_obj)
 
-            agent = Agent(
-                interface=interface,
-                preset=preset_obj,
+            agent_state = AgentState(
                 name=name,
-                created_by=user.id,
+                user_id=user_id,
+                persona=preset_obj.persona_name,  # TODO: remove
+                human=preset_obj.human_name,  # TODO: remove
+                tools=tools,  # name=id for tools
                 llm_config=llm_config,
                 embedding_config=embedding_config,
+                system=system,
+                preset=preset,  # TODO: remove
+                state={"persona": preset_obj.persona, "human": preset_obj.human, "system": system, "messages": None},
+            )
+
+            agent = Agent(
+                interface=interface,
+                agent_state=agent_state,
+                tools=tool_objs,
+                # embedding_config=embedding_config,
                 # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
                 first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
             )
@@ -889,11 +918,11 @@ class SyncServer(LockingServer):
 
             # TODO remove this eventually when return type get pydanticated
             # this is to add persona_name and human_name so that the columns in UI can populate
-            preset = self.ms.get_preset(name=agent_state.preset, user_id=user_id)
             # TODO hack for frontend, remove
             # (top level .persona is persona_name, and nested memory.persona is the state)
-            return_dict["persona"] = preset.persona_name
-            return_dict["human"] = preset.human_name
+            # TODO: eventually modify this to be contained in the metadata
+            return_dict["persona"] = agent_state.human
+            return_dict["human"] = agent_state.persona
 
             # Add information about tools
             # TODO memgpt_agent should really have a field of List[ToolModel]
@@ -1002,7 +1031,6 @@ class SyncServer(LockingServer):
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-
         core_memory = memgpt_agent.memory
         recall_memory = memgpt_agent.persistence_manager.recall_memory
         archival_memory = memgpt_agent.persistence_manager.archival_memory
@@ -1540,8 +1568,36 @@ class SyncServer(LockingServer):
 
         return sources_with_metadata
 
-    def create_tool(self, name: str, user_id: uuid.UUID) -> ToolModel:  # TODO: add other fields
-        """Create a new tool"""
+    def create_tool(
+        self, json_schema: dict, source_code: str, source_type: str, tags: Optional[List[str]] = None, exists_ok: Optional[bool] = True
+    ) -> ToolModel:  # TODO: add other fields
+        """Create a new tool
 
-    def delete_tool(self, tool_id: uuid.UUID, user_id: uuid.UUID):
+        Args:
+            TODO
+
+        Returns:
+            tool (ToolModel): Tool object
+        """
+        name = json_schema["name"]
+        tool = self.ms.get_tool(name)
+        if tool:  # check if function already exists
+            if exists_ok:
+                # update existing tool
+                tool.json_schema = json_schema
+                tool.tags = tags
+                tool.source_code = source_code
+                tool.source_type = source_type
+                self.ms.update_tool(tool)
+            else:
+                raise ValueError(f"Tool with name {name} already exists.")
+        else:
+            # create new tool
+            tool = ToolModel(name=name, json_schema=json_schema, tags=tags, source_code=source_code, source_type=source_type)
+            self.ms.add_tool(tool)
+
+        return self.ms.get_tool(name)
+
+    def delete_tool(self, name: str):
         """Delete a tool"""
+        self.ms.delete_tool(name)

@@ -4,6 +4,8 @@ from typing import List, Optional
 import requests
 from requests import HTTPError
 
+from memgpt.functions.functions import parse_source_code
+from memgpt.functions.schema_generator import generate_schema
 from memgpt.models.pydantic_models import ToolModel
 from memgpt.server.rest_api.admin.users import (
     CreateAPIKeyResponse,
@@ -13,7 +15,7 @@ from memgpt.server.rest_api.admin.users import (
     GetAllUsersResponse,
     GetAPIKeysResponse,
 )
-from memgpt.server.rest_api.tools.index import ListToolsResponse
+from memgpt.server.rest_api.tools.index import CreateToolRequest, ListToolsResponse
 
 
 class Admin:
@@ -84,11 +86,37 @@ class Admin:
                 self.delete_key(key)
             self.delete_user(user["user_id"])
 
-    # tools (currently only available for admin)
-    def create_tool(self, name: str, file_path: str, source_type: Optional[str] = "python", tags: Optional[List[str]] = None) -> ToolModel:
-        """Add a tool implemented in a file path"""
-        source_code = open(file_path, "r", encoding="utf-8").read()
-        data = {"name": name, "source_code": source_code, "source_type": source_type, "tags": tags}
+    def create_tool(
+        self,
+        func,
+        name: Optional[str] = None,
+        update: Optional[bool] = True,  # TODO: actually use this
+        tags: Optional[List[str]] = None,
+    ):
+        """Create a tool
+
+        Args:
+            func (callable): The function to create a tool for.
+            tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
+            update (bool, optional): Update the tool if it already exists. Defaults to True.
+
+        Returns:
+            Tool object
+        """
+
+        # TODO: check if tool already exists
+        # TODO: how to load modules?
+        # parse source code/schema
+        source_code = parse_source_code(func)
+        json_schema = generate_schema(func, name)
+        source_type = "python"
+        tool_name = json_schema["name"]
+
+        # create data
+        data = {"name": tool_name, "source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema}
+        CreateToolRequest(**data)  # validate data:w
+
+        # make REST request
         response = requests.post(f"{self.base_url}/admin/tools", json=data, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
@@ -96,7 +124,7 @@ class Admin:
 
     def list_tools(self) -> ListToolsResponse:
         response = requests.get(f"{self.base_url}/admin/tools", headers=self.headers)
-        return ListToolsResponse(**response.json())
+        return ListToolsResponse(**response.json()).tools
 
     def delete_tool(self, name: str):
         response = requests.delete(f"{self.base_url}/admin/tools/{name}", headers=self.headers)

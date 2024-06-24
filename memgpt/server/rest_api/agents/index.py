@@ -9,6 +9,7 @@ from fastapi import status as stat
 from pydantic import BaseModel, Field
 
 from memgpt.data_types import AgentState, LLMConfig
+from memgpt.constants import BASE_TOOLS
 from memgpt.models.pydantic_models import (
     AgentStateModel,
     AgentStateWithSourcesModel,
@@ -33,6 +34,7 @@ class ListAgentsResponse(BaseModel):
 
 
 class CreateAgentRequest(BaseModel):
+    # TODO: modify this (along with front end)
     config: dict = Field(..., description="The agent configuration object.")
 
 
@@ -83,26 +85,48 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         """
         interface.clear()
 
+        # Parse request
+        # TODO: don't just use JSON in the future
+        human_name = request.config["human_name"] if "human_name" in request.config else None
+        human = request.config["human"] if "human" in request.config else None
+        persona_name = request.config["persona_name"] if "persona_name" in request.config else None
+        persona = request.config["persona"] if "persona" in request.config else None
+        preset = request.config["preset"] if ("preset" in request.config and request.config["preset"]) else settings.default_preset
+        tool_names = request.config["function_names"]
+
+        # TODO: remove this -- should be added based on create agent fields
+        if isinstance(tool_names, str):  # TODO: fix this on clinet side?
+            tool_names = tool_names.split(",")
+        if tool_names is None or tool_names == "":
+            tool_names = []
+        for name in BASE_TOOLS:  # TODO: remove this
+            if name not in tool_names:
+                tool_names.append(name)
+        assert isinstance(tool_names, list), "Tool names must be a list of strings."
+
         try:
             agent_state = server.create_agent(
                 user_id=user_id,
                 # **request.config
                 # TODO turn into a pydantic model
                 name=request.config["name"],
-                preset=request.config["preset"] if "preset" in request.config else None,
-                persona_name=request.config["persona_name"] if "persona_name" in request.config else None,
-                human_name=request.config["human_name"] if "human_name" in request.config else None,
-                persona=request.config["persona"] if "persona" in request.config else None,
-                human=request.config["human"] if "human" in request.config else None,
+                preset=preset,
+                persona_name=persona_name,
+                human_name=human_name,
+                persona=persona,
+                human=human,
                 # llm_config=LLMConfigModel(
                 # model=request.config['model'],
                 # )
-                function_names=request.config["function_names"].split(",") if "function_names" in request.config else None,
+                # tools
+                tools=tool_names,
+                # function_names=request.config["function_names"].split(",") if "function_names" in request.config else None,
             )
             llm_config = LLMConfigModel(**vars(agent_state.llm_config))
             embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
 
             # TODO when get_preset returns a PresetModel instead of Preset, we can remove this packing/unpacking line
+            # TODO: remove
             preset = server.ms.get_preset(name=agent_state.preset, user_id=user_id)
 
             return CreateAgentResponse(
@@ -117,7 +141,8 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                     embedding_config=embedding_config,
                     state=agent_state.state,
                     created_at=int(agent_state.created_at.timestamp()),
-                    functions_schema=agent_state.state["functions"],  # TODO: this is very error prone, jsut lookup the preset instead
+                    tools=tool_names,
+                    system=agent_state.system,
                 ),
                 preset=PresetModel(
                     name=preset.name,

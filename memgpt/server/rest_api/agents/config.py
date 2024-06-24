@@ -97,7 +97,8 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
                 embedding_config=embedding_config,
                 state=agent_state.state,
                 created_at=int(agent_state.created_at.timestamp()),
-                functions_schema=agent_state.state["functions"],  # TODO: this is very error prone, jsut lookup the preset instead
+                tools=agent_state.tools,
+                system=agent_state.system,
             ),
             last_run_at=None,  # TODO
             sources=attached_sources,
@@ -142,7 +143,8 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
                 embedding_config=embedding_config,
                 state=agent_state.state,
                 created_at=int(agent_state.created_at.timestamp()),
-                functions_schema=agent_state.state["functions"],  # TODO: this is very error prone, jsut lookup the preset instead
+                tools=agent_state.tools,
+                system=agent_state.system,
             ),
             last_run_at=None,  # TODO
             sources=attached_sources,

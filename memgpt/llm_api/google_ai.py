@@ -310,7 +310,7 @@ def convert_google_ai_response_to_chatcompletion(
                             type="function",
                             function=FunctionCall(
                                 name=function_name,
-                                arguments=clean_json_string_extra_backslash(json.dumps(function_args)),
+                                arguments=clean_json_string_extra_backslash(json.dumps(function_args, ensure_ascii=JSON_ENSURE_ASCII)),
                             ),
                         )
                     ],

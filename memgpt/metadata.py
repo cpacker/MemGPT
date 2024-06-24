@@ -1,6 +1,5 @@
 """ Metadata store for user/agent/data_source information"""
 
-import inspect as python_inspect
 import os
 import secrets
 import traceback
@@ -35,7 +34,6 @@ from memgpt.data_types import (
     Token,
     User,
 )
-from memgpt.functions.functions import load_all_function_sets
 from memgpt.models.pydantic_models import (
     HumanModel,
     JobModel,
@@ -179,6 +177,7 @@ class AgentModel(Base):
     name = Column(String, nullable=False)
     persona = Column(String)
     human = Column(String)
+    system = Column(String)
     preset = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -188,6 +187,9 @@ class AgentModel(Base):
 
     # state
     state = Column(JSON)
+
+    # tools
+    tools = Column(JSON)
 
     def __repr__(self) -> str:
         return f"<Agent(id='{self.id}', name='{self.name}')>"
@@ -204,6 +206,8 @@ class AgentModel(Base):
             llm_config=self.llm_config,
             embedding_config=self.embedding_config,
             state=self.state,
+            tools=self.tools,
+            system=self.system,
         )
 
 
@@ -546,6 +550,13 @@ class MetadataStore:
             session.refresh(persona)
 
     @enforce_types
+    def update_tool(self, tool: ToolModel):
+        with self.session_maker() as session:
+            session.add(tool)
+            session.commit()
+            session.refresh(tool)
+
+    @enforce_types
     def delete_agent(self, agent_id: uuid.UUID):
         with self.session_maker() as session:
 
@@ -595,20 +606,8 @@ class MetadataStore:
     # def list_tools(self, user_id: uuid.UUID) -> List[ToolModel]: # TODO: add when users can creat tools
     def list_tools(self) -> List[ToolModel]:
         with self.session_maker() as session:
-            available_functions = load_all_function_sets()
-            results = [
-                ToolModel(
-                    name=k,
-                    json_schema=v["json_schema"],
-                    tags=v["tags"],
-                    source_type="python",
-                    source_code=python_inspect.getsource(v["python_function"]),
-                )
-                for k, v in available_functions.items()
-            ]
+            results = session.query(ToolModel).all()
             return results
-            # results = session.query(PresetModel).filter(PresetModel.user_id == user_id).all()
-            # return [r.to_record() for r in results]
 
     @enforce_types
     def list_agents(self, user_id: uuid.UUID) -> List[AgentState]:

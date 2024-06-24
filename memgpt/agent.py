@@ -22,14 +22,7 @@ from memgpt.constants import (
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_WARNING_FRAC,
 )
-from memgpt.data_types import (
-    AgentState,
-    EmbeddingConfig,
-    LLMConfig,
-    Message,
-    Passage,
-    Preset,
-)
+from memgpt.data_types import AgentState, EmbeddingConfig, Message, Passage
 from memgpt.interface import AgentInterface
 from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
 from memgpt.memory import ArchivalMemory
@@ -37,6 +30,7 @@ from memgpt.memory import CoreMemory as InContextMemory
 from memgpt.memory import RecallMemory, summarize_messages
 from memgpt.metadata import MetadataStore
 from memgpt.models import chat_completion_response
+from memgpt.models.pydantic_models import ToolModel
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.system import (
     get_initial_boot_messages,
@@ -46,7 +40,6 @@ from memgpt.system import (
 )
 from memgpt.utils import (
     count_tokens,
-    create_random_username,
     create_uuid_from_string,
     get_local_time,
     get_schema_diff,
@@ -202,78 +195,50 @@ class Agent(object):
         self,
         interface: AgentInterface,
         # agents can be created from providing agent_state
-        agent_state: Optional[AgentState] = None,
-        # or from providing a preset (requires preset + extra fields)
-        preset: Optional[Preset] = None,
-        created_by: Optional[uuid.UUID] = None,
-        name: Optional[str] = None,
-        llm_config: Optional[LLMConfig] = None,
-        embedding_config: Optional[EmbeddingConfig] = None,
+        agent_state: AgentState,
+        tools: List[ToolModel],
         # extras
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
     ):
-        # An agent can be created from a Preset object
-        if preset is not None:
-            assert agent_state is None, "Can create an agent from a Preset or AgentState (but both were provided)"
-            assert created_by is not None, "Must provide created_by field when creating an Agent from a Preset"
-            assert llm_config is not None, "Must provide llm_config field when creating an Agent from a Preset"
-            assert embedding_config is not None, "Must provide embedding_config field when creating an Agent from a Preset"
 
-            # if agent_state is also provided, override any preset values
-            init_agent_state = AgentState(
-                name=name if name else create_random_username(),
-                user_id=created_by,
-                persona=preset.persona,
-                human=preset.human,
-                llm_config=llm_config,
-                embedding_config=embedding_config,
-                preset=preset.name,  # TODO link via preset.id instead of name?
-                state={
-                    "persona": preset.persona,
-                    "human": preset.human,
-                    "system": preset.system,
-                    "functions": preset.functions_schema,
-                    "messages": None,
-                },
-            )
-
-        # An agent can also be created directly from AgentState
-        elif agent_state is not None:
-            assert preset is None, "Can create an agent from a Preset or AgentState (but both were provided)"
-            assert agent_state.state is not None and agent_state.state != {}, "AgentState.state cannot be empty"
-
-            # Assume the agent_state passed in is formatted correctly
-            init_agent_state = agent_state
-
-        else:
-            raise ValueError("Both Preset and AgentState were null (must provide one or the other)")
+        # tools
+        for tool in tools:
+            assert tool.name in agent_state.tools, f"Tool {tool} not found in agent_state.tools"
+        for tool_name in agent_state.tools:
+            assert tool_name in [tool.name for tool in tools], f"Tool name {tool_name} not included in agent tool list"
+        # Store the functions schemas (this is passed as an argument to ChatCompletion)
+        self.functions = []
+        self.functions_python = {}
+        env = {}
+        env.update(globals())
+        for tool in tools:
+            # WARNING: name may not be consistent?
+            if tool.module:  # execute the whole module
+                exec(tool.module, env)
+            else:
+                exec(tool.source_code, env)
+            self.functions_python[tool.name] = env[tool.name]
+            self.functions.append(tool.json_schema)
+        assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
 
         # Hold a copy of the state that was used to init the agent
-        self.agent_state = init_agent_state
+        self.agent_state = agent_state
 
         # gpt-4, gpt-3.5-turbo, ...
         self.model = self.agent_state.llm_config.model
 
         # Store the system instructions (used to rebuild memory)
-        if "system" not in self.agent_state.state:
-            raise ValueError("'system' not found in provided AgentState")
-        self.system = self.agent_state.state["system"]
-
-        if "functions" not in self.agent_state.state:
-            raise ValueError(f"'functions' not found in provided AgentState")
-        # Store the functions schemas (this is passed as an argument to ChatCompletion)
-        self.functions = self.agent_state.state["functions"]  # these are the schema
-        # Link the actual python functions corresponding to the schemas
-        self.functions_python = {k: v["python_function"] for k, v in link_functions(function_schemas=self.functions).items()}
-        assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
+        self.system = self.agent_state.system
 
         # Initialize the memory object
-        if "persona" not in self.agent_state.state:
+        # TODO: support more general memory types
+        if "persona" not in self.agent_state.state:  # TODO: remove
             raise ValueError(f"'persona' not found in provided AgentState")
-        if "human" not in self.agent_state.state:
+        if "human" not in self.agent_state.state:  # TODO: remove
             raise ValueError(f"'human' not found in provided AgentState")
         self.memory = initialize_memory(ai_notes=self.agent_state.state["persona"], human_notes=self.agent_state.state["human"])
+        printd("INITIALIZED MEMORY", self.memory.persona, self.memory.human)
 
         # Interface must implement:
         # - internal_monologue
@@ -285,7 +250,6 @@ class Agent(object):
         self.interface = interface
 
         # Create the persistence manager object based on the AgentState info
-        # TODO
         self.persistence_manager = LocalStateManager(agent_state=self.agent_state)
 
         # State needed for heartbeat pausing
@@ -1055,25 +1019,41 @@ class Agent(object):
     #        self.ms.update_agent(agent=new_agent_state)
 
     def update_state(self) -> AgentState:
-        updated_state = {
+        # updated_state = {
+        #    "persona": self.memory.persona,
+        #    "human": self.memory.human,
+        #    "system": self.system,
+        #    "functions": self.functions,
+        #    "messages": [str(msg.id) for msg in self._messages],
+        # }
+        memory = {
+            "system": self.system,
             "persona": self.memory.persona,
             "human": self.memory.human,
-            "system": self.system,
-            "functions": self.functions,
-            "messages": [str(msg.id) for msg in self._messages],
+            "messages": [str(msg.id) for msg in self._messages],  # TODO: move out into AgentState.message_ids
+        }
+
+        # TODO: add this field
+        metadata = {  # TODO
+            "human_name": self.agent_state.persona,
+            "persona_name": self.agent_state.human,
         }
 
         self.agent_state = AgentState(
             name=self.agent_state.name,
             user_id=self.agent_state.user_id,
-            persona=self.agent_state.persona,
-            human=self.agent_state.human,
+            tools=self.agent_state.tools,
+            system=self.system,
+            persona=self.agent_state.persona,  # TODO: remove (stores persona_name)
+            human=self.agent_state.human,  # TODO: remove (stores human_name)
+            ## "model_state"
             llm_config=self.agent_state.llm_config,
             embedding_config=self.agent_state.embedding_config,
             preset=self.agent_state.preset,
             id=self.agent_state.id,
             created_at=self.agent_state.created_at,
-            state=updated_state,
+            ## "agent_state"
+            state=memory,
         )
         return self.agent_state
 

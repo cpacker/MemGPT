@@ -1,6 +1,6 @@
 import inspect
 import typing
-from typing import get_args, get_origin
+from typing import Optional, get_args, get_origin
 
 from docstring_parser import parse
 from pydantic import BaseModel
@@ -83,7 +83,7 @@ def pydantic_model_to_open_ai(model):
     }
 
 
-def generate_schema(function):
+def generate_schema(function, name: Optional[str] = None, description: Optional[str] = None):
     # Get the signature of the function
     sig = inspect.signature(function)
 
@@ -92,10 +92,12 @@ def generate_schema(function):
 
     # Prepare the schema dictionary
     schema = {
-        "name": function.__name__,
-        "description": docstring.short_description,
+        "name": function.__name__ if name is None else name,
+        "description": docstring.short_description if description is None else description,
         "parameters": {"type": "object", "properties": {}, "required": []},
     }
+
+    # TODO: ensure that 'agent' keyword is reserved for `Agent` class
 
     for param in sig.parameters.values():
         # Exclude 'self' parameter

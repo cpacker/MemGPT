@@ -8,13 +8,12 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.cli.cli_load import load_directory
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import AgentState, EmbeddingConfig, User
+from memgpt.data_types import EmbeddingConfig, User
 from memgpt.metadata import MetadataStore
 
 # from memgpt.data_sources.connectors import DirectoryConnector, load_data
 # import memgpt
 from memgpt.settings import settings
-from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
 
 from .utils import create_config, wipe_config, with_qdrant_storage
@@ -131,15 +130,17 @@ def test_load_directory(
     # config.save()
 
     # create user and agent
-    agent = AgentState(
-        user_id=user.id,
-        name="test_agent",
-        preset=TEST_MEMGPT_CONFIG.preset,
-        persona=get_persona_text(TEST_MEMGPT_CONFIG.persona),
-        human=get_human_text(TEST_MEMGPT_CONFIG.human),
-        llm_config=TEST_MEMGPT_CONFIG.default_llm_config,
-        embedding_config=TEST_MEMGPT_CONFIG.default_embedding_config,
-    )
+    # agent = AgentState(
+    #    user_id=user.id,
+    #    name="test_agent",
+    #    preset=TEST_MEMGPT_CONFIG.preset,
+    #    persona=get_persona_text(TEST_MEMGPT_CONFIG.persona),
+    #    human=get_human_text(TEST_MEMGPT_CONFIG.human),
+    #    llm_config=TEST_MEMGPT_CONFIG.default_llm_config,
+    #    embedding_config=TEST_MEMGPT_CONFIG.default_embedding_config,
+    #    tools=[],
+    #    system="",
+    # )
     ms.delete_user(user.id)
     ms.create_user(user)
     # ms.create_agent(agent)
@@ -223,7 +224,6 @@ def test_load_directory(
 
     # cleanup
     ms.delete_user(user.id)
-    ms.delete_agent(agent.id)
     ms.delete_source(sources[0].id)
 
     # revert to openai config

@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     pg_uri: Optional[str] = None  # option to specifiy full uri
     cors_origins: Optional[list] = ["http://memgpt.localhost", "http://localhost:8283", "http://localhost:8083"]
 
+    # agent configuration defaults
+    default_preset: Optional[str] = "memgpt_chat"
+
     @property
     def memgpt_pg_uri(self) -> str:
         if self.pg_uri:
