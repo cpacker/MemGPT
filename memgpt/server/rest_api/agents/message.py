@@ -37,6 +37,11 @@ class UserMessageRequest(BaseModel):
         None,
         description="Timestamp to tag the message with (in ISO format). If null, timestamp will be created server-side on receipt of message.",
     )
+    stream: bool = Field(
+        default=False,
+        description="Legacy flag for old streaming API, will be deprecrated in the future.",
+        deprecated=True,
+    )
 
     # @validator("timestamp", pre=True, always=True)
     # def validate_timestamp(cls, value: Optional[datetime]) -> Optional[datetime]:
@@ -80,11 +85,18 @@ async def send_message_to_agent(
     user_id: uuid.UUID,
     role: str,
     message: str,
+    stream: bool,  # legacy
     stream_steps: bool,
     stream_tokens: bool,
     chat_completion_mode: Optional[bool] = False,
 ) -> Union[StreamingResponse, UserMessageResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
+
+    # handle the legacy mode streaming
+    if stream:
+        # NOTE: override
+        stream_steps = True
+        stream_tokens = False
 
     if role == "user" or role is None:
         message_func = server.user_message
@@ -110,6 +122,8 @@ async def send_message_to_agent(
         streaming_interface.streaming_mode = stream_tokens
         # "chatcompletion mode" does some remapping and ignores inner thoughts
         streaming_interface.streaming_chat_completion_mode = chat_completion_mode
+        # NOTE: for legacy 'stream' flag
+        streaming_interface.send_message_special_case = stream
 
         # Offload the synchronous message_func to a separate thread
         streaming_interface.stream_start()
@@ -208,6 +222,8 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
             message=request.message,
             stream_steps=request.stream_steps,
             stream_tokens=request.stream_tokens,
+            # legacy
+            stream=request.stream,
         )
 
     return router

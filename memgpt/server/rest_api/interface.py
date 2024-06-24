@@ -222,6 +222,8 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
     def __init__(self, multi_step=True):
         # If streaming mode, ignores base interface calls like .assistant_message, etc
         self.streaming_mode = False
+        # NOTE: flag for supporting legacy 'stream' flag where send_message is treated specially
+        self.send_message_special_case = False
         # If chat completion mode, creates a "chatcompletion-style" stream, but with concepts remapped
         self.streaming_chat_completion_mode = False
         self.streaming_chat_completion_mode_function_name = None  # NOTE: sadly need to track state during stream
@@ -434,6 +436,19 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
     def assistant_message(self, msg: str, msg_obj: Optional[Message] = None):
         """MemGPT uses send_message"""
+
+        if not self.streaming_mode and self.send_message_special_case:
+
+            # create a fake "chunk" of a stream
+            processed_chunk = {
+                "assistant_message": msg,
+                "date": msg_obj.created_at.isoformat() if msg_obj is not None else get_utc_time().isoformat(),
+                "id": str(msg_obj.id) if msg_obj is not None else None,
+            }
+
+            self._chunks.append(processed_chunk)
+            self._event.set()  # Signal that new data is available
+
         return
 
     def function_message(self, msg: str, msg_obj: Optional[Message] = None):
