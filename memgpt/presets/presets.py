@@ -47,10 +47,14 @@ def load_module_tools(module_name="base"):
     for name, schema in functions_to_schema.items():
         # print([str(inspect.getsource(line)) for line in schema["imports"]])
         source_code = inspect.getsource(schema["python_function"])
+        tags = [module_name]
+        if module_name == "base":
+            tags.append("memgpt-base")
+
         tools.append(
             ToolModel(
                 name=name,
-                tags=["base"],
+                tags=tags,
                 source_type="python",
                 module=schema["module"],
                 source_code=source_code,

@@ -718,7 +718,6 @@ class SyncServer(LockingServer):
             else:
                 preset_obj.system = system
                 preset_override = True
-            print("system", preset_obj.system, system)
 
             # Overwrite fields in the preset if they were specified
             if human is not None and human != preset_obj.human:
@@ -755,7 +754,11 @@ class SyncServer(LockingServer):
             embedding_config = embedding_config if embedding_config else self.server_embedding_config
 
             # get tools
-            tool_objs = [self.ms.get_tool(name) for name in tools]
+            tool_objs = []
+            for tool_name in tools:
+                tool_obj = self.ms.get_tool(tool_name)
+                assert tool_obj is not None, f"Tool {tool_name} does not exist"
+                tool_objs.append(tool_obj)
 
             # If the user overrode any parts of the preset, we need to create a new preset to refer back to
             if preset_override:
