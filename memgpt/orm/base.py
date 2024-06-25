@@ -10,15 +10,8 @@ from sqlalchemy.orm import (
     declared_attr,
 )
 
-class AbsoluteBase(DeclarativeBase):
-    """For the few rare instances where we need a bare table
-    (like through m2m joins) extending AbsoluteBase ensures
-    all models inherit from the same DeclarativeBase.
-    """
-
 class Base(DeclarativeBase):
     """absolute base for sqlalchemy classes"""
-
 
 @declarative_mixin
 class CommonSqlalchemyMetaMixins(Base):

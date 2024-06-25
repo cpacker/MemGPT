@@ -129,9 +129,8 @@ class SyncServer(Server):
         chaining: bool = True,
         max_chaining_steps: bool = None,
         default_interface_factory: Callable[[], AgentInterface] = lambda: CLIInterface(),
-        # default_interface: AgentInterface = CLIInterface(),
-        # default_persistence_manager_cls: PersistenceManager = LocalStateManager,
-        # auth_mode: str = "none",  # "none, "jwt", "external"
+        # test hooks
+        config: Optional["MemGPTConfig"] = None
     ):
         """Server process holds in-memory agents that are being run"""
 

@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 
 from memgpt.settings import settings
 from memgpt.orm.utilities import create_engine
-from memgpt.orm.base import Base
+from memgpt.orm.__all__ import Base
 from tests.utils import wipe_memgpt_home
 from memgpt.data_types import EmbeddingConfig, LLMConfig
 from memgpt.credentials import MemGPTCredentials

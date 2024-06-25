@@ -5,6 +5,10 @@ from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.orm.mixins import OrganizationMixin
+from memgpt.orm.users_agents import UsersAgents
+if TYPE_CHECKING:
+    from memgpt.orm.agent import Agent
+    from memgpt.orm.token import Token
 
 class User(SqlalchemyBase, OrganizationMixin):
     """User ORM class"""
@@ -18,7 +22,8 @@ class User(SqlalchemyBase, OrganizationMixin):
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="users")
     agents: Mapped[List["Agent"]] = relationship("Agent",
-                                               back_populates="users",
-                                               secondary="user_agent",
-                                               doc="the agents associated with this user.")
+                                                 secondary="users_agents",
+                                                 back_populates="users",
+                                                 doc="the agents associated with this user.")
+    tokens: Mapped[List["Token"]] = relationship("Token", back_populates="user", doc="the tokens associated with this user.")
 
