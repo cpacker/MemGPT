@@ -22,10 +22,13 @@ from memgpt.server.rest_api.agents.message import setup_agents_message_router
 from memgpt.server.rest_api.auth.index import setup_auth_router
 from memgpt.server.rest_api.config.index import setup_config_index_router
 from memgpt.server.rest_api.humans.index import setup_humans_index_router
-from memgpt.server.rest_api.interface import QueuingInterface
+from memgpt.server.rest_api.interface import StreamingServerInterface
 from memgpt.server.rest_api.models.index import setup_models_index_router
 from memgpt.server.rest_api.openai_assistants.assistants import (
     setup_openai_assistant_router,
+)
+from memgpt.server.rest_api.openai_chat_completions.chat_completions import (
+    setup_openai_chat_completions_router,
 )
 from memgpt.server.rest_api.personas.index import setup_personas_index_router
 from memgpt.server.rest_api.presets.index import setup_presets_index_router
@@ -43,8 +46,10 @@ Start the server with:
   poetry run uvicorn server:app --reload
 """
 
-interface: QueuingInterface = QueuingInterface()
-server: SyncServer = SyncServer(default_interface=interface)
+# interface: QueuingInterface = QueuingInterface()
+# interface: StreamingServerInterface = StreamingServerInterface()
+interface: StreamingServerInterface = StreamingServerInterface
+server: SyncServer = SyncServer(default_interface_factory=lambda: interface())
 
 if password := settings.server_pass:
     # if the pass was specified in the environment, use it
@@ -102,6 +107,9 @@ app.include_router(setup_config_index_router(server, interface, password), prefi
 
 # /v1/assistants endpoints
 app.include_router(setup_openai_assistant_router(server, interface), prefix=OPENAI_API_PREFIX)
+
+# /v1/chat/completions endpoints
+app.include_router(setup_openai_chat_completions_router(server, interface, password), prefix=OPENAI_API_PREFIX)
 
 # / static files
 mount_static_files(app)

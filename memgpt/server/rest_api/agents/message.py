@@ -1,19 +1,17 @@
 import asyncio
-import json
 import uuid
-from asyncio import AbstractEventLoop
 from datetime import datetime
 from enum import Enum
 from functools import partial
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
-from memgpt.constants import JSON_ENSURE_ASCII
 from memgpt.server.rest_api.auth_token import get_current_user
-from memgpt.server.rest_api.interface import QueuingInterface
+from memgpt.server.rest_api.interface import QueuingInterface, StreamingServerInterface
+from memgpt.server.rest_api.utils import sse_async_generator
 from memgpt.server.server import SyncServer
 
 router = APIRouter()
@@ -26,12 +24,23 @@ class MessageRoleType(str, Enum):
 
 class UserMessageRequest(BaseModel):
     message: str = Field(..., description="The message content to be processed by the agent.")
-    name: str = Field(default="user", description="Name of the message request sender")
-    stream: bool = Field(default=False, description="Flag to determine if the response should be streamed. Set to True for streaming.")
+    name: Optional[str] = Field(default=None, description="Name of the message request sender")
     role: MessageRoleType = Field(default=MessageRoleType.user, description="Role of the message sender (either 'user' or 'system')")
+    stream_steps: bool = Field(
+        default=False, description="Flag to determine if the response should be streamed. Set to True for streaming agent steps."
+    )
+    stream_tokens: bool = Field(
+        default=False,
+        description="Flag to determine if individual tokens should be streamed. Set to True for token streaming (requires stream = True).",
+    )
     timestamp: Optional[datetime] = Field(
         None,
         description="Timestamp to tag the message with (in ISO format). If null, timestamp will be created server-side on receipt of message.",
+    )
+    stream: bool = Field(
+        default=False,
+        description="Legacy flag for old streaming API, will be deprecrated in the future.",
+        deprecated=True,
     )
 
     # @validator("timestamp", pre=True, always=True)
@@ -68,6 +77,86 @@ class GetAgentMessagesCursorRequest(BaseModel):
 
 class GetAgentMessagesResponse(BaseModel):
     messages: list = Field(..., description="List of message objects.")
+
+
+async def send_message_to_agent(
+    server: SyncServer,
+    agent_id: uuid.UUID,
+    user_id: uuid.UUID,
+    role: str,
+    message: str,
+    stream_legacy: bool,  # legacy
+    stream_steps: bool,
+    stream_tokens: bool,
+    chat_completion_mode: Optional[bool] = False,
+) -> Union[StreamingResponse, UserMessageResponse]:
+    """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
+
+    # handle the legacy mode streaming
+    if stream_legacy:
+        # NOTE: override
+        stream_steps = True
+        stream_tokens = False
+        include_final_message = False
+
+    if role == "user" or role is None:
+        message_func = server.user_message
+    elif role == "system":
+        message_func = server.system_message
+    else:
+        raise HTTPException(status_code=500, detail=f"Bad role {role}")
+
+    if not stream_steps and stream_tokens:
+        raise HTTPException(status_code=400, detail="stream_steps must be 'true' if stream_tokens is 'true'")
+
+    # For streaming response
+    try:
+
+        # Get the generator object off of the agent's streaming interface
+        # This will be attached to the POST SSE request used under-the-hood
+        memgpt_agent = server._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        streaming_interface = memgpt_agent.interface
+        if not isinstance(streaming_interface, StreamingServerInterface):
+            raise ValueError(f"Agent has wrong type of interface: {type(streaming_interface)}")
+
+        # Enable token-streaming within the request if desired
+        streaming_interface.streaming_mode = stream_tokens
+        # "chatcompletion mode" does some remapping and ignores inner thoughts
+        streaming_interface.streaming_chat_completion_mode = chat_completion_mode
+
+        # NOTE: for legacy 'stream' flag
+        streaming_interface.nonstreaming_legacy_mode = stream_legacy
+        # streaming_interface.allow_assistant_message = stream
+        # streaming_interface.function_call_legacy_mode = stream
+
+        # Offload the synchronous message_func to a separate thread
+        streaming_interface.stream_start()
+        task = asyncio.create_task(asyncio.to_thread(message_func, user_id=user_id, agent_id=agent_id, message=message))
+
+        if stream_steps:
+            # return a stream
+            return StreamingResponse(
+                sse_async_generator(streaming_interface.get_generator(), finish_message=include_final_message),
+                media_type="text/event-stream",
+            )
+        else:
+            # buffer the stream, then return the list
+            generated_stream = []
+            async for message in streaming_interface.get_generator():
+                generated_stream.append(message)
+                if "data" in message and message["data"] == "[DONE]":
+                    break
+            filtered_stream = [d for d in generated_stream if d not in ["[DONE_GEN]", "[DONE_STEP]", "[DONE]"]]
+            return UserMessageResponse(messages=filtered_stream)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(e)
+        import traceback
+
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"{e}")
 
 
 def setup_agents_message_router(server: SyncServer, interface: QueuingInterface, password: str):
@@ -118,6 +207,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
 
     @router.post("/agents/{agent_id}/messages", tags=["agents"], response_model=UserMessageResponse)
     async def send_message(
+        # background_tasks: BackgroundTasks,
         agent_id: uuid.UUID,
         request: UserMessageRequest = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
@@ -128,82 +218,16 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         This endpoint accepts a message from a user and processes it through the agent.
         It can optionally stream the response if 'stream' is set to True.
         """
-
-        if request.role == "user" or request.role is None:
-            message_func = server.user_message
-        elif request.role == "system":
-            message_func = server.system_message
-        else:
-            raise HTTPException(status_code=500, detail=f"Bad role {request.role}")
-
-        def handle_exception(exception_loop: AbstractEventLoop, context):
-            # context["message"] will always be there; but context["exception"] may not
-            error = context.get("exception") or context["message"]
-            print(f"handling asyncio exception {context}")
-            interface.error(str(error))
-
-        if request.stream:
-            # For streaming response
-            try:
-                # Start the generation process (similar to the non-streaming case)
-                # This should be a non-blocking call or run in a background task
-                # Check if server.user_message is an async function
-                if asyncio.iscoroutinefunction(message_func):
-                    # Start the async task
-                    await asyncio.create_task(
-                        message_func(
-                            user_id=user_id,
-                            agent_id=agent_id,
-                            message=request.message,
-                            timestamp=request.timestamp,
-                        )
-                    )
-                else:
-
-                    # Run the synchronous function in a thread pool
-                    loop = asyncio.get_event_loop()
-                    loop.set_exception_handler(handle_exception)
-                    loop.run_in_executor(
-                        None,
-                        message_func,
-                        user_id,
-                        agent_id,
-                        request.message,
-                        request.timestamp,
-                    )
-
-                async def formatted_message_generator():
-                    async for message in interface.message_generator():
-                        formatted_message = f"data: {json.dumps(message, ensure_ascii=JSON_ENSURE_ASCII)}\n\n"
-                        yield formatted_message
-                        await asyncio.sleep(1)
-
-                # Return the streaming response using the generator
-                return StreamingResponse(formatted_message_generator(), media_type="text/event-stream")
-            except HTTPException:
-                raise
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"{e}")
-
-        else:
-            interface.clear()
-            try:
-                # message_func(user_id=user_id, agent_id=agent_id, message=request.message)
-                # call in thread pool to prevent blocking
-                loop = asyncio.get_event_loop()
-                loop.set_exception_handler(handle_exception)
-                task = loop.run_in_executor(
-                    None,
-                    message_func,
-                    user_id,
-                    agent_id,
-                    request.message,
-                )
-                await task
-            except HTTPException:
-                raise
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=str(e))
-            return UserMessageResponse(messages=interface.to_list())
+        return await send_message_to_agent(
+            server=server,
+            agent_id=agent_id,
+            user_id=user_id,
+            role=request.role,
+            message=request.message,
+            stream_steps=request.stream_steps,
+            stream_tokens=request.stream_tokens,
+            # legacy
+            stream_legacy=request.stream,
+        )
 
     return router
