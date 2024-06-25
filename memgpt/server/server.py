@@ -124,7 +124,7 @@ class SyncServer(Server):
         max_chaining_steps: bool = None,
         default_interface: AgentInterface = CLIInterface(),
         # test hooks
-        metadatastore: Optional["MetadataStore"] = None,
+        config: Optional["MemGPTConfig"] = None
     ):
         """Server process holds in-memory agents that are being run"""
 

@@ -15,6 +15,7 @@ class Organization(SqlalchemyBase):
 
     # relationships
     users: Mapped["User"] = relationship("User", back_populates="organization")
+    agents: Mapped["Agent"] = relationship("Agent", back_populates="organization")
 
     @classmethod
     def default(cls, db_session:"Session") -> "Organization":
@@ -23,3 +24,4 @@ class Organization(SqlalchemyBase):
             return db_session.query(cls).one().scalar()
         except NoResultFound:
             return cls(name="Default Organization").create(db_session)
+

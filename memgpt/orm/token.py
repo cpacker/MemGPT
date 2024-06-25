@@ -1,6 +1,6 @@
 from typing import Optional
 from sqlalchemy import String
-from sqlachemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.orm.mixins import UserMixin

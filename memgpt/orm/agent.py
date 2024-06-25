@@ -1,9 +1,10 @@
 from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy import String
-from sqlachemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.orm.mixins import OrganizationMixin
+from memgpt.orm.users_agents import UsersAgents
 if TYPE_CHECKING:
     from memgpt.orm.organization import Organization
     from memgpt.orm.user import User
@@ -21,5 +22,5 @@ class Agent(SqlalchemyBase, OrganizationMixin):
     organization: Mapped["Organization"] = relationship("Organization", back_populates="agents")
     users: Mapped[List["User"]] = relationship("User",
                                                back_populates="agents",
-                                               secondary="user_agent",
+                                               secondary="users_agents",
                                                doc="the users associated with this agent.")
