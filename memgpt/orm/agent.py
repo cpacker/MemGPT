@@ -1,10 +1,11 @@
 from typing import Optional, List, TYPE_CHECKING
-from sqlalchemy import String
+from sqlalchemy import String, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.orm.mixins import OrganizationMixin
-from memgpt.orm.users_agents import UsersAgents
+from memgpt.data_types import LLMConfig, EmbeddingConfig
+
 if TYPE_CHECKING:
     from memgpt.orm.organization import Organization
     from memgpt.orm.source import Source
@@ -19,6 +20,9 @@ class Agent(SqlalchemyBase, OrganizationMixin):
     # todo: this doesn't allign with 1:M agents to users!
     human: Mapped[str] = mapped_column(doc="the human text for the agent and the current user, current state.")
     preset: Mapped[str] = mapped_column(doc="the preset text for the agent, current state.")
+
+    llm_config: Mapped[LLMConfig] = mapped_column(JSON, doc="the LLM backend configuration object for this agent.")
+    embedding_config: Mapped[EmbeddingConfig] = mapped_column(JSON, doc="the embedding configuration object for this agent.")
 
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="agents")
