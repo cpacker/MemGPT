@@ -1,21 +1,25 @@
 from pathlib import Path
 from typing import Optional
+from enum import Enum
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+class StorageType(str, Enum):
+    sqlite = "sqlite"
+    postgres = "postgres"
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="memgpt_")
-
+    storage_type: Optional[StorageType] = Field(description="What is the RDBMS type associated with the database url?", default=StorageType.sqlite)
     memgpt_dir: Optional[Path] = Field(Path.home() / ".memgpt", env="MEMGPT_DIR")
     debug: Optional[bool] = False
     server_pass: Optional[str] = None
-    pg_db: Optional[str] = "memgpt"
-    pg_user: Optional[str] = "memgpt"
-    pg_password: Optional[str] = "memgpt"
-    pg_host: Optional[str] = "localhost"
-    pg_port: Optional[int] = 5432
     cors_origins: Optional[list] = ["http://memgpt.localhost", "http://localhost:8283", "http://localhost:8083"]
+    pg_db: Optional[str] = None
+    pg_user: Optional[str] = None
+    pg_password: Optional[str] = None
+    pg_host: Optional[str] = None
+    pg_port: Optional[int] = None
     _pg_uri: Optional[str] = None  # calculated to specify full uri
     # configurations
     config_path: Optional[Path] = Path("~/.memgpt/config").expanduser()
@@ -27,6 +31,12 @@ class Settings(BaseSettings):
 
     # TODO: extract to vendor plugin
     openai_api_key: Optional[str] = None
+
+    @property
+    def database_url(self) -> str:
+        if self.storage_type == StorageType.sqlite:
+            return f"sqlite:///{self.memgpt_dir}/memgpt.db"
+        return self.pg_uri
 
     @property
     def pg_uri(self) -> str:

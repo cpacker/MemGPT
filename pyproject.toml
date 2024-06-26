@@ -65,6 +65,8 @@ httpx-sse = "^0.4.0"
 isort = { version = "^5.13.2", optional = true }
 llama-index-embeddings-ollama = {version = "^0.1.2", optional = true}
 protobuf = "3.20.0"
+alembic = "^1.13.2"
+pyhumps = "^3.8.0"
 
 [tool.poetry.extras]
 local = ["llama-index-embeddings-huggingface"]
