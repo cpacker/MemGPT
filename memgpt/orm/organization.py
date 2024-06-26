@@ -6,6 +6,10 @@ from sqlalchemy.orm import Mapped, relationship, mapped_column
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 if TYPE_CHECKING:
     from memgpt.orm.user import User
+    from memgpt.orm.agent import Agent
+    from memgpt.orm.source import Source
+    from memgpt.orm.tool import Tool
+    from memgpt.orm.preset import Preset
     from sqlalchemy.orm.session import Session
 
 class Organization(SqlalchemyBase):
@@ -14,8 +18,11 @@ class Organization(SqlalchemyBase):
     name:Mapped[Optional[str]] = mapped_column(nullable=True, doc="The display name of the organization.")
 
     # relationships
-    users: Mapped["User"] = relationship("User", back_populates="organization")
-    agents: Mapped["Agent"] = relationship("Agent", back_populates="organization")
+    users: Mapped["User"] = relationship("User", back_populates="organization", cascade="all, delete-orphan")
+    agents: Mapped["Agent"] = relationship("Agent", back_populates="organization", cascade="all, delete-orphan")
+    sources: Mapped["Source"] = relationship("Source", back_populates="organization", cascade="all, delete-orphan")
+    tools: Mapped["Tool"] = relationship("Tool", back_populates="organization", cascade="all, delete-orphan")
+    presets: Mapped["Preset"] = relationship("Preset", back_populates="organization", cascade="all, delete-orphan")
 
     @classmethod
     def default(cls, db_session:"Session") -> "Organization":
