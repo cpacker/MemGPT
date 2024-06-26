@@ -261,6 +261,8 @@ class RESTClient(AbstractClient):
         human: Optional[str] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
+        # memory
+        memory: BaseMemory = ChatMemory(human=DEFAULT_HUMAN, persona=DEFAULT_PERSONA),
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,

@@ -3,6 +3,8 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple, Union
 
+from pydantic import BaseModel
+
 from memgpt.constants import MESSAGE_SUMMARY_REQUEST_ACK, MESSAGE_SUMMARY_WARNING_FRAC
 from memgpt.data_types import AgentState, Message, Passage
 from memgpt.embeddings import embedding_model, parse_and_chunk_text, query_embedding
@@ -16,8 +18,75 @@ from memgpt.utils import (
     validate_date_format,
 )
 
-# from llama_index import Document
-# from llama_index.node_parser import SimpleNodeParser
+
+class MemoryModule(BaseModel):
+    """Base class for memory modules"""
+
+    name = None
+    description = None
+    limit: int = 2000
+    value: List[str] | str = None
+
+    # validate any updates to value
+    def __setattr__(self, name, value):
+        if name == "value":
+            if isinstance(value, str) and len(value) > self.limit:
+                raise ValueError(f"Value exceeds limit of {self.limit} characters")
+            elif isinstance(value, list) and sum([len(v) for v in value]) > self.limit:
+                raise ValueError(f"Value exceeds limit of {self.limit} characters")
+        super().__setattr__(name, value)
+
+    def __len__(self):
+        if isinstance(self.value, list):
+            return sum([len(v) for v in self.value])
+        elif isinstance(self.value, str):
+            return len(self.value)
+        else:
+            assert self.value is None, f"Unexpected value type {type(self.value)}"
+            return 0
+
+
+class Memory(BaseModel):
+
+    def __init__(self):
+        self.memory = {}
+
+    def load_memory(self, state: dict):
+        """Load memory from dictionary object"""
+        self.memory = {}
+        for key, value in state.items():
+            self.memory[key] = MemoryModule(**value)
+
+    @abstractmethod
+    def __repr__(self) -> str:
+        pass
+
+    def to_dict(self):
+        """Convert to dictionary representation"""
+        return {key: value.dict() for key, value in self.memory.items()}
+
+
+class ChatMemory(Memory):
+
+    def __init__(self, persona: str, human: str, limit: int = 2000):
+        self.memory = {
+            "persona": MemoryModule(name="persona", value=persona, limit=limit),
+            "human": MemoryModule(name="human", value=human, limit=limit),
+        }
+
+    def core_memory_append(self, name: str, content: str) -> Optional[str]:
+        """
+        Append to the contents of core memory.
+
+        Args:
+            name (str): Section of the memory to be edited (persona or human).
+            content (str): Content to write to the memory. All unicode (including emojis) are supported.
+
+        Returns:
+            Optional[str]: None is always returned as this function does not produce a response.
+        """
+        self.memory[name] += "\n" + content
+        return None
 
 
 class CoreMemory(object):
