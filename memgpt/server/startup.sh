@@ -1,4 +1,8 @@
 #!/bin/sh
+set -e
+echo "updating database..."
+alembic upgrade head
+echo "Database updated!"
 echo "Starting MEMGPT server..."
 if [ "$MEMGPT_ENVIRONMENT" = "DEVELOPMENT" ] ; then
     echo "Starting in development mode!"
