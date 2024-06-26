@@ -11,6 +11,7 @@ from memgpt.orm.base import CommonSqlalchemyMetaMixins
 from memgpt.orm.errors import NoResultFound
 
 if TYPE_CHECKING:
+    from pydantic import BaseModel
     from sqlalchemy.orm import Session
     from sqlalchemy import Select
     from memgpt.orm.user import User
@@ -43,6 +44,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins):
             prefix == self.__prefix__
         ), f"{prefix} is not a valid id prefix for {self.__class__.__name__}"
         self._id = UUID(id_)
+
     @classmethod
     def list(cls, db_session: "Session") -> list[Type["Base"]]:
         with db_session as session:
@@ -101,3 +103,16 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins):
         if not org_uid:
             raise ValueError("object %s has no organization accessor", actor)
         return query.where(cls._organization_id == org_uid)
+
+    @property
+    def __pydantic_model__(self) -> Type["BaseModel"]:
+        raise NotImplementedError("Sqlalchemy models must declare a __pydantic_model__ property to be convertable.")
+
+    def to_pydantic(self) -> Type["BaseModel"]:
+        """converts to the basic pydantic model counterpart"""
+        return self.__pydantic_model__.model_validate(self)
+
+    def to_record(self) -> Type["BaseModel"]:
+        """Deprecated accessor for to_pydantic"""
+        logger.warning("to_record is deprecated, use to_pydantic instead.")
+        return self.to_pydantic()

@@ -6,25 +6,25 @@ import traceback
 import uuid
 from typing import List, Optional, Type
 
-from sqlalchemy import (
-    BIGINT,
-    CHAR,
-    JSON,
-    Boolean,
-    Column,
-    DateTime,
-    String,
-    TypeDecorator,
-    create_engine,
-    desc,
-    func,
-)
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.exc import InterfaceError, OperationalError
-from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy.sql import func
+#from sqlalchemy import (
+    #BIGINT,
+    #CHAR,
+    #JSON,
+    #Boolean,
+    #Column,
+    #DateTime,
+    #String,
+    #TypeDecorator,
+    #create_engine,
+    #desc,
+    #func,
+#)
+#from sqlalchemy.dialects.postgresql import UUID
+#from sqlalchemy.exc import InterfaceError
+#from sqlalchemy.orm import declarative_base, sessionmaker
+#from sqlalchemy.sql import func
 
-from memgpt.config import MemGPTConfig
+#from memgpt.config import MemGPTConfig
 from memgpt.data_types import (
     AgentState,
     EmbeddingConfig,
@@ -34,290 +34,290 @@ from memgpt.data_types import (
     Token,
     User,
 )
-from memgpt.models.pydantic_models import (
-    HumanModel,
-    JobModel,
-    JobStatus,
-    PersonaModel,
-    ToolModel,
-)
+from memgpt.functions.functions import load_all_function_sets
+from memgpt.orm.enums import JobStatus
+#from memgpt.models.pydantic_models import (
+    #HumanModel,
+    #JobModel,
+    #JobStatus,
+    #PersonaModel,
+    #ToolModel,
+#)
 from memgpt.settings import settings
-from memgpt.utils import enforce_types, get_utc_time, printd
+from memgpt.utils import printd #enforce_types, get_utc_time, printd
 
 
-Base = declarative_base()
+#Base = declarative_base()
 
 
 # Custom UUID type
-class CommonUUID(TypeDecorator):
-    impl = CHAR
-    cache_ok = True
+#class CommonUUID(TypeDecorator):
+    #impl = CHAR
+    #cache_ok = True
 
-    def load_dialect_impl(self, dialect):
-        if dialect.name == "postgresql":
-            return dialect.type_descriptor(UUID(as_uuid=True))
-        else:
-            return dialect.type_descriptor(CHAR())
+    #def load_dialect_impl(self, dialect):
+        #if dialect.name == "postgresql":
+            #return dialect.type_descriptor(UUID(as_uuid=True))
+        #else:
+            #return dialect.type_descriptor(CHAR())
 
-    def process_bind_param(self, value, dialect):
-        if dialect.name == "postgresql" or value is None:
-            return value
-        else:
-            return str(value)  # Convert UUID to string for SQLite
+    #def process_bind_param(self, value, dialect):
+        #if dialect.name == "postgresql" or value is None:
+            #return value
+        #else:
+            #return str(value)  # Convert UUID to string for SQLite
 
-    def process_result_value(self, value, dialect):
-        if dialect.name == "postgresql" or value is None:
-            return value
-        else:
-            return uuid.UUID(value)
-
-
-class LLMConfigColumn(TypeDecorator):
-    """Custom type for storing LLMConfig as JSON"""
-
-    impl = JSON
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        return dialect.type_descriptor(JSON())
-
-    def process_bind_param(self, value, dialect):
-        if value:
-            return vars(value)
-        return value
-
-    def process_result_value(self, value, dialect):
-        if value:
-            return LLMConfig(**value)
-        return value
+    #def process_result_value(self, value, dialect):
+        #if dialect.name == "postgresql" or value is None:
+            #return value
+        #else:
+            #return uuid.UUID(value)
 
 
-class EmbeddingConfigColumn(TypeDecorator):
-    """Custom type for storing EmbeddingConfig as JSON"""
+#class LLMConfigColumn(TypeDecorator):
+    #"""Custom type for storing LLMConfig as JSON"""
 
-    impl = JSON
-    cache_ok = True
+    #impl = JSON
+    #cache_ok = True
 
-    def load_dialect_impl(self, dialect):
-        return dialect.type_descriptor(JSON())
+    #def load_dialect_impl(self, dialect):
+        #return dialect.type_descriptor(JSON())
 
-    def process_bind_param(self, value, dialect):
-        if value:
-            return vars(value)
-        return value
+    #def process_bind_param(self, value, dialect):
+        #if value:
+            #return vars(value)
+        #return value
 
-    def process_result_value(self, value, dialect):
-        if value:
-            return EmbeddingConfig(**value)
-        return value
-
-
-class UserModel(Base):
-    __tablename__ = "users"
-    __table_args__ = {"extend_existing": True}
-
-    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-    # name = Column(String, nullable=False)
-    default_agent = Column(String)
-
-    policies_accepted = Column(Boolean, nullable=False, default=False)
-
-    def __repr__(self) -> str:
-        return f"<User(id='{self.id}')>"
-
-    def to_record(self) -> User:
-        return User(
-            id=self.id,
-            # name=self.name
-            default_agent=self.default_agent,
-            policies_accepted=self.policies_accepted,
-        )
+    #def process_result_value(self, value, dialect):
+        #if value:
+            #return LLMConfig(**value)
+        #return value
 
 
-class TokenModel(Base):
-    """Data model for authentication tokens. One-to-many relationship with UserModel (1 User - N tokens)."""
+#class EmbeddingConfigColumn(TypeDecorator):
+    #"""Custom type for storing EmbeddingConfig as JSON"""
 
-    __tablename__ = "tokens"
+    #impl = JSON
+    #cache_ok = True
 
-    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-    # each api key is tied to a user account (that it validates access for)
-    user_id = Column(CommonUUID, nullable=False)
-    # the api key
-    token = Column(String, nullable=False)
-    # extra (optional) metadata
-    name = Column(String)
+    #def load_dialect_impl(self, dialect):
+        #return dialect.type_descriptor(JSON())
 
-    def __repr__(self) -> str:
-        return f"<Token(id='{self.id}', token='{self.token}', name='{self.name}')>"
+    #def process_bind_param(self, value, dialect):
+        #if value:
+            #return vars(value)
+        #return value
 
-    def to_record(self) -> User:
-        return Token(
-            id=self.id,
-            user_id=self.user_id,
-            token=self.token,
-            name=self.name,
-        )
+    #def process_result_value(self, value, dialect):
+        #if value:
+            #return EmbeddingConfig(**value)
+        #return value
 
 
-def generate_api_key(prefix="sk-", length=51) -> str:
-    # Generate 'length // 2' bytes because each byte becomes two hex digits. Adjust length for prefix.
-    actual_length = max(length - len(prefix), 1) // 2  # Ensure at least 1 byte is generated
-    random_bytes = secrets.token_bytes(actual_length)
-    new_key = prefix + random_bytes.hex()
-    return new_key
+#class UserModel(Base):
+    #__tablename__ = "users"
+    #__table_args__ = {"extend_existing": True}
+
+    #id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+    ## name = Column(String, nullable=False)
+    #default_agent = Column(String)
+
+    #policies_accepted = Column(Boolean, nullable=False, default=False)
+
+    #def __repr__(self) -> str:
+        #return f"<User(id='{self.id}')>"
+
+    #def to_record(self) -> User:
+        #return User(
+            #id=self.id,
+            ## name=self.name
+            #default_agent=self.default_agent,
+            #policies_accepted=self.policies_accepted,
+        #)
 
 
-class AgentModel(Base):
-    """Defines data model for storing Passages (consisting of text, embedding)"""
+#class TokenModel(Base):
+    #"""Data model for authentication tokens. One-to-many relationship with UserModel (1 User - N tokens)."""
 
-    __tablename__ = "agents"
-    __table_args__ = {"extend_existing": True}
+    #__tablename__ = "tokens"
 
-    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-    user_id = Column(CommonUUID, nullable=False)
-    name = Column(String, nullable=False)
-    system = Column(String)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    #id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+    ## each api key is tied to a user account (that it validates access for)
+    #user_id = Column(CommonUUID, nullable=False)
+    ## the api key
+    #token = Column(String, nullable=False)
+    ## extra (optional) metadata
+    #name = Column(String)
 
-    # configs
-    llm_config = Column(LLMConfigColumn)
-    embedding_config = Column(EmbeddingConfigColumn)
+    #def __repr__(self) -> str:
+        #return f"<Token(id='{self.id}', token='{self.token}', name='{self.name}')>"
 
-    # state
-    state = Column(JSON)
-    _metadata = Column(JSON)
-
-    # tools
-    tools = Column(JSON)
-
-    def __repr__(self) -> str:
-        return f"<Agent(id='{self.id}', name='{self.name}')>"
-
-    def to_record(self) -> AgentState:
-        return AgentState(
-            id=self.id,
-            user_id=self.user_id,
-            name=self.name,
-            created_at=self.created_at,
-            llm_config=self.llm_config,
-            embedding_config=self.embedding_config,
-            state=self.state,
-            tools=self.tools,
-            system=self.system,
-            _metadata=self._metadata,
-        )
+    #def to_record(self) -> User:
+        #return Token(
+            #id=self.id,
+            #user_id=self.user_id,
+            #token=self.token,
+            #name=self.name,
+        #)
 
 
-class SourceModel(Base):
-    """Defines data model for storing Passages (consisting of text, embedding)"""
-
-    __tablename__ = "sources"
-    __table_args__ = {"extend_existing": True}
-
-    # Assuming passage_id is the primary key
-    # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-    user_id = Column(CommonUUID, nullable=False)
-    name = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    embedding_dim = Column(BIGINT)
-    embedding_model = Column(String)
-    description = Column(String)
-
-    # TODO: add num passages
-
-    def __repr__(self) -> str:
-        return f"<Source(passage_id='{self.id}', name='{self.name}')>"
-
-    def to_record(self) -> Source:
-        return Source(
-            id=self.id,
-            user_id=self.user_id,
-            name=self.name,
-            created_at=self.created_at,
-            embedding_dim=self.embedding_dim,
-            embedding_model=self.embedding_model,
-            description=self.description,
-        )
+#def generate_api_key(prefix="sk-", length=51) -> str:
+    ## Generate 'length // 2' bytes because each byte becomes two hex digits. Adjust length for prefix.
+    #actual_length = max(length - len(prefix), 1) // 2  # Ensure at least 1 byte is generated
+    #random_bytes = secrets.token_bytes(actual_length)
+    #new_key = prefix + random_bytes.hex()
+    #return new_key
 
 
-class AgentSourceMappingModel(Base):
-    """Stores mapping between agent -> source"""
+#class AgentModel(Base):
+    #"""Defines data model for storing Passages (consisting of text, embedding)"""
 
-    __tablename__ = "agent_source_mapping"
+    #__tablename__ = "agents"
+    #__table_args__ = {"extend_existing": True}
 
-    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-    user_id = Column(CommonUUID, nullable=False)
-    agent_id = Column(CommonUUID, nullable=False)
-    source_id = Column(CommonUUID, nullable=False)
+    #id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+    #user_id = Column(CommonUUID, nullable=False)
+    #name = Column(String, nullable=False)
+    #persona = Column(String)
+    #human = Column(String)
+    #preset = Column(String)
+    #created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    def __repr__(self) -> str:
-        return f"<AgentSourceMapping(user_id='{self.user_id}', agent_id='{self.agent_id}', source_id='{self.source_id}')>"
+    ## configs
+    #llm_config = Column(LLMConfigColumn)
+    #embedding_config = Column(EmbeddingConfigColumn)
+
+    ## state
+    #state = Column(JSON)
+
+    #def __repr__(self) -> str:
+        #return f"<Agent(id='{self.id}', name='{self.name}')>"
+
+    #def to_record(self) -> AgentState:
+        #return AgentState(
+            #id=self.id,
+            #user_id=self.user_id,
+            #name=self.name,
+            #persona=self.persona,
+            #human=self.human,
+            #preset=self.preset,
+            #created_at=self.created_at,
+            #llm_config=self.llm_config,
+            #embedding_config=self.embedding_config,
+            #state=self.state,
+        #)
 
 
-class PresetSourceMapping(Base):
-    __tablename__ = "preset_source_mapping"
+#class SourceModel(Base):
+    #"""Defines data model for storing Passages (consisting of text, embedding)"""
 
-    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-    user_id = Column(CommonUUID, nullable=False)
-    preset_id = Column(CommonUUID, nullable=False)
-    source_id = Column(CommonUUID, nullable=False)
+    #__tablename__ = "sources"
+    #__table_args__ = {"extend_existing": True}
 
-    def __repr__(self) -> str:
-        return f"<PresetSourceMapping(user_id='{self.user_id}', preset_id='{self.preset_id}', source_id='{self.source_id}')>"
+    ## Assuming passage_id is the primary key
+    ## id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    #id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+    #user_id = Column(CommonUUID, nullable=False)
+    #name = Column(String, nullable=False)
+    #created_at = Column(DateTime(timezone=True), server_default=func.now())
+    #embedding_dim = Column(BIGINT)
+    #embedding_model = Column(String)
+    #description = Column(String)
+
+    ## TODO: add num passages
+
+    #def __repr__(self) -> str:
+        #return f"<Source(passage_id='{self.id}', name='{self.name}')>"
+
+    #def to_record(self) -> Source:
+        #return Source(
+            #id=self.id,
+            #user_id=self.user_id,
+            #name=self.name,
+            #created_at=self.created_at,
+            #embedding_dim=self.embedding_dim,
+            #embedding_model=self.embedding_model,
+            #description=self.description,
+        #)
 
 
-# class PresetFunctionMapping(Base):
-#    __tablename__ = "preset_function_mapping"
-#
-#    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-#    user_id = Column(CommonUUID, nullable=False)
-#    preset_id = Column(CommonUUID, nullable=False)
-#    #function_id = Column(CommonUUID, nullable=False)
-#    function = Column(String, nullable=False) # TODO: convert to ID eventually
-#
-#    def __repr__(self) -> str:
-#        return f"<PresetFunctionMapping(user_id='{self.user_id}', preset_id='{self.preset_id}', function_id='{self.function_id}')>"
+#class AgentSourceMappingModel(Base):
+    #"""Stores mapping between agent -> source"""
+
+    #__tablename__ = "agent_source_mapping"
+
+    #id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+    #user_id = Column(CommonUUID, nullable=False)
+    #agent_id = Column(CommonUUID, nullable=False)
+    #source_id = Column(CommonUUID, nullable=False)
+
+    #def __repr__(self) -> str:
+        #return f"<AgentSourceMapping(user_id='{self.user_id}', agent_id='{self.agent_id}', source_id='{self.source_id}')>"
 
 
-class PresetModel(Base):
-    """Defines data model for storing Preset objects"""
+#class PresetSourceMapping(Base):
+    #__tablename__ = "preset_source_mapping"
 
-    __tablename__ = "presets"
-    __table_args__ = {"extend_existing": True}
+    #id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+    #user_id = Column(CommonUUID, nullable=False)
+    #preset_id = Column(CommonUUID, nullable=False)
+    #source_id = Column(CommonUUID, nullable=False)
 
-    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-    user_id = Column(CommonUUID, nullable=False)
-    name = Column(String, nullable=False)
-    description = Column(String)
-    system = Column(String)
-    human = Column(String)
-    human_name = Column(String, nullable=False)
-    persona = Column(String)
-    persona_name = Column(String, nullable=False)
-    preset = Column(String)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    #def __repr__(self) -> str:
+        #return f"<PresetSourceMapping(user_id='{self.user_id}', preset_id='{self.preset_id}', source_id='{self.source_id}')>"
 
-    functions_schema = Column(JSON)
 
-    def __repr__(self) -> str:
-        return f"<Preset(id='{self.id}', name='{self.name}')>"
+## class PresetFunctionMapping(Base):
+##    __tablename__ = "preset_function_mapping"
+##
+##    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+##    user_id = Column(CommonUUID, nullable=False)
+##    preset_id = Column(CommonUUID, nullable=False)
+##    #function_id = Column(CommonUUID, nullable=False)
+##    function = Column(String, nullable=False) # TODO: convert to ID eventually
+##
+##    def __repr__(self) -> str:
+##        return f"<PresetFunctionMapping(user_id='{self.user_id}', preset_id='{self.preset_id}', function_id='{self.function_id}')>"
 
-    def to_record(self) -> Preset:
-        return Preset(
-            id=self.id,
-            user_id=self.user_id,
-            name=self.name,
-            description=self.description,
-            system=self.system,
-            human=self.human,
-            persona=self.persona,
-            human_name=self.human_name,
-            persona_name=self.persona_name,
-            preset=self.preset,
-            created_at=self.created_at,
-            functions_schema=self.functions_schema,
-        )
+
+#class PresetModel(Base):
+    #"""Defines data model for storing Preset objects"""
+
+    #__tablename__ = "presets"
+    #__table_args__ = {"extend_existing": True}
+
+    #id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+    #user_id = Column(CommonUUID, nullable=False)
+    #name = Column(String, nullable=False)
+    #description = Column(String)
+    #system = Column(String)
+    #human = Column(String)
+    #human_name = Column(String, nullable=False)
+    #persona = Column(String)
+    #persona_name = Column(String, nullable=False)
+    #preset = Column(String)
+    #created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    #functions_schema = Column(JSON)
+
+    #def __repr__(self) -> str:
+        #return f"<Preset(id='{self.id}', name='{self.name}')>"
+
+    #def to_record(self) -> Preset:
+        #return Preset(
+            #id=self.id,
+            #user_id=self.user_id,
+            #name=self.name,
+            #description=self.description,
+            #system=self.system,
+            #human=self.human,
+            #persona=self.persona,
+            #human_name=self.human_name,
+            #persona_name=self.persona_name,
+            #preset=self.preset,
+            #created_at=self.created_at,
+            #functions_schema=self.functions_schema,
+        #)
 
 
 class MetadataStore:

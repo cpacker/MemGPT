@@ -17,6 +17,10 @@ class Agent(SqlalchemyBase, OrganizationMixin):
 
     name:Mapped[Optional[str]] = mapped_column(String, nullable=True, doc="a human-readable identifier for an agent, non-unique.")
     persona: Mapped[str] = mapped_column(doc="the persona text for the agent, current state.")
+    # TODO: reconcile this with persona,human etc AND make this structured via pydantic!
+    # TODO: these are vague and need to be more specific and explained. WTF is state vs _metadata?
+    state: Mapped[dict] = mapped_column(JSON, doc="the state of the agent.")
+    _metadata: Mapped[dict] = mapped_column(JSON, doc="metadata for the agent.")
     # todo: this doesn't allign with 1:M agents to users!
     human: Mapped[str] = mapped_column(doc="the human text for the agent and the current user, current state.")
     preset: Mapped[str] = mapped_column(doc="the preset text for the agent, current state.")

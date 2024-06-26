@@ -5,7 +5,8 @@ from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.orm.mixins import OrganizationMixin
-from memgpt.orm.users_agents import UsersAgents
+from memgpt.data_types import User as PydanticUser
+
 if TYPE_CHECKING:
     from memgpt.orm.agent import Agent
     from memgpt.orm.token import Token
@@ -13,6 +14,7 @@ if TYPE_CHECKING:
 class User(SqlalchemyBase, OrganizationMixin):
     """User ORM class"""
     __tablename__ = "user"
+    __pydantic_model__ = PydanticUser
 
     name:Mapped[Optional[str]] = mapped_column(nullable=True, doc="The display name of the user.")
     email:Mapped[Optional[EmailStr]] = mapped_column(String,
