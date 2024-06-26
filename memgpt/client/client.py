@@ -297,6 +297,7 @@ class RESTClient(AbstractClient):
             tool_names.append(tool.name)
 
         # TODO: distinguish between name and objects
+        # TODO: add metadata
         payload = {
             "config": {
                 "name": name,
