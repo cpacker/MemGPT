@@ -3,7 +3,7 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
 from memgpt.constants import MESSAGE_SUMMARY_REQUEST_ACK, MESSAGE_SUMMARY_WARNING_FRAC
 from memgpt.data_types import AgentState, Message, Passage
@@ -27,14 +27,17 @@ class MemoryModule(BaseModel):
     limit: int = 2000
     value: List[str] | str = None
 
-    # validate any updates to value
-    def __setattr__(self, name, value):
-        if name == "value":
-            if isinstance(value, str) and len(value) > self.limit:
-                raise ValueError(f"Value exceeds limit of {self.limit} characters")
-            elif isinstance(value, list) and sum([len(v) for v in value]) > self.limit:
-                raise ValueError(f"Value exceeds limit of {self.limit} characters")
-        super().__setattr__(name, value)
+    @validator("value", always=True)
+    def check_value_length(cls, v, values):
+        if v is not None:
+            # Calculate the length of `v` depending on its type
+            total_length = len(v) if isinstance(v, str) else sum(len(item) for item in v)
+            # Get the limit value from the values dictionary
+            limit = values.get("limit")
+            if total_length > limit:
+                # TODO: update the error message
+                raise ValueError(f"The length of 'value' ({total_length}) exceeds the limit ({limit}).")
+        return v
 
     def __len__(self):
         if isinstance(self.value, list):
@@ -46,7 +49,7 @@ class MemoryModule(BaseModel):
             return 0
 
 
-class Memory(BaseModel):
+class BaseMemory(BaseModel):
 
     def __init__(self):
         self.memory = {}
@@ -66,7 +69,7 @@ class Memory(BaseModel):
         return {key: value.dict() for key, value in self.memory.items()}
 
 
-class ChatMemory(Memory):
+class ChatMemory(BaseMemory):
 
     def __init__(self, persona: str, human: str, limit: int = 2000):
         self.memory = {
@@ -87,6 +90,34 @@ class ChatMemory(Memory):
         """
         self.memory[name] += "\n" + content
         return None
+
+    def core_memory_replace(self, name: str, old_content: str, new_content: str) -> Optional[str]:
+        """
+        Replace the contents of core memory. To delete memories, use an empty string for new_content.
+
+        Args:
+            name (str): Section of the memory to be edited (persona or human).
+            old_content (str): String to replace. Must be an exact match.
+            new_content (str): Content to write to the memory. All unicode (including emojis) are supported.
+
+        Returns:
+            Optional[str]: None is always returned as this function does not produce a response.
+        """
+        # self.memory.edit_replace(name, old_content, new_content)
+        self.memory[name].replace(old_content, new_content)
+        return None
+
+
+def get_memory_functions(cls: BaseMemory):
+    """Get memory functions for a memory class"""
+    functions = {}
+    for func_name in dir(cls):
+        if func_name.startswith("_"):
+            continue
+        func = getattr(cls, func_name)
+        if callable(func):
+            functions[func_name] = func
+    return functions
 
 
 class CoreMemory(object):

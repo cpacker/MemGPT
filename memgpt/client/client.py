@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import requests
 
 from memgpt.config import MemGPTConfig
-from memgpt.constants import BASE_TOOLS, DEFAULT_PRESET
+from memgpt.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
 from memgpt.data_sources.connectors import DataConnector
 from memgpt.data_types import (
     AgentState,
@@ -18,6 +18,7 @@ from memgpt.data_types import (
 )
 from memgpt.functions.functions import parse_source_code
 from memgpt.functions.schema_generator import generate_schema
+from memgpt.memory import BaseMemory, ChatMemory, get_memory_functions
 from memgpt.metadata import MetadataStore
 from memgpt.models.pydantic_models import (
     HumanModel,
@@ -55,6 +56,7 @@ from memgpt.server.rest_api.presets.index import (
 )
 from memgpt.server.rest_api.sources.index import ListSourcesResponse
 from memgpt.server.server import SyncServer
+from memgpt.utils import get_human_text
 
 
 def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
@@ -257,15 +259,14 @@ class RESTClient(AbstractClient):
         self,
         name: Optional[str] = None,
         preset: Optional[str] = None,  # TODO: this should actually be re-named preset_name
-        persona: Optional[str] = None,
-        human: Optional[str] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
-        memory: BaseMemory = ChatMemory(human=DEFAULT_HUMAN, persona=DEFAULT_PERSONA),
+        memory: BaseMemory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,
+        metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
     ) -> AgentState:
         """
         Create an agent
@@ -277,7 +278,6 @@ class RESTClient(AbstractClient):
 
         Returns:
             agent_state (AgentState): State of the the created agent.
-
         """
         if embedding_config or llm_config:
             raise ValueError("Cannot override embedding_config or llm_config when creating agent via REST API")
@@ -289,13 +289,20 @@ class RESTClient(AbstractClient):
         if include_base_tools:
             tool_names += BASE_TOOLS
 
+        # ensure that memory tools are included in the list of tools
+        memory_functions = get_memory_functions(memory)
+        for func in memory_functions:
+            tool = self.create_tool(func, tags=["memory"])
+            print("Created tool", tool.name)
+            tool_names.append(tool.name)
+
         # TODO: distinguish between name and objects
         payload = {
             "config": {
                 "name": name,
                 "preset": preset,
-                "persona": persona,
-                "human": human,
+                "persona": memory.memory["persona"].value,
+                "human": memory.memory["human"].value,
                 "function_names": tool_names,
             }
         }
