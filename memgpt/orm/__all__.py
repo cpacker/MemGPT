@@ -11,5 +11,6 @@ from memgpt.orm.sources_agents import SourcesAgents
 from memgpt.orm.sources_presets import SourcesPresets
 from memgpt.orm.tools_agents import ToolsAgents
 from memgpt.orm.tools_presets import ToolsPresets
+from memgpt.orm.job import Job
 
 from memgpt.orm.base import Base
