@@ -22,5 +22,5 @@ class Source(OrganizationMixin,SqlalchemyBase):
 
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="sources")
-    agents: Mapped[List["Agent"]] = relationship("Agent", secondary="sources_agents")
-    presets: Mapped[List["Preset"]] = relationship("Preset", secondary="presets_sources")
+    agents: Mapped[List["Agent"]] = relationship("Agent", secondary="sources_agents", back_populates="sources")
+    presets: Mapped[List["Preset"]] = relationship("Preset", secondary="sources_presets", back_populates="sources")

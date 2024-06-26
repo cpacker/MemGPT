@@ -7,7 +7,9 @@ from memgpt.orm.mixins import OrganizationMixin
 from memgpt.orm.users_agents import UsersAgents
 if TYPE_CHECKING:
     from memgpt.orm.organization import Organization
+    from memgpt.orm.source import Source
     from memgpt.orm.user import User
+    from memgpt.orm.tool import Tool
 
 class Agent(SqlalchemyBase, OrganizationMixin):
     __tablename__ = 'agent'
@@ -22,5 +24,6 @@ class Agent(SqlalchemyBase, OrganizationMixin):
     organization: Mapped["Organization"] = relationship("Organization", back_populates="agents")
     users: Mapped[List["User"]] = relationship("User",
                                                back_populates="agents",
-                                               secondary="users_agents",
-                                               doc="the users associated with this agent.")
+                                               secondary="users_agents")
+    sources: Mapped[List["Source"]] = relationship("Source", secondary="sources_agents")
+    tools: Mapped[List["Tool"]] = relationship("Tool", secondary="tools_agents")
