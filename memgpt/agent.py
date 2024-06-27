@@ -3,7 +3,6 @@ import inspect
 import json
 import traceback
 import uuid
-from pathlib import Path
 from typing import List, Optional, Tuple, Union, cast
 
 from tqdm import tqdm
@@ -37,7 +36,6 @@ from memgpt.utils import (
     count_tokens,
     create_uuid_from_string,
     get_local_time,
-    get_schema_diff,
     get_tool_call_id,
     get_utc_time,
     is_utc_datetime,
@@ -49,60 +47,58 @@ from memgpt.utils import (
 )
 
 from .errors import LLMError
-from .functions.functions import USER_FUNCTIONS_DIR, load_all_function_sets
 
-
-def link_functions(function_schemas: list):
-    """Link function definitions to list of function schemas"""
-
-    # need to dynamically link the functions
-    # the saved agent.functions will just have the schemas, but we need to
-    # go through the functions library and pull the respective python functions
-
-    # Available functions is a mapping from:
-    # function_name -> {
-    #   json_schema: schema
-    #   python_function: function
-    # }
-    # agent.functions is a list of schemas (OpenAI kwarg functions style, see: https://platform.openai.com/docs/api-reference/chat/create)
-    # [{'name': ..., 'description': ...}, {...}]
-    available_functions = load_all_function_sets()
-    linked_function_set = {}
-    for f_schema in function_schemas:
-        # Attempt to find the function in the existing function library
-        f_name = f_schema.get("name")
-        if f_name is None:
-            raise ValueError(f"While loading agent.state.functions encountered a bad function schema object with no name:\n{f_schema}")
-        linked_function = available_functions.get(f_name)
-        if linked_function is None:
-            # raise ValueError(
-            #    f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
-            # )
-            print(
-                f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
-            )
-            continue
-
-        # Once we find a matching function, make sure the schema is identical
-        if json.dumps(f_schema, ensure_ascii=JSON_ENSURE_ASCII) != json.dumps(
-            linked_function["json_schema"], ensure_ascii=JSON_ENSURE_ASCII
-        ):
-            # error_message = (
-            #     f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different."
-            #     + f"\n>>>agent.state.functions\n{json.dumps(f_schema, indent=2, ensure_ascii=JSON_ENSURE_ASCII)}"
-            #     + f"\n>>>function library\n{json.dumps(linked_function['json_schema'], indent=2, ensure_ascii=JSON_ENSURE_ASCII)}"
-            # )
-            schema_diff = get_schema_diff(f_schema, linked_function["json_schema"])
-            error_message = (
-                f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different.\n"
-                + "".join(schema_diff)
-            )
-
-            # NOTE to handle old configs, instead of erroring here let's just warn
-            # raise ValueError(error_message)
-            printd(error_message)
-        linked_function_set[f_name] = linked_function
-    return linked_function_set
+# def link_functions(function_schemas: list):
+#    """Link function definitions to list of function schemas"""
+#
+#    # need to dynamically link the functions
+#    # the saved agent.functions will just have the schemas, but we need to
+#    # go through the functions library and pull the respective python functions
+#
+#    # Available functions is a mapping from:
+#    # function_name -> {
+#    #   json_schema: schema
+#    #   python_function: function
+#    # }
+#    # agent.functions is a list of schemas (OpenAI kwarg functions style, see: https://platform.openai.com/docs/api-reference/chat/create)
+#    # [{'name': ..., 'description': ...}, {...}]
+#    available_functions = load_all_function_sets()
+#    linked_function_set = {}
+#    for f_schema in function_schemas:
+#        # Attempt to find the function in the existing function library
+#        f_name = f_schema.get("name")
+#        if f_name is None:
+#            raise ValueError(f"While loading agent.state.functions encountered a bad function schema object with no name:\n{f_schema}")
+#        linked_function = available_functions.get(f_name)
+#        if linked_function is None:
+#            # raise ValueError(
+#            #    f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
+#            # )
+#            print(
+#                f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
+#            )
+#            continue
+#
+#        # Once we find a matching function, make sure the schema is identical
+#        if json.dumps(f_schema, ensure_ascii=JSON_ENSURE_ASCII) != json.dumps(
+#            linked_function["json_schema"], ensure_ascii=JSON_ENSURE_ASCII
+#        ):
+#            # error_message = (
+#            #     f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different."
+#            #     + f"\n>>>agent.state.functions\n{json.dumps(f_schema, indent=2, ensure_ascii=JSON_ENSURE_ASCII)}"
+#            #     + f"\n>>>function library\n{json.dumps(linked_function['json_schema'], indent=2, ensure_ascii=JSON_ENSURE_ASCII)}"
+#            # )
+#            schema_diff = get_schema_diff(f_schema, linked_function["json_schema"])
+#            error_message = (
+#                f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different.\n"
+#                + "".join(schema_diff)
+#            )
+#
+#            # NOTE to handle old configs, instead of erroring here let's just warn
+#            # raise ValueError(error_message)
+#            printd(error_message)
+#        linked_function_set[f_name] = linked_function
+#    return linked_function_set
 
 
 # def initialize_memory(ai_notes: Union[str, None], human_notes: Union[str, None]):
@@ -965,46 +961,50 @@ class Agent(object):
     #    return agent_state
 
     def add_function(self, function_name: str) -> str:
-        if function_name in self.functions_python.keys():
-            msg = f"Function {function_name} already loaded"
-            printd(msg)
-            return msg
+        # TODO: refactor
+        pass
+        # if function_name in self.functions_python.keys():
+        #    msg = f"Function {function_name} already loaded"
+        #    printd(msg)
+        #    return msg
 
-        available_functions = load_all_function_sets()
-        if function_name not in available_functions.keys():
-            raise ValueError(f"Function {function_name} not found in function library")
+        # available_functions = load_all_function_sets()
+        # if function_name not in available_functions.keys():
+        #    raise ValueError(f"Function {function_name} not found in function library")
 
-        self.functions.append(available_functions[function_name]["json_schema"])
-        self.functions_python[function_name] = available_functions[function_name]["python_function"]
+        # self.functions.append(available_functions[function_name]["json_schema"])
+        # self.functions_python[function_name] = available_functions[function_name]["python_function"]
 
-        msg = f"Added function {function_name}"
-        # self.save()
-        self.update_state()
-        printd(msg)
-        return msg
+        # msg = f"Added function {function_name}"
+        ## self.save()
+        # self.update_state()
+        # printd(msg)
+        # return msg
 
     def remove_function(self, function_name: str) -> str:
-        if function_name not in self.functions_python.keys():
-            msg = f"Function {function_name} not loaded, ignoring"
-            printd(msg)
-            return msg
+        # TODO: refactor
+        pass
+        # if function_name not in self.functions_python.keys():
+        #    msg = f"Function {function_name} not loaded, ignoring"
+        #    printd(msg)
+        #    return msg
 
-        # only allow removal of user defined functions
-        user_func_path = Path(USER_FUNCTIONS_DIR)
-        func_path = Path(inspect.getfile(self.functions_python[function_name]))
-        is_subpath = func_path.resolve().parts[: len(user_func_path.resolve().parts)] == user_func_path.resolve().parts
+        ## only allow removal of user defined functions
+        # user_func_path = Path(USER_FUNCTIONS_DIR)
+        # func_path = Path(inspect.getfile(self.functions_python[function_name]))
+        # is_subpath = func_path.resolve().parts[: len(user_func_path.resolve().parts)] == user_func_path.resolve().parts
 
-        if not is_subpath:
-            raise ValueError(f"Function {function_name} is not user defined and cannot be removed")
+        # if not is_subpath:
+        #    raise ValueError(f"Function {function_name} is not user defined and cannot be removed")
 
-        self.functions = [f_schema for f_schema in self.functions if f_schema["name"] != function_name]
-        self.functions_python.pop(function_name)
+        # self.functions = [f_schema for f_schema in self.functions if f_schema["name"] != function_name]
+        # self.functions_python.pop(function_name)
 
-        msg = f"Removed function {function_name}"
-        # self.save()
-        self.update_state()
-        printd(msg)
-        return msg
+        # msg = f"Removed function {function_name}"
+        ## self.save()
+        # self.update_state()
+        # printd(msg)
+        # return msg
 
     # def save(self):
     #    """Save agent state locally"""

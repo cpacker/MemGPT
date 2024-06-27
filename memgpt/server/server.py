@@ -822,8 +822,8 @@ class SyncServer(LockingServer):
         agent_config = {
             "id": agent_state.id,
             "name": agent_state.name,
-            "human": agent_state.human,
-            "persona": agent_state.persona,
+            "human": agent_state._metadata.get("human", None),
+            "persona": agent_state._metadata.get("persona", None),
             "created_at": agent_state.created_at.isoformat(),
         }
         return agent_config
@@ -855,8 +855,8 @@ class SyncServer(LockingServer):
             # TODO hack for frontend, remove
             # (top level .persona is persona_name, and nested memory.persona is the state)
             # TODO: eventually modify this to be contained in the metadata
-            return_dict["persona"] = agent_state.human
-            return_dict["human"] = agent_state.persona
+            return_dict["persona"] = agent_state._metadata.get("persona", None)
+            return_dict["human"] = agent_state._metadata.get("human", None)
 
             # Add information about tools
             # TODO memgpt_agent should really have a field of List[ToolModel]
@@ -868,10 +868,7 @@ class SyncServer(LockingServer):
             recall_memory = memgpt_agent.persistence_manager.recall_memory
             archival_memory = memgpt_agent.persistence_manager.archival_memory
             memory_obj = {
-                "core_memory": {
-                    "persona": core_memory.persona,
-                    "human": core_memory.human,
-                },
+                "core_memory": {section: module.value for (section, module) in core_memory.memory.items()},
                 "recall_memory": len(recall_memory) if recall_memory is not None else None,
                 "archival_memory": len(archival_memory) if archival_memory is not None else None,
             }
