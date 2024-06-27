@@ -20,7 +20,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.exc import InterfaceError
+from sqlalchemy.exc import InterfaceError, OperationalError
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql import func
 
@@ -360,7 +360,7 @@ class MetadataStore:
                     JobModel.__table__,
                 ],
             )
-        except InterfaceError as e:
+        except (InterfaceError, OperationalError) as e:
             traceback.print_exc()
             if config.metadata_storage_type == "postgres":
                 raise ValueError(

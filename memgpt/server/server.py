@@ -38,9 +38,11 @@ from memgpt.interface import AgentInterface  # abstract
 from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.log import get_logger
 from memgpt.metadata import MetadataStore
+from memgpt.models.chat_completion_response import UsageStatistics
 from memgpt.models.pydantic_models import (
     DocumentModel,
     HumanModel,
+    MemGPTUsageStatistics,
     PassageModel,
     PresetModel,
     SourceModel,
@@ -163,8 +165,8 @@ class SyncServer(LockingServer):
         self,
         chaining: bool = True,
         max_chaining_steps: bool = None,
-        # default_interface_cls: AgentInterface = CLIInterface,
-        default_interface: AgentInterface = CLIInterface(),
+        default_interface_factory: Callable[[], AgentInterface] = lambda: CLIInterface(),
+        # default_interface: AgentInterface = CLIInterface(),
         # default_persistence_manager_cls: PersistenceManager = LocalStateManager,
         # auth_mode: str = "none",  # "none, "jwt", "external"
     ):
@@ -201,8 +203,9 @@ class SyncServer(LockingServer):
         self.max_chaining_steps = max_chaining_steps
 
         # The default interface that will get assigned to agents ON LOAD
-        # self.default_interface_cls = default_interface_cls
-        self.default_interface = default_interface
+        self.default_interface_factory = default_interface_factory
+        # self.default_interface = default_interface
+        # self.default_interface = default_interface_cls()
 
         # The default persistence manager that will get assigned to agents ON CREATION
         # self.default_persistence_manager_cls = default_persistence_manager_cls
@@ -321,7 +324,7 @@ class SyncServer(LockingServer):
 
         # If an interface isn't specified, use the default
         if interface is None:
-            interface = self.default_interface
+            interface = self.default_interface_factory()
 
         try:
             logger.info(f"Grabbing agent user_id={user_id} agent_id={agent_id} from database")
@@ -355,7 +358,7 @@ class SyncServer(LockingServer):
             memgpt_agent = self._load_agent(user_id=user_id, agent_id=agent_id)
         return memgpt_agent
 
-    def _step(self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: Union[str, Message]) -> int:
+    def _step(self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: Union[str, Message]) -> MemGPTUsageStatistics:
         """Send the input message through the agent"""
 
         logger.debug(f"Got input message: {input_message}")
@@ -365,18 +368,27 @@ class SyncServer(LockingServer):
         if memgpt_agent is None:
             raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
 
+        # Determine whether or not to token stream based on the capability of the interface
+        token_streaming = memgpt_agent.interface.streaming_mode if hasattr(memgpt_agent.interface, "streaming_mode") else False
+
         logger.debug(f"Starting agent step")
         no_verify = True
         next_input_message = input_message
         counter = 0
+        total_usage = UsageStatistics()
+        step_count = 0
         while True:
-            new_messages, heartbeat_request, function_failed, token_warning, tokens_accumulated = memgpt_agent.step(
+            new_messages, heartbeat_request, function_failed, token_warning, usage = memgpt_agent.step(
                 next_input_message,
                 first_message=False,
                 skip_verify=no_verify,
                 return_dicts=False,
+                stream=token_streaming,
             )
+            step_count += 1
+            total_usage += usage
             counter += 1
+            memgpt_agent.interface.step_complete()
 
             # Chain stops
             if not self.chaining:
@@ -405,7 +417,7 @@ class SyncServer(LockingServer):
         # save updated state
         save_agent(memgpt_agent, self.ms)
 
-        return tokens_accumulated
+        return MemGPTUsageStatistics(**total_usage.dict(), step_count=step_count)
 
     def _command(self, user_id: uuid.UUID, agent_id: uuid.UUID, command: str) -> Union[str, None]:
         """Process a CLI command"""
@@ -523,8 +535,12 @@ class SyncServer(LockingServer):
 
     # @LockingServer.agent_lock_decorator
     def user_message(
-        self, user_id: uuid.UUID, agent_id: uuid.UUID, message: Union[str, Message], timestamp: Optional[datetime] = None
-    ) -> None:
+        self,
+        user_id: uuid.UUID,
+        agent_id: uuid.UUID,
+        message: Union[str, Message],
+        timestamp: Optional[datetime] = None,
+    ) -> MemGPTUsageStatistics:
         """Process an incoming user message and feed it through the MemGPT agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -568,12 +584,17 @@ class SyncServer(LockingServer):
             message.created_at = timestamp
 
         # Run the agent state forward
-        self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
+        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
+        return usage
 
     # @LockingServer.agent_lock_decorator
     def system_message(
-        self, user_id: uuid.UUID, agent_id: uuid.UUID, message: Union[str, Message], timestamp: Optional[datetime] = None
-    ) -> None:
+        self,
+        user_id: uuid.UUID,
+        agent_id: uuid.UUID,
+        message: Union[str, Message],
+        timestamp: Optional[datetime] = None,
+    ) -> MemGPTUsageStatistics:
         """Process an incoming system message and feed it through the MemGPT agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -617,10 +638,10 @@ class SyncServer(LockingServer):
             message.created_at = timestamp
 
         # Run the agent state forward
-        self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message)
+        return self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message)
 
     # @LockingServer.agent_lock_decorator
-    def run_command(self, user_id: uuid.UUID, agent_id: uuid.UUID, command: str) -> Union[str, None]:
+    def run_command(self, user_id: uuid.UUID, agent_id: uuid.UUID, command: str) -> Union[MemGPTUsageStatistics, None]:
         """Run a command on the agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -673,8 +694,8 @@ class SyncServer(LockingServer):
             raise ValueError(f"User user_id={user_id} does not exist")
 
         if interface is None:
-            # interface = self.default_interface_cls()
-            interface = self.default_interface
+            # interface = self.default_interface
+            interface = self.default_interface_factory()
 
         # if persistence_manager is None:
         # persistence_manager = self.default_persistence_manager_cls(agent_config=agent_config)
