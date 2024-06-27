@@ -143,13 +143,13 @@ async def send_message_to_agent(
             )
         else:
             # buffer the stream, then return the list
-            usage = await task
             generated_stream = []
             async for message in streaming_interface.get_generator():
                 generated_stream.append(message)
                 if "data" in message and message["data"] == "[DONE]":
                     break
             filtered_stream = [d for d in generated_stream if d not in ["[DONE_GEN]", "[DONE_STEP]", "[DONE]"]]
+            usage = await task
             return UserMessageResponse(messages=filtered_stream, usage=usage)
 
     except HTTPException:
