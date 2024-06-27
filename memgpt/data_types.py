@@ -763,11 +763,11 @@ class AgentState:
         # system prompt
         system: str,
         # config
-        persona: str,  # the filename where the persona was originally sourced from # TODO: remove
-        human: str,  # the filename where the human was originally sourced from # TODO: remove
+        # persona: str,  # the filename where the persona was originally sourced from # TODO: remove
+        # human: str,  # the filename where the human was originally sourced from # TODO: remove
         llm_config: LLMConfig,
         embedding_config: EmbeddingConfig,
-        preset: str,  # TODO: remove
+        # preset: str,  # TODO: remove
         # (in-context) state contains:
         # persona: str  # the current persona text
         # human: str  # the current human text
@@ -778,7 +778,7 @@ class AgentState:
         state: Optional[dict] = None,
         created_at: Optional[datetime] = None,
         # messages (TODO: implement this)
-        # _metadata: Optional[dict] = None,
+        _metadata: Optional[dict] = None,
     ):
         if id is None:
             self.id = uuid.uuid4()
@@ -792,11 +792,8 @@ class AgentState:
         self.name = name
         assert self.name, f"AgentState name must be a non-empty string"
         self.user_id = user_id
-        self.preset = preset
         # The INITIAL values of the persona and human
         # The values inside self.state['persona'], self.state['human'] are the CURRENT values
-        self.persona = persona
-        self.human = human
 
         self.llm_config = llm_config
         self.embedding_config = embedding_config
@@ -811,9 +808,10 @@ class AgentState:
 
         # system
         self.system = system
+        assert self.system is not None, f"Must provide system prompt, cannot be None"
 
         # metadata
-        # self._metadata = _metadata
+        self._metadata = _metadata
 
 
 class Source:

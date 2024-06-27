@@ -29,6 +29,7 @@ from memgpt.models.pydantic_models import (
     SourceModel,
     ToolModel,
 )
+from memgpt.presets.presets import add_default_humans_and_personas, add_default_tools
 
 # import pydantic response objects from memgpt.server.rest_api
 from memgpt.server.rest_api.agents.command import CommandResponse
@@ -653,10 +654,9 @@ class LocalClient(AbstractClient):
         else:
             ms.create_user(self.user)
 
-        # create preset records in metadata store
-        from memgpt.presets.presets import add_default_presets
-
-        add_default_presets(self.user_id, ms)
+        # add defaults
+        add_default_tools(self.user_id, ms)
+        add_default_humans_and_personas(self.user_id, ms)
 
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
@@ -722,9 +722,6 @@ class LocalClient(AbstractClient):
         agent_state = self.server.create_agent(
             user_id=self.user_id,
             name=name,
-            preset=preset,
-            # persona=persona,
-            # human=human,
             memory=memory,
             llm_config=llm_config,
             embedding_config=embedding_config,

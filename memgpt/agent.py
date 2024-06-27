@@ -22,9 +22,7 @@ from memgpt.constants import (
 from memgpt.data_types import AgentState, EmbeddingConfig, Message, Passage
 from memgpt.interface import AgentInterface
 from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
-from memgpt.memory import ArchivalMemory, BaseMemory
-from memgpt.memory import CoreMemory as InContextMemory
-from memgpt.memory import RecallMemory, summarize_messages
+from memgpt.memory import ArchivalMemory, BaseMemory, RecallMemory, summarize_messages
 from memgpt.metadata import MetadataStore
 from memgpt.models import chat_completion_response
 from memgpt.models.pydantic_models import ToolModel
@@ -126,6 +124,8 @@ def construct_system_with_memory(
     recall_memory: Optional[RecallMemory] = None,
     include_char_count: bool = True,
 ):
+    print("BASE MEMORY", str(memory))
+    print("SYSTEM", system)
     # TODO: modify this to be generalized
     full_system_message = "\n".join(
         [
@@ -150,7 +150,7 @@ def construct_system_with_memory(
 def initialize_message_sequence(
     model: str,
     system: str,
-    memory: InContextMemory,
+    memory: BaseMemory,
     archival_memory: Optional[ArchivalMemory] = None,
     recall_memory: Optional[RecallMemory] = None,
     memory_edit_timestamp: Optional[str] = None,
@@ -1037,28 +1037,19 @@ class Agent(object):
             "memory": self.memory.to_dict(),
             "messages": [str(msg.id) for msg in self._messages],  # TODO: move out into AgentState.message_ids
         }
-
-        # TODO: add this field
-        metadata = {  # TODO remove this from self.agent_state
-            "human": self.agent_state.persona,
-            "persona": self.agent_state.human,
-        }
-
         self.agent_state = AgentState(
             name=self.agent_state.name,
             user_id=self.agent_state.user_id,
             tools=self.agent_state.tools,
             system=self.system,
-            persona=self.agent_state.persona,  # TODO: remove (stores persona_name)
-            human=self.agent_state.human,  # TODO: remove (stores human_name)
             ## "model_state"
             llm_config=self.agent_state.llm_config,
             embedding_config=self.agent_state.embedding_config,
-            preset=self.agent_state.preset,
             id=self.agent_state.id,
             created_at=self.agent_state.created_at,
             ## "agent_state"
             state=memory,
+            _metadata=self.agent_state._metadata,
         )
         return self.agent_state
 

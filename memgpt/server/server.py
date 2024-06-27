@@ -15,8 +15,6 @@ import memgpt.server.utils as server_utils
 import memgpt.system as system
 from memgpt.agent import Agent, save_agent
 from memgpt.agent_store.storage import StorageConnector, TableType
-
-# from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.cli.cli_config import get_model_options
 from memgpt.config import MemGPTConfig
 from memgpt.constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
@@ -49,6 +47,9 @@ from memgpt.models.pydantic_models import (
     SourceModel,
     ToolModel,
 )
+
+# from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
+from memgpt.prompts import gpt_system
 from memgpt.utils import create_random_username
 
 logger = get_logger(__name__)
@@ -275,7 +276,6 @@ class SyncServer(LockingServer):
             self.ms.update_user(user)
         else:
             self.ms.create_user(user)
-        presets.add_default_presets(user_id, self.ms)
 
         # NOTE: removed, since server should be multi-user
         ## Create the default user
@@ -675,17 +675,16 @@ class SyncServer(LockingServer):
         user_id: uuid.UUID,
         tools: List[str],  # list of tool names (handles) to include
         memory: BaseMemory,
+        system: Optional[str] = None,
         # system: str, # system prompt
         metadata: Optional[dict] = {},  # includes human/persona names
         name: Optional[str] = None,
-        preset: Optional[str] = None,  # TODO: remove eventually
         # model config
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         # interface
         interface: Union[AgentInterface, None] = None,
         # TODO: refactor this to be a more general memory configuration
-        system: Optional[str] = None,  # prompt value
         # persona: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
         # human: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
         # persona_name: Optional[str] = None,  # TODO: remove
@@ -702,6 +701,9 @@ class SyncServer(LockingServer):
         # if persistence_manager is None:
         # persistence_manager = self.default_persistence_manager_cls(agent_config=agent_config)
 
+        if system is None:
+            system = gpt_system.get_system_text(self.config.preset)
+
         if name is None:
             name = create_random_username()
 
@@ -710,59 +712,8 @@ class SyncServer(LockingServer):
         if not user:
             raise ValueError(f"cannot find user with associated client id: {user_id}")
 
-        # NOTE: you MUST add to the metadata store before creating the agent, otherwise the storage connectors will error on creation
-        # TODO: fix this db dependency and remove
-        # self.ms.#create_agent(agent_state)
-
-        # TODO modify to do creation via preset
-        human = memory.memory["human"].value
-        persona = memory.memory["persona"].value
-        human_name = metadata.get("human", None)
-        persona_name = metadata.get("persona", None)
         try:
-            preset_obj = self.ms.get_preset(name=preset if preset else self.config.preset, user_id=user_id)
-            preset_override = False
-            assert preset_obj is not None, f"preset {preset if preset else self.config.preset} does not exist"
-            logger.debug(f"Attempting to create agent from preset:\n{preset_obj}")
-
-            # system prompt
-            if system is None:
-                system = preset_obj.system
-            else:
-                preset_obj.system = system
-                preset_override = True
-
-            # Overwrite fields in the preset if they were specified
-            if human is not None and human != preset_obj.human:
-                preset_override = True
-                preset_obj.human = human
-                # This is a check for a common bug where users were providing filenames instead of values
-                # try:
-                #    get_human_text(human)
-                #    raise ValueError(human)
-                #    raise UserWarning(
-                #        f"It looks like there is a human file named {human} - did you mean to pass the file contents to the `human` arg?"
-                #    )
-                # except:
-                #    pass
-            if persona is not None:
-                preset_override = True
-                preset_obj.persona = persona
-                # try:
-                #    get_persona_text(persona)
-                #    raise ValueError(persona)
-                #    raise UserWarning(
-                #        f"It looks like there is a persona file named {persona} - did you mean to pass the file contents to the `persona` arg?"
-                #    )
-                # except:
-                #    pass
-            if human_name is not None and human_name != preset_obj.human_name:
-                preset_override = True
-                preset_obj.human_name = human_name
-            if persona_name is not None and persona_name != preset_obj.persona_name:
-                preset_override = True
-                preset_obj.persona_name = persona_name
-
+            # model configuration
             llm_config = llm_config if llm_config else self.server_llm_config
             embedding_config = embedding_config if embedding_config else self.server_embedding_config
 
@@ -773,26 +724,16 @@ class SyncServer(LockingServer):
                 assert tool_obj is not None, f"Tool {tool_name} does not exist"
                 tool_objs.append(tool_obj)
 
-            # If the user overrode any parts of the preset, we need to create a new preset to refer back to
-            if preset_override:
-                # Change the name and uuid
-                preset_obj = Preset.clone(preset_obj=preset_obj)
-                # Then write out to the database for storage
-                self.ms.create_preset(preset=preset_obj)
-
             # TODO: add metadata
             agent_state = AgentState(
                 name=name,
                 user_id=user_id,
-                persona=preset_obj.persona_name,  # TODO: remove
-                human=preset_obj.human_name,  # TODO: remove
                 tools=tools,  # name=id for tools
                 llm_config=llm_config,
                 embedding_config=embedding_config,
                 system=system,
-                preset=preset,  # TODO: remove
-                # state={"persona": preset_obj.persona, "human": preset_obj.human, "system": system, "messages": None},
                 state={"system": system, "messages": None, "memory": memory.to_dict()},
+                _metadata=metadata,
             )
 
             agent = Agent(
