@@ -128,6 +128,7 @@ def construct_system_with_memory(
     recall_memory: Optional[RecallMemory] = None,
     include_char_count: bool = True,
 ):
+    # TODO: modify this to be generalized
     full_system_message = "\n".join(
         [
             system,
@@ -609,6 +610,10 @@ class Agent(object):
             heartbeat_request = False
             function_failed = False
 
+        # rebuild memory
+        # TODO: @charles please check this
+        self.rebuild_memory()
+
         return messages, heartbeat_request, function_failed
 
     def step(
@@ -922,7 +927,8 @@ class Agent(object):
         )[0]
 
         diff = united_diff(curr_system_message["content"], new_system_message["content"])
-        printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
+        if len(diff) > 0:  # there was a diff
+            printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
 
         # Swap the system message out
         self._swap_system_message(

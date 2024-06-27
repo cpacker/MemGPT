@@ -22,47 +22,68 @@ from memgpt.utils import (
 class MemoryModule(BaseModel):
     """Base class for memory modules"""
 
-    name = None
-    description = None
+    description: Optional[str] = None
     limit: int = 2000
-    value: List[str] | str = None
+    value: Optional[Union[List[str], str]] = None
+
+    def __setattr__(self, name, value):
+        """Run validation if self.value is updated"""
+        super().__setattr__(name, value)
+        if name == "value":
+            # run validation
+            self.__class__.validate(self.dict(exclude_unset=True))
 
     @validator("value", always=True)
     def check_value_length(cls, v, values):
         if v is not None:
-            # Calculate the length of `v` depending on its type
-            total_length = len(v) if isinstance(v, str) else sum(len(item) for item in v)
-            # Get the limit value from the values dictionary
-            limit = values.get("limit")
-            if total_length > limit:
-                # TODO: update the error message
-                raise ValueError(f"The length of 'value' ({total_length}) exceeds the limit ({limit}).")
+            # Fetching the limit from the values dictionary
+            limit = values.get("limit", 2000)  # Default to 2000 if limit is not yet set
+
+            # Check if the value exceeds the limit
+            if isinstance(v, str):
+                length = len(v)
+            elif isinstance(v, list):
+                length = sum(len(item) for item in v)
+            else:
+                raise ValueError("Value must be either a string or a list of strings.")
+
+            if length > limit:
+                error_msg = f"Edit failed: Exceeds {limit} character limit (requested {length})."
+                # TODO: add archival memory error?
+                raise ValueError(error_msg)
         return v
 
     def __len__(self):
+        return len(str(self))
+
+    def __str__(self) -> str:
         if isinstance(self.value, list):
-            return sum([len(v) for v in self.value])
+            return ",".join(self.value)
         elif isinstance(self.value, str):
-            return len(self.value)
+            return self.value
         else:
-            assert self.value is None, f"Unexpected value type {type(self.value)}"
-            return 0
+            return ""
 
 
-class BaseMemory(BaseModel):
+class BaseMemory:
 
     def __init__(self):
         self.memory = {}
 
-    def load_memory(self, state: dict):
+    @classmethod
+    def load(cls, state: dict):
         """Load memory from dictionary object"""
-        self.memory = {}
+        obj = cls()
         for key, value in state.items():
-            self.memory[key] = MemoryModule(**value)
+            obj.memory[key] = MemoryModule(**value)
+        return obj
 
-    @abstractmethod
-    def __repr__(self) -> str:
-        pass
+    def __str__(self) -> str:
+        """Representation of the memory in-context"""
+        section_strs = []
+        for section, module in self.memory.items():
+            section_strs.append(f'<{section} characters="{len(module)}/{module.limit}">{module.value}</{section}>')
+        return "\n".join(section_strs)
 
     def to_dict(self):
         """Convert to dictionary representation"""
@@ -88,7 +109,7 @@ class ChatMemory(BaseMemory):
         Returns:
             Optional[str]: None is always returned as this function does not produce a response.
         """
-        self.memory[name] += "\n" + content
+        self.memory[name].value += "\n" + content
         return None
 
     def core_memory_replace(self, name: str, old_content: str, new_content: str) -> Optional[str]:
@@ -104,11 +125,11 @@ class ChatMemory(BaseMemory):
             Optional[str]: None is always returned as this function does not produce a response.
         """
         # self.memory.edit_replace(name, old_content, new_content)
-        self.memory[name].replace(old_content, new_content)
+        self.memory[name].value.replace(old_content, new_content)
         return None
 
 
-def get_memory_functions(cls: BaseMemory):
+def get_memory_functions(cls: BaseMemory) -> List[callable]:
     """Get memory functions for a memory class"""
     functions = {}
     for func_name in dir(cls):
@@ -117,6 +138,8 @@ def get_memory_functions(cls: BaseMemory):
         func = getattr(cls, func_name)
         if callable(func):
             functions[func_name] = func
+        print(func_name, callable(func))
+        print(functions)
     return functions
 
 
