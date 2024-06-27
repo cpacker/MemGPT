@@ -690,9 +690,7 @@ class LocalClient(AbstractClient):
     def create_agent(
         self,
         name: Optional[str] = None,
-        preset: Optional[str] = None,  # TODO: this should actually be re-named preset_name
-        # persona: Optional[str] = None,
-        # human: Optional[str] = None,
+        # model configs
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
@@ -700,6 +698,7 @@ class LocalClient(AbstractClient):
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,
+        # metadata
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
     ) -> AgentState:
         if name and self.agent_exists(agent_name=name):
