@@ -417,7 +417,7 @@ class SyncServer(LockingServer):
         # save updated state
         save_agent(memgpt_agent, self.ms)
 
-        return MemGPTUsageStatistics(**total_usage.dict(), steps=step_count)
+        return MemGPTUsageStatistics(**total_usage.dict(), step_count=step_count)
 
     def _command(self, user_id: uuid.UUID, agent_id: uuid.UUID, command: str) -> Union[str, None]:
         """Process a CLI command"""

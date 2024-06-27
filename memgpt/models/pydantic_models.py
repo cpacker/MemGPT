@@ -17,7 +17,7 @@ class MemGPTUsageStatistics(BaseModel):
     completion_tokens: int
     prompt_tokens: int
     total_tokens: int
-    steps: int
+    step_count: int
 
 
 class LLMConfigModel(BaseModel):
