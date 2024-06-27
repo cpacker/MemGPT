@@ -745,11 +745,11 @@ class LocalClient(AbstractClient):
 
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         self.interface.clear()
-        self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
+        usage = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
         if self.auto_save:
             self.save()
         else:
-            return UserMessageResponse(messages=self.interface.to_list())
+            return UserMessageResponse(messages=self.interface.to_list(), usage=usage)
 
     def run_command(self, agent_id: str, command: str) -> Union[str, None]:
         self.interface.clear()
