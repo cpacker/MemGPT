@@ -120,8 +120,6 @@ def construct_system_with_memory(
     recall_memory: Optional[RecallMemory] = None,
     include_char_count: bool = True,
 ):
-    print("BASE MEMORY", str(memory))
-    print("SYSTEM", system)
     # TODO: modify this to be generalized
     full_system_message = "\n".join(
         [
@@ -610,6 +608,7 @@ class Agent(object):
 
         # rebuild memory
         # TODO: @charles please check this
+        print("MEMORY", self.memory.memory["persona"], self.memory.memory["human"])
         self.rebuild_memory()
 
         return messages, heartbeat_request, function_failed

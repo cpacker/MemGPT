@@ -713,12 +713,13 @@ class LocalClient(AbstractClient):
 
         # add memory tools
         memory_functions = get_memory_functions(memory)
-        print("MEMORY FUNC", memory_functions)
-        for name, func in memory_functions.items():
-            tool = self.create_tool(func, name=name, tags=["memory"])
+        for func_name, func in memory_functions.items():
+            tool = self.create_tool(func, name=func_name, tags=["memory"])
             tool_names.append(tool.name)
 
         self.interface.clear()
+
+        # create agent
         agent_state = self.server.create_agent(
             user_id=self.user_id,
             name=name,
@@ -836,6 +837,12 @@ class LocalClient(AbstractClient):
         json_schema = generate_schema(func, name)
         source_type = "python"
         tool_name = json_schema["name"]
+
+        if "memory" in tags:
+            # special modifications to memory functions
+            # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
+            source_code = source_code.replace("self.memory", "self.memory.memory")
+            print(source_code)
 
         # check if already exists:
         existing_tool = self.server.ms.get_tool(tool_name)

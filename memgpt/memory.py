@@ -89,11 +89,14 @@ class BaseMemory:
         """Convert to dictionary representation"""
         return {key: value.dict() for key, value in self.memory.items()}
 
-    def __getitem__(self, key):
-        return self.memory[key]
 
-    def __setitem__(self, key, value):
-        self.memory[key].value = value
+#    def __getitem__(self, key):
+#        return self.memory[key]
+#
+#    def __setitem__(self, key, value):
+#        print("SET ITEM")
+#        self.memory[key] = value
+#        print(self.memory[key].value)
 
 
 class ChatMemory(BaseMemory):
@@ -115,6 +118,7 @@ class ChatMemory(BaseMemory):
         Returns:
             Optional[str]: None is always returned as this function does not produce a response.
         """
+        print("MEMORY UPDATE", content)
         self.memory[name].value += "\n" + content
         return None
 
@@ -131,7 +135,9 @@ class ChatMemory(BaseMemory):
             Optional[str]: None is always returned as this function does not produce a response.
         """
         # self.memory.edit_replace(name, old_content, new_content)
-        self.memory[name].value.replace(old_content, new_content)
+        print("MEMORY UPDATE", old_content, new_content)
+        self.memory[name].value = self.memory[name].value.replace(old_content, new_content)
+        print("NEW MEMORY", self.memory[name].value)
         return None
 
 

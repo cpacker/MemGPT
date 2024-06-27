@@ -888,7 +888,7 @@ class SyncServer(LockingServer):
         # Sort agents by "last_run" in descending order, most recent first
         agents_states_dicts.sort(key=lambda x: x["last_run"], reverse=True)
 
-        logger.info(f"Retrieved {len(agents_states)} agents for user {user_id}:\n{[vars(s) for s in agents_states]}")
+        logger.debug(f"Retrieved {len(agents_states)} agents for user {user_id}")
         return {
             "num_agents": len(agents_states),
             "agents": agents_states_dicts,

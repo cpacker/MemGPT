@@ -643,7 +643,6 @@ def run(
             typer.secho(f"->  🧑 Using human profile: '{persona_obj.name}'", fg=typer.colors.WHITE)
 
             # add tools
-            print("create agent/client")
             agent_state = client.create_agent(
                 name=agent_name,
                 embedding_config=embedding_config,
@@ -651,23 +650,8 @@ def run(
                 memory=memory,
                 metadata=metadata,
             )
-            print("created agent state")
-
-            # agent_state = AgentState(
-            #    name=agent_name,
-            #    user_id=user.id,
-            #    tools=list([schema["name"] for schema in preset_obj.functions_schema]),
-            #    system=preset_obj.system,
-            #    llm_config=llm_config,
-            #    embedding_config=embedding_config,
-            #    human=preset_obj.human,
-            #    persona=preset_obj.persona,
-            #    state={"messages": None, "persona": preset_obj.persona, "human": preset_obj.human},
-            # )
             typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
             tools = [ms.get_tool(tool_name) for tool_name in agent_state.tools]
-
-            print("AGENT MEMORY", str(agent_state.state["memory"]))
 
             memgpt_agent = Agent(
                 interface=interface(),
