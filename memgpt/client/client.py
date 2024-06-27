@@ -654,11 +654,11 @@ class LocalClient(AbstractClient):
     # messages
     def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
         self.interface.clear()
-        self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
+        usage = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
         if self.auto_save:
             self.save()
         else:
-            return UserMessageResponse(messages=self.interface.to_list())
+            return UserMessageResponse(messages=self.interface.to_list(), usage=usage)
 
     # agents
 

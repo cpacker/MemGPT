@@ -38,6 +38,7 @@ from memgpt.interface import AgentInterface  # abstract
 from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.log import get_logger
 from memgpt.metadata import MetadataStore
+from memgpt.models.chat_completion_response import UsageStatistics
 from memgpt.models.pydantic_models import (
     DocumentModel,
     HumanModel,
@@ -356,7 +357,7 @@ class SyncServer(LockingServer):
             memgpt_agent = self._load_agent(user_id=user_id, agent_id=agent_id)
         return memgpt_agent
 
-    def _step(self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: Union[str, Message]) -> int:
+    def _step(self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: Union[str, Message]) -> UsageStatistics:
         """Send the input message through the agent"""
 
         logger.debug(f"Got input message: {input_message}")
@@ -374,7 +375,7 @@ class SyncServer(LockingServer):
         next_input_message = input_message
         counter = 0
         while True:
-            new_messages, heartbeat_request, function_failed, token_warning, tokens_accumulated = memgpt_agent.step(
+            new_messages, heartbeat_request, function_failed, token_warning, usage = memgpt_agent.step(
                 next_input_message,
                 first_message=False,
                 skip_verify=no_verify,
@@ -411,7 +412,7 @@ class SyncServer(LockingServer):
         # save updated state
         save_agent(memgpt_agent, self.ms)
 
-        return tokens_accumulated
+        return usage
 
     def _command(self, user_id: uuid.UUID, agent_id: uuid.UUID, command: str) -> Union[str, None]:
         """Process a CLI command"""
@@ -534,7 +535,7 @@ class SyncServer(LockingServer):
         agent_id: uuid.UUID,
         message: Union[str, Message],
         timestamp: Optional[datetime] = None,
-    ) -> None:
+    ) -> UsageStatistics:
         """Process an incoming user message and feed it through the MemGPT agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -578,7 +579,8 @@ class SyncServer(LockingServer):
             message.created_at = timestamp
 
         # Run the agent state forward
-        self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
+        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
+        return usage
 
     # @LockingServer.agent_lock_decorator
     def system_message(
@@ -587,7 +589,7 @@ class SyncServer(LockingServer):
         agent_id: uuid.UUID,
         message: Union[str, Message],
         timestamp: Optional[datetime] = None,
-    ) -> None:
+    ) -> UsageStatistics:
         """Process an incoming system message and feed it through the MemGPT agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -631,10 +633,10 @@ class SyncServer(LockingServer):
             message.created_at = timestamp
 
         # Run the agent state forward
-        self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message)
+        return self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message)
 
     # @LockingServer.agent_lock_decorator
-    def run_command(self, user_id: uuid.UUID, agent_id: uuid.UUID, command: str) -> Union[str, None]:
+    def run_command(self, user_id: uuid.UUID, agent_id: uuid.UUID, command: str) -> Union[UsageStatistics, None]:
         """Run a command on the agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
