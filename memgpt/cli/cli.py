@@ -660,7 +660,6 @@ def run(
                 embedding_config=embedding_config,
                 human=preset_obj.human,
                 persona=preset_obj.persona,
-                preset=preset_obj.name,
                 state={"messages": None, "persona": preset_obj.persona, "human": preset_obj.human},
             )
             typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)

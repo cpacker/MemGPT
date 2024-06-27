@@ -691,13 +691,16 @@ class LocalClient(AbstractClient):
         self,
         name: Optional[str] = None,
         preset: Optional[str] = None,  # TODO: this should actually be re-named preset_name
-        persona: Optional[str] = None,
-        human: Optional[str] = None,
+        # persona: Optional[str] = None,
+        # human: Optional[str] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
+        # memory
+        memory: BaseMemory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,
+        metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
     ) -> AgentState:
         if name and self.agent_exists(agent_name=name):
             raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
@@ -709,16 +712,25 @@ class LocalClient(AbstractClient):
         if include_base_tools:
             tool_names += BASE_TOOLS
 
+        # add memory tools
+        memory_functions = get_memory_functions(memory)
+        print("MEMORY FUNC", memory_functions)
+        for name, func in memory_functions.items():
+            tool = self.create_tool(func, name=name, tags=["memory"])
+            tool_names.append(tool.name)
+
         self.interface.clear()
         agent_state = self.server.create_agent(
             user_id=self.user_id,
             name=name,
             preset=preset,
-            persona=persona,
-            human=human,
+            # persona=persona,
+            # human=human,
+            memory=memory,
             llm_config=llm_config,
             embedding_config=embedding_config,
             tools=tool_names,
+            metadata=metadata,
         )
         return agent_state
 

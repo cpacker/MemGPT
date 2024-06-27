@@ -69,8 +69,8 @@ def run_server():
 # Fixture to create clients with different configurations
 @pytest.fixture(
     params=[  # whether to use REST API server
-        {"server": True},
-        # {"server": False} # TODO: add when implemented
+        # {"server": True},
+        {"server": False}  # TODO: add when implemented
     ],
     scope="module",
 )
@@ -109,7 +109,7 @@ def client(request):
 # Fixture for test agent
 @pytest.fixture(scope="module")
 def agent(client):
-    agent_state = client.create_agent(name=test_agent_name, preset=test_preset_name)
+    agent_state = client.create_agent(name=test_agent_name)
     print("AGENT ID", agent_state.id)
     yield agent_state
 

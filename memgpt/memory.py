@@ -133,7 +133,7 @@ def get_memory_functions(cls: BaseMemory) -> List[callable]:
     """Get memory functions for a memory class"""
     functions = {}
     for func_name in dir(cls):
-        if func_name.startswith("_"):
+        if func_name.startswith("_") or func_name in ["load", "to_dict"]:  # skip base functions
             continue
         func = getattr(cls, func_name)
         if callable(func):

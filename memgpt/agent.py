@@ -11,8 +11,6 @@ from tqdm import tqdm
 from memgpt.agent_store.storage import StorageConnector
 from memgpt.constants import (
     CLI_WARNING_PREFIX,
-    CORE_MEMORY_HUMAN_CHAR_LIMIT,
-    CORE_MEMORY_PERSONA_CHAR_LIMIT,
     FIRST_MESSAGE_ATTEMPTS,
     JSON_ENSURE_ASCII,
     JSON_LOADS_STRICT,
@@ -24,7 +22,7 @@ from memgpt.constants import (
 from memgpt.data_types import AgentState, EmbeddingConfig, Message, Passage
 from memgpt.interface import AgentInterface
 from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
-from memgpt.memory import ArchivalMemory
+from memgpt.memory import ArchivalMemory, BaseMemory
 from memgpt.memory import CoreMemory as InContextMemory
 from memgpt.memory import RecallMemory, summarize_messages
 from memgpt.metadata import MetadataStore
@@ -109,20 +107,20 @@ def link_functions(function_schemas: list):
     return linked_function_set
 
 
-def initialize_memory(ai_notes: Union[str, None], human_notes: Union[str, None]):
-    if ai_notes is None:
-        raise ValueError(ai_notes)
-    if human_notes is None:
-        raise ValueError(human_notes)
-    memory = InContextMemory(human_char_limit=CORE_MEMORY_HUMAN_CHAR_LIMIT, persona_char_limit=CORE_MEMORY_PERSONA_CHAR_LIMIT)
-    memory.edit_persona(ai_notes)
-    memory.edit_human(human_notes)
-    return memory
+# def initialize_memory(ai_notes: Union[str, None], human_notes: Union[str, None]):
+#    if ai_notes is None:
+#        raise ValueError(ai_notes)
+#    if human_notes is None:
+#        raise ValueError(human_notes)
+#    memory = InContextMemory(human_char_limit=CORE_MEMORY_HUMAN_CHAR_LIMIT, persona_char_limit=CORE_MEMORY_PERSONA_CHAR_LIMIT)
+#    memory.edit_persona(ai_notes)
+#    memory.edit_human(human_notes)
+#    return memory
 
 
 def construct_system_with_memory(
     system: str,
-    memory: InContextMemory,
+    memory: BaseMemory,
     memory_edit_timestamp: str,
     archival_memory: Optional[ArchivalMemory] = None,
     recall_memory: Optional[RecallMemory] = None,
@@ -137,12 +135,13 @@ def construct_system_with_memory(
             f"{len(recall_memory) if recall_memory else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
             f"{len(archival_memory) if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
             "\nCore memory shown below (limited in size, additional information stored in archival / recall memory):",
-            f'<persona characters="{len(memory.persona)}/{memory.persona_char_limit}">' if include_char_count else "<persona>",
-            memory.persona,
-            "</persona>",
-            f'<human characters="{len(memory.human)}/{memory.human_char_limit}">' if include_char_count else "<human>",
-            memory.human,
-            "</human>",
+            str(memory),
+            # f'<persona characters="{len(memory.persona)}/{memory.persona_char_limit}">' if include_char_count else "<persona>",
+            # memory.persona,
+            # "</persona>",
+            # f'<human characters="{len(memory.human)}/{memory.human_char_limit}">' if include_char_count else "<human>",
+            # memory.human,
+            # "</human>",
         ]
     )
     return full_system_message
@@ -196,6 +195,7 @@ class Agent(object):
         # agents can be created from providing agent_state
         agent_state: AgentState,
         tools: List[ToolModel],
+        # memory: BaseMemory,
         # extras
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
@@ -231,13 +231,15 @@ class Agent(object):
         self.system = self.agent_state.system
 
         # Initialize the memory object
-        # TODO: support more general memory types
-        if "persona" not in self.agent_state.state:  # TODO: remove
-            raise ValueError(f"'persona' not found in provided AgentState")
-        if "human" not in self.agent_state.state:  # TODO: remove
-            raise ValueError(f"'human' not found in provided AgentState")
-        self.memory = initialize_memory(ai_notes=self.agent_state.state["persona"], human_notes=self.agent_state.state["human"])
-        printd("INITIALIZED MEMORY", self.memory.persona, self.memory.human)
+        ## TODO: support more general memory types
+        # if "persona" not in self.agent_state.state:  # TODO: remove
+        #    raise ValueError(f"'persona' not found in provided AgentState")
+        # if "human" not in self.agent_state.state:  # TODO: remove
+        #    raise ValueError(f"'human' not found in provided AgentState")
+        ##self.memory = initialize_memory(ai_notes=self.agent_state.state["persona"], human_notes=self.agent_state.state["human"])
+        # printd("INITIALIZED MEMORY", self.memory.persona, self.memory.human)
+        self.memory = BaseMemory.load(self.agent_state.state["memory"])
+        printd("INITIALIZED MEMORY", self.memory)
 
         # Interface must implement:
         # - internal_monologue
@@ -1032,15 +1034,14 @@ class Agent(object):
         # }
         memory = {
             "system": self.system,
-            "persona": self.memory.persona,
-            "human": self.memory.human,
+            "memory": self.memory.to_dict(),
             "messages": [str(msg.id) for msg in self._messages],  # TODO: move out into AgentState.message_ids
         }
 
         # TODO: add this field
-        metadata = {  # TODO
-            "human_name": self.agent_state.persona,
-            "persona_name": self.agent_state.human,
+        metadata = {  # TODO remove this from self.agent_state
+            "human": self.agent_state.persona,
+            "persona": self.agent_state.human,
         }
 
         self.agent_state = AgentState(

@@ -37,6 +37,7 @@ from memgpt.data_types import (
 from memgpt.interface import AgentInterface  # abstract
 from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.log import get_logger
+from memgpt.memory import BaseMemory
 from memgpt.metadata import MetadataStore
 from memgpt.models.chat_completion_response import UsageStatistics
 from memgpt.models.pydantic_models import (
@@ -673,6 +674,7 @@ class SyncServer(LockingServer):
         self,
         user_id: uuid.UUID,
         tools: List[str],  # list of tool names (handles) to include
+        memory: BaseMemory,
         # system: str, # system prompt
         metadata: Optional[dict] = {},  # includes human/persona names
         name: Optional[str] = None,
@@ -684,10 +686,10 @@ class SyncServer(LockingServer):
         interface: Union[AgentInterface, None] = None,
         # TODO: refactor this to be a more general memory configuration
         system: Optional[str] = None,  # prompt value
-        persona: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
-        human: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
-        persona_name: Optional[str] = None,  # TODO: remove
-        human_name: Optional[str] = None,  # TODO: remove
+        # persona: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
+        # human: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
+        # persona_name: Optional[str] = None,  # TODO: remove
+        # human_name: Optional[str] = None,  # TODO: remove
     ) -> AgentState:
         """Create a new agent using a config"""
         if self.ms.get_user(user_id=user_id) is None:
@@ -713,6 +715,10 @@ class SyncServer(LockingServer):
         # self.ms.#create_agent(agent_state)
 
         # TODO modify to do creation via preset
+        human = memory.memory["human"].value
+        persona = memory.memory["persona"].value
+        human_name = metadata.get("human", None)
+        persona_name = metadata.get("persona", None)
         try:
             preset_obj = self.ms.get_preset(name=preset if preset else self.config.preset, user_id=user_id)
             preset_override = False
@@ -774,6 +780,7 @@ class SyncServer(LockingServer):
                 # Then write out to the database for storage
                 self.ms.create_preset(preset=preset_obj)
 
+            # TODO: add metadata
             agent_state = AgentState(
                 name=name,
                 user_id=user_id,
@@ -784,13 +791,15 @@ class SyncServer(LockingServer):
                 embedding_config=embedding_config,
                 system=system,
                 preset=preset,  # TODO: remove
-                state={"persona": preset_obj.persona, "human": preset_obj.human, "system": system, "messages": None},
+                # state={"persona": preset_obj.persona, "human": preset_obj.human, "system": system, "messages": None},
+                state={"system": system, "messages": None, "memory": memory.to_dict()},
             )
 
             agent = Agent(
                 interface=interface,
                 agent_state=agent_state,
                 tools=tool_objs,
+                # memory=memory,
                 # embedding_config=embedding_config,
                 # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
                 first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,

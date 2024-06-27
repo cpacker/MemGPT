@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from memgpt.constants import BASE_TOOLS
+from memgpt.memory import ChatMemory
 from memgpt.models.pydantic_models import (
     AgentStateModel,
     EmbeddingConfigModel,
@@ -82,6 +83,10 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                 tool_names.append(name)
         assert isinstance(tool_names, list), "Tool names must be a list of strings."
 
+        # TODO: eventually remove this - should support general memory at the REST endpoint
+        memory = ChatMemory(persona=persona, human=human)
+        metadata = {"human": human_name, "persona": persona_name}
+
         try:
             agent_state = server.create_agent(
                 user_id=user_id,
@@ -89,15 +94,17 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                 # TODO turn into a pydantic model
                 name=request.config["name"],
                 preset=preset,
-                persona_name=persona_name,
-                human_name=human_name,
-                persona=persona,
-                human=human,
+                memory=memory,
+                # persona_name=persona_name,
+                # human_name=human_name,
+                # persona=persona,
+                # human=human,
                 # llm_config=LLMConfigModel(
                 # model=request.config['model'],
                 # )
                 # tools
                 tools=tool_names,
+                metadata=metadata,
                 # function_names=request.config["function_names"].split(",") if "function_names" in request.config else None,
             )
             llm_config = LLMConfigModel(**vars(agent_state.llm_config))
