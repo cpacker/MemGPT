@@ -6,7 +6,7 @@ from typing import List
 
 from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.data_types import AgentState, Preset
-from memgpt.functions.functions import load_all_function_sets, load_function_set
+from memgpt.functions.functions import load_function_set
 from memgpt.interface import AgentInterface
 from memgpt.metadata import MetadataStore
 from memgpt.models.pydantic_models import HumanModel, PersonaModel, ToolModel
@@ -164,6 +164,8 @@ def generate_functions_json(preset_functions: List[str]):
     #   json_schema: schema
     #   python_function: function
     # }
+    from memgpt.functions.functions import load_all_function_sets
+
     available_functions = load_all_function_sets()
     # Filter down the function set based on what the preset requested
     preset_function_set = {}

@@ -82,12 +82,18 @@ class BaseMemory:
         """Representation of the memory in-context"""
         section_strs = []
         for section, module in self.memory.items():
-            section_strs.append(f'<{section} characters="{len(module)}/{module.limit}">{module.value}</{section}>')
+            section_strs.append(f'<{section} characters="{len(module)}/{module.limit}">\n{module.value}\n</{section}>')
         return "\n".join(section_strs)
 
     def to_dict(self):
         """Convert to dictionary representation"""
         return {key: value.dict() for key, value in self.memory.items()}
+
+    def __getitem__(self, key):
+        return self.memory[key]
+
+    def __setitem__(self, key, value):
+        self.memory[key].value = value
 
 
 class ChatMemory(BaseMemory):
