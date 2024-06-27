@@ -770,7 +770,7 @@ class Agent(object):
 
             self._append_to_messages(all_new_messages)
             messages_to_return = [msg.to_openai_dict() for msg in all_new_messages] if return_dicts else all_new_messages
-            return messages_to_return, heartbeat_request, function_failed, active_memory_warning, response.usage.completion_tokens
+            return messages_to_return, heartbeat_request, function_failed, active_memory_warning, response.usage
 
         except Exception as e:
             printd(f"step() failed\nuser_message = {user_message}\nerror = {e}")

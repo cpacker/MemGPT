@@ -13,6 +13,13 @@ from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.utils import get_human_text, get_persona_text, get_utc_time
 
 
+class MemGPTUsageStatistics(BaseModel):
+    completion_tokens: int
+    prompt_tokens: int
+    total_tokens: int
+    step_count: int
+
+
 class LLMConfigModel(BaseModel):
     model: Optional[str] = "gpt-4"
     model_endpoint_type: Optional[str] = "openai"
