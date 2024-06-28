@@ -7,7 +7,7 @@ from sqlalchemy.orm import (
     mapped_column
 )
 from memgpt.log import get_logger
-from memgpt.orm.base import CommonSqlalchemyMetaMixins
+from memgpt.orm.base import Base, CommonSqlalchemyMetaMixins
 from memgpt.orm.errors import NoResultFound
 
 if TYPE_CHECKING:
@@ -19,12 +19,14 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class SqlalchemyBase(CommonSqlalchemyMetaMixins):
+class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
     __abstract__ = True
 
     __order_by_default__ = "created_at"
 
     _id: Mapped[UUID] = mapped_column(SQLUUID(), primary_key=True, default=uuid4)
+
+    deleted: Mapped[bool] = mapped_column(bool, default=False, doc="Is this record deleted? Used for universal soft deletes.")
 
     @property
     def __prefix__(self) -> str:
@@ -52,11 +54,31 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins):
 
     @classmethod
     def read(
-        cls, db_session: "Session", identifier: Union[str, UUID], **kwargs
+        cls,
+        db_session: "Session",
+        identifier: Union[str, UUID],
+        actor: Optional["User"] = None,
+        access: Optional[List[Literal["read", "write", "admin"]]] = ["read"],
+        **kwargs
     ) -> Type["SqlalchemyBase"]:
-        del kwargs
+        """The primary accessor for an ORM record.
+        Args:
+            db_session: the database session to use when retrieving the record
+            identifier: the identifier of the record to read, can be the id string or the UUID object for backwards compatibility
+            actor: if specified, results will be scoped only to records the user is able to access
+            access: if actor is specified, records will be filtered to the minimum permission level for the actor
+            kwargs: additional arguments to pass to the read, used for more complex objects
+        Returns:
+            The matching object
+        Raises:
+            NoResultFound: if the object is not found
+        """
+        del kwargs # arity for more complex reads
         identifier = cls.to_uid(identifier)
-        if found := db_session.get(cls, identifier):
+        query = select(cls).where(cls._id == identifier)
+        if actor:
+            query = cls.apply_access_predicate(query, actor, access)
+        if found := db_session.execute(query).scalar():
             return found
         raise NoResultFound(f"{cls.__name__} with id {identifier} not found")
 
@@ -102,7 +124,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins):
         )
         if not org_uid:
             raise ValueError("object %s has no organization accessor", actor)
-        return query.where(cls._organization_id == org_uid)
+        return query.where(cls._organization_id == org_uid, cls.deleted == False)
 
     @property
     def __pydantic_model__(self) -> Type["BaseModel"]:
