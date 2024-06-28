@@ -10,6 +10,8 @@ from typing import Annotated, Optional
 
 import questionary
 import requests
+import sqlalchemy
+import sqlalchemy.exc
 import typer
 
 import memgpt.utils as utils
@@ -516,7 +518,15 @@ def run(
 
     # determine agent to use, if not provided
     if not yes and not agent:
-        agents = ms.list_agents(user_id=user.id)
+        try:
+            agents = ms.list_agents(user_id=user.id)
+        except sqlalchemy.exc.OperationalError as e:
+            if "no such column" in str(e):
+                raise Exception(
+                    "Fatal error - the database schema was likely updated in a new build. Please ask #support in the Discord channel for help."
+                )
+            else:
+                raise e
         agents = [a.name for a in agents]
 
         if len(agents) > 0:
