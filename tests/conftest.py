@@ -1,10 +1,11 @@
 from typing import TYPE_CHECKING
+from urllib.parse import urlsplit, urlunsplit
 import pytest
 from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 
 
-from memgpt.settings import settings
+from memgpt.settings import settings, BackendConfiguration
 from memgpt.orm.utilities import create_engine
 from memgpt.orm.__all__ import Base
 from tests.utils import wipe_memgpt_home
@@ -115,7 +116,18 @@ def db_session(request) -> "Session":
         }
     }
     adapter = adapter_test_configurations[request.param]
-    engine = create_engine(storage_type=request.param, database=adapter["database"])
+    # update the db uri to reflect the test function and param
+    match request.param:
+        case "sqlite_chroma":
+            database_uri = f"sqlite:///{adapter['database']}"
+        case "postgres":
+            url_parts = list(urlsplit(settings.postgres_uri))
+            PATH_PARAM = 2
+            url_parts[PATH_PARAM] = f"/{adapter['database']}"
+            database_uri = urlunsplit(url_parts)
+    backend = BackendConfiguration(name=request.param,
+                                   database_uri=database_uri)
+    engine = create_engine(backend)
 
     with engine.begin() as connection:
         for statement in adapter["statements"]:

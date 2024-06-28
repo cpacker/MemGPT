@@ -4,33 +4,24 @@ from sqlalchemy import create_engine as sqlalchemy_create_engine
 from sqlalchemy.orm import sessionmaker
 
 
-from memgpt.settings import settings
+from memgpt.settings import settings, BackendConfiguration
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
 
 
 def create_engine(
-        storage_type: Optional[str] = None,
-        database: Optional[str] = None,
+        backend_configuration: Optional["BackendConfiguration"] = None
 ) -> "Engine":
     """creates an engine for the storage_type designated by settings
     Args:
-        storage_type: test hook to inject storage_type, you should not be setting this
-        database: test hook to inject database, you should not be setting this
+        backend_configuration: a BackendConfiguration object - this is a test hook, you should NOT be using this for application code!
+
     Returns: a sqlalchemy engine
     """
-    storage_type = storage_type or settings.storage_type
-    match storage_type:
-        case "postgres":
-            url_parts = list(urlsplit(settings.pg_uri))
-            PATH_PARAM = 2 # avoid the magic number!
-            url_parts[PATH_PARAM] = f"/{database}" if database else url_parts.path
-            return sqlalchemy_create_engine(urlunsplit(url_parts))
-        case "sqlite_chroma":
-            return sqlalchemy_create_engine(f"sqlite:///{database}")
-        case _:
-            raise ValueError(f"Unsupported storage_type: {storage_type}")
+    backend = backend_configuration or settings.backend
+    return sqlalchemy_create_engine(backend.database_uri)
+
 
 
 def get_db_session() -> "Generator":

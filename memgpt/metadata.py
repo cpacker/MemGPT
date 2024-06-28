@@ -5,7 +5,7 @@ import secrets
 import traceback
 import uuid
 from typing import List, Optional, Type
-
+from memgpt.orm.utilities import get_db_session
 #from sqlalchemy import (
     #BIGINT,
     #CHAR,
@@ -321,65 +321,16 @@ from memgpt.utils import printd #enforce_types, get_utc_time, printd
 
 
 class MetadataStore:
-    uri: Optional[str] = None
+    db_session: "Session" = None
 
-    def __init__(self, config: MemGPTConfig):
-        # TODO: get DB URI or path
-        if config.metadata_storage_type == "postgres":
-            # construct URI from enviornment variables
-            self.uri = settings.pg_uri if settings.pg_uri else config.metadata_storage_uri
+    def __init__(self):
+        self.db_session = get_db_session()
 
-        elif config.metadata_storage_type == "sqlite":
-            path = os.path.join(config.metadata_storage_path, "sqlite.db")
-            self.uri = f"sqlite:///{path}"
-        else:
-            raise ValueError(f"Invalid metadata storage type: {config.metadata_storage_type}")
-
-        # Ensure valid URI
-        assert self.uri, "Database URI is not provided or is invalid."
-
-        # Check if tables need to be created
-        self.engine = create_engine(self.uri)
-        try:
-            Base.metadata.create_all(
-                self.engine,
-                tables=[
-                    UserModel.__table__,
-                    AgentModel.__table__,
-                    SourceModel.__table__,
-                    AgentSourceMappingModel.__table__,
-                    TokenModel.__table__,
-                    PresetModel.__table__,
-                    PresetSourceMapping.__table__,
-                    HumanModel.__table__,
-                    PersonaModel.__table__,
-                    ToolModel.__table__,
-                    JobModel.__table__,
-                ],
-            )
-        except (InterfaceError, OperationalError) as e:
-            traceback.print_exc()
-            if config.metadata_storage_type == "postgres":
-                raise ValueError(
-                    f"{str(e)}\n\nMemGPT failed to connect to the database at URI '{self.uri}'. "
-                    + "Please make sure you configured your storage backend correctly (https://memgpt.readme.io/docs/storage). "
-                    + "\npostgres detected: Make sure the postgres database is running (https://memgpt.readme.io/docs/storage#postgres)."
-                )
-            elif config.metadata_storage_type == "sqlite":
-                raise ValueError(
-                    f"{str(e)}\n\nMemGPT failed to connect to the database at URI '{self.uri}'. "
-                    + "Please make sure you configured your storage backend correctly (https://memgpt.readme.io/docs/storage). "
-                    + "\nsqlite detected: Make sure that the sqlite.db file exists at the URI."
-                )
-            else:
-                raise e
-        except:
-            raise
-        self.session_maker = sessionmaker(bind=self.engine)
-
-    @enforce_types
-    def create_api_key(self, user_id: uuid.UUID, name: Optional[str] = None) -> Token:
+    def create_api_key(self,
+                       user_id: uuid.UUID,
+                       name: Optional[str] = None) -> Token:
         """Create an API key for a user"""
+        # TODO: next - create token for user
         new_api_key = generate_api_key()
         with self.session_maker() as session:
             if session.query(TokenModel).filter(TokenModel.token == new_api_key).count() > 0:
