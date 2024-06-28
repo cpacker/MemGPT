@@ -1,10 +1,10 @@
 [defaults]
 preset = memgpt_chat
-persona = sam_pov
+persona = u
 human = basic
 
 [model]
-model = gpt-4
+model = gpt-4o
 model_endpoint = https://api.openai.com/v1
 model_endpoint_type = openai
 model_wrapper = null
@@ -13,7 +13,7 @@ context_window = 8192
 [embedding]
 embedding_endpoint_type = openai
 embedding_endpoint = https://api.openai.com/v1
-embedding_model = text-embedding-ada-002
+embedding_model = text-embedding-3-large
 embedding_dim = 1536
 embedding_chunk_size = 300
 

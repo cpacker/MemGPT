@@ -3,20 +3,22 @@
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'memgpt-server-app-twilight-sun-3767'
-primary_region = 'cdg'
-
-[build]
+app = "memgpt-server-app-twilight-sun-3767"
+primary_region = "cdg"
 
 [http_service]
-  internal_port = 8083
-  force_https = true
-  auto_stop_machines = true
-  auto_start_machines = true
-  min_machines_running = 0
-  processes = ['app']
+auto_start_machines = true
+auto_stop_machines = true
+force_https = true
+internal_port = 8083
+min_machines_running = 0
+processes = [ "app" ]
+
+[[mounts]]
+destination = "/data"
+source = "u_data"
 
 [[vm]]
-  memory = '1gb'
-  cpu_kind = 'shared'
-  cpus = 1
+cpu_kind = "performance"
+cpus = 1
+memory = "2gb"
