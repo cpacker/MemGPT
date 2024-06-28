@@ -1,338 +1,34 @@
 """ Metadata store for user/agent/data_source information"""
 from typing import TYPE_CHECKING
-import inspect as python_inspect
-import os
-import secrets
-import traceback
 import uuid
-from typing import List, Optional, Type
+from typing import List, Optional
 from humps import pascalize
 
 from memgpt.log import get_logger
 from memgpt.orm.utilities import get_db_session
 from memgpt.orm.token import Token
 from memgpt.orm.agent import Agent
+from memgpt.orm.job import Job
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 logger = get_logger(__name__)
 
-#from sqlalchemy import (
-    #BIGINT,
-    #CHAR,
-    #JSON,
-    #Boolean,
-    #Column,
-    #DateTime,
-    #String,
-    #TypeDecorator,
-    #create_engine,
-    #desc,
-    #func,
-#)
-#from sqlalchemy.dialects.postgresql import UUID
-#from sqlalchemy.exc import InterfaceError
-#from sqlalchemy.orm import declarative_base, sessionmaker
-#from sqlalchemy.sql import func
-
-#from memgpt.config import MemGPTConfig
 from memgpt.data_types import (
     AgentState,
-    EmbeddingConfig,
-    LLMConfig,
     Preset,
     Source,
     Token,
     User,
 )
-from memgpt.functions.functions import load_all_function_sets
 from memgpt.orm.enums import JobStatus
-#from memgpt.models.pydantic_models import (
-    #HumanModel,
-    #JobModel,
-    #JobStatus,
-    #PersonaModel,
-    #ToolModel,
-#)
-from memgpt.settings import settings
-from memgpt.utils import printd #enforce_types, get_utc_time, printd
-
-
-#Base = declarative_base()
-
-
-# Custom UUID type
-#class CommonUUID(TypeDecorator):
-    #impl = CHAR
-    #cache_ok = True
-
-    #def load_dialect_impl(self, dialect):
-        #if dialect.name == "postgresql":
-            #return dialect.type_descriptor(UUID(as_uuid=True))
-        #else:
-            #return dialect.type_descriptor(CHAR())
-
-    #def process_bind_param(self, value, dialect):
-        #if dialect.name == "postgresql" or value is None:
-            #return value
-        #else:
-            #return str(value)  # Convert UUID to string for SQLite
-
-    #def process_result_value(self, value, dialect):
-        #if dialect.name == "postgresql" or value is None:
-            #return value
-        #else:
-            #return uuid.UUID(value)
-
-
-#class LLMConfigColumn(TypeDecorator):
-    #"""Custom type for storing LLMConfig as JSON"""
-
-    #impl = JSON
-    #cache_ok = True
-
-    #def load_dialect_impl(self, dialect):
-        #return dialect.type_descriptor(JSON())
-
-    #def process_bind_param(self, value, dialect):
-        #if value:
-            #return vars(value)
-        #return value
-
-    #def process_result_value(self, value, dialect):
-        #if value:
-            #return LLMConfig(**value)
-        #return value
-
-
-#class EmbeddingConfigColumn(TypeDecorator):
-    #"""Custom type for storing EmbeddingConfig as JSON"""
-
-    #impl = JSON
-    #cache_ok = True
-
-    #def load_dialect_impl(self, dialect):
-        #return dialect.type_descriptor(JSON())
-
-    #def process_bind_param(self, value, dialect):
-        #if value:
-            #return vars(value)
-        #return value
-
-    #def process_result_value(self, value, dialect):
-        #if value:
-            #return EmbeddingConfig(**value)
-        #return value
-
-
-#class UserModel(Base):
-    #__tablename__ = "users"
-    #__table_args__ = {"extend_existing": True}
-
-    #id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-    ## name = Column(String, nullable=False)
-    #default_agent = Column(String)
-
-    #policies_accepted = Column(Boolean, nullable=False, default=False)
-
-    #def __repr__(self) -> str:
-        #return f"<User(id='{self.id}')>"
-
-    #def to_record(self) -> User:
-        #return User(
-            #id=self.id,
-            ## name=self.name
-            #default_agent=self.default_agent,
-            #policies_accepted=self.policies_accepted,
-        #)
-
-
-#class TokenModel(Base):
-    #"""Data model for authentication tokens. One-to-many relationship with UserModel (1 User - N tokens)."""
-
-    #__tablename__ = "tokens"
-
-    #id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-    ## each api key is tied to a user account (that it validates access for)
-    #user_id = Column(CommonUUID, nullable=False)
-    ## the api key
-    #token = Column(String, nullable=False)
-    ## extra (optional) metadata
-    #name = Column(String)
-
-    #def __repr__(self) -> str:
-        #return f"<Token(id='{self.id}', token='{self.token}', name='{self.name}')>"
-
-    #def to_record(self) -> User:
-        #return Token(
-            #id=self.id,
-            #user_id=self.user_id,
-            #token=self.token,
-            #name=self.name,
-        #)
-
-
-#def generate_api_key(prefix="sk-", length=51) -> str:
-    ## Generate 'length // 2' bytes because each byte becomes two hex digits. Adjust length for prefix.
-    #actual_length = max(length - len(prefix), 1) // 2  # Ensure at least 1 byte is generated
-    #random_bytes = secrets.token_bytes(actual_length)
-    #new_key = prefix + random_bytes.hex()
-    #return new_key
-
-
-#class AgentModel(Base):
-    #"""Defines data model for storing Passages (consisting of text, embedding)"""
-
-    #__tablename__ = "agents"
-    #__table_args__ = {"extend_existing": True}
-
-    #id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-    #user_id = Column(CommonUUID, nullable=False)
-    #name = Column(String, nullable=False)
-    #persona = Column(String)
-    #human = Column(String)
-    #preset = Column(String)
-    #created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    ## configs
-    #llm_config = Column(LLMConfigColumn)
-    #embedding_config = Column(EmbeddingConfigColumn)
-
-    ## state
-    #state = Column(JSON)
-
-    #def __repr__(self) -> str:
-        #return f"<Agent(id='{self.id}', name='{self.name}')>"
-
-    #def to_record(self) -> AgentState:
-        #return AgentState(
-            #id=self.id,
-            #user_id=self.user_id,
-            #name=self.name,
-            #persona=self.persona,
-            #human=self.human,
-            #preset=self.preset,
-            #created_at=self.created_at,
-            #llm_config=self.llm_config,
-            #embedding_config=self.embedding_config,
-            #state=self.state,
-        #)
-
-
-#class SourceModel(Base):
-    #"""Defines data model for storing Passages (consisting of text, embedding)"""
-
-    #__tablename__ = "sources"
-    #__table_args__ = {"extend_existing": True}
-
-    ## Assuming passage_id is the primary key
-    ## id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    #id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-    #user_id = Column(CommonUUID, nullable=False)
-    #name = Column(String, nullable=False)
-    #created_at = Column(DateTime(timezone=True), server_default=func.now())
-    #embedding_dim = Column(BIGINT)
-    #embedding_model = Column(String)
-    #description = Column(String)
-
-    ## TODO: add num passages
-
-    #def __repr__(self) -> str:
-        #return f"<Source(passage_id='{self.id}', name='{self.name}')>"
-
-    #def to_record(self) -> Source:
-        #return Source(
-            #id=self.id,
-            #user_id=self.user_id,
-            #name=self.name,
-            #created_at=self.created_at,
-            #embedding_dim=self.embedding_dim,
-            #embedding_model=self.embedding_model,
-            #description=self.description,
-        #)
-
-
-#class AgentSourceMappingModel(Base):
-    #"""Stores mapping between agent -> source"""
-
-    #__tablename__ = "agent_source_mapping"
-
-    #id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-    #user_id = Column(CommonUUID, nullable=False)
-    #agent_id = Column(CommonUUID, nullable=False)
-    #source_id = Column(CommonUUID, nullable=False)
-
-    #def __repr__(self) -> str:
-        #return f"<AgentSourceMapping(user_id='{self.user_id}', agent_id='{self.agent_id}', source_id='{self.source_id}')>"
-
-
-#class PresetSourceMapping(Base):
-    #__tablename__ = "preset_source_mapping"
-
-    #id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-    #user_id = Column(CommonUUID, nullable=False)
-    #preset_id = Column(CommonUUID, nullable=False)
-    #source_id = Column(CommonUUID, nullable=False)
-
-    #def __repr__(self) -> str:
-        #return f"<PresetSourceMapping(user_id='{self.user_id}', preset_id='{self.preset_id}', source_id='{self.source_id}')>"
-
-
-## class PresetFunctionMapping(Base):
-##    __tablename__ = "preset_function_mapping"
-##
-##    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-##    user_id = Column(CommonUUID, nullable=False)
-##    preset_id = Column(CommonUUID, nullable=False)
-##    #function_id = Column(CommonUUID, nullable=False)
-##    function = Column(String, nullable=False) # TODO: convert to ID eventually
-##
-##    def __repr__(self) -> str:
-##        return f"<PresetFunctionMapping(user_id='{self.user_id}', preset_id='{self.preset_id}', function_id='{self.function_id}')>"
-
-
-#class PresetModel(Base):
-    #"""Defines data model for storing Preset objects"""
-
-    #__tablename__ = "presets"
-    #__table_args__ = {"extend_existing": True}
-
-    #id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-    #user_id = Column(CommonUUID, nullable=False)
-    #name = Column(String, nullable=False)
-    #description = Column(String)
-    #system = Column(String)
-    #human = Column(String)
-    #human_name = Column(String, nullable=False)
-    #persona = Column(String)
-    #persona_name = Column(String, nullable=False)
-    #preset = Column(String)
-    #created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    #functions_schema = Column(JSON)
-
-    #def __repr__(self) -> str:
-        #return f"<Preset(id='{self.id}', name='{self.name}')>"
-
-    #def to_record(self) -> Preset:
-        #return Preset(
-            #id=self.id,
-            #user_id=self.user_id,
-            #name=self.name,
-            #description=self.description,
-            #system=self.system,
-            #human=self.human,
-            #persona=self.persona,
-            #human_name=self.human_name,
-            #persona_name=self.persona_name,
-            #preset=self.preset,
-            #created_at=self.created_at,
-            #functions_schema=self.functions_schema,
-        #)
-
 
 class MetadataStore:
+    """Metadatastore acts as a bridge between the ORM and the rest of the application. Ideally it will be removed in coming PRs and
+    Allow requests to handle sessions atomically (this is how FastAPI really wants things to work, and will drastically reduce the
+    mucking of the ORM layer). For now, all CRUD methods are invoked here instead of the ORM layer directly.
+    """
     db_session: "Session" = None
 
     def __init__(self):
@@ -393,68 +89,43 @@ class MetadataStore:
         return Agent.create(self.db_session, agent.model_dump(exclude_none=True))
 
     def __getattr__(self, name, *args, **kwargs):
-        """temporary metaprogramming to clean up all the getters and setters here"""
-        if name.startswith("create_"):
-            _, raw_model_name = name.split("_",1)
-            model = globals().get(pascalize(raw_model_name)) # gross, but nessary for now
-            splatted_pydantic = args[0].model_dump(exclude_none=True)
-            return model.create(self.db_session, splatted_pydantic)
+        """temporary metaprogramming to clean up all the getters and setters here.
 
-    #@enforce_types
-    #def create_source(self, source: Source, exists_ok=False):
-        ## make sure source.name does not already exist for user
-        #with self.session_maker() as session:
-            #if session.query(SourceModel).filter(SourceModel.name == source.name).filter(SourceModel.user_id == source.user_id).count() > 0:
-                #if not exists_ok:
-                    #raise ValueError(f"Source with name {source.name} already exists for user {source.user_id}")
-                #else:
-                    #session.update(SourceModel(**vars(source)))
-            #else:
-                #session.add(SourceModel(**vars(source)))
-            #session.commit()
+        __getattr__ is always the last-ditch effort, so you can override it by declaring any method (ie `get_hamburger`) to handle the call instead.
+        """
+        action, raw_model_name = name.split("_",1)
+        Model = globals().get(pascalize(raw_model_name)) # gross, but nessary for now
+        match action:
+            case "get":
+                # this has no support for scoping, but we won't keep this pattern long
+                return Model.read(self.db_session, args[0]).to_record()
+            case "create":
+                splatted_pydantic = args[0].model_dump(exclude_none=True)
+                return Model.create(self.db_session, splatted_pydantic).to_record()
+            case "update":
+                instance = Model.read(self.db_session, args[0].id)
+                splatted_pydantic = args[0].model_dump(exclude_none=True, exclude=["id"])
+                for k,v in splatted_pydantic.items():
+                    setattr(instance, k, v)
+                instance.update(self.db_session)
+                return instance.to_record()
+            case "delete":
+                instance = Model.read(self.db_session, args[0])
+                instance.delete(self.db_session)
+            case "list":
+                # TODO: this has no scoping, no pagination, and no filtering. it's a placeholder.
+                return [r.to_record() for r in Model.list(self.db_session)]
 
-    #@enforce_types
-    #def create_user(self, user: User):
-        #with self.session_maker() as session:
-            #if session.query(UserModel).filter(UserModel.id == user.id).count() > 0:
-                #raise ValueError(f"User with id {user.id} already exists")
-            #session.add(UserModel(**vars(user)))
-            #session.commit()
-
-    #@enforce_types
-    #def create_preset(self, preset: Preset):
-        #with self.session_maker() as session:
-            #if session.query(PresetModel).filter(PresetModel.id == preset.id).count() > 0:
-                #raise ValueError(f"User with id {preset.id} already exists")
-            #session.add(PresetModel(**vars(preset)))
-            #session.commit()
-
-    @enforce_types
     def get_preset(
         self, preset_id: Optional[uuid.UUID] = None, name: Optional[str] = None, user_id: Optional[uuid.UUID] = None
     ) -> Optional[Preset]:
-        with self.session_maker() as session:
-            if preset_id:
-                results = session.query(PresetModel).filter(PresetModel.id == preset_id).all()
-            elif name and user_id:
-                results = session.query(PresetModel).filter(PresetModel.name == name).filter(PresetModel.user_id == user_id).all()
-            else:
-                raise ValueError("Must provide either preset_id or (preset_name and user_id)")
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
+        assert preset_id or (name and user_id), "Must provide either preset_id or (preset_name and user_id)"
 
-    # @enforce_types
-    # def set_preset_functions(self, preset_id: uuid.UUID, functions: List[str]):
-    #    preset = self.get_preset(preset_id)
-    #    if preset is None:
-    #        raise ValueError(f"Preset with id {preset_id} does not exist")
-    #    user_id = preset.user_id
-    #    with self.session_maker() as session:
-    #        for function in functions:
-    #            session.add(PresetFunctionMapping(user_id=user_id, preset_id=preset_id, function=function))
-    #        session.commit()
+        #TODO: pivot this to org scope - get by id or by name within org of actor
+        if preset_id:
+            return Preset.read(self.db_session, preset_id).to_record()
+        # Implement actor lookup
+        return Preset.read(self.db_session, name=name, actor=user_id).to_record()
 
     def set_preset_sources(self,
                            preset_id: uuid.UUID,
@@ -473,23 +144,7 @@ class MetadataStore:
     def get_preset_sources(self, preset_id: uuid.UUID) -> List[uuid.UUID]:
         return [s._id for s in Preset.read(self.db_session, preset_id).sources]
 
-    def update_agent(self, agent: AgentState):
-        with self.session_maker() as session:
-            session.query(AgentModel).filter(AgentModel.id == agent.id).update(vars(agent))
-            session.commit()
-
-    @enforce_types
-    def update_user(self, user: User):
-        with self.session_maker() as session:
-            session.query(UserModel).filter(UserModel.id == user.id).update(vars(user))
-            session.commit()
-
-    @enforce_types
-    def update_source(self, source: Source):
-        with self.session_maker() as session:
-            session.query(SourceModel).filter(SourceModel.id == source.id).update(vars(source))
-            session.commit()
-
+    ## TODO: update these to get rid of SQLModel completely! this is up next.
     @enforce_types
     def update_human(self, human: HumanModel):
         with self.session_maker() as session:
@@ -504,192 +159,26 @@ class MetadataStore:
             session.commit()
             session.refresh(persona)
 
-    @enforce_types
-    def update_tool(self, tool: ToolModel):
-        with self.session_maker() as session:
-            session.add(tool)
-            session.commit()
-            session.refresh(tool)
-
-    @enforce_types
-    def delete_agent(self, agent_id: uuid.UUID):
-        with self.session_maker() as session:
-
-            # delete agents
-            session.query(AgentModel).filter(AgentModel.id == agent_id).delete()
-
-            # delete mappings
-            session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).delete()
-
-            session.commit()
-
-    @enforce_types
-    def delete_source(self, source_id: uuid.UUID):
-        with self.session_maker() as session:
-            # delete from sources table
-            session.query(SourceModel).filter(SourceModel.id == source_id).delete()
-
-            # delete any mappings
-            session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).delete()
-
-            session.commit()
-
-    @enforce_types
-    def delete_user(self, user_id: uuid.UUID):
-        with self.session_maker() as session:
-            # delete from users table
-            session.query(UserModel).filter(UserModel.id == user_id).delete()
-
-            # delete associated agents
-            session.query(AgentModel).filter(AgentModel.user_id == user_id).delete()
-
-            # delete associated sources
-            session.query(SourceModel).filter(SourceModel.user_id == user_id).delete()
-
-            # delete associated mappings
-            session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.user_id == user_id).delete()
-
-            session.commit()
-
-    @enforce_types
-    def list_presets(self, user_id: uuid.UUID) -> List[Preset]:
-        with self.session_maker() as session:
-            results = session.query(PresetModel).filter(PresetModel.user_id == user_id).all()
-            return [r.to_record() for r in results]
-
-    @enforce_types
-    # def list_tools(self, user_id: uuid.UUID) -> List[ToolModel]: # TODO: add when users can creat tools
-    def list_tools(self, user_id: Optional[uuid.UUID] = None) -> List[ToolModel]:
-        with self.session_maker() as session:
-            results = session.query(ToolModel).filter(ToolModel.user_id == None).all()
-            if user_id:
-                results += session.query(ToolModel).filter(ToolModel.user_id == user_id).all()
-            return results
-
-    @enforce_types
-    def list_agents(self, user_id: uuid.UUID) -> List[AgentState]:
-        with self.session_maker() as session:
-            results = session.query(AgentModel).filter(AgentModel.user_id == user_id).all()
-            return [r.to_record() for r in results]
-
-    @enforce_types
-    def list_sources(self, user_id: uuid.UUID) -> List[Source]:
-        with self.session_maker() as session:
-            results = session.query(SourceModel).filter(SourceModel.user_id == user_id).all()
-            return [r.to_record() for r in results]
-
-    @enforce_types
-    def get_agent(
-        self, agent_id: Optional[uuid.UUID] = None, agent_name: Optional[str] = None, user_id: Optional[uuid.UUID] = None
-    ) -> Optional[AgentState]:
-        with self.session_maker() as session:
-            if agent_id:
-                results = session.query(AgentModel).filter(AgentModel.id == agent_id).all()
-            else:
-                assert agent_name is not None and user_id is not None, "Must provide either agent_id or agent_name"
-                results = session.query(AgentModel).filter(AgentModel.name == agent_name).filter(AgentModel.user_id == user_id).all()
-
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"  # should only be one result
-            return results[0].to_record()
-
-    @enforce_types
-    def get_user(self, user_id: uuid.UUID) -> Optional[User]:
-        with self.session_maker() as session:
-            results = session.query(UserModel).filter(UserModel.id == user_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
-
-    @enforce_types
     def get_all_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50) -> (Optional[uuid.UUID], List[User]):
-        with self.session_maker() as session:
-            query = session.query(UserModel).order_by(desc(UserModel.id))
-            if cursor:
-                query = query.filter(UserModel.id < cursor)
-            results = query.limit(limit).all()
-            if not results:
-                return None, []
-            user_records = [r.to_record() for r in results]
-            next_cursor = user_records[-1].id
-            assert isinstance(next_cursor, uuid.UUID)
-
-            return next_cursor, user_records
-
-    @enforce_types
-    def get_source(
-        self, source_id: Optional[uuid.UUID] = None, user_id: Optional[uuid.UUID] = None, source_name: Optional[str] = None
-    ) -> Optional[Source]:
-        with self.session_maker() as session:
-            if source_id:
-                results = session.query(SourceModel).filter(SourceModel.id == source_id).all()
-            else:
-                assert user_id is not None and source_name is not None
-                results = session.query(SourceModel).filter(SourceModel.name == source_name).filter(SourceModel.user_id == user_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
-
-    @enforce_types
-    def get_tool(self, tool_name: str, user_id: Optional[uuid.UUID] = None) -> Optional[ToolModel]:
-        # TODO: add user_id when tools can eventually be added by users
-        with self.session_maker() as session:
-            results = session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == None).all()
-            if user_id:
-                results += session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == user_id).all()
-
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0]
+        del limit # TODO: implement pagination as part of predicate
+        return None , [u.to_record() for u in User.list(self.db_session)]
 
     # agent source metadata
-    @enforce_types
-    def attach_source(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_id: uuid.UUID):
-        with self.session_maker() as session:
-            session.add(AgentSourceMappingModel(user_id=user_id, agent_id=agent_id, source_id=source_id))
-            session.commit()
+    def attach_source(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_id: uuid.UUID) -> None:
+        agent = Agent.read(self.db_session, agent_id)
+        source = Source.read(self.db_session, source_id)
+        agent.sources.append(source)
 
-    @enforce_types
     def list_attached_sources(self, agent_id: uuid.UUID) -> List[uuid.UUID]:
-        with self.session_maker() as session:
-            results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
+        return [s._id for s in Agent.read(self.db_session, agent_id).sources]
 
-            source_ids = []
-            # make sure source exists
-            for r in results:
-                source = self.get_source(source_id=r.source_id)
-                if source:
-                    source_ids.append(r.source_id)
-                else:
-                    printd(f"Warning: source {r.source_id} does not exist but exists in mapping database. This should never happen.")
-            return source_ids
-
-    @enforce_types
     def list_attached_agents(self, source_id: uuid.UUID) -> List[uuid.UUID]:
-        with self.session_maker() as session:
-            results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).all()
+        return [a._id for a in Source.read(self.db_session, source_id).agents]
 
-            agent_ids = []
-            # make sure agent exists
-            for r in results:
-                agent = self.get_agent(agent_id=r.agent_id)
-                if agent:
-                    agent_ids.append(r.agent_id)
-                else:
-                    printd(f"Warning: agent {r.agent_id} does not exist but exists in mapping database. This should never happen.")
-            return agent_ids
-
-    @enforce_types
-    def detach_source(self, agent_id: uuid.UUID, source_id: uuid.UUID):
-        with self.session_maker() as session:
-            session.query(AgentSourceMappingModel).filter(
-                AgentSourceMappingModel.agent_id == agent_id, AgentSourceMappingModel.source_id == source_id
-            ).delete()
-            session.commit()
+    def detach_source(self, agent_id: uuid.UUID, source_id: uuid.UUID) -> None:
+        agent = Agent.read(self.db_session, agent_id)
+        source = Source.read(self.db_session, source_id)
+        agent.sources.remove(source)
 
     @enforce_types
     def add_human(self, human: HumanModel):
@@ -707,22 +196,14 @@ class MetadataStore:
             session.add(persona)
             session.commit()
 
-    @enforce_types
-    def add_preset(self, preset: PresetModel):  # TODO: remove
-        with self.session_maker() as session:
-            session.add(preset)
-            session.commit()
+    def add_preset(self, preset: PresetModel) -> "PresetModel":
+        return self.create_preset(preset)
 
-    @enforce_types
     def add_tool(self, tool: ToolModel):
-        with self.session_maker() as session:
-            if self.get_tool(tool.name, tool.user_id):
-                raise ValueError(f"Tool with name {tool.name} already exists for user_id {tool.user_id}")
-            session.add(tool)
-            session.commit()
+        return self.create_tool(tool)
 
-    @enforce_types
     def get_human(self, name: str, user_id: uuid.UUID) -> Optional[HumanModel]:
+        # TODO: What? why does a getter take a 1:m id?
         with self.session_maker() as session:
             results = session.query(HumanModel).filter(HumanModel.name == name).filter(HumanModel.user_id == user_id).all()
             if len(results) == 0:
@@ -790,22 +271,6 @@ class MetadataStore:
             session.expunge_all()
 
     def update_job_status(self, job_id: uuid.UUID, status: JobStatus):
-        with self.session_maker() as session:
-            session.query(JobModel).filter(JobModel.id == job_id).update({"status": status})
-            if status == JobStatus.COMPLETED:
-                session.query(JobModel).filter(JobModel.id == job_id).update({"completed_at": get_utc_time()})
-            session.commit()
-
-    def update_job(self, job: JobModel):
-        with self.session_maker() as session:
-            session.add(job)
-            session.commit()
-            session.refresh(job)
-
-    def get_job(self, job_id: uuid.UUID) -> Optional[JobModel]:
-        with self.session_maker() as session:
-            results = session.query(JobModel).filter(JobModel.id == job_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0]
+        job = Job.read(self.db_session, job_id)
+        job.status = status
+        job.update(self.db_session)
