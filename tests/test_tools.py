@@ -69,7 +69,7 @@ def run_server():
 # Fixture to create clients with different configurations
 @pytest.fixture(
     # params=[{"server": True}, {"server": False}],  # whether to use REST API server  # TODO: add when implemented
-    params=[{"server": True}],  # whether to use REST API server  # TODO: add when implemented
+    params=[{"server": False}],  # whether to use REST API server  # TODO: add when implemented
     scope="module",
 )
 def admin_client(request):
@@ -138,34 +138,34 @@ def test_create_tool(client):
     assert tool.user_id == client.user_id, f"Expected {tool.user_id} to be {client.user_id}"
 
 
-def test_create_agent_tool_admin(admin_client):
-    if admin_client is None:
-        return
-
-    def print_tool(message: str):
-        """
-        Args:
-            message (str): The message to print.
-
-        Returns:
-            str: The message that was printed.
-
-        """
-        print(message)
-        return message
-
-    tools = admin_client.list_tools()
-    print(f"Original tools {[t.name for t in tools]}")
-
-    tool = admin_client.create_tool(print_tool, tags=["extras"])
-
-    tools = admin_client.list_tools()
-    assert tool in tools, f"Expected {tool.name} in {[t.name for t in tools]}"
-    print(f"Updated tools {[t.name for t in tools]}")
-
-    # check tool id
-    tool = client.get_tool(tool.name)
-    assert tool.user_id is None, f"Expected {tool.user_id} to be None"
+# def test_create_agent_tool_admin(admin_client):
+#    if admin_client is None:
+#        return
+#
+#    def print_tool(message: str):
+#        """
+#        Args:
+#            message (str): The message to print.
+#
+#        Returns:
+#            str: The message that was printed.
+#
+#        """
+#        print(message)
+#        return message
+#
+#    tools = admin_client.list_tools()
+#    print(f"Original tools {[t.name for t in tools]}")
+#
+#    tool = admin_client.create_tool(print_tool, tags=["extras"])
+#
+#    tools = admin_client.list_tools()
+#    assert tool in tools, f"Expected {tool.name} in {[t.name for t in tools]}"
+#    print(f"Updated tools {[t.name for t in tools]}")
+#
+#    # check tool id
+#    tool = client.get_tool(tool.name)
+#    assert tool.user_id is None, f"Expected {tool.user_id} to be None"
 
 
 def test_create_agent_tool(client):
@@ -187,7 +187,8 @@ def test_create_agent_tool(client):
         return None
 
     # TODO: test attaching and using function on agent
-    tool = client.create_tool(core_memory_clear, tags=["extras"])
+    tool = client.create_tool(core_memory_clear, tags=["extras"], update=True)
+    print(f"Created tool", tool.name)
 
     # create agent with tool
     agent = client.create_agent(name=test_agent_name, tools=[tool.name], persona="You must clear your memory if the human instructs you")

@@ -336,7 +336,7 @@ class SyncServer(LockingServer):
 
             # Instantiate an agent object using the state retrieved
             logger.info(f"Creating an agent object")
-            tool_objs = [self.ms.get_tool(name) for name in agent_state.tools]  # get tool objects
+            tool_objs = [self.ms.get_tool(name, user_id) for name in agent_state.tools]  # get tool objects
             memgpt_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
 
             # Add the agent to the in-memory store and return its reference
@@ -763,7 +763,7 @@ class SyncServer(LockingServer):
             # get tools
             tool_objs = []
             for tool_name in tools:
-                tool_obj = self.ms.get_tool(tool_name)
+                tool_obj = self.ms.get_tool(tool_name, user_id=user_id)
                 assert tool_obj is not None, f"Tool {tool_name} does not exist"
                 tool_objs.append(tool_obj)
 

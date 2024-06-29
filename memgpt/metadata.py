@@ -606,11 +606,9 @@ class MetadataStore:
     # def list_tools(self, user_id: uuid.UUID) -> List[ToolModel]: # TODO: add when users can creat tools
     def list_tools(self, user_id: Optional[uuid.UUID] = None) -> List[ToolModel]:
         with self.session_maker() as session:
+            results = session.query(ToolModel).filter(ToolModel.user_id == None).all()
             if user_id:
-                results = session.query(ToolModel).filter(ToolModel.user_id == user_id).all()
-            else:
-                # return all created tools
-                results = session.query(ToolModel).all()
+                results += session.query(ToolModel).filter(ToolModel.user_id == user_id).all()
             return results
 
     @enforce_types
@@ -681,10 +679,13 @@ class MetadataStore:
             return results[0].to_record()
 
     @enforce_types
-    def get_tool(self, tool_name: str, user_id: uuid.UUID) -> Optional[ToolModel]:
+    def get_tool(self, tool_name: str, user_id: Optional[uuid.UUID] = None) -> Optional[ToolModel]:
         # TODO: add user_id when tools can eventually be added by users
         with self.session_maker() as session:
-            results = session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == user_id).all()
+            results = session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == None).all()
+            if user_id:
+                results += session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == user_id).all()
+
             if len(results) == 0:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
@@ -756,7 +757,7 @@ class MetadataStore:
     @enforce_types
     def add_tool(self, tool: ToolModel):
         with self.session_maker() as session:
-            if session.query(ToolModel).filter(ToolModel.name == tool.name).filter(ToolModel.user_id == tool.user_id).count() > 0:
+            if self.get_tool(tool.name, tool.user_id):
                 raise ValueError(f"Tool with name {tool.name} already exists for user_id {tool.user_id}")
             session.add(tool)
             session.commit()
