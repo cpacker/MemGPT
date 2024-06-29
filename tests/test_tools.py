@@ -137,34 +137,34 @@ def test_create_tool(client):
     tool = client.get_tool(tool.name)
 
 
-# def test_create_agent_tool_admin(admin_client):
-#    if admin_client is None:
-#        return
-#
-#    def print_tool(message: str):
-#        """
-#        Args:
-#            message (str): The message to print.
-#
-#        Returns:
-#            str: The message that was printed.
-#
-#        """
-#        print(message)
-#        return message
-#
-#    tools = admin_client.list_tools()
-#    print(f"Original tools {[t.name for t in tools]}")
-#
-#    tool = admin_client.create_tool(print_tool, tags=["extras"])
-#
-#    tools = admin_client.list_tools()
-#    assert tool in tools, f"Expected {tool.name} in {[t.name for t in tools]}"
-#    print(f"Updated tools {[t.name for t in tools]}")
-#
-#    # check tool id
-#    tool = client.get_tool(tool.name)
-#    assert tool.user_id is None, f"Expected {tool.user_id} to be None"
+def test_create_agent_tool_admin(admin_client):
+    if admin_client is None:
+        return
+
+    def print_tool(message: str):
+        """
+        Args:
+            message (str): The message to print.
+
+        Returns:
+            str: The message that was printed.
+
+        """
+        print(message)
+        return message
+
+    tools = admin_client.list_tools()
+    print(f"Original tools {[t.name for t in tools]}")
+
+    tool = admin_client.create_tool(print_tool, tags=["extras"])
+
+    tools = admin_client.list_tools()
+    assert tool in tools, f"Expected {tool.name} in {[t.name for t in tools]}"
+    print(f"Updated tools {[t.name for t in tools]}")
+
+    # check tool id
+    tool = admin_client.get_tool(tool.name)
+    assert tool.user_id is None, f"Expected {tool.user_id} to be None"
 
 
 def test_create_agent_tool(client):
