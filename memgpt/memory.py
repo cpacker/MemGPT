@@ -118,7 +118,6 @@ class ChatMemory(BaseMemory):
         Returns:
             Optional[str]: None is always returned as this function does not produce a response.
         """
-        print("MEMORY UPDATE", content)
         self.memory[name].value += "\n" + content
         return None
 
@@ -134,10 +133,7 @@ class ChatMemory(BaseMemory):
         Returns:
             Optional[str]: None is always returned as this function does not produce a response.
         """
-        # self.memory.edit_replace(name, old_content, new_content)
-        print("MEMORY UPDATE", old_content, new_content)
         self.memory[name].value = self.memory[name].value.replace(old_content, new_content)
-        print("NEW MEMORY", self.memory[name].value)
         return None
 
 

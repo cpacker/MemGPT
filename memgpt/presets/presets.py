@@ -2,16 +2,13 @@ import importlib
 import inspect
 import os
 import uuid
-from typing import List
 
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.data_types import AgentState, Preset
 from memgpt.functions.functions import load_function_set
 from memgpt.interface import AgentInterface
 from memgpt.metadata import MetadataStore
 from memgpt.models.pydantic_models import HumanModel, PersonaModel, ToolModel
-from memgpt.presets.utils import load_all_presets, load_yaml_file
-from memgpt.prompts import gpt_system
+from memgpt.presets.utils import load_all_presets
 from memgpt.utils import (
     get_human_text,
     get_persona_text,
@@ -91,92 +88,93 @@ def add_default_humans_and_personas(user_id: uuid.UUID, ms: MetadataStore):
         ms.add_human(human)
 
 
-def create_preset_from_file(filename: str, name: str, user_id: uuid.UUID, ms: MetadataStore) -> Preset:
-    preset_config = load_yaml_file(filename)
-    preset_system_prompt = preset_config["system_prompt"]
-    preset_function_set_names = preset_config["functions"]
-    functions_schema = generate_functions_json(preset_function_set_names)
-
-    if ms.get_preset(user_id=user_id, name=name) is not None:
-        printd(f"Preset '{name}' already exists for user '{user_id}'")
-        return ms.get_preset(user_id=user_id, name=name)
-
-    preset = Preset(
-        user_id=user_id,
-        name=name,
-        system=gpt_system.get_system_text(preset_system_prompt),
-        persona=get_persona_text(DEFAULT_PERSONA),
-        human=get_human_text(DEFAULT_HUMAN),
-        persona_name=DEFAULT_PERSONA,
-        human_name=DEFAULT_HUMAN,
-        functions_schema=functions_schema,
-    )
-    ms.create_preset(preset)
-    return preset
-
-
-def load_preset(preset_name: str, user_id: uuid.UUID):
-    preset_config = available_presets[preset_name]
-    preset_system_prompt = preset_config["system_prompt"]
-    preset_function_set_names = preset_config["functions"]
-    functions_schema = generate_functions_json(preset_function_set_names)
-
-    preset = Preset(
-        user_id=user_id,
-        name=preset_name,
-        system=gpt_system.get_system_text(preset_system_prompt),
-        persona=get_persona_text(DEFAULT_PERSONA),
-        persona_name=DEFAULT_PERSONA,
-        human=get_human_text(DEFAULT_HUMAN),
-        human_name=DEFAULT_HUMAN,
-        functions_schema=functions_schema,
-    )
-    return preset
+# def create_preset_from_file(filename: str, name: str, user_id: uuid.UUID, ms: MetadataStore) -> Preset:
+#    preset_config = load_yaml_file(filename)
+#    preset_system_prompt = preset_config["system_prompt"]
+#    preset_function_set_names = preset_config["functions"]
+#    functions_schema = generate_functions_json(preset_function_set_names)
+#
+#    if ms.get_preset(user_id=user_id, name=name) is not None:
+#        printd(f"Preset '{name}' already exists for user '{user_id}'")
+#        return ms.get_preset(user_id=user_id, name=name)
+#
+#    preset = Preset(
+#        user_id=user_id,
+#        name=name,
+#        system=gpt_system.get_system_text(preset_system_prompt),
+#        persona=get_persona_text(DEFAULT_PERSONA),
+#        human=get_human_text(DEFAULT_HUMAN),
+#        persona_name=DEFAULT_PERSONA,
+#        human_name=DEFAULT_HUMAN,
+#        functions_schema=functions_schema,
+#    )
+#    ms.create_preset(preset)
+#    return preset
 
 
-def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
-    """Add the default presets to the metadata store"""
-    # make sure humans/personas added
-    add_default_humans_and_personas(user_id=user_id, ms=ms)
+# def load_preset(preset_name: str, user_id: uuid.UUID):
+#    preset_config = available_presets[preset_name]
+#    preset_system_prompt = preset_config["system_prompt"]
+#    preset_function_set_names = preset_config["functions"]
+#    functions_schema = generate_functions_json(preset_function_set_names)
+#
+#    preset = Preset(
+#        user_id=user_id,
+#        name=preset_name,
+#        system=gpt_system.get_system_text(preset_system_prompt),
+#        persona=get_persona_text(DEFAULT_PERSONA),
+#        persona_name=DEFAULT_PERSONA,
+#        human=get_human_text(DEFAULT_HUMAN),
+#        human_name=DEFAULT_HUMAN,
+#        functions_schema=functions_schema,
+#    )
+#    return preset
+#
 
-    # make sure base functions added
-    # TODO: pull from functions instead
-    add_default_tools(user_id=user_id, ms=ms)
-
-    # add default presets
-    for preset_name in preset_options:
-        if ms.get_preset(user_id=user_id, name=preset_name) is not None:
-            printd(f"Preset '{preset_name}' already exists for user '{user_id}'")
-            continue
-
-        preset = load_preset(preset_name, user_id)
-        ms.create_preset(preset)
-
-
-def generate_functions_json(preset_functions: List[str]):
-    """
-    Generate JSON schema for the functions based on what is locally available.
-
-    TODO: store function definitions in the DB, instead of locally
-    """
-    # Available functions is a mapping from:
-    # function_name -> {
-    #   json_schema: schema
-    #   python_function: function
-    # }
-    from memgpt.functions.functions import load_all_function_sets
-
-    available_functions = load_all_function_sets()
-    # Filter down the function set based on what the preset requested
-    preset_function_set = {}
-    for f_name in preset_functions:
-        if f_name not in available_functions:
-            raise ValueError(f"Function '{f_name}' was specified in preset, but is not in function library:\n{available_functions.keys()}")
-        preset_function_set[f_name] = available_functions[f_name]
-    assert len(preset_functions) == len(preset_function_set)
-    preset_function_set_schemas = [f_dict["json_schema"] for f_name, f_dict in preset_function_set.items()]
-    printd(f"Available functions:\n", list(preset_function_set.keys()))
-    return preset_function_set_schemas
+# def add_default_presets(user_id: uuid.UUID, ms: MetadataStore):
+#    """Add the default presets to the metadata store"""
+#    # make sure humans/personas added
+#    add_default_humans_and_personas(user_id=user_id, ms=ms)
+#
+#    # make sure base functions added
+#    # TODO: pull from functions instead
+#    add_default_tools(user_id=user_id, ms=ms)
+#
+#    # add default presets
+#    for preset_name in preset_options:
+#        if ms.get_preset(user_id=user_id, name=preset_name) is not None:
+#            printd(f"Preset '{preset_name}' already exists for user '{user_id}'")
+#            continue
+#
+#        preset = load_preset(preset_name, user_id)
+#        ms.create_preset(preset)
+#
+#
+# def generate_functions_json(preset_functions: List[str]):
+#    """
+#    Generate JSON schema for the functions based on what is locally available.
+#
+#    TODO: store function definitions in the DB, instead of locally
+#    """
+#    # Available functions is a mapping from:
+#    # function_name -> {
+#    #   json_schema: schema
+#    #   python_function: function
+#    # }
+#    from memgpt.functions.functions import load_all_function_sets
+#
+#    available_functions = load_all_function_sets()
+#    # Filter down the function set based on what the preset requested
+#    preset_function_set = {}
+#    for f_name in preset_functions:
+#        if f_name not in available_functions:
+#            raise ValueError(f"Function '{f_name}' was specified in preset, but is not in function library:\n{available_functions.keys()}")
+#        preset_function_set[f_name] = available_functions[f_name]
+#    assert len(preset_functions) == len(preset_function_set)
+#    preset_function_set_schemas = [f_dict["json_schema"] for f_name, f_dict in preset_function_set.items()]
+#    printd(f"Available functions:\n", list(preset_function_set.keys()))
+#    return preset_function_set_schemas
+#
 
 
 # def create_agent_from_preset(preset_name, agent_config, model, persona, human, interface, persistence_manager):

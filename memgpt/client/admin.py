@@ -112,6 +112,11 @@ class Admin:
         source_type = "python"
         tool_name = json_schema["name"]
 
+        if "memory" in tags:
+            # special modifications to memory functions
+            # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
+            source_code = source_code.replace("self.memory", "self.memory.memory")
+
         # create data
         data = {"name": tool_name, "source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema}
         CreateToolRequest(**data)  # validate data:w

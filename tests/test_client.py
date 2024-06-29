@@ -11,6 +11,7 @@ from memgpt.config import MemGPTConfig
 from memgpt.constants import DEFAULT_PRESET
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import Preset  # TODO move to PresetModel
+from memgpt.memory import get_memory_functions
 from memgpt.settings import settings
 from tests.utils import create_config
 
@@ -69,8 +70,8 @@ def run_server():
 # Fixture to create clients with different configurations
 @pytest.fixture(
     params=[  # whether to use REST API server
-        # {"server": True},
-        {"server": False}  # TODO: add when implemented
+        {"server": True},
+        # {"server": False}  # TODO: add when implemented
     ],
     scope="module",
 )
@@ -90,8 +91,12 @@ def client(request):
         # create user via admin client
         admin = Admin(server_url, test_server_token)
         response = admin.create_user(test_user_id)  # Adjust as per your client's method
-        response.user_id
         token = response.api_key
+
+        # add memory tools
+        for name, func in get_memory_functions().items():
+            admin.create_tool(name=name, source_code=func, source_type="python", tags=["memory", "memgpt-base"])
+
     else:
         # use local client (no server)
         token = None

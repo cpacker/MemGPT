@@ -256,6 +256,12 @@ class RESTClient(AbstractClient):
         else:
             raise ValueError(f"Failed to check if agent exists: {response.text}")
 
+    def get_tool(self, tool_name: str):
+        response = requests.get(f"{self.base_url}/api/tools/{tool_name}", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to get tool: {response.text}")
+        return ToolModel(**response.json())
+
     def create_agent(
         self,
         name: Optional[str] = None,
@@ -290,12 +296,7 @@ class RESTClient(AbstractClient):
         if include_base_tools:
             tool_names += BASE_TOOLS
 
-        # ensure that memory tools are included in the list of tools
-        memory_functions = get_memory_functions(memory)
-        for func in memory_functions:
-            tool = self.create_tool(func, tags=["memory"])
-            print("Created tool", tool.name)
-            tool_names.append(tool.name)
+        # TODO: add check that memory tools have been included
 
         # TODO: distinguish between name and objects
         # TODO: add metadata
@@ -714,7 +715,7 @@ class LocalClient(AbstractClient):
         # add memory tools
         memory_functions = get_memory_functions(memory)
         for func_name, func in memory_functions.items():
-            tool = self.create_tool(func, name=func_name, tags=["memory"])
+            tool = self.create_tool(func, name=func_name, tags=["memory", "memgpt-base"])
             tool_names.append(tool.name)
 
         self.interface.clear()
@@ -842,7 +843,6 @@ class LocalClient(AbstractClient):
             # special modifications to memory functions
             # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
             source_code = source_code.replace("self.memory", "self.memory.memory")
-            print(source_code)
 
         # check if already exists:
         existing_tool = self.server.ms.get_tool(tool_name)
