@@ -236,8 +236,6 @@ class RESTClient(AbstractClient):
         self.base_url = base_url
         self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
 
-    # agents
-
     def list_agents(self):
         response = requests.get(f"{self.base_url}/api/agents", headers=self.headers)
         return ListAgentsResponse(**response.json())
@@ -637,11 +635,14 @@ class RESTClient(AbstractClient):
         source_code = parse_source_code(func)
         json_schema = generate_schema(func, name)
         source_type = "python"
-        tool_name = json_schema["name"]
+        json_schema["name"]
 
         # create data
-        data = {"name": tool_name, "source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema}
-        CreateToolRequest(**data)  # validate data
+        data = {"source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema}
+        try:
+            CreateToolRequest(**data)  # validate data
+        except Exception as e:
+            raise ValueError(f"Failed to create tool: {e}, invalid input {data}")
 
         # make REST request
         response = requests.post(f"{self.base_url}/api/tools", json=data, headers=self.headers)

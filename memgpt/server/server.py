@@ -1522,7 +1522,7 @@ class SyncServer(LockingServer):
             )
             self.ms.add_tool(tool)
 
-        return self.ms.get_tool(name)
+        return self.ms.get_tool(name, user_id=user_id)
 
     def delete_tool(self, name: str):
         """Delete a tool"""

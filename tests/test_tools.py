@@ -68,8 +68,8 @@ def run_server():
 
 # Fixture to create clients with different configurations
 @pytest.fixture(
-    # params=[{"server": True}, {"server": False}],  # whether to use REST API server  # TODO: add when implemented
-    params=[{"server": False}],  # whether to use REST API server  # TODO: add when implemented
+    params=[{"server": True}, {"server": False}],  # whether to use REST API server  # TODO: add when implemented
+    # params=[{"server": True}],  # whether to use REST API server  # TODO: add when implemented
     scope="module",
 )
 def admin_client(request):
@@ -135,7 +135,6 @@ def test_create_tool(client):
 
     # check tool id
     tool = client.get_tool(tool.name)
-    assert tool.user_id == client.user_id, f"Expected {tool.user_id} to be {client.user_id}"
 
 
 # def test_create_agent_tool_admin(admin_client):
@@ -192,6 +191,7 @@ def test_create_agent_tool(client):
 
     # create agent with tool
     agent = client.create_agent(name=test_agent_name, tools=[tool.name], persona="You must clear your memory if the human instructs you")
+    assert str(tool.user_id) == str(agent.user_id), f"Expected {tool.user_id} to be {agent.user_id}"
 
     # initial memory
     initial_memory = client.get_agent_memory(agent.id)
