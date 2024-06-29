@@ -65,6 +65,9 @@ class ToolModel(SQLModel, table=True):
 
     json_schema: Dict = Field(default_factory=dict, sa_column=Column(JSON), description="The JSON schema of the function.")
 
+    # optional: user_id (user-specific tools)
+    user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user associated with the function.")
+
     # Needed for Column(JSON)
     class Config:
         arbitrary_types_allowed = True

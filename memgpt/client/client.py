@@ -28,8 +28,6 @@ from memgpt.models.pydantic_models import (
     SourceModel,
     ToolModel,
 )
-
-# import pydantic response objects from memgpt.server.rest_api
 from memgpt.server.rest_api.agents.command import CommandResponse
 from memgpt.server.rest_api.agents.config import GetAgentResponse
 from memgpt.server.rest_api.agents.index import CreateAgentResponse, ListAgentsResponse
@@ -54,6 +52,9 @@ from memgpt.server.rest_api.presets.index import (
     ListPresetsResponse,
 )
 from memgpt.server.rest_api.sources.index import ListSourcesResponse
+
+# import pydantic response objects from memgpt.server.rest_api
+from memgpt.server.rest_api.tools.index import CreateToolRequest, ListToolsResponse
 from memgpt.server.server import SyncServer
 
 
@@ -609,6 +610,62 @@ class RESTClient(AbstractClient):
     def get_config(self) -> ConfigResponse:
         response = requests.get(f"{self.base_url}/api/config", headers=self.headers)
         return ConfigResponse(**response.json())
+
+    # tools
+
+    def create_tool(
+        self,
+        func,
+        name: Optional[str] = None,
+        update: Optional[bool] = True,  # TODO: actually use this
+        tags: Optional[List[str]] = None,
+    ):
+        """Create a tool
+
+        Args:
+            func (callable): The function to create a tool for.
+            tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
+            update (bool, optional): Update the tool if it already exists. Defaults to True.
+
+        Returns:
+            Tool object
+        """
+
+        # TODO: check if tool already exists
+        # TODO: how to load modules?
+        # parse source code/schema
+        source_code = parse_source_code(func)
+        json_schema = generate_schema(func, name)
+        source_type = "python"
+        tool_name = json_schema["name"]
+
+        # create data
+        data = {"name": tool_name, "source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema}
+        CreateToolRequest(**data)  # validate data
+
+        # make REST request
+        response = requests.post(f"{self.base_url}/admin/tools", json=data, headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create tool: {response.text}")
+        return ToolModel(**response.json())
+
+    def list_tools(self) -> ListToolsResponse:
+        response = requests.get(f"{self.base_url}/admin/tools", headers=self.headers)
+        return ListToolsResponse(**response.json()).tools
+
+    def delete_tool(self, name: str):
+        response = requests.delete(f"{self.base_url}/admin/tools/{name}", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to delete tool: {response.text}")
+        return response.json()
+
+    def get_tool(self, name: str):
+        response = requests.get(f"{self.base_url}/admin/tools/{name}", headers=self.headers)
+        if response.status_code == 404:
+            return None
+        elif response.status_code != 200:
+            raise ValueError(f"Failed to get tool: {response.text}")
+        return ToolModel(**response.json())
 
 
 class LocalClient(AbstractClient):

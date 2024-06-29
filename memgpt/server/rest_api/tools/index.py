@@ -2,7 +2,7 @@ import uuid
 from functools import partial
 from typing import List, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from memgpt.models.pydantic_models import ToolModel
@@ -60,5 +60,32 @@ def setup_user_tools_index_router(server: SyncServer, interface: QueuingInterfac
         # tools = server.ms.list_tools(user_id=user_id) TODO: add back when user-specific
         tools = server.ms.list_tools()
         return ListToolsResponse(tools=tools)
+
+    @router.delete("/tools/{tool_name}", tags=["tools"])
+    async def delete_tool(
+        tool_name: str,
+        user_id: uuid.UUID = Depends(get_current_user_with_server),  # TODO: add back when user-specific
+    ):
+        """
+        Delete a tool by name
+        """
+        # Clear the interface
+        interface.clear()
+        # tool = server.ms.delete_tool(user_id=user_id, tool_name=tool_name) TODO: add back when user-specific
+        server.ms.delete_tool(name=tool_name)
+
+    async def create_tool(
+        request: CreateToolRequest = Body(...),
+        user_id: uuid.UUID = Depends(get_current_user_with_server),  # TODO: add back when user-specific
+    ):
+        """
+        Create a new tool
+        """
+        try:
+            return server.create_tool(
+                json_schema=request.json_schema, source_code=request.source_code, source_type=request.source_type, tags=request.tags
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to create tool: {e}")
 
     return router
