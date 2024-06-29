@@ -6,7 +6,11 @@ from requests import HTTPError
 
 from memgpt.functions.functions import parse_source_code
 from memgpt.functions.schema_generator import generate_schema
-from memgpt.models.pydantic_models import ToolModel
+from memgpt.server.rest_api.admin.tools import (
+    CreateToolRequest,
+    ListToolsResponse,
+    ToolModel,
+)
 from memgpt.server.rest_api.admin.users import (
     CreateAPIKeyResponse,
     CreateUserResponse,
@@ -15,7 +19,6 @@ from memgpt.server.rest_api.admin.users import (
     GetAllUsersResponse,
     GetAPIKeysResponse,
 )
-from memgpt.server.rest_api.tools.index import CreateToolRequest, ListToolsResponse
 
 
 class Admin:
@@ -86,6 +89,7 @@ class Admin:
                 self.delete_key(key)
             self.delete_user(user["user_id"])
 
+    # tools
     def create_tool(
         self,
         func,
@@ -94,12 +98,10 @@ class Admin:
         tags: Optional[List[str]] = None,
     ):
         """Create a tool
-
         Args:
             func (callable): The function to create a tool for.
             tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
             update (bool, optional): Update the tool if it already exists. Defaults to True.
-
         Returns:
             Tool object
         """
@@ -110,11 +112,11 @@ class Admin:
         source_code = parse_source_code(func)
         json_schema = generate_schema(func, name)
         source_type = "python"
-        tool_name = json_schema["name"]
+        json_schema["name"]
 
         # create data
-        data = {"name": tool_name, "source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema}
-        CreateToolRequest(**data)  # validate data:w
+        data = {"source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema}
+        CreateToolRequest(**data)  # validate
 
         # make REST request
         response = requests.post(f"{self.base_url}/admin/tools", json=data, headers=self.headers)

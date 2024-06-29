@@ -336,7 +336,7 @@ class SyncServer(LockingServer):
 
             # Instantiate an agent object using the state retrieved
             logger.info(f"Creating an agent object")
-            tool_objs = [self.ms.get_tool(name) for name in agent_state.tools]  # get tool objects
+            tool_objs = [self.ms.get_tool(name, user_id) for name in agent_state.tools]  # get tool objects
             memgpt_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
 
             # Add the agent to the in-memory store and return its reference
@@ -763,7 +763,7 @@ class SyncServer(LockingServer):
             # get tools
             tool_objs = []
             for tool_name in tools:
-                tool_obj = self.ms.get_tool(tool_name)
+                tool_obj = self.ms.get_tool(tool_name, user_id=user_id)
                 assert tool_obj is not None, f"Tool {tool_name} does not exist"
                 tool_objs.append(tool_obj)
 
@@ -1487,7 +1487,13 @@ class SyncServer(LockingServer):
         return sources_with_metadata
 
     def create_tool(
-        self, json_schema: dict, source_code: str, source_type: str, tags: Optional[List[str]] = None, exists_ok: Optional[bool] = True
+        self,
+        json_schema: dict,
+        source_code: str,
+        source_type: str,
+        tags: Optional[List[str]] = None,
+        exists_ok: Optional[bool] = True,
+        user_id: Optional[uuid.UUID] = None,
     ) -> ToolModel:  # TODO: add other fields
         """Create a new tool
 
@@ -1511,10 +1517,12 @@ class SyncServer(LockingServer):
                 raise ValueError(f"Tool with name {name} already exists.")
         else:
             # create new tool
-            tool = ToolModel(name=name, json_schema=json_schema, tags=tags, source_code=source_code, source_type=source_type)
+            tool = ToolModel(
+                name=name, json_schema=json_schema, tags=tags, source_code=source_code, source_type=source_type, user_id=user_id
+            )
             self.ms.add_tool(tool)
 
-        return self.ms.get_tool(name)
+        return self.ms.get_tool(name, user_id=user_id)
 
     def delete_tool(self, name: str):
         """Delete a tool"""
