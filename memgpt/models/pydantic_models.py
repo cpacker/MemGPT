@@ -57,7 +57,7 @@ class PresetModel(BaseModel):
 class ToolModel(SQLModel, table=True):
     # TODO move into database
     name: str = Field(..., description="The name of the function.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the function.", primary_key=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the function.", primary_key=Te)
     tags: List[str] = Field(sa_column=Column(JSON), description="Metadata tags.")
     source_type: Optional[str] = Field(None, description="The type of the source code.")
     source_code: Optional[str] = Field(..., description="The source code of the function.")

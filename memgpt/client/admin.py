@@ -1,9 +1,16 @@
 import uuid
-from typing import Optional
+from typing import List, Optional
 
 import requests
 from requests import HTTPError
 
+from memgpt.functions.functions import parse_source_code
+from memgpt.functions.schema_generator import generate_schema
+from memgpt.server.rest_api.admin.tools import (
+    CreateToolRequest,
+    ListToolsResponse,
+    ToolModel,
+)
 from memgpt.server.rest_api.admin.users import (
     CreateAPIKeyResponse,
     CreateUserResponse,
@@ -81,3 +88,56 @@ class Admin:
             for key in keys:
                 self.delete_key(key)
             self.delete_user(user["user_id"])
+
+    # tools
+    def create_tool(
+        self,
+        func,
+        name: Optional[str] = None,
+        update: Optional[bool] = True,  # TODO: actually use this
+        tags: Optional[List[str]] = None,
+    ):
+        """Create a tool
+        Args:
+            func (callable): The function to create a tool for.
+            tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
+            update (bool, optional): Update the tool if it already exists. Defaults to True.
+        Returns:
+            Tool object
+        """
+
+        # TODO: check if tool already exists
+        # TODO: how to load modules?
+        # parse source code/schema
+        source_code = parse_source_code(func)
+        json_schema = generate_schema(func, name)
+        source_type = "python"
+        json_schema["name"]
+
+        # create data
+        data = {"source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema}
+        CreateToolRequest(**data)  # validate
+
+        # make REST request
+        response = requests.post(f"{self.base_url}/admin/tools", json=data, headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create tool: {response.text}")
+        return ToolModel(**response.json())
+
+    def list_tools(self) -> ListToolsResponse:
+        response = requests.get(f"{self.base_url}/admin/tools", headers=self.headers)
+        return ListToolsResponse(**response.json()).tools
+
+    def delete_tool(self, name: str):
+        response = requests.delete(f"{self.base_url}/admin/tools/{name}", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to delete tool: {response.text}")
+        return response.json()
+
+    def get_tool(self, name: str):
+        response = requests.get(f"{self.base_url}/admin/tools/{name}", headers=self.headers)
+        if response.status_code == 404:
+            return None
+        elif response.status_code != 200:
+            raise ValueError(f"Failed to get tool: {response.text}")
+        return ToolModel(**response.json())
