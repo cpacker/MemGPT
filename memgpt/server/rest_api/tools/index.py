@@ -58,7 +58,7 @@ def setup_user_tools_index_router(server: SyncServer, interface: QueuingInterfac
         # Clear the interface
         interface.clear()
         # tools = server.ms.list_tools(user_id=user_id) TODO: add back when user-specific
-        tools = server.ms.list_tools()
+        tools = server.ms.list_tools(user_id=user_id)
         return ListToolsResponse(tools=tools)
 
     @router.delete("/tools/{tool_name}", tags=["tools"])
@@ -72,7 +72,7 @@ def setup_user_tools_index_router(server: SyncServer, interface: QueuingInterfac
         # Clear the interface
         interface.clear()
         # tool = server.ms.delete_tool(user_id=user_id, tool_name=tool_name) TODO: add back when user-specific
-        server.ms.delete_tool(name=tool_name)
+        server.ms.delete_tool(name=tool_name, user_id=user_id)
 
     async def create_tool(
         request: CreateToolRequest = Body(...),
@@ -83,7 +83,11 @@ def setup_user_tools_index_router(server: SyncServer, interface: QueuingInterfac
         """
         try:
             return server.create_tool(
-                json_schema=request.json_schema, source_code=request.source_code, source_type=request.source_type, tags=request.tags
+                json_schema=request.json_schema,
+                source_code=request.source_code,
+                source_type=request.source_type,
+                tags=request.tags,
+                user_id=user_id,
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to create tool: {e}")
