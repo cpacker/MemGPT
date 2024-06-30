@@ -817,6 +817,19 @@ class LocalClient(AbstractClient):
 
     # agent interactions
 
+    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
+        self.interface.clear()
+        if role == "system":
+            usage = self.server.system_message(user_id=self.user_id, agent_id=agent_id, message=message)
+        elif role == "user":
+            usage = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
+        else:
+            raise ValueError(f"Role {role} not supported")
+        if self.auto_save:
+            self.save()
+        else:
+            return UserMessageResponse(messages=self.interface.to_list(), usage=usage)
+
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         self.interface.clear()
         usage = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
@@ -850,6 +863,18 @@ class LocalClient(AbstractClient):
 
     def delete_human(self, name: str):
         return self.server.delete_human(name, self.user_id)
+
+    def list_personas(self):
+        return self.server.list_personas(user_id=self.user_id)
+
+    def get_persona(self, name: str):
+        return self.server.get_persona(name=name, user_id=self.user_id)
+
+    def add_persona(self, persona: PersonaModel):
+        return self.server.add_persona(persona=persona)
+
+    def update_persona(self, persona: PersonaModel):
+        return self.server.update_persona(persona=persona)
 
     # tools
     def create_tool(
@@ -953,3 +978,12 @@ class LocalClient(AbstractClient):
 
     def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
         self.server.delete_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_id=memory_id)
+
+    def get_messages(
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ) -> GetAgentMessagesResponse:
+        self.interface.clear()
+        [_, messages] = self.server.get_agent_recall_cursor(
+            user_id=self.user_id, agent_id=agent_id, before=before, limit=limit, reverse=True
+        )
+        return GetAgentMessagesResponse(messages=messages)

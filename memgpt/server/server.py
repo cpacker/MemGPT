@@ -43,6 +43,7 @@ from memgpt.models.pydantic_models import (
     HumanModel,
     MemGPTUsageStatistics,
     PassageModel,
+    PersonaModel,
     PresetModel,
     SourceModel,
     ToolModel,
@@ -912,6 +913,21 @@ class SyncServer(LockingServer):
             "num_agents": len(agents_states),
             "agents": agents_states_dicts,
         }
+
+    def list_personas(self, user_id: uuid.UUID):
+        return self.ms.list_personas(user_id=user_id)
+
+    def get_persona(self, name: str, user_id: uuid.UUID):
+        return self.ms.get_persona(name=name, user_id=user_id)
+
+    def add_persona(self, persona: PersonaModel):
+        return self.ms.add_persona(persona=persona)
+
+    def update_persona(self, persona: PersonaModel):
+        return self.ms.update_persona(persona=persona)
+
+    def delete_persona(self, name: str, user_id: uuid.UUID):
+        return self.ms.delete_persona(name=name, user_id=user_id)
 
     def list_humans(self, user_id: uuid.UUID):
         return self.ms.list_humans(user_id=user_id)
