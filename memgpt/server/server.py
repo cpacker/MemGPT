@@ -921,7 +921,11 @@ class SyncServer(LockingServer):
         return self.ms.get_persona(name=name, user_id=user_id)
 
     def add_persona(self, persona: PersonaModel):
-        return self.ms.add_persona(persona=persona)
+        name = persona.name
+        user_id = persona.user_id
+        self.ms.add_persona(persona=persona)
+        persona = self.ms.get_persona(name=name, user_id=user_id)
+        return persona
 
     def update_persona(self, persona: PersonaModel):
         return self.ms.update_persona(persona=persona)
@@ -936,7 +940,11 @@ class SyncServer(LockingServer):
         return self.ms.get_human(name=name, user_id=user_id)
 
     def add_human(self, human: HumanModel):
-        return self.ms.add_human(human=human)
+        name = human.name
+        user_id = human.user_id
+        self.ms.add_human(human=human)
+        human = self.ms.get_human(name=name, user_id=user_id)
+        return human
 
     def update_human(self, human: HumanModel):
         return self.ms.update_human(human=human)

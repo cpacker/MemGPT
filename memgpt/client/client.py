@@ -849,14 +849,17 @@ class LocalClient(AbstractClient):
 
     # humans / personas
 
+    def create_human(self, name: str, human: str):
+        return self.server.add_human(HumanModel(name=name, text=human, user_id=self.user_id))
+
+    def create_persona(self, name: str, persona: str):
+        return self.server.add_persona(PersonaModel(name=name, text=persona, user_id=self.user_id))
+
     def list_humans(self):
         return self.server.list_humans(user_id=self.user_id if self.user_id else self.user_id)
 
     def get_human(self, name: str):
         return self.server.get_human(name=name, user_id=self.user_id)
-
-    def add_human(self, human: HumanModel):
-        return self.server.add_human(human=human)
 
     def update_human(self, human: HumanModel):
         return self.server.update_human(human=human)
@@ -869,9 +872,6 @@ class LocalClient(AbstractClient):
 
     def get_persona(self, name: str):
         return self.server.get_persona(name=name, user_id=self.user_id)
-
-    def add_persona(self, persona: PersonaModel):
-        return self.server.add_persona(persona=persona)
 
     def update_persona(self, persona: PersonaModel):
         return self.server.update_persona(persona=persona)

@@ -735,17 +735,21 @@ class MetadataStore:
     @enforce_types
     def add_human(self, human: HumanModel):
         with self.session_maker() as session:
+            if self.get_human(human.name, human.user_id):
+                raise ValueError(f"Human with name {human.name} already exists for user_id {human.user_id}")
             session.add(human)
             session.commit()
 
     @enforce_types
     def add_persona(self, persona: PersonaModel):
         with self.session_maker() as session:
+            if self.get_persona(persona.name, persona.user_id):
+                raise ValueError(f"Persona with name {persona.name} already exists for user_id {persona.user_id}")
             session.add(persona)
             session.commit()
 
     @enforce_types
-    def add_preset(self, preset: PresetModel):
+    def add_preset(self, preset: PresetModel):  # TODO: remove
         with self.session_maker() as session:
             session.add(preset)
             session.commit()
