@@ -277,6 +277,9 @@ class SyncServer(LockingServer):
         else:
             self.ms.create_user(user)
 
+        # add global default tools
+        presets.add_default_tools(None, self.ms)
+
         # NOTE: removed, since server should be multi-user
         ## Create the default user
         # base_user_id = uuid.UUID(self.config.anon_clientid)
@@ -658,16 +661,29 @@ class SyncServer(LockingServer):
     def create_user(
         self,
         user_config: Optional[Union[dict, User]] = {},
+        exists_ok: bool = False,
     ):
         """Create a new user using a config"""
         if not isinstance(user_config, dict):
             raise ValueError(f"user_config must be provided as a dictionary")
+
+        if "id" in user_config:
+            existing_user = self.ms.get_user(user_id=user_config["id"])
+            if existing_user:
+                if exists_ok:
+                    return existing_user
+                else:
+                    raise ValueError(f"User with ID {existing_user.id} already exists")
 
         user = User(
             id=user_config["id"] if "id" in user_config else None,
         )
         self.ms.create_user(user)
         logger.info(f"Created new user from config: {user}")
+
+        # add default for the user
+        presets.add_default_humans_and_personas(user.id, self.ms)
+
         return user
 
     def create_agent(
@@ -1237,6 +1253,7 @@ class SyncServer(LockingServer):
             logger.exception(f"Failed to update agent name with:\n{str(e)}")
             raise ValueError(f"Failed to update agent name in database")
 
+        assert isinstance(memgpt_agent.agent_state.id, uuid.UUID)
         return memgpt_agent.agent_state
 
     def delete_user(self, user_id: uuid.UUID):
@@ -1451,7 +1468,7 @@ class SyncServer(LockingServer):
             tool (ToolModel): Tool object
         """
         name = json_schema["name"]
-        tool = self.ms.get_tool(name)
+        tool = self.ms.get_tool(name, user_id=user_id)
         if tool:  # check if function already exists
             if exists_ok:
                 # update existing tool
@@ -1461,7 +1478,7 @@ class SyncServer(LockingServer):
                 tool.source_type = source_type
                 self.ms.update_tool(tool)
             else:
-                raise ValueError(f"Tool with name {name} already exists.")
+                raise ValueError(f"[server] Tool with name {name} already exists.")
         else:
             # create new tool
             tool = ToolModel(

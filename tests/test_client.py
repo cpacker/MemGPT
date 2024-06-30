@@ -11,7 +11,6 @@ from memgpt.config import MemGPTConfig
 from memgpt.constants import DEFAULT_PRESET
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import Preset  # TODO move to PresetModel
-from memgpt.memory import get_memory_functions
 from memgpt.settings import settings
 from tests.utils import create_config
 
@@ -93,10 +92,6 @@ def client(request):
         response = admin.create_user(test_user_id)  # Adjust as per your client's method
         token = response.api_key
 
-        # add memory tools
-        for name, func in get_memory_functions().items():
-            admin.create_tool(name=name, source_code=func, source_type="python", tags=["memory", "memgpt-base"])
-
     else:
         # use local client (no server)
         token = None
@@ -128,11 +123,11 @@ def test_agent(client, agent):
     # test client.rename_agent
     new_name = "RenamedTestAgent"
     client.rename_agent(agent_id=agent.id, new_name=new_name)
-    renamed_agent = client.get_agent(agent_id=str(agent.id))
+    renamed_agent = client.get_agent(agent_id=agent.id)
     assert renamed_agent.name == new_name, "Agent renaming failed"
 
     # test client.delete_agent and client.agent_exists
-    delete_agent = client.create_agent(name="DeleteTestAgent", preset=test_preset_name)
+    delete_agent = client.create_agent(name="DeleteTestAgent")
     assert client.agent_exists(agent_id=delete_agent.id), "Agent creation failed"
     client.delete_agent(agent_id=delete_agent.id)
     assert client.agent_exists(agent_id=delete_agent.id) == False, "Agent deletion failed"

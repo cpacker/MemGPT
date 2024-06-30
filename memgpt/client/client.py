@@ -8,18 +8,10 @@ import requests
 from memgpt.config import MemGPTConfig
 from memgpt.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
 from memgpt.data_sources.connectors import DataConnector
-from memgpt.data_types import (
-    AgentState,
-    EmbeddingConfig,
-    LLMConfig,
-    Preset,
-    Source,
-    User,
-)
+from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, Preset, Source
 from memgpt.functions.functions import parse_source_code
 from memgpt.functions.schema_generator import generate_schema
 from memgpt.memory import BaseMemory, ChatMemory, get_memory_functions
-from memgpt.metadata import MetadataStore
 from memgpt.models.pydantic_models import (
     HumanModel,
     JobModel,
@@ -294,7 +286,11 @@ class RESTClient(AbstractClient):
         if include_base_tools:
             tool_names += BASE_TOOLS
 
-        # TODO: add check that memory tools have been included
+        # add memory tools
+        memory_functions = get_memory_functions(memory)
+        for func_name, func in memory_functions.items():
+            tool = self.create_tool(func, name=func_name, tags=["memory", "memgpt-base"], update=True)
+            tool_names.append(tool.name)
 
         # TODO: distinguish between name and objects
         # TODO: add metadata
@@ -305,6 +301,7 @@ class RESTClient(AbstractClient):
                 "persona": memory.memory["persona"].value,
                 "human": memory.memory["human"].value,
                 "function_names": tool_names,
+                "metadata": metadata,
             }
         }
         response = requests.post(f"{self.base_url}/api/agents", json=payload, headers=self.headers)
@@ -333,14 +330,15 @@ class RESTClient(AbstractClient):
             id=response.agent_state.id,
             name=response.agent_state.name,
             user_id=response.agent_state.user_id,
-            preset=response.agent_state.preset,
-            persona=response.agent_state.persona,
-            human=response.agent_state.human,
+            # preset=response.agent_state.preset,
+            # persona=response.agent_state.persona,
+            # human=response.agent_state.human,
             llm_config=llm_config,
             embedding_config=embedding_config,
             state=response.agent_state.state,
             system=response.agent_state.system,
             tools=response.agent_state.tools,
+            _metadata=response.agent_state.metadata,
             # load datetime from timestampe
             created_at=datetime.datetime.fromtimestamp(response.agent_state.created_at, tz=datetime.timezone.utc),
         )
@@ -649,7 +647,7 @@ class RESTClient(AbstractClient):
         json_schema["name"]
 
         # create data
-        data = {"source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema}
+        data = {"source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema, "update": update}
         try:
             CreateToolRequest(**data)  # validate data
         except Exception as e:
@@ -705,21 +703,11 @@ class LocalClient(AbstractClient):
         else:
             self.user_id = uuid.UUID(config.anon_clientid)
 
-        # create user if does not exist
-        ms = MetadataStore(config)
-        self.user = User(id=self.user_id)
-        if ms.get_user(self.user_id):
-            # update user
-            ms.update_user(self.user)
-        else:
-            ms.create_user(self.user)
-
-        # add defaults
-        add_default_tools(self.user_id, ms)
-        add_default_humans_and_personas(self.user_id, ms)
-
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
+
+        # create user if does not exist
+        self.server.create_user({"id": self.user_id}, exists_ok=True)
 
     # messages
     def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
@@ -791,10 +779,15 @@ class LocalClient(AbstractClient):
         )
         return agent_state
 
+    def rename_agent(self, agent_id: uuid.UUID, new_name: str):
+        # TODO: check valid name
+        agent_state = self.server.rename_agent(user_id=self.user_id, agent_id=agent_id, new_agent_name=new_name)
+        return agent_state
+
     def delete_agent(self, agent_id: uuid.UUID):
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
 
-    def get_agent_config(self, agent_id: str) -> AgentState:
+    def get_agent(self, agent_id: uuid.UUID) -> AgentState:
         self.interface.clear()
         return self.server.get_agent_config(user_id=self.user_id, agent_id=agent_id)
 

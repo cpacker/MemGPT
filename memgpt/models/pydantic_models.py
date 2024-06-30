@@ -98,9 +98,6 @@ class AgentStateModel(BaseModel):
     created_at: int = Field(..., description="The unix timestamp of when the agent was created.")
 
     # preset information
-    preset: str = Field(..., description="The preset used by the agent.")
-    persona: str = Field(..., description="The persona used by the agent.")
-    human: str = Field(..., description="The human used by the agent.")
     tools: List[str] = Field(..., description="The tools used by the agent.")
     system: str = Field(..., description="The system prompt used by the agent.")
     # functions_schema: List[Dict] = Field(..., description="The functions schema used by the agent.")
@@ -111,6 +108,7 @@ class AgentStateModel(BaseModel):
 
     # agent state
     state: Optional[Dict] = Field(None, description="The state of the agent.")
+    metadata: Optional[Dict] = Field(None, description="The metadata of the agent.")
 
 
 class CoreMemory(BaseModel):
