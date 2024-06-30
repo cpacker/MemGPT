@@ -16,6 +16,7 @@ from memgpt.models.pydantic_models import (
     HumanModel,
     JobModel,
     JobStatus,
+    LLMConfigModel,
     PersonaModel,
     PresetModel,
     SourceModel,
@@ -987,3 +988,15 @@ class LocalClient(AbstractClient):
             user_id=self.user_id, agent_id=agent_id, before=before, limit=limit, reverse=True
         )
         return GetAgentMessagesResponse(messages=messages)
+
+    def list_models(self) -> ListModelsResponse:
+
+        llm_config = LLMConfigModel(
+            model=self.server.server_llm_config.model,
+            model_endpoint=self.server.server_llm_config.model_endpoint,
+            model_endpoint_type=self.server.server_llm_config.model_endpoint_type,
+            model_wrapper=self.server.server_llm_config.model_wrapper,
+            context_window=self.server.server_llm_config.context_window,
+        )
+
+        return ListModelsResponse(models=[llm_config])
