@@ -1,4 +1,6 @@
-from sqlalchemy import JSON, Column, MetaData, String, Table, create_engine
+import os
+
+from sqlalchemy import DDL, MetaData, Table, create_engine, update
 
 from memgpt.config import MemGPTConfig
 from memgpt.constants import BASE_TOOLS
@@ -9,31 +11,49 @@ from memgpt.prompts import gpt_system
 # Replace this with your actual database connection URL
 config = MemGPTConfig.load()
 if config.recall_storage_type == "sqlite":
-    DATABASE_URL = config.recall_storage_path
+    DATABASE_URL = "sqlite:///" + os.path.join(config.recall_storage_path, "sqlite.db")
 else:
     DATABASE_URL = config.recall_storage_uri
-
+print(DATABASE_URL)
 engine = create_engine(DATABASE_URL)
 metadata = MetaData()
 
+# defaults
+system_prompt = gpt_system.get_system_text("memgpt_chat")
+
 # Reflect the existing table
-agent_table = Table("agents", metadata, autoload_with=engine)
-system_prompt = gpt_system.get_system_text("memgpt_chat")  # fill in default system prompt
-tools = BASE_TOOLS
+table = Table("agents", metadata, autoload_with=engine)
 
+# Using a connection to manage adding columns and committing updates
+with engine.connect() as conn:
+    trans = conn.begin()
+    try:
+        # Check and add 'system' column if it does not exist
+        if "system" not in table.c:
+            ddl_system = DDL("ALTER TABLE agents ADD COLUMN system VARCHAR")
+            conn.execute(ddl_system)
+            # Reflect the table again to update metadata
+            metadata.clear()
+            table = Table("agents", metadata, autoload_with=conn)
 
-# Add new columns if they don't exist
-if "system" not in agent_table.c:
-    new_column_system = Column("system", String)
-    new_column_system.create(table)
-    stmt = update(table).values(system=system_prompt)
-    engine.execute(stmt)
+        # Check and add 'tools' column if it does not exist
+        if "tools" not in table.c:
+            ddl_tools = DDL("ALTER TABLE agents ADD COLUMN tools JSON")
+            conn.execute(ddl_tools)
+            # Reflect the table again to update metadata
+            metadata.clear()
+            table = Table("agents", metadata, autoload_with=conn)
 
-if "tools" not in agent_table.c:
-    new_column_tools = Column("tools", JSON)
-    new_column_tools.create(table)
-    stmt = update(table).values(system=tools)
-    engine.execute(stmt)
+        # Update all existing rows with default values for the new columns
+        conn.execute(update(table).values(system=system_prompt, tools=BASE_TOOLS))
+
+        # Commit transaction
+        trans.commit()
+        print("Columns added and data updated successfully!")
+
+    except Exception as e:
+        print("An error occurred:", e)
+        trans.rollback()  # Rollback if there are errors
 
 # remove tool table
 tool_model = Table("toolmodel", metadata, autoload_with=engine)
