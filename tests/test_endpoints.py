@@ -33,6 +33,7 @@ def run_llm_endpoint(filename):
         llm_config=llm_config,
         user_id=uuid.UUID(int=1),
         state={"persona": "", "human": "", "messages": None},
+        system="",
     )
     agent = Agent(
         interface=None,
