@@ -85,6 +85,7 @@ def add_default_humans_and_personas(user_id: uuid.UUID, ms: MetadataStore):
             printd(f"Human '{name}' already exists for user '{user_id}'")
             continue
         human = HumanModel(name=name, text=text, user_id=user_id)
+        print(human, user_id)
         ms.add_human(human)
 
 

@@ -707,6 +707,7 @@ class LocalClient(AbstractClient):
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
 
         # create user if does not exist
+        print("CREATING USER", self.user_id)
         self.server.create_user({"id": self.user_id}, exists_ok=True)
 
     # messages

@@ -194,7 +194,6 @@ class Agent(object):
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
     ):
-
         # tools
         for tool in tools:
             assert tool.name in agent_state.tools, f"Tool {tool} not found in agent_state.tools"

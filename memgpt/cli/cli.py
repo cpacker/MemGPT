@@ -651,7 +651,7 @@ def run(
                 metadata=metadata,
             )
             typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
-            tools = [ms.get_tool(tool_name) for tool_name in agent_state.tools]
+            tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
 
             memgpt_agent = Agent(
                 interface=interface(),

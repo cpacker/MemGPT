@@ -68,10 +68,7 @@ def run_server():
 
 # Fixture to create clients with different configurations
 @pytest.fixture(
-    params=[  # whether to use REST API server
-        {"server": True},
-        # {"server": False}  # TODO: add when implemented
-    ],
+    params=[{"server": True}, {"server": False}],  # whether to use REST API server
     scope="module",
 )
 def client(request):

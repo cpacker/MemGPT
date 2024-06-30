@@ -278,6 +278,7 @@ class SyncServer(LockingServer):
             self.ms.create_user(user)
 
         # add global default tools
+        print("adding default tools")
         presets.add_default_tools(None, self.ms)
 
         # NOTE: removed, since server should be multi-user
@@ -671,6 +672,7 @@ class SyncServer(LockingServer):
             existing_user = self.ms.get_user(user_id=user_config["id"])
             if existing_user:
                 if exists_ok:
+                    presets.add_default_humans_and_personas(existing_user.id, self.ms)
                     return existing_user
                 else:
                     raise ValueError(f"User with ID {existing_user.id} already exists")
@@ -682,6 +684,7 @@ class SyncServer(LockingServer):
         logger.info(f"Created new user from config: {user}")
 
         # add default for the user
+        print("adding default humans/personas")
         presets.add_default_humans_and_personas(user.id, self.ms)
 
         return user
@@ -737,7 +740,7 @@ class SyncServer(LockingServer):
             tool_objs = []
             for tool_name in tools:
                 tool_obj = self.ms.get_tool(tool_name, user_id=user_id)
-                assert tool_obj is not None, f"Tool {tool_name} does not exist"
+                assert tool_obj, f"Tool {tool_name} does not exist"
                 tool_objs.append(tool_obj)
 
             # TODO: add metadata
