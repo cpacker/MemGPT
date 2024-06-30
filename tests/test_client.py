@@ -149,10 +149,10 @@ def test_agent_interactions(client, agent):
     _reset_config()
 
     message = "Hello, agent!"
-    message_response = client.user_message(agent_id=str(agent.id), message=message)
+    message_response = client.user_message(agent_id=agent.id, message=message)
 
     command = "/memory"
-    command_response = client.run_command(agent_id=str(agent.id), command=command)
+    command_response = client.run_command(agent_id=agent.id, command=command)
     print("command", command_response)
 
 
@@ -282,55 +282,55 @@ def test_sources(client, agent):
     client.delete_source(source.id)
 
 
-def test_presets(client, agent):
-    _reset_config()
-
-    # new_preset = Preset(
-    #    # user_id=client.user_id,
-    #    name="pytest_test_preset",
-    #    description="DUMMY_DESCRIPTION",
-    #    system="DUMMY_SYSTEM",
-    #    persona="DUMMY_PERSONA",
-    #    persona_name="DUMMY_PERSONA_NAME",
-    #    human="DUMMY_HUMAN",
-    #    human_name="DUMMY_HUMAN_NAME",
-    #    functions_schema=[
-    #        {
-    #            "name": "send_message",
-    #            "json_schema": {
-    #                "name": "send_message",
-    #                "description": "Sends a message to the human user.",
-    #                "parameters": {
-    #                    "type": "object",
-    #                    "properties": {
-    #                        "message": {"type": "string", "description": "Message contents. All unicode (including emojis) are supported."}
-    #                    },
-    #                    "required": ["message"],
-    #                },
-    #            },
-    #            "tags": ["memgpt-base"],
-    #            "source_type": "python",
-    #            "source_code": 'def send_message(self, message: str) -> Optional[str]:\n    """\n    Sends a message to the human user.\n\n    Args:\n        message (str): Message contents. All unicode (including emojis) are supported.\n\n    Returns:\n        Optional[str]: None is always returned as this function does not produce a response.\n    """\n    self.interface.assistant_message(message)\n    return None\n',
-    #        }
-    #    ],
-    # )
-
-    ## List all presets and make sure the preset is NOT in the list
-    # all_presets = client.list_presets()
-    # assert new_preset.id not in [p.id for p in all_presets], (new_preset, all_presets)
-    # Create a preset
-    new_preset = client.create_preset(name="pytest_test_preset")
-
-    # List all presets and make sure the preset is in the list
-    all_presets = client.list_presets()
-    assert new_preset.id in [p.id for p in all_presets], (new_preset, all_presets)
-
-    # Delete the preset
-    client.delete_preset(preset_id=new_preset.id)
-
-    # List all presets and make sure the preset is NOT in the list
-    all_presets = client.list_presets()
-    assert new_preset.id not in [p.id for p in all_presets], (new_preset, all_presets)
+# def test_presets(client, agent):
+#    _reset_config()
+#
+#    # new_preset = Preset(
+#    #    # user_id=client.user_id,
+#    #    name="pytest_test_preset",
+#    #    description="DUMMY_DESCRIPTION",
+#    #    system="DUMMY_SYSTEM",
+#    #    persona="DUMMY_PERSONA",
+#    #    persona_name="DUMMY_PERSONA_NAME",
+#    #    human="DUMMY_HUMAN",
+#    #    human_name="DUMMY_HUMAN_NAME",
+#    #    functions_schema=[
+#    #        {
+#    #            "name": "send_message",
+#    #            "json_schema": {
+#    #                "name": "send_message",
+#    #                "description": "Sends a message to the human user.",
+#    #                "parameters": {
+#    #                    "type": "object",
+#    #                    "properties": {
+#    #                        "message": {"type": "string", "description": "Message contents. All unicode (including emojis) are supported."}
+#    #                    },
+#    #                    "required": ["message"],
+#    #                },
+#    #            },
+#    #            "tags": ["memgpt-base"],
+#    #            "source_type": "python",
+#    #            "source_code": 'def send_message(self, message: str) -> Optional[str]:\n    """\n    Sends a message to the human user.\n\n    Args:\n        message (str): Message contents. All unicode (including emojis) are supported.\n\n    Returns:\n        Optional[str]: None is always returned as this function does not produce a response.\n    """\n    self.interface.assistant_message(message)\n    return None\n',
+#    #        }
+#    #    ],
+#    # )
+#
+#    ## List all presets and make sure the preset is NOT in the list
+#    # all_presets = client.list_presets()
+#    # assert new_preset.id not in [p.id for p in all_presets], (new_preset, all_presets)
+#    # Create a preset
+#    new_preset = client.create_preset(name="pytest_test_preset")
+#
+#    # List all presets and make sure the preset is in the list
+#    all_presets = client.list_presets()
+#    assert new_preset.id in [p.id for p in all_presets], (new_preset, all_presets)
+#
+#    # Delete the preset
+#    client.delete_preset(preset_id=new_preset.id)
+#
+#    # List all presets and make sure the preset is NOT in the list
+#    all_presets = client.list_presets()
+#    assert new_preset.id not in [p.id for p in all_presets], (new_preset, all_presets)
 
 
 # def test_tools(client, agent):

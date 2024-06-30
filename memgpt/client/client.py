@@ -25,6 +25,7 @@ from memgpt.server.rest_api.agents.command import CommandResponse
 from memgpt.server.rest_api.agents.config import GetAgentResponse
 from memgpt.server.rest_api.agents.index import CreateAgentResponse, ListAgentsResponse
 from memgpt.server.rest_api.agents.memory import (
+    ArchivalMemoryObject,
     GetAgentArchivalMemoryResponse,
     GetAgentMemoryResponse,
     InsertAgentArchivalMemoryResponse,
@@ -833,27 +834,13 @@ class LocalClient(AbstractClient):
 
     # archival memory
 
-    def get_agent_archival_memory(
-        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-    ):
-        _, archival_json_records = self.server.get_agent_archival_cursor(
-            user_id=self.user_id,
-            agent_id=agent_id,
-            after=after,
-            before=before,
-            limit=limit,
-        )
-        return archival_json_records
-
-    # messages
-
     # humans / personas
 
-    def list_humans(self, user_id: uuid.UUID):
-        return self.server.list_humans(user_id=user_id if user_id else self.user_id)
+    def list_humans(self):
+        return self.server.list_humans(user_id=self.user_id if self.user_id else self.user_id)
 
-    def get_human(self, name: str, user_id: uuid.UUID):
-        return self.server.get_human(name=name, user_id=user_id)
+    def get_human(self, name: str):
+        return self.server.get_human(name=name, user_id=self.user_id)
 
     def add_human(self, human: HumanModel):
         return self.server.add_human(human=human)
@@ -861,8 +848,8 @@ class LocalClient(AbstractClient):
     def update_human(self, human: HumanModel):
         return self.server.update_human(human=human)
 
-    def delete_human(self, name: str, user_id: uuid.UUID):
-        return self.server.delete_human(name, user_id)
+    def delete_human(self, name: str):
+        return self.server.delete_human(name, self.user_id)
 
     # tools
     def create_tool(
@@ -942,3 +929,27 @@ class LocalClient(AbstractClient):
 
     def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
         self.server.attach_source_to_agent(user_id=self.user_id, source_id=source_id, agent_id=agent_id)
+
+    def get_agent_archival_memory(
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ):
+        self.interface.clear()
+        # TODO need to add support for non-postgres here
+        # chroma will throw:
+        #     raise ValueError("Cannot run get_all_cursor with chroma")
+        _, archival_json_records = self.server.get_agent_archival_cursor(
+            user_id=self.user_id,
+            agent_id=agent_id,
+            after=after,
+            before=before,
+            limit=limit,
+        )
+        archival_memory_objects = [ArchivalMemoryObject(id=passage["id"], contents=passage["text"]) for passage in archival_json_records]
+        return GetAgentArchivalMemoryResponse(archival_memory=archival_memory_objects)
+
+    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> GetAgentArchivalMemoryResponse:
+        memory_ids = self.server.insert_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_contents=memory)
+        return InsertAgentArchivalMemoryResponse(ids=memory_ids)
+
+    def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
+        self.server.delete_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_id=memory_id)
