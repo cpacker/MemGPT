@@ -356,11 +356,11 @@ class SyncServer(LockingServer):
 
     def _get_or_load_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> Agent:
         """Check if the agent is in-memory, then load"""
-        logger.info(f"Checking for agent user_id={user_id} agent_id={agent_id}")
+        logger.debug(f"Checking for agent user_id={user_id} agent_id={agent_id}")
         # TODO: consider disabling loading cached agents due to potential concurrency issues
         memgpt_agent = self._get_agent(user_id=user_id, agent_id=agent_id)
         if not memgpt_agent:
-            logger.info(f"Agent not loaded, loading agent user_id={user_id} agent_id={agent_id}")
+            logger.debug(f"Agent not loaded, loading agent user_id={user_id} agent_id={agent_id}")
             memgpt_agent = self._load_agent(user_id=user_id, agent_id=agent_id)
         return memgpt_agent
 

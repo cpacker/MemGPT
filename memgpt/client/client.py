@@ -545,6 +545,22 @@ class RESTClient(AbstractClient):
         print(response.json())
         return PersonaModel(**response.json())
 
+    def get_persona(self, name: str) -> PersonaModel:
+        response = requests.get(f"{self.base_url}/api/personas/{name}", headers=self.headers)
+        if response.status_code == 404:
+            return None
+        elif response.status_code != 200:
+            raise ValueError(f"Failed to get persona: {response.text}")
+        return PersonaModel(**response.json())
+
+    def get_human(self, name: str) -> HumanModel:
+        response = requests.get(f"{self.base_url}/api/humans/{name}", headers=self.headers)
+        if response.status_code == 404:
+            return None
+        elif response.status_code != 200:
+            raise ValueError(f"Failed to get human: {response.text}")
+        return HumanModel(**response.json())
+
     # sources
 
     def list_sources(self):
@@ -876,6 +892,9 @@ class LocalClient(AbstractClient):
 
     def update_persona(self, persona: PersonaModel):
         return self.server.update_persona(persona=persona)
+
+    def delete_persona(self, name: str):
+        return self.server.delete_persona(name, self.user_id)
 
     # tools
     def create_tool(
