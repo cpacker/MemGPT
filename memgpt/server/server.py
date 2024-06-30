@@ -949,11 +949,9 @@ class SyncServer(LockingServer):
         recall_memory = memgpt_agent.persistence_manager.recall_memory
         archival_memory = memgpt_agent.persistence_manager.archival_memory
 
+        # NOTE
         memory_obj = {
-            "core_memory": {
-                "persona": core_memory.persona,
-                "human": core_memory.human,
-            },
+            "core_memory": {key: value.value for key, value in core_memory.memory.items()},
             "recall_memory": len(recall_memory) if recall_memory is not None else None,
             "archival_memory": len(archival_memory) if archival_memory is not None else None,
         }
@@ -1211,23 +1209,19 @@ class SyncServer(LockingServer):
         new_core_memory = old_core_memory.copy()
 
         modified = False
-        if "persona" in new_memory_contents and new_memory_contents["persona"] is not None:
-            new_persona = new_memory_contents["persona"]
-            if old_core_memory["persona"] != new_persona:
-                new_core_memory["persona"] = new_persona
-                memgpt_agent.memory.edit_persona(new_persona)
-                modified = True
-
-        if "human" in new_memory_contents and new_memory_contents["human"] is not None:
-            new_human = new_memory_contents["human"]
-            if old_core_memory["human"] != new_human:
-                new_core_memory["human"] = new_human
-                memgpt_agent.memory.edit_human(new_human)
+        for key, value in new_memory_contents.items():
+            if value is None:
+                continue
+            if key in old_core_memory and old_core_memory[key] != value:
+                memgpt_agent.memory.memory[key].value = value  # update agent memory
+                print("MODIFY", key, value)
                 modified = True
 
         # If we modified the memory contents, we need to rebuild the memory block inside the system message
         if modified:
             memgpt_agent.rebuild_memory()
+            # save agent
+            save_agent(memgpt_agent, self.ms)
 
         return {
             "old_core_memory": old_core_memory,
