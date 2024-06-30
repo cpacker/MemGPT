@@ -10,6 +10,7 @@ from memgpt.constants import BASE_TOOLS
 utils.DEBUG = True
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
+from memgpt.memory import ChatMemory
 from memgpt.server.server import SyncServer
 from memgpt.settings import settings
 
@@ -69,9 +70,7 @@ def user_id(server):
 def agent_id(server, user_id):
     # create agent
     agent_state = server.create_agent(
-        user_id=user_id,
-        name="test_agent",
-        tools=BASE_TOOLS,
+        user_id=user_id, name="test_agent", tools=BASE_TOOLS, memory=ChatMemory(human="I am Chad", persona="I love testing")
     )
     print(f"Created agent\n{agent_state}")
     yield agent_state.id
