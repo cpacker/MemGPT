@@ -32,7 +32,7 @@ def run_llm_endpoint(filename):
         embedding_config=embedding_config,
         llm_config=llm_config,
         user_id=uuid.UUID(int=1),
-        state={"persona": "", "human": "", "messages": None},
+        state={"persona": "", "human": "", "messages": None, "memory": {}},
         system="",
     )
     agent = Agent(
