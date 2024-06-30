@@ -5,11 +5,11 @@ import pytest
 from dotenv import load_dotenv
 
 import memgpt.utils as utils
+from memgpt.constants import BASE_TOOLS
 
 utils.DEBUG = True
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
-from memgpt.presets.presets import load_module_tools
 from memgpt.server.server import SyncServer
 from memgpt.settings import settings
 
@@ -59,8 +59,6 @@ def user_id(server):
     user = server.create_user()
     print(f"Created user\n{user.id}")
 
-    # initialize with default presets
-    server.initialize_default_presets(user.id)
     yield user.id
 
     # cleanup
@@ -73,8 +71,7 @@ def agent_id(server, user_id):
     agent_state = server.create_agent(
         user_id=user_id,
         name="test_agent",
-        preset="memgpt_chat",
-        tools=[tool.name for tool in load_module_tools()],
+        tools=BASE_TOOLS,
     )
     print(f"Created agent\n{agent_state}")
     yield agent_state.id
