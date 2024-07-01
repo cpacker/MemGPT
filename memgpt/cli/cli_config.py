@@ -38,7 +38,7 @@ from memgpt.local_llm.constants import (
 )
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.metadata import MetadataStore
-from memgpt.models.pydantic_models import HumanModel, PersonaModel
+from memgpt.models.pydantic_models import PersonaModel
 from memgpt.server.utils import shorten_key_middle
 
 app = typer.Typer()
@@ -1126,7 +1126,7 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
     elif arg == ListChoice.humans:
         """List all humans"""
         table.field_names = ["Name", "Text"]
-        for human in client.list_humans(user_id=user_id):
+        for human in client.list_humans():
             table.add_row([human.name, human.text.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.personas:
@@ -1186,7 +1186,7 @@ def add(
         with open(filename, "r", encoding="utf-8") as f:
             text = f.read()
     if option == "persona":
-        persona = ms.get_persona(name=name, user_id=user_id)
+        persona = ms.get_persona(name=name)
         if persona:
             # config if user wants to overwrite
             if not questionary.confirm(f"Persona {name} already exists. Overwrite?").ask():
@@ -1198,7 +1198,7 @@ def add(
             ms.add_persona(persona)
 
     elif option == "human":
-        human = client.get_human(name=name, user_id=user_id)
+        human = client.get_human(name=name)
         if human:
             # config if user wants to overwrite
             if not questionary.confirm(f"Human {name} already exists. Overwrite?").ask():
@@ -1206,8 +1206,7 @@ def add(
             human.text = text
             client.update_human(human)
         else:
-            human = HumanModel(name=name, text=text, user_id=user_id)
-            client.add_human(HumanModel(name=name, text=text, user_id=user_id))
+            human = client.create_human(name=name, human=text)
     else:
         raise ValueError(f"Unknown kind {option}")
 
@@ -1256,14 +1255,14 @@ def delete(option: str, name: str):
             ms.delete_agent(agent_id=agent.id)
 
         elif option == "human":
-            human = client.get_human(name=name, user_id=user_id)
+            human = client.get_human(name=name)
             assert human is not None, f"Human {name} does not exist"
-            client.delete_human(name=name, user_id=user_id)
+            client.delete_human(name=name)
         elif option == "persona":
-            persona = ms.get_persona(name=name, user_id=user_id)
+            persona = ms.get_persona(name=name)
             assert persona is not None, f"Persona {name} does not exist"
-            ms.delete_persona(name=name, user_id=user_id)
-            assert ms.get_persona(name=name, user_id=user_id) is None, f"Persona {name} still exists"
+            ms.delete_persona(name=name)
+            assert ms.get_persona(name=name) is None, f"Persona {name} still exists"
         else:
             raise ValueError(f"Option {option} not implemented")
 
