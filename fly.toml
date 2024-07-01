@@ -23,6 +23,6 @@ source = "u_data"
 destination = "/data"
 
 [[vm]]
-cpu_kind = "performance"
+cpu_kind = "shared"
 cpus = 1
 memory = "2gb"

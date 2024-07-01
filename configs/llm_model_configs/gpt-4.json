@@ -1,5 +1,5 @@
 {
-    "context_window": 32000,
+    "context_window": 127000,
     "model": "gpt-4o",
     "model_endpoint_type": "openai",
     "model_endpoint": "https://api.openai.com/v1",

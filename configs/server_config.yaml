@@ -1,5 +1,5 @@
 [defaults]
-preset = memgpt_chat
+preset = memgpt_extras
 persona = u
 human = basic
 

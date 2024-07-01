@@ -1,5 +1,5 @@
 {
-    "context_window": 32000,
+    "context_window": 127000,
     "model": "gpt-4o",
     "model_endpoint_type": "openai",
     "model_endpoint": "https://api.openai.com/v1",
@@ -7,6 +7,6 @@
     "embedding_endpoint_type": "openai",
     "embedding_endpoint": "https://api.openai.com/v1",
     "embedding_model": "text-embedding-3-large",
-    "embedding_dim": 1536,
+    "embedding_dim": 3072,
     "embedding_chunk_size": 300
 }
