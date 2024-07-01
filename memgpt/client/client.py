@@ -1,6 +1,7 @@
 import datetime
 import time
 import uuid
+from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
 
 import requests
@@ -51,35 +52,81 @@ from memgpt.server.rest_api.sources.index import ListSourcesResponse
 # import pydantic response objects from memgpt.server.rest_api
 from memgpt.server.rest_api.tools.index import CreateToolRequest, ListToolsResponse
 from memgpt.server.server import SyncServer
+
+""" Python clients for MemGPT.
+
+Classes:
+   AbstractClient: Description for `foo`.
+   RESTClient: Description for `foo`.
+   LocalClient: Description for `bar`.
+
+Functions:
+   create_client: Description for `baz`.
+"""
 from memgpt.utils import get_human_text
 
 
 def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
+    """Create a MemGPT client.
+
+    Args:
+        base_url (str): The base URL of the MemGPT server.
+        token (str): The user authentication token for the MemGPT server.
+
+    Returns:
+        client (LocalClient | RESTClient): The MemGPT client.
+
+    Examples:
+       Creating a local client:
+       >>> from memgpt import create_client
+       >>> client = create_client()
+
+       Creating a client for a REST server:
+       >>> from memgpt import create_client
+       >>> client = create_client(base_url="memgpt.localhost", token="user_token")
+    """
     if base_url is None:
         return LocalClient()
     else:
         return RESTClient(base_url, token)
 
 
-class AbstractClient(object):
-    def __init__(
-        self,
-        auto_save: bool = False,
-        debug: bool = False,
-    ):
-        self.auto_save = auto_save
-        self.debug = debug
+class AbstractClient(ABC):
+    """The abstract class for MemGPT client.
+
+    Attributes:
+        auto_save (bool): Description of `attr1`.
+        debug (bool): Description of `attr2`.
+
+    args:
+        auto_save (bool): Description of `attr1`.
+        debug (bool): Description of `attr2`.
+    """
 
     # agents
 
-    def list_agents(self):
-        """List all agents associated with a given user."""
+    def list_agents(self) -> List[AgentState]:
+        """List all agents associated with a given user.
+
+        Returns:
+            List[AgentState]: List of agent configurations.
+        """
         raise NotImplementedError
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
-        """Check if an agent with the specified ID or name exists."""
+        """Check if an agent with the specified ID or name exists.
+
+        Args:
+            agent_id (str): The ID of the agent.
+            agent_name (str): The name of the agent.
+
+        Returns:
+            bool: True if the agent exists, False otherwise.
+
+        """
         raise NotImplementedError
 
+    @abstractmethod
     def create_agent(
         self,
         name: Optional[str] = None,
@@ -89,7 +136,20 @@ class AbstractClient(object):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
     ) -> AgentState:
-        """Create a new agent with the specified configuration."""
+        """Create a new agent with the specified configuration.
+
+        Args:
+            name (str): The first parameter.
+            preset (str): Name of the preset to start the agent.
+            persona (str): Name of the persona template to start the agent
+            human (str): Name of the human template to set for the agent.
+            embedding_config (EmbeddingConfig): Embedding configuration for the agent.
+            llm_config (LLMConfig): LLM configuration for the agent.
+
+        Returns:
+            AgentState: The state of the created agent.
+
+        """
         raise NotImplementedError
 
     def rename_agent(self, agent_id: uuid.UUID, new_name: str):
@@ -108,9 +168,23 @@ class AbstractClient(object):
         raise NotImplementedError
 
     def delete_preset(self, preset_id: uuid.UUID):
+        """Delete a preset.
+
+        Args:
+            preset_id (uuid.UUID): The ID of the preset.
+
+        Returns:
+            None
+        """
         raise NotImplementedError
 
-    def list_presets(self):
+    def list_presets(self) -> List[Preset]:
+        """List all available presets.
+
+        Returns:
+            presets (List[Preset]): List of presets.
+
+        """
         raise NotImplementedError
 
     # memory
@@ -222,6 +296,25 @@ class AbstractClient(object):
 
 
 class RESTClient(AbstractClient):
+    """Client for the MemGPT REST API.
+
+    The RESTAPI client corresponds to a single `user_id` and `token` pair.
+
+    Attributes:
+        base_url (str): The base URL of the MemGPT server.
+        token (str): The user authentication token for the MemGPT server.
+        debug (bool): Print debug logs.
+
+    args:
+        base_url (str): The base URL of the MemGPT server.
+        token (str): The user authentication token for the MemGPT server.
+        debug (bool): Print debug logs.
+
+    Examples:
+        >>> from memgpt import RESTClient
+        >>> client = RESTClient(base_url="memgpt.localhost", token="user_token")
+    """
+
     def __init__(
         self,
         base_url: str,
@@ -348,7 +441,6 @@ class RESTClient(AbstractClient):
         return self.get_agent_response_to_state(response_obj)
 
     def delete_agent(self, agent_id: uuid.UUID):
-        """Delete the agent."""
         response = requests.delete(f"{self.base_url}/api/agents/{str(agent_id)}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete agent: {response.text}"
 
@@ -375,23 +467,6 @@ class RESTClient(AbstractClient):
         default_tools: bool = True,
     ) -> PresetModel:
         # TODO: remove
-        """Create an agent preset
-
-        :param name: Name of the preset
-        :type name: str
-        :param system: System prompt (text)
-        :type system: str
-        :param persona: Persona prompt (text)
-        :type persona: Optional[str]
-        :param human: Human prompt (text)
-        :type human: Optional[str]
-        :param tools: List of tools to connect, defaults to None
-        :type tools: Optional[List[Tool]], optional
-        :param default_tools: Whether to automatically include default tools, defaults to True
-        :type default_tools: bool, optional
-        :return: Preset object
-        :rtype: PresetModel
-        """
         # provided tools
         schema = []
         if tools:
@@ -454,7 +529,6 @@ class RESTClient(AbstractClient):
     def get_agent_archival_memory(
         self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
     ):
-        """Paginated get for the archival memory for an agent"""
         params = {"limit": limit}
         if before:
             params["before"] = str(before)
@@ -535,13 +609,11 @@ class RESTClient(AbstractClient):
     # sources
 
     def list_sources(self):
-        """List loaded sources"""
         response = requests.get(f"{self.base_url}/api/sources", headers=self.headers)
         response_json = response.json()
         return ListSourcesResponse(**response_json)
 
     def delete_source(self, source_id: uuid.UUID):
-        """Delete a source and associated data (including attached to agents)"""
         response = requests.delete(f"{self.base_url}/api/sources/{str(source_id)}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete source: {response.text}"
 
@@ -550,7 +622,6 @@ class RESTClient(AbstractClient):
         return JobModel(**response.json())
 
     def load_file_into_source(self, filename: str, source_id: uuid.UUID, blocking=True):
-        """Load {filename} and insert into source"""
         files = {"file": open(filename, "rb")}
 
         # create job
@@ -571,7 +642,6 @@ class RESTClient(AbstractClient):
         return job
 
     def create_source(self, name: str) -> Source:
-        """Create a new source"""
         payload = {"name": name}
         response = requests.post(f"{self.base_url}/api/sources", json=payload, headers=self.headers)
         response_json = response.json()
@@ -586,13 +656,11 @@ class RESTClient(AbstractClient):
         )
 
     def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
-        """Attach a source to an agent"""
         params = {"agent_id": agent_id}
         response = requests.post(f"{self.base_url}/api/sources/{source_id}/attach", params=params, headers=self.headers)
         assert response.status_code == 200, f"Failed to attach source to agent: {response.text}"
 
     def detach_source(self, source_id: uuid.UUID, agent_id: uuid.UUID):
-        """Detach a source from an agent"""
         params = {"agent_id": str(agent_id)}
         response = requests.post(f"{self.base_url}/api/sources/{source_id}/detach", params=params, headers=self.headers)
         assert response.status_code == 200, f"Failed to detach source from agent: {response.text}"
@@ -670,19 +738,32 @@ class RESTClient(AbstractClient):
 
 
 class LocalClient(AbstractClient):
+    """Local Python client for MemGPT.
+
+    The `LocalClient` is a Python client for the MemGPT server that runs locally. All instances of the the client use the same, default `user_id` (generated and placed in the `~/.memgpt/config` file.).
+
+    Attributes:
+        auto_save (bool): Automatically save changes to the server.
+        user_id (str): The user ID for the MemGPT server.
+        debug (bool): Print debug logs.
+
+    args:
+        auto_save (bool): Automatically save changes to the server.
+        user_id (str): The user ID for the MemGPT server.
+        debug (bool): Print debug logs.
+
+    Examples:
+        >>> from memgpt import LocalClient
+        >>> client = LocalClient()
+    """
+
     def __init__(
         self,
         auto_save: bool = False,
-        user_id: Optional[str] = None,
+        user_id: Optional[str] = None,  # TODO: this need to be a uuid.UUID
         debug: bool = False,
     ):
-        """
-        Initializes a new instance of Client class.
-        :param auto_save: indicates whether to automatically save after every message.
-        :param quickstart: allows running quickstart on client init.
-        :param config: optional config settings to apply after quickstart
-        :param debug: indicates whether to display debug messages.
-        """
+
         self.auto_save = auto_save
 
         # determine user_id (pulled from local config)
