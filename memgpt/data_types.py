@@ -763,17 +763,9 @@ class AgentState:
         # system prompt
         system: str,
         # config
-        # persona: str,  # the filename where the persona was originally sourced from # TODO: remove
-        # human: str,  # the filename where the human was originally sourced from # TODO: remove
         llm_config: LLMConfig,
         embedding_config: EmbeddingConfig,
-        # preset: str,  # TODO: remove
         # (in-context) state contains:
-        # persona: str  # the current persona text
-        # human: str  # the current human text
-        # system: str,  # system prompt (not required if initializing with a preset)
-        # functions: dict,  # schema definitions ONLY (function code linked at runtime)
-        # messages: List[dict],  # in-context messages
         id: Optional[uuid.UUID] = None,
         state: Optional[dict] = None,
         created_at: Optional[datetime] = None,
@@ -864,6 +856,7 @@ class Token:
 
 
 class Preset(BaseModel):
+    # TODO: remove Preset
     name: str = Field(..., description="The name of the preset.")
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the preset.")
     user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user who created the preset.")

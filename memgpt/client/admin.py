@@ -43,7 +43,6 @@ class Admin:
     def create_key(self, user_id: uuid.UUID, key_name: str):
         payload = {"user_id": str(user_id), "key_name": key_name}
         response = requests.post(f"{self.base_url}/admin/users/keys", headers=self.headers, json=payload)
-        print(response.json())
         if response.status_code != 200:
             raise HTTPError(response.json())
         return CreateAPIKeyResponse(**response.json())
@@ -53,7 +52,6 @@ class Admin:
         response = requests.get(f"{self.base_url}/admin/users/keys", params=params, headers=self.headers)
         if response.status_code != 200:
             raise HTTPError(response.json())
-        print(response.text, response.status_code)
         return GetAPIKeysResponse(**response.json()).api_key_list
 
     def delete_key(self, api_key: str):

@@ -48,69 +48,6 @@ from memgpt.utils import (
 
 from .errors import LLMError
 
-# def link_functions(function_schemas: list):
-#    """Link function definitions to list of function schemas"""
-#
-#    # need to dynamically link the functions
-#    # the saved agent.functions will just have the schemas, but we need to
-#    # go through the functions library and pull the respective python functions
-#
-#    # Available functions is a mapping from:
-#    # function_name -> {
-#    #   json_schema: schema
-#    #   python_function: function
-#    # }
-#    # agent.functions is a list of schemas (OpenAI kwarg functions style, see: https://platform.openai.com/docs/api-reference/chat/create)
-#    # [{'name': ..., 'description': ...}, {...}]
-#    available_functions = load_all_function_sets()
-#    linked_function_set = {}
-#    for f_schema in function_schemas:
-#        # Attempt to find the function in the existing function library
-#        f_name = f_schema.get("name")
-#        if f_name is None:
-#            raise ValueError(f"While loading agent.state.functions encountered a bad function schema object with no name:\n{f_schema}")
-#        linked_function = available_functions.get(f_name)
-#        if linked_function is None:
-#            # raise ValueError(
-#            #    f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
-#            # )
-#            print(
-#                f"Function '{f_name}' was specified in agent.state.functions, but is not in function library:\n{available_functions.keys()}"
-#            )
-#            continue
-#
-#        # Once we find a matching function, make sure the schema is identical
-#        if json.dumps(f_schema, ensure_ascii=JSON_ENSURE_ASCII) != json.dumps(
-#            linked_function["json_schema"], ensure_ascii=JSON_ENSURE_ASCII
-#        ):
-#            # error_message = (
-#            #     f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different."
-#            #     + f"\n>>>agent.state.functions\n{json.dumps(f_schema, indent=2, ensure_ascii=JSON_ENSURE_ASCII)}"
-#            #     + f"\n>>>function library\n{json.dumps(linked_function['json_schema'], indent=2, ensure_ascii=JSON_ENSURE_ASCII)}"
-#            # )
-#            schema_diff = get_schema_diff(f_schema, linked_function["json_schema"])
-#            error_message = (
-#                f"Found matching function '{f_name}' from agent.state.functions inside function library, but schemas are different.\n"
-#                + "".join(schema_diff)
-#            )
-#
-#            # NOTE to handle old configs, instead of erroring here let's just warn
-#            # raise ValueError(error_message)
-#            printd(error_message)
-#        linked_function_set[f_name] = linked_function
-#    return linked_function_set
-
-
-# def initialize_memory(ai_notes: Union[str, None], human_notes: Union[str, None]):
-#    if ai_notes is None:
-#        raise ValueError(ai_notes)
-#    if human_notes is None:
-#        raise ValueError(human_notes)
-#    memory = InContextMemory(human_char_limit=CORE_MEMORY_HUMAN_CHAR_LIMIT, persona_char_limit=CORE_MEMORY_PERSONA_CHAR_LIMIT)
-#    memory.edit_persona(ai_notes)
-#    memory.edit_human(human_notes)
-#    return memory
-
 
 def construct_system_with_memory(
     system: str,
@@ -225,15 +162,8 @@ class Agent(object):
         self.system = self.agent_state.system
 
         # Initialize the memory object
-        ## TODO: support more general memory types
-        # if "persona" not in self.agent_state.state:  # TODO: remove
-        #    raise ValueError(f"'persona' not found in provided AgentState")
-        # if "human" not in self.agent_state.state:  # TODO: remove
-        #    raise ValueError(f"'human' not found in provided AgentState")
-        ##self.memory = initialize_memory(ai_notes=self.agent_state.state["persona"], human_notes=self.agent_state.state["human"])
-        # printd("INITIALIZED MEMORY", self.memory.persona, self.memory.human)
         self.memory = BaseMemory.load(self.agent_state.state["memory"])
-        printd("INITIALIZED MEMORY", self.memory)
+        printd("Initialized memory object", self.memory)
 
         # Interface must implement:
         # - internal_monologue
@@ -282,7 +212,7 @@ class Agent(object):
                     m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
 
         else:
-            # print(f"Agent.__init__ :: creating, state={agent_state.state['messages']}")
+            printd(f"Agent.__init__ :: creating, state={agent_state.state['messages']}")
             init_messages = initialize_message_sequence(
                 self.model,
                 self.system,
@@ -308,12 +238,10 @@ class Agent(object):
 
         # Keep track of the total number of messages throughout all time
         self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
-        # self.messages_total_init = self.messages_total
         self.messages_total_init = len(self._messages) - 1
         printd(f"Agent initialized, self.messages_total={self.messages_total}")
 
         # Create the agent in the DB
-        # self.save()
         self.update_state()
 
     @property
@@ -959,31 +887,6 @@ class Agent(object):
                 new_system_message["content"],
             )
 
-    # def to_agent_state(self) -> AgentState:
-    #    # The state may have change since the last time we wrote it
-    #    updated_state = {
-    #        "persona": self.memory.persona,
-    #        "human": self.memory.human,
-    #        "system": self.system,
-    #        "functions": self.functions,
-    #        "messages": [str(msg.id) for msg in self._messages],
-    #    }
-
-    #    agent_state = AgentState(
-    #        name=self.agent_state.name,
-    #        user_id=self.agent_state.user_id,
-    #        persona=self.agent_state.persona,
-    #        human=self.agent_state.human,
-    #        llm_config=self.agent_state.llm_config,
-    #        embedding_config=self.agent_state.embedding_config,
-    #        preset=self.agent_state.preset,
-    #        id=self.agent_state.id,
-    #        created_at=self.agent_state.created_at,
-    #        state=updated_state,
-    #    )
-
-    #    return agent_state
-
     def add_function(self, function_name: str) -> str:
         # TODO: refactor
         pass
@@ -1030,33 +933,7 @@ class Agent(object):
         # printd(msg)
         # return msg
 
-    # def save(self):
-    #    """Save agent state locally"""
-
-    #    new_agent_state = self.to_agent_state()
-
-    #    # without this, even after Agent.__init__, agent.config.state["messages"] will be None
-    #    self.agent_state = new_agent_state
-
-    #    # Check if we need to create the agent
-    #    if not self.ms.get_agent(agent_id=new_agent_state.id, user_id=new_agent_state.user_id, agent_name=new_agent_state.name):
-    #        # print(f"Agent.save {new_agent_state.id} :: agent does not exist, creating...")
-    #        self.ms.create_agent(agent=new_agent_state)
-    #    # Otherwise, we should update the agent
-    #    else:
-    #        # print(f"Agent.save {new_agent_state.id} :: agent already exists, updating...")
-    #        print(f"Agent.save {new_agent_state.id} :: preupdate:\n\tmessages={new_agent_state.state['messages']}")
-    #        self.ms.update_agent(agent=new_agent_state)
-
     def update_state(self) -> AgentState:
-        # updated_state = {
-        #    "persona": self.memory.persona,
-        #    "human": self.memory.human,
-        #    "system": self.system,
-        #    "functions": self.functions,
-        #    "messages": [str(msg.id) for msg in self._messages],
-        # }
-        print("UDPATE STATE", len(self._messages))
         memory = {
             "system": self.system,
             "memory": self.memory.to_dict(),

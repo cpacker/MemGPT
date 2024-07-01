@@ -29,7 +29,6 @@ class MemoryModule(BaseModel):
     def __setattr__(self, name, value):
         """Run validation if self.value is updated"""
         super().__setattr__(name, value)
-        print("SET ATT")
         if name == "value":
             # run validation
             self.__class__.validate(self.dict(exclude_unset=True))
@@ -42,7 +41,6 @@ class MemoryModule(BaseModel):
             limit = values.get("limit", 2000)  # Default to 2000 if limit is not yet set
 
             # Check if the value exceeds the limit
-            print("CHECK VALUE", v, type(v), limit)
             if isinstance(v, str):
                 length = len(v)
             elif isinstance(v, list):
@@ -57,11 +55,9 @@ class MemoryModule(BaseModel):
         return v
 
     def __len__(self):
-        print("get len", self.value)
         return len(str(self))
 
     def __str__(self) -> str:
-        print("str", self.value, type(self.value))
         if isinstance(self.value, list):
             return ",".join(self.value)
         elif isinstance(self.value, str):
@@ -86,31 +82,13 @@ class BaseMemory:
     def __str__(self) -> str:
         """Representation of the memory in-context"""
         section_strs = []
-        print("make string")
-        print(list(self.memory.keys()))
         for section, module in self.memory.items():
-            print("value", module, section)
-            print("len", len(module))
-            print("limit", module.limit)
-            print("value", module.value)
-            print(f'<{section} characters="{len(module)}')
-            print(f'<{section}{module.limit}">\n{module.value}\n</{section}>')
-            print(f'<{section} characters="{len(module)}/{module.limit}">\n{module.value}\n</{section}>')
             section_strs.append(f'<{section} characters="{len(module)}/{module.limit}">\n{module.value}\n</{section}>')
         return "\n".join(section_strs)
 
     def to_dict(self):
         """Convert to dictionary representation"""
         return {key: value.dict() for key, value in self.memory.items()}
-
-
-#    def __getitem__(self, key):
-#        return self.memory[key]
-#
-#    def __setitem__(self, key, value):
-#        print("SET ITEM")
-#        self.memory[key] = value
-#        print(self.memory[key].value)
 
 
 class ChatMemory(BaseMemory):
@@ -165,92 +143,92 @@ def get_memory_functions(cls: BaseMemory) -> List[callable]:
     return functions
 
 
-class CoreMemory(object):
-    """Held in-context inside the system message
-
-    Core Memory: Refers to the system block, which provides essential, foundational context to the AI.
-    This includes the persona information, essential user details,
-    and any other baseline data you deem necessary for the AI's basic functioning.
-    """
-
-    def __init__(self, persona=None, human=None, persona_char_limit=None, human_char_limit=None, archival_memory_exists=True):
-        self.persona = persona
-        self.human = human
-        self.persona_char_limit = persona_char_limit
-        self.human_char_limit = human_char_limit
-
-        # affects the error message the AI will see on overflow inserts
-        self.archival_memory_exists = archival_memory_exists
-
-    def __repr__(self) -> str:
-        return f"\n### CORE MEMORY ###" + f"\n=== Persona ===\n{self.persona}" + f"\n\n=== Human ===\n{self.human}"
-
-    def to_dict(self):
-        return {
-            "persona": self.persona,
-            "human": self.human,
-        }
-
-    @classmethod
-    def load(cls, state):
-        return cls(state["persona"], state["human"])
-
-    def edit_persona(self, new_persona):
-        if self.persona_char_limit and len(new_persona) > self.persona_char_limit:
-            error_msg = f"Edit failed: Exceeds {self.persona_char_limit} character limit (requested {len(new_persona)})."
-            if self.archival_memory_exists:
-                error_msg = f"{error_msg} Consider summarizing existing core memories in 'persona' and/or moving lower priority content to archival memory to free up space in core memory, then trying again."
-            raise ValueError(error_msg)
-
-        self.persona = new_persona
-        return len(self.persona)
-
-    def edit_human(self, new_human):
-        if self.human_char_limit and len(new_human) > self.human_char_limit:
-            error_msg = f"Edit failed: Exceeds {self.human_char_limit} character limit (requested {len(new_human)})."
-            if self.archival_memory_exists:
-                error_msg = f"{error_msg} Consider summarizing existing core memories in 'human' and/or moving lower priority content to archival memory to free up space in core memory, then trying again."
-            raise ValueError(error_msg)
-
-        self.human = new_human
-        return len(self.human)
-
-    def edit(self, field, content):
-        if field == "persona":
-            return self.edit_persona(content)
-        elif field == "human":
-            return self.edit_human(content)
-        else:
-            raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
-
-    def edit_append(self, field, content, sep="\n"):
-        if field == "persona":
-            new_content = self.persona + sep + content
-            return self.edit_persona(new_content)
-        elif field == "human":
-            new_content = self.human + sep + content
-            return self.edit_human(new_content)
-        else:
-            raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
-
-    def edit_replace(self, field, old_content, new_content):
-        if len(old_content) == 0:
-            raise ValueError("old_content cannot be an empty string (must specify old_content to replace)")
-
-        if field == "persona":
-            if old_content in self.persona:
-                new_persona = self.persona.replace(old_content, new_content)
-                return self.edit_persona(new_persona)
-            else:
-                raise ValueError("Content not found in persona (make sure to use exact string)")
-        elif field == "human":
-            if old_content in self.human:
-                new_human = self.human.replace(old_content, new_content)
-                return self.edit_human(new_human)
-            else:
-                raise ValueError("Content not found in human (make sure to use exact string)")
-        else:
-            raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
+# class CoreMemory(object):
+#    """Held in-context inside the system message
+#
+#    Core Memory: Refers to the system block, which provides essential, foundational context to the AI.
+#    This includes the persona information, essential user details,
+#    and any other baseline data you deem necessary for the AI's basic functioning.
+#    """
+#
+#    def __init__(self, persona=None, human=None, persona_char_limit=None, human_char_limit=None, archival_memory_exists=True):
+#        self.persona = persona
+#        self.human = human
+#        self.persona_char_limit = persona_char_limit
+#        self.human_char_limit = human_char_limit
+#
+#        # affects the error message the AI will see on overflow inserts
+#        self.archival_memory_exists = archival_memory_exists
+#
+#    def __repr__(self) -> str:
+#        return f"\n### CORE MEMORY ###" + f"\n=== Persona ===\n{self.persona}" + f"\n\n=== Human ===\n{self.human}"
+#
+#    def to_dict(self):
+#        return {
+#            "persona": self.persona,
+#            "human": self.human,
+#        }
+#
+#    @classmethod
+#    def load(cls, state):
+#        return cls(state["persona"], state["human"])
+#
+#    def edit_persona(self, new_persona):
+#        if self.persona_char_limit and len(new_persona) > self.persona_char_limit:
+#            error_msg = f"Edit failed: Exceeds {self.persona_char_limit} character limit (requested {len(new_persona)})."
+#            if self.archival_memory_exists:
+#                error_msg = f"{error_msg} Consider summarizing existing core memories in 'persona' and/or moving lower priority content to archival memory to free up space in core memory, then trying again."
+#            raise ValueError(error_msg)
+#
+#        self.persona = new_persona
+#        return len(self.persona)
+#
+#    def edit_human(self, new_human):
+#        if self.human_char_limit and len(new_human) > self.human_char_limit:
+#            error_msg = f"Edit failed: Exceeds {self.human_char_limit} character limit (requested {len(new_human)})."
+#            if self.archival_memory_exists:
+#                error_msg = f"{error_msg} Consider summarizing existing core memories in 'human' and/or moving lower priority content to archival memory to free up space in core memory, then trying again."
+#            raise ValueError(error_msg)
+#
+#        self.human = new_human
+#        return len(self.human)
+#
+#    def edit(self, field, content):
+#        if field == "persona":
+#            return self.edit_persona(content)
+#        elif field == "human":
+#            return self.edit_human(content)
+#        else:
+#            raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
+#
+#    def edit_append(self, field, content, sep="\n"):
+#        if field == "persona":
+#            new_content = self.persona + sep + content
+#            return self.edit_persona(new_content)
+#        elif field == "human":
+#            new_content = self.human + sep + content
+#            return self.edit_human(new_content)
+#        else:
+#            raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
+#
+#    def edit_replace(self, field, old_content, new_content):
+#        if len(old_content) == 0:
+#            raise ValueError("old_content cannot be an empty string (must specify old_content to replace)")
+#
+#        if field == "persona":
+#            if old_content in self.persona:
+#                new_persona = self.persona.replace(old_content, new_content)
+#                return self.edit_persona(new_persona)
+#            else:
+#                raise ValueError("Content not found in persona (make sure to use exact string)")
+#        elif field == "human":
+#            if old_content in self.human:
+#                new_human = self.human.replace(old_content, new_content)
+#                return self.edit_human(new_human)
+#            else:
+#                raise ValueError("Content not found in human (make sure to use exact string)")
+#        else:
+#            raise KeyError(f'No memory section named {field} (must be either "persona" or "human")')
 
 
 def _format_summary_history(message_history: List[Message]):

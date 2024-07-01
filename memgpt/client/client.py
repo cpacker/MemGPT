@@ -238,8 +238,6 @@ class RESTClient(AbstractClient):
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
         response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/config", headers=self.headers)
-        print(response.text, response.status_code)
-        print(response)
         if response.status_code == 404:
             # not found error
             return False
@@ -332,9 +330,6 @@ class RESTClient(AbstractClient):
             id=response.agent_state.id,
             name=response.agent_state.name,
             user_id=response.agent_state.user_id,
-            # preset=response.agent_state.preset,
-            # persona=response.agent_state.persona,
-            # human=response.agent_state.human,
             llm_config=llm_config,
             embedding_config=embedding_config,
             state=response.agent_state.state,
@@ -363,25 +358,8 @@ class RESTClient(AbstractClient):
         response_obj = GetAgentResponse(**response.json())
         return self.get_agent_response_to_state(response_obj)
 
-    ## presets
-    # def create_preset(self, preset: Preset) -> CreatePresetResponse:
-    #    # TODO should the arg type here be PresetModel, not Preset?
-    #    payload = CreatePresetsRequest(
-    #        id=str(preset.id),
-    #        name=preset.name,
-    #        description=preset.description,
-    #        system=preset.system,
-    #        persona=preset.persona,
-    #        human=preset.human,
-    #        persona_name=preset.persona_name,
-    #        human_name=preset.human_name,
-    #        functions_schema=preset.functions_schema,
-    #    )
-    #    response = requests.post(f"{self.base_url}/api/presets", json=payload.model_dump(), headers=self.headers)
-    #    assert response.status_code == 200, f"Failed to create preset: {response.text}"
-    #    return CreatePresetResponse(**response.json())
-
     def get_preset(self, name: str) -> PresetModel:
+        # TODO: remove
         response = requests.get(f"{self.base_url}/api/presets/{name}", headers=self.headers)
         assert response.status_code == 200, f"Failed to get preset: {response.text}"
         return PresetModel(**response.json())
@@ -396,6 +374,7 @@ class RESTClient(AbstractClient):
         tools: Optional[List[ToolModel]] = None,
         default_tools: bool = True,
     ) -> PresetModel:
+        # TODO: remove
         """Create an agent preset
 
         :param name: Name of the preset
@@ -417,7 +396,6 @@ class RESTClient(AbstractClient):
         schema = []
         if tools:
             for tool in tools:
-                print("CUSOTM TOOL", tool.json_schema)
                 schema.append(tool.json_schema)
 
         # include default tools
@@ -438,9 +416,6 @@ class RESTClient(AbstractClient):
             human_name=human_name,
             functions_schema=schema,
         )
-        print(schema)
-        print(human_name, persona_name, system_name, name)
-        print(payload.model_dump())
         response = requests.post(f"{self.base_url}/api/presets", json=payload.model_dump(), headers=self.headers)
         assert response.status_code == 200, f"Failed to create preset: {response.text}"
         return CreatePresetResponse(**response.json()).preset
@@ -493,7 +468,6 @@ class RESTClient(AbstractClient):
         response = requests.post(f"{self.base_url}/api/agents/{agent_id}/archival", json={"content": memory}, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to insert archival memory: {response.text}")
-        print(response.json())
         return InsertAgentArchivalMemoryResponse(**response.json())
 
     def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
@@ -529,8 +503,6 @@ class RESTClient(AbstractClient):
         response = requests.post(f"{self.base_url}/api/humans", json=data, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create human: {response.text}")
-
-        print(response.json())
         return HumanModel(**response.json())
 
     def list_personas(self) -> ListPersonasResponse:
@@ -542,7 +514,6 @@ class RESTClient(AbstractClient):
         response = requests.post(f"{self.base_url}/api/personas", json=data, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create persona: {response.text}")
-        print(response.json())
         return PersonaModel(**response.json())
 
     def get_persona(self, name: str) -> PersonaModel:
@@ -725,7 +696,6 @@ class LocalClient(AbstractClient):
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
 
         # create user if does not exist
-        print("CREATING USER", self.user_id)
         self.server.create_user({"id": self.user_id}, exists_ok=True)
 
     # messages
