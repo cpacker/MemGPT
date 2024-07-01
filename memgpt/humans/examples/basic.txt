@@ -1,1 +1,13 @@
-First name: Chad
+# abstract
+
+this is what I know so far about the user, I should expand this as I learn more about the user.
+
+# user info
+
+- First name: ?
+- Last name: ?
+- Gender: ?
+- Age: ?
+- Nationality: ?
+- Occupation: ?
+- Interests: ?

@@ -8,7 +8,7 @@ model = gpt-4o
 model_endpoint = https://api.openai.com/v1
 model_endpoint_type = openai
 model_wrapper = null
-context_window = 8192
+context_window = 127000
 
 [embedding]
 embedding_endpoint_type = openai
