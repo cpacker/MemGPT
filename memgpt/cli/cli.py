@@ -542,14 +542,6 @@ def run(
         # printd("Index path:", agent_config.save_agent_index_dir())
         # persistence_manager = LocalStateManager(agent_config).load() # TODO: implement load
         # TODO: load prior agent state
-        if persona and persona != agent_state.persona:
-            typer.secho(f"{CLI_WARNING_PREFIX}Overriding existing persona {agent_state.persona} with {persona}", fg=typer.colors.YELLOW)
-            agent_state.persona = persona
-            # raise ValueError(f"Cannot override {agent_state.name} existing persona {agent_state.persona} with {persona}")
-        if human and human != agent_state.human:
-            typer.secho(f"{CLI_WARNING_PREFIX}Overriding existing human {agent_state.human} with {human}", fg=typer.colors.YELLOW)
-            agent_state.human = human
-            # raise ValueError(f"Cannot override {agent_config.name} existing human {agent_config.human} with {human}")
 
         # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
         if model and model != agent_state.llm_config.model:
@@ -584,7 +576,12 @@ def run(
 
         # Update the agent with any overrides
         ms.update_agent(agent_state)
-        tools = [ms.get_tool(tool_name) for tool_name in agent_state.tools]
+        tools = []
+        for tool_name in agent_state.tools:
+            tool = ms.get_tool(tool_name, agent_state.user_id)
+            if tool is None:
+                typer.secho(f"Couldn't find tool {tool_name} in database, please run `memgpt add tool`", fg=typer.colors.RED)
+            tools.append(tool)
 
         # create agent
         memgpt_agent = Agent(agent_state=agent_state, interface=interface(), tools=tools)

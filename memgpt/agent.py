@@ -196,6 +196,7 @@ class Agent(object):
     ):
         # tools
         for tool in tools:
+            assert tool, f"Tool is None - must be error in querying tool from DB"
             assert tool.name in agent_state.tools, f"Tool {tool} not found in agent_state.tools"
         for tool_name in agent_state.tools:
             assert tool_name in [tool.name for tool in tools], f"Tool name {tool_name} not included in agent tool list"
