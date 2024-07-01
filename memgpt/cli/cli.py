@@ -25,6 +25,7 @@ from memgpt.memory import ChatMemory
 from memgpt.metadata import MetadataStore
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
 from memgpt.server.constants import WS_DEFAULT_PORT
+from memgpt.server.server import logger as server_logger
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import (
@@ -428,8 +429,10 @@ def run(
 
     if debug:
         logger.setLevel(logging.DEBUG)
+        server_logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.CRITICAL)
+        server_logger.setLevel(logging.CRITICAL)
 
     from memgpt.migrate import (
         VERSION_CUTOFF,
