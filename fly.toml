@@ -22,3 +22,7 @@ source = "u_data"
 cpu_kind = "performance"
 cpus = 1
 memory = "2gb"
+
+[mounts]
+  source = "u_data"
+  destination = "/data"
