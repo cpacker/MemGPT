@@ -487,6 +487,8 @@ class PostgresStorageConnector(SQLStorageConnector):
     def insert_many(self, records: List[RecordType], exists_ok=True, show_progress=False):
         from sqlalchemy.dialects.postgresql import insert
 
+        print("INSERTING RECORD", records)
+
         # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
         if len(records) == 0:
             return

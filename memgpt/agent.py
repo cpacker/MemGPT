@@ -771,6 +771,10 @@ class Agent(object):
 
             self._append_to_messages(all_new_messages)
             messages_to_return = [msg.to_openai_dict() for msg in all_new_messages] if return_dicts else all_new_messages
+
+            # update state after each step
+            self.update_state()
+
             return messages_to_return, heartbeat_request, function_failed, active_memory_warning, response.usage
 
         except Exception as e:
@@ -914,6 +918,14 @@ class Agent(object):
     def rebuild_memory(self):
         """Rebuilds the system message with the latest memory object"""
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
+
+        # NOTE: This is a hacky way to check if the memory has changed
+        memory_repr = str(self.memory)
+        if memory_repr == curr_system_message["content"][-(len(memory_repr)) :]:
+            printd(f"Memory has not changed, not rebuilding system")
+            return
+
+        # update memory (TODO: potentially update recall/archival stats seperately)
         new_system_message = initialize_message_sequence(
             self.model,
             self.system,
@@ -926,12 +938,16 @@ class Agent(object):
         if len(diff) > 0:  # there was a diff
             printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
 
-        # Swap the system message out
-        self._swap_system_message(
-            Message.dict_to_message(
-                agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=new_system_message
+            # Swap the system message out (only if there is a diff)
+            self._swap_system_message(
+                Message.dict_to_message(
+                    agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=new_system_message
+                )
             )
-        )
+            assert self.messages[0]["content"] == new_system_message["content"], (
+                self.messages[0]["content"],
+                new_system_message["content"],
+            )
 
     # def to_agent_state(self) -> AgentState:
     #    # The state may have change since the last time we wrote it
@@ -1030,6 +1046,7 @@ class Agent(object):
         #    "functions": self.functions,
         #    "messages": [str(msg.id) for msg in self._messages],
         # }
+        print("UDPATE STATE", len(self._messages))
         memory = {
             "system": self.system,
             "memory": self.memory.to_dict(),

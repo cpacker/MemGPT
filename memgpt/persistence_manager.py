@@ -148,6 +148,7 @@ class LocalStateManager(PersistenceManager):
         # self.messages[0] = new_system_message
 
         # add to recall memory
+        print("SWAP SYSTEM MESSAGE", new_system_message.id)
         self.recall_memory.insert(new_system_message)
 
     def update_memory(self, new_memory):

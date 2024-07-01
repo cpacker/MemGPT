@@ -166,8 +166,21 @@ def test_get_recall_memory(server, user_id, agent_id):
     cursor4, messages_4 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, reverse=True, before=cursor1)
     assert len(messages_4) == 1
 
+    print("MESSAGES")
+    for m in messages_3:
+        print(m["id"], m["role"])
+        if m["role"] == "assistant":
+            print(m["text"])
+        print("------------")
+
     # test in-context message ids
+    all_messages = server.get_agent_messages(user_id=user_id, agent_id=agent_id, start=0, count=1000)
+    print("num messages", len(all_messages))
     in_context_ids = server.get_in_context_message_ids(user_id=user_id, agent_id=agent_id)
+    print(in_context_ids)
+    for m in messages_3:
+        if str(m["id"]) not in [str(i) for i in in_context_ids]:
+            print("missing", m["id"], m["role"])
     assert len(in_context_ids) == len(messages_3)
     assert isinstance(in_context_ids[0], uuid.UUID)
     message_ids = [m["id"] for m in messages_3]

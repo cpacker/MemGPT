@@ -486,9 +486,13 @@ class BaseRecallMemory(RecallMemory):
         return f"\n### RECALL MEMORY ###" + f"\n{memory_str}"
 
     def insert(self, message: Message):
+        print("INSERING SINGLE", message.id, message.role, self.storage.size(), message.text[:100])
         self.storage.insert(message)
 
     def insert_many(self, messages: List[Message]):
+        print("INSERTING MANY")
+        for message in messages:
+            print("INSERTING", message.id, message.role, self.storage.size(), message.text[:100])
         self.storage.insert_many(messages)
 
     def save(self):
