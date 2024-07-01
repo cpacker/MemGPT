@@ -879,7 +879,7 @@ class Agent(object):
 
     def add_function(self, function_name: str) -> str:
         # TODO: refactor
-        pass
+        raise NotImplementedError
         # if function_name in self.functions_python.keys():
         #    msg = f"Function {function_name} already loaded"
         #    printd(msg)
@@ -900,7 +900,7 @@ class Agent(object):
 
     def remove_function(self, function_name: str) -> str:
         # TODO: refactor
-        pass
+        raise NotImplementedError
         # if function_name not in self.functions_python.keys():
         #    msg = f"Function {function_name} not loaded, ignoring"
         #    printd(msg)
