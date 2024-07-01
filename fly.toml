@@ -13,10 +13,14 @@ force_https = true
 internal_port = 8083
 min_machines_running = 0
 processes = [ "app" ]
+   [http_service.http_options.response.headers]
+      Access-Control-Allow-Origin = "*"
+      Access-Control-Allow-Methods = "*"
+      Access-Control-Allow-Headers = "*"
 
-[[mounts]]
-destination = "/data"
+[mounts]
 source = "u_data"
+destination = "/data"
 
 [[vm]]
 cpu_kind = "performance"

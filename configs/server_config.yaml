@@ -19,17 +19,17 @@ embedding_chunk_size = 300
 
 [archival_storage]
 type = chroma
-path = /root/.memgpt/chroma
+path = /data/chroma
 uri = null
 
 [recall_storage]
 type = sqlite
-path = /root/.memgpt
+path = /data
 uri = null
 
 [metadata_storage]
 type = sqlite
-path = /root/.memgpt
+path = /data
 uri = null
 
 [client]
