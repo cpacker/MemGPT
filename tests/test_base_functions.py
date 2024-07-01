@@ -1,11 +1,9 @@
 import os
-import uuid
 
 import pytest
 
 import memgpt.functions.function_sets.base as base_functions
-from memgpt import constants, create_client
-from tests import TEST_MEMGPT_CONFIG
+from memgpt import create_client
 
 from .utils import create_config, wipe_config
 
@@ -25,13 +23,10 @@ def agent_obj():
 
     client = create_client()
 
-    agent_state = client.create_agent(
-        preset=constants.DEFAULT_PRESET,
-    )
+    agent_state = client.create_agent()
 
     global agent_obj
-    user_id = uuid.UUID(TEST_MEMGPT_CONFIG.anon_clientid)
-    agent_obj = client.server._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
+    agent_obj = client.server._get_or_load_agent(user_id=client.user_id, agent_id=agent_state.id)
     yield agent_obj
 
     client.delete_agent(agent_obj.agent_state.id)

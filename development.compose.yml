@@ -14,6 +14,8 @@ services:
       - .env
     environment:
       - MEMGPT_SERVER_PASS=test_server_token
+      - WATCHFILES_FORCE_POLLING=true
+
     volumes:
       - ./memgpt:/memgpt
       - ~/.memgpt/credentials:/root/.memgpt/credentials

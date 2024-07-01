@@ -248,6 +248,25 @@ def _sse_post(url: str, data: dict, headers: dict) -> Generator[ChatCompletionCh
 
     with httpx.Client() as client:
         with connect_sse(client, method="POST", url=url, json=data, headers=headers) as event_source:
+
+            # Inspect for errors before iterating (see https://github.com/florimondmanca/httpx-sse/pull/12)
+            if not event_source.response.is_success:
+                # handle errors
+                from utils import printd
+
+                printd("Caught error before iterating SSE request:", vars(event_source.response))
+                printd(event_source.response.read())
+
+                try:
+                    response_bytes = event_source.response.read()
+                    response_dict = json.loads(response_bytes.decode("utf-8"))
+                    error_message = response_dict["error"]["message"]
+                    # e.g.: This model's maximum context length is 8192 tokens. However, your messages resulted in 8198 tokens (7450 in the messages, 748 in the functions). Please reduce the length of the messages or functions.
+                    raise Exception(error_message)
+                except:
+                    print(f"Failed to parse SSE message, throwing SSE HTTP error up the stack")
+                    event_source.response.raise_for_status()
+
             try:
                 for sse in event_source.iter_sse():
                     # printd(sse.event, sse.data, sse.id, sse.retry)
@@ -267,14 +286,17 @@ def _sse_post(url: str, data: dict, headers: dict) -> Generator[ChatCompletionCh
                         yield chunk_object
 
             except SSEError as e:
+                print("Caught an error while iterating the SSE stream:", str(e))
                 if "application/json" in str(e):  # Check if the error is because of JSON response
+                    # TODO figure out a better way to catch the error other than re-trying with a POST
                     response = client.post(url=url, json=data, headers=headers)  # Make the request again to get the JSON response
                     if response.headers["Content-Type"].startswith("application/json"):
                         error_details = response.json()  # Parse the JSON to get the error message
-                        print("Error:", error_details)
-                        print("Reqeust:", vars(response.request))
+                        print("Request:", vars(response.request))
+                        print("POST Error:", error_details)
+                        print("Original SSE Error:", str(e))
                     else:
-                        print("Failed to retrieve JSON error message.")
+                        print("Failed to retrieve JSON error message via retry.")
                 else:
                     print("SSEError not related to 'application/json' content type.")
 

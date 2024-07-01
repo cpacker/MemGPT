@@ -309,3 +309,7 @@ class CLIInterface(AgentInterface):
     @staticmethod
     def step_yield():
         pass
+
+    @staticmethod
+    def step_complete():
+        pass

@@ -3,11 +3,11 @@ import os
 import uuid
 
 from memgpt.agent import Agent
-from memgpt.data_types import Message
+from memgpt.data_types import AgentState, Message
 from memgpt.embeddings import embedding_model
 from memgpt.llm_api.llm_api_tools import create
 from memgpt.models.pydantic_models import EmbeddingConfigModel, LLMConfigModel
-from memgpt.presets.presets import load_preset
+from memgpt.presets.presets import load_module_tools
 from memgpt.prompts import gpt_system
 
 messages = [Message(role="system", text=gpt_system.get_system_text("memgpt_chat")), Message(role="user", text="How are you?")]
@@ -26,13 +26,19 @@ def run_llm_endpoint(filename):
     print(config_data)
     llm_config = LLMConfigModel(**config_data)
     embedding_config = EmbeddingConfigModel(**json.load(open(embedding_config_path)))
+    agent_state = AgentState(
+        name="test_agent",
+        tools=[tool.name for tool in load_module_tools()],
+        embedding_config=embedding_config,
+        llm_config=llm_config,
+        user_id=uuid.UUID(int=1),
+        state={"persona": "", "human": "", "messages": None, "memory": {}},
+        system="",
+    )
     agent = Agent(
         interface=None,
-        preset=load_preset("memgpt_chat", user_id=uuid.UUID(int=1)),
-        name="test_agent",
-        created_by=uuid.UUID(int=1),
-        llm_config=llm_config,
-        embedding_config=embedding_config,
+        tools=load_module_tools(),
+        agent_state=agent_state,
         # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
         first_message_verify_mono=True,
     )

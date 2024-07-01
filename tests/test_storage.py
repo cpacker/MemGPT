@@ -7,13 +7,12 @@ from sqlalchemy.ext.declarative import declarative_base
 
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
-from memgpt.constants import MAX_EMBEDDING_DIM
+from memgpt.constants import BASE_TOOLS, MAX_EMBEDDING_DIM
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import AgentState, Message, Passage, User
 from memgpt.embeddings import embedding_model, query_embedding
 from memgpt.metadata import MetadataStore
 from memgpt.settings import settings
-from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
 from tests.utils import create_config, wipe_config
 
@@ -185,19 +184,14 @@ def test_storage(
         user_id=user_id,
         name="agent_1",
         id=agent_1_id,
-        preset=TEST_MEMGPT_CONFIG.preset,
-        # persona_name=TEST_MEMGPT_CONFIG.persona,
-        # human_name=TEST_MEMGPT_CONFIG.human,
-        persona=get_persona_text(TEST_MEMGPT_CONFIG.persona),
-        human=get_human_text(TEST_MEMGPT_CONFIG.human),
         llm_config=TEST_MEMGPT_CONFIG.default_llm_config,
         embedding_config=TEST_MEMGPT_CONFIG.default_embedding_config,
+        system="",
+        tools=BASE_TOOLS,
         state={
             "persona": "",
             "human": "",
-            "system": "",
-            "functions": [],
-            "messages": [],
+            "messages": None,
         },
     )
     ms.create_user(user)
