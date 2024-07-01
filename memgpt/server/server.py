@@ -279,15 +279,7 @@ class SyncServer(LockingServer):
             self.ms.create_user(user)
 
         # add global default tools
-        print("adding default tools")
         presets.add_default_tools(None, self.ms)
-
-        # NOTE: removed, since server should be multi-user
-        ## Create the default user
-        # base_user_id = uuid.UUID(self.config.anon_clientid)
-        # if not self.ms.get_user(user_id=base_user_id):
-        #    base_user = User(id=base_user_id)
-        #    self.ms.create_user(base_user)
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
@@ -346,8 +338,8 @@ class SyncServer(LockingServer):
             for name in agent_state.tools:
                 tool_obj = self.ms.get_tool(name, user_id)
                 if not tool_obj:
-                    logger.exception(f"Tool {name} does not exist")
-                    raise ValueError(f"Tool {name} does not exist")
+                    logger.exception(f"Tool {name} does not exist for user {user_id}")
+                    raise ValueError(f"Tool {name} does not exist for user {user_id}")
                 tool_objs.append(tool_obj)
 
             memgpt_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
@@ -439,7 +431,6 @@ class SyncServer(LockingServer):
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-        # print("AGENT", memgpt_agent.agent_state.id, memgpt_agent.agent_state.user_id)
 
         if command.lower() == "exit":
             # exit not supported on server.py
@@ -692,7 +683,6 @@ class SyncServer(LockingServer):
         logger.info(f"Created new user from config: {user}")
 
         # add default for the user
-        print("adding default humans/personas")
         presets.add_default_humans_and_personas(user.id, self.ms)
 
         return user
@@ -703,7 +693,6 @@ class SyncServer(LockingServer):
         tools: List[str],  # list of tool names (handles) to include
         memory: BaseMemory,
         system: Optional[str] = None,
-        # system: str, # system prompt
         metadata: Optional[dict] = {},  # includes human/persona names
         name: Optional[str] = None,
         # model config
@@ -711,26 +700,19 @@ class SyncServer(LockingServer):
         embedding_config: Optional[EmbeddingConfig] = None,
         # interface
         interface: Union[AgentInterface, None] = None,
-        # TODO: refactor this to be a more general memory configuration
-        # persona: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
-        # human: Optional[str] = None,  # NOTE: this is not the name, it's the memory init value
-        # persona_name: Optional[str] = None,  # TODO: remove
-        # human_name: Optional[str] = None,  # TODO: remove
     ) -> AgentState:
         """Create a new agent using a config"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
         if interface is None:
-            # interface = self.default_interface
             interface = self.default_interface_factory()
 
-        # if persistence_manager is None:
-        # persistence_manager = self.default_persistence_manager_cls(agent_config=agent_config)
-
+        # system prompt (get default if None)
         if system is None:
             system = gpt_system.get_system_text(self.config.preset)
 
+        # create agent name
         if name is None:
             name = create_random_username()
 
@@ -744,7 +726,7 @@ class SyncServer(LockingServer):
             llm_config = llm_config if llm_config else self.server_llm_config
             embedding_config = embedding_config if embedding_config else self.server_embedding_config
 
-            # get tools
+            # get tools + make sure they exist
             tool_objs = []
             for tool_name in tools:
                 tool_obj = self.ms.get_tool(tool_name, user_id=user_id)
@@ -767,8 +749,6 @@ class SyncServer(LockingServer):
                 interface=interface,
                 agent_state=agent_state,
                 tools=tool_objs,
-                # memory=memory,
-                # embedding_config=embedding_config,
                 # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
                 first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
             )
@@ -782,10 +762,11 @@ class SyncServer(LockingServer):
                 logger.exception(f"Failed to delete_agent:\n{delete_e}")
             raise e
 
+        # save agent
         save_agent(agent, self.ms)
-
         logger.info(f"Created new agent from config: {agent}")
 
+        # return AgentState
         return agent.agent_state
 
     def delete_agent(
@@ -1245,7 +1226,6 @@ class SyncServer(LockingServer):
                 continue
             if key in old_core_memory and old_core_memory[key] != value:
                 memgpt_agent.memory.memory[key].value = value  # update agent memory
-                print("MODIFY", key, value)
                 modified = True
 
         # If we modified the memory contents, we need to rebuild the memory block inside the system message
