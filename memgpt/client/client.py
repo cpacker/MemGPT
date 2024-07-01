@@ -28,8 +28,6 @@ from memgpt.models.pydantic_models import (
     SourceModel,
     ToolModel,
 )
-
-# import pydantic response objects from memgpt.server.rest_api
 from memgpt.server.rest_api.agents.command import CommandResponse
 from memgpt.server.rest_api.agents.config import GetAgentResponse
 from memgpt.server.rest_api.agents.index import CreateAgentResponse, ListAgentsResponse
@@ -54,6 +52,9 @@ from memgpt.server.rest_api.presets.index import (
     ListPresetsResponse,
 )
 from memgpt.server.rest_api.sources.index import ListSourcesResponse
+
+# import pydantic response objects from memgpt.server.rest_api
+from memgpt.server.rest_api.tools.index import CreateToolRequest, ListToolsResponse
 from memgpt.server.server import SyncServer
 
 
@@ -234,8 +235,6 @@ class RESTClient(AbstractClient):
         super().__init__(debug=debug)
         self.base_url = base_url
         self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
-
-    # agents
 
     def list_agents(self):
         response = requests.get(f"{self.base_url}/api/agents", headers=self.headers)
@@ -610,6 +609,67 @@ class RESTClient(AbstractClient):
         response = requests.get(f"{self.base_url}/api/config", headers=self.headers)
         return ConfigResponse(**response.json())
 
+    # tools
+
+    def create_tool(
+        self,
+        func,
+        name: Optional[str] = None,
+        update: Optional[bool] = True,  # TODO: actually use this
+        tags: Optional[List[str]] = None,
+    ):
+        """Create a tool
+
+        Args:
+            func (callable): The function to create a tool for.
+            tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
+            update (bool, optional): Update the tool if it already exists. Defaults to True.
+
+        Returns:
+            Tool object
+        """
+
+        # TODO: check if tool already exists
+        # TODO: how to load modules?
+        # parse source code/schema
+        source_code = parse_source_code(func)
+        json_schema = generate_schema(func, name)
+        source_type = "python"
+        json_schema["name"]
+
+        # create data
+        data = {"source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema}
+        try:
+            CreateToolRequest(**data)  # validate data
+        except Exception as e:
+            raise ValueError(f"Failed to create tool: {e}, invalid input {data}")
+
+        # make REST request
+        response = requests.post(f"{self.base_url}/api/tools", json=data, headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create tool: {response.text}")
+        return ToolModel(**response.json())
+
+    def list_tools(self) -> ListToolsResponse:
+        response = requests.get(f"{self.base_url}/api/tools", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list tools: {response.text}")
+        return ListToolsResponse(**response.json()).tools
+
+    def delete_tool(self, name: str):
+        response = requests.delete(f"{self.base_url}/api/tools/{name}", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to delete tool: {response.text}")
+        return response.json()
+
+    def get_tool(self, name: str):
+        response = requests.get(f"{self.base_url}/api/tools/{name}", headers=self.headers)
+        if response.status_code == 404:
+            return None
+        elif response.status_code != 200:
+            raise ValueError(f"Failed to get tool: {response.text}")
+        return ToolModel(**response.json())
+
 
 class LocalClient(AbstractClient):
     def __init__(
@@ -820,7 +880,7 @@ class LocalClient(AbstractClient):
         tool_name = json_schema["name"]
 
         # check if already exists:
-        existing_tool = self.server.ms.get_tool(tool_name)
+        existing_tool = self.server.ms.get_tool(tool_name, self.user_id)
         if existing_tool:
             if update:
                 # update existing tool
@@ -829,13 +889,15 @@ class LocalClient(AbstractClient):
                 existing_tool.tags = tags
                 existing_tool.json_schema = json_schema
                 self.server.ms.update_tool(existing_tool)
-                return self.server.ms.get_tool(tool_name)
+                return self.server.ms.get_tool(tool_name, self.user_id)
             else:
                 raise ValueError(f"Tool {name} already exists and update=False")
 
-        tool = ToolModel(name=tool_name, source_code=source_code, source_type=source_type, tags=tags, json_schema=json_schema)
+        tool = ToolModel(
+            name=tool_name, source_code=source_code, source_type=source_type, tags=tags, json_schema=json_schema, user_id=self.user_id
+        )
         self.server.ms.add_tool(tool)
-        return self.server.ms.get_tool(tool_name)
+        return self.server.ms.get_tool(tool_name, self.user_id)
 
     def list_tools(self):
         """List available tools.
@@ -844,7 +906,13 @@ class LocalClient(AbstractClient):
             tools (List[ToolModel]): A list of available tools.
 
         """
-        return self.server.ms.list_tools()
+        return self.server.ms.list_tools(user_id=self.user_id)
+
+    def get_tool(self, name: str):
+        return self.server.ms.get_tool(name, user_id=self.user_id)
+
+    def delete_tool(self, name: str):
+        return self.server.ms.delete_tool(name, user_id=self.user_id)
 
     # data sources
 

@@ -56,14 +56,17 @@ class PresetModel(BaseModel):
 
 class ToolModel(SQLModel, table=True):
     # TODO move into database
-    name: str = Field(..., description="The name of the function.", primary_key=True)
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the function.")
+    name: str = Field(..., description="The name of the function.")
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the function.", primary_key=True)
     tags: List[str] = Field(sa_column=Column(JSON), description="Metadata tags.")
     source_type: Optional[str] = Field(None, description="The type of the source code.")
     source_code: Optional[str] = Field(..., description="The source code of the function.")
     module: Optional[str] = Field(None, description="The module of the function.")
 
     json_schema: Dict = Field(default_factory=dict, sa_column=Column(JSON), description="The JSON schema of the function.")
+
+    # optional: user_id (user-specific tools)
+    user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user associated with the function.")
 
     # Needed for Column(JSON)
     class Config:
