@@ -29,17 +29,20 @@ class MemoryModule(BaseModel):
     def __setattr__(self, name, value):
         """Run validation if self.value is updated"""
         super().__setattr__(name, value)
+        print("SET ATT")
         if name == "value":
             # run validation
             self.__class__.validate(self.dict(exclude_unset=True))
 
     @validator("value", always=True)
     def check_value_length(cls, v, values):
+        print("VALIDATE", v, values)
         if v is not None:
             # Fetching the limit from the values dictionary
             limit = values.get("limit", 2000)  # Default to 2000 if limit is not yet set
 
             # Check if the value exceeds the limit
+            print("CHECK VALUE", v, type(v), limit)
             if isinstance(v, str):
                 length = len(v)
             elif isinstance(v, list):
@@ -54,9 +57,11 @@ class MemoryModule(BaseModel):
         return v
 
     def __len__(self):
+        print("get len", self.value)
         return len(str(self))
 
     def __str__(self) -> str:
+        print("str", self.value, type(self.value))
         if isinstance(self.value, list):
             return ",".join(self.value)
         elif isinstance(self.value, str):
@@ -81,7 +86,16 @@ class BaseMemory:
     def __str__(self) -> str:
         """Representation of the memory in-context"""
         section_strs = []
+        print("make string")
+        print(list(self.memory.keys()))
         for section, module in self.memory.items():
+            print("value", module, section)
+            print("len", len(module))
+            print("limit", module.limit)
+            print("value", module.value)
+            print(f'<{section} characters="{len(module)}')
+            print(f'<{section}{module.limit}">\n{module.value}\n</{section}>')
+            print(f'<{section} characters="{len(module)}/{module.limit}">\n{module.value}\n</{section}>')
             section_strs.append(f'<{section} characters="{len(module)}/{module.limit}">\n{module.value}\n</{section}>')
         return "\n".join(section_strs)
 
