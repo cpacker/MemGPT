@@ -22,6 +22,7 @@ class CreateToolRequest(BaseModel):
     source_code: str = Field(..., description="The source code of the function.")
     source_type: Optional[Literal["python"]] = Field(None, description="The type of the source code.")
     tags: Optional[List[str]] = Field(None, description="Metadata tags.")
+    update: Optional[bool] = Field(False, description="Update the tool if it already exists.")
 
 
 class CreateToolResponse(BaseModel):
@@ -87,8 +88,10 @@ def setup_user_tools_index_router(server: SyncServer, interface: QueuingInterfac
                 source_type=request.source_type,
                 tags=request.tags,
                 user_id=user_id,
+                exists_ok=request.update,
             )
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to create tool: {e}")
+            print(e)
+            raise HTTPException(status_code=500, detail=f"Failed to create tool: {e}, exists_ok={request.update}")
 
     return router

@@ -2,7 +2,7 @@ import uuid
 from functools import partial
 from typing import List
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from memgpt.models.pydantic_models import PersonaModel
@@ -46,5 +46,25 @@ def setup_personas_index_router(server: SyncServer, interface: QueuingInterface,
         persona_id = new_persona.id
         server.ms.add_persona(new_persona)
         return PersonaModel(id=persona_id, text=request.text, name=request.name, user_id=user_id)
+
+    @router.delete("/personas/{persona_name}", tags=["personas"], response_model=PersonaModel)
+    async def delete_persona(
+        persona_name: str,
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        interface.clear()
+        persona = server.ms.delete_persona(persona_name, user_id=user_id)
+        return persona
+
+    @router.get("/personas/{persona_name}", tags=["personas"], response_model=PersonaModel)
+    async def get_persona(
+        persona_name: str,
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        interface.clear()
+        persona = server.ms.get_persona(persona_name, user_id=user_id)
+        if persona is None:
+            raise HTTPException(status_code=404, detail="Persona not found")
+        return persona
 
     return router
