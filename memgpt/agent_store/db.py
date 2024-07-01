@@ -493,9 +493,7 @@ class PostgresStorageConnector(SQLStorageConnector):
         if isinstance(records[0], Passage):
             with self.engine.connect() as conn:
                 db_records = [vars(record) for record in records]
-                # print("records", db_records)
                 stmt = insert(self.db_model.__table__).values(db_records)
-                # print(stmt)
                 if exists_ok:
                     upsert_stmt = stmt.on_conflict_do_update(
                         index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
@@ -594,9 +592,7 @@ class SQLLiteStorageConnector(SQLStorageConnector):
         if isinstance(records[0], Passage):
             with self.engine.connect() as conn:
                 db_records = [vars(record) for record in records]
-                # print("records", db_records)
                 stmt = insert(self.db_model.__table__).values(db_records)
-                # print(stmt)
                 if exists_ok:
                     upsert_stmt = stmt.on_conflict_do_update(
                         index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column

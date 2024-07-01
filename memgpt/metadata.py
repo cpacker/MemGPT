@@ -175,10 +175,7 @@ class AgentModel(Base):
     id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
     user_id = Column(CommonUUID, nullable=False)
     name = Column(String, nullable=False)
-    persona = Column(String)
-    human = Column(String)
     system = Column(String)
-    preset = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # configs
@@ -187,6 +184,7 @@ class AgentModel(Base):
 
     # state
     state = Column(JSON)
+    _metadata = Column(JSON)
 
     # tools
     tools = Column(JSON)
@@ -199,15 +197,13 @@ class AgentModel(Base):
             id=self.id,
             user_id=self.user_id,
             name=self.name,
-            persona=self.persona,
-            human=self.human,
-            preset=self.preset,
             created_at=self.created_at,
             llm_config=self.llm_config,
             embedding_config=self.embedding_config,
             state=self.state,
             tools=self.tools,
             system=self.system,
+            _metadata=self._metadata,
         )
 
 
@@ -739,17 +735,21 @@ class MetadataStore:
     @enforce_types
     def add_human(self, human: HumanModel):
         with self.session_maker() as session:
+            if self.get_human(human.name, human.user_id):
+                raise ValueError(f"Human with name {human.name} already exists for user_id {human.user_id}")
             session.add(human)
             session.commit()
 
     @enforce_types
     def add_persona(self, persona: PersonaModel):
         with self.session_maker() as session:
+            if self.get_persona(persona.name, persona.user_id):
+                raise ValueError(f"Persona with name {persona.name} already exists for user_id {persona.user_id}")
             session.add(persona)
             session.commit()
 
     @enforce_types
-    def add_preset(self, preset: PresetModel):
+    def add_preset(self, preset: PresetModel):  # TODO: remove
         with self.session_maker() as session:
             session.add(preset)
             session.commit()

@@ -89,9 +89,6 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
         try:
             server.ms.create_user(new_user)
 
-            # initialize default presets automatically for user
-            server.initialize_default_presets(new_user.id)
-
             # make sure we can retrieve the user from the DB too
             new_user_ret = server.ms.get_user(new_user.id)
             if new_user_ret is None:

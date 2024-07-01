@@ -38,7 +38,7 @@ class MemGPTConfig:
     anon_clientid: str = str(uuid.UUID(int=0))
 
     # preset
-    preset: str = DEFAULT_PRESET
+    preset: str = DEFAULT_PRESET  # TODO: rename to system prompt
 
     # persona parameters
     persona: str = DEFAULT_PERSONA
