@@ -536,9 +536,7 @@ class Agent(object):
 
         # rebuild memory
         # TODO: @charles please check this
-        print("MEMORY", self.memory.memory["persona"], self.memory.memory["human"])
         self.rebuild_memory()
-        print("rebuild memory")
 
         return messages, heartbeat_request, function_failed
 
@@ -847,21 +845,15 @@ class Agent(object):
 
     def rebuild_memory(self):
         """Rebuilds the system message with the latest memory object"""
-        print("rebuild memory")
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
-        print("got message")
 
         # NOTE: This is a hacky way to check if the memory has changed
-        print(".fjdsfjsd")
         memory_repr = str(self.memory)
-        print("make message str")
         if memory_repr == curr_system_message["content"][-(len(memory_repr)) :]:
             printd(f"Memory has not changed, not rebuilding system")
-            print(f"Memory has not changed, not rebuilding system")
             return
 
         # update memory (TODO: potentially update recall/archival stats seperately)
-        print("update message seq")
         new_system_message = initialize_message_sequence(
             self.model,
             self.system,
@@ -869,14 +861,12 @@ class Agent(object):
             archival_memory=self.persistence_manager.archival_memory,
             recall_memory=self.persistence_manager.recall_memory,
         )[0]
-        print("NEW SYSTEM MESSAGE", new_system_message["content"])
 
         diff = united_diff(curr_system_message["content"], new_system_message["content"])
         if len(diff) > 0:  # there was a diff
             printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
 
             # Swap the system message out (only if there is a diff)
-            print("swap system message")
             self._swap_system_message(
                 Message.dict_to_message(
                     agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=new_system_message

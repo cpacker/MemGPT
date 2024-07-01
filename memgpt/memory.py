@@ -35,7 +35,6 @@ class MemoryModule(BaseModel):
 
     @validator("value", always=True)
     def check_value_length(cls, v, values):
-        print("VALIDATE", v, values)
         if v is not None:
             # Fetching the limit from the values dictionary
             limit = values.get("limit", 2000)  # Default to 2000 if limit is not yet set
@@ -138,8 +137,6 @@ def get_memory_functions(cls: BaseMemory) -> List[callable]:
         func = getattr(cls, func_name)
         if callable(func):
             functions[func_name] = func
-        print(func_name, callable(func))
-        print(functions)
     return functions
 
 
@@ -478,13 +475,9 @@ class BaseRecallMemory(RecallMemory):
         return f"\n### RECALL MEMORY ###" + f"\n{memory_str}"
 
     def insert(self, message: Message):
-        print("INSERING SINGLE", message.id, message.role, self.storage.size(), message.text[:100])
         self.storage.insert(message)
 
     def insert_many(self, messages: List[Message]):
-        print("INSERTING MANY")
-        for message in messages:
-            print("INSERTING", message.id, message.role, self.storage.size(), message.text[:100])
         self.storage.insert_many(messages)
 
     def save(self):
