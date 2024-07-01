@@ -635,8 +635,8 @@ def run(
             memory = ChatMemory(human=human_obj.text, persona=persona_obj.text)
             metadata = {"human": human_obj.name, "persona": persona_obj.name}
 
-            typer.secho(f"->  🤖 Using persona profile: '{human_obj.name}'", fg=typer.colors.WHITE)
-            typer.secho(f"->  🧑 Using human profile: '{persona_obj.name}'", fg=typer.colors.WHITE)
+            typer.secho(f"->  🤖 Using persona profile: '{persona_obj.name}'", fg=typer.colors.WHITE)
+            typer.secho(f"->  🧑 Using human profile: '{human_obj.name}'", fg=typer.colors.WHITE)
 
             # add tools
             agent_state = client.create_agent(
