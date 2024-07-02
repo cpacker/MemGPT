@@ -231,7 +231,7 @@ def create(
             data = dict(
                 # NOTE: don't pass model to Azure calls, that is the deployment_id
                 # model=agent_config.model,
-                messages=messages,
+                messages=[m.to_openai_dict() for m in messages],
                 tools=[{"type": "function", "function": f} for f in functions] if functions else None,
                 tool_choice=function_call,
                 user=str(user_id),
@@ -240,7 +240,7 @@ def create(
             data = dict(
                 # NOTE: don't pass model to Azure calls, that is the deployment_id
                 # model=agent_config.model,
-                messages=messages,
+                messages=[m.to_openai_dict() for m in messages],
                 functions=functions,
                 function_call=function_call,
                 user=str(user_id),
