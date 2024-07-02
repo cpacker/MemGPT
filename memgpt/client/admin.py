@@ -43,7 +43,6 @@ class Admin:
     def create_key(self, user_id: uuid.UUID, key_name: str):
         payload = {"user_id": str(user_id), "key_name": key_name}
         response = requests.post(f"{self.base_url}/admin/users/keys", headers=self.headers, json=payload)
-        print(response.json())
         if response.status_code != 200:
             raise HTTPError(response.json())
         return CreateAPIKeyResponse(**response.json())
@@ -53,7 +52,6 @@ class Admin:
         response = requests.get(f"{self.base_url}/admin/users/keys", params=params, headers=self.headers)
         if response.status_code != 200:
             raise HTTPError(response.json())
-        print(response.text, response.status_code)
         return GetAPIKeysResponse(**response.json()).api_key_list
 
     def delete_key(self, api_key: str):
@@ -113,6 +111,11 @@ class Admin:
         json_schema = generate_schema(func, name)
         source_type = "python"
         json_schema["name"]
+
+        if "memory" in tags:
+            # special modifications to memory functions
+            # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
+            source_code = source_code.replace("self.memory", "self.memory.memory")
 
         # create data
         data = {"source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema}

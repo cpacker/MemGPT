@@ -38,8 +38,7 @@ from memgpt.local_llm.constants import (
 )
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.metadata import MetadataStore
-from memgpt.models.pydantic_models import HumanModel, PersonaModel
-from memgpt.presets.presets import create_preset_from_file
+from memgpt.models.pydantic_models import PersonaModel
 from memgpt.server.utils import shorten_key_middle
 
 app = typer.Typer()
@@ -1085,18 +1084,12 @@ def configure():
     else:
         ms.create_user(user)
 
-    # create preset records in metadata store
-    from memgpt.presets.presets import add_default_presets
-
-    add_default_presets(user_id, ms)
-
 
 class ListChoice(str, Enum):
     agents = "agents"
     humans = "humans"
     personas = "personas"
     sources = "sources"
-    presets = "presets"
 
 
 @app.command()
@@ -1133,7 +1126,7 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
     elif arg == ListChoice.humans:
         """List all humans"""
         table.field_names = ["Name", "Text"]
-        for human in client.list_humans(user_id=user_id):
+        for human in client.list_humans():
             table.add_row([human.name, human.text.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.personas:
@@ -1170,21 +1163,6 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
             )
 
         print(table)
-    elif arg == ListChoice.presets:
-        """List all available presets"""
-        table.field_names = ["Name", "Description", "Sources", "Functions"]
-        for preset in ms.list_presets(user_id=user_id):
-            sources = ms.get_preset_sources(preset_id=preset.id)
-            table.add_row(
-                [
-                    preset.name,
-                    preset.description,
-                    ",".join([source.name for source in sources]),
-                    # json.dumps(preset.functions_schema, indent=4)
-                    ",\n".join([f["name"] for f in preset.functions_schema]),
-                ]
-            )
-        print(table)
     else:
         raise ValueError(f"Unknown argument {arg}")
 
@@ -1208,7 +1186,7 @@ def add(
         with open(filename, "r", encoding="utf-8") as f:
             text = f.read()
     if option == "persona":
-        persona = ms.get_persona(name=name, user_id=user_id)
+        persona = ms.get_persona(name=name)
         if persona:
             # config if user wants to overwrite
             if not questionary.confirm(f"Persona {name} already exists. Overwrite?").ask():
@@ -1220,7 +1198,7 @@ def add(
             ms.add_persona(persona)
 
     elif option == "human":
-        human = client.get_human(name=name, user_id=user_id)
+        human = client.get_human(name=name)
         if human:
             # config if user wants to overwrite
             if not questionary.confirm(f"Human {name} already exists. Overwrite?").ask():
@@ -1228,11 +1206,7 @@ def add(
             human.text = text
             client.update_human(human)
         else:
-            human = HumanModel(name=name, text=text, user_id=user_id)
-            client.add_human(HumanModel(name=name, text=text, user_id=user_id))
-    elif option == "preset":
-        assert filename, "Must specify filename for preset"
-        create_preset_from_file(filename, name, user_id, ms)
+            human = client.create_human(name=name, human=text)
     else:
         raise ValueError(f"Unknown kind {option}")
 
@@ -1281,18 +1255,14 @@ def delete(option: str, name: str):
             ms.delete_agent(agent_id=agent.id)
 
         elif option == "human":
-            human = client.get_human(name=name, user_id=user_id)
+            human = client.get_human(name=name)
             assert human is not None, f"Human {name} does not exist"
-            client.delete_human(name=name, user_id=user_id)
+            client.delete_human(name=name)
         elif option == "persona":
-            persona = ms.get_persona(name=name, user_id=user_id)
+            persona = ms.get_persona(name=name)
             assert persona is not None, f"Persona {name} does not exist"
-            ms.delete_persona(name=name, user_id=user_id)
-            assert ms.get_persona(name=name, user_id=user_id) is None, f"Persona {name} still exists"
-        elif option == "preset":
-            preset = ms.get_preset(name=name, user_id=user_id)
-            assert preset is not None, f"Preset {name} does not exist"
-            ms.delete_preset(name=name, user_id=user_id)
+            ms.delete_persona(name=name)
+            assert ms.get_persona(name=name) is None, f"Persona {name} still exists"
         else:
             raise ValueError(f"Option {option} not implemented")
 

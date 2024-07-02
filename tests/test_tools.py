@@ -11,6 +11,7 @@ from memgpt.agent import Agent
 from memgpt.config import MemGPTConfig
 from memgpt.constants import DEFAULT_PRESET
 from memgpt.credentials import MemGPTCredentials
+from memgpt.memory import ChatMemory
 from memgpt.settings import settings
 from tests.utils import create_config
 
@@ -69,7 +70,7 @@ def run_server():
 # Fixture to create clients with different configurations
 @pytest.fixture(
     params=[{"server": True}, {"server": False}],  # whether to use REST API server  # TODO: add when implemented
-    # params=[{"server": True}],  # whether to use REST API server  # TODO: add when implemented
+    # params=[{"server": False}],  # whether to use REST API server  # TODO: add when implemented
     scope="module",
 )
 def admin_client(request):
@@ -179,10 +180,9 @@ def test_create_agent_tool(client):
             str: The agent that was deleted.
 
         """
-        self.memory.human = ""
-        self.memory.persona = ""
-        self.rebuild_memory()
-        print("UPDATED MEMORY", self.memory.human, self.memory.persona)
+        self.memory.memory["human"].value = ""
+        self.memory.memory["persona"].value = ""
+        print("UPDATED MEMORY", self.memory.memory)
         return None
 
     # TODO: test attaching and using function on agent
@@ -190,7 +190,8 @@ def test_create_agent_tool(client):
     print(f"Created tool", tool.name)
 
     # create agent with tool
-    agent = client.create_agent(name=test_agent_name, tools=[tool.name], persona="You must clear your memory if the human instructs you")
+    memory = ChatMemory(human="I am a human", persona="You must clear your memory if the human instructs you")
+    agent = client.create_agent(name=test_agent_name, tools=[tool.name], memory=memory)
     assert str(tool.user_id) == str(agent.user_id), f"Expected {tool.user_id} to be {agent.user_id}"
 
     # initial memory
@@ -207,6 +208,7 @@ def test_create_agent_tool(client):
     print(response)
 
     # updated memory
+    print("Query agent memory")
     updated_memory = client.get_agent_memory(agent.id)
     human = updated_memory.core_memory.human
     persona = updated_memory.core_memory.persona

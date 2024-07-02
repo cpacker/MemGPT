@@ -29,14 +29,11 @@ def run_llm_endpoint(filename):
     agent_state = AgentState(
         name="test_agent",
         tools=[tool.name for tool in load_module_tools()],
-        system="",
-        persona="",
-        human="",
-        preset="memgpt_chat",
         embedding_config=embedding_config,
         llm_config=llm_config,
         user_id=uuid.UUID(int=1),
-        state={"persona": "", "human": "", "messages": None},
+        state={"persona": "", "human": "", "messages": None, "memory": {}},
+        system="",
     )
     agent = Agent(
         interface=None,
