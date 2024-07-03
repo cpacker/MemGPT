@@ -1,5 +1,5 @@
 # tool imports
-import uuid
+from uuid import UUID
 from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional
@@ -19,6 +19,15 @@ class MemGPTUsageStatistics(BaseModel):
     total_tokens: int
     step_count: int
 
+class PersistedBase(BaseModel):
+    """shared elements that all models coming from the ORM will support"""
+    id: str = Field(description="The unique identifier of the object prefixed with the object type (Stripe pattern).")
+    uuid: UUID = Field(description="The unique identifier of the object stored as a raw uuid (for legacy support).")
+    deleted: bool = Field(default=False, description="Is this record deleted? Used for universal soft deletes.")
+    created_at: datetime = Field(description="The unix timestamp of when the object was created.")
+    updated_at: datetime = Field(description="The unix timestamp of when the object was last updated.")
+    created_by_id: Optional[str] = Field(description="The unique identifier of the user who created the object.")
+    last_updated_by_id: Optional[str] = Field(description="The unique identifier of the user who last updated the object.")
 
 class LLMConfigModel(BaseModel):
     model: Optional[str] = "gpt-4"
@@ -38,6 +47,16 @@ class EmbeddingConfigModel(BaseModel):
     embedding_dim: Optional[int] = 1536
     embedding_chunk_size: Optional[int] = 300
 
+class OrganizationSummary(PersistedBase):
+    """An Organization interface with minimal references, good when only the link is needed"""
+    name: str = Field(..., description="The name of the organization.")
+
+class UserSummary(PersistedBase):
+    """A User interface with minimal references, good when only the link is needed"""
+    name: Optional[str] = Field(default=None, description="The name of the user.")
+    email: Optional[str] = Field(default=None, description="The email of the user.")
+    organization: Optional[OrganizationSummary] = Field(None, description="The organization this user belongs to.")
+
 
 class PresetModel(BaseModel):
     name: str = Field(..., description="The name of the preset.")
@@ -53,10 +72,8 @@ class PresetModel(BaseModel):
     functions_schema: List[Dict] = Field(..., description="The functions schema of the preset.")
 
 
-class ToolModel(SQLModel, table=True):
-    # TODO move into database
+class ToolModel(PersistedBase):
     name: str = Field(..., description="The name of the function.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the function.", primary_key=True)
     tags: List[str] = Field(sa_column=Column(JSON), description="Metadata tags.")
     source_type: Optional[str] = Field(None, description="The type of the source code.")
     source_code: Optional[str] = Field(..., description="The source code of the function.")
@@ -64,37 +81,11 @@ class ToolModel(SQLModel, table=True):
 
     json_schema: Dict = Field(default_factory=dict, sa_column=Column(JSON), description="The JSON schema of the function.")
 
-    # optional: user_id (user-specific tools)
-    user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user associated with the function.")
+    organization: Optional[OrganizationSummary] = Field(None, description="The organization this function belongs to.")
 
-    # Needed for Column(JSON)
-    class Config:
-        arbitrary_types_allowed = True
-
-
-class AgentToolMap(SQLModel, table=True):
-    # mapping between agents and tools
-    agent_id: uuid.UUID = Field(..., description="The unique identifier of the agent.")
-    tool_id: uuid.UUID = Field(..., description="The unique identifier of the tool.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the agent-tool map.", primary_key=True)
-
-
-class PresetToolMap(SQLModel, table=True):
-    # mapping between presets and tools
-    preset_id: uuid.UUID = Field(..., description="The unique identifier of the preset.")
-    tool_id: uuid.UUID = Field(..., description="The unique identifier of the tool.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the preset-tool map.", primary_key=True)
-
-
-class AgentStateModel(BaseModel):
-    id: uuid.UUID = Field(..., description="The unique identifier of the agent.")
+class AgentStateModel(PersistedBase):
     name: str = Field(..., description="The name of the agent.")
     description: Optional[str] = Field(None, description="The description of the agent.")
-    user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the agent.")
-
-    # timestamps
-    # created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the agent was created.")
-    created_at: int = Field(..., description="The unix timestamp of when the agent was created.")
 
     # preset information
     tools: List[str] = Field(..., description="The tools used by the agent.")
