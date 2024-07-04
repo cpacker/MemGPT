@@ -419,7 +419,7 @@ def run_agent_loop(
                 retry = questionary.confirm("Retry agent.step()?").ask()
                 if not retry:
                     break
-            except Exception as e:
+            except Exception:
                 print("An exception occurred when running agent.step(): ")
                 traceback.print_exc()
                 retry = questionary.confirm("Retry agent.step()?").ask()
