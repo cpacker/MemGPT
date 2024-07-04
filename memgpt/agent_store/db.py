@@ -323,7 +323,10 @@ class SQLStorageConnector(StorageConnector):
                 )
             if before:
                 before_value = getattr(self.get(id=before), order_by)
-                sort_exp = getattr(self.db_model, order_by) < before_value
+                if reverse:
+                    sort_exp = getattr(self.db_model, order_by) > before_value
+                else:
+                    sort_exp = getattr(self.db_model, order_by) < before_value
                 query = query.filter(or_(sort_exp, and_(getattr(self.db_model, order_by) == before_value, self.db_model.id < before)))
 
             # get records
