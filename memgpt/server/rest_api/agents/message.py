@@ -91,6 +91,7 @@ async def send_message_to_agent(
     stream_steps: bool,
     stream_tokens: bool,
     chat_completion_mode: Optional[bool] = False,
+    timestamp: Optional[datetime] = None,
 ) -> Union[StreamingResponse, UserMessageResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
 
@@ -133,7 +134,9 @@ async def send_message_to_agent(
 
         # Offload the synchronous message_func to a separate thread
         streaming_interface.stream_start()
-        task = asyncio.create_task(asyncio.to_thread(message_func, user_id=user_id, agent_id=agent_id, message=message))
+        task = asyncio.create_task(
+            asyncio.to_thread(message_func, user_id=user_id, agent_id=agent_id, message=message, timestamp=timestamp)
+        )
 
         if stream_steps:
             # return a stream
@@ -229,6 +232,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
             message=request.message,
             stream_steps=request.stream_steps,
             stream_tokens=request.stream_tokens,
+            timestamp=request.timestamp,
             # legacy
             stream_legacy=request.stream,
         )

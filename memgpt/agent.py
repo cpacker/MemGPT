@@ -45,7 +45,6 @@ from memgpt.utils import (
     validate_function_response,
     verify_first_message_correctness,
 )
-
 from .errors import LLMError
 
 
@@ -549,6 +548,7 @@ class Agent(object):
         return_dicts: bool = True,  # if True, return dicts, if False, return Message objects
         recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
         stream: bool = False,  # TODO move to config?
+        timestamp: Optional[datetime] = None,
     ) -> Tuple[List[Union[dict, Message]], bool, bool, bool]:
         """Top-level event message handler for the MemGPT agent"""
 
@@ -608,6 +608,7 @@ class Agent(object):
                         user_id=self.agent_state.user_id,
                         model=self.model,
                         openai_message_dict={"role": "user", "content": cleaned_user_message_text, "name": name},
+                        created_at=timestamp,
                     )
 
                 else:
