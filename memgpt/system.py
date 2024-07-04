@@ -1,5 +1,6 @@
 import json
 import uuid
+from typing import Optional
 
 from .constants import (
     INITIAL_BOOT_MESSAGE,
@@ -115,7 +116,13 @@ def get_login_event(last_login="Never (first login)", include_location=False, lo
     return json.dumps(packaged_message, ensure_ascii=JSON_ENSURE_ASCII)
 
 
-def package_user_message(user_message, time=None, include_location=False, location_name="San Francisco, CA, USA", name=None):
+def package_user_message(
+    user_message: str,
+    time: Optional[str] = None,
+    include_location: bool = False,
+    location_name: Optional[str] = "San Francisco, CA, USA",
+    name: Optional[str] = None,
+):
     # Package the message with time and location
     formatted_time = time if time else get_local_time()
     packaged_message = {
