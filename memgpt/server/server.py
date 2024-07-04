@@ -363,7 +363,9 @@ class SyncServer(LockingServer):
             memgpt_agent = self._load_agent(user_id=user_id, agent_id=agent_id)
         return memgpt_agent
 
-    def _step(self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: Union[str, Message]) -> MemGPTUsageStatistics:
+    def _step(
+        self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: Union[str, Message], timestamp: Optional[datetime]
+    ) -> MemGPTUsageStatistics:
         """Send the input message through the agent"""
 
         logger.debug(f"Got input message: {input_message}")
@@ -389,6 +391,7 @@ class SyncServer(LockingServer):
                 skip_verify=no_verify,
                 return_dicts=False,
                 stream=token_streaming,
+                timestamp=timestamp,
             )
             step_count += 1
             total_usage += usage
@@ -560,7 +563,10 @@ class SyncServer(LockingServer):
             elif message.startswith("/"):
                 raise ValueError(f"Invalid input: '{message}'")
 
-            packaged_user_message = system.package_user_message(user_message=message)
+            packaged_user_message = system.package_user_message(
+                user_message=message,
+                time=timestamp.isoformat() if timestamp else None,
+            )
 
             # NOTE: eventually deprecate and only allow passing Message types
             # Convert to a Message object
@@ -569,9 +575,11 @@ class SyncServer(LockingServer):
                 agent_id=agent_id,
                 role="user",
                 text=packaged_user_message,
+                created_at=timestamp,
                 # name=None,  # TODO handle name via API
             )
 
+        # TODO: I don't think this does anything because all we care about is packaged_user_message which only exists if message is str
         if isinstance(message, Message):
             # Can't have a null text field
             if len(message.text) == 0 or message.text is None:
@@ -580,15 +588,15 @@ class SyncServer(LockingServer):
             elif message.text.startswith("/"):
                 raise ValueError(f"Invalid input: '{message.text}'")
 
+            if timestamp:
+                # Override the timestamp with what the caller provided
+                message.created_at = timestamp
+
         else:
             raise TypeError(f"Invalid input: '{message}' - type {type(message)}")
 
-        if timestamp:
-            # Override the timestamp with what the caller provided
-            message.created_at = timestamp
-
         # Run the agent state forward
-        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
+        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message, timestamp=timestamp)
         return usage
 
     # @LockingServer.agent_lock_decorator
