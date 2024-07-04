@@ -1,6 +1,5 @@
 import logging
 from logging.config import dictConfig
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from sys import stdout
 from typing import Optional

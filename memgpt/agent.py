@@ -401,7 +401,7 @@ class Agent(object):
             printd(f"Request to call function {function_name} with tool_call_id: {tool_call_id}")
             try:
                 function_to_call = self.functions_python[function_name]
-            except KeyError:
+            except KeyError as e:
                 error_msg = f"No function named {function_name}"
                 function_response = package_function_response(False, error_msg)
                 messages.append(
@@ -424,7 +424,7 @@ class Agent(object):
             try:
                 raw_function_args = function_call.arguments
                 function_args = parse_json(raw_function_args)
-            except Exception:
+            except Exception as e:
                 error_msg = f"Error parsing JSON for function '{function_name}' arguments: {function_call.arguments}"
                 function_response = package_function_response(False, error_msg)
                 messages.append(
@@ -549,6 +549,7 @@ class Agent(object):
         return_dicts: bool = True,  # if True, return dicts, if False, return Message objects
         recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
         stream: bool = False,  # TODO move to config?
+        timestamp: Optional[datetime.datetime] = None,
     ) -> Tuple[List[Union[dict, Message]], bool, bool, bool]:
         """Top-level event message handler for the MemGPT agent"""
 
@@ -608,6 +609,7 @@ class Agent(object):
                         user_id=self.agent_state.user_id,
                         model=self.model,
                         openai_message_dict={"role": "user", "content": cleaned_user_message_text, "name": name},
+                        created_at=timestamp,
                     )
 
                 else:
