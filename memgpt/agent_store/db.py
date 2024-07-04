@@ -314,7 +314,10 @@ class SQLStorageConnector(StorageConnector):
             # cursor logic: filter records based on before/after ID
             if after:
                 after_value = getattr(self.get(id=after), order_by)
-                sort_exp = getattr(self.db_model, order_by) > after_value
+                if reverse:  # if reverse, then we want to get records that are less than the after_value
+                    sort_exp = getattr(self.db_model, order_by) < after_value
+                else:  # otherwise, we want to get records that are greater than the after_value
+                    sort_exp = getattr(self.db_model, order_by) > after_value
                 query = query.filter(
                     or_(sort_exp, and_(getattr(self.db_model, order_by) == after_value, self.db_model.id > after))  # tiebreaker case
                 )
