@@ -563,7 +563,10 @@ class SyncServer(LockingServer):
             elif message.startswith("/"):
                 raise ValueError(f"Invalid input: '{message}'")
 
-            packaged_user_message = system.package_user_message(user_message=message, time=timestamp.isoformat())
+            packaged_user_message = system.package_user_message(
+                user_message=message,
+                time=timestamp.isoformat() if timestamp else None,
+            )
 
             # NOTE: eventually deprecate and only allow passing Message types
             # Convert to a Message object
