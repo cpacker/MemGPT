@@ -30,6 +30,7 @@ from memgpt.data_types import (
     Token,
     User,
 )
+
 # TODO use custom interface
 from memgpt.interface import AgentInterface  # abstract
 from memgpt.interface import CLIInterface  # for printing to terminal
@@ -47,6 +48,7 @@ from memgpt.models.pydantic_models import (
     SourceModel,
     ToolModel,
 )
+
 # from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.prompts import gpt_system
 from memgpt.utils import create_random_username
