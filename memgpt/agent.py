@@ -549,7 +549,7 @@ class Agent(object):
         return_dicts: bool = True,  # if True, return dicts, if False, return Message objects
         recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
         stream: bool = False,  # TODO move to config?
-        timestamp: Optional[datetime] = None,
+        timestamp: Optional[datetime.datetime] = None,
     ) -> Tuple[List[Union[dict, Message]], bool, bool, bool]:
         """Top-level event message handler for the MemGPT agent"""
 
