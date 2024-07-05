@@ -260,11 +260,11 @@ class RESTClient(AbstractClient):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
-        memory: BaseMemory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
+        memory: BaseMemory = ChatMemory(human=get_human_text(settings.human), persona=get_human_text(settings.persona)),
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,
-        metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
+        metadata: Optional[Dict] = {"human:": settings.human, "persona": settings.persona},
     ) -> AgentState:
         """
         Create an agent
@@ -724,12 +724,12 @@ class LocalClient(AbstractClient):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
-        memory: BaseMemory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
+        memory: BaseMemory = ChatMemory(human=get_human_text(settings.human), persona=get_human_text(settings.persona)),
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,
         # metadata
-        metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
+        metadata: Optional[Dict] = {"human:": settings.human, "persona": settings.persona},
     ) -> AgentState:
         if name and self.agent_exists(agent_name=name):
             raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")

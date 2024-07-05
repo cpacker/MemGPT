@@ -1,7 +1,7 @@
 from uuid import uuid4, UUID
 from typing import Optional, TYPE_CHECKING,Type, Union, List, Literal
 from humps import depascalize
-from sqlalchemy import select, UUID as SQLUUID
+from sqlalchemy import select, UUID as SQLUUID, Boolean
 from sqlalchemy.orm import (
     Mapped,
     mapped_column
@@ -26,7 +26,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
     _id: Mapped[UUID] = mapped_column(SQLUUID(), primary_key=True, default=uuid4)
 
-    deleted: Mapped[bool] = mapped_column(bool, default=False, doc="Is this record deleted? Used for universal soft deletes.")
+    deleted: Mapped[bool] = mapped_column(Boolean, default=False, doc="Is this record deleted? Used for universal soft deletes.")
 
     @property
     def __prefix__(self) -> str:

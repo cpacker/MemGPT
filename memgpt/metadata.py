@@ -10,7 +10,7 @@ from memgpt.orm.token import Token
 from memgpt.orm.agent import Agent
 from memgpt.orm.job import Job
 from memgpt.orm.preset import Preset
-from memgpt.orm.memory_templates import HumanModelTemplate, PersonaModelTemplate
+from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTemplate
 
 
 if TYPE_CHECKING:
@@ -164,11 +164,11 @@ class MetadataStore:
         return [s._id for s in Preset.read(self.db_session, preset_id).sources]
 
     def update_human(self, human: HumanModel) -> "HumanModel":
-        sql_human = HumanModelTemplate(**human.model_dump(exclude_none=True)).create(self.db_session)
+        sql_human = HumanMemoryTemplate(**human.model_dump(exclude_none=True)).create(self.db_session)
         return sql_human.to_record()
 
     def update_persona(self, persona: PersonaModel) -> "PersonaModel":
-        sql_persona = PersonaModelTemplate(**persona.model_dump(exclude_none=True)).create(self.db_session)
+        sql_persona = PersonaMemoryTemplate(**persona.model_dump(exclude_none=True)).create(self.db_session)
         return sql_persona.to_record()
 
     def get_all_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50) -> (Optional[uuid.UUID], List[User]):

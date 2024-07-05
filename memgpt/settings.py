@@ -1,5 +1,5 @@
 from pathlib import Path
-from urlparse import urlsplit, urlunsplit
+from urllib.parse import urlsplit, urlunsplit
 from typing import Optional, Literal
 from enum import Enum
 from pydantic import BaseModel, Field
@@ -26,11 +26,11 @@ class Settings(BaseSettings):
     @property
     def backend(self) -> BackendConfiguration:
         """Return an adjusted BackendConfiguration.
-        Note: defaults to sqlite-chroma if pg_uri is not set.
+        Note: defaults to sqlite_chroma if pg_uri is not set.
         """
         if self.pg_uri:
             return BackendConfiguration(name="postgres", database_uri=self._correct_pg_uri(self.pg_uri))
-        return BackendConfiguration(name="sqlite-chroma", database_uri=f"sqlite:///{self.memgpt_dir}/memgpt.db")
+        return BackendConfiguration(name="sqlite_chroma", database_uri=f"sqlite:///{self.memgpt_dir}/memgpt.db")
 
     def _correct_pg_uri(self) -> str:
         """It is awkward to have users set a scheme for the uri (because why should they know anything about what drivers we use?)

@@ -13,7 +13,7 @@ from memgpt.orm.__all__ import Base
 config = context.config
 section = config.config_ini_section
 # set the metadata database url from settings
-config.set_section_option(section, "MEMGPT_DATABASE_URL", settings.database_url)
+config.set_section_option(section, "MEMGPT_DATABASE_URL", settings.backend.database_uri)
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:

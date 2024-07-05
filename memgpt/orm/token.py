@@ -1,7 +1,8 @@
 from uuid import UUID, uuid4
 from typing import Optional, TYPE_CHECKING
 from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column, relationship, hybrid_property
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from memgpt.data_types import Token as PydanticToken
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
