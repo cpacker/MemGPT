@@ -32,11 +32,12 @@ class Settings(BaseSettings):
             return BackendConfiguration(name="postgres", database_uri=self._correct_pg_uri(self.pg_uri))
         return BackendConfiguration(name="sqlite_chroma", database_uri=f"sqlite:///{self.memgpt_dir}/memgpt.db")
 
-    def _correct_pg_uri(self) -> str:
+    @classmethod
+    def _correct_pg_uri(cls, uri:str) -> str:
         """It is awkward to have users set a scheme for the uri (because why should they know anything about what drivers we use?)
         So here we check (and correct) the provided uri to use the scheme we implement.
         """
-        url_parts = list(urlsplit(settings.pg_uri))
+        url_parts = list(urlsplit(uri))
         SCHEME = 0
         url_parts[SCHEME] = POSTGRES_SCHEME
         return urlunsplit(url_parts)

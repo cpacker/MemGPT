@@ -16,8 +16,8 @@ class Document(OrganizationMixin, SqlalchemyBase):
     __tablename__ = "document"
 
     text: Mapped[str] = mapped_column(doc="The full text for the document.")
-    data_source: Optional[str] = mapped_column(nullable=True, doc="Human readable description of where the passage came from.")
-    metadata_: Optional[dict] = mapped_column(JSON, default_factory=lambda: {}, doc="additional information about the passage.")
+    data_source: Mapped[Optional[str]] = mapped_column(nullable=True, doc="Human readable description of where the passage came from.")
+    metadata_: Mapped[Optional[dict]] = mapped_column(JSON, default=lambda: {}, doc="additional information about the passage.")
 
 
     # relationships
