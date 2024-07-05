@@ -9,6 +9,9 @@ from memgpt.orm.utilities import get_db_session
 from memgpt.orm.token import Token
 from memgpt.orm.agent import Agent
 from memgpt.orm.job import Job
+from memgpt.orm.preset import Preset
+from memgpt.orm.memory_templates import HumanModelTemplate, PersonaModelTemplate
+
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -21,6 +24,10 @@ from memgpt.data_types import (
     Source,
     Token,
     User,
+)
+from memgpt.models.pydantic_models import (
+    HumanModel,
+    PersonaModel,
 )
 from memgpt.orm.enums import JobStatus
 
@@ -96,6 +103,8 @@ class MetadataStore:
         action, raw_model_name = name.split("_",1)
         Model = globals().get(pascalize(raw_model_name)) # gross, but nessary for now
         match action:
+            case "add":
+                return self.getattr("_".join(["create",raw_model_name]))
             case "get":
                 # this has no support for scoping, but we won't keep this pattern long
                 return Model.read(self.db_session, args[0]).to_record()
@@ -110,9 +119,19 @@ class MetadataStore:
                 instance.update(self.db_session)
                 return instance.to_record()
             case "delete":
+                # hacky temp. look up the org for the user, get all the plural (related set) for that org and delete by name
+                if user_uuid := (args[1] if len(args) > 1 else None):
+                    org = User.read(user_uuid).organization
+                    related_set = getattr(org, (raw_model_name + "s"))
+                    related_set.filter(name=name).scalar().delete()
+                    return
                 instance = Model.read(self.db_session, args[0])
                 instance.delete(self.db_session)
             case "list":
+                # hacky temp. look up the org for the user, get all the plural (related set) for that org
+                if user_uuid := (args[1] if len(args) > 1 else None):
+                    org = User.read(user_uuid).organization
+                    return [r.to_record() for r in getattr(org, (raw_model_name + "s"))]
                 # TODO: this has no scoping, no pagination, and no filtering. it's a placeholder.
                 return [r.to_record() for r in Model.list(self.db_session)]
 
@@ -144,20 +163,13 @@ class MetadataStore:
     def get_preset_sources(self, preset_id: uuid.UUID) -> List[uuid.UUID]:
         return [s._id for s in Preset.read(self.db_session, preset_id).sources]
 
-    ## TODO: update these to get rid of SQLModel completely! this is up next.
-    @enforce_types
-    def update_human(self, human: HumanModel):
-        with self.session_maker() as session:
-            session.add(human)
-            session.commit()
-            session.refresh(human)
+    def update_human(self, human: HumanModel) -> "HumanModel":
+        sql_human = HumanModelTemplate(**human.model_dump(exclude_none=True)).create(self.db_session)
+        return sql_human.to_record()
 
-    @enforce_types
-    def update_persona(self, persona: PersonaModel):
-        with self.session_maker() as session:
-            session.add(persona)
-            session.commit()
-            session.refresh(persona)
+    def update_persona(self, persona: PersonaModel) -> "PersonaModel":
+        sql_persona = PersonaModelTemplate(**persona.model_dump(exclude_none=True)).create(self.db_session)
+        return sql_persona.to_record()
 
     def get_all_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50) -> (Optional[uuid.UUID], List[User]):
         del limit # TODO: implement pagination as part of predicate
@@ -180,95 +192,13 @@ class MetadataStore:
         source = Source.read(self.db_session, source_id)
         agent.sources.remove(source)
 
-    @enforce_types
-    def add_human(self, human: HumanModel):
-        with self.session_maker() as session:
-            if self.get_human(human.name, human.user_id):
-                raise ValueError(f"Human with name {human.name} already exists for user_id {human.user_id}")
-            session.add(human)
-            session.commit()
-
-    @enforce_types
-    def add_persona(self, persona: PersonaModel):
-        with self.session_maker() as session:
-            if self.get_persona(persona.name, persona.user_id):
-                raise ValueError(f"Persona with name {persona.name} already exists for user_id {persona.user_id}")
-            session.add(persona)
-            session.commit()
-
-    def add_preset(self, preset: PresetModel) -> "PresetModel":
-        return self.create_preset(preset)
-
-    def add_tool(self, tool: ToolModel):
-        return self.create_tool(tool)
-
     def get_human(self, name: str, user_id: uuid.UUID) -> Optional[HumanModel]:
-        # TODO: What? why does a getter take a 1:m id?
-        with self.session_maker() as session:
-            results = session.query(HumanModel).filter(HumanModel.name == name).filter(HumanModel.user_id == user_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0]
+        org = User.read(self.db_session, user_id)
+        return org.human_memory_templates.filter(name=name).scalar()
 
-    @enforce_types
     def get_persona(self, name: str, user_id: uuid.UUID) -> Optional[PersonaModel]:
-        with self.session_maker() as session:
-            results = session.query(PersonaModel).filter(PersonaModel.name == name).filter(PersonaModel.user_id == user_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0]
-
-    @enforce_types
-    def list_personas(self, user_id: uuid.UUID) -> List[PersonaModel]:
-        with self.session_maker() as session:
-            results = session.query(PersonaModel).filter(PersonaModel.user_id == user_id).all()
-            return results
-
-    @enforce_types
-    def list_humans(self, user_id: uuid.UUID) -> List[HumanModel]:
-        with self.session_maker() as session:
-            # if user_id matches provided user_id or if user_id is None
-            results = session.query(HumanModel).filter(HumanModel.user_id == user_id).all()
-            return results
-
-    @enforce_types
-    def list_presets(self, user_id: uuid.UUID) -> List[PresetModel]:
-        with self.session_maker() as session:
-            results = session.query(PresetModel).filter(PresetModel.user_id == user_id).all()
-            return results
-
-    @enforce_types
-    def delete_human(self, name: str, user_id: uuid.UUID):
-        with self.session_maker() as session:
-            session.query(HumanModel).filter(HumanModel.name == name).filter(HumanModel.user_id == user_id).delete()
-            session.commit()
-
-    @enforce_types
-    def delete_persona(self, name: str, user_id: uuid.UUID):
-        with self.session_maker() as session:
-            session.query(PersonaModel).filter(PersonaModel.name == name).filter(PersonaModel.user_id == user_id).delete()
-            session.commit()
-
-    @enforce_types
-    def delete_preset(self, name: str, user_id: uuid.UUID):
-        with self.session_maker() as session:
-            session.query(PresetModel).filter(PresetModel.name == name).filter(PresetModel.user_id == user_id).delete()
-            session.commit()
-
-    @enforce_types
-    def delete_tool(self, name: str, user_id: uuid.UUID):
-        with self.session_maker() as session:
-            session.query(ToolModel).filter(ToolModel.name == name).filter(ToolModel.user_id == user_id).delete()
-            session.commit()
-
-    # job related functions
-    def create_job(self, job: JobModel):
-        with self.session_maker() as session:
-            session.add(job)
-            session.commit()
-            session.expunge_all()
+        org = User.read(self.db_session, user_id)
+        return org.human_memory_templates.filter(name=name).scalar()
 
     def update_job_status(self, job_id: uuid.UUID, status: JobStatus):
         job = Job.read(self.db_session, job_id)

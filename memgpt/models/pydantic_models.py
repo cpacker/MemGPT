@@ -2,7 +2,7 @@
 from uuid import UUID
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Literal
 
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -100,22 +100,24 @@ class CoreMemory(BaseModel):
     human: str = Field(..., description="Human element of the core memory.")
     persona: str = Field(..., description="Persona element of the core memory.")
 
-class MemorySection(PersistedBase):
+class MemoryTemplate(PersistedBase):
     """the common base for the legacy memory sections.
     This is going away in favor of MemoryModule dynamic sections.
     memgpt/memory.py
     """
     text: Optional[str] = Field(default=get_human_text(settings.human), description="The content to be added to this section of core memory.")
+    type: Literal["human", "persona"] = Field(..., description="The type of memory section.")
     name: str = Field(..., description="The name of the memory section.")
     organization: Optional[OrganizationSummary] = Field(None, description="The organization this memory belongs to.")
 
-class HumanMemory(MemorySection):
+class HumanModel(MemoryTemplate):
     """Specifically for human, legacy"""
+    type: Literal["human"] = "human"
 
 
-class PersonaModel(MemorySection):
+class PersonaModel(MemoryTemplate):
     """Specifically for persona, legacy"""
-
+    type: Literal["persona"] = "persona"
 
 class SourceModel(PersistedBase):
     name: str = Field(..., description="The name of the source.")
