@@ -13,12 +13,35 @@ theme:
 
 nav:
   - Data Models: data_models.md
-  - Client: index.md
+  - Client:
+      #- Overview: index.md
+      - RESTClient: client/rest_client.md
+      - LocalClient: client/local_client.md
 plugins:
-- mkdocstrings
-  #  custom_templates: templates
-  #  default_handler: python
-  #  handlers:
-  #    python:
-  #      options:
-  #        show_source: false
+  - mkdocstrings
+
+#site_name: "MemGPT API Reference"
+#
+#theme:
+#  name: "material"
+#  features:
+#    - navigation.instant
+#    - navigation.footer
+#    - navigation.indexes
+#    - navigation.sections
+#    - navigation.tabs
+#    - navigation.tabs.sticky
+#    - navigation.top
+#
+#nav:
+#  - Data Models: data_models.md
+#  - Client: index.md
+#plugins:
+#- mkdocstrings
+#  #  custom_templates: templates
+#  #  default_handler: python
+#  #  handlers:
+#  #    python:
+#  #      options:
+#  #        show_source: false
+#

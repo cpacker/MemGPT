@@ -41,7 +41,20 @@ class CreateAgentResponse(BaseModel):
 def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
-    @router.get("/agents", tags=["agents"], response_model=ListAgentsResponse)
+    # @router.get("/agents", tags=["agents"], response_model=ListAgentsResponse)
+    # def list_agents(
+    #    user_id: uuid.UUID = Depends(get_current_user_with_server),
+    # ):
+    #    """
+    #    List all agents associated with a given user.
+
+    #    This endpoint retrieves a list of all agents and their configurations associated with the specified user ID.
+    #    """
+    #    interface.clear()
+    #    agents_data = server.list_agents(user_id=user_id)
+    #    return ListAgentsResponse(**agents_data)
+
+    @router.get("/agents", tags=["agents"], response_model=List[AgentStateModel])
     def list_agents(
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
@@ -51,8 +64,22 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         This endpoint retrieves a list of all agents and their configurations associated with the specified user ID.
         """
         interface.clear()
-        agents_data = server.list_agents(user_id=user_id)
-        return ListAgentsResponse(**agents_data)
+        agent_states = server.ms.list_agents(user_id=user_id)
+        return [
+            AgentStateModel(
+                id=agent_state.id,
+                name=agent_state.name,
+                user_id=agent_state.user_id,
+                llm_config=LLMConfigModel(**vars(agent_state.llm_config)),
+                embedding_config=EmbeddingConfigModel(**vars(agent_state.embedding_config)),
+                state=agent_state.state,
+                created_at=int(agent_state.created_at.timestamp()),
+                tools=agent_state.tools,
+                system=agent_state.system,
+                metadata=agent_state._metadata,
+            )
+            for agent_state in agent_states
+        ]
 
     @router.post("/agents", tags=["agents"], response_model=CreateAgentResponse)
     def create_agent(

@@ -65,7 +65,7 @@ class MemoryModule(BaseModel):
             return ""
 
 
-class BaseMemory:
+class BaseMemory(BaseModel):
 
     def __init__(self):
         self.memory = {}

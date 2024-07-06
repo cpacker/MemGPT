@@ -91,6 +91,30 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
             sources=attached_sources,
         )
 
+    @router.get("/agents/{agent_name}", tags=["agents"], response_model=AgentStateModel)
+    def get_agent(
+        agent_name: str,
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        """Get agent by name"""
+        interface.clear()
+        if not server.ms.get_agent(user_id=user_id, agent_name=agent_name):
+            raise HTTPException(status_code=404, detail=f"Agent agent_name={agent_name} not found.")
+
+        agent_state = server.ms.get_agent(user_id=user_id, agent_name=agent_name)
+        return AgentStateModel(
+            id=agent_state.id,
+            name=agent_state.name,
+            user_id=agent_state.user_id,
+            llm_config=LLMConfigModel(**vars(agent_state.llm_config)),
+            embedding_config=EmbeddingConfigModel(**vars(agent_state.embedding_config)),
+            state=agent_state.state,
+            created_at=int(agent_state.created_at.timestamp()),
+            tools=agent_state.tools,
+            system=agent_state.system,
+            metadata=agent_state._metadata,
+        )
+
     @router.patch("/agents/{agent_id}/rename", tags=["agents"], response_model=GetAgentResponse)
     def update_agent_name(
         agent_id: uuid.UUID,
@@ -129,6 +153,7 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
                 created_at=int(agent_state.created_at.timestamp()),
                 tools=agent_state.tools,
                 system=agent_state.system,
+                metadata=agent_state._metadata,
             ),
             last_run_at=None,  # TODO
             sources=attached_sources,

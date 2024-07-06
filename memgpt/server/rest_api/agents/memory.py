@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from memgpt.memory import BaseMemory
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -13,13 +14,13 @@ from memgpt.server.server import SyncServer
 router = APIRouter()
 
 
-class CoreMemory(BaseModel):
-    human: str | None = Field(None, description="Human element of the core memory.")
-    persona: str | None = Field(None, description="Persona element of the core memory.")
+# class CoreMemory(BaseModel):
+#    human: str | None = Field(None, description="Human element of the core memory.")
+#    persona: str | None = Field(None, description="Persona element of the core memory.")
 
 
 class GetAgentMemoryResponse(BaseModel):
-    core_memory: CoreMemory = Field(..., description="The state of the agent's core memory.")
+    core_memory: BaseMemory = Field(..., description="The state of the agent's core memory.")
     recall_memory: int = Field(..., description="Size of the agent's recall memory.")
     archival_memory: int = Field(..., description="Size of the agent's archival memory.")
 
@@ -31,8 +32,8 @@ class UpdateAgentMemoryRequest(BaseModel):
 
 
 class UpdateAgentMemoryResponse(BaseModel):
-    old_core_memory: CoreMemory = Field(..., description="The previous state of the agent's core memory.")
-    new_core_memory: CoreMemory = Field(..., description="The updated state of the agent's core memory.")
+    old_core_memory: BaseMemory = Field(..., description="The previous state of the agent's core memory.")
+    new_core_memory: BaseMemory = Field(..., description="The updated state of the agent's core memory.")
 
 
 class ArchivalMemoryObject(BaseModel):
