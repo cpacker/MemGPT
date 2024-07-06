@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from memgpt.memory import BaseMemory
+from memgpt.models.pydantic_models import PassageModel
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -95,7 +96,7 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
         response = server.update_agent_core_memory(user_id=user_id, agent_id=agent_id, new_memory_contents=new_memory_contents)
         return UpdateAgentMemoryResponse(**response)
 
-    @router.get("/agents/{agent_id}/archival/all", tags=["agents"], response_model=GetAgentArchivalMemoryResponse)
+    @router.get("/agents/{agent_id}/archival/all", tags=["agents"], response_model=List[PassageModel])
     def get_agent_archival_memory_all(
         agent_id: uuid.UUID,
         user_id: uuid.UUID = Depends(get_current_user_with_server),
@@ -105,11 +106,12 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
         """
         interface.clear()
         archival_memories = server.get_all_archival_memories(user_id=user_id, agent_id=agent_id)
-        print("archival_memories:", archival_memories)
-        archival_memory_objects = [ArchivalMemoryObject(id=passage["id"], contents=passage["contents"]) for passage in archival_memories]
-        return GetAgentArchivalMemoryResponse(archival_memory=archival_memory_objects)
+        return archival_memories
+        # print("archival_memories:", archival_memories)
+        # archival_memory_objects = [ArchivalMemoryObject(id=passage["id"], contents=passage["contents"]) for passage in archival_memories]
+        # return GetAgentArchivalMemoryResponse(archival_memory=archival_memory_objects)
 
-    @router.get("/agents/{agent_id}/archival", tags=["agents"], response_model=GetAgentArchivalMemoryResponse)
+    @router.get("/agents/{agent_id}/archival", tags=["agents"], response_model=List[PassageModel])
     def get_agent_archival_memory(
         agent_id: uuid.UUID,
         after: Optional[int] = Query(None, description="Unique ID of the memory to start the query range at."),
@@ -124,15 +126,16 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
         # TODO need to add support for non-postgres here
         # chroma will throw:
         #     raise ValueError("Cannot run get_all_cursor with chroma")
-        _, archival_json_records = server.get_agent_archival_cursor(
+        _, archival_records = server.get_agent_archival_cursor(
             user_id=user_id,
             agent_id=agent_id,
             after=after,
             before=before,
             limit=limit,
         )
-        archival_memory_objects = [ArchivalMemoryObject(id=passage["id"], contents=passage["text"]) for passage in archival_json_records]
-        return GetAgentArchivalMemoryResponse(archival_memory=archival_memory_objects)
+        return archival_records
+        # archival_memory_objects = [ArchivalMemoryObject(id=passage["id"], contents=passage["text"]) for passage in archival_json_records]
+        # return GetAgentArchivalMemoryResponse(archival_memory=archival_memory_objects)
 
     @router.post("/agents/{agent_id}/archival", tags=["agents"], response_model=InsertAgentArchivalMemoryResponse)
     def insert_agent_archival_memory(

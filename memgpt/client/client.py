@@ -5,27 +5,35 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
 
 import requests
+from pydantic import BaseModel
 
 from memgpt.config import MemGPTConfig
 from memgpt.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.data_sources.connectors import DataConnector
-from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, Preset, Source
+from memgpt.data_types import (
+    AgentState,
+    EmbeddingConfig,
+    LLMConfig,
+    Message,
+    Preset,
+    Source,
+)
 from memgpt.functions.functions import parse_source_code
 from memgpt.functions.schema_generator import generate_schema
 from memgpt.memory import BaseMemory, ChatMemory, get_memory_functions
-from memgpt.models.chat_completion_response import Message
 from memgpt.models.pydantic_models import (
     AgentStateModel,
     HumanModel,
     JobModel,
     JobStatus,
     LLMConfigModel,
+    MemGPTUsageStatistics,
+    PassageModel,
     PersonaModel,
     PresetModel,
     SourceModel,
     ToolModel,
 )
-from memgpt.server.rest_api.agents.command import CommandResponse
 from memgpt.server.rest_api.agents.config import GetAgentResponse
 from memgpt.server.rest_api.agents.index import CreateAgentResponse
 from memgpt.server.rest_api.agents.memory import (
@@ -47,6 +55,12 @@ from memgpt.server.rest_api.sources.index import ListSourcesResponse
 from memgpt.server.rest_api.tools.index import CreateToolRequest, ListToolsResponse
 from memgpt.server.server import SyncServer
 from memgpt.utils import get_human_text
+
+
+class MessageResponse(BaseModel):
+    # TODO: eventually REST endpoints should also return this
+    messages: List[Message]
+    usage: MemGPTUsageStatistics
 
 
 def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
@@ -604,7 +618,7 @@ class RESTClient(AbstractClient):
 
     # agent interactions
 
-    def user_message(self, agent_id: str, message: str) -> GetAgentMessagesResponse:
+    def user_message(self, agent_id: str, message: str) -> MessageResponse:
         """Send a message to the agent as a user
 
         Args:
@@ -612,22 +626,28 @@ class RESTClient(AbstractClient):
             message (str): Message to send
 
         Returns:
+            response (MessageResponse): The message response
 
         """
         return self.send_message(agent_id, message, role="user")
-
-    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
-        response = requests.post(f"{self.base_url}/api/agents/{str(agent_id)}/command", json={"command": command}, headers=self.headers)
-        return CommandResponse(**response.json())
-
-    def save(self):
-        raise NotImplementedError
 
     # archival memory
 
     def get_agent_archival_memory(
         self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-    ):
+    ) -> List[PassageModel]:
+        """Get archival memory for an agent
+
+        Args:
+            agent_id (uuid.UUID): ID of the agent
+            before (uuid.UUID): Get memories before this ID
+            after (uuid.UUID): Get memories after this ID
+            limit (int): Number of memories to return
+
+        Returns:
+            passages (List[PassageModel]): List of memory passages
+
+        """
         params = {"limit": limit}
         if before:
             params["before"] = str(before)
@@ -635,15 +655,32 @@ class RESTClient(AbstractClient):
             params["after"] = str(after)
         response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/archival", params=params, headers=self.headers)
         assert response.status_code == 200, f"Failed to get archival memory: {response.text}"
-        return GetAgentArchivalMemoryResponse(**response.json())
+        return [PassageModel(**passage) for passage in response.json()]
 
-    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> GetAgentArchivalMemoryResponse:
+    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> List[uuid.UUID]:
+        """Insert archival memory record for an agent
+
+        Args:
+            agent_id (uuid.UUID): ID of the agent
+            memory (str): Memory to insert
+
+        Returns:
+            memory_ids (List[uuid.UUID]): List of memory IDs corresponding to inserted passages
+
+        """
         response = requests.post(f"{self.base_url}/api/agents/{agent_id}/archival", json={"content": memory}, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to insert archival memory: {response.text}")
-        return InsertAgentArchivalMemoryResponse(**response.json())
+        response_obj = InsertAgentArchivalMemoryResponse(**response.json())
+        return [uuid.UUID(id) for id in response_obj.ids]
 
     def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
+        """Delete archival memory record for an agent
+
+        Args:
+            agent_id (uuid.UUID): ID of the agent
+            memory_id (uuid.UUID
+        """
         response = requests.delete(f"{self.base_url}/api/agents/{agent_id}/archival?id={memory_id}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete archival memory: {response.text}"
 
@@ -652,13 +689,27 @@ class RESTClient(AbstractClient):
     def get_messages(
         self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
     ) -> List[Message]:
+        """Get agent messages
+
+        Args:
+            agent_id (uuid.UUID): ID of the agent
+            before (uuid.UUID): Get messages before this ID
+            after (uuid.UUID): Get messages after this ID
+            limit (int): Number of messages to return
+
+        Returns:
+            messages (List[Message]): List of messages
+        """
         params = {"before": before, "after": after, "limit": limit}
         response = requests.get(f"{self.base_url}/api/agents/{agent_id}/messages-cursor", params=params, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get messages: {response.text}")
-        return GetAgentMessagesResponse(**response.json())
+        response_obj = GetAgentMessagesResponse(**response.json())
+        message_dicts = response_obj.messages
+        messages = [Message.dict_to_message(msg) for msg in message_dicts]  # convert to Message objects
+        return messages
 
-    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
+    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> MessageResponse:
         """Send a message to the agent
 
         Args:
@@ -668,7 +719,7 @@ class RESTClient(AbstractClient):
             stream (bool): Stream the message response
 
         Returns:
-            UserMessageResponse: The message response
+            response (MessageResponse): The message response
 
         Examples:
             Sending a user message:
@@ -681,7 +732,10 @@ class RESTClient(AbstractClient):
         response = requests.post(f"{self.base_url}/api/agents/{agent_id}/messages", json=data, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to send message: {response.text}")
-        return UserMessageResponse(**response.json())
+        response_obj = UserMessageResponse(**response.json())
+        message_dicts = response_obj.messages
+        messages = [Message.dict_to_message(msg) for msg in message_dicts]  # convert to Message objects
+        return MessageResponse(messages=messages, usage=response_obj.usage)
 
     # humans / personas
 
@@ -725,20 +779,52 @@ class RESTClient(AbstractClient):
 
     # sources
 
-    def list_sources(self):
+    def list_sources(self) -> List[SourceModel]:
+        """List all sources
+
+        Returns:
+            sources (List[SourceModel]): List of sources
+
+        """
         response = requests.get(f"{self.base_url}/api/sources", headers=self.headers)
         response_json = response.json()
-        return ListSourcesResponse(**response_json)
+        return ListSourcesResponse(**response_json).sources
 
     def delete_source(self, source_id: uuid.UUID):
+        """Delete a source
+
+        Args:
+            source_id (uuid.UUID): ID of the source
+
+        """
         response = requests.delete(f"{self.base_url}/api/sources/{str(source_id)}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete source: {response.text}"
 
-    def get_job_status(self, job_id: uuid.UUID):
+    def get_job(self, job_id: uuid.UUID):
+        """Get status of a job
+
+        Args:
+            job_id (uuid.UUID): ID of the job
+
+        Returns:
+            job (JobModel): Job status
+
+        """
         response = requests.get(f"{self.base_url}/api/sources/status/{str(job_id)}", headers=self.headers)
         return JobModel(**response.json())
 
-    def load_file_into_source(self, filename: str, source_id: uuid.UUID, blocking=True):
+    def load_file_into_source(self, filename: str, source_id: uuid.UUID, blocking=True) -> JobModel:
+        """Load a file into a source
+
+        Args:
+            filename (str): Name of the file
+            source_id (uuid.UUID): ID of the source
+            blocking (bool): Wait for job to complete
+
+        Returns:
+            job (JobModel): Job information to tracking upload job status
+
+        """
         files = {"file": open(filename, "rb")}
 
         # create job
@@ -759,6 +845,15 @@ class RESTClient(AbstractClient):
         return job
 
     def create_source(self, name: str) -> Source:
+        """Create a new source
+
+        Args:
+            name (str): Name of the source
+
+        Returns:
+            source (Source): The created source
+
+        """
         payload = {"name": name}
         response = requests.post(f"{self.base_url}/api/sources", json=payload, headers=self.headers)
         response_json = response.json()
@@ -773,24 +868,55 @@ class RESTClient(AbstractClient):
         )
 
     def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
+        """Attach a source to an agent
+
+        Args:
+            source_id (uuid.UUID): ID of the source
+            agent_id (uuid.UUID): ID of the agent
+
+        """
         params = {"agent_id": agent_id}
         response = requests.post(f"{self.base_url}/api/sources/{source_id}/attach", params=params, headers=self.headers)
         assert response.status_code == 200, f"Failed to attach source to agent: {response.text}"
 
     def detach_source(self, source_id: uuid.UUID, agent_id: uuid.UUID):
+        """Detach a source from an agent
+
+        Args:
+            source_id (uuid.UUID): ID of the source
+            agent_id (uuid.UUID): ID of the agent
+
+        """
         params = {"agent_id": str(agent_id)}
         response = requests.post(f"{self.base_url}/api/sources/{source_id}/detach", params=params, headers=self.headers)
         assert response.status_code == 200, f"Failed to detach source from agent: {response.text}"
 
     # server configuration commands
 
-    def list_models(self) -> ListModelsResponse:
-        response = requests.get(f"{self.base_url}/api/models", headers=self.headers)
-        return ListModelsResponse(**response.json())
+    def list_models(self) -> List[LLMConfigModel]:
+        """List available model configurations on the server
 
-    def get_config(self) -> ConfigResponse:
+        Returns:
+            models (List[LLMConfigModel]): List of model configurations
+
+        """
+        response = requests.get(f"{self.base_url}/api/models", headers=self.headers)
+        return ListModelsResponse(**response.json()).models
+
+    def get_config(self) -> MemGPTConfig:
+        """Get the configuration for the MemGPT server
+
+        Returns:
+            config (MemGPTConfig): The server configuration
+
+        """
         response = requests.get(f"{self.base_url}/api/config", headers=self.headers)
-        return ConfigResponse(**response.json())
+        config = ConfigResponse(**response.json()).config
+        llm_config = LLMConfig(**config["default_llm_config"])
+        embedding_config = EmbeddingConfig(**config["default_embedding_config"])
+        del config["default_llm_config"]
+        del config["default_embedding_config"]
+        return MemGPTConfig(**config, default_llm_config=llm_config, default_embedding_config=embedding_config)
 
     # tools
 
@@ -800,7 +926,7 @@ class RESTClient(AbstractClient):
         name: Optional[str] = None,
         update: Optional[bool] = True,  # TODO: actually use this
         tags: Optional[List[str]] = None,
-    ):
+    ) -> ToolModel:
         """Create a tool
 
         Args:
@@ -809,7 +935,7 @@ class RESTClient(AbstractClient):
             update (bool, optional): Update the tool if it already exists. Defaults to True.
 
         Returns:
-            Tool object
+            tool (ToolModel): Created tool object
         """
 
         # TODO: check if tool already exists
@@ -833,19 +959,39 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to create tool: {response.text}")
         return ToolModel(**response.json())
 
-    def list_tools(self) -> ListToolsResponse:
+    def list_tools(self) -> List[ToolModel]:
+        """List available tools
+
+        Returns:
+            tools (List[ToolModel]): List of tools
+
+        """
         response = requests.get(f"{self.base_url}/api/tools", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to list tools: {response.text}")
         return ListToolsResponse(**response.json()).tools
 
     def delete_tool(self, name: str):
+        """Delete a tool
+
+        Args:
+            name (str): Name of the tool
+
+        """
         response = requests.delete(f"{self.base_url}/api/tools/{name}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to delete tool: {response.text}")
-        return response.json()
 
-    def get_tool(self, name: str):
+    def get_tool(self, name: str) -> ToolModel:
+        """Get tool information
+
+        Args:
+            name (str): Name of the tool
+
+        Returns:
+            tool (ToolModel): Tool object
+
+        """
         response = requests.get(f"{self.base_url}/api/tools/{name}", headers=self.headers)
         if response.status_code == 404:
             return None

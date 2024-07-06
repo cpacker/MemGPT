@@ -1066,7 +1066,7 @@ class SyncServer(LockingServer):
         limit: Optional[int] = 100,
         order_by: Optional[str] = "created_at",
         reverse: Optional[bool] = False,
-    ):
+    ) -> Tuple[uuid.UUID, List[PassageModel]]:
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
@@ -1079,8 +1079,7 @@ class SyncServer(LockingServer):
         cursor, records = memgpt_agent.persistence_manager.archival_memory.storage.get_all_cursor(
             after=after, before=before, limit=limit, order_by=order_by, reverse=reverse
         )
-        json_records = [vars(record) for record in records]
-        return cursor, json_records
+        return cursor, records
 
     def get_all_archival_memories(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> list:
         # TODO deprecate (not safe to be returning an unbounded list)
@@ -1094,8 +1093,7 @@ class SyncServer(LockingServer):
 
         # Assume passages
         records = memgpt_agent.persistence_manager.archival_memory.storage.get_all()
-
-        return [dict(id=str(r.id), contents=r.text) for r in records]
+        return records
 
     def insert_archival_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, memory_contents: str) -> uuid.UUID:
         if self.ms.get_user(user_id=user_id) is None:
