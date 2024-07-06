@@ -1,0 +1,13 @@
+{{- if .Values.vectordb.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "memgpt.fullname" . }}-db-svc
+  labels:
+    {{- include "memgpt.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: 5432
+  selector:
+    app: {{ include "memgpt.fullname" . }}-db
+{{- end }}

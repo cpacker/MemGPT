@@ -1,0 +1,15 @@
+{{- if .Values.vectordb.enabled }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ include "memgpt.fullname" . }}-db-pv
+  labels:
+    {{- include "memgpt.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: "./.persist/pgdata"
+{{- end }}

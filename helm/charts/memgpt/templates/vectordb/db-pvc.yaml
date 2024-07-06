@@ -1,0 +1,14 @@
+{{- if .Values.vectordb.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "memgpt.fullname" . }}-db-pvc
+  labels:
+    {{- include "memgpt.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+{{- end }}
