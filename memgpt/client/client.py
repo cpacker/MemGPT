@@ -698,15 +698,6 @@ class LocalClient(AbstractClient):
         # create user if does not exist
         self.server.create_user({"id": self.user_id}, exists_ok=True)
 
-    # messages
-    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
-        self.interface.clear()
-        usage = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
-        if self.auto_save:
-            self.save()
-        else:
-            return UserMessageResponse(messages=self.interface.to_list(), usage=usage)
-
     # agents
 
     def list_agents(self):
@@ -805,6 +796,9 @@ class LocalClient(AbstractClient):
     # agent interactions
 
     def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
+        if stream:
+            # TODO: implement streaming with stream=True/False
+            raise NotImplementedError
         self.interface.clear()
         if role == "system":
             usage = self.server.system_message(user_id=self.user_id, agent_id=agent_id, message=message)
