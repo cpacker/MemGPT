@@ -795,9 +795,11 @@ class LocalClient(AbstractClient):
 
     # agent interactions
 
-    def send_message(self, agent_id: uuid.UUID, message: str, role: str) -> UserMessageResponse:
+    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
+        if stream:
+            # TODO: implement streaming with stream=True/False
+            raise NotImplementedError
         self.interface.clear()
-        # TODO: implement streaming with stream=True/False
         if role == "system":
             usage = self.server.system_message(user_id=self.user_id, agent_id=agent_id, message=message)
         elif role == "user":
