@@ -18,7 +18,12 @@ nav:
       - RESTClient: client/rest_client.md
       - LocalClient: client/local_client.md
 plugins:
-  - mkdocstrings
+- mkdocstrings:
+    handlers:
+      python:
+        options:
+          group_by_category: true
+          show_category_heading: true
 
 #site_name: "MemGPT API Reference"
 #
