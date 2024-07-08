@@ -468,6 +468,11 @@ NOUN_BANK = [
 ]
 
 
+def datetime_to_unix_int(dt: datetime) -> int:
+    unix_timestamp = int(dt.replace(tzinfo=timezone.utc).timestamp())
+    return unix_timestamp
+
+
 def smart_urljoin(base_url: str, relative_url: str) -> str:
     """urljoin is stupid and wants a trailing / at the end of the endpoint address, or it will chop the suffix off"""
     if not base_url.endswith("/"):

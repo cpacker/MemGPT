@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 
 from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig
 from memgpt.models.pydantic_models import (
@@ -6,11 +6,7 @@ from memgpt.models.pydantic_models import (
     EmbeddingConfigModel,
     LLMConfigModel,
 )
-
-
-def datetime_to_unix_int(dt: datetime) -> int:
-    unix_timestamp = int(dt.replace(tzinfo=timezone.utc).timestamp())
-    return unix_timestamp
+from memgpt.utils import datetime_to_unix_int
 
 
 def embeddingconfig_to_embeddingconfigmodel(embedding_config: EmbeddingConfig):
@@ -34,7 +30,7 @@ def llmconfig_to_llmconfigmodel(llm_config: LLMConfig):
 
 
 def agentstate_to_agentstatemodel(agent_state: AgentState):
-    return AgentStateModel(
+    model = AgentStateModel(
         id=agent_state.id,
         name=agent_state.name,
         description=None,
@@ -47,3 +43,9 @@ def agentstate_to_agentstatemodel(agent_state: AgentState):
         state=agent_state.state,
         metadata=agent_state._metadata,
     )
+
+    # TODO this really needs to be done via a pydantic model auto-conversion
+    if "last_run" in model.metadata and isinstance(model.metadata["last_run"], datetime):
+        model.metadata["last_run"] = datetime_to_unix_int(model.metadata["last_run"])
+
+    return model
