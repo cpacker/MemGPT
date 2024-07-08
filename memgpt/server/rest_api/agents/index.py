@@ -65,8 +65,7 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
             limit=request.limit,
             order=request.order,
         )
-        # TODO make this the real count
-        num_agents = len(agents_data)
+        num_agents = server.ms.count_agents(user_id=user_id)
         return ListAgentsResponse(num_agents=num_agents, agents=agents_data)
 
     @router.post("/agents", tags=["agents"], response_model=CreateAgentResponse)

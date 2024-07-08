@@ -617,7 +617,14 @@ class MetadataStore:
             results = session.query(AgentModel).filter(AgentModel.user_id == user_id).all()
             return [r.to_record() for r in results]
 
+    @enforce_types
+    def count_agents(self, user_id: uuid.UUID) -> int:
+        with self.session_maker() as session:
+            count = session.query(func.count(AgentModel.id)).filter(AgentModel.user_id == user_id).scalar()
+        return count
+
     # @enforce_types
+    # NOTE: disabled because - TypeError: Subscripted generics cannot be used with class and instance checks
     def list_agents(
         self,
         user_id: uuid.UUID,
