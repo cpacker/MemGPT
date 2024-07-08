@@ -934,6 +934,8 @@ class Agent(object):
         }
 
         ## Additional metadata we want to track (that's useful for the client to know)
+        if self.agent_state._metadata is None:
+            self.agent_state._metadata = {}
         # When was the last run step?
         last_msg_obj = self._messages[-1]
         self.agent_state._metadata["last_run"] = last_msg_obj.created_at
