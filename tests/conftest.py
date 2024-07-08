@@ -121,7 +121,7 @@ def db_session(request) -> "Session":
         case "sqlite_chroma":
             database_uri = f"sqlite:///{adapter['database']}"
         case "postgres":
-            url_parts = list(urlsplit(settings.postgres_uri))
+            url_parts = list(urlsplit(settings.backend.database_uri))
             PATH_PARAM = 2
             url_parts[PATH_PARAM] = f"/{adapter['database']}"
             database_uri = urlunsplit(url_parts)

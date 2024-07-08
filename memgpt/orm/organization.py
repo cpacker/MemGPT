@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from memgpt.orm.source import Source
     from memgpt.orm.tool import Tool
     from memgpt.orm.preset import Preset
+    from memgpt.orm.document import Document
     from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTemplate
     from sqlalchemy.orm import Session
 
@@ -30,6 +31,7 @@ class Organization(SqlalchemyBase):
     presets: Mapped["Preset"] = relationship("Preset", back_populates="organization", cascade="all, delete-orphan")
     personas: Mapped["PersonaMemoryTemplate"] = relationship("PersonaMemoryTemplate", back_populates="organization", cascade="all, delete-orphan")
     humans: Mapped["HumanMemoryTemplate"] = relationship("HumanMemoryTemplate", back_populates="organization", cascade="all, delete-orphan")
+    documents: Mapped["Document"] = relationship("Document", back_populates="organization", cascade="all, delete-orphan")
 
     @classmethod
     def default(cls, db_session:"Session") -> "Organization":
