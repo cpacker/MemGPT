@@ -938,7 +938,9 @@ class Agent(object):
             self.agent_state._metadata = {}
         # When was the last run step?
         last_msg_obj = self._messages[-1]
-        self.agent_state._metadata["last_run"] = last_msg_obj.created_at
+        from memgpt.utils import datetime_to_unix_int
+
+        self.agent_state._metadata["last_run"] = datetime_to_unix_int(last_msg_obj.created_at)
         # Basic memory statistics
         recall_memory = self.persistence_manager.recall_memory
         archival_memory = self.persistence_manager.archival_memory
