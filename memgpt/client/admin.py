@@ -36,9 +36,9 @@ class Admin:
     def get_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50):
         params = {}
         if cursor:
-            params['cursor'] = str(cursor)
+            params["cursor"] = str(cursor)
         if limit:
-            params['limit'] = limit
+            params["limit"] = limit
         response = requests.get(f"{self.base_url}/admin/users", params=params, headers=self.headers)
         if response.status_code != 200:
             raise HTTPError(response.json())
