@@ -11,11 +11,6 @@ from memgpt.server.server import SyncServer
 router = APIRouter()
 
 
-class GetAllUsersRequest(BaseModel):
-    cursor: Optional[uuid.UUID] = Field(None, description="Cursor to which to start the paginated request.")
-    limit: Optional[int] = Field(50, description="Maximum number of users to retrieve per page.")
-
-
 class GetAllUsersResponse(BaseModel):
     cursor: Optional[uuid.UUID] = Field(None, description="Cursor for the next page in the response.")
     user_list: List[dict] = Field(..., description="A list of users.")
@@ -40,10 +35,6 @@ class CreateAPIKeyResponse(BaseModel):
     api_key: str = Field(..., description="New API key generated.")
 
 
-class GetAPIKeysRequest(BaseModel):
-    user_id: uuid.UUID = Field(..., description="Identifier of the user (UUID).")
-
-
 class GetAPIKeysResponse(BaseModel):
     api_key_list: List[str] = Field(..., description="Identifier of the user (UUID).")
 
@@ -60,12 +51,12 @@ class DeleteUserResponse(BaseModel):
 
 def setup_admin_router(server: SyncServer, interface: QueuingInterface):
     @router.get("/users", tags=["admin"], response_model=GetAllUsersResponse)
-    def get_all_users(request: GetAllUsersRequest = Body(...)):
+    def get_all_users(cursor: Optional[uuid.UUID] = Query(None), limit: Optional[int] = Query(50)):
         """
         Get a list of all users in the database
         """
         try:
-            next_cursor, users = server.ms.get_all_users(request.cursor, request.limit)
+            next_cursor, users = server.ms.get_all_users(cursor, limit)
             processed_users = [{"user_id": user.id} for user in users]
         except HTTPException:
             raise
