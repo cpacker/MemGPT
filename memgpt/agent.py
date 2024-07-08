@@ -36,6 +36,7 @@ from memgpt.system import (
 from memgpt.utils import (
     count_tokens,
     create_uuid_from_string,
+    datetime_to_unix_int,
     get_local_time,
     get_tool_call_id,
     get_utc_time,
@@ -938,8 +939,7 @@ class Agent(object):
             self.agent_state._metadata = {}
         # When was the last run step?
         last_msg_obj = self._messages[-1]
-        from memgpt.utils import datetime_to_unix_int
-
+        # NOTE: this has to be stored as a JSON-serializeable format, so we have to cast out of datetime
         self.agent_state._metadata["last_run"] = datetime_to_unix_int(last_msg_obj.created_at)
         # Basic memory statistics
         recall_memory = self.persistence_manager.recall_memory
