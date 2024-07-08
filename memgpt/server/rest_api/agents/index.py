@@ -24,7 +24,8 @@ router = APIRouter()
 class ListAgentsRequest(BaseModel):
     after: Optional[uuid.UUID] = Field(None, description="Unique agent ID to start the query range at.")
     before: Optional[uuid.UUID] = Field(None, description="Unique agent ID to end the query range at.")
-    limit: Optional[int] = Field(None, description="How many results to include in the response.")
+    # TODO should these be 'optional'?
+    limit: int = Field(20, description="How many results to include in the response.")
     order: Literal["asc", "desc"] = Field("desc", description="Sort order, asc for ascending order and desc for descending order.")
 
 
@@ -48,7 +49,7 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
 
     @router.get("/agents", tags=["agents"], response_model=ListAgentsResponse)
     def list_agents(
-        request: ListAgentsRequest = Body(...),
+        request: ListAgentsRequest = Depends(),  # NOTE: using depends here, since all the pieces have defaults
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """

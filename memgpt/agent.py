@@ -21,6 +21,7 @@ from memgpt.constants import (
 from memgpt.data_types import AgentState, EmbeddingConfig, Message, Passage
 from memgpt.interface import AgentInterface
 from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
+from memgpt.local_llm.utils import num_tokens_from_messages
 from memgpt.memory import ArchivalMemory, BaseMemory, RecallMemory, summarize_messages
 from memgpt.metadata import MetadataStore
 from memgpt.models import chat_completion_response
@@ -401,7 +402,7 @@ class Agent(object):
             printd(f"Request to call function {function_name} with tool_call_id: {tool_call_id}")
             try:
                 function_to_call = self.functions_python[function_name]
-            except KeyError as e:
+            except KeyError:
                 error_msg = f"No function named {function_name}"
                 function_response = package_function_response(False, error_msg)
                 messages.append(
@@ -424,7 +425,7 @@ class Agent(object):
             try:
                 raw_function_args = function_call.arguments
                 function_args = parse_json(raw_function_args)
-            except Exception as e:
+            except Exception:
                 error_msg = f"Error parsing JSON for function '{function_name}' arguments: {function_call.arguments}"
                 function_response = package_function_response(False, error_msg)
                 messages.append(
@@ -931,6 +932,31 @@ class Agent(object):
             "memory": self.memory.to_dict(),
             "messages": [str(msg.id) for msg in self._messages],  # TODO: move out into AgentState.message_ids
         }
+
+        ## Additional metadata we want to track (that's useful for the client to know)
+        # When was the last run step?
+        last_msg_obj = self._messages[-1]
+        self.agent_state._metadata["last_run"] = last_msg_obj.created_at
+        # Basic memory statistics
+        recall_memory = self.persistence_manager.recall_memory
+        archival_memory = self.persistence_manager.archival_memory
+        # Token breakdown
+        # TODO we should cache these when they change instead of computing on-the-fly here
+        system_tokens_total = count_tokens(self.system)
+        system_tokens_core_memory = count_tokens(str(self.memory))
+        system_tokens_instructions = system_tokens_total - system_tokens_core_memory
+        other_tokens = num_tokens_from_messages(self.messages[1:]) if len(self._messages) > 1 else 0
+
+        self.agent_state._metadata["memory_stats"] = {
+            "context_window": self.agent_state.llm_config.context_window,  # TODO remove since it's a dupe?
+            "tokens_system_total": system_tokens_total,
+            "tokens_system_instructions": system_tokens_instructions,
+            "tokens_system_memory": system_tokens_core_memory,
+            "tokens_other": other_tokens,
+            "recall_memory_count": len(recall_memory) if recall_memory is not None else None,
+            "archival_memory_count": len(archival_memory) if archival_memory is not None else None,
+        }
+
         self.agent_state = AgentState(
             name=self.agent_state.name,
             user_id=self.agent_state.user_id,
