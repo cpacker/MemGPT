@@ -12,7 +12,6 @@ router = APIRouter()
 
 
 class GetAllUsersResponse(BaseModel):
-    cursor: Optional[uuid.UUID] = Field(None, description="Cursor for the next page in the response.")
     user_list: List[dict] = Field(..., description="A list of users.")
 
 
@@ -50,19 +49,25 @@ class DeleteUserResponse(BaseModel):
 
 
 def setup_admin_router(server: SyncServer, interface: QueuingInterface):
+
     @router.get("/users", tags=["admin"], response_model=GetAllUsersResponse)
-    def get_all_users(cursor: Optional[uuid.UUID] = Query(None), limit: Optional[int] = Query(50)):
+    def get_all_users(
+        after: Optional[uuid.UUID] = Query(None, description="Unique ID of the user to start the query range at."),
+        before: Optional[uuid.UUID] = Query(None, description="Unique ID of the user to end the query range at."),
+        limit: Optional[int] = Query(50),
+    ):
         """
         Get a list of all users in the database
         """
         try:
-            next_cursor, users = server.ms.get_all_users(cursor, limit)
+            users = server.ms.get_all_users(after=after, before=before, limit=limit)
             processed_users = [{"user_id": user.id} for user in users]
+            # TODO: return user pydantic model
         except HTTPException:
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
-        return GetAllUsersResponse(cursor=next_cursor, user_list=processed_users)
+        return GetAllUsersResponse(user_list=processed_users)
 
     @router.post("/users", tags=["admin"], response_model=CreateUserResponse)
     def create_user(request: Optional[CreateUserRequest] = Body(None)):
