@@ -5,7 +5,7 @@ from abc import abstractmethod
 from datetime import datetime
 from functools import wraps
 from threading import Lock
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Literal, Optional, Tuple, Union
 
 from fastapi import HTTPException
 
@@ -39,6 +39,7 @@ from memgpt.memory import BaseMemory
 from memgpt.metadata import MetadataStore
 from memgpt.models.chat_completion_response import UsageStatistics
 from memgpt.models.pydantic_models import (
+    AgentStateModel,
     DocumentModel,
     HumanModel,
     MemGPTUsageStatistics,
@@ -48,6 +49,7 @@ from memgpt.models.pydantic_models import (
     SourceModel,
     ToolModel,
 )
+from memgpt.models.utils import agentstate_to_agentstatemodel
 
 # from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.prompts import gpt_system
@@ -848,12 +850,28 @@ class SyncServer(LockingServer):
     def list_agents(
         self,
         user_id: uuid.UUID,
-    ) -> dict:
+        after: Optional[uuid.UUID] = None,
+        before: Optional[uuid.UUID] = None,
+        limit: Optional[int] = 20,
+        order: Literal["asc", "desc"] = "desc",
+        sort_by: Literal["created_at", "last_run", "name"] = "created_at",
+    ) -> List[AgentStateModel]:
         """List all available agents to a user"""
+        # TODO support sort_by
+        if sort_by != "created_at":
+            raise ValueError(sort_by)
+
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
-        agents_states = self.ms.list_agents(user_id=user_id)
+        agents_states = self.ms.list_agents(user_id=user_id, after=after, before=before, limit=limit, order=order)
+        # For the UI listing panel, we need to add the following metadata:
+        # - tool breakdown (num base/core tools, num other)
+        # - last run data
+        # - memory stats (recall, archival)
+        # - number of sources
+        return [agentstate_to_agentstatemodel(a_s) for a_s in agents_states]
+
         agents_states_dicts = [self._agent_state_to_config(state) for state in agents_states]
 
         # TODO add a get_message_obj_from_message_id(...) function

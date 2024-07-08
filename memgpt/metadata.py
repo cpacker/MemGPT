@@ -4,7 +4,7 @@ import os
 import secrets
 import traceback
 import uuid
-from typing import List, Optional
+from typing import List, Literal, Optional, Tuple
 
 from sqlalchemy import (
     BIGINT,
@@ -15,6 +15,7 @@ from sqlalchemy import (
     DateTime,
     String,
     TypeDecorator,
+    asc,
     create_engine,
     desc,
     func,
@@ -608,10 +609,44 @@ class MetadataStore:
             return results
 
     @enforce_types
-    def list_agents(self, user_id: uuid.UUID) -> List[AgentState]:
+    def list_all_agents(
+        self,
+        user_id: uuid.UUID,
+    ) -> List[AgentState]:
         with self.session_maker() as session:
             results = session.query(AgentModel).filter(AgentModel.user_id == user_id).all()
             return [r.to_record() for r in results]
+
+    # @enforce_types
+    def list_agents(
+        self,
+        user_id: uuid.UUID,
+        after: Optional[uuid.UUID] = None,
+        before: Optional[uuid.UUID] = None,
+        limit: Optional[int] = 20,
+        order: Literal["asc", "desc"] = "desc",
+    ) -> List[AgentState]:
+        # mirroring the args in https://platform.openai.com/docs/api-reference/assistants/listAssistants
+        with self.session_maker() as session:
+            query = session.query(AgentModel).filter(AgentModel.user_id == user_id)
+
+            # Determine the sort order
+            sort_order = asc if order == "asc" else desc
+
+            if after:
+                query = query.filter(AgentModel.created_at > after)
+                query = query.order_by(sort_order(AgentModel.created_at))
+            elif before:
+                query = query.filter(AgentModel.created_at < before)
+                query = query.order_by(sort_order(AgentModel.created_at))
+            else:
+                query = query.order_by(sort_order(AgentModel.created_at))
+
+            results = query.limit(limit + 1).all()
+
+            agent_records = [r.to_record() for r in results[:limit]]
+
+            return agent_records
 
     @enforce_types
     def list_sources(self, user_id: uuid.UUID) -> List[Source]:
@@ -645,7 +680,7 @@ class MetadataStore:
             return results[0].to_record()
 
     @enforce_types
-    def get_all_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50) -> (Optional[uuid.UUID], List[User]):
+    def get_all_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50) -> Tuple[Optional[uuid.UUID], List[User]]:
         with self.session_maker() as session:
             query = session.query(UserModel).order_by(desc(UserModel.id))
             if cursor:
