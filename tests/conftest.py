@@ -12,6 +12,7 @@ from tests.utils import wipe_memgpt_home
 from memgpt.data_types import EmbeddingConfig, LLMConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.server.server import SyncServer
+from memgpt.server.rest_api import app
 
 from tests.config import TestMGPTConfig
 
@@ -136,3 +137,8 @@ def db_session(request) -> "Session":
         Base.metadata.create_all(bind=connection)
     with sessionmaker(bind=engine)() as session:
         yield session
+
+@pytest.fixture
+def test_app(db_session):
+    """a per-test-function db scoped version of the rest api app"""
+

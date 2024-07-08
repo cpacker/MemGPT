@@ -2,8 +2,10 @@ import os
 import threading
 import time
 import uuid
+import httpx
 
 import pytest
+from faker import Faker
 from dotenv import load_dotenv
 
 from memgpt.settings import settings
@@ -11,6 +13,8 @@ from memgpt import Admin, create_client
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import Preset  # TODO move to PresetModel
 from memgpt.settings import settings
+from memgpt.orm.user import User
+from memgpt.orm.token import Token
 from tests.utils import create_config
 
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
@@ -25,85 +29,75 @@ test_user_id = uuid.uuid4()
 
 # admin credentials
 test_server_token = "test_server_token"
-
+faker = Faker()
 
 def _reset_config():
-    # Use os.getenv with a fallback to os.environ.get
-    db_url = settings.pg_uri
+    pass
+#    ## Use os.getenv with a fallback to os.environ.get
+    #db_url = settings.pg_uri
 
-    if os.getenv("OPENAI_API_KEY"):
-        create_config("openai")
-        credentials = MemGPTCredentials(
-            openai_key=os.getenv("OPENAI_API_KEY"),
-        )
-    else:  # hosted
-        create_config("memgpt_hosted")
-        credentials = MemGPTCredentials()
+    #if os.getenv("OPENAI_API_KEY"):
+        #create_config("openai")
+        #credentials = MemGPTCredentials(
+            #openai_key=os.getenv("OPENAI_API_KEY"),
+        #)
+    #else:  # hosted
+        #create_config("memgpt_hosted")
+        #credentials = MemGPTCredentials()
 
-    config = MemGPTConfig.load()
+    #config = MemGPTConfig.load()
 
-    # set to use postgres
-    config.archival_storage_uri = db_url
-    config.recall_storage_uri = db_url
-    config.metadata_storage_uri = db_url
-    config.archival_storage_type = "postgres"
-    config.recall_storage_type = "postgres"
-    config.metadata_storage_type = "postgres"
-    config.save()
-    credentials.save()
-    print("_reset_config :: ", config.config_path)
+    ## set to use postgres
+    #config.archival_storage_uri = db_url
+    #config.recall_storage_uri = db_url
+    #config.metadata_storage_uri = db_url
+    #config.archival_storage_type = "postgres"
+    #config.recall_storage_type = "postgres"
+    #config.metadata_storage_type = "postgres"
+    #config.save()
+    #credentials.save()
+    #print("_reset_config :: ", config.config_path)
 
 
 def run_server():
-    load_dotenv()
+    pass
+    #load_dotenv()
 
-    _reset_config()
+    #_reset_config()
 
-    from memgpt.server.rest_api.server import start_server
+    #from memgpt.server.rest_api.server import start_server
 
-    print("Starting server...")
-    start_server(debug=True)
+    #print("Starting server...")
+    #start_server(debug=True)
 
 
 # Fixture to create clients with different configurations
 @pytest.fixture(
     params=[{"server": True}, {"server": False}],  # whether to use REST API server
-    scope="module",
 )
-def client(request):
+def client(request, db_session, test_app):
     if request.param["server"]:
-        # get URL from enviornment
-        server_url = os.getenv("MEMGPT_SERVER_URL")
-        if server_url is None:
-            # run server in thread
-            # NOTE: must set MEMGPT_SERVER_PASS enviornment variable
-            server_url = "http://localhost:8083"
-            print("Starting server thread")
-            thread = threading.Thread(target=run_server, daemon=True)
-            thread.start()
-            time.sleep(5)
-        print("Running client tests with server:", server_url)
-        # create user via admin client
-        admin = Admin(server_url, test_server_token)
-        response = admin.create_user(test_user_id)  # Adjust as per your client's method
-        token = response.api_key
-
+        # since we are not TESTING the admin client, we don't want to USE the admin client here.
+        # create the user directly
+        requesting_user = User.create(db_session)
+        api_token = Token(user=requesting_user, name="test_client_api_token").create(db_session)
+        token = api_token.api_key
+        client_args = {
+            "base_url": settings.server_url,
+            "token": token,
+            "debug": True,
+            "app": test_app
+        }
     else:
         # use local client (no server)
-        token = None
-        server_url = None
-
-    client = create_client(base_url=server_url, token=token)  # This yields control back to the test function
-    try:
-        yield client
-    finally:
-        # cleanup user
-        if server_url:
-            admin.delete_user(test_user_id)  # Adjust as per your client's method
-
+        client_args = {
+            "token": None,
+            "server_url": None
+        }
+    yield create_client(**client_args)
 
 # Fixture for test agent
-@pytest.fixture(scope="module")
+@pytest.fixture
 def agent(client):
     agent_state = client.create_agent(name=test_agent_name)
     print("AGENT ID", agent_state.id)
@@ -111,6 +105,19 @@ def agent(client):
 
     # delete agent
     client.delete_agent(agent_state.id)
+
+class TestClientAgent:
+    """CRUD for agents via the client"""
+
+    def test_create_agent(self, client):
+        expected_agent_name = faker.name()
+        assert not client.agent_exists(name=expected_agent_name)
+        created_agent_state = client.create_agent(name=expected_agent_name)
+        assert client.agent_exists(name=expected_agent_name)
+        assert created_agent_state.name == expected_agent_name
+
+    def test_rename_agent():
+        new_name = faker.name()
 
 
 def test_agent(client, agent):

@@ -1,11 +1,11 @@
 import datetime
 import time
 import uuid
-from typing import Dict, List, Optional, Tuple, Union
-
-import requests
+from typing import Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+import httpx
 
 from memgpt.config import MemGPTConfig
+from memgpt.log import get_logger
 from memgpt.constants import BASE_TOOLS
 from memgpt.settings import settings
 from memgpt.data_sources.connectors import DataConnector
@@ -54,8 +54,22 @@ from memgpt.server.rest_api.tools.index import CreateToolRequest, ListToolsRespo
 from memgpt.server.server import SyncServer
 from memgpt.utils import get_human_text
 
+if TYPE_CHECKING:
+    from httpx import ASGITransport, WSGITransport
 
-def create_client(base_url: Optional[str] = None, token: Optional[str] = None, config: Optional[MemGPTConfig] = None):
+logger = get_logger(__name__)
+
+def create_client(base_url: Optional[str] = None,
+                  token: Optional[str] = None,
+                  config: Optional[MemGPTConfig] = None,
+                  app: Optional[str] = None):
+    """factory method to create either a local or rest api enabled client.
+    # TODO: link to docs on the difference between the two.
+    base_url: str if provided, the url to the rest api server
+    token: str if provided, the token to authenticate to the rest api server
+    config: MemGPTConfig if provided, the configuration settings to use for the local client
+    app: str if provided an ASGI compliant application to use instead of an actual http call. used for testing hook.
+    """
     if base_url is None:
         return LocalClient(config=config)
     else:
@@ -228,17 +242,24 @@ class RESTClient(AbstractClient):
         base_url: str,
         token: str,
         debug: bool = False,
+        app: Optional[Union["WSGITransport","ASGITransport"]] = None,
     ):
         super().__init__(debug=debug)
-        self.base_url = base_url
-        self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
+        httpx_client_args = {
+            "headers": {"accept": "application/json", "authorization": f"Bearer {token}"},
+            "base_url": base_url,
+        }
+        if app:
+            logger.warning("Using supplied WSGI or ASGI app for RESTClient")
+            httpx_client_args["app"] = app
+            self.httpx_client = self.httpx_client.Client(**httpx_client_args)
 
     def list_agents(self):
-        response = requests.get(f"{self.base_url}/api/agents", headers=self.headers)
+        response = self.httpx_client.get("/api/agents")
         return ListAgentsResponse(**response.json())
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
-        response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/config", headers=self.headers)
+        response = self.httpx_client.get(f"/api/agents/{str(agent_id)}/config")
         if response.status_code == 404:
             # not found error
             return False
@@ -248,7 +269,7 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to check if agent exists: {response.text}")
 
     def get_tool(self, tool_name: str):
-        response = requests.get(f"{self.base_url}/api/tools/{tool_name}", headers=self.headers)
+        response = self.httpx_client.get(f"/api/tools/{tool_name}")
         if response.status_code != 200:
             raise ValueError(f"Failed to get tool: {response.text}")
         return ToolModel(**response.json())
@@ -305,7 +326,7 @@ class RESTClient(AbstractClient):
                 "metadata": metadata,
             }
         }
-        response = requests.post(f"{self.base_url}/api/agents", json=payload, headers=self.headers)
+        response = self.httpx_client.post("/api/agents", json=payload)
         if response.status_code != 200:
             raise ValueError(f"Status {response.status_code} - Failed to create agent: {response.text}")
         response_obj = CreateAgentResponse(**response.json())
@@ -343,25 +364,25 @@ class RESTClient(AbstractClient):
         return agent_state
 
     def rename_agent(self, agent_id: uuid.UUID, new_name: str):
-        response = requests.patch(f"{self.base_url}/api/agents/{str(agent_id)}/rename", json={"agent_name": new_name}, headers=self.headers)
+        response = self.httpx_client.patch("/api/agents/{str(agent_id)}/rename", json={"agent_name": new_name})
         assert response.status_code == 200, f"Failed to rename agent: {response.text}"
         response_obj = GetAgentResponse(**response.json())
         return self.get_agent_response_to_state(response_obj)
 
     def delete_agent(self, agent_id: uuid.UUID):
         """Delete the agent."""
-        response = requests.delete(f"{self.base_url}/api/agents/{str(agent_id)}", headers=self.headers)
+        response = self.httpx_client.delete("/api/agents/{str(agent_id)}")
         assert response.status_code == 200, f"Failed to delete agent: {response.text}"
 
     def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
-        response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/config", headers=self.headers)
+        response = self.httpx_client.get("/api/agents/{str(agent_id)}/config")
         assert response.status_code == 200, f"Failed to get agent: {response.text}"
         response_obj = GetAgentResponse(**response.json())
         return self.get_agent_response_to_state(response_obj)
 
     def get_preset(self, name: str) -> PresetModel:
         # TODO: remove
-        response = requests.get(f"{self.base_url}/api/presets/{name}", headers=self.headers)
+        response = self.httpx_client.get("/api/presets/{name}")
         assert response.status_code == 200, f"Failed to get preset: {response.text}"
         return PresetModel(**response.json())
 
@@ -417,25 +438,25 @@ class RESTClient(AbstractClient):
             human_name=human_name,
             functions_schema=schema,
         )
-        response = requests.post(f"{self.base_url}/api/presets", json=payload.model_dump(), headers=self.headers)
+        response = self.httpx_client.post("/api/presets", json=payload.model_dump())
         assert response.status_code == 200, f"Failed to create preset: {response.text}"
         return CreatePresetResponse(**response.json()).preset
 
     def delete_preset(self, preset_id: uuid.UUID):
-        response = requests.delete(f"{self.base_url}/api/presets/{str(preset_id)}", headers=self.headers)
+        response = self.httpx_client.delete("/api/presets/{str(preset_id)}")
         assert response.status_code == 200, f"Failed to delete preset: {response.text}"
 
     def list_presets(self) -> List[PresetModel]:
-        response = requests.get(f"{self.base_url}/api/presets", headers=self.headers)
+        response = self.httpx_client.get("/api/presets")
         return ListPresetsResponse(**response.json()).presets
 
     # memory
     def get_agent_memory(self, agent_id: uuid.UUID) -> GetAgentMemoryResponse:
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory", headers=self.headers)
+        response = self.httpx_client.get("/api/agents/{agent_id}/memory")
         return GetAgentMemoryResponse(**response.json())
 
     def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> UpdateAgentMemoryResponse:
-        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/memory", json=new_memory_contents, headers=self.headers)
+        response = self.httpx_client.post("/api/agents/{agent_id}/memory", json=new_memory_contents)
         return UpdateAgentMemoryResponse(**response.json())
 
     # agent interactions
@@ -444,7 +465,7 @@ class RESTClient(AbstractClient):
         return self.send_message(agent_id, message, role="user")
 
     def run_command(self, agent_id: str, command: str) -> Union[str, None]:
-        response = requests.post(f"{self.base_url}/api/agents/{str(agent_id)}/command", json={"command": command}, headers=self.headers)
+        response = self.httpx_client.post("/api/agents/{str(agent_id)}/command", json={"command": command})
         return CommandResponse(**response.json())
 
     def save(self):
@@ -461,18 +482,18 @@ class RESTClient(AbstractClient):
             params["before"] = str(before)
         if after:
             params["after"] = str(after)
-        response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/archival", params=params, headers=self.headers)
+        response = self.httpx_client.get("/api/agents/{str(agent_id)}/archival", params=params)
         assert response.status_code == 200, f"Failed to get archival memory: {response.text}"
         return GetAgentArchivalMemoryResponse(**response.json())
 
     def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> GetAgentArchivalMemoryResponse:
-        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/archival", json={"content": memory}, headers=self.headers)
+        response = self.httpx_client.post("/api/agents/{agent_id}/archival", json={"content": memory})
         if response.status_code != 200:
             raise ValueError(f"Failed to insert archival memory: {response.text}")
         return InsertAgentArchivalMemoryResponse(**response.json())
 
     def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
-        response = requests.delete(f"{self.base_url}/api/agents/{agent_id}/archival?id={memory_id}", headers=self.headers)
+        response = self.httpx_client.delete("/api/agents/{agent_id}/archival?id={memory_id}")
         assert response.status_code == 200, f"Failed to delete archival memory: {response.text}"
 
     # messages (recall memory)
@@ -481,14 +502,14 @@ class RESTClient(AbstractClient):
         self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
     ) -> GetAgentMessagesResponse:
         params = {"before": before, "after": after, "limit": limit}
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/messages-cursor", params=params, headers=self.headers)
+        response = self.httpx_client.get("/api/agents/{agent_id}/messages-cursor", params=params)
         if response.status_code != 200:
             raise ValueError(f"Failed to get messages: {response.text}")
         return GetAgentMessagesResponse(**response.json())
 
     def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
         data = {"message": message, "role": role, "stream": stream}
-        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/messages", json=data, headers=self.headers)
+        response = self.httpx_client.post("/api/agents/{agent_id}/messages", json=data)
         if response.status_code != 200:
             raise ValueError(f"Failed to send message: {response.text}")
         return UserMessageResponse(**response.json())
@@ -496,29 +517,29 @@ class RESTClient(AbstractClient):
     # humans / personas
 
     def list_humans(self) -> ListHumansResponse:
-        response = requests.get(f"{self.base_url}/api/humans", headers=self.headers)
+        response = self.httpx_client.get("/api/humans")
         return ListHumansResponse(**response.json())
 
     def create_human(self, name: str, human: str) -> HumanModel:
         data = {"name": name, "text": human}
-        response = requests.post(f"{self.base_url}/api/humans", json=data, headers=self.headers)
+        response = self.httpx_client.post("/api/humans", json=data)
         if response.status_code != 200:
             raise ValueError(f"Failed to create human: {response.text}")
         return HumanModel(**response.json())
 
     def list_personas(self) -> ListPersonasResponse:
-        response = requests.get(f"{self.base_url}/api/personas", headers=self.headers)
+        response = self.httpx_client.get("/api/personas")
         return ListPersonasResponse(**response.json())
 
     def create_persona(self, name: str, persona: str) -> PersonaModel:
         data = {"name": name, "text": persona}
-        response = requests.post(f"{self.base_url}/api/personas", json=data, headers=self.headers)
+        response = self.httpx_client.post("/api/personas", json=data)
         if response.status_code != 200:
             raise ValueError(f"Failed to create persona: {response.text}")
         return PersonaModel(**response.json())
 
     def get_persona(self, name: str) -> PersonaModel:
-        response = requests.get(f"{self.base_url}/api/personas/{name}", headers=self.headers)
+        response = self.httpx_client.get("/api/personas/{name}")
         if response.status_code == 404:
             return None
         elif response.status_code != 200:
@@ -526,7 +547,7 @@ class RESTClient(AbstractClient):
         return PersonaModel(**response.json())
 
     def get_human(self, name: str) -> HumanModel:
-        response = requests.get(f"{self.base_url}/api/humans/{name}", headers=self.headers)
+        response = self.httpx_client.get("/api/humans/{name}")
         if response.status_code == 404:
             return None
         elif response.status_code != 200:
@@ -537,17 +558,17 @@ class RESTClient(AbstractClient):
 
     def list_sources(self):
         """List loaded sources"""
-        response = requests.get(f"{self.base_url}/api/sources", headers=self.headers)
+        response = self.httpx_client.get("/api/sources")
         response_json = response.json()
         return ListSourcesResponse(**response_json)
 
     def delete_source(self, source_id: uuid.UUID):
         """Delete a source and associated data (including attached to agents)"""
-        response = requests.delete(f"{self.base_url}/api/sources/{str(source_id)}", headers=self.headers)
+        response = self.httpx_client.delete("/api/sources/{str(source_id)}")
         assert response.status_code == 200, f"Failed to delete source: {response.text}"
 
     def get_job_status(self, job_id: uuid.UUID):
-        response = requests.get(f"{self.base_url}/api/sources/status/{str(job_id)}", headers=self.headers)
+        response = self.httpx_client.get("/api/sources/status/{str(job_id)}")
         return JobModel(**response.json())
 
     def load_file_into_source(self, filename: str, source_id: uuid.UUID, blocking=True):
@@ -555,7 +576,7 @@ class RESTClient(AbstractClient):
         files = {"file": open(filename, "rb")}
 
         # create job
-        response = requests.post(f"{self.base_url}/api/sources/{source_id}/upload", files=files, headers=self.headers)
+        response = self.httpx_client.post("/api/sources/{source_id}/upload", files=files)
         if response.status_code != 200:
             raise ValueError(f"Failed to upload file to source: {response.text}")
 
@@ -574,7 +595,7 @@ class RESTClient(AbstractClient):
     def create_source(self, name: str) -> Source:
         """Create a new source"""
         payload = {"name": name}
-        response = requests.post(f"{self.base_url}/api/sources", json=payload, headers=self.headers)
+        response = self.httpx_client.post("/api/sources", json=payload)
         response_json = response.json()
         response_obj = SourceModel(**response_json)
         return Source(
@@ -589,23 +610,23 @@ class RESTClient(AbstractClient):
     def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
         """Attach a source to an agent"""
         params = {"agent_id": agent_id}
-        response = requests.post(f"{self.base_url}/api/sources/{source_id}/attach", params=params, headers=self.headers)
+        response = self.httpx_client.post("/api/sources/{source_id}/attach", params=params)
         assert response.status_code == 200, f"Failed to attach source to agent: {response.text}"
 
     def detach_source(self, source_id: uuid.UUID, agent_id: uuid.UUID):
         """Detach a source from an agent"""
         params = {"agent_id": str(agent_id)}
-        response = requests.post(f"{self.base_url}/api/sources/{source_id}/detach", params=params, headers=self.headers)
+        response = self.httpx_client.post("/api/sources/{source_id}/detach", params=params)
         assert response.status_code == 200, f"Failed to detach source from agent: {response.text}"
 
     # server configuration commands
 
     def list_models(self) -> ListModelsResponse:
-        response = requests.get(f"{self.base_url}/api/models", headers=self.headers)
+        response = self.httpx_client.get("/api/models")
         return ListModelsResponse(**response.json())
 
     def get_config(self) -> ConfigResponse:
-        response = requests.get(f"{self.base_url}/api/config", headers=self.headers)
+        response = self.httpx_client.get("/api/config")
         return ConfigResponse(**response.json())
 
     # tools
@@ -644,25 +665,25 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to create tool: {e}, invalid input {data}")
 
         # make REST request
-        response = requests.post(f"{self.base_url}/api/tools", json=data, headers=self.headers)
+        response = self.httpx_client.post("/api/tools", json=data)
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
         return ToolModel(**response.json())
 
     def list_tools(self) -> ListToolsResponse:
-        response = requests.get(f"{self.base_url}/api/tools", headers=self.headers)
+        response = self.httpx_client.get("/api/tools")
         if response.status_code != 200:
             raise ValueError(f"Failed to list tools: {response.text}")
         return ListToolsResponse(**response.json()).tools
 
     def delete_tool(self, name: str):
-        response = requests.delete(f"{self.base_url}/api/tools/{name}", headers=self.headers)
+        response = self.httpx_client.delete(f"/api/tools/{name}")
         if response.status_code != 200:
             raise ValueError(f"Failed to delete tool: {response.text}")
         return response.json()
 
     def get_tool(self, name: str):
-        response = requests.get(f"{self.base_url}/api/tools/{name}", headers=self.headers)
+        response = self.httpx_client.get(f"/api/tools/{name}")
         if response.status_code == 404:
             return None
         elif response.status_code != 200:
