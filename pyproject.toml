@@ -76,6 +76,9 @@ autogen = ["pyautogen"]
 qdrant = ["qdrant-client"]
 ollama = ["llama-index-embeddings-ollama"]
 
+[tool.poetry.group.dev.dependencies]
+black = "^24.4.2"
+
 [tool.black]
 line-length = 140
 target-version = ['py310', 'py311']
