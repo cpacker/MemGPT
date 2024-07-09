@@ -38,7 +38,11 @@ class MetadataStore:
     """
     db_session: "Session" = None
 
-    def __init__(self):
+    def __init__(self, db_session: Optional["Session"] = None):
+        """
+        Args:
+            db_session: the database session to use.
+        """
         self.db_session = get_db_session()
 
     def create_api_key(self,

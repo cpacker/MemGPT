@@ -130,7 +130,8 @@ class SyncServer(Server):
         max_chaining_steps: bool = None,
         default_interface_factory: Callable[[], AgentInterface] = lambda: CLIInterface(),
         # test hooks
-        config: Optional["MemGPTConfig"] = None
+        config: Optional["MemGPTConfig"] = None,
+        db_session: Optional["Session"] = None,
     ):
         """Server process holds in-memory agents that are being run"""
 
@@ -179,7 +180,7 @@ class SyncServer(Server):
         assert self.server_embedding_config.embedding_model is not None, vars(self.server_embedding_config)
 
         # Initialize the metadata store
-        self.ms = MetadataStore(self.config)
+        self.ms = MetadataStore(self.config, db_session=db_session)
 
         # pre-fill database (users, presets, humans, personas)
         # TODO: figure out how to handle default users  (server is technically multi-user)

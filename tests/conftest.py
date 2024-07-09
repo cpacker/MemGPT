@@ -141,4 +141,5 @@ def db_session(request) -> "Session":
 @pytest.fixture
 def test_app(db_session):
     """a per-test-function db scoped version of the rest api app"""
-
+    app.dependency_overrides[sessionmaker] = lambda: db_session
+    return app
