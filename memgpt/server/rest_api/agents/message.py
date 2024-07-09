@@ -32,7 +32,7 @@ class UserMessageRequest(BaseModel):
     )
     stream_tokens: bool = Field(
         default=False,
-        description="Flag to determine if individual tokens should be streamed. Set to True for token streaming (requires stream = True).",
+        description="Flag to determine if individual tokens should be streamed. Set to True for token streaming (requires stream_steps = True).",
     )
     timestamp: Optional[datetime] = Field(
         None,
