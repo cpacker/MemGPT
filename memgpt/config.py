@@ -6,8 +6,9 @@ import uuid
 from dataclasses import dataclass
 
 import memgpt
+from memgpt.settings import settings
 import memgpt.utils as utils
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET, MEMGPT_DIR
+from memgpt.constants import MEMGPT_DIR
 from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig
 from memgpt.log import get_logger
 
@@ -34,21 +35,24 @@ def set_field(config, section, field, value):
 
 @dataclass
 class MemGPTConfig:
-    config_path: str = os.getenv("MEMGPT_CONFIG_PATH") or os.path.join(MEMGPT_DIR, "config")
+    config_path: str = str(settings.config_path.absolute())
     anon_clientid: str = str(uuid.UUID(int=0))
 
     # preset
-    preset: str = DEFAULT_PRESET  # TODO: rename to system prompt
+    preset: str = settings.preset
 
     # persona parameters
-    persona: str = DEFAULT_PERSONA
-    human: str = DEFAULT_HUMAN
+    persona: str = settings.persona
+    human: str = settings.human
 
     # model parameters
     default_llm_config: LLMConfig = None
 
     # embedding parameters
     default_embedding_config: EmbeddingConfig = None
+
+# NONE OF THIS IS CONFIG ↓↓↓↓↓
+# @norton120 these are the metdadatastore
 
     # database configs: archival
     archival_storage_type: str = "chroma"  # local, db
@@ -104,18 +108,11 @@ class MemGPTConfig:
 
         config = configparser.ConfigParser()
 
-        # allow overriding with env variables
-        if os.getenv("MEMGPT_CONFIG_PATH"):
-            config_path = os.getenv("MEMGPT_CONFIG_PATH")
-        else:
-            config_path = MemGPTConfig.config_path
-
         # insure all configuration directories exist
         cls.create_config_dir()
-        printd(f"Loading config from {config_path}")
-        if os.path.exists(config_path):
-            # read existing config
-            config.read(config_path)
+        printd(f"Loading config from {settings.config_path}")
+        if settings.config_path.exists():
+            config.read(str(settings.config_path.absolute()))
 
             # Handle extraction of nested LLMConfig and EmbeddingConfig
             llm_config_dict = {
@@ -170,7 +167,7 @@ class MemGPTConfig:
                 "metadata_storage_uri": get_field(config, "metadata_storage", "uri"),
                 # Misc
                 "anon_clientid": get_field(config, "client", "anon_clientid"),
-                "config_path": config_path,
+                "config_path": settings.config_path,
                 "memgpt_version": get_field(config, "version", "memgpt_version"),
             }
             # Don't include null values
@@ -180,8 +177,7 @@ class MemGPTConfig:
 
         # create new config
         anon_clientid = MemGPTConfig.generate_uuid()
-        config = cls(anon_clientid=anon_clientid, config_path=config_path)
-
+        config = cls(anon_clientid=anon_clientid, config_path=settings.config_path)
         config.create_config_dir()  # create dirs
 
         return config
@@ -190,7 +186,6 @@ class MemGPTConfig:
         import memgpt
 
         config = configparser.ConfigParser()
-
         # CLI defaults
         set_field(config, "defaults", "preset", self.preset)
         set_field(config, "defaults", "persona", self.persona)
@@ -278,14 +273,7 @@ class MemGPTConfig:
 
     @staticmethod
     def exists():
-        # allow overriding with env variables
-        if os.getenv("MEMGPT_CONFIG_PATH"):
-            config_path = os.getenv("MEMGPT_CONFIG_PATH")
-        else:
-            config_path = MemGPTConfig.config_path
-
-        assert not os.path.isdir(config_path), f"Config path {config_path} cannot be set to a directory."
-        return os.path.exists(config_path)
+        return settings.config_path.exists() and not settings.config_path.is_dir()
 
     @staticmethod
     def create_config_dir():

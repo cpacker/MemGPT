@@ -1,8 +1,5 @@
-import os
 import uuid
-
 import pytest
-from dotenv import load_dotenv
 
 import memgpt.utils as utils
 from memgpt.constants import BASE_TOOLS
@@ -16,17 +13,14 @@ from memgpt.settings import settings
 
 from .utils import DummyDataConnector, create_config, wipe_config, wipe_memgpt_home
 
-
 @pytest.fixture(scope="module")
-def server():
+def server(tmp_path_factory):
     load_dotenv()
-    wipe_config()
+    #wipe_config()
+    settings.config_path = tmp_path_factory.mktemp("test") / "config"
     wipe_memgpt_home()
 
-    db_url = settings.memgpt_pg_uri
-
-    # Use os.getenv with a fallback to os.environ.get
-    db_url = settings.memgpt_pg_uri
+    db_url = settings.pg_db # start of the conftest hook here
 
     if os.getenv("OPENAI_API_KEY"):
         create_config("openai")
@@ -49,8 +43,7 @@ def server():
 
     config.save()
     credentials.save()
-
-    server = SyncServer()
+    server = SyncServer(config=config)
     return server
 
 
@@ -78,6 +71,7 @@ def agent_id(server, user_id):
     # cleanup
     server.delete_agent(user_id, agent_state.id)
 
+from .utils import DummyDataConnector
 
 def test_error_on_nonexistent_agent(server, user_id, agent_id):
     try:

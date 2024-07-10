@@ -1,15 +1,13 @@
 # tool imports
-import uuid
+from uuid import UUID
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import JSON, Column
-from sqlalchemy_utils import ChoiceType
-from sqlmodel import Field, SQLModel
+from pydantic import BaseModel, Field, ConfigDict
 
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
+from memgpt.settings import settings
+from memgpt.orm.enums import JobStatus
 from memgpt.utils import get_human_text, get_persona_text, get_utc_time
 
 
@@ -19,8 +17,18 @@ class MemGPTUsageStatistics(BaseModel):
     total_tokens: int
     step_count: int
 
+class PersistedBase(BaseModel):
+    """shared elements that all models coming from the ORM will support"""
+    id: str = Field(description="The unique identifier of the object prefixed with the object type (Stripe pattern).")
+    uuid: UUID = Field(description="The unique identifier of the object stored as a raw uuid (for legacy support).")
+    deleted: Optional[bool] = Field(default=False, description="Is this record deleted? Used for universal soft deletes.")
+    created_at: datetime = Field(description="The unix timestamp of when the object was created.")
+    updated_at: datetime = Field(description="The unix timestamp of when the object was last updated.")
+    created_by_id: Optional[str] = Field(description="The unique identifier of the user who created the object.")
+    last_updated_by_id: Optional[str] = Field(description="The unique identifier of the user who last updated the object.")
 
 class LLMConfigModel(BaseModel):
+    # TODO: 🤮 don't default to a vendor! bug city!
     model: Optional[str] = "gpt-4"
     model_endpoint_type: Optional[str] = "openai"
     model_endpoint: Optional[str] = "https://api.openai.com/v1"
@@ -38,69 +46,46 @@ class EmbeddingConfigModel(BaseModel):
     embedding_dim: Optional[int] = 1536
     embedding_chunk_size: Optional[int] = 300
 
+class OrganizationSummary(PersistedBase):
+    """An Organization interface with minimal references, good when only the link is needed"""
+    name: str = Field(..., description="The name of the organization.")
 
-class PresetModel(BaseModel):
-    name: str = Field(..., description="The name of the preset.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the preset.")
-    user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user who created the preset.")
+class UserSummary(PersistedBase):
+    """A User interface with minimal references, good when only the link is needed"""
+    name: Optional[str] = Field(default=None, description="The name of the user.")
+    email: Optional[str] = Field(default=None, description="The email of the user.")
+    organization: Optional[OrganizationSummary] = Field(None, description="The organization this user belongs to.")
+
+class PresetModel(PersistedBase):
+    name: str = Field(description="The name of the preset.")
     description: Optional[str] = Field(None, description="The description of the preset.")
-    created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the preset was created.")
     system: str = Field(..., description="The system prompt of the preset.")
-    system_name: Optional[str] = Field(None, description="The name of the system prompt of the preset.")
-    persona: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona of the preset.")
+    # TODO: these should never default if the ORM manages defaults
+    persona: str = Field(default=get_persona_text(settings.persona), description="The persona of the preset.")
     persona_name: Optional[str] = Field(None, description="The name of the persona of the preset.")
-    human: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human of the preset.")
+    human: str = Field(default=get_human_text(settings.human), description="The human of the preset.")
     human_name: Optional[str] = Field(None, description="The name of the human of the preset.")
-    functions_schema: List[Dict] = Field(..., description="The functions schema of the preset.")
+    functions_schema: List[dict] = Field(..., description="The functions schema of the preset.")
+    organization: Optional[OrganizationSummary] = Field(None, description="The organization this Preset belongs to.")
 
-
-class ToolModel(SQLModel, table=True):
-    # TODO move into database
+class ToolModel(PersistedBase):
     name: str = Field(..., description="The name of the function.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the function.", primary_key=True)
-    tags: List[str] = Field(sa_column=Column(JSON), description="Metadata tags.")
+    tags: List[str] = Field(description="Metadata tags.")
     source_type: Optional[str] = Field(None, description="The type of the source code.")
-    source_code: Optional[str] = Field(..., description="The source code of the function.")
+    source_code: Optional[str] = Field(None, description="The source code of the function.")
     module: Optional[str] = Field(None, description="The module of the function.")
 
-    json_schema: Dict = Field(default_factory=dict, sa_column=Column(JSON), description="The JSON schema of the function.")
+    json_schema: Dict = Field(default_factory=dict, description="The JSON schema of the function.")
 
-    # optional: user_id (user-specific tools)
-    user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user associated with the function.")
+    organization: Optional[OrganizationSummary] = Field(None, description="The organization this function belongs to.")
 
-    # Needed for Column(JSON)
-    class Config:
-        arbitrary_types_allowed = True
-
-
-class AgentToolMap(SQLModel, table=True):
-    # mapping between agents and tools
-    agent_id: uuid.UUID = Field(..., description="The unique identifier of the agent.")
-    tool_id: uuid.UUID = Field(..., description="The unique identifier of the tool.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the agent-tool map.", primary_key=True)
-
-
-class PresetToolMap(SQLModel, table=True):
-    # mapping between presets and tools
-    preset_id: uuid.UUID = Field(..., description="The unique identifier of the preset.")
-    tool_id: uuid.UUID = Field(..., description="The unique identifier of the tool.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the preset-tool map.", primary_key=True)
-
-
-class AgentStateModel(BaseModel):
-    id: uuid.UUID = Field(..., description="The unique identifier of the agent.")
+class AgentStateModel(PersistedBase):
     name: str = Field(..., description="The name of the agent.")
     description: Optional[str] = Field(None, description="The description of the agent.")
-    user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the agent.")
-
-    # timestamps
-    # created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the agent was created.")
-    created_at: int = Field(..., description="The unix timestamp of when the agent was created.")
 
     # preset information
     tools: List[str] = Field(..., description="The tools used by the agent.")
     system: str = Field(..., description="The system prompt used by the agent.")
-    # functions_schema: List[Dict] = Field(..., description="The functions schema used by the agent.")
 
     # llm information
     llm_config: LLMConfigModel = Field(..., description="The LLM configuration used by the agent.")
@@ -108,78 +93,58 @@ class AgentStateModel(BaseModel):
 
     # agent state
     state: Optional[Dict] = Field(None, description="The state of the agent.")
-    metadata: Optional[Dict] = Field(None, description="The metadata of the agent.")
+    metadata: Optional[Dict] = Field(None, description="The metadata of the agent.", alias="metadata_")
 
 
 class CoreMemory(BaseModel):
     human: str = Field(..., description="Human element of the core memory.")
     persona: str = Field(..., description="Persona element of the core memory.")
 
+class MemoryTemplate(PersistedBase):
+    """the common base for the legacy memory sections.
+    This is going away in favor of MemoryModule dynamic sections.
+    memgpt/memory.py
+    """
+    text: Optional[str] = Field(default=get_human_text(settings.human), description="The content to be added to this section of core memory.")
+    type: Literal["human", "persona"] = Field(..., description="The type of memory section.")
+    name: str = Field(..., description="The name of the memory section.")
+    organization: Optional[OrganizationSummary] = Field(None, description="The organization this memory belongs to.")
 
-class HumanModel(SQLModel, table=True):
-    text: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human text.")
-    name: str = Field(..., description="The name of the human.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the human.", primary_key=True)
-    user_id: Optional[uuid.UUID] = Field(..., description="The unique identifier of the user associated with the human.")
+class HumanModel(MemoryTemplate):
+    """Specifically for human, legacy"""
+    type: Literal["human"] = "human"
 
 
-class PersonaModel(SQLModel, table=True):
-    text: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona text.")
-    name: str = Field(..., description="The name of the persona.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the persona.", primary_key=True)
-    user_id: Optional[uuid.UUID] = Field(..., description="The unique identifier of the user associated with the persona.")
+class PersonaModel(MemoryTemplate):
+    """Specifically for persona, legacy"""
+    type: Literal["persona"] = "persona"
 
-
-class SourceModel(SQLModel, table=True):
+class SourceModel(PersistedBase):
     name: str = Field(..., description="The name of the source.")
     description: Optional[str] = Field(None, description="The description of the source.")
-    user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the source.")
-    created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the source was created.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the source.", primary_key=True)
-    description: Optional[str] = Field(None, description="The description of the source.")
-    # embedding info
-    # embedding_config: EmbeddingConfigModel = Field(..., description="The embedding configuration used by the source.")
     embedding_config: Optional[EmbeddingConfigModel] = Field(
-        None, sa_column=Column(JSON), description="The embedding configuration used by the passage."
+        None, description="The embedding configuration used by the passage."
     )
     # NOTE: .metadata is a reserved attribute on SQLModel
-    metadata_: Optional[dict] = Field(None, sa_column=Column(JSON), description="Metadata associated with the source.")
+    metadata_: Optional[dict] = Field(None, description="Metadata associated with the source.")
 
-
-class JobStatus(str, Enum):
-    created = "created"
-    running = "running"
-    completed = "completed"
-    failed = "failed"
-
-
-class JobModel(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the job.", primary_key=True)
-    # status: str = Field(default="created", description="The status of the job.")
-    status: JobStatus = Field(default=JobStatus.created, description="The status of the job.", sa_column=Column(ChoiceType(JobStatus)))
-    created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the job was created.")
+class JobModel(PersistedBase):
+    status: JobStatus = Field(default=JobStatus.created, description="The status of the job.")
     completed_at: Optional[datetime] = Field(None, description="The unix timestamp of when the job was completed.")
-    user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the job.")
-    metadata_: Optional[dict] = Field({}, sa_column=Column(JSON), description="The metadata of the job.")
+    user: UserSummary = Field(description="The user associated with the job.")
+    metadata_: Optional[dict] = Field({}, description="The metadata of the job.")
 
-
-class PassageModel(BaseModel):
-    user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user associated with the passage.")
-    agent_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the agent associated with the passage.")
+class PassageModel(PersistedBase):
     text: str = Field(..., description="The text of the passage.")
     embedding: Optional[List[float]] = Field(None, description="The embedding of the passage.")
     embedding_config: Optional[EmbeddingConfigModel] = Field(
-        None, sa_column=Column(JSON), description="The embedding configuration used by the passage."
+        None, description="The embedding configuration used by the passage."
     )
-    data_source: Optional[str] = Field(None, description="The data source of the passage.")
-    doc_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the document associated with the passage.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the passage.", primary_key=True)
-    metadata: Optional[Dict] = Field({}, description="The metadata of the passage.")
+    document: "DocumentModel" = Field(description="The document associated with the passage.")
+    metadata_: Optional[dict] = Field({}, description="The metadata of the passage.")
 
-
-class DocumentModel(BaseModel):
-    user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the document.")
-    text: str = Field(..., description="The text of the document.")
+class DocumentModel(PersistedBase):
+    organization: OrganizationSummary = Field(description="The organization this document belongs to.")
+    text: str = Field(..., description="The full text of the document.")
     data_source: str = Field(..., description="The data source of the document.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the document.", primary_key=True)
-    metadata: Optional[Dict] = Field({}, description="The metadata of the document.")
+    metadata_: Optional[Dict] = Field({}, description="The metadata of the document.")

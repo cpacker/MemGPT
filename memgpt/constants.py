@@ -17,9 +17,6 @@ EMBEDDING_TO_TOKENIZER_DEFAULT = "cl100k_base"
 
 
 DEFAULT_MEMGPT_MODEL = "gpt-4"
-DEFAULT_PERSONA = "sam_pov"
-DEFAULT_HUMAN = "basic"
-DEFAULT_PRESET = "memgpt_chat"
 
 # Tools
 BASE_TOOLS = [
@@ -30,9 +27,6 @@ BASE_TOOLS = [
     "archival_memory_insert",
     "archival_memory_search",
 ]
-
-# LOGGER_LOG_LEVEL is use to convert Text to Logging level value for logging mostly for Cli input to setting level
-LOGGER_LOG_LEVELS = {"CRITICAL": CRITICAL, "ERROR": ERROR, "WARN": WARN, "WARNING": WARNING, "INFO": INFO, "DEBUG": DEBUG, "NOTSET": NOTSET}
 
 FIRST_MESSAGE_ATTEMPTS = 10
 

@@ -6,7 +6,7 @@ import sys
 import uuid
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Tuple
 
 import questionary
 import requests
@@ -58,7 +58,7 @@ def str_to_quickstart_choice(choice_str: str) -> QuickstartChoice:
         raise ValueError(f"{choice_str} is not a valid QuickstartChoice. Valid options are: {valid_options}")
 
 
-def set_config_with_dict(new_config: dict) -> (MemGPTConfig, bool):
+def set_config_with_dict(new_config: dict) -> Tuple[MemGPTConfig, bool]:
     """_summary_
 
     Args:
