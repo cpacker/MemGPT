@@ -122,10 +122,13 @@ def test_agent(client, agent):
     client.rename_agent(agent_id=agent.id, new_name=new_name)
     renamed_agent = client.get_agent(agent_id=agent.id)
     assert renamed_agent.name == new_name, "Agent renaming failed"
+    renamed_agent_by_name = client.get_agent(agent_name=new_name)
+    assert renamed_agent_by_name.name == new_name, "Agent renaming failed (retrive of agent by name)"
 
     # test client.delete_agent and client.agent_exists
     delete_agent = client.create_agent(name="DeleteTestAgent")
     assert client.agent_exists(agent_id=delete_agent.id), "Agent creation failed"
+    assert client.agent_exists(agent_name="DeleteTestAgent"), "Agent creation failed (retrieve of agent by name)"
     client.delete_agent(agent_id=delete_agent.id)
     assert client.agent_exists(agent_id=delete_agent.id) == False, "Agent deletion failed"
 

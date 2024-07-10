@@ -236,7 +236,22 @@ class RESTClient(AbstractClient):
         response = requests.get(f"{self.base_url}/api/agents", headers=self.headers)
         return ListAgentsResponse(**response.json())
 
+    def get_agent_id_from_name(self, agent_name: str) -> uuid:
+        agents = self.list_agents()
+        if agents.num_agents > 0:
+            agent_name = [agent["id"] for agent in agents.agents if agent["name"] == agent_name]
+            if agent_name:
+                return agent_name[0]
+            raise NameError(f"no {agent_name} agent found")
+        raise ValueError("no agents available")
+
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
+        if agent_name and not agent_id:
+            try:
+                agent_id = self.get_agent_id_from_name(agent_name)
+                return True
+            except:
+                return False
         response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/config", headers=self.headers)
         if response.status_code == 404:
             # not found error
@@ -353,6 +368,8 @@ class RESTClient(AbstractClient):
         assert response.status_code == 200, f"Failed to delete agent: {response.text}"
 
     def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
+        if agent_name and not agent_id:
+            agent_id = self.get_agent_id_from_name(agent_name)
         response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/config", headers=self.headers)
         assert response.status_code == 200, f"Failed to get agent: {response.text}"
         response_obj = GetAgentResponse(**response.json())
