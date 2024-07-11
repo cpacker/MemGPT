@@ -238,12 +238,12 @@ class RESTClient(AbstractClient):
 
     def get_agent_id_from_name(self, agent_name: str) -> uuid:
         agents = self.list_agents()
-        if agents.num_agents > 0:
-            agent_name = [agent["id"] for agent in agents.agents if agent["name"] == agent_name]
-            if agent_name:
-                return agent_name[0]
-            raise NameError(f"no {agent_name} agent found")
-        raise ValueError("no agents available")
+        if not agents.num_agents:
+            raise ValueError("no agents available")
+        agent_id = next((agent["id"] for agent in agents.agents if agent["name"] == agent_name), None)
+        if not agent_id:
+            raise NameError(f"No agent named {agent_name} found")
+        return agent_id
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
         if agent_name and not agent_id:
