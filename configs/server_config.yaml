@@ -1,7 +1,7 @@
 [defaults]
-preset = memgpt_extras
+preset = u-preset
 persona = u
-human = basic
+human = default
 
 [model]
 model = gpt-4o
@@ -14,7 +14,7 @@ context_window = 127000
 embedding_endpoint_type = openai
 embedding_endpoint = https://api.openai.com/v1
 embedding_model = text-embedding-3-large
-embedding_dim = 1536
+embedding_dim = 3072
 embedding_chunk_size = 300
 
 [archival_storage]
