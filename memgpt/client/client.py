@@ -24,7 +24,7 @@ from memgpt.models.pydantic_models import (
 )
 from memgpt.server.rest_api.agents.command import CommandResponse
 from memgpt.server.rest_api.agents.config import GetAgentResponse
-from memgpt.server.rest_api.agents.index import CreateAgentResponse, ListAgentsResponse
+from memgpt.server.rest_api.agents.index import CreateAgentResponse
 from memgpt.server.rest_api.agents.memory import (
     ArchivalMemoryObject,
     GetAgentArchivalMemoryResponse,
@@ -232,9 +232,9 @@ class RESTClient(AbstractClient):
         self.base_url = base_url
         self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
 
-    def list_agents(self):
+    def list_agents(self) -> List[AgentState]:
         response = requests.get(f"{self.base_url}/api/agents", headers=self.headers)
-        return ListAgentsResponse(**response.json())
+        return [AgentState(a) for a in response.json()]
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
         response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/config", headers=self.headers)
