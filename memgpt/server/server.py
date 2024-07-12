@@ -866,24 +866,6 @@ class SyncServer(LockingServer):
 
         agents_states = self.ms.list_agents(user_id=user_id, after=after, before=before, limit=limit, order=order)
         agents_states = [agentstate_to_agentstatemodel(a_s) for a_s in agents_states]
-
-        # For the UI listing panel, we need to add the following metadata:
-        # - tool breakdown (num base/core tools, num other)
-        # - last run data
-        # - memory stats (recall, archival)
-        # - number of sources
-        for agent_state in agents_states:
-
-            # Add information about attached sources
-            sources_ids = self.ms.list_attached_sources(agent_id=agent_state.id)
-            sources = [self.ms.get_source(source_id=s_id) for s_id in sources_ids]
-            agent_state.metadata["sources"] = [vars(s) for s in sources]
-
-            # Put full tool information inside the metadata
-            all_available_tools = self.ms.list_tools()
-            # agent_state.metadata["tools"] = [tool for tool in all_available_tools if tool.json_schema in memgpt_agent.functions]
-            agent_state.metadata["tools"] = [tool for tool in all_available_tools if tool.name in agent_state.tools]
-
         return agents_states
 
     def list_personas(self, user_id: uuid.UUID):
