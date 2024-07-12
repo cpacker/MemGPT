@@ -811,7 +811,7 @@ class LocalClient(AbstractClient):
         else:
             return UserMessageResponse(messages=self.interface.to_list(), usage=usage)
 
-    def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
+    def user_message(self, agent_id: str, message: str) -> UserMessageResponse:
         self.interface.clear()
         usage = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
         if self.auto_save:
@@ -888,7 +888,7 @@ class LocalClient(AbstractClient):
         source_type = "python"
         tool_name = json_schema["name"]
 
-        if "memory" in tags:
+        if tags and "memory" in tags:
             # special modifications to memory functions
             # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
             source_code = source_code.replace("self.memory", "self.memory.memory")
