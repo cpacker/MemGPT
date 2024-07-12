@@ -1,6 +1,6 @@
 import uuid
 from functools import partial
-from typing import List
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -21,11 +21,12 @@ from memgpt.settings import settings
 router = APIRouter()
 
 
-class ListAgentsResponse(BaseModel):
-    num_agents: int = Field(..., description="The number of agents available to the user.")
-    # TODO make return type List[AgentStateModel]
-    #      also return - presets: List[PresetModel]
-    agents: List[dict] = Field(..., description="List of agent configurations.")
+class ListAgentsRequest(BaseModel):
+    after: Optional[uuid.UUID] = Field(None, description="Unique agent ID to start the query range at.")
+    before: Optional[uuid.UUID] = Field(None, description="Unique agent ID to end the query range at.")
+    # TODO should these be 'optional'?
+    limit: int = Field(20, description="How many results to include in the response.")
+    order: Literal["asc", "desc"] = Field("desc", description="Sort order, asc for ascending order and desc for descending order.")
 
 
 class CreateAgentRequest(BaseModel):
@@ -41,8 +42,9 @@ class CreateAgentResponse(BaseModel):
 def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
-    @router.get("/agents", tags=["agents"], response_model=ListAgentsResponse)
+    @router.get("/agents", tags=["agents"], response_model=List[AgentStateModel])
     def list_agents(
+        request: ListAgentsRequest = Depends(),  # NOTE: using depends here, since all the pieces have defaults
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
@@ -51,8 +53,20 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         This endpoint retrieves a list of all agents and their configurations associated with the specified user ID.
         """
         interface.clear()
-        agents_data = server.list_agents(user_id=user_id)
-        return ListAgentsResponse(**agents_data)
+        return server.list_agents(
+            user_id=user_id,
+            after=request.after,
+            before=request.before,
+            limit=request.limit,
+            order=request.order,
+        )
+
+    # TODO(swooders) - "stripify"
+    @router.get("/agents/count", tags=["agents"], response_model=int)
+    def count_agents(
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        return server.ms.count_agents(user_id=user_id)
 
     @router.post("/agents", tags=["agents"], response_model=CreateAgentResponse)
     def create_agent(

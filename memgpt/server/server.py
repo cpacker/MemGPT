@@ -5,7 +5,7 @@ from abc import abstractmethod
 from datetime import datetime
 from functools import wraps
 from threading import Lock
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Literal, Optional, Tuple, Union
 
 from fastapi import HTTPException
 
@@ -39,6 +39,7 @@ from memgpt.memory import BaseMemory
 from memgpt.metadata import MetadataStore
 from memgpt.models.chat_completion_response import UsageStatistics
 from memgpt.models.pydantic_models import (
+    AgentStateModel,
     DocumentModel,
     HumanModel,
     MemGPTUsageStatistics,
@@ -48,6 +49,7 @@ from memgpt.models.pydantic_models import (
     SourceModel,
     ToolModel,
 )
+from memgpt.models.utils import agentstate_to_agentstatemodel
 
 # from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 from memgpt.prompts import gpt_system
@@ -848,67 +850,23 @@ class SyncServer(LockingServer):
     def list_agents(
         self,
         user_id: uuid.UUID,
-    ) -> dict:
+        after: Optional[uuid.UUID] = None,
+        before: Optional[uuid.UUID] = None,
+        limit: int = 20,
+        order: Literal["asc", "desc"] = "desc",
+        sort_by: Literal["created_at", "last_run", "name"] = "created_at",
+    ) -> List[AgentStateModel]:
         """List all available agents to a user"""
+        # TODO support sort_by
+        if sort_by != "created_at":
+            raise ValueError(sort_by)
+
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
-        agents_states = self.ms.list_agents(user_id=user_id)
-        agents_states_dicts = [self._agent_state_to_config(state) for state in agents_states]
-
-        # TODO add a get_message_obj_from_message_id(...) function
-        #      this would allow grabbing Message.created_by without having to load the agent object
-        # all_available_tools = self.ms.list_tools(user_id=user_id) # TODO: add back when user-specific
-        all_available_tools = self.ms.list_tools()
-
-        for agent_state, return_dict in zip(agents_states, agents_states_dicts):
-
-            # Get the agent object (loaded in memory)
-            memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
-
-            # TODO remove this eventually when return type get pydanticfied
-            # this is to add persona_name and human_name so that the columns in UI can populate
-            # TODO hack for frontend, remove
-            # (top level .persona is persona_name, and nested memory.persona is the state)
-            # TODO: eventually modify this to be contained in the metadata
-            return_dict["persona"] = agent_state._metadata.get("persona", None)
-            return_dict["human"] = agent_state._metadata.get("human", None)
-
-            # Add information about tools
-            # TODO memgpt_agent should really have a field of List[ToolModel]
-            #      then we could just pull that field and return it here
-            return_dict["tools"] = [tool for tool in all_available_tools if tool.json_schema in memgpt_agent.functions]
-
-            # Add information about memory (raw core, size of recall, size of archival)
-            core_memory = memgpt_agent.memory
-            recall_memory = memgpt_agent.persistence_manager.recall_memory
-            archival_memory = memgpt_agent.persistence_manager.archival_memory
-            memory_obj = {
-                "core_memory": {section: module.value for (section, module) in core_memory.memory.items()},
-                "recall_memory": len(recall_memory) if recall_memory is not None else None,
-                "archival_memory": len(archival_memory) if archival_memory is not None else None,
-            }
-            return_dict["memory"] = memory_obj
-
-            # Add information about last run
-            # NOTE: 'last_run' is just the timestamp on the latest message in the buffer
-            # Retrieve the Message object via the recall storage or by directly access _messages
-            last_msg_obj = memgpt_agent._messages[-1]
-            return_dict["last_run"] = last_msg_obj.created_at
-
-            # Add information about attached sources
-            sources_ids = self.ms.list_attached_sources(agent_id=agent_state.id)
-            sources = [self.ms.get_source(source_id=s_id) for s_id in sources_ids]
-            return_dict["sources"] = [vars(s) for s in sources]
-
-        # Sort agents by "last_run" in descending order, most recent first
-        agents_states_dicts.sort(key=lambda x: x["last_run"], reverse=True)
-
-        logger.debug(f"Retrieved {len(agents_states)} agents for user {user_id}")
-        return {
-            "num_agents": len(agents_states),
-            "agents": agents_states_dicts,
-        }
+        agents_states = self.ms.list_agents(user_id=user_id, after=after, before=before, limit=limit, order=order)
+        agents_states = [agentstate_to_agentstatemodel(a_s) for a_s in agents_states]
+        return agents_states
 
     def list_personas(self, user_id: uuid.UUID):
         return self.ms.list_personas(user_id=user_id)

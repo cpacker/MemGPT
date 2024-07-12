@@ -19,6 +19,8 @@ from memgpt.server.rest_api.agents.config import setup_agents_config_router
 from memgpt.server.rest_api.agents.index import setup_agents_index_router
 from memgpt.server.rest_api.agents.memory import setup_agents_memory_router
 from memgpt.server.rest_api.agents.message import setup_agents_message_router
+from memgpt.server.rest_api.agents.sources import setup_agents_sources_router
+from memgpt.server.rest_api.agents.tools import setup_agents_tools_router
 from memgpt.server.rest_api.auth.index import setup_auth_router
 from memgpt.server.rest_api.config.index import setup_config_index_router
 from memgpt.server.rest_api.humans.index import setup_humans_index_router
@@ -95,6 +97,8 @@ app.include_router(setup_agents_config_router(server, interface, password), pref
 app.include_router(setup_agents_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_agents_memory_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_agents_message_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(setup_agents_tools_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(setup_agents_sources_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_humans_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_personas_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_models_index_router(server, interface, password), prefix=API_PREFIX)
