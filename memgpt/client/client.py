@@ -711,9 +711,9 @@ class LocalClient(AbstractClient):
             raise ValueError(f"Only one of agent_id or agent_name can be provided")
         existing = self.list_agents()
         if agent_id:
-            return agent_id in [agent["id"] for agent in existing["agents"]]
+            return str(agent_id) in [str(agent.id) for agent in existing]
         else:
-            return agent_name in [agent["name"] for agent in existing["agents"]]
+            return agent_name in [agent.name for agent in existing]
 
     def create_agent(
         self,
