@@ -8,7 +8,12 @@ from memgpt.memory import ChatMemory
 """
 This example show how you can add a google search custom function to your MemGPT agent.
 
-First, make sure you run `pip install serpapi`, then setup memgpt with `memgpt configure`.
+First, make sure you run:
+```
+pip install serpapi
+pip install llama-index-readers-web
+```
+then setup memgpt with `memgpt configure`.
 """
 
 
