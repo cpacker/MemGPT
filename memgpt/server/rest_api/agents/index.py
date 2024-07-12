@@ -29,11 +29,6 @@ class ListAgentsRequest(BaseModel):
     order: Literal["asc", "desc"] = Field("desc", description="Sort order, asc for ascending order and desc for descending order.")
 
 
-class ListAgentsResponse(BaseModel):
-    num_agents: int = Field(..., description="The total number of agents created by the user.")
-    agents: List[AgentStateModel] = Field(..., description="List of agents.")
-
-
 class CreateAgentRequest(BaseModel):
     # TODO: modify this (along with front end)
     config: dict = Field(..., description="The agent configuration object.")
@@ -47,7 +42,7 @@ class CreateAgentResponse(BaseModel):
 def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
-    @router.get("/agents", tags=["agents"], response_model=ListAgentsResponse)
+    @router.get("/agents", tags=["agents"], response_model=List[AgentStateModel])
     def list_agents(
         request: ListAgentsRequest = Depends(),  # NOTE: using depends here, since all the pieces have defaults
         user_id: uuid.UUID = Depends(get_current_user_with_server),
@@ -58,15 +53,20 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         This endpoint retrieves a list of all agents and their configurations associated with the specified user ID.
         """
         interface.clear()
-        agents_data = server.list_agents(
+        return server.list_agents(
             user_id=user_id,
             after=request.after,
             before=request.before,
             limit=request.limit,
             order=request.order,
         )
-        num_agents = server.ms.count_agents(user_id=user_id)
-        return ListAgentsResponse(num_agents=num_agents, agents=agents_data)
+
+    # TODO(swooders) - "stripify"
+    @router.get("/agents/count", tags=["agents"], response_model=int)
+    def count_agents(
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        return server.ms.count_agents(user_id=user_id)
 
     @router.post("/agents", tags=["agents"], response_model=CreateAgentResponse)
     def create_agent(
