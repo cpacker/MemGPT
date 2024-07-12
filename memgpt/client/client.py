@@ -888,7 +888,7 @@ class LocalClient(AbstractClient):
         source_type = "python"
         tool_name = json_schema["name"]
 
-        if "memory" in tags:
+        if tags and "memory" in tags:
             # special modifications to memory functions
             # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
             source_code = source_code.replace("self.memory", "self.memory.memory")
