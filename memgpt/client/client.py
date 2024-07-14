@@ -892,7 +892,6 @@ class LocalClient(AbstractClient):
 
         return self.server.create_tool(
             user_id=self.user_id,
-            name=name,
             source_code=source_code,
             source_type=source_type,
             tags=tags,
