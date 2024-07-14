@@ -87,6 +87,7 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         assert isinstance(tool_names, list), "Tool names must be a list of strings."
 
         # TODO: eventually remove this - should support general memory at the REST endpoint
+        # TODO: the REST server should add default memory tools at startup time
         memory = ChatMemory(persona=persona, human=human)
 
         try:
@@ -120,7 +121,7 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                     embedding_config=embedding_config,
                     state=agent_state.state,
                     created_at=int(agent_state.created_at.timestamp()),
-                    tools=tool_names,
+                    tools=agent_state.tools,
                     system=agent_state.system,
                     metadata=agent_state._metadata,
                 ),

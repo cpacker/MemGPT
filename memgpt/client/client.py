@@ -888,30 +888,16 @@ class LocalClient(AbstractClient):
         source_type = "python"
         tool_name = json_schema["name"]
 
-        if tags and "memory" in tags:
-            # special modifications to memory functions
-            # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
-            source_code = source_code.replace("self.memory", "self.memory.memory")
+        assert name is None or name == tool_name, f"Tool name {name} does not match schema name {tool_name}"
 
-        # check if already exists:
-        existing_tool = self.server.ms.get_tool(tool_name, self.user_id)
-        if existing_tool:
-            if update:
-                # update existing tool
-                existing_tool.source_code = source_code
-                existing_tool.source_type = source_type
-                existing_tool.tags = tags
-                existing_tool.json_schema = json_schema
-                self.server.ms.update_tool(existing_tool)
-                return self.server.ms.get_tool(tool_name, self.user_id)
-            else:
-                raise ValueError(f"Tool {name} already exists and update=False")
-
-        tool = ToolModel(
-            name=tool_name, source_code=source_code, source_type=source_type, tags=tags, json_schema=json_schema, user_id=self.user_id
+        return self.server.create_tool(
+            user_id=self.user_id,
+            source_code=source_code,
+            source_type=source_type,
+            tags=tags,
+            json_schema=json_schema,
+            exists_ok=update,
         )
-        self.server.ms.add_tool(tool)
-        return self.server.ms.get_tool(tool_name, self.user_id)
 
     def list_tools(self):
         """List available tools.
