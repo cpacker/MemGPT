@@ -700,9 +700,13 @@ class LocalClient(AbstractClient):
 
     # agents
 
-    def list_agents(self):
+    def list_agents(self) -> List[AgentState]:
         self.interface.clear()
-        return self.server.list_agents(user_id=self.user_id)
+
+        # TODO: fix the server function
+        # return self.server.list_agents(user_id=self.user_id)
+
+        return self.server.ms.list_agents(user_id=self.user_id)
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
         if not (agent_id or agent_name):
@@ -711,9 +715,9 @@ class LocalClient(AbstractClient):
             raise ValueError(f"Only one of agent_id or agent_name can be provided")
         existing = self.list_agents()
         if agent_id:
-            return agent_id in [agent["id"] for agent in existing["agents"]]
+            return agent_id in [str(agent.id) for agent in existing]
         else:
-            return agent_name in [agent["name"] for agent in existing["agents"]]
+            return agent_name in [str(agent.name) for agent in existing]
 
     def create_agent(
         self,
