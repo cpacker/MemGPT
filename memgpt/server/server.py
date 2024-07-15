@@ -30,12 +30,14 @@ from memgpt.data_types import (
     Token,
     User,
 )
+from memgpt.functions.functions import parse_source_code
+from memgpt.functions.schema_generator import generate_schema
 
 # TODO use custom interface
 from memgpt.interface import AgentInterface  # abstract
 from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.log import get_logger
-from memgpt.memory import BaseMemory
+from memgpt.memory import BaseMemory, get_memory_functions
 from memgpt.metadata import MetadataStore
 from memgpt.models.chat_completion_response import UsageStatistics
 from memgpt.models.pydantic_models import (
@@ -278,8 +280,9 @@ class SyncServer(LockingServer):
         else:
             self.ms.create_user(user)
 
-        # add global default tools
-        presets.add_default_tools(None, self.ms)
+        # add global default tools (for admin)
+        presets.add_default_tools(user_id, self.ms)
+        presets.add_default_humans_and_personas(user_id, self.ms)
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
@@ -363,7 +366,9 @@ class SyncServer(LockingServer):
             memgpt_agent = self._load_agent(user_id=user_id, agent_id=agent_id)
         return memgpt_agent
 
-    def _step(self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: Union[str, Message]) -> MemGPTUsageStatistics:
+    def _step(
+        self, user_id: uuid.UUID, agent_id: uuid.UUID, input_message: Union[str, Message], timestamp: Optional[datetime]
+    ) -> MemGPTUsageStatistics:
         """Send the input message through the agent"""
 
         logger.debug(f"Got input message: {input_message}")
@@ -389,6 +394,7 @@ class SyncServer(LockingServer):
                 skip_verify=no_verify,
                 return_dicts=False,
                 stream=token_streaming,
+                timestamp=timestamp,
             )
             step_count += 1
             total_usage += usage
@@ -560,7 +566,10 @@ class SyncServer(LockingServer):
             elif message.startswith("/"):
                 raise ValueError(f"Invalid input: '{message}'")
 
-            packaged_user_message = system.package_user_message(user_message=message)
+            packaged_user_message = system.package_user_message(
+                user_message=message,
+                time=timestamp.isoformat() if timestamp else None,
+            )
 
             # NOTE: eventually deprecate and only allow passing Message types
             # Convert to a Message object
@@ -569,9 +578,11 @@ class SyncServer(LockingServer):
                 agent_id=agent_id,
                 role="user",
                 text=packaged_user_message,
+                created_at=timestamp,
                 # name=None,  # TODO handle name via API
             )
 
+        # TODO: I don't think this does anything because all we care about is packaged_user_message which only exists if message is str
         if isinstance(message, Message):
             # Can't have a null text field
             if len(message.text) == 0 or message.text is None:
@@ -580,15 +591,15 @@ class SyncServer(LockingServer):
             elif message.text.startswith("/"):
                 raise ValueError(f"Invalid input: '{message.text}'")
 
+            if timestamp:
+                # Override the timestamp with what the caller provided
+                message.created_at = timestamp
+
         else:
             raise TypeError(f"Invalid input: '{message}' - type {type(message)}")
 
-        if timestamp:
-            # Override the timestamp with what the caller provided
-            message.created_at = timestamp
-
         # Run the agent state forward
-        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message)
+        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message, timestamp=timestamp)
         return usage
 
     # @LockingServer.agent_lock_decorator
@@ -684,6 +695,7 @@ class SyncServer(LockingServer):
 
         # add default for the user
         presets.add_default_humans_and_personas(user.id, self.ms)
+        presets.add_default_tools(None, self.ms)
 
         return user
 
@@ -732,6 +744,25 @@ class SyncServer(LockingServer):
                 tool_obj = self.ms.get_tool(tool_name, user_id=user_id)
                 assert tool_obj, f"Tool {tool_name} does not exist"
                 tool_objs.append(tool_obj)
+
+            # make sure memory tools are added
+            # TODO: remove this - eventually memory tools need to be added when the memory is created
+            # this is duplicated with logic on the client-side
+
+            memory_functions = get_memory_functions(memory)
+            for func_name, func in memory_functions.items():
+                if func_name in tools:
+                    # tool already added
+                    continue
+                source_code = parse_source_code(func)
+                json_schema = generate_schema(func, func_name)
+                source_type = "python"
+                tags = ["memory", "memgpt-base"]
+                tool = self.create_tool(
+                    user_id=user_id, json_schema=json_schema, source_code=source_code, source_type=source_type, tags=tags, exists_ok=True
+                )
+                tool_objs.append(tool)
+                tools.append(tool.name)
 
             # TODO: add metadata
             agent_state = AgentState(
@@ -851,7 +882,7 @@ class SyncServer(LockingServer):
         # TODO add a get_message_obj_from_message_id(...) function
         #      this would allow grabbing Message.created_by without having to load the agent object
         # all_available_tools = self.ms.list_tools(user_id=user_id) # TODO: add back when user-specific
-        all_available_tools = self.ms.list_tools()
+        self.ms.list_tools()
 
         for agent_state, return_dict in zip(agents_states, agents_states_dicts):
 
@@ -869,7 +900,14 @@ class SyncServer(LockingServer):
             # Add information about tools
             # TODO memgpt_agent should really have a field of List[ToolModel]
             #      then we could just pull that field and return it here
-            return_dict["tools"] = [tool for tool in all_available_tools if tool.json_schema in memgpt_agent.functions]
+            # return_dict["tools"] = [tool for tool in all_available_tools if tool.json_schema in memgpt_agent.functions]
+
+            # get tool info from agent state
+            tools = []
+            for tool_name in agent_state.tools:
+                tool = self.ms.get_tool(tool_name, user_id)
+                tools.append(tool)
+            return_dict["tools"] = tools
 
             # Add information about memory (raw core, size of recall, size of archival)
             core_memory = memgpt_agent.memory
@@ -1475,26 +1513,32 @@ class SyncServer(LockingServer):
         Returns:
             tool (ToolModel): Tool object
         """
-        name = json_schema["name"]
-        tool = self.ms.get_tool(name, user_id=user_id)
-        if tool:  # check if function already exists
+
+        if tags and "memory" in tags:
+            # special modifications to memory functions
+            # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
+            source_code = source_code.replace("self.memory", "self.memory.memory")
+
+        # check if already exists:
+        tool_name = json_schema["name"]
+        existing_tool = self.ms.get_tool(tool_name, user_id)
+        if existing_tool:
             if exists_ok:
                 # update existing tool
-                tool.json_schema = json_schema
-                tool.tags = tags
-                tool.source_code = source_code
-                tool.source_type = source_type
-                self.ms.update_tool(tool)
+                existing_tool.source_code = source_code
+                existing_tool.source_type = source_type
+                existing_tool.tags = tags
+                existing_tool.json_schema = json_schema
+                self.ms.update_tool(existing_tool)
+                return self.ms.get_tool(tool_name, user_id)
             else:
-                raise ValueError(f"[server] Tool with name {name} already exists.")
-        else:
-            # create new tool
-            tool = ToolModel(
-                name=name, json_schema=json_schema, tags=tags, source_code=source_code, source_type=source_type, user_id=user_id
-            )
-            self.ms.add_tool(tool)
+                raise ValueError(f"Tool {tool_name} already exists and update=False")
 
-        return self.ms.get_tool(name, user_id=user_id)
+        tool = ToolModel(
+            name=tool_name, source_code=source_code, source_type=source_type, tags=tags, json_schema=json_schema, user_id=user_id
+        )
+        self.ms.add_tool(tool)
+        return self.ms.get_tool(tool_name, user_id)
 
     def delete_tool(self, name: str):
         """Delete a tool"""

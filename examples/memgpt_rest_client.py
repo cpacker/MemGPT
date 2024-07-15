@@ -1,8 +1,7 @@
 import json
 
 from memgpt import Admin, create_client
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
-from memgpt.utils import get_human_text, get_persona_text
+from memgpt.memory import ChatMemory
 
 """
 Make sure you run the MemGPT server before running this example.
@@ -31,26 +30,17 @@ def main():
     client = create_client(base_url="http://localhost:8283", token=token)
 
     # Create an agent
-    agent_info = client.create_agent(
-        name="my_agent",
-        preset=DEFAULT_PRESET,
-        persona=get_persona_text(DEFAULT_PERSONA),
-        human=get_human_text(DEFAULT_HUMAN),
-    )
-    print(f"Created agent: {agent_info.name} with ID {str(agent_info.id)}")
+    agent_state = client.create_agent(name="my_agent", memory=ChatMemory(human="My name is Sarah.", persona="I am a friendly AI."))
+    print(f"Created agent: {agent_state.name} with ID {str(agent_state.id)}")
 
     # Send a message to the agent
-    send_message_response = client.user_message(agent_id=agent_info.id, message="Hello, agent!")
-    messages = send_message_response.messages
-    print(f"Recieved response: \n{json.dumps(messages, indent=4)}")
-
-    # TODO: get agent memory
-
-    # TODO: Update agent persona
+    print(f"Created agent: {agent_state.name} with ID {str(agent_state.id)}")
+    send_message_response = client.user_message(agent_id=agent_state.id, message="Whats my name?")
+    print(f"Recieved response: \n{json.dumps(send_message_response.messages, indent=4)}")
 
     # Delete agent
-    client.delete_agent(agent_id=agent_info.id)
-    print(f"Deleted agent: {agent_info.name} with ID {str(agent_info.id)}")
+    client.delete_agent(agent_id=agent_state.id)
+    print(f"Deleted agent: {agent_state.name} with ID {str(agent_state.id)}")
 
     # Delete user
     admin.delete_user(user_id=user_id)

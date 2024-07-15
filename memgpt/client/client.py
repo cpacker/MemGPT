@@ -698,20 +698,15 @@ class LocalClient(AbstractClient):
         # create user if does not exist
         self.server.create_user({"id": self.user_id}, exists_ok=True)
 
-    # messages
-    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
-        self.interface.clear()
-        usage = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
-        if self.auto_save:
-            self.save()
-        else:
-            return UserMessageResponse(messages=self.interface.to_list(), usage=usage)
-
     # agents
 
-    def list_agents(self):
+    def list_agents(self) -> List[AgentState]:
         self.interface.clear()
-        return self.server.list_agents(user_id=self.user_id)
+
+        # TODO: fix the server function
+        # return self.server.list_agents(user_id=self.user_id)
+
+        return self.server.ms.list_agents(user_id=self.user_id)
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
         if not (agent_id or agent_name):
@@ -720,9 +715,9 @@ class LocalClient(AbstractClient):
             raise ValueError(f"Only one of agent_id or agent_name can be provided")
         existing = self.list_agents()
         if agent_id:
-            return agent_id in [agent["id"] for agent in existing["agents"]]
+            return str(agent_id) in [str(agent.id) for agent in existing]
         else:
-            return agent_name in [agent["name"] for agent in existing["agents"]]
+            return agent_name in [str(agent.name) for agent in existing]
 
     def create_agent(
         self,
@@ -805,6 +800,9 @@ class LocalClient(AbstractClient):
     # agent interactions
 
     def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
+        if stream:
+            # TODO: implement streaming with stream=True/False
+            raise NotImplementedError
         self.interface.clear()
         if role == "system":
             usage = self.server.system_message(user_id=self.user_id, agent_id=agent_id, message=message)
@@ -817,7 +815,7 @@ class LocalClient(AbstractClient):
         else:
             return UserMessageResponse(messages=self.interface.to_list(), usage=usage)
 
-    def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
+    def user_message(self, agent_id: str, message: str) -> UserMessageResponse:
         self.interface.clear()
         usage = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
         if self.auto_save:
@@ -894,30 +892,16 @@ class LocalClient(AbstractClient):
         source_type = "python"
         tool_name = json_schema["name"]
 
-        if "memory" in tags:
-            # special modifications to memory functions
-            # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
-            source_code = source_code.replace("self.memory", "self.memory.memory")
+        assert name is None or name == tool_name, f"Tool name {name} does not match schema name {tool_name}"
 
-        # check if already exists:
-        existing_tool = self.server.ms.get_tool(tool_name, self.user_id)
-        if existing_tool:
-            if update:
-                # update existing tool
-                existing_tool.source_code = source_code
-                existing_tool.source_type = source_type
-                existing_tool.tags = tags
-                existing_tool.json_schema = json_schema
-                self.server.ms.update_tool(existing_tool)
-                return self.server.ms.get_tool(tool_name, self.user_id)
-            else:
-                raise ValueError(f"Tool {name} already exists and update=False")
-
-        tool = ToolModel(
-            name=tool_name, source_code=source_code, source_type=source_type, tags=tags, json_schema=json_schema, user_id=self.user_id
+        return self.server.create_tool(
+            user_id=self.user_id,
+            source_code=source_code,
+            source_type=source_type,
+            tags=tags,
+            json_schema=json_schema,
+            exists_ok=update,
         )
-        self.server.ms.add_tool(tool)
-        return self.server.ms.get_tool(tool_name, self.user_id)
 
     def list_tools(self):
         """List available tools.
