@@ -2,8 +2,13 @@ import asyncio
 import json
 import traceback
 from typing import AsyncGenerator, Generator, Union
+from sqlalchemy import select
 
 from memgpt.constants import JSON_ENSURE_ASCII
+from memgpt.orm.utilities import get_db_session
+from memgpt.orm.user import User
+from memgpt.server.server import SyncServer
+from memgpt.server.rest_api.interface import StreamingServerInterface
 
 SSE_FINISH_MSG = "[DONE]"  # mimic openai
 SSE_ARTIFICIAL_DELAY = 0.1
@@ -58,3 +63,19 @@ async def sse_async_generator(generator: AsyncGenerator, finish_message=True):
         # yield "data: [DONE]\n\n"
         if finish_message:
             yield sse_formatter(SSE_FINISH_MSG)  # Signal that the stream is complete
+
+def get_current_user() -> "User":
+    """returns the currently authed user"""
+
+    ## this keeps getting kicked down the line, next PR needs to handle this
+    ## all of this needs to live in a single object utils module
+    query = select(User).first()
+    return get_db_session().execute(query).scalar_one()
+
+# TODO: why does this double up the interface?
+def get_memgpt_server() -> SyncServer:
+    server = SyncServer(default_interface_factory=lambda: StreamingServerInterface())
+    return server
+
+def get_current_interface() -> StreamingServerInterface:
+    return StreamingServerInterface
