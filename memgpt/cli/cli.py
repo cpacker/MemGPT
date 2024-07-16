@@ -13,6 +13,7 @@ import requests
 import typer
 
 import memgpt.utils as utils
+from memgpt.settings import settings
 from memgpt import create_client
 from memgpt.agent import Agent, save_agent
 from memgpt.cli.cli_config import configure
@@ -25,6 +26,7 @@ from memgpt.memory import ChatMemory
 from memgpt.metadata import MetadataStore
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
 from memgpt.server.constants import WS_DEFAULT_PORT
+from memgpt.cli.start_remote_server import start_server
 from memgpt.server.server import logger as server_logger
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
@@ -310,9 +312,6 @@ def server(
     type: Annotated[ServerChoice, typer.Option(help="Server to run")] = "rest",
     port: Annotated[Optional[int], typer.Option(help="Port to run the server on")] = None,
     host: Annotated[Optional[str], typer.Option(help="Host to run the server on (default to localhost)")] = None,
-    use_ssl: Annotated[bool, typer.Option(help="Run the server using HTTPS?")] = False,
-    ssl_cert: Annotated[Optional[str], typer.Option(help="Path to SSL certificate (if use_ssl is True)")] = None,
-    ssl_key: Annotated[Optional[str], typer.Option(help="Path to SSL key file (if use_ssl is True)")] = None,
     debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = False,
 ):
     """Launch a MemGPT server process"""
@@ -329,14 +328,10 @@ def server(
             sys.exit(1)
 
         try:
-            from memgpt.server.rest_api.server import start_server
-
+            from memgpt.cli.start_remote_server import start_server
             start_server(
                 port=port,
                 host=host,
-                use_ssl=use_ssl,
-                ssl_cert=ssl_cert,
-                ssl_key=ssl_key,
                 debug=debug,
             )
 
@@ -346,21 +341,10 @@ def server(
             sys.exit(0)
 
     elif type == ServerChoice.ws_api:
+        port = port or 8282 # WS default
         if debug:
-            from memgpt.server.server import logger as server_logger
+            settings.debug = debug
 
-            # Set the logging level
-            server_logger.setLevel(logging.DEBUG)
-            # Create a StreamHandler
-            stream_handler = logging.StreamHandler()
-            # Set the formatter (optional)
-            formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-            stream_handler.setFormatter(formatter)
-            # Add the handler to the logger
-            server_logger.addHandler(stream_handler)
-
-        if port is None:
-            port = WS_DEFAULT_PORT
 
         # Change to the desired directory
         script_path = Path(__file__).resolve()
@@ -428,12 +412,7 @@ def run(
     # TODO: add logging command line options for runtime log level
 
     if debug:
-        logger.setLevel(logging.DEBUG)
-        server_logger.setLevel(logging.DEBUG)
-    else:
-        logger.setLevel(logging.CRITICAL)
-        server_logger.setLevel(logging.CRITICAL)
-
+        settings.debug = debug
     from memgpt.migrate import (
         VERSION_CUTOFF,
         config_is_compatible,
