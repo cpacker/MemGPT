@@ -7,7 +7,14 @@ from dataclasses import dataclass
 
 import memgpt
 import memgpt.utils as utils
-from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET, MEMGPT_DIR
+from memgpt.constants import (
+    CORE_MEMORY_HUMAN_CHAR_LIMIT,
+    CORE_MEMORY_PERSONA_CHAR_LIMIT,
+    DEFAULT_HUMAN,
+    DEFAULT_PERSONA,
+    DEFAULT_PRESET,
+    MEMGPT_DIR,
+)
 from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig
 from memgpt.log import get_logger
 
@@ -75,6 +82,10 @@ class MemGPTConfig:
 
     # user info
     policies_accepted: bool = False
+
+    # Default memory limits
+    core_memory_persona_char_limit: int = CORE_MEMORY_PERSONA_CHAR_LIMIT
+    core_memory_human_char_limit: int = CORE_MEMORY_HUMAN_CHAR_LIMIT
 
     def __post_init__(self):
         # ensure types
