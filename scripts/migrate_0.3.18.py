@@ -32,10 +32,10 @@ agent_states = []
 with engine.connect() as conn:
     agents = conn.execute(table.select()).fetchall()
     for agent in agents:
-        # print(agent)
         id = uuid.UUID(agent[0])
         user_id = uuid.UUID(agent[1])
         name = agent[2]
+        print(f"Migrating agent {name}")
         persona = agent[3]
         human = agent[4]
         system = agent[5]
@@ -46,7 +46,7 @@ with engine.connect() as conn:
         state = agent[10]
         tools = agent[11]
 
-        state["memory"] = {"human": human, "persona": persona}
+        state["memory"] = {"human": {"value": human, "limit": 2000}, "persona": {"value": persona, "limit": 2000}}
 
         agent_state = AgentState(
             id=id,
@@ -67,9 +67,15 @@ with engine.connect() as conn:
 agents_model = Table("agents", metadata, autoload_with=engine)
 agents_model.drop(engine)
 
+# remove tool table
+tool_model = Table("toolmodel", metadata, autoload_with=engine)
+tool_model.drop(engine)
+
 # re-create tables and add default tools
 ms = MetadataStore(config)
 add_default_tools(None, ms)
+print("Tools", [tool.name for tool in ms.list_tools()])
+
 
 for agent in agent_states:
     ms.create_agent(agent)

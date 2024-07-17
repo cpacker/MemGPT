@@ -75,6 +75,7 @@ class BaseMemory:
         """Load memory from dictionary object"""
         obj = cls()
         for key, value in state.items():
+            print("memory value", state, key, value)
             obj.memory[key] = MemoryModule(**value)
         return obj
 
