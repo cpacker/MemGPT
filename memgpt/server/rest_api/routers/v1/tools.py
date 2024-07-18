@@ -1,6 +1,4 @@
-import uuid
-from functools import partial
-
+from typing import TYPE_CHECKING
 from fastapi import APIRouter, Body, Depends, HTTPException
 from memgpt.server.schemas.tools import CreateToolRequest, ListToolsResponse, ToolModel
 from memgpt.server.rest_api.utils import get_current_user, get_current_interface, get_memgpt_server
