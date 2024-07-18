@@ -111,3 +111,54 @@ class DocumentMixin(Base):
     @document_id.setter
     def document_id(self, value: str) -> None:
         _relation_setter(self, "document", value)
+
+class HumanMemoryTemplateMixin(Base):
+    """Mixin for models that have one human memory template relationships."""
+
+    __abstract__ = True
+
+    _human_memory_template_id: Mapped[UUID] = mapped_column(
+        SQLUUID(), ForeignKey("memory_template._id")
+    )
+
+    @property
+    def human_memory_template_id(self) -> str:
+        return _relation_getter(self, "human_memory_template")
+
+    @human_memory_template_id.setter
+    def human_memory_template_id(self, value: str) -> None:
+        _relation_setter(self, "human_memory_template", value)
+
+class SystemMemoryTemplateMixin(Base):
+    """Mixin for models that have one system memory template relationships."""
+
+    __abstract__ = True
+
+    _system_memory_template_id: Mapped[UUID] = mapped_column(
+        SQLUUID(), ForeignKey("memory_template._id")
+    )
+
+    @property
+    def system_memory_template_id(self) -> str:
+        return _relation_getter(self, "system_memory_template")
+
+    @system_memory_template_id.setter
+    def system_memory_template_id(self, value: str) -> None:
+        _relation_setter(self, "system_memory_template", value)
+
+class PersonaMemoryTemplateMixin(Base):
+    """Mixin for models that have one persona memory template relationships."""
+
+    __abstract__ = True
+
+    _persona_memory_template_id: Mapped[UUID] = mapped_column(
+        SQLUUID(), ForeignKey("memory_template._id")
+    )
+
+    @property
+    def persona_memory_template_id(self) -> str:
+        return _relation_getter(self, "persona_memory_template")
+
+    @persona_memory_template_id.setter
+    def persona_memory_template_id(self, value: str) -> None:
+        _relation_setter(self, "persona_memory_template", value)
