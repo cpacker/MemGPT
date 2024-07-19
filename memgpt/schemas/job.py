@@ -1,18 +1,11 @@
 import uuid
 from datetime import datetime
-from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from memgpt.orm.enums import JobStatus
 from memgpt.utils import get_utc_time
-
-
-class JobStatus(str, Enum):
-    created = "created"
-    running = "running"
-    completed = "completed"
-    failed = "failed"
 
 
 class JobModel(BaseModel, table=True):
