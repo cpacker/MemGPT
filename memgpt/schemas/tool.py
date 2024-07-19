@@ -3,6 +3,8 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
+from memgpt.schemas.openai.chat_completions import ToolCall
+
 
 class Tool(BaseModel):
 
@@ -24,8 +26,10 @@ class Tool(BaseModel):
 
     def to_dict(self):
         """Convert into OpenAI representation"""
-        return {
-            "id": self.tool_id,
-            "type": self.tool_call_type,
-            "function": self.function,
-        }
+        return vars(
+            ToolCall(
+                tool_id=self.id,
+                tool_call_type="function",
+                function=self.module,
+            )
+        )

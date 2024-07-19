@@ -1,16 +1,18 @@
+import json
 import uuid
 from datetime import datetime
 from typing import List, Optional
 
-import numpy as np
 from pydantic import BaseModel, Field
 
-from memgpt.constants import TOOL_CALL_ID_MAX_LEN
-from memgpt.schemas.tool import Tool
+from memgpt.constants import JSON_ENSURE_ASCII, TOOL_CALL_ID_MAX_LEN
+from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
+from memgpt.schemas.openai.chat_completions import ToolCall
 
 
 class Message(BaseModel):
-    """Representation of a message sent.
+    """
+    Representation of a message sent.
 
     Messages can be:
     - agent->user (role=='agent')
@@ -26,11 +28,8 @@ class Message(BaseModel):
     model: Optional[str] = Field(None, description="The model used to make the function call.")
     name: Optional[str] = Field(None, description="The name of the participant.")
     created_at: Optional[datetime] = Field(None, description="The time the message was created.")
-    tool_calls: Optional[List[Tool]] = Field(None, description="The list of tool calls requested.")
+    tool_calls: Optional[List[ToolCall]] = Field(None, description="The list of tool calls requested.")
     tool_call_id: Optional[str] = Field(None, description="The id of the tool call.")
-    embedding: Optional[np.ndarray] = Field(None, description="The embedding of the message.")
-    embedding_dim: Optional[int] = Field(None, description="The dimension of the embedding.")
-    embedding_model: Optional[str] = Field(None, description="The model used to create the embedding.")
 
     @validator("role")
     def validate_role(cls, v):
