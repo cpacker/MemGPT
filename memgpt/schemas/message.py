@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from memgpt.constants import JSON_ENSURE_ASCII, TOOL_CALL_ID_MAX_LEN
 from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
@@ -32,8 +32,9 @@ class Message(BaseModel):
     tool_calls: Optional[List[ToolCall]] = Field(None, description="The list of tool calls requested.")
     tool_call_id: Optional[str] = Field(None, description="The id of the tool call.")
 
-    @validator("role")
-    def validate_role(cls, v):
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: str) -> str:
         roles = ["system", "assistant", "user", "tool"]
         assert v in roles, f"Role must be one of {roles}"
         return v

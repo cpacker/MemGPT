@@ -2,6 +2,7 @@ import importlib
 import inspect
 import os
 import uuid
+from typing import List
 
 from memgpt.data_types import AgentState, Preset
 from memgpt.functions.functions import load_function_set
@@ -89,6 +90,7 @@ def create_agent_from_preset(
 ):
     """Initialize a new agent from a preset (combination of system + function)"""
     raise DeprecationWarning("Function no longer supported - pass a Preset object to Agent.__init__ instead")
+
 
 def create_preset_from_file(filename: str, name: str, user_id: uuid.UUID, ms: MetadataStore) -> Preset:
     preset_config = load_yaml_file(filename)
