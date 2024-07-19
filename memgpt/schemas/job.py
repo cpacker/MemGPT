@@ -24,3 +24,15 @@ class JobModel(BaseModel, table=True):
     completed_at: Optional[datetime] = Field(None, description="The unix timestamp of when the job was completed.")
     user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the job.")
     metadata_: Optional[dict] = Field({}, description="The metadata of the job.")
+
+
+class JobCreate(BaseModel):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the job.", primary_key=True)
+    user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the job.")
+    metadata_: Optional[dict] = Field({}, description="The metadata of the job.")
+
+
+class JobUpdate(BaseModel):
+    job_id: uuid.UUID = Field(..., description="The unique identifier of the job.")
+    status: Optional[JobStatus] = Field(..., description="The status of the job.")
+    metadata_: Optional[dict] = Field({}, description="The metadata of the job.")

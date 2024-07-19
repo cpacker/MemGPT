@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from memgpt.constants import JSON_ENSURE_ASCII, TOOL_CALL_ID_MAX_LEN
 from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
 from memgpt.schemas.openai.chat_completions import ToolCall
+from memgpt.utils import is_utc_datetime
 
 
 class Message(BaseModel):

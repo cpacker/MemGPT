@@ -38,7 +38,7 @@ class PassageCreate(CommonPassagePartial):
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the passage.")
 
 
-class PassageUpdate(CommonPassagePartial):
+class PassageUpdate(PassageCreate):
     passage_id: uuid.UUID = Field(..., description="The unique identifier of the passage.")
     text: Optional[str] = Field(None, description="The text of the passage.")
 

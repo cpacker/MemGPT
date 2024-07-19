@@ -1,33 +1,18 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class EmbeddingConfig(BaseModel):
-    embedding_endpoint_type: Optional[str] = "openai"
-    embedding_endpoint: Optional[str] = "https://api.openai.com/v1"
-    embedding_model: Optional[str] = "text-embedding-ada-002"
-    embedding_dim: Optional[int] = 1536
-    embedding_chunk_size: Optional[int] = 300
+    """Embedding model configuration"""
 
+    embedding_endpoint_type: str = Field(..., description="The endpoint type for the model.")
+    embedding_endpoint: str = Field(..., description="The endpoint for the model.")
+    embedding_model: str = Field(..., description="The model for the embedding.")
+    embedding_dim: int = Field(..., description="The dimension of the embedding.")
+    embedding_chunk_size: Optional[int] = Field(300, description="The chunk size of the embedding.")
 
-class OpenAIEmbeddingConfig(EmbeddingConfig):
-    def __init__(self, openai_key: Optional[str] = None, **kwargs):
-        super().__init__(**kwargs)
-        self.openai_key = openai_key
-
-
-class AzureEmbeddingConfig(EmbeddingConfig):
-    def __init__(
-        self,
-        azure_key: Optional[str] = None,
-        azure_endpoint: Optional[str] = None,
-        azure_version: Optional[str] = None,
-        azure_deployment: Optional[str] = None,
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-        self.azure_key = azure_key
-        self.azure_endpoint = azure_endpoint
-        self.azure_version = azure_version
-        self.azure_deployment = azure_deployment
+    # azure only
+    azure_endpoint: Optional[str] = Field(None, description="The Azure endpoint for the model.")
+    azure_version: Optional[str] = Field(None, description="The Azure version for the model.")
+    azure_deployment: Optional[str] = Field(None, description="The Azure deployment for the model.")
