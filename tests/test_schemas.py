@@ -35,3 +35,21 @@ def test_message():
     user_message = Message(text="Hello", role="user")
 
     tool_message = Message(text="Hello", role="tool")
+
+    messages = [user_message, tool_message]
+    for message in messages:
+
+        # test converting to json
+        message.to_json()
+
+        # test converting to dict
+        message.to_dict()
+
+        # test converting to openai serach result
+        message.to_openai_dict_search_results()
+
+        message.to_anthropic_dict()
+
+        message.to_cohere_dict()
+
+        message.to_google_ai_dict()
