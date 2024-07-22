@@ -10,6 +10,7 @@ from memgpt.models.chat_completion_response import ChatCompletionChunkResponse
 from memgpt.streaming_interface import AgentChunkStreamingInterface
 from memgpt.utils import get_utc_time, is_utc_datetime
 
+#TODO: this entire Queueing concept can go away in favor of sse
 
 class QueuingInterface(AgentInterface):
     """Messages are queued inside an internal buffer and manually flushed"""
