@@ -805,6 +805,8 @@ class SyncServer(LockingServer):
         user_id: uuid.UUID,
         agent_id: uuid.UUID,
     ):
+        # TODO: delete agent data
+
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:

@@ -10,7 +10,6 @@ from prettytable.colortable import ColorTable, Themes
 from tqdm import tqdm
 
 from memgpt import utils
-from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.constants import LLM_MAX_TOKENS, MEMGPT_DIR
 from memgpt.credentials import SUPPORTED_AUTH_TYPES, MemGPTCredentials
@@ -1096,18 +1095,16 @@ class ListChoice(str, Enum):
 def list(arg: Annotated[ListChoice, typer.Argument]):
     from memgpt.client.client import create_client
 
-    config = MemGPTConfig.load()
-    ms = MetadataStore(config)
-    user_id = uuid.UUID(config.anon_clientid)
     client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
     table = ColorTable(theme=Themes.OCEAN)
     if arg == ListChoice.agents:
         """List all agents"""
         table.field_names = ["Name", "LLM Model", "Embedding Model", "Embedding Dim", "Persona", "Human", "Data Source", "Create Time"]
-        for agent in tqdm(ms.list_agents(user_id=user_id)):
-            source_ids = ms.list_attached_sources(agent_id=agent.id)
+        for agent in tqdm(client.list_agents()):
+            # TODO: add this function
+            source_ids = client.list_attached_sources(agent_id=agent.id)
             assert all([source_id is not None and isinstance(source_id, uuid.UUID) for source_id in source_ids])
-            sources = [ms.get_source(source_id=source_id) for source_id in source_ids]
+            sources = [client.get_source(source_id=source_id) for source_id in source_ids]
             assert all([source is not None and isinstance(source, Source)] for source in sources)
             source_names = [source.name for source in sources if source is not None]
             table.add_row(
@@ -1116,8 +1113,8 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
                     agent.llm_config.model,
                     agent.embedding_config.embedding_model,
                     agent.embedding_config.embedding_dim,
-                    agent.persona,
-                    agent.human,
+                    agent._metadata.get("persona", ""),
+                    agent._metadata.get("human", ""),
                     ",".join(source_names),
                     utils.format_datetime(agent.created_at),
                 ]
@@ -1132,7 +1129,7 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
     elif arg == ListChoice.personas:
         """List all personas"""
         table.field_names = ["Name", "Text"]
-        for persona in ms.list_personas(user_id=user_id):
+        for persona in client.list_personas():
             table.add_row([persona.name, persona.text.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.sources:
@@ -1145,8 +1142,9 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         # TODO: connect to agents
 
         # get all sources
-        for source in ms.list_sources(user_id=user_id):
+        for source in client.list_sources():
             # get attached agents
+            # TODO: implement this on client
             agent_ids = ms.list_attached_agents(source_id=source.id)
             agent_states = [ms.get_agent(agent_id=agent_id) for agent_id in agent_ids]
             agent_names = [agent_state.name for agent_state in agent_states if agent_state is not None]
@@ -1177,25 +1175,22 @@ def add(
     """Add a person/human"""
     from memgpt.client.client import create_client
 
-    config = MemGPTConfig.load()
-    user_id = uuid.UUID(config.anon_clientid)
-    ms = MetadataStore(config)
     client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
     if filename:  # read from file
         assert text is None, "Cannot specify both text and filename"
         with open(filename, "r", encoding="utf-8") as f:
             text = f.read()
     if option == "persona":
-        persona = ms.get_persona(name=name)
+        persona = client.get_persona(name)
         if persona:
             # config if user wants to overwrite
             if not questionary.confirm(f"Persona {name} already exists. Overwrite?").ask():
                 return
             persona.text = text
-            ms.update_persona(persona)
+            client.update_persona(persona)
         else:
-            persona = PersonaModel(name=name, text=text, user_id=user_id)
-            ms.add_persona(persona)
+            persona = PersonaModel(name=name, text=text, user_id=client.user_id)
+            client.add_persona(persona)
 
     elif option == "human":
         human = client.get_human(name=name)
@@ -1216,53 +1211,24 @@ def delete(option: str, name: str):
     """Delete a source from the archival memory."""
     from memgpt.client.client import create_client
 
-    config = MemGPTConfig.load()
-    user_id = uuid.UUID(config.anon_clientid)
     client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_API_KEY"))
-    ms = MetadataStore(config)
-    assert ms.get_user(user_id=user_id), f"User {user_id} does not exist"
-
     try:
         # delete from metadata
         if option == "source":
             # delete metadata
-            source = ms.get_source(source_name=name, user_id=user_id)
+            source = client.get_source(name)
             assert source is not None, f"Source {name} does not exist"
-            ms.delete_source(source_id=source.id)
-
-            # delete from passages
-            conn = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id=user_id)
-            conn.delete({"data_source": name})
-
-            assert (
-                conn.get_all({"data_source": name}) == []
-            ), f"Expected no passages with source {name}, but got {conn.get_all({'data_source': name})}"
-
-            # TODO: should we also delete from agents?
+            client.delete_source(source_id=source.id)
         elif option == "agent":
-            agent = ms.get_agent(agent_name=name, user_id=user_id)
-            assert agent is not None, f"Agent {name} for user_id {user_id} does not exist"
-
-            # recall memory
-            recall_conn = StorageConnector.get_storage_connector(TableType.RECALL_MEMORY, config, user_id=user_id, agent_id=agent.id)
-            recall_conn.delete({"agent_id": agent.id})
-
-            # archival memory
-            archival_conn = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config, user_id=user_id, agent_id=agent.id)
-            archival_conn.delete({"agent_id": agent.id})
-
-            # metadata
-            ms.delete_agent(agent_id=agent.id)
-
+            client.delete_agent(name=name)
         elif option == "human":
             human = client.get_human(name=name)
             assert human is not None, f"Human {name} does not exist"
             client.delete_human(name=name)
         elif option == "persona":
-            persona = ms.get_persona(name=name)
+            persona = client.get_persona(name=name)
             assert persona is not None, f"Persona {name} does not exist"
-            ms.delete_persona(name=name)
-            assert ms.get_persona(name=name) is None, f"Persona {name} still exists"
+            client.delete_persona(name=name)
         else:
             raise ValueError(f"Option {option} not implemented")
 
