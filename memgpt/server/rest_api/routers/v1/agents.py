@@ -380,11 +380,11 @@ def get_agent_messages(
 
 @router.get("/{agent_id}/messages-cursor", response_model=GetAgentMessagesResponse)
 def get_agent_messages_cursor(
-    agent_id: "UUID",
+    agent_id: UUID,
     actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
-    before: Optional["UUID"] = Query(None, description="Message before which to retrieve the returned messages."),
+    before: Optional[UUID] = Query(None, description="Message before which to retrieve the returned messages."),
     limit: int = Query(10, description="Maximum number of messages to retrieve."),
 
 ):
