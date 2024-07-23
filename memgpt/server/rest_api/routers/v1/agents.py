@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union, Optional
+from typing import Union, Optional
 from datetime import datetime
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
@@ -14,9 +14,7 @@ from memgpt.server.rest_api.interface import StreamingServerInterface, QueuingIn
 from uuid import UUID
 from memgpt.orm.user import User
 from memgpt.server.server import SyncServer
-
-if TYPE_CHECKING:
-    from memgpt.server.schemas.agents import AgentCommandRequest
+from memgpt.server.schemas.agents import AgentCommandRequest
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -34,7 +32,7 @@ def list_agents(
     interface.clear()
     return server.list_agents(user_id=actor._id)
 
-@router.post(response_model=CreateAgentResponse)
+@router.post("/", response_model=CreateAgentResponse)
 def create_agent(
     agent: CreateAgentRequest,
     actor: "User" = Depends(get_current_user),

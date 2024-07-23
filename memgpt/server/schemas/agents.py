@@ -5,9 +5,8 @@ from pydantic import BaseModel, Field, StringConstraints
 from memgpt.models.pydantic_models import AgentStateModel, MemGPTUsageStatistics
 from memgpt.orm.enums import MessageRoleType
 
-if TYPE_CHECKING:
-    from uuid import UUID
-    from memgpt.models.pydantic_models import PresetModel
+from uuid import UUID
+from memgpt.models.pydantic_models import PresetModel
 
 
 class AgentCommandRequest(BaseModel):
