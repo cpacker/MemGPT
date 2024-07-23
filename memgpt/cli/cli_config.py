@@ -1156,6 +1156,7 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         print(table)
     else:
         raise ValueError(f"Unknown argument {arg}")
+    return table
 
 
 @app.command()

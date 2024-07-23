@@ -984,7 +984,9 @@ class LocalClient(AbstractClient):
         return self.server.get_human(name=name, user_id=self.user_id)
 
     def update_human(self, name: str, text: str):
-        return self.server.update_human(HumanModel(name=name, text=text, user_id=self.user_id))
+        human = self.get_human(name)
+        human.text = text
+        return self.server.update_human(human)
 
     def delete_human(self, name: str):
         return self.server.delete_human(name, self.user_id)
@@ -995,8 +997,10 @@ class LocalClient(AbstractClient):
     def get_persona(self, name: str):
         return self.server.get_persona(name=name, user_id=self.user_id)
 
-    def update_persona(self, persona: PersonaModel):
-        return self.server.update_persona(PersonaModel(name=persona.name, text=persona.text, user_id=self.user_id))
+    def update_persona(self, name: str, text: str):
+        persona = self.get_persona(name)
+        persona.text = text
+        return self.server.update_persona(persona)
 
     def delete_persona(self, name: str):
         return self.server.delete_persona(name, self.user_id)
