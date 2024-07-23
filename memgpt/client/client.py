@@ -924,7 +924,7 @@ class LocalClient(AbstractClient):
         self.server.load_data(user_id=self.user_id, connector=connector, source_name=source_name)
 
     def create_source(self, name: str):
-        self.server.create_source(user_id=self.user_id, name=name)
+        return self.server.create_source(user_id=self.user_id, name=name)
 
     def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
         self.server.attach_source_to_agent(user_id=self.user_id, source_id=source_id, agent_id=agent_id)
