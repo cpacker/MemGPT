@@ -3,7 +3,6 @@ import inspect
 import json
 import traceback
 import uuid
-from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union, cast
 
 from tqdm import tqdm
@@ -120,7 +119,6 @@ def initialize_message_sequence(
     return messages
 
 
-@dataclass
 class Agent(object):
     def __init__(
         self,
@@ -1005,18 +1003,6 @@ def save_agent(agent: Agent, ms: MetadataStore):
     agent.update_state()
     agent_state = agent.agent_state
 
-    if ms.get_agent(agent_name=agent_state.name, user_id=agent_state.user_id):
-        ms.update_agent(agent_state)
-    else:
-        ms.create_agent(agent_state)
-
-
-def save_agent_using_state(agent_state: AgentState, ms: MetadataStore):
-    """
-    Save agent to metadata store ONLY IF you are are certain
-    that the AgentState has not changed since the instantiation
-    of the Agent object.
-    """
     if ms.get_agent(agent_name=agent_state.name, user_id=agent_state.user_id):
         ms.update_agent(agent_state)
     else:
