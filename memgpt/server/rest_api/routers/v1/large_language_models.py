@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, List
 from fastapi import APIRouter, Depends
 
-from memgpt.server.utils import get_current_user, get_memgpt_server, get_current_interface
+from memgpt.server.rest_api.utils import get_current_user, get_memgpt_server, get_current_interface
 from memgpt.models.pydantic_models import LLMConfigModel
 from memgpt.server.schemas.large_language_models import ListModelsResponse
 
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from memgpt.orm.user import User
     from memgpt.server.rest_api.interface import QueuingInterface
 
-router = APIRouter("/models", tags=["models","large_language_models"])
+router = APIRouter(prefix="/models", tags=["models","large_language_models"])
 
 @router.get("/", response_model=ListModelsResponse)
 def list_models(

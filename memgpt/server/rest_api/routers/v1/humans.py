@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from memgpt.server.rest_api.interface import QueuingInterface
 
 
-router = APIRouter(prefocix="/humans", tags=["humans"])
+router = APIRouter(prefix="/humans", tags=["humans"])
 
 
 

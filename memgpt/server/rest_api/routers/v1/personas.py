@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from memgpt.server.rest_api.interface import QueuingInterface
 
 
-router = APIRouter(prefocix="/personas", tags=["personas"])
+router = APIRouter(prefix="/personas", tags=["personas"])
 
 
 @router.get("/", response_model=ListPersonasResponse)
