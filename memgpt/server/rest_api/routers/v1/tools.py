@@ -13,7 +13,7 @@ router = APIRouter(prefix="/tools", tags=["tools"])
 @router.delete("/{tool_name}")
 def delete_tool(
     tool_name: str,
-    actor: User = Depends(get_current_user),
+    actor: "User" = Depends(get_current_user),
     interface: QueuingInterface = Depends(get_current_interface),
     server: SyncServer = Depends(get_memgpt_server),
 ):
@@ -26,7 +26,7 @@ def delete_tool(
 @router.get("/tools/{tool_name}", tags=["tools"], response_model=ToolModel)
 def get_tool(
     tool_name: str,
-    actor: User = Depends(get_current_user),
+    actor: "User" = Depends(get_current_user),
     interface: QueuingInterface = Depends(get_current_interface),
     server: SyncServer = Depends(get_memgpt_server),
     ):
@@ -43,7 +43,7 @@ def get_tool(
 
 @router.get("/tools", tags=["tools"])
 def list_all_tools(
-    actor: User = Depends(get_current_user),
+    actor: "User" = Depends(get_current_user),
     interface: QueuingInterface = Depends(get_current_interface),
     server: SyncServer = Depends(get_memgpt_server),
     ):
@@ -57,7 +57,7 @@ def list_all_tools(
 @router.post("/tools", tags=["tools"], response_model=ToolModel)
 def create_tool(
     tool: CreateToolRequest = Body(...),
-    actor: User = Depends(get_current_user),
+    actor: "User" = Depends(get_current_user),
     server: SyncServer = Depends(get_memgpt_server),
 ):
     """

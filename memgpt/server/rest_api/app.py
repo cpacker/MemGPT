@@ -1,64 +1,12 @@
 import json
-import secrets
 
-import typer
-from fastapi import Depends, FastAPI, HTTPException
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
+from memgpt.settings import settings
+from memgpt.server.rest_api.static_files import mount_static_files
 from memgpt.server.rest_api.routers.v1 import ROUTERS as v1_routes
 
-from memgpt.server.rest_api.admin.users import setup_admin_router
-from memgpt.server.rest_api.agents.command import setup_agents_command_router
-from memgpt.server.rest_api.agents.config import setup_agents_config_router
-from memgpt.server.rest_api.agents.index import setup_agents_index_router
-from memgpt.server.rest_api.agents.memory import setup_agents_memory_router
-from memgpt.server.rest_api.agents.message import setup_agents_message_router
-from memgpt.server.rest_api.auth.index import setup_auth_router
-from memgpt.server.rest_api.config.index import setup_config_index_router
-from memgpt.server.rest_api.humans.index import setup_humans_index_router
-from memgpt.server.rest_api.models.index import setup_models_index_router
-from memgpt.server.rest_api.openai_assistants.assistants import (
-    setup_openai_assistant_router,
-)
-from memgpt.server.rest_api.openai_chat_completions.chat_completions import (
-    setup_openai_chat_completions_router,
-)
-from memgpt.server.rest_api.personas.index import setup_personas_index_router
-from memgpt.server.rest_api.presets.index import setup_presets_index_router
-from memgpt.server.rest_api.sources.index import setup_sources_index_router
-from memgpt.server.rest_api.static_files import mount_static_files
-from memgpt.server.rest_api.tools.index import setup_user_tools_index_router
-from memgpt.settings import settings
-
-"""
-Basic REST API sitting on top of the internal MemGPT python server (SyncServer)
-
-Start the server with:
-  cd memgpt/server/rest_api
-  poetry run uvicorn server:app --reload
-"""
-
-if password := settings.server_pass:
-    # if the pass was specified in the environment, use it
-    print(f"Using existing admin server password from environment.")
-else:
-    # Autogenerate a password for this session and dump it to stdout
-    password = secrets.token_urlsafe(16)
-    typer.secho(f"Generated admin server password for this session: {password}", fg=typer.colors.GREEN)
-
-security = HTTPBearer()
-
-
-def verify_password(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """REST requests going to /admin are protected with a bearer token (that must match the password)"""
-    if credentials.credentials != password:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-
-ADMIN_PREFIX = "/admin"
-API_PREFIX = "/api"
-OPENAI_API_PREFIX = "/v1"
 
 def create_application() -> "FastAPI":
     """the application start routine"""
@@ -84,36 +32,6 @@ def create_application() -> "FastAPI":
         # we should always tie this to the newest version of the api.
         app.include_router(route, prefix="", include_in_schema=False)
         app.include_router(route, prefix="/latest", include_in_schema=False)
-    return app
-
-    # /api/auth endpoints
-    #app.include_router(setup_auth_router(server, interface, password), prefix=API_PREFIX)
-
-    ## /admin/users endpoints
-    #app.include_router(setup_admin_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
-    #app.include_router(setup_tools_index_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
-
-    ## /api/agents endpoints
-    #app.include_router(setup_agents_command_router(server, interface, password), prefix=API_PREFIX)
-    #app.include_router(setup_agents_config_router(server, interface, password), prefix=API_PREFIX)
-    #app.include_router(setup_agents_index_router(server, interface, password), prefix=API_PREFIX)
-    #app.include_router(setup_agents_memory_router(server, interface, password), prefix=API_PREFIX)
-    #app.include_router(setup_agents_message_router(server, interface, password), prefix=API_PREFIX)
-    #app.include_router(setup_humans_index_router(server, interface, password), prefix=API_PREFIX)
-    #app.include_router(setup_personas_index_router(server, interface, password), prefix=API_PREFIX)
-    #app.include_router(setup_models_index_router(server, interface, password), prefix=API_PREFIX)
-    #app.include_router(setup_user_tools_index_router(server, interface, password), prefix=API_PREFIX)
-    #app.include_router(setup_sources_index_router(server, interface, password), prefix=API_PREFIX)
-    #app.include_router(setup_presets_index_router(server, interface, password), prefix=API_PREFIX)
-
-    ## /api/config endpoints
-    #app.include_router(setup_config_index_router(server, interface, password), prefix=API_PREFIX)
-
-    ## /v1/assistants endpoints
-    #app.include_router(setup_openai_assistant_router(server, interface), prefix=OPENAI_API_PREFIX)
-
-    ## /v1/chat/completions endpoints
-    #app.include_router(setup_openai_chat_completions_router(server, interface, password), prefix=OPENAI_API_PREFIX)
 
     # / static files
     mount_static_files(app)
@@ -139,6 +57,7 @@ def on_startup():
         print(f"Writing out openapi_memgpt.json file")
         json.dump(memgpt_api, file, indent=2)
 
+    # TODO: refactor this
     openai_assistants_api = app.openapi_schema.copy()
     openai_assistants_api["paths"] = {
         key: value

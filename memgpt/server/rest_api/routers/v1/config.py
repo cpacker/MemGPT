@@ -1,13 +1,13 @@
-from typing import TYPE_CHECKING
 from fastapi import APIRouter, Depends
 
 from memgpt.server.rest_api.utils import get_current_interface, get_current_user, get_memgpt_server
 from memgpt.server.schemas.config import ConfigResponse
 
-if TYPE_CHECKING:
-    from memgpt.orm.user import User
-    from memgpt.server.rest_api.interface import QueuingInterface
-    from memgpt.server.server import SyncServer
+# These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
+from uuid import UUID
+from memgpt.orm.user import User
+from memgpt.server.server import SyncServer
+from memgpt.server.rest_api.interface import QueuingInterface
 
 
 router = APIRouter(prefix="/config", tags=["config"])

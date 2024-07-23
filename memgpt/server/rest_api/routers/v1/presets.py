@@ -1,23 +1,23 @@
-from typing import TYPE_CHECKING
-from fastapi import APIRouter, Body, Depends, HTTPException, status, JSONResponse
+from fastapi import APIRouter, Depends, status
+from fastapi.responses import JSONResponse
 
-from memgpt.server.rest_api.utils import get_current_actor, get_memgpt_server, get_current_interface
+from memgpt.server.rest_api.utils import get_current_user, get_memgpt_server, get_current_interface
 from memgpt.data_types import Preset
 from memgpt.models.pydantic_models import PresetModel
 from memgpt.server.schemas.presets import CreatePresetsRequest, ListPresetsResponse, CreatePresetResponse
 
-if TYPE_CHECKING:
-    from uuid import UUID
-    from memgpt.orm.user import User
-    from memgpt.server.server import SyncServer
-    from memgpt.server.rest_api.interface import QueuingInterface
+# these can be forward refs but because FastAPI uses them at runtime they need real imports
+from uuid import UUID
+from memgpt.orm.user import User
+from memgpt.server.server import SyncServer
+from memgpt.server.rest_api.interface import QueuingInterface
 
 router = APIRouter(prefix="/presets", tags=["presets"])
 
 @router.get("/{preset_name}",  response_model=PresetModel)
 async def get_preset(
     preset_name: str,
-    actor:"User" = Depends(get_current_actor),
+    actor:"User" = Depends(get_current_user),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """Get a preset."""
@@ -25,7 +25,7 @@ async def get_preset(
 
 @router.get("/",  response_model=ListPresetsResponse)
 async def list_presets(
-    actor:"User" = Depends(get_current_actor),
+    actor:"User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -37,7 +37,7 @@ async def list_presets(
 @router.post("",  response_model=CreatePresetResponse)
 async def create_preset(
     preset_request: CreatePresetsRequest,
-    actor:"User" = Depends(get_current_actor),
+    actor:"User" = Depends(get_current_user),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """Create a preset."""
@@ -50,7 +50,7 @@ async def create_preset(
 @router.delete("/{preset_id}", tags=["presets"])
 async def delete_preset(
     preset_id: "UUID",
-    actor:"User" = Depends(get_current_actor),
+    actor:"User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):

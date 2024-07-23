@@ -1,5 +1,5 @@
-from typing import List, Optional
-from pydantic import BaseModel, Field, Literal
+from typing import List, Optional, Literal
+from pydantic import BaseModel, Field
 
 
 from memgpt.models.pydantic_models import ToolModel

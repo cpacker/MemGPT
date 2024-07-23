@@ -1,7 +1,9 @@
 from typing import TYPE_CHECKING
 import tempfile
-from fastapi import APIRouter, Depends, HTTPException, JSONResponse, status, Query, UploadFile, BackgroundTasks
-from sqlalchemy.error import MultipleResultsFound, NoResultFound
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, BackgroundTasks
+from fastapi.responses import JSONResponse
+
+from sqlalchemy.exc import MultipleResultsFound, NoResultFound
 
 from memgpt.server.rest_api.utils import get_current_user, get_current_interface, get_memgpt_server
 from memgpt.data_types import Source
@@ -9,11 +11,11 @@ from memgpt.data_sources.connectors import DirectoryConnector
 from memgpt.models.pydantic_models import JobModel, JobStatus
 from memgpt.server.schemas.sources import CreateSourceRequest, ListSourcesResponse, SourceModel, GetSourcePassagesResponse, GetSourceDocumentsResponse
 
-if TYPE_CHECKING:
-    from uuid import UUID
-    from memgpt.orm.user import User
-    from memgpt.server.server import SyncServer
-    from memgpt.server.rest_api.interface import QueuingInterface
+# These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
+from uuid import UUID
+from memgpt.orm.user import User
+from memgpt.server.server import SyncServer
+from memgpt.server.rest_api.interface import QueuingInterface
 
 router = APIRouter(prefix="/sources", tags=["sources"])
 

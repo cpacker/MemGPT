@@ -1,7 +1,8 @@
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, TYPE_CHECKING, Annotated
+from datetime import datetime
 from pydantic import BaseModel, Field, StringConstraints
 
-from memgpt.models.pydantic_models import AgentStateModel
+from memgpt.models.pydantic_models import AgentStateModel, MemGPTUsageStatistics
 from memgpt.orm.enums import MessageRoleType
 
 if TYPE_CHECKING:
@@ -17,10 +18,10 @@ class AgentCommandResponse(BaseModel):
     response: str = Field(..., description="The result of the executed command.")
 
 class AgentRenameRequest(BaseModel):
-    agent_name: str = Field(...,
-                            StringConstraints(min_length=1, max_length=50),
-                            description="New name for the agent.",
-                            pattern="^[A-Za-z0-9 _-]+$")
+    agent_name: Annotated[str, StringConstraints(min_length=1,
+                                                 max_length=50,
+                                              pattern="^[A-Za-z0-9 _-]+$")] = Field(...,
+                                              description="New name for the agent.")
 
 class GetAgentResponse(BaseModel):
     # config: dict = Field(..., description="The agent configuration object.")
@@ -41,8 +42,8 @@ class CreateAgentRequest(BaseModel):
 
 
 class CreateAgentResponse(BaseModel):
-    agent_state: AgentStateModel = Field(..., description="The state of the newly created agent.")
-    preset: PresetModel = Field(..., description="The preset that the agent was created from.")
+    agent_state: "AgentStateModel" = Field(..., description="The state of the newly created agent.")
+    preset: "PresetModel" = Field(..., description="The preset that the agent was created from.")
 
 class CoreMemory(BaseModel):
     human: str | None = Field(None, description="Human element of the core memory.")

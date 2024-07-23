@@ -6,12 +6,12 @@ from requests import HTTPError
 
 from memgpt.functions.functions import parse_source_code
 from memgpt.functions.schema_generator import generate_schema
-from memgpt.server.rest_api.admin.tools import (
+from memgpt.server.schemas.tools import (
     CreateToolRequest,
     ListToolsResponse,
     ToolModel,
 )
-from memgpt.server.rest_api.admin.users import (
+from memgpt.server.schemas.users import (
     CreateAPIKeyResponse,
     CreateUserResponse,
     DeleteAPIKeyResponse,

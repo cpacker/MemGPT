@@ -9,12 +9,14 @@ from memgpt.models.pydantic_models import  AgentStateModel, EmbeddingConfigModel
 from memgpt.server.schemas.agents import AgentCommandResponse, GetAgentResponse, AgentRenameRequest, CreateAgentRequest, CreateAgentResponse, ListAgentsResponse, GetAgentMemoryResponse, UpdateAgentMemoryRequest, UpdateAgentMemoryResponse, GetAgentArchivalMemoryResponse, ArchivalMemoryObject, InsertAgentArchivalMemoryRequest, InsertAgentArchivalMemoryResponse, UserMessageRequest, UserMessageResponse, GetAgentMessagesRequest, GetAgentMessagesResponse, GetAgentMessagesCursorRequest
 from memgpt.streaming_interface import StreamingServerInterface
 
+# These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
+from uuid import UUID
+from memgpt.orm.user import User
+from memgpt.server.server import SyncServer
+from memgpt.server.rest_api.interface import QueuingInterface
+
 if TYPE_CHECKING:
-    from uuid import UUID
-    from memgpt.orm.user import User
     from memgpt.server.schemas.agents import AgentCommandRequest
-    from memgpt.server.rest_api.interface import QueuingInterface
-    from memgpt.server.server import SyncServer
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 

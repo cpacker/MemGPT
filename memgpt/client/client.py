@@ -23,34 +23,35 @@ from memgpt.models.pydantic_models import (
     SourceModel,
     ToolModel,
 )
-from memgpt.server.rest_api.agents.command import CommandResponse
-from memgpt.server.rest_api.agents.config import GetAgentResponse
-from memgpt.server.rest_api.agents.index import CreateAgentResponse, ListAgentsResponse
-from memgpt.server.rest_api.agents.memory import (
+from memgpt.server.schemas.agents import AgentCommandResponse as CommandResponse
+from memgpt.server.schemas.agents import GetAgentResponse
+from memgpt.server.schemas.agents import ListAgentsResponse
+from memgpt.server.schemas.agents import (
     ArchivalMemoryObject,
     GetAgentArchivalMemoryResponse,
     GetAgentMemoryResponse,
     InsertAgentArchivalMemoryResponse,
     UpdateAgentMemoryResponse,
 )
-from memgpt.server.rest_api.agents.message import (
+from memgpt.server.schemas.agents import (
     GetAgentMessagesResponse,
+    CreateAgentResponse,
     UserMessageResponse,
 )
-from memgpt.server.rest_api.config.index import ConfigResponse
-from memgpt.server.rest_api.humans.index import ListHumansResponse
+from memgpt.server.schemas.config import ConfigResponse
+from memgpt.server.schemas.humans import ListHumansResponse
 from memgpt.server.rest_api.interface import QueuingInterface
-from memgpt.server.rest_api.models.index import ListModelsResponse
-from memgpt.server.rest_api.personas.index import ListPersonasResponse
-from memgpt.server.rest_api.presets.index import (
+from memgpt.server.schemas.large_language_models import ListModelsResponse
+from memgpt.server.schemas.personas import ListPersonasResponse
+from memgpt.server.schemas.presets import (
     CreatePresetResponse,
     CreatePresetsRequest,
     ListPresetsResponse,
 )
-from memgpt.server.rest_api.sources.index import ListSourcesResponse
+from memgpt.server.schemas.sources import ListSourcesResponse
 
 # import pydantic response objects from memgpt.server.rest_api
-from memgpt.server.rest_api.tools.index import CreateToolRequest, ListToolsResponse
+from memgpt.server.schemas.tools import CreateToolRequest, ListToolsResponse
 from memgpt.server.server import SyncServer
 from memgpt.utils import get_human_text
 
