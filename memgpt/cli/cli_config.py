@@ -37,7 +37,6 @@ from memgpt.local_llm.constants import (
 )
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.metadata import MetadataStore
-from memgpt.models.pydantic_models import PersonaModel
 from memgpt.server.utils import shorten_key_middle
 
 app = typer.Typer()
@@ -1136,7 +1135,7 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         """List all data sources"""
 
         # create table
-        table.field_names = ["Name", "Description", "Embedding Model", "Embedding Dim", "Created At", "Agents"]
+        table.field_names = ["Name", "Description", "Embedding Model", "Embedding Dim", "Created At"]
         # TODO: eventually look accross all storage connections
         # TODO: add data source stats
         # TODO: connect to agents
@@ -1144,11 +1143,6 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         # get all sources
         for source in client.list_sources():
             # get attached agents
-            # TODO: implement this on client
-            agent_ids = ms.list_attached_agents(source_id=source.id)
-            agent_states = [ms.get_agent(agent_id=agent_id) for agent_id in agent_ids]
-            agent_names = [agent_state.name for agent_state in agent_states if agent_state is not None]
-
             table.add_row(
                 [
                     source.name,
@@ -1156,7 +1150,6 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
                     source.embedding_model,
                     source.embedding_dim,
                     utils.format_datetime(source.created_at),
-                    ",".join(agent_names),
                 ]
             )
 
@@ -1186,11 +1179,9 @@ def add(
             # config if user wants to overwrite
             if not questionary.confirm(f"Persona {name} already exists. Overwrite?").ask():
                 return
-            persona.text = text
-            client.update_persona(persona)
+            client.update_persona(name=name, text=text)
         else:
-            persona = PersonaModel(name=name, text=text, user_id=client.user_id)
-            client.add_persona(persona)
+            client.add_persona(name=name, text=text)
 
     elif option == "human":
         human = client.get_human(name=name)
@@ -1198,8 +1189,7 @@ def add(
             # config if user wants to overwrite
             if not questionary.confirm(f"Human {name} already exists. Overwrite?").ask():
                 return
-            human.text = text
-            client.update_human(human)
+            client.update_human(name=name, text=text)
         else:
             human = client.create_human(name=name, human=text)
     else:

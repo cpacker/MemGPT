@@ -175,7 +175,7 @@ class AbstractClient(object):
         """Create a human."""
         raise NotImplementedError
 
-    def get_human(self, name: str, user_id: uuid.UUID):
+    def get_human(self, name: str):
         """Get a human."""
         raise NotImplementedError
 
@@ -187,7 +187,7 @@ class AbstractClient(object):
         """Update an existing human"""
         raise NotImplementedError
 
-    def delete_human(self, name: str, user_id: uuid.UUID):
+    def delete_human(self, name: str):
         """Delete an existing human"""
         raise NotImplementedError
 
@@ -199,7 +199,7 @@ class AbstractClient(object):
         """Create a persona."""
         raise NotImplementedError
 
-    def add_persona(self, user_id: uuid.UUID, name: str, persona: str, text: Optional[str]):
+    def add_persona(self, name: str, persona: str, text: Optional[str]):
         """Update or create a persona."""
         raise NotImplementedError
 
@@ -508,7 +508,7 @@ class RESTClient(AbstractClient):
         response = requests.get(f"{self.base_url}/api/humans/all", headers=self.headers)
         return ListHumansResponse(**response.json()).humans
 
-    def get_human(self, name: str, user_id: uuid.UUID):
+    def get_human(self, name: str):
         response = requests.get(f"{self.base_url}/api/humans/{name}", headers=self.headers)
         if response.json() is not None:
             return HumanModel(**response.json())
@@ -530,7 +530,7 @@ class RESTClient(AbstractClient):
         print(response.json())
         return HumanModel(**response.json())
 
-    def delete_human(self, name: str, user_id: uuid.UUID):
+    def delete_human(self, name: str):
         response = requests.delete(f"{self.base_url}/api/humans/delete/{name}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create human: {response.text}")
@@ -539,7 +539,7 @@ class RESTClient(AbstractClient):
         response = requests.get(f"{self.base_url}/api/personas/all", headers=self.headers)
         return ListPersonasResponse(**response.json()).personas
 
-    def get_persona(self, name: str, user_id: uuid.UUID):
+    def get_persona(self, name: str):
         response = requests.get(f"{self.base_url}/api/personas/{name}", headers=self.headers)
         if response.json() is not None:
             return PersonaModel(**response.json())
@@ -560,7 +560,7 @@ class RESTClient(AbstractClient):
         print(response.json())
         return PersonaModel(**response.json())
 
-    def delete_persona(self, name: str, user_id: uuid.UUID):
+    def delete_persona(self, name: str):
         response = requests.delete(f"{self.base_url}/api/personas/delete/{name}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create persona: {response.text}")
@@ -837,19 +837,10 @@ class LocalClient(AbstractClient):
 
     def list_agents(self) -> List[AgentState]:
         self.interface.clear()
-        agents_data = self.server.list_agents(user_id=self.user_id)
-        return ListAgentsResponse(**agents_data).agents
+        return self.server.list_agents(user_id=self.user_id)
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
-        if not (agent_id or agent_name):
-            raise ValueError(f"Either agent_id or agent_name must be provided")
-        if agent_id and agent_name:
-            raise ValueError(f"Only one of agent_id or agent_name can be provided")
-        existing = self.list_agents()
-        if agent_id:
-            return str(agent_id) in [str(agent.id) for agent in existing]
-        else:
-            return agent_name in [str(agent.name) for agent in existing]
+        return self.get_agent(agent_id=agent_id, agent_name=agent_name) is not None
 
     def create_agent(
         self,
@@ -903,9 +894,9 @@ class LocalClient(AbstractClient):
     def delete_agent(self, agent_id: uuid.UUID):
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
 
-    def get_agent(self, agent_id: uuid.UUID) -> AgentState:
+    def get_agent(self, agent_id: Optional[uuid.UUID] = None, agent_name: Optional[str] = None) -> AgentState:
         self.interface.clear()
-        return self.server.get_agent_config(user_id=self.user_id, agent_id=agent_id, agent_name=agent_name)
+        return self.server.ms.get_agent(user_id=self.user_id, agent_id=agent_id, agent_name=agent_name)
 
     def update_agent(self, agent_state: AgentState):
         self.server.update_agent(agent_state)
@@ -993,7 +984,7 @@ class LocalClient(AbstractClient):
         return self.server.get_human(name=name, user_id=self.user_id)
 
     def update_human(self, name: str, text: str):
-        return self.server.update_human(name, text, self.user_id)
+        return self.server.update_human(HumanModel(name=name, text=text, user_id=self.user_id))
 
     def delete_human(self, name: str):
         return self.server.delete_human(name, self.user_id)
@@ -1005,7 +996,7 @@ class LocalClient(AbstractClient):
         return self.server.get_persona(name=name, user_id=self.user_id)
 
     def update_persona(self, persona: PersonaModel):
-        return self.server.update_persona(persona=persona)
+        return self.server.update_persona(PersonaModel(name=persona.name, text=persona.text, user_id=self.user_id))
 
     def delete_persona(self, name: str):
         return self.server.delete_persona(name, self.user_id)
@@ -1073,8 +1064,8 @@ class LocalClient(AbstractClient):
     def update_persona(self, name: str, text: str):
         self.server.update_persona(name, text, self.user_id)
 
-    def delete_persona(self, name: str, user_id: uuid.UUID):
-        self.server.delete_persona(name, user_id)
+    def delete_persona(self, name: str):
+        self.server.delete_persona(name, self.user_id)
 
     # sources
     def list_sources(self):
@@ -1132,6 +1123,7 @@ class LocalClient(AbstractClient):
         return ListModelsResponse(models=[llm_config])
 
     def delete_source(self, source_id: Optional[uuid.UUID] = None, source_name: Optional[str] = None):
+        # TODO: delete source data
         self.server.delete_source(user_id=self.user.id, source_id=source_id, source_name=source_name)
 
     def get_source(self, source_id: Optional[uuid.UUID] = None, source_name: Optional[str] = None):
@@ -1149,3 +1141,6 @@ class LocalClient(AbstractClient):
         memgpt_config.default_llm_config = LLMConfig(**memgpt_config.default_llm_config)
         memgpt_config.default_embedding_config = EmbeddingConfig(**memgpt_config.default_embedding_config)
         return memgpt_config
+
+    def list_attached_sources(self, agent_id: uuid.UUID):
+        return self.server.list_attached_sources(agent_id=agent_id)
