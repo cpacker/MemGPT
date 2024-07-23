@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
@@ -45,29 +46,19 @@ def on_startup():
     if not app.openapi_schema:
         app.openapi_schema = app.openapi()
 
-    if app.openapi_schema:
-        app.openapi_schema["servers"] = [{"url": host} for host in settings.cors_origins]
-        app.openapi_schema["info"]["title"] = "MemGPT API"
+    openai_docs, memgpt_docs = [app.openapi_schema.copy() for _ in range(2)]
+
+    openai_docs["paths"] = {k:v for k,v in openai_docs["paths"].items() if k.startswith("/openai")}
+    openai_docs["info"]["title"] = "OpenAI Assistants API"
+    memgpt_docs["paths"] = {k:v for k,v in memgpt_docs["paths"].items() if not k.startswith("/openai")}
+    memgpt_docs["info"]["title"] = "MemGPT API"
 
     # Split the API docs into MemGPT API, and OpenAI Assistants compatible API
-    memgpt_api = app.openapi_schema.copy()
-    memgpt_api["paths"] = {key: value for key, value in memgpt_api["paths"].items() if not key.startswith(OPENAI_API_PREFIX)}
-    memgpt_api["info"]["title"] = "MemGPT API"
-    with open("openapi_memgpt.json", "w", encoding="utf-8") as file:
-        print(f"Writing out openapi_memgpt.json file")
-        json.dump(memgpt_api, file, indent=2)
+    for name, docs in [("openai", openai_docs,), ("memgpt", memgpt_docs,)]:
+        docs["servers"] = [{"url": host} for host in settings.cors_origins]
+        Path(f"openapi_{name}.json").write_text(json.dumps(docs, indent=2))
 
-    # TODO: refactor this
-    openai_assistants_api = app.openapi_schema.copy()
-    openai_assistants_api["paths"] = {
-        key: value
-        for key, value in openai_assistants_api["paths"].items()
-        if not (key.startswith(API_PREFIX) or key.startswith(ADMIN_PREFIX))
-    }
-    openai_assistants_api["info"]["title"] = "OpenAI Assistants API"
-    with open("openapi_assistants.json", "w", encoding="utf-8") as file:
-        print(f"Writing out openapi_assistants.json file")
-        json.dump(openai_assistants_api, file, indent=2)
+
 
 
 @app.on_event("shutdown")
