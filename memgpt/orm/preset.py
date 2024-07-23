@@ -38,9 +38,9 @@ class Preset(SqlalchemyBase, OrganizationMixin, HumanMemoryTemplateMixin, Person
                                                         back_populates="presets")
     sources: Mapped[List["Source"]] = relationship("Source", secondary="sources_presets")
     tools: Mapped[List["Tool"]] = relationship("Tool", secondary="tools_presets")
-    human: Mapped["HumanMemoryTemplate"] = relationship("Human")
-    persona: Mapped["PersonaMemoryTemplate"] = relationship("Persona")
-    system: Mapped["SystemMemoryTemplate"] = relationship("System")
+    human: Mapped["HumanMemoryTemplate"] = relationship("MemoryTemplate", primaryjoin="Preset._human_memory_template_id == MemoryTemplate._id")
+    persona: Mapped["PersonaMemoryTemplate"] = relationship("MemoryTemplate", primaryjoin="Preset._persona_memory_template_id == MemoryTemplate._id")
+    system: Mapped["SystemMemoryTemplate"] = relationship("MemoryTemplate", primaryjoin="Preset._system_memory_template_id == MemoryTemplate._id")
 
 
     def __init__(self, *args, **kwargs):

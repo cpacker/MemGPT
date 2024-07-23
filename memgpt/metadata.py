@@ -9,8 +9,10 @@ from memgpt.orm.utilities import get_db_session
 from memgpt.orm.token import Token
 from memgpt.orm.agent import Agent
 from memgpt.orm.job import Job
+from memgpt.orm.source import Source
 from memgpt.orm.preset import Preset
 from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTemplate
+from memgpt.orm.user import User
 
 
 if TYPE_CHECKING:
@@ -19,11 +21,11 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 from memgpt.data_types import (
-    AgentState,
-    Preset,
-    Source,
-    Token,
-    User,
+    AgentState as DataAgentState,
+    Preset as DataPreset,
+    Source as DataSource,
+    Token as DataToken,
+    User as DataUser,
 )
 from memgpt.models.pydantic_models import (
     HumanModel,
@@ -95,7 +97,7 @@ class MetadataStore:
         """Get the user associated with a given API key"""
         return Token.get_by_api_key(self.db_session, api_key).user.to_record()
 
-    def create_agent(self, agent: AgentState):
+    def create_agent(self, agent: DataAgentState):
         "here is one example longhand to demonstrate the meta pattern"
         return Agent.create(self.db_session, agent.model_dump(exclude_none=True))
 

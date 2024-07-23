@@ -180,7 +180,7 @@ class SyncServer(Server):
         assert self.server_embedding_config.embedding_model is not None, vars(self.server_embedding_config)
 
         # Initialize the metadata store
-        self.ms = MetadataStore(self.config, db_session=db_session)
+        self.ms = MetadataStore(db_session=db_session)
 
         # pre-fill database (users, presets, humans, personas)
         # TODO: figure out how to handle default users  (server is technically multi-user)

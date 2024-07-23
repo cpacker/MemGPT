@@ -79,7 +79,7 @@ def client(request, db_session, test_app):
     if request.param["server"]:
         # since we are not TESTING the admin client, we don't want to USE the admin client here.
         # create the user directly
-        requesting_user = User.create(db_session)
+        requesting_user = User().create(db_session)
         api_token = Token(user=requesting_user, name="test_client_api_token").create(db_session)
         token = api_token.api_key
         client_args = {
@@ -92,7 +92,7 @@ def client(request, db_session, test_app):
         # use local client (no server)
         client_args = {
             "token": None,
-            "server_url": None
+            "base_url": None
         }
     yield create_client(**client_args)
 
@@ -116,7 +116,7 @@ class TestClientAgent:
         assert client.agent_exists(name=expected_agent_name)
         assert created_agent_state.name == expected_agent_name
 
-    def test_rename_agent():
+    def test_rename_agent(self):
         new_name = faker.name()
 
 
