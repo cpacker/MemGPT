@@ -13,17 +13,19 @@ import requests
 import typer
 
 import memgpt.utils as utils
+from memgpt import create_client
 from memgpt.agent import Agent
 from memgpt.cli.cli_config import configure
 from memgpt.client.client import AbstractClient, RESTClient, create_client
 from memgpt.config import MemGPTConfig
 from memgpt.constants import CLI_WARNING_PREFIX, MEMGPT_DIR
 from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, User
+from memgpt.data_types import EmbeddingConfig, LLMConfig, User
 from memgpt.log import get_logger
 from memgpt.metadata import MetadataStore
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
 from memgpt.server.constants import WS_DEFAULT_PORT
+from memgpt.server.server import logger as server_logger
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import (
@@ -412,7 +414,6 @@ def run(
     persona: Annotated[Optional[str], typer.Option(help="Specify persona")] = None,
     agent: Annotated[Optional[str], typer.Option(help="Specify agent name")] = None,
     human: Annotated[Optional[str], typer.Option(help="Specify human")] = None,
-    preset: Annotated[Optional[str], typer.Option(help="Specify preset")] = None,
     # model flags
     model: Annotated[Optional[str], typer.Option(help="Specify the LLM model")] = None,
     model_wrapper: Annotated[Optional[str], typer.Option(help="Specify the LLM model wrapper")] = None,
@@ -449,8 +450,10 @@ def run(
 
     if debug:
         logger.setLevel(logging.DEBUG)
+        server_logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.CRITICAL)
+        server_logger.setLevel(logging.CRITICAL)
 
     from memgpt.migrate import (
         VERSION_CUTOFF,
@@ -569,14 +572,6 @@ def run(
         # printd("Index path:", agent_config.save_agent_index_dir())
         # persistence_manager = LocalStateManager(agent_config).load() # TODO: implement load
         # TODO: load prior agent state
-        if persona and persona != agent_state.persona:
-            typer.secho(f"{CLI_WARNING_PREFIX}Overriding existing persona {agent_state.persona} with {persona}", fg=typer.colors.YELLOW)
-            agent_state.persona = persona
-            # raise ValueError(f"Cannot override {agent_state.name} existing persona {agent_state.persona} with {persona}")
-        if human and human != agent_state.human:
-            typer.secho(f"{CLI_WARNING_PREFIX}Overriding existing human {agent_state.human} with {human}", fg=typer.colors.YELLOW)
-            agent_state.human = human
-            # raise ValueError(f"Cannot override {agent_config.name} existing human {agent_config.human} with {human}")
 
         # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
         if model and model != agent_state.llm_config.model:
@@ -612,7 +607,12 @@ def run(
         # Update the agent with any overrides
         client.update_agent(agent_state)
         ms.update_agent(agent_state)
-        tools = [ms.get_tool(tool_name) for tool_name in agent_state.tools]
+        tools = []
+        for tool_name in agent_state.tools:
+            tool = ms.get_tool(tool_name, agent_state.user_id)
+            if tool is None:
+                typer.secho(f"Couldn't find tool {tool_name} in database, please run `memgpt add tool`", fg=typer.colors.RED)
+            tools.append(tool)
 
         # create agent
         memgpt_agent = Agent(agent_state=agent_state, interface=interface(), tools=tools)
@@ -690,22 +690,19 @@ def run(
             # preset_obj.persona = ms.get_persona(persona, user.id).text
             preset_obj.persona = client.get_persona(persona, user.id).text
 
-            typer.secho(f"->  🤖 Using persona profile: '{preset_obj.persona_name}'", fg=typer.colors.WHITE)
-            typer.secho(f"->  🧑 Using human profile: '{preset_obj.human_name}'", fg=typer.colors.WHITE)
-            agent_state = AgentState(
+            typer.secho(f"->  🤖 Using persona profile: '{persona_obj.name}'", fg=typer.colors.WHITE)
+            typer.secho(f"->  🧑 Using human profile: '{human_obj.name}'", fg=typer.colors.WHITE)
+
+            # add tools
+            agent_state = client.create_agent(
                 name=agent_name,
-                user_id=user.id,
-                tools=list([schema["name"] for schema in preset_obj.functions_schema]),
-                system=preset_obj.system,
-                llm_config=llm_config,
                 embedding_config=embedding_config,
-                human=preset_obj.human,
-                persona=preset_obj.persona,
-                preset=preset_obj.name,
-                state={"messages": None, "persona": preset_obj.persona, "human": preset_obj.human},
+                llm_config=llm_config,
+                memory=memory,
+                metadata=metadata,
             )
             typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
-            tools = [ms.get_tool(tool_name) for tool_name in agent_state.tools]
+            tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
 
             memgpt_agent = Agent(
                 interface=interface(),

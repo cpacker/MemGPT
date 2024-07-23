@@ -24,8 +24,6 @@ DEFAULT_PRESET = "memgpt_chat"
 # Tools
 BASE_TOOLS = [
     "send_message",
-    "core_memory_replace",
-    "core_memory_append",
     "pause_heartbeats",
     "conversation_search",
     "conversation_search_date",

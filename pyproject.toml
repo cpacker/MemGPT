@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pymemgpt"
-version = "0.3.17"
+version = "0.3.19"
 packages = [
     {include = "memgpt"}
 ]
@@ -75,6 +75,9 @@ server = ["websockets", "fastapi", "uvicorn"]
 autogen = ["pyautogen"]
 qdrant = ["qdrant-client"]
 ollama = ["llama-index-embeddings-ollama"]
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.4.2"
 
 [tool.black]
 line-length = 140

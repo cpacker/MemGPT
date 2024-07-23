@@ -15,8 +15,8 @@ jobs:
     - name: "Setup Python, Poetry and Dependencies"
       uses: packetcoders/action-setup-cache-python-poetry@main
       with:
-        python-version: "3.11"
-        poetry-version: "1.7.1"
+        python-version: "3.12"
+        poetry-version: "1.8.2"
         install-args: "--all-extras"
 
     - name: Run main.py with input

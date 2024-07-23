@@ -193,7 +193,7 @@ def create(
             if "gpt-4o" in llm_config.model or "gpt-4-turbo" in llm_config.model or "gpt-3.5-turbo" in llm_config.model:
                 data.response_format = {"type": "json_object"}
 
-        if stream:
+        if stream:  # Client requested token streaming
             data.stream = True
             assert isinstance(stream_inferface, AgentChunkStreamingInterface) or isinstance(
                 stream_inferface, AgentRefreshStreamingInterface
@@ -204,16 +204,26 @@ def create(
                 chat_completion_request=data,
                 stream_inferface=stream_inferface,
             )
-        else:
+        else:  # Client did not request token streaming (expect a blocking backend response)
             data.stream = False
-            return openai_chat_completions_request(
-                url=llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
-                api_key=credentials.openai_key,
-                chat_completion_request=data,
-            )
+            if isinstance(stream_inferface, AgentChunkStreamingInterface):
+                stream_inferface.stream_start()
+            try:
+                response = openai_chat_completions_request(
+                    url=llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
+                    api_key=credentials.openai_key,
+                    chat_completion_request=data,
+                )
+            finally:
+                if isinstance(stream_inferface, AgentChunkStreamingInterface):
+                    stream_inferface.stream_end()
+            return response
 
     # azure
     elif llm_config.model_endpoint_type == "azure":
+        if stream:
+            raise NotImplementedError(f"Streaming not yet implemented for {llm_config.model_endpoint_type}")
+
         azure_deployment = (
             credentials.azure_deployment if credentials.azure_deployment is not None else MODEL_TO_AZURE_ENGINE[llm_config.model]
         )
@@ -221,7 +231,7 @@ def create(
             data = dict(
                 # NOTE: don't pass model to Azure calls, that is the deployment_id
                 # model=agent_config.model,
-                messages=messages,
+                messages=[m.to_openai_dict() for m in messages],
                 tools=[{"type": "function", "function": f} for f in functions] if functions else None,
                 tool_choice=function_call,
                 user=str(user_id),
@@ -230,7 +240,7 @@ def create(
             data = dict(
                 # NOTE: don't pass model to Azure calls, that is the deployment_id
                 # model=agent_config.model,
-                messages=messages,
+                messages=[m.to_openai_dict() for m in messages],
                 functions=functions,
                 function_call=function_call,
                 user=str(user_id),
@@ -244,6 +254,8 @@ def create(
         )
 
     elif llm_config.model_endpoint_type == "google_ai":
+        if stream:
+            raise NotImplementedError(f"Streaming not yet implemented for {llm_config.model_endpoint_type}")
         if not use_tool_naming:
             raise NotImplementedError("Only tool calling supported on Google AI API requests")
 
@@ -271,6 +283,8 @@ def create(
         )
 
     elif llm_config.model_endpoint_type == "anthropic":
+        if stream:
+            raise NotImplementedError(f"Streaming not yet implemented for {llm_config.model_endpoint_type}")
         if not use_tool_naming:
             raise NotImplementedError("Only tool calling supported on Anthropic API requests")
 
@@ -295,6 +309,8 @@ def create(
         )
 
     elif llm_config.model_endpoint_type == "cohere":
+        if stream:
+            raise NotImplementedError(f"Streaming not yet implemented for {llm_config.model_endpoint_type}")
         if not use_tool_naming:
             raise NotImplementedError("Only tool calling supported on Cohere API requests")
 
@@ -321,6 +337,8 @@ def create(
 
     # local model
     else:
+        if stream:
+            raise NotImplementedError(f"Streaming not yet implemented for {llm_config.model_endpoint_type}")
         return get_chat_completion(
             model=llm_config.model,
             messages=messages,

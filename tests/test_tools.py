@@ -11,6 +11,7 @@ from memgpt.agent import Agent
 from memgpt.config import MemGPTConfig
 from memgpt.constants import DEFAULT_PRESET
 from memgpt.credentials import MemGPTCredentials
+from memgpt.memory import ChatMemory
 from memgpt.settings import settings
 from tests.utils import create_config
 
@@ -68,11 +69,12 @@ def run_server():
 
 # Fixture to create clients with different configurations
 @pytest.fixture(
-    # params=[{"server": True}, {"server": False}],  # whether to use REST API server  # TODO: add when implemented
-    params=[{"server": True}],  # whether to use REST API server  # TODO: add when implemented
+    params=[{"server": True}, {"server": False}],  # whether to use REST API server  # TODO: add when implemented
+    # params=[{"server": False}],  # whether to use REST API server  # TODO: add when implemented
     scope="module",
 )
-def client(request):
+def admin_client(request):
+
     if request.param["server"]:
         # get URL from enviornment
         server_url = os.getenv("MEMGPT_SERVER_URL")
@@ -92,11 +94,19 @@ def client(request):
 
         admin._reset_server()
     else:
-        print("Testing local client")
-        # use local client (no server)
-        token = None
-        server_url = None
-        client = create_client(base_url=server_url, token=token)  # This yields control back to the test function
+        yield None
+
+
+@pytest.fixture(scope="module")
+def client(admin_client):
+    if admin_client:
+        # create user via admin client
+        response = admin_client.create_user()
+        print("Created user", response.user_id, response.api_key)
+        client = create_client(base_url=admin_client.base_url, token=response.api_key)
+        yield client
+    else:
+        client = create_client()
         yield client
 
 
@@ -124,6 +134,39 @@ def test_create_tool(client):
     assert tool in tools, f"Expected {tool.name} in {[t.name for t in tools]}"
     print(f"Updated tools {[t.name for t in tools]}")
 
+    # check tool id
+    tool = client.get_tool(tool.name)
+
+
+def test_create_agent_tool_admin(admin_client):
+    if admin_client is None:
+        return
+
+    def print_tool(message: str):
+        """
+        Args:
+            message (str): The message to print.
+
+        Returns:
+            str: The message that was printed.
+
+        """
+        print(message)
+        return message
+
+    tools = admin_client.list_tools()
+    print(f"Original tools {[t.name for t in tools]}")
+
+    tool = admin_client.create_tool(print_tool, tags=["extras"])
+
+    tools = admin_client.list_tools()
+    assert tool in tools, f"Expected {tool.name} in {[t.name for t in tools]}"
+    print(f"Updated tools {[t.name for t in tools]}")
+
+    # check tool id
+    tool = admin_client.get_tool(tool.name)
+    assert tool.user_id is None, f"Expected {tool.user_id} to be None"
+
 
 def test_create_agent_tool(client):
     """Test creation of a agent tool"""
@@ -137,29 +180,22 @@ def test_create_agent_tool(client):
             str: The agent that was deleted.
 
         """
-        self.memory.human = ""
-        self.memory.persona = ""
-        self.rebuild_memory()
-        print("UPDATED MEMORY", self.memory.human, self.memory.persona)
+        self.memory.memory["human"].value = ""
+        self.memory.memory["persona"].value = ""
+        print("UPDATED MEMORY", self.memory.memory)
         return None
 
     # TODO: test attaching and using function on agent
-    tool = client.create_tool(core_memory_clear, tags=["extras"])
+    tool = client.create_tool(core_memory_clear, tags=["extras"], update=True)
+    print(f"Created tool", tool.name)
 
-    if isinstance(client, Admin):
-        # conver to user client type
-        response = client.create_user()
-        print("Created user", response.user_id, response.api_key)
-        user_client = create_client(base_url=client.base_url, token=response.api_key)
-    else:
-        user_client = client
-
-    agent = user_client.create_agent(
-        name=test_agent_name, tools=[tool.name], persona="You must clear your memory if the human instructs you"
-    )
+    # create agent with tool
+    memory = ChatMemory(human="I am a human", persona="You must clear your memory if the human instructs you")
+    agent = client.create_agent(name=test_agent_name, tools=[tool.name], memory=memory)
+    assert str(tool.user_id) == str(agent.user_id), f"Expected {tool.user_id} to be {agent.user_id}"
 
     # initial memory
-    initial_memory = user_client.get_agent_memory(agent.id)
+    initial_memory = client.get_agent_memory(agent.id)
     print("initial memory", initial_memory)
     human = initial_memory.core_memory.human
     persona = initial_memory.core_memory.persona
@@ -168,11 +204,12 @@ def test_create_agent_tool(client):
     assert len(persona) > 0, "Expected persona memory to be non-empty"
 
     # test agent tool
-    response = user_client.send_message(role="user", agent_id=agent.id, message="clear your memory with the core_memory_clear tool")
+    response = client.send_message(role="user", agent_id=agent.id, message="clear your memory with the core_memory_clear tool")
     print(response)
 
     # updated memory
-    updated_memory = user_client.get_agent_memory(agent.id)
+    print("Query agent memory")
+    updated_memory = client.get_agent_memory(agent.id)
     human = updated_memory.core_memory.human
     persona = updated_memory.core_memory.persona
     print("Updated memory:", human, persona)

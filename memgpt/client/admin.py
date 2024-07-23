@@ -6,7 +6,11 @@ from requests import HTTPError
 
 from memgpt.functions.functions import parse_source_code
 from memgpt.functions.schema_generator import generate_schema
-from memgpt.models.pydantic_models import ToolModel
+from memgpt.server.rest_api.admin.tools import (
+    CreateToolRequest,
+    ListToolsResponse,
+    ToolModel,
+)
 from memgpt.server.rest_api.admin.users import (
     CreateAPIKeyResponse,
     CreateUserResponse,
@@ -15,7 +19,6 @@ from memgpt.server.rest_api.admin.users import (
     GetAllUsersResponse,
     GetAPIKeysResponse,
 )
-from memgpt.server.rest_api.tools.index import CreateToolRequest, ListToolsResponse
 
 
 class Admin:
@@ -31,8 +34,12 @@ class Admin:
         self.headers = {"accept": "application/json", "content-type": "application/json", "authorization": f"Bearer {token}"}
 
     def get_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50):
-        payload = {"cursor": str(cursor) if cursor else None, "limit": limit}
-        response = requests.get(f"{self.base_url}/admin/users", headers=self.headers, json=payload)
+        params = {}
+        if cursor:
+            params["cursor"] = str(cursor)
+        if limit:
+            params["limit"] = limit
+        response = requests.get(f"{self.base_url}/admin/users", params=params, headers=self.headers)
         if response.status_code != 200:
             raise HTTPError(response.json())
         return GetAllUsersResponse(**response.json())
@@ -40,7 +47,6 @@ class Admin:
     def create_key(self, user_id: uuid.UUID, key_name: str):
         payload = {"user_id": str(user_id), "key_name": key_name}
         response = requests.post(f"{self.base_url}/admin/users/keys", headers=self.headers, json=payload)
-        print(response.json())
         if response.status_code != 200:
             raise HTTPError(response.json())
         return CreateAPIKeyResponse(**response.json())
@@ -50,7 +56,6 @@ class Admin:
         response = requests.get(f"{self.base_url}/admin/users/keys", params=params, headers=self.headers)
         if response.status_code != 200:
             raise HTTPError(response.json())
-        print(response.text, response.status_code)
         return GetAPIKeysResponse(**response.json()).api_key_list
 
     def delete_key(self, api_key: str):
@@ -86,6 +91,7 @@ class Admin:
                 self.delete_key(key)
             self.delete_user(user["user_id"])
 
+    # tools
     def create_tool(
         self,
         func,
@@ -94,12 +100,10 @@ class Admin:
         tags: Optional[List[str]] = None,
     ):
         """Create a tool
-
         Args:
             func (callable): The function to create a tool for.
             tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
             update (bool, optional): Update the tool if it already exists. Defaults to True.
-
         Returns:
             Tool object
         """
@@ -110,11 +114,16 @@ class Admin:
         source_code = parse_source_code(func)
         json_schema = generate_schema(func, name)
         source_type = "python"
-        tool_name = json_schema["name"]
+        json_schema["name"]
+
+        if "memory" in tags:
+            # special modifications to memory functions
+            # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
+            source_code = source_code.replace("self.memory", "self.memory.memory")
 
         # create data
-        data = {"name": tool_name, "source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema}
-        CreateToolRequest(**data)  # validate data:w
+        data = {"source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema}
+        CreateToolRequest(**data)  # validate
 
         # make REST request
         response = requests.post(f"{self.base_url}/admin/tools", json=data, headers=self.headers)

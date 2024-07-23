@@ -37,7 +37,6 @@ from memgpt.local_llm.constants import (
 )
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.metadata import MetadataStore
-from memgpt.presets.presets import create_preset_from_file
 from memgpt.server.utils import shorten_key_middle
 
 app = typer.Typer()
@@ -1083,18 +1082,12 @@ def configure():
     else:
         ms.create_user(user)
 
-    # create preset records in metadata store
-    from memgpt.presets.presets import add_default_presets
-
-    add_default_presets(user_id, ms)
-
 
 class ListChoice(str, Enum):
     agents = "agents"
     humans = "humans"
     personas = "personas"
     sources = "sources"
-    presets = "presets"
 
 
 @app.command()
@@ -1164,21 +1157,6 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
             )
         print(table)
         return sources
-    elif arg == ListChoice.presets:
-        """List all available presets"""
-        table.field_names = ["Name", "Description", "Sources", "Functions"]
-        for preset in client.list_presets():
-            sources = client.get_preset_sources(preset_id=preset.id)
-            table.add_row(
-                [
-                    preset.name,
-                    preset.description,
-                    ",".join([source.name for source in sources]),
-                    # json.dumps(preset.functions_schema, indent=4)
-                    ",\n".join([f["name"] for f in preset.functions_schema]),
-                ]
-            )
-        print(table)
     else:
         raise ValueError(f"Unknown argument {arg}")
 
@@ -1213,7 +1191,7 @@ def add(
             client.add_persona(name, text)
 
     elif option == "human":
-        human = client.get_human(name=name, user_id=user_id)
+        human = client.get_human(name=name)
         if human:
             # config if user wants to overwrite
             if not questionary.confirm(f"Human {name} already exists. Overwrite?").ask():
@@ -1250,7 +1228,7 @@ def delete(option: str, name: str):
         elif option == "agent":
             client.delete_agent(agent_name=name)
         elif option == "human":
-            human = client.get_human(name=name, user_id=user_id)
+            human = client.get_human(name=name)
             assert human is not None, f"Human {name} does not exist"
             client.delete_human(name=name, user_id=user_id)
             assert client.get_human(name=name, user_id=user_id) is None, f"Human {name} still exists"
@@ -1259,10 +1237,6 @@ def delete(option: str, name: str):
             assert persona is not None, f"Persona {name} does not exist"
             client.delete_persona(name=name, user_id=user_id)
             assert client.get_persona(name=name, user_id=user_id) is None, f"Persona {name} still exists"
-        elif option == "preset":
-            preset = client.get_preset(preset_name=name, user_id=user_id)
-            assert preset is not None, f"Preset {name} does not exist"
-            client.delete_preset(preset.id)
         else:
             raise ValueError(f"Option {option} not implemented")
 

@@ -13,6 +13,13 @@ from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.utils import get_human_text, get_persona_text, get_utc_time
 
 
+class MemGPTUsageStatistics(BaseModel):
+    completion_tokens: int
+    prompt_tokens: int
+    total_tokens: int
+    step_count: int
+
+
 class LLMConfigModel(BaseModel):
     model: Optional[str] = "gpt-4"
     model_endpoint_type: Optional[str] = "openai"
@@ -54,14 +61,17 @@ class PresetWithMetadata(PresetModel):
 
 class ToolModel(SQLModel, table=True):
     # TODO move into database
-    name: str = Field(..., description="The name of the function.", primary_key=True)
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the function.")
+    name: str = Field(..., description="The name of the function.")
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the function.", primary_key=True)
     tags: List[str] = Field(sa_column=Column(JSON), description="Metadata tags.")
     source_type: Optional[str] = Field(None, description="The type of the source code.")
     source_code: Optional[str] = Field(..., description="The source code of the function.")
     module: Optional[str] = Field(None, description="The module of the function.")
 
     json_schema: Dict = Field(default_factory=dict, sa_column=Column(JSON), description="The JSON schema of the function.")
+
+    # optional: user_id (user-specific tools)
+    user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user associated with the function.")
 
     # Needed for Column(JSON)
     class Config:
@@ -93,9 +103,6 @@ class AgentStateModel(BaseModel):
     created_at: int = Field(..., description="The unix timestamp of when the agent was created.")
 
     # preset information
-    preset: str = Field(..., description="The preset used by the agent.")
-    persona: str = Field(..., description="The persona used by the agent.")
-    human: str = Field(..., description="The human used by the agent.")
     tools: List[str] = Field(..., description="The tools used by the agent.")
     system: str = Field(..., description="The system prompt used by the agent.")
     # functions_schema: List[Dict] = Field(..., description="The functions schema used by the agent.")
@@ -106,6 +113,7 @@ class AgentStateModel(BaseModel):
 
     # agent state
     state: Optional[Dict] = Field(None, description="The state of the agent.")
+    metadata: Optional[Dict] = Field(None, description="The metadata of the agent.")
 
 
 class CoreMemory(BaseModel):

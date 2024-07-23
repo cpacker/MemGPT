@@ -20,7 +20,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.exc import InterfaceError
+from sqlalchemy.exc import InterfaceError, OperationalError
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql import func
 
@@ -175,10 +175,7 @@ class AgentModel(Base):
     id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
     user_id = Column(CommonUUID, nullable=False)
     name = Column(String, nullable=False)
-    persona = Column(String)
-    human = Column(String)
     system = Column(String)
-    preset = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # configs
@@ -187,6 +184,7 @@ class AgentModel(Base):
 
     # state
     state = Column(JSON)
+    _metadata = Column(JSON)
 
     # tools
     tools = Column(JSON)
@@ -199,15 +197,13 @@ class AgentModel(Base):
             id=self.id,
             user_id=self.user_id,
             name=self.name,
-            persona=self.persona,
-            human=self.human,
-            preset=self.preset,
             created_at=self.created_at,
             llm_config=self.llm_config,
             embedding_config=self.embedding_config,
             state=self.state,
             tools=self.tools,
             system=self.system,
+            _metadata=self._metadata,
         )
 
 
@@ -360,7 +356,7 @@ class MetadataStore:
                     JobModel.__table__,
                 ],
             )
-        except InterfaceError as e:
+        except (InterfaceError, OperationalError) as e:
             traceback.print_exc()
             if config.metadata_storage_type == "postgres":
                 raise ValueError(
@@ -604,9 +600,11 @@ class MetadataStore:
 
     @enforce_types
     # def list_tools(self, user_id: uuid.UUID) -> List[ToolModel]: # TODO: add when users can creat tools
-    def list_tools(self) -> List[ToolModel]:
+    def list_tools(self, user_id: Optional[uuid.UUID] = None) -> List[ToolModel]:
         with self.session_maker() as session:
-            results = session.query(ToolModel).all()
+            results = session.query(ToolModel).filter(ToolModel.user_id == None).all()
+            if user_id:
+                results += session.query(ToolModel).filter(ToolModel.user_id == user_id).all()
             return results
 
     @enforce_types
@@ -677,10 +675,13 @@ class MetadataStore:
             return results[0].to_record()
 
     @enforce_types
-    def get_tool(self, tool_name: str) -> Optional[ToolModel]:
+    def get_tool(self, tool_name: str, user_id: Optional[uuid.UUID] = None) -> Optional[ToolModel]:
         # TODO: add user_id when tools can eventually be added by users
         with self.session_maker() as session:
-            results = session.query(ToolModel).filter(ToolModel.name == tool_name).all()
+            results = session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == None).all()
+            if user_id:
+                results += session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == user_id).all()
+
             if len(results) == 0:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
@@ -734,17 +735,21 @@ class MetadataStore:
     @enforce_types
     def add_human(self, human: HumanModel):
         with self.session_maker() as session:
+            if self.get_human(human.name, human.user_id):
+                raise ValueError(f"Human with name {human.name} already exists for user_id {human.user_id}")
             session.add(human)
             session.commit()
 
     @enforce_types
     def add_persona(self, persona: PersonaModel):
         with self.session_maker() as session:
+            if self.get_persona(persona.name, persona.user_id):
+                raise ValueError(f"Persona with name {persona.name} already exists for user_id {persona.user_id}")
             session.add(persona)
             session.commit()
 
     @enforce_types
-    def add_preset(self, preset: PresetModel):
+    def add_preset(self, preset: PresetModel):  # TODO: remove
         with self.session_maker() as session:
             session.add(preset)
             session.commit()
@@ -752,6 +757,8 @@ class MetadataStore:
     @enforce_types
     def add_tool(self, tool: ToolModel):
         with self.session_maker() as session:
+            if self.get_tool(tool.name, tool.user_id):
+                raise ValueError(f"Tool with name {tool.name} already exists for user_id {tool.user_id}")
             session.add(tool)
             session.commit()
 
@@ -811,9 +818,9 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def delete_tool(self, name: str):
+    def delete_tool(self, name: str, user_id: uuid.UUID):
         with self.session_maker() as session:
-            session.query(ToolModel).filter(ToolModel.name == name).delete()
+            session.query(ToolModel).filter(ToolModel.name == name).filter(ToolModel.user_id == user_id).delete()
             session.commit()
 
     # job related functions
