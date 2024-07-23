@@ -8,6 +8,7 @@ memgpt load <data-connector-type> --name <dataset-name> [ADDITIONAL ARGS]
 
 """
 
+import os
 import uuid
 from typing import Annotated, List, Optional
 
@@ -90,20 +91,26 @@ def load_directory(
     description: Annotated[Optional[str], typer.Option(help="Description of the source.")] = None,
 ):
     try:
+        from memgpt.client.client import create_client
+
+        client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
         connector = DirectoryConnector(input_files=input_files, input_directory=input_dir, recursive=recursive, extensions=extensions)
-        config = MemGPTConfig.load()
+        # config = MemGPTConfig.load()
+        config = client.get_config()
         if not user_id:
+            # if not user_id:
             user_id = uuid.UUID(config.anon_clientid)
 
-        ms = MetadataStore(config)
-        source = Source(
-            name=name,
-            user_id=user_id,
-            embedding_model=config.default_embedding_config.embedding_model,
-            embedding_dim=config.default_embedding_config.embedding_dim,
-            description=description,
-        )
-        ms.create_source(source)
+        # ms = MetadataStore(config)
+        # source = Source(
+        #     name=name,
+        #     user_id=user_id,
+        #     embedding_model=config.default_embedding_config.embedding_model,
+        #     embedding_dim=config.default_embedding_config.embedding_dim,
+        #     description=description,
+        # )
+        source = client.create_source(name=name, description=description)
+        # ms.create_source(source)
         passage_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
         # TODO: also get document store
 
@@ -119,7 +126,8 @@ def load_directory(
             print(f"Loaded {num_passages} passages and {num_documents} documents from {name}")
         except Exception as e:
             typer.secho(f"Failed to load data from provided information.\n{e}", fg=typer.colors.RED)
-            ms.delete_source(source_id=source.id)
+            client.delete_source(source_id=source.id)
+            # ms.delete_source(source_id=source.id)
 
     except ValueError as e:
         typer.secho(f"Failed to load directory from provided information.\n{e}", fg=typer.colors.RED)
