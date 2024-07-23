@@ -77,3 +77,5 @@ def create_tool(
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=f"Failed to create tool: {e}, exists_ok={tool.update}")
+
+
