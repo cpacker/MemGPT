@@ -24,6 +24,10 @@ from memgpt.llm_api.openai import (
     openai_chat_completions_request,
 )
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
+from memgpt.local_llm.constants import (
+    INNER_THOUGHTS_KWARG,
+    INNER_THOUGHTS_KWARG_DESCRIPTION,
+)
 from memgpt.models.chat_completion_request import (
     ChatCompletionRequest,
     Tool,
@@ -166,8 +170,37 @@ def create(
         printd("unsetting function_call because functions is None")
         function_call = None
 
+    # print("HELLO")
+
     # openai
     if llm_config.model_endpoint_type == "openai":
+
+        # whether or not to do inner thoughts in content or kwargs
+        inner_thoughts_in_kwargs = "gpt-4o" in llm_config.model or "gpt-4-turbo" in llm_config.model or "gpt-3.5-turbo" in llm_config.model
+        if inner_thoughts_in_kwargs:
+            # we need to add inner thoughts as an arg to the tool list
+            for function_object in functions:
+                # print(function_object)
+                function_params = function_object["parameters"]["properties"]
+                if INNER_THOUGHTS_KWARG not in function_params:
+                    function_params[INNER_THOUGHTS_KWARG] = {
+                        "type": "string",
+                        "description": INNER_THOUGHTS_KWARG_DESCRIPTION,
+                    }
+                # make sure it's tagged required
+                if INNER_THOUGHTS_KWARG not in function_object["parameters"]["required"]:
+                    function_object["parameters"]["required"].append(INNER_THOUGHTS_KWARG)
+            # print("new args!")
+            print(functions)
+        else:
+            # print("backend", llm_config.model)
+            pass
+
+        openai_message_list = [
+            cast_message_to_subtype(m.to_openai_dict(put_inner_thoughts_in_kwargs=inner_thoughts_in_kwargs)) for m in messages
+        ]
+        print(openai_message_list)
+
         # TODO do the same for Azure?
         if credentials.openai_key is None and llm_config.model_endpoint == "https://api.openai.com/v1":
             # only is a problem if we are *not* using an openai proxy
@@ -175,7 +208,7 @@ def create(
         if use_tool_naming:
             data = ChatCompletionRequest(
                 model=llm_config.model,
-                messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
+                messages=openai_message_list,
                 tools=[{"type": "function", "function": f} for f in functions] if functions else None,
                 tool_choice=function_call,
                 user=str(user_id),
@@ -183,7 +216,7 @@ def create(
         else:
             data = ChatCompletionRequest(
                 model=llm_config.model,
-                messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
+                messages=openai_message_list,
                 functions=functions,
                 function_call=function_call,
                 user=str(user_id),
@@ -198,7 +231,7 @@ def create(
             assert isinstance(stream_inferface, AgentChunkStreamingInterface) or isinstance(
                 stream_inferface, AgentRefreshStreamingInterface
             ), type(stream_inferface)
-            return openai_chat_completions_process_stream(
+            response = openai_chat_completions_process_stream(
                 url=llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
                 api_key=credentials.openai_key,
                 chat_completion_request=data,
@@ -217,7 +250,22 @@ def create(
             finally:
                 if isinstance(stream_inferface, AgentChunkStreamingInterface):
                     stream_inferface.stream_end()
-            return response
+
+        if inner_thoughts_in_kwargs:
+            # NOTE: need to undo the putting of inner thoughts inside the kwargs
+            msg = response.choices[0].message
+            if msg.role == "assistant" and len(msg.tool_calls) >= 1:
+                func_args = msg.tool_calls[0].function.arguments
+                import json
+
+                new_func_args = dict(json.loads(func_args))
+                if INNER_THOUGHTS_KWARG in new_func_args:
+                    inner_thoughts = new_func_args.pop(INNER_THOUGHTS_KWARG)
+                    # replace
+                    msg.tool_calls[0].function.arguments = json.dumps(new_func_args)  # TODO ensure_ascii
+                    msg.content = inner_thoughts
+
+        return response
 
     # azure
     elif llm_config.model_endpoint_type == "azure":
