@@ -388,6 +388,12 @@ class RESTClient(AbstractClient):
         response = requests.delete(f"{self.base_url}/api/agents/delete", json=data, headers=self.headers)
         assert response.status_code == 200, f"Failed to delete agent: {response.text}"
 
+    def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
+        response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/config", headers=self.headers)
+        assert response.status_code == 200, f"Failed to get agent: {response.text}"
+        response_obj = GetAgentResponse(**response.json())
+        return self.get_agent_response_to_state(response_obj)
+
     def get_agent_config(self, agent_id: Optional[uuid.UUID] = None, agent_name: Optional[str] = None) -> AgentState:
         params = {"agent_id": agent_id, "agent_name": agent_name}
         response = requests.get(f"{self.base_url}/api/agents/config", params=params, headers=self.headers)
