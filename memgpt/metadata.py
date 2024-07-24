@@ -1,41 +1,34 @@
 """ Metadata store for user/agent/data_source information"""
-from typing import TYPE_CHECKING
+
 import uuid
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
+
 from humps import pascalize
 
 from memgpt.log import get_logger
-from memgpt.orm.utilities import get_db_session
-from memgpt.orm.token import Token
 from memgpt.orm.agent import Agent
 from memgpt.orm.job import Job
-from memgpt.orm.preset import Preset
 from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTemplate
-
+from memgpt.orm.preset import Preset
+from memgpt.orm.token import Token
+from memgpt.orm.utilities import get_db_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 logger = get_logger(__name__)
 
-from memgpt.data_types import (
-    AgentState,
-    Preset,
-    Source,
-    Token,
-    User,
-)
-from memgpt.models.pydantic_models import (
-    HumanModel,
-    PersonaModel,
-)
+from memgpt.data_types import AgentState, Preset, Source, Token, User
+from memgpt.models.pydantic_models import HumanModel, PersonaModel
 from memgpt.orm.enums import JobStatus
+
 
 class MetadataStore:
     """Metadatastore acts as a bridge between the ORM and the rest of the application. Ideally it will be removed in coming PRs and
     Allow requests to handle sessions atomically (this is how FastAPI really wants things to work, and will drastically reduce the
     mucking of the ORM layer). For now, all CRUD methods are invoked here instead of the ORM layer directly.
     """
+
     db_session: "Session" = None
 
     def __init__(self, db_session: Optional["Session"] = None):
@@ -45,10 +38,7 @@ class MetadataStore:
         """
         self.db_session = get_db_session()
 
-    def create_api_key(self,
-                       user_id: uuid.UUID,
-                       name: Optional[str] = None,
-                       actor: Optional["User"] = None) -> str:
+    def create_api_key(self, user_id: uuid.UUID, name: Optional[str] = None, actor: Optional["User"] = None) -> str:
         """Create an API key for a user
         Args:
             user_id: the user raw id as a UUID (legacy accessor)
@@ -57,15 +47,10 @@ class MetadataStore:
         Returns:
             api_key: the generated API key string starting with 'sk-'
         """
-        token = Token(
-            _user_id=actor._id or user_id,
-            name=name
-        ).create(self.db_session)
+        token = Token(_user_id=actor._id or user_id, name=name).create(self.db_session)
         return token.api_key
 
-    def delete_api_key(self,
-                       api_key: str,
-                       actor: Optional["User"]=None) -> None:
+    def delete_api_key(self, api_key: str, actor: Optional["User"] = None) -> None:
         """(soft) Delete an API key from the database
         Args:
             api_key: the API key to delete
@@ -73,23 +58,20 @@ class MetadataStore:
         Raises:
             NotFoundError: if the API key does not exist or the user does not have access to it.
         """
-        #TODO: this is a temporary shim. the long-term solution (next PR) will be to look up the token ID partial, check access, and soft delete.
+        # TODO: this is a temporary shim. the long-term solution (next PR) will be to look up the token ID partial, check access, and soft delete.
         logger.info(f"User %s is deleting API key %s", actor.id, api_key)
         Token.get_by_api_key(api_key).delete(self.db_session)
 
-    def get_api_key(self,
-                    api_key: str,
-                    actor: Optional["User"] = None) -> Optional[Token]:
-            """legacy token lookup.
-            Note: auth should remove this completely - there is no reason to look up a token without a user context.
-            """
-            return Token.get_by_api_key(self.db_session, api_key).to_record()
+    def get_api_key(self, api_key: str, actor: Optional["User"] = None) -> Optional[Token]:
+        """legacy token lookup.
+        Note: auth should remove this completely - there is no reason to look up a token without a user context.
+        """
+        return Token.get_by_api_key(self.db_session, api_key).to_record()
 
-    def get_all_api_keys_for_user(self,
-                                  user_id: uuid.UUID) -> List[Token]:
-            """"""
-            user = User.read(self.db_session, user_id)
-            return [r.to_record() for r in user.tokens]
+    def get_all_api_keys_for_user(self, user_id: uuid.UUID) -> List[Token]:
+        """"""
+        user = User.read(self.db_session, user_id)
+        return [r.to_record() for r in user.tokens]
 
     def get_user_from_api_key(self, api_key: str) -> Optional[User]:
         """Get the user associated with a given API key"""
@@ -104,11 +86,11 @@ class MetadataStore:
 
         __getattr__ is always the last-ditch effort, so you can override it by declaring any method (ie `get_hamburger`) to handle the call instead.
         """
-        action, raw_model_name = name.split("_",1)
-        Model = globals().get(pascalize(raw_model_name)) # gross, but nessary for now
+        action, raw_model_name = name.split("_", 1)
+        Model = globals().get(pascalize(raw_model_name))  # gross, but nessary for now
         match action:
             case "add":
-                return self.getattr("_".join(["create",raw_model_name]))
+                return self.getattr("_".join(["create", raw_model_name]))
             case "get":
                 # this has no support for scoping, but we won't keep this pattern long
                 return Model.read(self.db_session, args[0]).to_record()
@@ -118,7 +100,7 @@ class MetadataStore:
             case "update":
                 instance = Model.read(self.db_session, args[0].id)
                 splatted_pydantic = args[0].model_dump(exclude_none=True, exclude=["id"])
-                for k,v in splatted_pydantic.items():
+                for k, v in splatted_pydantic.items():
                     setattr(instance, k, v)
                 instance.update(self.db_session)
                 return instance.to_record()
@@ -144,16 +126,13 @@ class MetadataStore:
     ) -> Optional[Preset]:
         assert preset_id or (name and user_id), "Must provide either preset_id or (preset_name and user_id)"
 
-        #TODO: pivot this to org scope - get by id or by name within org of actor
+        # TODO: pivot this to org scope - get by id or by name within org of actor
         if preset_id:
             return Preset.read(self.db_session, preset_id).to_record()
         # Implement actor lookup
         return Preset.read(self.db_session, name=name, actor=user_id).to_record()
 
-    def set_preset_sources(self,
-                           preset_id: uuid.UUID,
-                           sources: List[uuid.UUID],
-                           actor: Optional["User"] = None) -> None:
+    def set_preset_sources(self, preset_id: uuid.UUID, sources: List[uuid.UUID], actor: Optional["User"] = None) -> None:
         """Legacy assign sources to a preset. This should be a normal relationship collection in the future.
         Args:
             preset_id: the preset raw UUID to assign sources to, legacy support
@@ -176,8 +155,8 @@ class MetadataStore:
         return sql_persona.to_record()
 
     def get_all_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50) -> (Optional[uuid.UUID], List[User]):
-        del limit # TODO: implement pagination as part of predicate
-        return None , [u.to_record() for u in User.list(self.db_session)]
+        del limit  # TODO: implement pagination as part of predicate
+        return None, [u.to_record() for u in User.list(self.db_session)]
 
     # agent source metadata
     def attach_source(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_id: uuid.UUID) -> None:

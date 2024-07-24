@@ -1,19 +1,20 @@
-from uuid import uuid4, UUID
-from typing import Optional, TYPE_CHECKING,Type, Union, List, Literal
+from typing import TYPE_CHECKING, List, Literal, Optional, Type, Union
+from uuid import UUID, uuid4
+
 from humps import depascalize
-from sqlalchemy import select, UUID as SQLUUID, Boolean
-from sqlalchemy.orm import (
-    Mapped,
-    mapped_column
-)
+from sqlalchemy import UUID as SQLUUID
+from sqlalchemy import Boolean, select
+from sqlalchemy.orm import Mapped, mapped_column
+
 from memgpt.log import get_logger
 from memgpt.orm.base import Base, CommonSqlalchemyMetaMixins
 from memgpt.orm.errors import NoResultFound
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
-    from sqlalchemy.orm import Session
     from sqlalchemy import Select
+    from sqlalchemy.orm import Session
+
     from memgpt.orm.user import User
 
 logger = get_logger(__name__)
@@ -42,9 +43,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         if not value:
             return
         prefix, id_ = value.split("-", 1)
-        assert (
-            prefix == self.__prefix__
-        ), f"{prefix} is not a valid id prefix for {self.__class__.__name__}"
+        assert prefix == self.__prefix__, f"{prefix} is not a valid id prefix for {self.__class__.__name__}"
         self._id = UUID(id_)
 
     @classmethod
@@ -59,7 +58,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         identifier: Union[str, UUID],
         actor: Optional["User"] = None,
         access: Optional[List[Literal["read", "write", "admin"]]] = ["read"],
-        **kwargs
+        **kwargs,
     ) -> Type["SqlalchemyBase"]:
         """The primary accessor for an ORM record.
         Args:
@@ -73,7 +72,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         Raises:
             NoResultFound: if the object is not found
         """
-        del kwargs # arity for more complex reads
+        del kwargs  # arity for more complex reads
         identifier = cls.to_uid(identifier)
         query = select(cls).where(cls._id == identifier)
         if actor:
@@ -119,9 +118,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             the sqlalchemy select statement restricted to the given access.
         """
         del access  # entrypoint for row-level permissions. Defaults to "same org as the actor, all permissions" at the moment
-        org_uid = getattr(
-            actor, "_organization_id", getattr(actor.organization, "_id", None)
-        )
+        org_uid = getattr(actor, "_organization_id", getattr(actor.organization, "_id", None))
         if not org_uid:
             raise ValueError("object %s has no organization accessor", actor)
         return query.where(cls._organization_id == org_uid, cls.deleted == False)

@@ -22,7 +22,9 @@ class Block(BaseModel, validate_assignment=True):
 
     @model_validator(mode="after")
     def verify_char_limit(self) -> Self:
-        if len(self) >= self.limit:
+        try:
+            assert len(self) >= self.limit
+        except AssertionError:
             error_msg = f"Edit failed: Exceeds {self.limit} character limit (requested {len(self)})."
             raise ValueError(error_msg)
         return self

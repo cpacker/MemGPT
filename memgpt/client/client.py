@@ -1,17 +1,15 @@
 import datetime
 import time
 import uuid
-from typing import Dict, List, Optional, Tuple, Union, TYPE_CHECKING
-import httpx
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 from memgpt.config import MemGPTConfig
-from memgpt.log import get_logger
 from memgpt.constants import BASE_TOOLS
-from memgpt.settings import settings
 from memgpt.data_sources.connectors import DataConnector
 from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, Preset, Source
 from memgpt.functions.functions import parse_source_code
 from memgpt.functions.schema_generator import generate_schema
+from memgpt.log import get_logger
 from memgpt.memory import BaseMemory, ChatMemory, get_memory_functions
 from memgpt.models.pydantic_models import (
     HumanModel,
@@ -52,6 +50,7 @@ from memgpt.server.rest_api.sources.index import ListSourcesResponse
 # import pydantic response objects from memgpt.server.rest_api
 from memgpt.server.rest_api.tools.index import CreateToolRequest, ListToolsResponse
 from memgpt.server.server import SyncServer
+from memgpt.settings import settings
 from memgpt.utils import get_human_text
 
 if TYPE_CHECKING:
@@ -59,10 +58,10 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-def create_client(base_url: Optional[str] = None,
-                  token: Optional[str] = None,
-                  config: Optional[MemGPTConfig] = None,
-                  app: Optional[str] = None):
+
+def create_client(
+    base_url: Optional[str] = None, token: Optional[str] = None, config: Optional[MemGPTConfig] = None, app: Optional[str] = None
+):
     """factory method to create either a local or rest api enabled client.
     # TODO: link to docs on the difference between the two.
     base_url: str if provided, the url to the rest api server
@@ -242,7 +241,7 @@ class RESTClient(AbstractClient):
         base_url: str,
         token: str,
         debug: bool = False,
-        app: Optional[Union["WSGITransport","ASGITransport"]] = None,
+        app: Optional[Union["WSGITransport", "ASGITransport"]] = None,
     ):
         super().__init__(debug=debug)
         httpx_client_args = {

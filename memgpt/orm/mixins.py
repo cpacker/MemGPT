@@ -1,6 +1,8 @@
 from typing import Optional, Type
 from uuid import UUID
-from sqlalchemy import UUID as SQLUUID, ForeignKey
+
+from sqlalchemy import UUID as SQLUUID
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from memgpt.orm.base import Base
@@ -47,9 +49,7 @@ class OrganizationMixin(Base):
 
     __abstract__ = True
 
-    _organization_id: Mapped[UUID] = mapped_column(
-        SQLUUID(), ForeignKey("organization._id")
-    )
+    _organization_id: Mapped[UUID] = mapped_column(SQLUUID(), ForeignKey("organization._id"))
 
     @property
     def organization_id(self) -> str:
@@ -65,9 +65,7 @@ class UserMixin(Base):
 
     __abstract__ = True
 
-    _user_id: Mapped[UUID] = mapped_column(
-        SQLUUID(), ForeignKey("user._id")
-    )
+    _user_id: Mapped[UUID] = mapped_column(SQLUUID(), ForeignKey("user._id"))
 
     @property
     def user_id(self) -> str:
@@ -77,14 +75,13 @@ class UserMixin(Base):
     def user_id(self, value: str) -> None:
         _relation_setter(self, "user", value)
 
+
 class AgentMixin(Base):
     """Mixin for models that belong to an agent."""
 
     __abstract__ = True
 
-    _agent_id: Mapped[UUID] = mapped_column(
-        SQLUUID(), ForeignKey("agent._id")
-    )
+    _agent_id: Mapped[UUID] = mapped_column(SQLUUID(), ForeignKey("agent._id"))
 
     @property
     def agent_id(self) -> str:
@@ -100,9 +97,7 @@ class DocumentMixin(Base):
 
     __abstract__ = True
 
-    _document_id: Mapped[UUID] = mapped_column(
-        SQLUUID(), ForeignKey("document._id")
-    )
+    _document_id: Mapped[UUID] = mapped_column(SQLUUID(), ForeignKey("document._id"))
 
     @property
     def document_id(self) -> str:

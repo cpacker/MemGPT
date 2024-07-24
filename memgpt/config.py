@@ -6,11 +6,11 @@ import uuid
 from dataclasses import dataclass
 
 import memgpt
-from memgpt.settings import settings
 import memgpt.utils as utils
 from memgpt.constants import MEMGPT_DIR
 from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig
 from memgpt.log import get_logger
+from memgpt.settings import settings
 
 logger = get_logger(__name__)
 
@@ -51,8 +51,8 @@ class MemGPTConfig:
     # embedding parameters
     default_embedding_config: EmbeddingConfig = None
 
-# NONE OF THIS IS CONFIG ↓↓↓↓↓
-# @norton120 these are the metdadatastore
+    # NONE OF THIS IS CONFIG ↓↓↓↓↓
+    # @norton120 these are the metdadatastore
 
     # database configs: archival
     archival_storage_type: str = "chroma"  # local, db

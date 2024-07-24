@@ -1,11 +1,11 @@
-from uuid import UUID
 from typing import Annotated, Generator
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.orm.utilities import get_db_session
+from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
 
 router = APIRouter()
@@ -22,9 +22,10 @@ class AuthRequest(BaseModel):
 def setup_auth_router(server: SyncServer, interface: QueuingInterface, password: str) -> APIRouter:
 
     @router.post("/auth", tags=["auth"], response_model=AuthResponse)
-    def authenticate_user(request: AuthRequest,
-                          db_session: Annotated["Generator", Depends(get_db_session)],
-                          ) -> AuthResponse:
+    def authenticate_user(
+        request: AuthRequest,
+        db_session: Annotated["Generator", Depends(get_db_session)],
+    ) -> AuthResponse:
         """
         Authenticates the user and sends response with User related data.
 

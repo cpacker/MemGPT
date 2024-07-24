@@ -6,13 +6,13 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from memgpt.settings  import settings
 from memgpt.data_types import Preset  # TODO remove
 from memgpt.models.pydantic_models import HumanModel, PersonaModel, PresetModel
 from memgpt.prompts import gpt_system
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
+from memgpt.settings import settings
 from memgpt.utils import get_human_text, get_persona_text
 
 router = APIRouter()
