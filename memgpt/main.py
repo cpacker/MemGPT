@@ -34,6 +34,7 @@ from memgpt.constants import (
     REQ_HEARTBEAT_MESSAGE,
 )
 from memgpt.metadata import MetadataStore
+from memgpt.models.pydantic_models import OptionState
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import AgentRefreshStreamingInterface
@@ -71,7 +72,14 @@ def clear_line(console, strip_ui=False):
 
 
 def run_agent_loop(
-    memgpt_agent: agent.Agent, config: MemGPTConfig, first, ms: MetadataStore, no_verify=False, cfg=None, strip_ui=False, stream=False
+    memgpt_agent: agent.Agent,
+    config: MemGPTConfig,
+    first: bool,
+    ms: MetadataStore,
+    no_verify: bool = False,
+    strip_ui: bool = False,
+    stream: bool = False,
+    inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
 ):
     if isinstance(memgpt_agent.interface, AgentRefreshStreamingInterface):
         # memgpt_agent.interface.toggle_streaming(on=stream)
@@ -386,6 +394,7 @@ def run_agent_loop(
                 first_message=False,
                 skip_verify=no_verify,
                 stream=stream,
+                inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
             )
 
             skip_next_user_input = False
@@ -419,7 +428,7 @@ def run_agent_loop(
                 retry = questionary.confirm("Retry agent.step()?").ask()
                 if not retry:
                     break
-            except Exception as e:
+            except Exception:
                 print("An exception occurred when running agent.step(): ")
                 traceback.print_exc()
                 retry = questionary.confirm("Retry agent.step()?").ask()

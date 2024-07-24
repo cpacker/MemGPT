@@ -24,6 +24,7 @@ from memgpt.log import get_logger
 from memgpt.memory import ChatMemory
 from memgpt.metadata import MetadataStore
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
+from memgpt.models.pydantic_models import OptionState
 from memgpt.server.constants import WS_DEFAULT_PORT
 from memgpt.server.server import logger as server_logger
 
@@ -410,6 +411,10 @@ def run(
     yes: Annotated[bool, typer.Option("-y", help="Skip confirmation prompt and use defaults")] = False,
     # streaming
     stream: Annotated[bool, typer.Option(help="Enables message streaming in the CLI (if the backend supports it)")] = False,
+    # whether or not to put the inner thoughts inside the function args
+    no_content: Annotated[
+        OptionState, typer.Option(help="Set to 'yes' for LLM APIs that omit the `content` field during tool calling")
+    ] = OptionState.DEFAULT,
 ):
     """Start chatting with an MemGPT agent
 
@@ -671,7 +676,13 @@ def run(
 
     print()  # extra space
     run_agent_loop(
-        memgpt_agent=memgpt_agent, config=config, first=first, ms=ms, no_verify=no_verify, stream=stream
+        memgpt_agent=memgpt_agent,
+        config=config,
+        first=first,
+        ms=ms,
+        no_verify=no_verify,
+        stream=stream,
+        inner_thoughts_in_kwargs=no_content,
     )  # TODO: add back no_verify
 
 
