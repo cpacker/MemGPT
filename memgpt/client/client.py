@@ -63,7 +63,8 @@ logger = get_logger(__name__)
 def create_client(base_url: Optional[str] = None,
                   token: Optional[str] = None,
                   config: Optional[MemGPTConfig] = None,
-                  app: Optional[str] = None):
+                  app: Optional[str] = None,
+                  debug: Optional[bool] = False) -> Union["RESTClient", "LocalClient"]:
     """factory method to create either a local or rest api enabled client.
     # TODO: link to docs on the difference between the two.
     base_url: str if provided, the url to the rest api server
@@ -71,10 +72,9 @@ def create_client(base_url: Optional[str] = None,
     config: MemGPTConfig if provided, the configuration settings to use for the local client
     app: str if provided an ASGI compliant application to use instead of an actual http call. used for testing hook.
     """
-    if base_url is None:
-        return LocalClient(config=config)
-    else:
-        return RESTClient(base_url, token)
+    if base_url:
+        return RESTClient(base_url=base_url, token=token, debug=debug, app=app)
+    return LocalClient(config=config, debug=debug)
 
 
 class AbstractClient(object):
@@ -238,6 +238,9 @@ class AbstractClient(object):
 
 
 class RESTClient(AbstractClient):
+
+    httpx_client: "httpx.Client"
+
     def __init__(
         self,
         base_url: str,
@@ -246,6 +249,7 @@ class RESTClient(AbstractClient):
         app: Optional[Union["WSGITransport","ASGITransport"]] = None,
     ):
         super().__init__(debug=debug)
+
         httpx_client_args = {
             "headers": {"accept": "application/json", "authorization": f"Bearer {token}"},
             "base_url": base_url,
@@ -253,21 +257,20 @@ class RESTClient(AbstractClient):
         if app:
             logger.warning("Using supplied WSGI or ASGI app for RESTClient")
             httpx_client_args["app"] = app
-            self.httpx_client = self.httpx_client.Client(**httpx_client_args)
 
-    def list_agents(self):
-        response = self.httpx_client.get("/api/agents")
+        self.httpx_client = httpx.AsyncClient(**httpx_client_args)
+
+    async def list_agents(self):
+        response = await self.httpx_client.get("/api/agents")
         return ListAgentsResponse(**response.json())
 
-    def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
-        response = self.httpx_client.get(f"/api/agents/{str(agent_id)}/config")
-        if response.status_code == 404:
-            # not found error
-            return False
-        elif response.status_code == 200:
-            return True
-        else:
-            raise ValueError(f"Failed to check if agent exists: {response.text}")
+    async def agent_exists(self, agent_id: Optional[str] = None) -> bool:
+        response = await self.httpx_client.get(f"/agents/{str(agent_id)}/config")
+        match response.status_code:
+            case 404:
+                return False
+            case 200:
+                return True
 
     def get_tool(self, tool_name: str):
         response = self.httpx_client.get(f"/api/tools/{tool_name}")

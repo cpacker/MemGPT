@@ -6,14 +6,16 @@ import httpx
 
 import pytest
 from faker import Faker
-from dotenv import load_dotenv
 
 from memgpt.settings import settings
 from memgpt import Admin, create_client
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import Preset  # TODO move to PresetModel
 from memgpt.settings import settings
+
+# replace all this with our FBoy clone
 from memgpt.orm.user import User
+from memgpt.orm.organization import Organization
 from memgpt.orm.token import Token
 from tests.utils import create_config
 
@@ -79,11 +81,14 @@ def client(request, db_session, test_app):
     if request.param["server"]:
         # since we are not TESTING the admin client, we don't want to USE the admin client here.
         # create the user directly
-        requesting_user = User().create(db_session)
-        api_token = Token(user=requesting_user, name="test_client_api_token").create(db_session)
+
+        # drop in factories here, just doing this to prove the chain works
+        org = Organization(name="some org").create(db_session)
+        requesting_user = User(organization=org, email="emailo@emalle.com").create(db_session)
+        api_token = Token(user=requesting_user, hash=str(uuid.uuid4()), name="test_client_api_token").create(db_session)
         token = api_token.api_key
         client_args = {
-            "base_url": settings.server_url,
+            "base_url": "http://test",
             "token": token,
             "debug": True,
             "app": test_app
@@ -109,11 +114,13 @@ def agent(client):
 class TestClientAgent:
     """CRUD for agents via the client"""
 
-    def test_create_agent(self, client):
+    async def test_create_agent(self, client):
         expected_agent_name = faker.name()
-        assert not client.agent_exists(name=expected_agent_name)
-        created_agent_state = client.create_agent(name=expected_agent_name)
-        assert client.agent_exists(name=expected_agent_name)
+        # this whole test doesn't work because agent has no lookup by name!
+
+        assert not await client.agent_exists(agent_id=expected_agent_name)
+        created_agent_state = await client.create_agent(agent_id=expected_agent_name)
+        assert await client.agent_exists(agent_name=expected_agent_name)
         assert created_agent_state.name == expected_agent_name
 
     def test_rename_agent(self):
