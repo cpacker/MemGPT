@@ -1,6 +1,9 @@
 import sys
 import uuid
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+import agentops
+from dotenv import load_dotenv
+import os
 
 from autogen.agentchat import (
     Agent,
@@ -24,8 +27,14 @@ from memgpt.data_types import EmbeddingConfig, LLMConfig, User
 from memgpt.metadata import MetadataStore
 from memgpt.utils import get_human_text, get_persona_text
 
+# Load environment variables
+load_dotenv()
+
+# Initialize AgentOps
+agentops.init(os.getenv('AGENTOPS_API_KEY'))
 
 class MemGPTConversableAgent(ConversableAgent):
+    @agentops.record_function('MemGPTConversableAgent_init')
     def __init__(
         self,
         name: str,
@@ -55,6 +64,7 @@ class MemGPTConversableAgent(ConversableAgent):
         config = MemGPTConfig.load()
         self.ms = MetadataStore(config)
 
+    @agentops.record_function('MemGPTConversableAgent_save')
     def save(self):
         """Save the underlying MemGPT agent to the database"""
         try:
@@ -63,6 +73,7 @@ class MemGPTConversableAgent(ConversableAgent):
             print(f"Failed to save MemGPT AutoGen agent\n{self.agent}\nError: {str(e)}")
             raise
 
+    @agentops.record_function('MemGPTConversableAgent_load')
     def load(self, name: str, type: str, **kwargs):
         # call load function based on type
         if type == "directory":
@@ -76,12 +87,14 @@ class MemGPTConversableAgent(ConversableAgent):
         else:
             raise ValueError(f"Invalid data source type {type}")
 
+    @agentops.record_function('MemGPTConversableAgent_attach')
     def attach(self, data_source: str):
         # attach new data
         config = MemGPTConfig.load()
         source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id=self.agent.agent_state.user_id)
         self.agent.attach_source(data_source, source_connector, ms=self.ms)
 
+    @agentops.record_function('MemGPTConversableAgent_load_and_attach')
     def load_and_attach(self, name: str, type: str, force=False, **kwargs):
         # check if data source already exists
         data_source_options = self.ms.list_sources(user_id=self.agent.agent_state.user_id)
@@ -96,6 +109,7 @@ class MemGPTConversableAgent(ConversableAgent):
             self.load(name, type, **kwargs)
             self.attach(name)
 
+    @agentops.record_function('MemGPTConversableAgent_format_other_agent_message')
     def format_other_agent_message(self, msg):
         if "name" in msg:
             user_message = f"{msg['name']}: {msg['content']}"
@@ -103,6 +117,7 @@ class MemGPTConversableAgent(ConversableAgent):
             user_message = msg["content"]
         return user_message
 
+    @agentops.record_function('MemGPTConversableAgent_find_last_user_message')
     def find_last_user_message(self):
         last_user_message = None
         for msg in self.agent.messages:
@@ -110,11 +125,13 @@ class MemGPTConversableAgent(ConversableAgent):
                 last_user_message = msg["content"]
         return last_user_message
 
+    @agentops.record_function('MemGPTConversableAgent_find_new_messages')
     def find_new_messages(self, entire_message_list):
         """Extract the subset of messages that's actually new"""
         return entire_message_list[self.messages_processed_up_to_idx :]
 
     @staticmethod
+    @agentops.record_function('MemGPTConversableAgent_format_autogen_message')
     def _format_autogen_message(autogen_message):
         # {'content': "...", 'name': '...', 'role': 'user'}
         if not isinstance(autogen_message, dict) or ():
@@ -128,6 +145,7 @@ class MemGPTConversableAgent(ConversableAgent):
 
         return user_message
 
+    @agentops.record_function('MemGPTConversableAgent_generate_reply_for_user_message')
     def _generate_reply_for_user_message(
         self,
         messages: Optional[List[Dict]] = None,
@@ -192,6 +210,7 @@ class MemGPTConversableAgent(ConversableAgent):
         return True, pretty_ret
 
     @staticmethod
+    @agentops.record_function('MemGPTConversableAgent_pretty_concat')
     def pretty_concat(messages):
         """AutoGen expects a single response, but MemGPT may take many steps.
 
@@ -209,7 +228,7 @@ class MemGPTConversableAgent(ConversableAgent):
 
         return ret
 
-
+@agentops.record_function('update_config_from_dict')
 def update_config_from_dict(config_object: Union[LLMConfig, EmbeddingConfig], config_dict: dict) -> bool:
     """Utility method used in the agent creation process for AutoGen
 
@@ -233,7 +252,7 @@ def update_config_from_dict(config_object: Union[LLMConfig, EmbeddingConfig], co
 
     return was_modified
 
-
+@agentops.record_function('load_autogen_memgpt_agent')
 def load_autogen_memgpt_agent(
     agent_config: dict,
     skip_verify: bool = False,
@@ -294,7 +313,7 @@ def load_autogen_memgpt_agent(
     )
     return autogen_memgpt_agent
 
-
+@agentops.record_function('create_autogen_memgpt_agent')
 def create_autogen_memgpt_agent(
     agent_config: dict,
     skip_verify: bool = False,
@@ -385,7 +404,7 @@ def create_autogen_memgpt_agent(
     )
     return autogen_memgpt_agent
 
-
+@agentops.record_function('create_memgpt_autogen_agent_from_config')
 def create_memgpt_autogen_agent_from_config(
     name: str,
     system_message: Optional[str] = "You are a helpful AI Assistant.",
@@ -507,3 +526,6 @@ def create_memgpt_autogen_agent_from_config(
 
     else:
         return autogen_memgpt_agent
+
+# End of program
+agentops.end_session('Success')
