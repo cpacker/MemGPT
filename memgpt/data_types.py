@@ -1,7 +1,9 @@
 """ This module contains the data types used by MemGPT. Each data type must include a function to create a DB model. """
 
+import copy
 import json
 import uuid
+import warnings
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, TypeVar
 
@@ -68,6 +70,27 @@ class ToolCall(object):
             "type": self.tool_call_type,
             "function": self.function,
         }
+
+
+def add_inner_thoughts_to_tool_call(
+    tool_call: ToolCall,
+    inner_thoughts: str,
+    inner_thoughts_key: str,
+) -> ToolCall:
+    """Add inner thoughts (arg + value) to a tool call"""
+    # because the kwargs are stored as strings, we need to load then write the JSON dicts
+    try:
+        # load the args list
+        func_args = json.loads(tool_call.function["arguments"])
+        # add the inner thoughts to the args list
+        func_args[inner_thoughts_key] = inner_thoughts
+        # create the updated tool call (as a string)
+        updated_tool_call = copy.deepcopy(tool_call)
+        updated_tool_call.function["arguments"] = json.dumps(func_args, ensure_ascii=JSON_ENSURE_ASCII)
+        return updated_tool_call
+    except json.JSONDecodeError as e:
+        warnings.warn(f"Failed to put inner thoughts in kwargs: {e}")
+        raise e
 
 
 class Message(Record):
@@ -249,12 +272,16 @@ class Message(Record):
                 tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
             )
 
-    def to_openai_dict_search_results(self, max_tool_id_length=TOOL_CALL_ID_MAX_LEN) -> dict:
+    def to_openai_dict_search_results(self, max_tool_id_length: int = TOOL_CALL_ID_MAX_LEN) -> dict:
         result_json = self.to_openai_dict()
         search_result_json = {"timestamp": self.created_at, "message": {"content": result_json["content"], "role": result_json["role"]}}
         return search_result_json
 
-    def to_openai_dict(self, max_tool_id_length=TOOL_CALL_ID_MAX_LEN) -> dict:
+    def to_openai_dict(
+        self,
+        max_tool_id_length: int = TOOL_CALL_ID_MAX_LEN,
+        put_inner_thoughts_in_kwargs: bool = True,
+    ) -> dict:
         """Go from Message class to ChatCompletion message object"""
 
         # TODO change to pydantic casting, eg `return SystemMessageModel(self)`
@@ -282,14 +309,25 @@ class Message(Record):
         elif self.role == "assistant":
             assert self.tool_calls is not None or self.text is not None
             openai_message = {
-                "content": self.text,
+                "content": None if put_inner_thoughts_in_kwargs else self.text,
                 "role": self.role,
             }
             # Optional fields, do not include if null
             if self.name is not None:
                 openai_message["name"] = self.name
             if self.tool_calls is not None:
-                openai_message["tool_calls"] = [tool_call.to_dict() for tool_call in self.tool_calls]
+                if put_inner_thoughts_in_kwargs:
+                    # put the inner thoughts inside the tool call before casting to a dict
+                    openai_message["tool_calls"] = [
+                        add_inner_thoughts_to_tool_call(
+                            tool_call,
+                            inner_thoughts=self.text,
+                            inner_thoughts_key=INNER_THOUGHTS_KWARG,
+                        ).to_dict()
+                        for tool_call in self.tool_calls
+                    ]
+                else:
+                    openai_message["tool_calls"] = [tool_call.to_dict() for tool_call in self.tool_calls]
                 if max_tool_id_length:
                     for tool_call_dict in openai_message["tool_calls"]:
                         tool_call_dict["id"] = tool_call_dict["id"][:max_tool_id_length]
@@ -453,7 +491,7 @@ class Message(Record):
             assert all([v is not None for v in [self.role, self.tool_call_id]]), vars(self)
 
             if self.name is None:
-                raise UserWarning(f"Couldn't find function name on tool call, defaulting to tool ID instead.")
+                warnings.warn(f"Couldn't find function name on tool call, defaulting to tool ID instead.")
                 function_name = self.tool_call_id
             else:
                 function_name = self.name

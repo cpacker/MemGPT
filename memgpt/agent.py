@@ -24,7 +24,7 @@ from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
 from memgpt.memory import ArchivalMemory, BaseMemory, RecallMemory, summarize_messages
 from memgpt.metadata import MetadataStore
 from memgpt.models import chat_completion_response
-from memgpt.models.pydantic_models import ToolModel
+from memgpt.models.pydantic_models import OptionState, ToolModel
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.system import (
     get_initial_boot_messages,
@@ -314,6 +314,7 @@ class Agent(object):
         function_call: str = "auto",
         first_message: bool = False,  # hint
         stream: bool = False,  # TODO move to config?
+        inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
     ) -> chat_completion_response.ChatCompletionResponse:
         """Get response from LLM API"""
         try:
@@ -330,6 +331,8 @@ class Agent(object):
                 # streaming
                 stream=stream,
                 stream_inferface=self.interface,
+                # putting inner thoughts in func args or not
+                inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
             )
             # special case for 'length'
             if response.choices[0].finish_reason == "length":
@@ -401,7 +404,7 @@ class Agent(object):
             printd(f"Request to call function {function_name} with tool_call_id: {tool_call_id}")
             try:
                 function_to_call = self.functions_python[function_name]
-            except KeyError as e:
+            except KeyError:
                 error_msg = f"No function named {function_name}"
                 function_response = package_function_response(False, error_msg)
                 messages.append(
@@ -424,7 +427,7 @@ class Agent(object):
             try:
                 raw_function_args = function_call.arguments
                 function_args = parse_json(raw_function_args)
-            except Exception as e:
+            except Exception:
                 error_msg = f"Error parsing JSON for function '{function_name}' arguments: {function_call.arguments}"
                 function_response = package_function_response(False, error_msg)
                 messages.append(
@@ -550,6 +553,7 @@ class Agent(object):
         recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
         stream: bool = False,  # TODO move to config?
         timestamp: Optional[datetime.datetime] = None,
+        inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
     ) -> Tuple[List[Union[dict, Message]], bool, bool, bool]:
         """Top-level event message handler for the MemGPT agent"""
 
@@ -634,6 +638,7 @@ class Agent(object):
                         message_sequence=input_message_sequence,
                         first_message=True,  # passed through to the prompt formatter
                         stream=stream,
+                        inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
                     )
                     if verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
@@ -646,6 +651,7 @@ class Agent(object):
                 response = self._get_ai_reply(
                     message_sequence=input_message_sequence,
                     stream=stream,
+                    inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
                 )
 
             # Step 2: check if LLM wanted to call a function
@@ -716,7 +722,18 @@ class Agent(object):
                 self.summarize_messages_inplace()
 
                 # Try step again
-                return self.step(user_message, first_message=first_message, return_dicts=return_dicts)
+                return self.step(
+                    user_message,
+                    first_message=first_message,
+                    first_message_retry_limit=first_message_retry_limit,
+                    skip_verify=skip_verify,
+                    return_dicts=return_dicts,
+                    recreate_message_timestamp=recreate_message_timestamp,
+                    stream=stream,
+                    timestamp=timestamp,
+                    inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+                )
+
             else:
                 printd(f"step() failed with an unrecognized exception: '{str(e)}'")
                 raise e

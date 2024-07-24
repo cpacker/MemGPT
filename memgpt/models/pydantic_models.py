@@ -13,6 +13,14 @@ from memgpt.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.utils import get_human_text, get_persona_text, get_utc_time
 
 
+class OptionState(str, Enum):
+    """Useful for kwargs that are bool + default option"""
+
+    YES = "yes"
+    NO = "no"
+    DEFAULT = "default"
+
+
 class MemGPTUsageStatistics(BaseModel):
     completion_tokens: int
     prompt_tokens: int
