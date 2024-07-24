@@ -196,14 +196,14 @@ def test_humans_personas(client, agent):
     persona_name = "TestPersona"
     if client.get_persona(persona_name):
         client.delete_persona(persona_name)
-    persona = client.create_persona(name=persona_name, persona="Persona text")
+    persona = client.create_persona(name=persona_name, text="Persona text")
     assert persona.name == persona_name
     assert persona.text == "Persona text", "Creating persona failed"
 
     human_name = "TestHuman"
     if client.get_human(human_name):
         client.delete_human(human_name)
-    human = client.create_human(name=human_name, human="Human text")
+    human = client.create_human(name=human_name, text="Human text")
     assert human.name == human_name
     assert human.text == "Human text", "Creating human failed"
 

@@ -166,7 +166,7 @@ class AbstractClient(object):
         """List all humans."""
         raise NotImplementedError
 
-    def create_human(self, name: str, human: str):
+    def create_human(self, name: str, text: str):
         """Create a human."""
         raise NotImplementedError
 
@@ -174,7 +174,7 @@ class AbstractClient(object):
         """List all personas."""
         raise NotImplementedError
 
-    def create_persona(self, name: str, persona: str):
+    def create_persona(self, name: str, text: str):
         """Create a persona."""
         raise NotImplementedError
 
@@ -498,8 +498,8 @@ class RESTClient(AbstractClient):
         response = requests.get(f"{self.base_url}/api/humans", headers=self.headers)
         return ListHumansResponse(**response.json())
 
-    def create_human(self, name: str, human: str) -> HumanModel:
-        data = {"name": name, "text": human}
+    def create_human(self, name: str, text: str) -> HumanModel:
+        data = {"name": name, "text": text}
         response = requests.post(f"{self.base_url}/api/humans", json=data, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create human: {response.text}")
@@ -509,8 +509,8 @@ class RESTClient(AbstractClient):
         response = requests.get(f"{self.base_url}/api/personas", headers=self.headers)
         return ListPersonasResponse(**response.json())
 
-    def create_persona(self, name: str, persona: str) -> PersonaModel:
-        data = {"name": name, "text": persona}
+    def create_persona(self, name: str, text: str) -> PersonaModel:
+        data = {"name": name, "text": text}
         response = requests.post(f"{self.base_url}/api/personas", json=data, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create persona: {response.text}")
@@ -834,11 +834,11 @@ class LocalClient(AbstractClient):
 
     # humans / personas
 
-    def create_human(self, name: str, human: str):
-        return self.server.add_human(HumanModel(name=name, text=human, user_id=self.user_id))
+    def create_human(self, name: str, text: str):
+        return self.server.add_human(HumanModel(name=name, text=text, user_id=self.user_id))
 
-    def create_persona(self, name: str, persona: str):
-        return self.server.add_persona(PersonaModel(name=name, text=persona, user_id=self.user_id))
+    def create_persona(self, name: str, text: str):
+        return self.server.add_persona(PersonaModel(name=name, text=text, user_id=self.user_id))
 
     def list_humans(self):
         return self.server.list_humans(user_id=self.user_id if self.user_id else self.user_id)
@@ -846,8 +846,10 @@ class LocalClient(AbstractClient):
     def get_human(self, name: str):
         return self.server.get_human(name=name, user_id=self.user_id)
 
-    def update_human(self, human: HumanModel):
-        return self.server.update_human(human=human)
+    def update_human(self, name: str, text: str):
+        human = self.get_human(name)
+        human.text = text
+        return self.server.update_human(human)
 
     def delete_human(self, name: str):
         return self.server.delete_human(name, self.user_id)
@@ -858,8 +860,10 @@ class LocalClient(AbstractClient):
     def get_persona(self, name: str):
         return self.server.get_persona(name=name, user_id=self.user_id)
 
-    def update_persona(self, persona: PersonaModel):
-        return self.server.update_persona(persona=persona)
+    def update_persona(self, name: str, text: str):
+        persona = self.get_persona(name)
+        persona.text = text
+        return self.server.update_persona(persona)
 
     def delete_persona(self, name: str):
         return self.server.delete_persona(name, self.user_id)
@@ -926,8 +930,18 @@ class LocalClient(AbstractClient):
     def create_source(self, name: str):
         return self.server.create_source(user_id=self.user_id, name=name)
 
+    def delete_source(self, source_id: Optional[uuid.UUID] = None, source_name: Optional[str] = None):
+        # TODO: delete source data
+        self.server.delete_source(user_id=self.user.id, source_id=source_id, source_name=source_name)
+
+    def get_source(self, source_id: Optional[uuid.UUID] = None, source_name: Optional[str] = None):
+        return self.server.ms.get_source(user_id=self.user_id, source_id=source_id, source_name=source_name)
+
     def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
         self.server.attach_source_to_agent(user_id=self.user_id, source_id=source_id, agent_id=agent_id)
+
+    def list_sources(self):
+        return self.server.list_all_sources(user_id=self.user_id)
 
     def get_agent_archival_memory(
         self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
@@ -973,3 +987,6 @@ class LocalClient(AbstractClient):
         )
 
         return ListModelsResponse(models=[llm_config])
+
+    def list_attached_sources(self, agent_id: uuid.UUID):
+        return self.server.list_attached_sources(agent_id=agent_id)
