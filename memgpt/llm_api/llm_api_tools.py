@@ -1,12 +1,15 @@
+import copy
+import json
 import os
 import random
 import time
 import uuid
+import warnings
 from typing import List, Optional, Union
 
 import requests
 
-from memgpt.constants import CLI_WARNING_PREFIX
+from memgpt.constants import CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import Message
 from memgpt.llm_api.anthropic import anthropic_chat_completions_request
@@ -24,19 +27,106 @@ from memgpt.llm_api.openai import (
     openai_chat_completions_request,
 )
 from memgpt.local_llm.chat_completion_proxy import get_chat_completion
+from memgpt.local_llm.constants import (
+    INNER_THOUGHTS_KWARG,
+    INNER_THOUGHTS_KWARG_DESCRIPTION,
+)
 from memgpt.models.chat_completion_request import (
     ChatCompletionRequest,
     Tool,
     cast_message_to_subtype,
 )
 from memgpt.models.chat_completion_response import ChatCompletionResponse
-from memgpt.models.pydantic_models import LLMConfigModel
+from memgpt.models.pydantic_models import LLMConfigModel, OptionState
 from memgpt.streaming_interface import (
     AgentChunkStreamingInterface,
     AgentRefreshStreamingInterface,
 )
 
 LLM_API_PROVIDER_OPTIONS = ["openai", "azure", "anthropic", "google_ai", "cohere", "local"]
+
+
+# TODO update to use better types
+def add_inner_thoughts_to_functions(
+    functions: List[dict],
+    inner_thoughts_key: str,
+    inner_thoughts_description: str,
+    inner_thoughts_required: bool = True,
+    # inner_thoughts_to_front: bool = True,  TODO support sorting somewhere, probably in the to_dict?
+) -> List[dict]:
+    """Add an inner_thoughts kwarg to every function in the provided list"""
+    # return copies
+    new_functions = []
+
+    # functions is a list of dicts in the OpenAI schema (https://platform.openai.com/docs/api-reference/chat/create)
+    for function_object in functions:
+        function_params = function_object["parameters"]["properties"]
+        required_params = list(function_object["parameters"]["required"])
+
+        # if the inner thoughts arg doesn't exist, add it
+        if inner_thoughts_key not in function_params:
+            function_params[inner_thoughts_key] = {
+                "type": "string",
+                "description": inner_thoughts_description,
+            }
+
+        # make sure it's tagged as required
+        new_function_object = copy.deepcopy(function_object)
+        if inner_thoughts_required and inner_thoughts_key not in required_params:
+            required_params.append(inner_thoughts_key)
+            new_function_object["parameters"]["required"] = required_params
+
+        new_functions.append(new_function_object)
+
+    # return a list of copies
+    return new_functions
+
+
+def unpack_inner_thoughts_from_kwargs(
+    response: ChatCompletionResponse,
+    inner_thoughts_key: str,
+) -> ChatCompletionResponse:
+    """Strip the inner thoughts out of the tool call and put it in the message content"""
+    if len(response.choices) == 0:
+        raise ValueError(f"Unpacking inner thoughts from empty response not supported")
+
+    new_choices = []
+    for choice in response.choices:
+        msg = choice.message
+        if msg.role == "assistant" and len(msg.tool_calls) >= 1:
+            if len(msg.tool_calls) > 1:
+                warnings.warn(f"Unpacking inner thoughts from more than one tool call ({len(msg.tool_calls)}) is not supported")
+            # TODO support multiple tool calls
+            tool_call = msg.tool_calls[0]
+
+            try:
+                # Sadly we need to parse the JSON since args are in string format
+                func_args = dict(json.loads(tool_call.function.arguments))
+                if inner_thoughts_key in func_args:
+                    # extract the inner thoughts
+                    inner_thoughts = func_args.pop(inner_thoughts_key)
+
+                    # replace the kwargs
+                    new_choice = choice.model_copy(deep=True)
+                    new_choice.message.tool_calls[0].function.arguments = json.dumps(func_args, ensure_ascii=JSON_ENSURE_ASCII)
+                    # also replace the message content
+                    if new_choice.message.content is not None:
+                        warnings.warn(f"Overwriting existing inner monologue ({new_choice.message.content}) with kwarg ({inner_thoughts})")
+                    new_choice.message.content = inner_thoughts
+
+                    # save copy
+                    new_choices.append(new_choice)
+                else:
+                    warnings.warn(f"Did not find inner thoughts in tool call: {str(tool_call)}")
+
+            except json.JSONDecodeError as e:
+                warnings.warn(f"Failed to strip inner thoughts from kwargs: {e}")
+                raise e
+
+    # return an updated copy
+    new_response = response.model_copy(deep=True)
+    new_response.choices = new_choices
+    return new_response
 
 
 def is_context_overflow_error(exception: requests.exceptions.RequestException) -> bool:
@@ -152,6 +242,9 @@ def create(
     # streaming?
     stream: bool = False,
     stream_inferface: Optional[Union[AgentRefreshStreamingInterface, AgentChunkStreamingInterface]] = None,
+    # TODO move to llm_config?
+    # if unspecified (None), default to something we've tested
+    inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
 ) -> ChatCompletionResponse:
     """Return response to chat completion with backoff"""
     from memgpt.utils import printd
@@ -166,8 +259,31 @@ def create(
         printd("unsetting function_call because functions is None")
         function_call = None
 
+    # print("HELLO")
+
     # openai
     if llm_config.model_endpoint_type == "openai":
+
+        if inner_thoughts_in_kwargs == OptionState.DEFAULT:
+            # model that are known to not use `content` fields on tool calls
+            inner_thoughts_in_kwargs = (
+                "gpt-4o" in llm_config.model or "gpt-4-turbo" in llm_config.model or "gpt-3.5-turbo" in llm_config.model
+            )
+        else:
+            inner_thoughts_in_kwargs = True if inner_thoughts_in_kwargs == OptionState.YES else False
+
+        assert isinstance(inner_thoughts_in_kwargs, bool), type(inner_thoughts_in_kwargs)
+        if inner_thoughts_in_kwargs:
+            functions = add_inner_thoughts_to_functions(
+                functions=functions,
+                inner_thoughts_key=INNER_THOUGHTS_KWARG,
+                inner_thoughts_description=INNER_THOUGHTS_KWARG_DESCRIPTION,
+            )
+
+        openai_message_list = [
+            cast_message_to_subtype(m.to_openai_dict(put_inner_thoughts_in_kwargs=inner_thoughts_in_kwargs)) for m in messages
+        ]
+
         # TODO do the same for Azure?
         if credentials.openai_key is None and llm_config.model_endpoint == "https://api.openai.com/v1":
             # only is a problem if we are *not* using an openai proxy
@@ -175,7 +291,7 @@ def create(
         if use_tool_naming:
             data = ChatCompletionRequest(
                 model=llm_config.model,
-                messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
+                messages=openai_message_list,
                 tools=[{"type": "function", "function": f} for f in functions] if functions else None,
                 tool_choice=function_call,
                 user=str(user_id),
@@ -183,7 +299,7 @@ def create(
         else:
             data = ChatCompletionRequest(
                 model=llm_config.model,
-                messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
+                messages=openai_message_list,
                 functions=functions,
                 function_call=function_call,
                 user=str(user_id),
@@ -198,7 +314,7 @@ def create(
             assert isinstance(stream_inferface, AgentChunkStreamingInterface) or isinstance(
                 stream_inferface, AgentRefreshStreamingInterface
             ), type(stream_inferface)
-            return openai_chat_completions_process_stream(
+            response = openai_chat_completions_process_stream(
                 url=llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
                 api_key=credentials.openai_key,
                 chat_completion_request=data,
@@ -217,7 +333,11 @@ def create(
             finally:
                 if isinstance(stream_inferface, AgentChunkStreamingInterface):
                     stream_inferface.stream_end()
-            return response
+
+        if inner_thoughts_in_kwargs:
+            response = unpack_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
+
+        return response
 
     # azure
     elif llm_config.model_endpoint_type == "azure":
