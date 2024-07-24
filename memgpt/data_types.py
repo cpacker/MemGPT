@@ -75,7 +75,7 @@ class ToolCall(object):
 def add_inner_thoughts_to_tool_call(
     tool_call: ToolCall,
     inner_thoughts: str,
-    inner_thoughts_key: str = INNER_THOUGHTS_KWARG,
+    inner_thoughts_key: str,
 ) -> ToolCall:
     """Add inner thoughts (arg + value) to a tool call"""
     # because the kwargs are stored as strings, we need to load then write the JSON dicts
@@ -491,7 +491,7 @@ class Message(Record):
             assert all([v is not None for v in [self.role, self.tool_call_id]]), vars(self)
 
             if self.name is None:
-                raise UserWarning(f"Couldn't find function name on tool call, defaulting to tool ID instead.")
+                warnings.warn(f"Couldn't find function name on tool call, defaulting to tool ID instead.")
                 function_name = self.tool_call_id
             else:
                 function_name = self.name
@@ -623,9 +623,6 @@ class Message(Record):
             raise ValueError(self.role)
 
         return cohere_message
-
-
-def put_inner_thoughts_in_kwargs(message: Message) -> Message: ...
 
 
 class Document(Record):
