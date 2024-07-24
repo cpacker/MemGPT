@@ -166,7 +166,7 @@ class AbstractClient(object):
         """List all humans."""
         raise NotImplementedError
 
-    def create_human(self, name: str, human: str):
+    def create_human(self, name: str, text: str):
         """Create a human."""
         raise NotImplementedError
 
@@ -174,7 +174,7 @@ class AbstractClient(object):
         """List all personas."""
         raise NotImplementedError
 
-    def create_persona(self, name: str, persona: str):
+    def create_persona(self, name: str, text: str):
         """Create a persona."""
         raise NotImplementedError
 
@@ -498,7 +498,7 @@ class RESTClient(AbstractClient):
         response = requests.get(f"{self.base_url}/api/humans", headers=self.headers)
         return ListHumansResponse(**response.json())
 
-    def create_human(self, name: str, human: str) -> HumanModel:
+    def create_human(self, name: str, text: str) -> HumanModel:
         data = {"name": name, "text": human}
         response = requests.post(f"{self.base_url}/api/humans", json=data, headers=self.headers)
         if response.status_code != 200:
@@ -509,8 +509,8 @@ class RESTClient(AbstractClient):
         response = requests.get(f"{self.base_url}/api/personas", headers=self.headers)
         return ListPersonasResponse(**response.json())
 
-    def create_persona(self, name: str, persona: str) -> PersonaModel:
-        data = {"name": name, "text": persona}
+    def create_persona(self, name: str, text: str) -> PersonaModel:
+        data = {"name": name, "text": text}
         response = requests.post(f"{self.base_url}/api/personas", json=data, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create persona: {response.text}")
@@ -834,8 +834,8 @@ class LocalClient(AbstractClient):
 
     # humans / personas
 
-    def create_human(self, name: str, human: str):
-        return self.server.add_human(HumanModel(name=name, text=human, user_id=self.user_id))
+    def create_human(self, name: str, text: str):
+        return self.server.add_human(HumanModel(name=name, text=text, user_id=self.user_id))
 
     def create_persona(self, name: str, text: str):
         return self.server.add_persona(PersonaModel(name=name, text=text, user_id=self.user_id))
