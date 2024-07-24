@@ -1182,7 +1182,7 @@ def add(
                 return
             client.update_persona(name=name, text=text)
         else:
-            client.add_persona(name=name, text=text)
+            client.create_persona(name=name, text=text)
 
     elif option == "human":
         human = client.get_human(name=name)
