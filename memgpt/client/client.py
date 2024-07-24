@@ -499,7 +499,7 @@ class RESTClient(AbstractClient):
         return ListHumansResponse(**response.json())
 
     def create_human(self, name: str, text: str) -> HumanModel:
-        data = {"name": name, "text": human}
+        data = {"name": name, "text": text}
         response = requests.post(f"{self.base_url}/api/humans", json=data, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create human: {response.text}")
