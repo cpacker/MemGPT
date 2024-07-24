@@ -339,7 +339,7 @@ class RESTClient(AbstractClient):
                 "metadata": metadata,
             }
         }
-        response = requests.post(f"{self.base_url}/api/agents/create", json=payload, headers=self.headers)
+        response = requests.post(f"{self.base_url}/api/agents", json=payload, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Status {response.status_code} - Failed to create agent: {response.text}")
         response_obj = CreateAgentResponse(**response.json())
