@@ -891,7 +891,10 @@ class LocalClient(AbstractClient):
         agent_state = self.server.rename_agent(user_id=self.user_id, agent_id=agent_id, new_agent_name=new_name)
         return agent_state
 
-    def delete_agent(self, agent_id: uuid.UUID):
+    def delete_agent(self, agent_id: Optional[uuid.UUID] = None, agent_name: Optional[str] = None):
+        if not agent_id:
+            agent_state = self.get_agent(agent_name=agent_name)
+            agent_id = agent_state.id
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
 
     def get_agent(self, agent_id: Optional[uuid.UUID] = None, agent_name: Optional[str] = None) -> AgentState:
@@ -903,9 +906,6 @@ class LocalClient(AbstractClient):
 
     def save_agent(self, agent: Agent):
         self.server.save_agent(agent)
-
-    def delete_agent(self, agent_id: Optional[uuid.UUID] = None, agent_name: Optional[str] = None):
-        self.server.delete_agent(user_id=self.user_id, agent_id=agent_id, agent_name=agent_name)
 
     # users
     def get_user(self) -> Optional[UserModel]:
