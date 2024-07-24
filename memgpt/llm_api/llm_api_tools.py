@@ -37,7 +37,7 @@ from memgpt.models.chat_completion_request import (
     cast_message_to_subtype,
 )
 from memgpt.models.chat_completion_response import ChatCompletionResponse
-from memgpt.models.pydantic_models import LLMConfigModel
+from memgpt.models.pydantic_models import LLMConfigModel, OptionState
 from memgpt.streaming_interface import (
     AgentChunkStreamingInterface,
     AgentRefreshStreamingInterface,
@@ -242,6 +242,9 @@ def create(
     # streaming?
     stream: bool = False,
     stream_inferface: Optional[Union[AgentRefreshStreamingInterface, AgentChunkStreamingInterface]] = None,
+    # TODO move to llm_config?
+    # if unspecified (None), default to something we've tested
+    inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
 ) -> ChatCompletionResponse:
     """Return response to chat completion with backoff"""
     from memgpt.utils import printd
@@ -261,8 +264,15 @@ def create(
     # openai
     if llm_config.model_endpoint_type == "openai":
 
-        # whether or not to do inner thoughts in content or kwargs
-        inner_thoughts_in_kwargs = "gpt-4o" in llm_config.model or "gpt-4-turbo" in llm_config.model or "gpt-3.5-turbo" in llm_config.model
+        if inner_thoughts_in_kwargs == OptionState.DEFAULT:
+            # model that are known to not use `content` fields on tool calls
+            inner_thoughts_in_kwargs = (
+                "gpt-4o" in llm_config.model or "gpt-4-turbo" in llm_config.model or "gpt-3.5-turbo" in llm_config.model
+            )
+        else:
+            inner_thoughts_in_kwargs = True if inner_thoughts_in_kwargs == OptionState.YES else False
+
+        assert isinstance(inner_thoughts_in_kwargs, bool), type(inner_thoughts_in_kwargs)
         if inner_thoughts_in_kwargs:
             functions = add_inner_thoughts_to_functions(
                 functions=functions,
