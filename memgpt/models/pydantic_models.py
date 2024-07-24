@@ -191,3 +191,7 @@ class DocumentModel(BaseModel):
     data_source: str = Field(..., description="The data source of the document.")
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the document.", primary_key=True)
     metadata: Optional[Dict] = Field({}, description="The metadata of the document.")
+
+
+class UserModel(BaseModel):
+    user_id: uuid.UUID = Field(..., description="The unique identifier of the user.")

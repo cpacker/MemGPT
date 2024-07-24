@@ -217,7 +217,7 @@ class SyncServer(LockingServer):
 
         # Initialize the connection to the DB
         self.config = MemGPTConfig.load()
-        logger.info(f"loading configuration from '{self.config.config_path}'")
+        logger.debug(f"loading configuration from '{self.config.config_path}'")
         assert self.config.persona is not None, "Persona must be set in the config"
         assert self.config.human is not None, "Human must be set in the config"
 
@@ -805,6 +805,8 @@ class SyncServer(LockingServer):
         user_id: uuid.UUID,
         agent_id: uuid.UUID,
     ):
+        # TODO: delete agent data
+
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
@@ -867,8 +869,19 @@ class SyncServer(LockingServer):
         }
         return agent_config
 
-    # TODO make return type pydantic
     def list_agents(
+        self,
+        user_id: uuid.UUID,
+    ) -> List[AgentState]:
+        """List all available agents to a user"""
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+
+        agents_states = self.ms.list_agents(user_id=user_id)
+        return agents_states
+
+    # TODO make return type pydantic
+    def list_agents_legacy(
         self,
         user_id: uuid.UUID,
     ) -> dict:
@@ -1191,12 +1204,18 @@ class SyncServer(LockingServer):
         # TODO: mark what is in-context versus not
         return cursor, json_records
 
-    def get_agent_config(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> AgentState:
+    def get_agent_config(self, user_id: uuid.UUID, agent_id: Optional[uuid.UUID], agent_name: Optional[str] = None) -> AgentState:
         """Return the config of an agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+        if agent_id:
+            if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+                raise ValueError(f"Agent agent_id={agent_id} does not exist")
+        else:
+            agent_state = self.ms.get_agent(agent_name=agent_name, user_id=user_id)
+            if agent_state is None:
+                raise ValueError(f"Agent agent_name={agent_name} does not exist")
+            agent_id = agent_state.id
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)

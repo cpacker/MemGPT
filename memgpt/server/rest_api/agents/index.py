@@ -51,7 +51,7 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
         This endpoint retrieves a list of all agents and their configurations associated with the specified user ID.
         """
         interface.clear()
-        agents_data = server.list_agents(user_id=user_id)
+        agents_data = server.list_agents_legacy(user_id=user_id)
         return ListAgentsResponse(**agents_data)
 
     @router.post("/agents", tags=["agents"], response_model=CreateAgentResponse)
