@@ -1,5 +1,6 @@
 """ This module contains the data types used by MemGPT. Each data type must include a function to create a DB model. """
 
+import copy
 import json
 import uuid
 import warnings
@@ -69,6 +70,27 @@ class ToolCall(object):
             "type": self.tool_call_type,
             "function": self.function,
         }
+
+
+def add_inner_thoughts_to_tool_call(
+    tool_call: ToolCall,
+    inner_thoughts: str,
+    inner_thoughts_key: str = INNER_THOUGHTS_KWARG,
+) -> ToolCall:
+    """Add inner thoughts (arg + value) to a tool call"""
+    # because the kwargs are stored as strings, we need to load then write the JSON dicts
+    try:
+        # load the args list
+        func_args = json.loads(tool_call.function["arguments"])
+        # add the inner thoughts to the args list
+        func_args[inner_thoughts_key] = inner_thoughts
+        # create the updated tool call (as a string)
+        updated_tool_call = copy.deepcopy(tool_call)
+        updated_tool_call.function["arguments"] = json.dumps(func_args, ensure_ascii=JSON_ENSURE_ASCII)
+        return updated_tool_call
+    except json.JSONDecodeError as e:
+        warnings.warn(f"Failed to put inner thoughts in kwargs: {e}")
+        raise e
 
 
 class Message(Record):
@@ -294,20 +316,21 @@ class Message(Record):
             if self.name is not None:
                 openai_message["name"] = self.name
             if self.tool_calls is not None:
-                # self.tool_calls[0].function
-                openai_message["tool_calls"] = [tool_call.to_dict() for tool_call in self.tool_calls]
+                if put_inner_thoughts_in_kwargs:
+                    # put the inner thoughts inside the tool call before casting to a dict
+                    openai_message["tool_calls"] = [
+                        add_inner_thoughts_to_tool_call(
+                            tool_call,
+                            inner_thoughts=self.text,
+                            inner_thoughts_key=INNER_THOUGHTS_KWARG,
+                        ).to_dict()
+                        for tool_call in self.tool_calls
+                    ]
+                else:
+                    openai_message["tool_calls"] = [tool_call.to_dict() for tool_call in self.tool_calls]
                 if max_tool_id_length:
                     for tool_call_dict in openai_message["tool_calls"]:
                         tool_call_dict["id"] = tool_call_dict["id"][:max_tool_id_length]
-                        # NOTE: if inner thoughts isn't inside 'content', we need to put it in elsewhere
-                        if put_inner_thoughts_in_kwargs:
-                            # we need to load then write the JSON dicts
-                            try:
-                                func_args = json.loads(tool_call_dict["function"]["arguments"])
-                                func_args[INNER_THOUGHTS_KWARG] = self.text
-                                tool_call_dict["function"]["arguments"] = json.dumps(func_args, ensure_ascii=JSON_ENSURE_ASCII)
-                            except json.JSONDecodeError as e:
-                                warnings.warn(f"Failed to put inner thoughts in kwargs: {e}")
 
         elif self.role == "tool":
             assert all([v is not None for v in [self.role, self.tool_call_id]]), vars(self)
@@ -600,6 +623,9 @@ class Message(Record):
             raise ValueError(self.role)
 
         return cohere_message
+
+
+def put_inner_thoughts_in_kwargs(message: Message) -> Message: ...
 
 
 class Document(Record):

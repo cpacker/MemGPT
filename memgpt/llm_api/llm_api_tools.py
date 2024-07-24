@@ -1,12 +1,15 @@
+import copy
+import json
 import os
 import random
 import time
 import uuid
+import warnings
 from typing import List, Optional, Union
 
 import requests
 
-from memgpt.constants import CLI_WARNING_PREFIX
+from memgpt.constants import CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import Message
 from memgpt.llm_api.anthropic import anthropic_chat_completions_request
@@ -41,6 +44,89 @@ from memgpt.streaming_interface import (
 )
 
 LLM_API_PROVIDER_OPTIONS = ["openai", "azure", "anthropic", "google_ai", "cohere", "local"]
+
+
+# TODO update to use better types
+def add_inner_thoughts_to_functions(
+    functions: List[dict],
+    inner_thoughts_key: str,
+    inner_thoughts_description: str,
+    inner_thoughts_required: bool = True,
+    # inner_thoughts_to_front: bool = True,  TODO support sorting somewhere, probably in the to_dict?
+) -> List[dict]:
+    """Add an inner_thoughts kwarg to every function in the provided list"""
+    # return copies
+    new_functions = []
+
+    # functions is a list of dicts in the OpenAI schema (https://platform.openai.com/docs/api-reference/chat/create)
+    for function_object in functions:
+        function_params = function_object["parameters"]["properties"]
+        required_params = list(function_object["parameters"]["required"])
+
+        # if the inner thoughts arg doesn't exist, add it
+        if inner_thoughts_key not in function_params:
+            function_params[inner_thoughts_key] = {
+                "type": "string",
+                "description": inner_thoughts_description,
+            }
+
+        # make sure it's tagged as required
+        new_function_object = copy.deepcopy(function_object)
+        if inner_thoughts_required and inner_thoughts_key not in required_params:
+            required_params.append(inner_thoughts_key)
+            new_function_object["parameters"]["required"] = required_params
+
+        new_functions.append(new_function_object)
+
+    # return a list of copies
+    return new_functions
+
+
+def unpack_inner_thoughts_from_kwargs(
+    response: ChatCompletionResponse,
+    inner_thoughts_key: str,
+) -> ChatCompletionResponse:
+    """Strip the inner thoughts out of the tool call and put it in the message content"""
+    if len(response.choices) == 0:
+        raise ValueError(f"Unpacking inner thoughts from empty response not supported")
+
+    new_choices = []
+    for choice in response.choices:
+        msg = choice.message
+        if msg.role == "assistant" and len(msg.tool_calls) >= 1:
+            if len(msg.tool_calls) > 1:
+                warnings.warn(f"Unpacking inner thoughts from more than one tool call ({len(msg.tool_calls)}) is not supported")
+            # TODO support multiple tool calls
+            tool_call = msg.tool_calls[0]
+
+            try:
+                # Sadly we need to parse the JSON since args are in string format
+                func_args = dict(json.loads(tool_call.function.arguments))
+                if inner_thoughts_key in func_args:
+                    # extract the inner thoughts
+                    inner_thoughts = func_args.pop(inner_thoughts_key)
+
+                    # replace the kwargs
+                    new_choice = choice.model_copy(deep=True)
+                    new_choice.message.tool_calls[0].function.arguments = json.dumps(func_args, ensure_ascii=JSON_ENSURE_ASCII)
+                    # also replace the message content
+                    if new_choice.message.content is not None:
+                        warnings.warn(f"Overwriting existing inner monologue ({new_choice.message.content}) with kwarg ({inner_thoughts})")
+                    new_choice.message.content = inner_thoughts
+
+                    # save copy
+                    new_choices.append(new_choice)
+                else:
+                    warnings.warn(f"Did not find inner thoughts in tool call: {str(tool_call)}")
+
+            except json.JSONDecodeError as e:
+                warnings.warn(f"Failed to strip inner thoughts from kwargs: {e}")
+                raise e
+
+    # return an updated copy
+    new_response = response.model_copy(deep=True)
+    new_response.choices = new_choices
+    return new_response
 
 
 def is_context_overflow_error(exception: requests.exceptions.RequestException) -> bool:
@@ -178,28 +264,15 @@ def create(
         # whether or not to do inner thoughts in content or kwargs
         inner_thoughts_in_kwargs = "gpt-4o" in llm_config.model or "gpt-4-turbo" in llm_config.model or "gpt-3.5-turbo" in llm_config.model
         if inner_thoughts_in_kwargs:
-            # we need to add inner thoughts as an arg to the tool list
-            for function_object in functions:
-                # print(function_object)
-                function_params = function_object["parameters"]["properties"]
-                if INNER_THOUGHTS_KWARG not in function_params:
-                    function_params[INNER_THOUGHTS_KWARG] = {
-                        "type": "string",
-                        "description": INNER_THOUGHTS_KWARG_DESCRIPTION,
-                    }
-                # make sure it's tagged required
-                if INNER_THOUGHTS_KWARG not in function_object["parameters"]["required"]:
-                    function_object["parameters"]["required"].append(INNER_THOUGHTS_KWARG)
-            # print("new args!")
-            print(functions)
-        else:
-            # print("backend", llm_config.model)
-            pass
+            functions = add_inner_thoughts_to_functions(
+                functions=functions,
+                inner_thoughts_key=INNER_THOUGHTS_KWARG,
+                inner_thoughts_description=INNER_THOUGHTS_KWARG_DESCRIPTION,
+            )
 
         openai_message_list = [
             cast_message_to_subtype(m.to_openai_dict(put_inner_thoughts_in_kwargs=inner_thoughts_in_kwargs)) for m in messages
         ]
-        print(openai_message_list)
 
         # TODO do the same for Azure?
         if credentials.openai_key is None and llm_config.model_endpoint == "https://api.openai.com/v1":
@@ -252,18 +325,7 @@ def create(
                     stream_inferface.stream_end()
 
         if inner_thoughts_in_kwargs:
-            # NOTE: need to undo the putting of inner thoughts inside the kwargs
-            msg = response.choices[0].message
-            if msg.role == "assistant" and len(msg.tool_calls) >= 1:
-                func_args = msg.tool_calls[0].function.arguments
-                import json
-
-                new_func_args = dict(json.loads(func_args))
-                if INNER_THOUGHTS_KWARG in new_func_args:
-                    inner_thoughts = new_func_args.pop(INNER_THOUGHTS_KWARG)
-                    # replace
-                    msg.tool_calls[0].function.arguments = json.dumps(new_func_args)  # TODO ensure_ascii
-                    msg.content = inner_thoughts
+            response = unpack_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
 
         return response
 
