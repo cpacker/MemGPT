@@ -1192,7 +1192,7 @@ def add(
                 return
             client.update_human(name=name, text=text)
         else:
-            human = client.create_human(name=name, human=text)
+            human = client.create_human(name=name, text=text)
     else:
         raise ValueError(f"Unknown kind {option}")
 
