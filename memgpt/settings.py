@@ -1,12 +1,13 @@
 from pathlib import Path
+from typing import Literal, Optional
 from urllib.parse import urlsplit, urlunsplit
-from typing import Optional, Literal
-from enum import Enum
+
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # this is the driver we use
-POSTGRES_SCHEME="postgresql+pg8000"
+POSTGRES_SCHEME = "postgresql+pg8000"
+
 
 class BackendConfiguration(BaseModel):
     name: Literal["postgres", "sqlite_chroma"]
@@ -33,7 +34,7 @@ class Settings(BaseSettings):
         return BackendConfiguration(name="sqlite_chroma", database_uri=f"sqlite:///{self.memgpt_dir}/memgpt.db")
 
     @classmethod
-    def _correct_pg_uri(cls, uri:str) -> str:
+    def _correct_pg_uri(cls, uri: str) -> str:
         """It is awkward to have users set a scheme for the uri (because why should they know anything about what drivers we use?)
         So here we check (and correct) the provided uri to use the scheme we implement.
         """
@@ -52,6 +53,7 @@ class Settings(BaseSettings):
 
     # TODO: extract to vendor plugin
     openai_api_key: Optional[str] = None
+
 
 # singleton
 settings = Settings()

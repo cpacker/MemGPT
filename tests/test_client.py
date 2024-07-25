@@ -1,21 +1,13 @@
-import os
-import threading
-import time
 import uuid
-import httpx
 
 import pytest
 from faker import Faker
-from dotenv import load_dotenv
 
-from memgpt.settings import settings
-from memgpt import Admin, create_client
-from memgpt.credentials import MemGPTCredentials
+from memgpt import create_client
 from memgpt.data_types import Preset  # TODO move to PresetModel
-from memgpt.settings import settings
-from memgpt.orm.user import User
 from memgpt.orm.token import Token
-from tests.utils import create_config
+from memgpt.orm.user import User
+from memgpt.settings import settings
 
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
 # test_preset_name = "test_preset"
@@ -31,44 +23,47 @@ test_user_id = uuid.uuid4()
 test_server_token = "test_server_token"
 faker = Faker()
 
+
 def _reset_config():
     pass
+
+
 #    ## Use os.getenv with a fallback to os.environ.get
-    #db_url = settings.pg_uri
+# db_url = settings.pg_uri
 
-    #if os.getenv("OPENAI_API_KEY"):
-        #create_config("openai")
-        #credentials = MemGPTCredentials(
-            #openai_key=os.getenv("OPENAI_API_KEY"),
-        #)
-    #else:  # hosted
-        #create_config("memgpt_hosted")
-        #credentials = MemGPTCredentials()
+# if os.getenv("OPENAI_API_KEY"):
+# create_config("openai")
+# credentials = MemGPTCredentials(
+# openai_key=os.getenv("OPENAI_API_KEY"),
+# )
+# else:  # hosted
+# create_config("memgpt_hosted")
+# credentials = MemGPTCredentials()
 
-    #config = MemGPTConfig.load()
+# config = MemGPTConfig.load()
 
-    ## set to use postgres
-    #config.archival_storage_uri = db_url
-    #config.recall_storage_uri = db_url
-    #config.metadata_storage_uri = db_url
-    #config.archival_storage_type = "postgres"
-    #config.recall_storage_type = "postgres"
-    #config.metadata_storage_type = "postgres"
-    #config.save()
-    #credentials.save()
-    #print("_reset_config :: ", config.config_path)
+## set to use postgres
+# config.archival_storage_uri = db_url
+# config.recall_storage_uri = db_url
+# config.metadata_storage_uri = db_url
+# config.archival_storage_type = "postgres"
+# config.recall_storage_type = "postgres"
+# config.metadata_storage_type = "postgres"
+# config.save()
+# credentials.save()
+# print("_reset_config :: ", config.config_path)
 
 
 def run_server():
     pass
-    #load_dotenv()
+    # load_dotenv()
 
-    #_reset_config()
+    # _reset_config()
 
-    #from memgpt.server.rest_api.server import start_server
+    # from memgpt.server.rest_api.server import start_server
 
-    #print("Starting server...")
-    #start_server(debug=True)
+    # print("Starting server...")
+    # start_server(debug=True)
 
 
 # Fixture to create clients with different configurations
@@ -82,19 +77,12 @@ def client(request, db_session, test_app):
         requesting_user = User.create(db_session)
         api_token = Token(user=requesting_user, name="test_client_api_token").create(db_session)
         token = api_token.api_key
-        client_args = {
-            "base_url": settings.server_url,
-            "token": token,
-            "debug": True,
-            "app": test_app
-        }
+        client_args = {"base_url": settings.server_url, "token": token, "debug": True, "app": test_app}
     else:
         # use local client (no server)
-        client_args = {
-            "token": None,
-            "server_url": None
-        }
+        client_args = {"token": None, "server_url": None}
     yield create_client(**client_args)
+
 
 # Fixture for test agent
 @pytest.fixture
@@ -105,6 +93,7 @@ def agent(client):
 
     # delete agent
     client.delete_agent(agent_state.id)
+
 
 class TestClientAgent:
     """CRUD for agents via the client"""
@@ -117,7 +106,7 @@ class TestClientAgent:
         assert created_agent_state.name == expected_agent_name
 
     def test_rename_agent():
-        new_name = faker.name()
+        faker.name()
 
 
 def test_agent(client, agent):

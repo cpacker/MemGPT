@@ -1,14 +1,13 @@
 # tool imports
-from uuid import UUID
 from datetime import datetime
-from enum import Enum
-from typing import Dict, List, Optional, Literal
+from typing import Dict, List, Literal, Optional
+from uuid import UUID
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
-from memgpt.settings import settings
 from memgpt.orm.enums import JobStatus
-from memgpt.utils import get_human_text, get_persona_text, get_utc_time
+from memgpt.settings import settings
+from memgpt.utils import get_human_text, get_persona_text
 
 
 class MemGPTUsageStatistics(BaseModel):
@@ -17,8 +16,10 @@ class MemGPTUsageStatistics(BaseModel):
     total_tokens: int
     step_count: int
 
+
 class PersistedBase(BaseModel):
     """shared elements that all models coming from the ORM will support"""
+
     id: str = Field(description="The unique identifier of the object prefixed with the object type (Stripe pattern).")
     uuid: UUID = Field(description="The unique identifier of the object stored as a raw uuid (for legacy support).")
     deleted: Optional[bool] = Field(default=False, description="Is this record deleted? Used for universal soft deletes.")
@@ -26,6 +27,7 @@ class PersistedBase(BaseModel):
     updated_at: datetime = Field(description="The unix timestamp of when the object was last updated.")
     created_by_id: Optional[str] = Field(description="The unique identifier of the user who created the object.")
     last_updated_by_id: Optional[str] = Field(description="The unique identifier of the user who last updated the object.")
+
 
 class LLMConfigModel(BaseModel):
     # TODO: 🤮 don't default to a vendor! bug city!
@@ -46,15 +48,20 @@ class EmbeddingConfigModel(BaseModel):
     embedding_dim: Optional[int] = 1536
     embedding_chunk_size: Optional[int] = 300
 
+
 class OrganizationSummary(PersistedBase):
     """An Organization interface with minimal references, good when only the link is needed"""
+
     name: str = Field(..., description="The name of the organization.")
+
 
 class UserSummary(PersistedBase):
     """A User interface with minimal references, good when only the link is needed"""
+
     name: Optional[str] = Field(default=None, description="The name of the user.")
     email: Optional[str] = Field(default=None, description="The email of the user.")
     organization: Optional[OrganizationSummary] = Field(None, description="The organization this user belongs to.")
+
 
 class PresetModel(PersistedBase):
     name: str = Field(description="The name of the preset.")
@@ -68,6 +75,7 @@ class PresetModel(PersistedBase):
     functions_schema: List[dict] = Field(..., description="The functions schema of the preset.")
     organization: Optional[OrganizationSummary] = Field(None, description="The organization this Preset belongs to.")
 
+
 class ToolModel(PersistedBase):
     name: str = Field(..., description="The name of the function.")
     tags: List[str] = Field(description="Metadata tags.")
@@ -78,6 +86,7 @@ class ToolModel(PersistedBase):
     json_schema: Dict = Field(default_factory=dict, description="The JSON schema of the function.")
 
     organization: Optional[OrganizationSummary] = Field(None, description="The organization this function belongs to.")
+
 
 class AgentStateModel(PersistedBase):
     name: str = Field(..., description="The name of the agent.")
@@ -100,33 +109,40 @@ class CoreMemory(BaseModel):
     human: str = Field(..., description="Human element of the core memory.")
     persona: str = Field(..., description="Persona element of the core memory.")
 
+
 class MemoryTemplate(PersistedBase):
     """the common base for the legacy memory sections.
     This is going away in favor of MemoryModule dynamic sections.
     memgpt/memory.py
     """
-    text: Optional[str] = Field(default=get_human_text(settings.human), description="The content to be added to this section of core memory.")
+
+    text: Optional[str] = Field(
+        default=get_human_text(settings.human), description="The content to be added to this section of core memory."
+    )
     type: Literal["human", "persona"] = Field(..., description="The type of memory section.")
     name: str = Field(..., description="The name of the memory section.")
     organization: Optional[OrganizationSummary] = Field(None, description="The organization this memory belongs to.")
 
+
 class HumanModel(MemoryTemplate):
     """Specifically for human, legacy"""
+
     type: Literal["human"] = "human"
 
 
 class PersonaModel(MemoryTemplate):
     """Specifically for persona, legacy"""
+
     type: Literal["persona"] = "persona"
+
 
 class SourceModel(PersistedBase):
     name: str = Field(..., description="The name of the source.")
     description: Optional[str] = Field(None, description="The description of the source.")
-    embedding_config: Optional[EmbeddingConfigModel] = Field(
-        None, description="The embedding configuration used by the passage."
-    )
+    embedding_config: Optional[EmbeddingConfigModel] = Field(None, description="The embedding configuration used by the passage.")
     # NOTE: .metadata is a reserved attribute on SQLModel
     metadata_: Optional[dict] = Field(None, description="Metadata associated with the source.")
+
 
 class JobModel(PersistedBase):
     status: JobStatus = Field(default=JobStatus.created, description="The status of the job.")
@@ -134,14 +150,14 @@ class JobModel(PersistedBase):
     user: UserSummary = Field(description="The user associated with the job.")
     metadata_: Optional[dict] = Field({}, description="The metadata of the job.")
 
+
 class PassageModel(PersistedBase):
     text: str = Field(..., description="The text of the passage.")
     embedding: Optional[List[float]] = Field(None, description="The embedding of the passage.")
-    embedding_config: Optional[EmbeddingConfigModel] = Field(
-        None, description="The embedding configuration used by the passage."
-    )
+    embedding_config: Optional[EmbeddingConfigModel] = Field(None, description="The embedding configuration used by the passage.")
     document: "DocumentModel" = Field(description="The document associated with the passage.")
     metadata_: Optional[dict] = Field({}, description="The metadata of the passage.")
+
 
 class DocumentModel(PersistedBase):
     organization: OrganizationSummary = Field(description="The organization this document belongs to.")

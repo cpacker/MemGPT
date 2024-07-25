@@ -1,28 +1,28 @@
-from typing import Optional
 from datetime import datetime
+from typing import Optional
 from uuid import UUID
-from sqlalchemy import Boolean, DateTime, func, text, UUID as SQLUUID
+
+from sqlalchemy import UUID as SQLUUID
+from sqlalchemy import Boolean, DateTime, func, text
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
-    mapped_column,
     declarative_mixin,
     declared_attr,
+    mapped_column,
 )
+
 
 class Base(DeclarativeBase):
     """absolute base for sqlalchemy classes"""
+
 
 @declarative_mixin
 class CommonSqlalchemyMetaMixins(Base):
     __abstract__ = True
 
-    created_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    updated_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), server_onupdate=func.now()
-    )
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), server_default=func.now(), server_onupdate=func.now())
     is_deleted: Mapped[bool] = mapped_column(Boolean, server_default=text("FALSE"))
 
     @declared_attr
@@ -70,6 +70,6 @@ class CommonSqlalchemyMetaMixins(Base):
         if not value:
             setattr(self, full_prop, None)
             return
-        prefix, id_ = value.split("-",1)
+        prefix, id_ = value.split("-", 1)
         assert prefix == "user", f"{prefix} is not a valid id prefix for a user id"
         setattr(self, full_prop, UUID(id_))

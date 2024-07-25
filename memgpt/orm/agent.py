@@ -1,21 +1,23 @@
-from typing import Optional, List, TYPE_CHECKING
-from sqlalchemy import String, JSON
+from typing import TYPE_CHECKING, List, Optional
+
+from sqlalchemy import JSON, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from memgpt.orm.sqlalchemy_base import SqlalchemyBase
+from memgpt.data_types import EmbeddingConfig, LLMConfig
 from memgpt.orm.mixins import OrganizationMixin
-from memgpt.data_types import LLMConfig, EmbeddingConfig
+from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 
 if TYPE_CHECKING:
     from memgpt.orm.organization import Organization
     from memgpt.orm.source import Source
-    from memgpt.orm.user import User
     from memgpt.orm.tool import Tool
+    from memgpt.orm.user import User
+
 
 class Agent(SqlalchemyBase, OrganizationMixin):
-    __tablename__ = 'agent'
+    __tablename__ = "agent"
 
-    name:Mapped[Optional[str]] = mapped_column(String, nullable=True, doc="a human-readable identifier for an agent, non-unique.")
+    name: Mapped[Optional[str]] = mapped_column(String, nullable=True, doc="a human-readable identifier for an agent, non-unique.")
     persona: Mapped[str] = mapped_column(doc="the persona text for the agent, current state.")
     # TODO: reconcile this with persona,human etc AND make this structured via pydantic!
     # TODO: these are vague and need to be more specific and explained. WTF is state vs _metadata?
@@ -30,8 +32,6 @@ class Agent(SqlalchemyBase, OrganizationMixin):
 
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="agents")
-    users: Mapped[List["User"]] = relationship("User",
-                                               back_populates="agents",
-                                               secondary="users_agents")
+    users: Mapped[List["User"]] = relationship("User", back_populates="agents", secondary="users_agents")
     sources: Mapped[List["Source"]] = relationship("Source", secondary="sources_agents")
     tools: Mapped[List["Tool"]] = relationship("Tool", secondary="tools_agents")
