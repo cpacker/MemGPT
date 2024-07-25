@@ -1234,15 +1234,19 @@ class SyncServer(LockingServer):
         # TODO: do we need a seperate server config?
         base_config = vars(self.config)
         clean_base_config = clean_keys(base_config)
-        clean_base_config["default_llm_config"] = vars(clean_base_config["default_llm_config"])
-        clean_base_config["default_embedding_config"] = vars(clean_base_config["default_embedding_config"])
+
+        clean_base_config_default_llm_config_dict = vars(clean_base_config["default_llm_config"])
+        clean_base_config_default_embedding_config_dict = vars(clean_base_config["default_embedding_config"])
+
+        clean_base_config["default_llm_config"] = clean_base_config_default_llm_config_dict
+        clean_base_config["default_embedding_config"] = clean_base_config_default_embedding_config_dict
         response = {"config": clean_base_config}
 
         if include_defaults:
             default_config = vars(MemGPTConfig())
             clean_default_config = clean_keys(default_config)
-            clean_default_config["default_llm_config"] = vars(clean_default_config["default_llm_config"])
-            clean_default_config["default_embedding_config"] = vars(clean_default_config["default_embedding_config"])
+            clean_default_config["default_llm_config"] = clean_base_config_default_llm_config_dict
+            clean_default_config["default_embedding_config"] = clean_base_config_default_embedding_config_dict
             response["defaults"] = clean_default_config
 
         return response
