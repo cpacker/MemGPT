@@ -3,15 +3,16 @@ import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
 
 from memgpt.constants import JSON_ENSURE_ASCII, TOOL_CALL_ID_MAX_LEN
 from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
+from memgpt.schemas.memgpt_base import MemGPTBase
 from memgpt.schemas.openai.chat_completions import ToolCall
 from memgpt.utils import is_utc_datetime
 
 
-class Message(BaseModel):
+class Message(MemGPTBase):
     """
     Representation of a message sent.
 
@@ -21,11 +22,12 @@ class Message(BaseModel):
     - or function/tool call returns (role=='function'/'tool').
     """
 
-    message_id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the message.", primary_key=True)
+    __id_prefix__ = "message"
+    id: str = MemGPTBase.generate_id_field()
     role: str = Field(..., description="The role of the participant.")
     text: str = Field(..., description="The text of the message.")
-    user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user.")
-    agent_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the agent.")
+    user_id: str = Field(None, description="The unique identifier of the user.")
+    agent_id: str = Field(None, description="The unique identifier of the agent.")
     model: Optional[str] = Field(None, description="The model used to make the function call.")
     name: Optional[str] = Field(None, description="The name of the participant.")
     created_at: Optional[datetime] = Field(None, description="The time the message was created.")

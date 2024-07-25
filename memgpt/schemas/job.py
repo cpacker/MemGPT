@@ -2,30 +2,32 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from memgpt.orm.enums import JobStatus
+from memgpt.schemas.memgpt_base import MemGPTBase
 from memgpt.utils import get_utc_time
 
 
-class JobModel(BaseModel, table=True):
+class JobBase(MemGPTBase):
+    __id_prefix__ = "job"
+    metadata_: Optional[dict] = Field({}, description="The metadata of the job.")
+
+
+class JobModel(JobBase):
     """Representation of offline jobs."""
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the job.", primary_key=True)
+    id: str = MemGPTBase.generate_id_field()
     status: JobStatus = Field(default=JobStatus.created, description="The status of the job.")
     created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the job was created.")
     completed_at: Optional[datetime] = Field(None, description="The unix timestamp of when the job was completed.")
     user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the job.")
-    metadata_: Optional[dict] = Field({}, description="The metadata of the job.")
 
 
-class JobCreate(BaseModel):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the job.", primary_key=True)
-    user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the job.")
-    metadata_: Optional[dict] = Field({}, description="The metadata of the job.")
+class JobCreate(JobBase):
+    user_id: str = Field(..., description="The unique identifier of the user associated with the job.")
 
 
-class JobUpdate(BaseModel):
-    job_id: uuid.UUID = Field(..., description="The unique identifier of the job.")
+class JobUpdate(JobBase):
+    id: str = Field(..., description="The unique identifier of the job.")
     status: Optional[JobStatus] = Field(..., description="The status of the job.")
-    metadata_: Optional[dict] = Field({}, description="The metadata of the job.")

@@ -1,12 +1,15 @@
 import uuid
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.memgpt_base import MemGPTBase
 
 
-class CommonPassagePartial(BaseModel):
+class PassageBase(MemGPTBase):
+    __id_prefix__ = "passage"
+
     # associated user/agent
     user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user associated with the passage.")
     agent_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the agent associated with the passage.")
@@ -19,8 +22,8 @@ class CommonPassagePartial(BaseModel):
     metadata: Optional[Dict] = Field({}, description="The metadata of the passage.")
 
 
-class Passage(CommonPassagePartial):
-    passage_id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the passage.", primary_key=True)
+class Passage(PassageBase):
+    id: str = MemGPTBase.generate_id_field()
 
     # passage text
     text: str = Field(..., description="The text of the passage.")
@@ -30,7 +33,7 @@ class Passage(CommonPassagePartial):
     embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the passage.")
 
 
-class PassageCreate(CommonPassagePartial):
+class PassageCreate(PassageBase):
     text: str = Field(..., description="The text of the passage.")
 
     # optionally provide embeddings
@@ -39,7 +42,7 @@ class PassageCreate(CommonPassagePartial):
 
 
 class PassageUpdate(PassageCreate):
-    passage_id: uuid.UUID = Field(..., description="The unique identifier of the passage.")
+    id: str = Field(..., description="The unique identifier of the passage.")
     text: Optional[str] = Field(None, description="The text of the passage.")
 
     # optionally provide embeddings
