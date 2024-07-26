@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from memgpt.settings import settings
-from memgpt.server.rest_api.utils import get_current_user, get_current_interface, get_memgpt_server
+from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
 from memgpt.models.pydantic_models import  AgentStateModel, EmbeddingConfigModel, LLMConfigModel, PresetModel
 from memgpt.server.schemas.agents import AgentCommandResponse, GetAgentResponse, AgentRenameRequest, CreateAgentRequest, CreateAgentResponse, ListAgentsResponse, GetAgentMemoryResponse, UpdateAgentMemoryRequest, UpdateAgentMemoryResponse, GetAgentArchivalMemoryResponse, ArchivalMemoryObject, InsertAgentArchivalMemoryRequest, InsertAgentArchivalMemoryResponse, UserMessageRequest, UserMessageResponse, GetAgentMessagesRequest, GetAgentMessagesResponse, GetAgentMessagesCursorRequest
 from memgpt.server.rest_api.interface import StreamingServerInterface, QueuingInterface
@@ -20,7 +20,6 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 
 @router.get("/", response_model=ListAgentsResponse)
 def list_agents(
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -29,19 +28,20 @@ def list_agents(
 
     This endpoint retrieves a list of all agents and their configurations associated with the specified user ID.
     """
+    actor = server.get_current_user()
     interface.clear()
     return server.list_agents(user_id=actor._id)
 
 @router.post("/", response_model=CreateAgentResponse)
 def create_agent(
     agent: CreateAgentRequest,
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     Create a new agent with the specified configuration.
     """
+    actor = server.get_current_user()
     interface.clear()
 
     # Parse request
@@ -125,7 +125,6 @@ def create_agent(
 def run_command(
     agent_id: "UUID",
     command: "AgentCommandRequest",
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -136,6 +135,7 @@ def run_command(
 
     Raises an HTTPException for any processing errors.
     """
+    actor = server.get_current_user()
     interface.clear()
     response = server.run_command(user_id=actor._id,
                                   agent_id=agent_id,
@@ -147,7 +147,6 @@ def run_command(
 @router.get("/{agent_id}/config")
 def get_agent_config(
     agent_id: "UUID",
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -156,7 +155,7 @@ def get_agent_config(
 
     This endpoint fetches the configuration details for a given agent, identified by the user and agent IDs.
     """
-
+    actor = server.get_current_user()
     interface.clear()
     if not server.ms.get_agent(user_id=actor._id, agent_id=agent_id):
         # agent does not exist
@@ -191,7 +190,6 @@ def get_agent_config(
 def update_agent_name(
     agent_id: "UUID",
     agent_rename: AgentRenameRequest,
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -201,7 +199,7 @@ def update_agent_name(
     This changes the name of the agent in the database but does NOT edit the agent's persona.
     """
     valid_name = agent_rename.agent_name
-
+    actor = server.get_current_user()
     interface.clear()
     agent_state = server.rename_agent(user_id=actor._id, agent_id=agent_id, new_agent_name=valid_name)
     # get sources
@@ -228,7 +226,6 @@ def update_agent_name(
 @router.delete("/{agent_id}")
 def delete_agent(
     agent_id: "UUID",
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -236,7 +233,7 @@ def delete_agent(
     Delete an agent.
     """
     # agent_id = "UUID"(agent_id)
-
+    actor = server.get_current_user()
     interface.clear()
     server.delete_agent(user_id=actor._id, agent_id=agent_id)
     return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Agent agent_id={agent_id} successfully deleted"})
@@ -245,7 +242,6 @@ def delete_agent(
 @router.get("/{agent_id}/memory", response_model=GetAgentMemoryResponse)
 def get_agent_memory(
     agent_id: "UUID",
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -254,6 +250,7 @@ def get_agent_memory(
 
     This endpoint fetches the current memory state of the agent identified by the user ID and agent ID.
     """
+    actor = server.get_current_user()
     interface.clear()
     memory = server.get_agent_memory(user_id=actor._id, agent_id=agent_id)
     return GetAgentMemoryResponse(**memory)
@@ -262,7 +259,6 @@ def get_agent_memory(
 def update_agent_memory(
     agent_id: "UUID",
     request: UpdateAgentMemoryRequest = Body(...),
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -271,6 +267,7 @@ def update_agent_memory(
 
     This endpoint accepts new memory contents (human and persona) and updates the core memory of the agent identified by the user ID and agent ID.
     """
+    actor = server.get_current_user()
     interface.clear()
 
     new_memory_contents = {"persona": request.persona, "human": request.human}
@@ -280,13 +277,13 @@ def update_agent_memory(
 @router.get("/{agent_id}/archival/all", response_model=GetAgentArchivalMemoryResponse)
 def get_agent_archival_memory_all(
     agent_id: "UUID",
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     Retrieve the memories in an agent's archival memory store (non-paginated, returns all entries at once).
     """
+    actor = server.get_current_user()
     interface.clear()
     archival_memories = server.get_all_archival_memories(user_id=actor._id, agent_id=agent_id)
     print("archival_memories:", archival_memories)
@@ -296,7 +293,6 @@ def get_agent_archival_memory_all(
 @router.get("/{agent_id}/archival",response_model=GetAgentArchivalMemoryResponse)
 def get_agent_archival_memory(
     agent_id: "UUID",
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
     after: Optional[int] = Query(None, description="Unique ID of the memory to start the query range at."),
@@ -307,6 +303,7 @@ def get_agent_archival_memory(
     """
     Retrieve the memories in an agent's archival memory store (paginated query).
     """
+    actor = server.get_current_user()
     interface.clear()
     # TODO need to add support for non-postgres here
     # chroma will throw:
@@ -325,13 +322,13 @@ def get_agent_archival_memory(
 def insert_agent_archival_memory(
     agent_id: "UUID",
     request: InsertAgentArchivalMemoryRequest = Body(...),
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     Insert a memory into an agent's archival memory store.
     """
+    actor = server.get_current_user()
     interface.clear()
     memory_ids = server.insert_archival_memory(user_id=actor._id, agent_id=agent_id, memory_contents=request.content)
     return InsertAgentArchivalMemoryResponse(ids=memory_ids)
@@ -341,13 +338,13 @@ def delete_agent_archival_memory(
     agent_id: "UUID",
     #TODO move to stripe ids
     id: str = Query(..., description="Unique ID of the memory to be deleted."),
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     Delete a memory from an agent's archival memory store.
     """
+    actor = server.get_current_user()
     interface.clear()
     try:
         memory_id = UUID(id)
@@ -362,7 +359,6 @@ def delete_agent_archival_memory(
 @router.get("/agents/{agent_id}/messages", tags=["agents"], response_model=GetAgentMessagesResponse)
 def get_agent_messages(
     agent_id: "UUID",
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
     start: int = Query(..., description="Message index to start on (reverse chronological)."),
@@ -372,6 +368,7 @@ def get_agent_messages(
     Retrieve the in-context messages of a specific agent. Paginated, provide start and count to iterate.
     """
     # Validate with the Pydantic model (optional)
+    actor = server.get_current_user()
     request = GetAgentMessagesRequest(agent_id=agent_id, start=start, count=count)
 
     interface.clear()
@@ -381,7 +378,6 @@ def get_agent_messages(
 @router.get("/{agent_id}/messages-cursor", response_model=GetAgentMessagesResponse)
 def get_agent_messages_cursor(
     agent_id: UUID,
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
     before: Optional[UUID] = Query(None, description="Message before which to retrieve the returned messages."),
@@ -391,6 +387,7 @@ def get_agent_messages_cursor(
     """
     Retrieve the in-context messages of a specific agent. Paginated, provide start and count to iterate.
     """
+    actor = server.get_current_user()
     # Validate with the Pydantic model (optional)
     request = GetAgentMessagesCursorRequest(agent_id=agent_id, before=before, limit=limit)
 
@@ -404,8 +401,6 @@ def get_agent_messages_cursor(
 async def send_message(
     # background_tasks: BackgroundTasks,
     agent_id: "UUID",
-    actor: "User" = Depends(get_current_user),
-    interface: QueuingInterface = Depends(get_current_interface),
     server: SyncServer = Depends(get_memgpt_server),
     message: UserMessageRequest = Body(...),
 ):
@@ -415,6 +410,7 @@ async def send_message(
     This endpoint accepts a message from a user and processes it through the agent.
     It can optionally stream the response if 'stream' is set to True.
     """
+    actor = server.get_current_user()
     return await send_message_to_agent(
         server=server,
         agent_id=agent_id,
@@ -437,14 +433,13 @@ async def send_message_to_agent(
     stream_legacy: bool,  # legacy
     stream_steps: bool,
     stream_tokens: bool,
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
     chat_completion_mode: Optional[bool] = False,
     timestamp: Optional[datetime] = None,
 ) -> Union[StreamingResponse, UserMessageResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
-
+    actor = server.get_current_user()
     # handle the legacy mode streaming
     if stream_legacy:
         # NOTE: override

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from memgpt.server.rest_api.utils import get_current_user, get_memgpt_server, get_current_interface
+from memgpt.server.rest_api.utils import get_memgpt_server, get_current_interface
 from memgpt.models.chat_completion_request import ChatCompletionRequest
 from memgpt.models.chat_completion_response import ChatCompletionResponse, Choice, Message, UsageStatistics
 # TODO this belongs in a controller!
@@ -21,7 +21,6 @@ router = APIRouter(prefix="/v1/chat/completions", tags=["chat_completions"])
 @router.post("/", response_model=ChatCompletionResponse)
 async def create_chat_completion(
     completion_request: ChatCompletionRequest = Body(...),
-    actor: "User" = Depends(get_current_user),
     server: "SyncServer" = Depends(get_memgpt_server),
     interface: "QueuingInterface" = Depends(get_current_interface),
 ):
@@ -30,6 +29,7 @@ async def create_chat_completion(
     The bearer token will be used to identify the user.
     The 'user' field in the completion_request should be set to the agent ID.
     """
+    actor = server.get_current_user()
     agent_id = completion_request.user
     if agent_id is None:
         raise HTTPException(status_code=400, detail="Must pass agent_id in the 'user' field")

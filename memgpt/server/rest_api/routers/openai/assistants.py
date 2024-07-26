@@ -5,7 +5,7 @@ from fastapi import APIRouter, Body, HTTPException, Path, Query, Depends
 from memgpt.config import MemGPTConfig
 from memgpt.settings import settings
 from memgpt.data_types import Message
-from memgpt.server.rest_api.utils import get_current_user, get_current_interface, get_memgpt_server
+from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
 from memgpt.server.schemas.openai.assistants import (
     CreateAssistantFileRequest,
     CreateAssistantRequest,

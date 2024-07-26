@@ -1,13 +1,16 @@
 from typing import Optional, TYPE_CHECKING, List
 from pydantic import EmailStr
 from sqlalchemy import String
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
+from memgpt.orm.organization import Organization
 from memgpt.orm.mixins import OrganizationMixin
 from memgpt.data_types import User as PydanticUser
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
     from memgpt.orm.agent import Agent
     from memgpt.orm.token import Token
     from memgpt.orm.job import Job
@@ -31,3 +34,14 @@ class User(SqlalchemyBase, OrganizationMixin):
     tokens: Mapped[List["Token"]] = relationship("Token", back_populates="user", doc="the tokens associated with this user.")
     jobs: Mapped[List["Job"]] = relationship("Job", back_populates="user", doc="the jobs associated with this user.")
 
+
+    @classmethod
+    def default(cls, db_session:"Session") -> "User":
+        """Get the default user, or create it if it doesn't exist.
+        Note: this is only for local clien use.
+        """
+        try:
+            return db_session.query(cls).one().scalar()
+        except NoResultFound:
+            return cls(name="Default User",
+                       organization=Organization.default(db_session)).create(db_session)

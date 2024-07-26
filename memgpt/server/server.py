@@ -10,6 +10,10 @@ from datetime import datetime
 from functools import wraps
 from threading import Lock
 
+# temporary for the fake auth
+from sqlalchemy import select
+
+
 from fastapi import HTTPException
 
 import memgpt.constants as constants
@@ -182,20 +186,17 @@ class SyncServer(Server):
         # Initialize the metadata store
         self.ms = MetadataStore(db_session=db_session)
 
-        # pre-fill database (users, presets, humans, personas)
-        # TODO: figure out how to handle default users  (server is technically multi-user)
-        user_id = uuid.UUID(self.config.anon_clientid)
-        user = User(
-            id=uuid.UUID(self.config.anon_clientid),
-        )
-        if self.ms.get_user(user_id):
-            # update user
-            self.ms.update_user(user)
-        else:
-            self.ms.create_user(user)
-
         # add global default tools
         presets.add_default_tools(None, self.ms)
+
+    def get_current_user(self) -> User:
+        """ returns the currently authed user.
+        since server is the core gateway this needs to pass through server as the
+        first touchpoint.
+        """
+        # TODO: this is not real auth code! that is the next PR.
+        return User.default(self.db_session)
+
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""

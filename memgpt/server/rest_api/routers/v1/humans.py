@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 from fastapi import APIRouter, Depends, HTTPException, Body
 
-from memgpt.server.rest_api.utils import get_current_user, get_current_interface, get_memgpt_server
+from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
 from memgpt.models.pydantic_models import HumanModel
 from memgpt.server.schemas.humans import ListHumansResponse, CreateHumanRequest
 
@@ -17,10 +17,10 @@ router = APIRouter(prefix="/humans", tags=["humans"])
 
 @router.get("/",  response_model=ListHumansResponse)
 async def list_humans(
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
+    actor = server.get_current_user()
     # Clear the interface
     interface.clear()
     humans = server.ms.list_humans(user_id=actor._id)
@@ -29,10 +29,10 @@ async def list_humans(
 @router.post("/",  response_model=HumanModel)
 async def create_human(
     request: CreateHumanRequest = Body(...),
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
+    actor = server.get_current_user()
     # TODO: disallow duplicate names for humans
     interface.clear()
     new_human = HumanModel(text=request.text, name=request.name, user_id=actor._id)
@@ -43,10 +43,10 @@ async def create_human(
 @router.delete("/{human_name}",  response_model=HumanModel)
 async def delete_human(
     human_name: str,
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
+    actor = server.get_current_user()
     interface.clear()
     human = server.ms.delete_human(human_name, user_id=actor._id)
     return human
@@ -54,10 +54,10 @@ async def delete_human(
 @router.get("/{human_name}",  response_model=HumanModel)
 async def get_human(
     human_name: str,
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
+    actor = server.get_current_user()
     interface.clear()
     human = server.ms.get_human(human_name, user_id=actor._id)
     if human is None:

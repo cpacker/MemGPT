@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 
 from sqlalchemy.exc import MultipleResultsFound, NoResultFound
 
-from memgpt.server.rest_api.utils import get_current_user, get_current_interface, get_memgpt_server
+from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
 from memgpt.data_types import Source
 from memgpt.data_sources.connectors import DirectoryConnector
 from memgpt.models.pydantic_models import JobModel, JobStatus
@@ -22,13 +22,13 @@ router = APIRouter(prefix="/sources", tags=["sources"])
 
 @router.get("/")
 async def list_sources(
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     List all data sources created by a user.
     """
+    actor = server.get_current_user()
     # Clear the interface
     interface.clear()
 
@@ -41,13 +41,13 @@ async def list_sources(
 @router.post("/")
 async def create_source(
     source: CreateSourceRequest,
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     Create a new data source.
     """
+    actor = server.get_current_user()
     interface.clear()
     # TODO: don't use Source and just use SourceModel once pydantic migration is complete
     source = server.create_source(name=source.name, user_id=actor._id)
@@ -64,13 +64,13 @@ async def create_source(
 @router.delete("/{source_id}")
 async def delete_source(
     source_id: "UUID",
-    actor: "User" = Depends(get_current_user),
     server: "SyncServer" = Depends(get_memgpt_server),
     interface: "QueuingInterface" = Depends(get_current_interface),
 ):
     """
     Delete a data source.
     """
+    actor = server.get_current_user()
     interface.clear()
     server.delete_source(source_id=source_id, user_id=actor._id)
     return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Source source_id={source_id} successfully deleted"})
@@ -79,13 +79,13 @@ async def delete_source(
 async def attach_source_to_agent(
     source_id: "UUID",
     agent_id: "UUID" = Query(..., description="The unique identifier of the agent to attach the source to."),
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     Attach a data source to an existing agent.
     """
+    actor = server.get_current_user()
     interface.clear()
     source = server.ms.get_source(source_id=source_id, user_id=actor._id)
     source = server.attach_source_to_agent(source_name=source.name, agent_id=agent_id, user_id=actor._id)
@@ -102,12 +102,12 @@ async def attach_source_to_agent(
 async def detach_source_from_agent(
     source_id: "UUID",
     agent_id: "UUID" = Query(..., description="The unique identifier of the agent to detach the source from."),
-    actor: "User" = Depends(get_current_user),
     server: "SyncServer" = Depends(get_memgpt_server),
 ) -> None:
     """
     Detach a data source from an existing agent.
     """
+    actor = server.get_current_user()
     server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=actor._id)
 
 @router.get("/status/{job_id}", response_model=JobModel)
@@ -128,13 +128,13 @@ async def upload_file_to_source(
     file: UploadFile,
     source_id: "UUID",
     background_tasks: BackgroundTasks,
-    actor: "User" = Depends(get_current_user),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     Upload a file to a data source.
     """
+    actor = server.get_current_user()
     interface.clear()
     source = server.ms.get_source(source_id=source_id, user_id=actor._id)
     bytes = file.file.read()
@@ -154,24 +154,24 @@ async def upload_file_to_source(
 @router.get("/{source_id}/passages")
 async def list_passages(
     source_id: "UUID",
-    actor: User = Depends(get_current_user),
     server: SyncServer = Depends(get_memgpt_server),
 ):
     """
     List all passages associated with a data source.
     """
+    actor = server.get_current_user()
     passages = server.list_data_source_passages(user_id=actor._id, source_id=source_id)
     return GetSourcePassagesResponse(passages=passages)
 
 @router.get("/{source_id}/documents")
 async def list_documents(
     source_id: "UUID",
-    actor: "User" = Depends(get_current_user),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     List all documents associated with a data source.
     """
+    actor = server.get_current_user()
     documents = server.list_data_source_documents(user_id=actor._id, source_id=source_id)
     return GetSourceDocumentsResponse(documents=documents)
 

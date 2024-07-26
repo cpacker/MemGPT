@@ -64,13 +64,6 @@ async def sse_async_generator(generator: AsyncGenerator, finish_message=True):
         if finish_message:
             yield sse_formatter(SSE_FINISH_MSG)  # Signal that the stream is complete
 
-def get_current_user() -> "User":
-    """returns the currently authed user"""
-
-    ## this keeps getting kicked down the line, next PR needs to handle this
-    ## all of this needs to live in a single object utils module
-    query = select(User).first()
-    return get_db_session().execute(query).scalar_one()
 
 # TODO: why does this double up the interface?
 def get_memgpt_server() -> SyncServer:

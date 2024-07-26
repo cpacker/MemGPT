@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 
-from memgpt.server.rest_api.utils import get_current_user, get_current_interface, get_memgpt_server
+from memgpt.server.rest_api.utils import  get_current_interface, get_memgpt_server
 from memgpt.server.schemas.users import (
     CreateUserRequest,
     CreateUserResponse,
@@ -115,10 +115,10 @@ def get_api_keys(
 @router.delete("/keys", response_model=DeleteAPIKeyResponse)
 def delete_api_key(
     api_key: str = Query(..., description="The API key to be deleted."),
-    actor: "User" = Depends(get_current_user),
     server: "SyncServer" = Depends(get_memgpt_server),
 
 ):
+    actor = server.get_current_user()
     token = server.ms.get_api_key(api_key=api_key)
     if token is None:
         raise HTTPException(status_code=404, detail=f"API key does not exist")

@@ -92,7 +92,7 @@ class AbstractClient(object):
         """List all agents associated with a given user."""
         raise NotImplementedError
 
-    def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
+    def agent_exists(self, agent_id: Optional[str] = None) -> bool:
         """Check if an agent with the specified ID or name exists."""
         raise NotImplementedError
 
@@ -264,13 +264,17 @@ class RESTClient(AbstractClient):
         response = await self.httpx_client.get("/api/agents")
         return ListAgentsResponse(**response.json())
 
-    async def agent_exists(self, agent_id: Optional[str] = None) -> bool:
-        response = await self.httpx_client.get(f"/agents/{str(agent_id)}/config")
-        match response.status_code:
-            case 404:
-                return False
-            case 200:
+    async def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
+        response = await self.httpx_client.get("/agents/")
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list agents: {response.text}")
+        for agent in response.json():
+            if agent_id and agent["id"] == agent_id:
                 return True
+            if agent_name and agent["name"] == agent_name:
+                return True
+        return False
+
 
     def get_tool(self, tool_name: str):
         response = self.httpx_client.get(f"/api/tools/{tool_name}")

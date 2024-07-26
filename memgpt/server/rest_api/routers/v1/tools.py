@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 from fastapi import APIRouter, Body, Depends, HTTPException
 from memgpt.server.schemas.tools import CreateToolRequest, ListToolsResponse, ToolModel
-from memgpt.server.rest_api.utils import get_current_user, get_current_interface, get_memgpt_server
+from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
 
@@ -13,26 +13,26 @@ router = APIRouter(prefix="/tools", tags=["tools"])
 @router.delete("/{tool_name}")
 def delete_tool(
     tool_name: str,
-    actor: "User" = Depends(get_current_user),
     interface: QueuingInterface = Depends(get_current_interface),
     server: SyncServer = Depends(get_memgpt_server),
 ):
     """
     Delete a tool by name
     """
+    actor = server.get_current_user()
     interface.clear()
     server.ms.delete_tool(name=tool_name, user_id=actor._id)
 
 @router.get("/tools/{tool_name}", tags=["tools"], response_model=ToolModel)
 def get_tool(
     tool_name: str,
-    actor: "User" = Depends(get_current_user),
     interface: QueuingInterface = Depends(get_current_interface),
     server: SyncServer = Depends(get_memgpt_server),
     ):
     """
     Get a tool by name
     """
+    actor = server.get_current_user()
     # Clear the interface
     interface.clear()
     if tool := server.ms.get_tool(tool_name=tool_name, user_id=actor._id):
@@ -43,13 +43,13 @@ def get_tool(
 
 @router.get("/tools", tags=["tools"])
 def list_all_tools(
-    actor: "User" = Depends(get_current_user),
     interface: QueuingInterface = Depends(get_current_interface),
     server: SyncServer = Depends(get_memgpt_server),
     ):
     """
     Get a list of all tools available to agents created by a user
     """
+    actor = server.get_current_user()
     # Clear the interface
     interface.clear()
     return ListToolsResponse(tools=server.ms.list_tools(user_id=actor._id))
@@ -57,12 +57,12 @@ def list_all_tools(
 @router.post("/tools", tags=["tools"], response_model=ToolModel)
 def create_tool(
     tool: CreateToolRequest = Body(...),
-    actor: "User" = Depends(get_current_user),
     server: SyncServer = Depends(get_memgpt_server),
 ):
     """
     Create a new tool
     """
+    actor = server.get_current_user()
     try:
         return server.create_tool(
             json_schema=tool.json_schema,

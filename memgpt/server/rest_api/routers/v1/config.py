@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from memgpt.server.rest_api.utils import get_current_interface, get_current_user, get_memgpt_server
+from memgpt.server.rest_api.utils import get_current_interface,  get_memgpt_server
 from memgpt.server.schemas.config import ConfigResponse
 
 # These can be forward refs, but because Fastapi needs them at runtime the must be imported normally

@@ -116,10 +116,8 @@ class TestClientAgent:
 
     async def test_create_agent(self, client):
         expected_agent_name = faker.name()
-        # this whole test doesn't work because agent has no lookup by name!
-
-        assert not await client.agent_exists(agent_id=expected_agent_name)
-        created_agent_state = await client.create_agent(agent_id=expected_agent_name)
+        assert not await client.agent_exists(agent_name=expected_agent_name)
+        created_agent_state = await client.create_agent(agent_name=expected_agent_name)
         assert await client.agent_exists(agent_name=expected_agent_name)
         assert created_agent_state.name == expected_agent_name
 

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, List
 from fastapi import APIRouter, Depends
 
-from memgpt.server.rest_api.utils import get_current_user, get_memgpt_server, get_current_interface
+from memgpt.server.rest_api.utils import get_memgpt_server, get_current_interface
 from memgpt.models.pydantic_models import LLMConfigModel
 from memgpt.server.schemas.large_language_models import ListModelsResponse
 
@@ -16,9 +16,9 @@ router = APIRouter(prefix="/models", tags=["models","large_language_models"])
 def list_models(
     server: "SyncServer" = Depends(get_memgpt_server),
     interface: "QueuingInterface" = Depends(get_current_interface),
-    actor:"User" = Depends(get_current_user),
 
 ):
+    actor = server.get_current_user()
     # Clear the interface
     interface.clear()
 

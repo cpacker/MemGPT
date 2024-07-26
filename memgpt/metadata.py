@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 import uuid
 from typing import List, Optional
 from humps import pascalize
+from sqlalchemy.exc import NoResultFound
 
 from memgpt.log import get_logger
 from memgpt.orm.utilities import get_db_session
@@ -101,19 +102,25 @@ class MetadataStore:
         "here is one example longhand to demonstrate the meta pattern"
         return Agent.create(self.db_session, agent.model_dump(exclude_none=True))
 
-    def __getattr__(self, name, *args, **kwargs):
+    def __getattr__(self, name):
         """temporary metaprogramming to clean up all the getters and setters here.
 
         __getattr__ is always the last-ditch effort, so you can override it by declaring any method (ie `get_hamburger`) to handle the call instead.
         """
         action, raw_model_name = name.split("_",1)
+        breakpoint()
         Model = globals().get(pascalize(raw_model_name)) # gross, but nessary for now
         match action:
             case "add":
                 return self.getattr("_".join(["create",raw_model_name]))
             case "get":
                 # this has no support for scoping, but we won't keep this pattern long
-                return Model.read(self.db_session, args[0]).to_record()
+                try:
+                    def get(self, id):
+                        return Model.read(self.db_session, id).to_record()
+                    return get
+                except IndexError:
+                    raise NoResultFound(f"No {raw_model_name} found with id {args[0]}")
             case "create":
                 splatted_pydantic = args[0].model_dump(exclude_none=True)
                 return Model.create(self.db_session, splatted_pydantic).to_record()
