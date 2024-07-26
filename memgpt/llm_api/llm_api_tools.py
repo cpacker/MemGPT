@@ -93,7 +93,7 @@ def unpack_inner_thoughts_from_kwargs(
     new_choices = []
     for choice in response.choices:
         msg = choice.message
-        if msg.role == "assistant" and len(msg.tool_calls) >= 1:
+        if msg.role == "assistant" and msg.tool_calls and len(msg.tool_calls) >= 1:
             if len(msg.tool_calls) > 1:
                 warnings.warn(f"Unpacking inner thoughts from more than one tool call ({len(msg.tool_calls)}) is not supported")
             # TODO support multiple tool calls
