@@ -108,7 +108,6 @@ class MetadataStore:
         __getattr__ is always the last-ditch effort, so you can override it by declaring any method (ie `get_hamburger`) to handle the call instead.
         """
         action, raw_model_name = name.split("_",1)
-        breakpoint()
         Model = globals().get(pascalize(raw_model_name)) # gross, but nessary for now
         match action:
             case "add":
@@ -122,31 +121,41 @@ class MetadataStore:
                 except IndexError:
                     raise NoResultFound(f"No {raw_model_name} found with id {args[0]}")
             case "create":
-                splatted_pydantic = args[0].model_dump(exclude_none=True)
-                return Model.create(self.db_session, splatted_pydantic).to_record()
+                def create(self, schema):
+                    splatted_pydantic = schema.model_dump(exclude_none=True)
+                    return Model.create(self.db_session, splatted_pydantic).to_record()
+                return create
             case "update":
-                instance = Model.read(self.db_session, args[0].id)
-                splatted_pydantic = args[0].model_dump(exclude_none=True, exclude=["id"])
-                for k,v in splatted_pydantic.items():
-                    setattr(instance, k, v)
-                instance.update(self.db_session)
-                return instance.to_record()
+                def update(self, schema):
+                    instance = Model.read(self.db_session, schema.id)
+                    splatted_pydantic = schema.model_dump(exclude_none=True, exclude=["id"])
+                    for k,v in splatted_pydantic.items():
+                        setattr(instance, k, v)
+                    instance.update(self.db_session)
+                    return instance.to_record()
+                return update
             case "delete":
+                def delete(self, *args):
                 # hacky temp. look up the org for the user, get all the plural (related set) for that org and delete by name
-                if user_uuid := (args[1] if len(args) > 1 else None):
-                    org = User.read(user_uuid).organization
-                    related_set = getattr(org, (raw_model_name + "s"))
-                    related_set.filter(name=name).scalar().delete()
-                    return
-                instance = Model.read(self.db_session, args[0])
-                instance.delete(self.db_session)
+                    if user_uuid := (args[1] if len(args) > 1 else None):
+                        org = User.read(user_uuid).organization
+                        related_set = getattr(org, (raw_model_name + "s"))
+                        related_set.filter(name=name).scalar().delete()
+                        return
+                    instance = Model.read(self.db_session, args[0])
+                    instance.delete(self.db_session)
+                return delete
             case "list":
                 # hacky temp. look up the org for the user, get all the plural (related set) for that org
-                if user_uuid := (args[1] if len(args) > 1 else None):
-                    org = User.read(user_uuid).organization
-                    return [r.to_record() for r in getattr(org, (raw_model_name + "s"))]
-                # TODO: this has no scoping, no pagination, and no filtering. it's a placeholder.
-                return [r.to_record() for r in Model.list(self.db_session)]
+                def list(self, *args):
+                    if user_uuid := (args[1] if len(args) > 1 else None):
+                        org = User.read(user_uuid).organization
+                        return [r.to_record() for r in getattr(org, (raw_model_name + "s"))]
+                    # TODO: this has no scoping, no pagination, and no filtering. it's a placeholder.
+                    return [r.to_record() for r in Model.list(self.db_session)]
+                return list
+            case _:
+                raise AttributeError(f"Method {name} not found")
 
     def get_preset(
         self, preset_id: Optional[uuid.UUID] = None, name: Optional[str] = None, user_id: Optional[uuid.UUID] = None
