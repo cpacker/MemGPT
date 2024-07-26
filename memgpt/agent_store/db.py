@@ -18,7 +18,6 @@ from sqlalchemy import (
     asc,
     create_engine,
     desc,
-    func,
     or_,
     select,
     text,
@@ -314,19 +313,13 @@ class SQLStorageConnector(StorageConnector):
             # cursor logic: filter records based on before/after ID
             if after:
                 after_value = getattr(self.get(id=after), order_by)
-                if reverse:  # if reverse, then we want to get records that are less than the after_value
-                    sort_exp = getattr(self.db_model, order_by) < after_value
-                else:  # otherwise, we want to get records that are greater than the after_value
-                    sort_exp = getattr(self.db_model, order_by) > after_value
+                sort_exp = getattr(self.db_model, order_by) > after_value
                 query = query.filter(
                     or_(sort_exp, and_(getattr(self.db_model, order_by) == after_value, self.db_model.id > after))  # tiebreaker case
                 )
             if before:
                 before_value = getattr(self.get(id=before), order_by)
-                if reverse:
-                    sort_exp = getattr(self.db_model, order_by) > before_value
-                else:
-                    sort_exp = getattr(self.db_model, order_by) < before_value
+                sort_exp = getattr(self.db_model, order_by) < before_value
                 query = query.filter(or_(sort_exp, and_(getattr(self.db_model, order_by) == before_value, self.db_model.id < before)))
 
             # get records

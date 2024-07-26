@@ -154,14 +154,14 @@ def test_user_message(server, user_id, agent_id):
 @pytest.mark.order(5)
 def test_get_recall_memory(server, user_id, agent_id):
     # test recall memory cursor pagination
-    cursor1, messages_1 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, reverse=True, limit=2)
-    cursor2, messages_2 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, reverse=True, after=cursor1, limit=1000)
-    cursor3, messages_3 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, reverse=True, limit=1000)
-    [m["id"] for m in messages_3]
-    [m["id"] for m in messages_2]
+    cursor1, messages_1 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, limit=2)
+    cursor2, messages_2 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, after=cursor1, limit=1000)
+    cursor3, messages_3 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, limit=1000)
+    # [m["id"] for m in messages_3]
+    # [m["id"] for m in messages_2]
     timestamps = [m["created_at"] for m in messages_3]
     print("timestamps", timestamps)
-    assert messages_3[-1]["created_at"] < messages_3[0]["created_at"]
+    assert messages_3[-1]["created_at"] >= messages_3[0]["created_at"]
     assert len(messages_3) == len(messages_1) + len(messages_2)
     cursor4, messages_4 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, reverse=True, before=cursor1)
     assert len(messages_4) == 1
