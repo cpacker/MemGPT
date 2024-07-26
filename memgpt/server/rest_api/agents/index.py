@@ -97,6 +97,7 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                 # TODO turn into a pydantic model
                 name=request.config["name"],
                 memory=memory,
+                system=request.config.get("system", None),
                 # persona_name=persona_name,
                 # human_name=human_name,
                 # persona=persona,
