@@ -12,7 +12,11 @@ from memgpt.schemas.openai.chat_completions import ToolCall
 from memgpt.utils import is_utc_datetime
 
 
-class Message(MemGPTBase):
+class BaseMessage(MemGPTBase):
+    __id_prefix__ = "message"
+
+
+class Message(BaseMessage):
     """
     Representation of a message sent.
 
@@ -22,8 +26,7 @@ class Message(MemGPTBase):
     - or function/tool call returns (role=='function'/'tool').
     """
 
-    __id_prefix__ = "message"
-    id: str = MemGPTBase.generate_id_field()
+    id: str = BaseMessage.generate_id_field()
     role: str = Field(..., description="The role of the participant.")
     text: str = Field(..., description="The text of the message.")
     user_id: str = Field(None, description="The unique identifier of the user.")

@@ -10,7 +10,7 @@ class UserBase(MemGPTBase):
 
 
 class User(UserBase):
-    id: str = MemGPTBase.generate_id_field()
+    id: str = UserBase.generate_id_field()
     name: str = Field(..., description="The name of the user.")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="The creation date of the user.")
 

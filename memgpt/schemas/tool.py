@@ -17,7 +17,7 @@ class BaseTool(MemGPTBase):
 
 class Tool(BaseTool):
 
-    id: str = MemGPTBase.generate_id_field()
+    id: str = BaseTool.generate_id_field()
 
     name: str = Field(..., description="The name of the function.")
     tags: List[str] = Field(..., description="Metadata tags.")

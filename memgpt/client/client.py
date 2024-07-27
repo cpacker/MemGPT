@@ -16,12 +16,15 @@ from memgpt.models.pydantic_models import (
     HumanModel,
     JobModel,
     JobStatus,
-    LLMConfigModel,
+    LLMConfig,
     PersonaModel,
     PresetModel,
     SourceModel,
     ToolModel,
 )
+
+# new schemas
+from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
 from memgpt.server.rest_api.agents.command import CommandResponse
 from memgpt.server.rest_api.agents.config import GetAgentResponse
 from memgpt.server.rest_api.agents.index import CreateAgentResponse, ListAgentsResponse
@@ -773,7 +776,7 @@ class LocalClient(AbstractClient):
 
     def get_agent(self, agent_id: uuid.UUID) -> AgentState:
         self.interface.clear()
-        return self.server.get_agent_config(user_id=self.user_id, agent_id=agent_id)
+        return self.server.get_agent_state(user_id=self.user_id, agent_id=agent_id)
 
     # presets
     def create_preset(self, preset: Preset) -> Preset:
@@ -875,7 +878,7 @@ class LocalClient(AbstractClient):
         name: Optional[str] = None,
         update: Optional[bool] = True,  # TODO: actually use this
         tags: Optional[List[str]] = None,
-    ):
+    ) -> Tool:
         """
         Create a tool.
 
@@ -898,13 +901,42 @@ class LocalClient(AbstractClient):
 
         assert name is None or name == tool_name, f"Tool name {name} does not match schema name {tool_name}"
 
+        # call server function
         return self.server.create_tool(
-            user_id=self.user_id,
-            source_code=source_code,
-            source_type=source_type,
-            tags=tags,
-            json_schema=json_schema,
-            exists_ok=update,
+            ToolCreate(
+                source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags, user_id=self.user_id
+            )
+        )
+
+    def update_tool(
+        self,
+        id: str,
+        name: Optional[str] = None,
+        func: Optional[callable] = None,
+        tags: Optional[List[str]] = None,
+    ) -> Tool:
+        """
+        Update existing tool
+
+        Args:
+            id (str): Unique ID for tool
+
+        Returns:
+            tool (Tool): Updated tool object
+
+        """
+        if func:
+            source_code = parse_source_code(func)
+            json_schema = generate_schema(func, name)
+        else:
+            source_code = None
+            json_schema = None
+
+        source_type = "python"
+        tool_name = json_schema["name"] if name else name
+
+        return self.server.update_tool(
+            ToolUpdate(source_type=source_type, source_code=source_code, tags=tags, json_schema=json_schema, name=tool_name)
         )
 
     def list_tools(self):
@@ -914,13 +946,16 @@ class LocalClient(AbstractClient):
             tools (List[ToolModel]): A list of available tools.
 
         """
-        return self.server.ms.list_tools(user_id=self.user_id)
+        return self.server.list_tools(user_id=self.user_id)
 
-    def get_tool(self, name: str):
-        return self.server.ms.get_tool(name, user_id=self.user_id)
+    def get_tool(self, id: str) -> Tool:
+        return self.server.get_tool(id)
 
-    def delete_tool(self, name: str):
-        return self.server.ms.delete_tool(name, user_id=self.user_id)
+    def delete_tool(self, id: str):
+        return self.server.delete_tool(id)
+
+    def get_tool_id(self, name: str) -> str:
+        return self.server.get_tool_id(name)
 
     # data sources
 
@@ -978,7 +1013,7 @@ class LocalClient(AbstractClient):
 
     def list_models(self) -> ListModelsResponse:
 
-        llm_config = LLMConfigModel(
+        llm_config = LLMConfig(
             model=self.server.server_llm_config.model,
             model_endpoint=self.server.server_llm_config.model_endpoint,
             model_endpoint_type=self.server.server_llm_config.model_endpoint_type,

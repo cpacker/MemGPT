@@ -1,53 +1,41 @@
 from typing import List, Optional, Union
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import Field, model_validator
 from typing_extensions import Self
+
+from memgpt.schemas.memgpt_base import MemGPTBase
 
 # block of the LLM context
 
 
-class Block(BaseModel, validate_assignment=True):
-    """Block of the LLM context"""
+class BaseBlock(MemGPTBase, validate_assignment=True):
+    """Base block of the LLM context"""
 
-    description: Optional[str] = Field(None, description="Description of the block.")
-    limit: int = Field(2000, description="Character limit of the block.")
+    __id_prefix__ = "block"
+
+    # data value
     value: Optional[Union[List[str], str]] = Field(None, description="Value of the block.")
+    limit: int = Field(2000, description="Character limit of the block.")
 
-    def __setattr__(self, name, value):
-        """Run validation if self.value is updated"""
-        super().__setattr__(name, value)
-        if name == "value":
-            # run validation
-            self.__class__.validate(self.dict(exclude_unset=True))
+    name: Optional[str] = Field(None, description="Name of the block.")
+    template: Optional[bool] = Field(False, description="Whether the block is a template (e.g. saved human/persona options).")
+    label: Optional[str] = Field(None, description="Label of the block (e.g. 'human', 'persona').")
+
+    # metadat
+    description: Optional[str] = Field(None, description="Description of the block.")
+    metdata: Optional[dict] = Field({}, description="Metadata of the block.")
+
+    # associated user/agent
+    user_id: Optional[str] = Field(None, description="The unique identifier of the user associated with the block.")
 
     @model_validator(mode="after")
     def verify_char_limit(self) -> Self:
         try:
             assert len(self) >= self.limit
         except AssertionError:
-            error_msg = f"Edit failed: Exceeds {self.limit} character limit (requested {len(self)})."
+            error_msg = f"Edit failed: Exereeds {self.limit} character limit (requested {len(self)})."
             raise ValueError(error_msg)
         return self
-
-    # @validator("value", always=True)
-    # def check_value_length(cls, v, values):
-    #    if v is not None:
-    #        # Fetching the limit from the values dictionary
-    #        limit = values.get("limit", 2000)  # Default to 2000 if limit is not yet set
-
-    #        # Check if the value exceeds the limit
-    #        if isinstance(v, str):
-    #            length = len(v)
-    #        elif isinstance(v, list):
-    #            length = sum(len(item) for item in v)
-    #        else:
-    #            raise ValueError("Value must be either a string or a list of strings.")
-
-    #        if length > limit:
-    #            error_msg = f"Edit failed: Exceeds {limit} character limit (requested {length})."
-    #            # TODO: add archival memory error?
-    #            raise ValueError(error_msg)
-    #    return v
 
     def __len__(self):
         return len(str(self))
@@ -59,3 +47,64 @@ class Block(BaseModel, validate_assignment=True):
             return self.value
         else:
             return ""
+
+    def __setattr__(self, name, value):
+        """Run validation if self.value is updated"""
+        super().__setattr__(name, value)
+        if name == "value":
+            # run validation
+            self.__class__.validate(self.dict(exclude_unset=True))
+
+
+class Block(BaseBlock):
+    """Block of the LLM context"""
+
+    id: str = BaseBlock.generate_id_field()
+
+
+class Human(Block):
+    """Human block of the LLM context"""
+
+    label: str = "human"
+
+
+class Persona(Block):
+    """Persona block of the LLM context"""
+
+    label: str = "persona"
+
+
+class CreateBlock(BaseBlock):
+    """Create a block"""
+
+
+class CreatePersona(CreateBlock):
+    """Create a persona block"""
+
+    label: str = "persona"
+
+
+class CreateHuman(CreateBlock):
+    """Create a human block"""
+
+    label: str = "human"
+
+
+class UpdateBlock(BaseBlock):
+    """Update a block"""
+
+    id: str = Field(..., description="The unique identifier of the block.")
+    value: Optional[Union[List[str], str]] = Field(None, description="Value of the block.")
+    limit: Optional[int] = Field(None, description="Character limit of the block.")
+
+
+class UpdatePersona(UpdateBlock):
+    """Update a persona block"""
+
+    label: str = "persona"
+
+
+class UpdateHuman(UpdateBlock):
+    """Update a human block"""
+
+    label: str = "human"

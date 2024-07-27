@@ -20,7 +20,7 @@ class BaseAgent(MemGPTBase):
 class AgentState(BaseAgent):
     """Representation of an agent's state."""
 
-    id: str = MemGPTBase.generate_id_field()
+    id: str = BaseAgent.generate_id_field()
     name: str = Field(..., description="The name of the agent.")
 
     # in-context memory

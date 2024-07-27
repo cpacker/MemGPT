@@ -9,8 +9,8 @@ from memgpt.constants import BASE_TOOLS
 from memgpt.memory import ChatMemory
 from memgpt.models.pydantic_models import (
     AgentStateModel,
-    EmbeddingConfigModel,
-    LLMConfigModel,
+    EmbeddingConfig,
+    LLMConfig,
     PresetModel,
 )
 from memgpt.server.rest_api.auth_token import get_current_user
@@ -102,7 +102,7 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                 # human_name=human_name,
                 # persona=persona,
                 # human=human,
-                # llm_config=LLMConfigModel(
+                # llm_config=LLMConfig(
                 # model=request.config['model'],
                 # )
                 # tools
@@ -110,8 +110,8 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
                 metadata=metadata,
                 # function_names=request.config["function_names"].split(",") if "function_names" in request.config else None,
             )
-            llm_config = LLMConfigModel(**vars(agent_state.llm_config))
-            embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
+            llm_config = LLMConfig(**vars(agent_state.llm_config))
+            embedding_config = EmbeddingConfig(**vars(agent_state.embedding_config))
 
             return CreateAgentResponse(
                 agent_state=AgentStateModel(
