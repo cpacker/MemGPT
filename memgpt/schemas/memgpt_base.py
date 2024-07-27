@@ -22,11 +22,12 @@ class MemGPTBase(BaseModel):
         extra="forbid",
     )
 
-    def __id_prefix__(self):
-        raise NotImplementedError("All schemas must have an __id_prefix__ attribute!")
+    # def __id_prefix__(self):
+    #    raise NotImplementedError("All schemas must have an __id_prefix__ attribute!")
 
     @classmethod
     def generate_id_field(cls, prefix: Optional[str] = None) -> "Field":
+        print("PREFIX", prefix, cls.__id_prefix__)
         prefix = prefix or cls.__id_prefix__
         return Field(
             ...,

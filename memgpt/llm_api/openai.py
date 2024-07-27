@@ -7,8 +7,8 @@ from httpx_sse import connect_sse
 from httpx_sse._exceptions import SSEError
 
 from memgpt.local_llm.utils import num_tokens_from_functions, num_tokens_from_messages
-from memgpt.models.chat_completion_request import ChatCompletionRequest
-from memgpt.models.chat_completion_response import (
+from memgpt.schemas.openai.chat_completion_request import ChatCompletionRequest
+from memgpt.schemas.openai.chat_completion_response import (
     ChatCompletionChunkResponse,
     ChatCompletionResponse,
     Choice,
@@ -17,7 +17,7 @@ from memgpt.models.chat_completion_response import (
     ToolCall,
     UsageStatistics,
 )
-from memgpt.models.embedding_response import EmbeddingResponse
+from memgpt.schemas.openai.embedding_response import EmbeddingResponse
 from memgpt.streaming_interface import (
     AgentChunkStreamingInterface,
     AgentRefreshStreamingInterface,

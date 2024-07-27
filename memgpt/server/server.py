@@ -37,13 +37,10 @@ from memgpt.functions.schema_generator import generate_schema
 from memgpt.interface import AgentInterface  # abstract
 from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.log import get_logger
-from memgpt.memory import BaseMemory, get_memory_functions
+from memgpt.memory import get_memory_functions
 from memgpt.metadata import MetadataStore
 
-# from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
-from memgpt.prompts import gpt_system
-
-# from memgpt.models.chat_completion_response import UsageStatistics
+# from memgpt.schemas.openai.chat_completion_response import UsageStatistics
 # from memgpt.models.pydantic_models import (
 #    DocumentModel,
 #    HumanModel,
@@ -54,16 +51,31 @@ from memgpt.prompts import gpt_system
 #    SourceModel,
 #    ToolModel,
 # )
-from memgpt.schemas.agent import AgentState
+from memgpt.schemas.agent import AgentState, CreateAgent
+from memgpt.schemas.block import (
+    CreateHuman,
+    CreatePersona,
+    Human,
+    Persona,
+    UpdateHuman,
+    UpdatePersona,
+)
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
 from memgpt.schemas.message import Message
 
 # openai schemas
 from memgpt.schemas.openai.chat_completion_response import UsageStatistics
+from memgpt.schemas.passage import Passage
+from memgpt.schemas.source import Source
+from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
 from memgpt.schemas.usage import MemGPTUsageStatistics
 from memgpt.schemas.user import User, UserCreate
 from memgpt.utils import create_random_username
+
+# from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
+
 
 logger = get_logger(__name__)
 
@@ -87,7 +99,7 @@ class Server(object):
         raise NotImplementedError
 
     @abstractmethod
-    def get_agent_config(self, user_id: str, agent_id: str) -> dict:
+    def get_agent_state(self, user_id: str, agent_id: str) -> dict:
         """Return the config of an agent"""
         raise NotImplementedError
 
@@ -355,8 +367,13 @@ class SyncServer(LockingServer):
             logger.exception(f"Error occurred while trying to get agent {agent_id}:\n{e}")
             raise
 
-    def _get_or_load_agent(self, user_id: str, agent_id: str) -> Agent:
+    def _get_or_load_agent(self, agent_id: str) -> Agent:
         """Check if the agent is in-memory, then load"""
+        agent_state = self.ms.get_agent(agent_id=agent_id)
+        if not agent_state:
+            raise ValueError(f"Agent does not exist")
+        user_id = agent_state.user_id
+
         logger.debug(f"Checking for agent user_id={user_id} agent_id={agent_id}")
         # TODO: consider disabling loading cached agents due to potential concurrency issues
         memgpt_agent = self._get_agent(user_id=user_id, agent_id=agent_id)
@@ -668,7 +685,7 @@ class SyncServer(LockingServer):
                 command = command[1:]  # strip the prefix
         return self._command(user_id=user_id, agent_id=agent_id, command=command)
 
-    def create_user(self, request: UserCreate):
+    def create_user(self, request: UserCreate) -> User:
         """Create a new user using a config"""
         user = User(request.name)
         self.ms.create_user(user)
@@ -682,15 +699,8 @@ class SyncServer(LockingServer):
 
     def create_agent(
         self,
+        request: CreateAgent,
         user_id: str,
-        tools: List[str],  # list of tool names (handles) to include
-        memory: BaseMemory,
-        system: Optional[str] = None,
-        metadata: Optional[dict] = {},  # includes human/persona names
-        name: Optional[str] = None,
-        # model config
-        llm_config: Optional[LLMConfig] = None,
-        embedding_config: Optional[EmbeddingConfig] = None,
         # interface
         interface: Union[AgentInterface, None] = None,
     ) -> AgentState:
@@ -701,13 +711,9 @@ class SyncServer(LockingServer):
         if interface is None:
             interface = self.default_interface_factory()
 
-        # system prompt (get default if None)
-        if system is None:
-            system = gpt_system.get_system_text(self.config.preset)
-
         # create agent name
-        if name is None:
-            name = create_random_username()
+        if request.name is None:
+            request.name = create_random_username()
 
         logger.debug(f"Attempting to find user: {user_id}")
         user = self.ms.get_user(user_id=user_id)
@@ -721,7 +727,7 @@ class SyncServer(LockingServer):
 
             # get tools + make sure they exist
             tool_objs = []
-            for tool_name in tools:
+            for tool_name in request.tools:
                 tool_obj = self.ms.get_tool(tool_name, user_id=user_id)
                 assert tool_obj, f"Tool {tool_name} does not exist"
                 tool_objs.append(tool_obj)
@@ -730,9 +736,9 @@ class SyncServer(LockingServer):
             # TODO: remove this - eventually memory tools need to be added when the memory is created
             # this is duplicated with logic on the client-side
 
-            memory_functions = get_memory_functions(memory)
+            memory_functions = get_memory_functions(request.memory)
             for func_name, func in memory_functions.items():
-                if func_name in tools:
+                if func_name in request.tools:
                     # tool already added
                     continue
                 source_code = parse_source_code(func)
@@ -743,18 +749,18 @@ class SyncServer(LockingServer):
                     user_id=user_id, json_schema=json_schema, source_code=source_code, source_type=source_type, tags=tags, exists_ok=True
                 )
                 tool_objs.append(tool)
-                tools.append(tool.name)
+                request.tools.append(tool.name)
 
-            # TODO: add metadata
+            # TODO: save the agent state
             agent_state = AgentState(
-                name=name,
+                name=request.name,
                 user_id=user_id,
-                tools=tools,  # name=id for tools
+                tools=request.tools,  # name=id for tools
                 llm_config=llm_config,
                 embedding_config=embedding_config,
                 system=system,
-                state={"system": system, "messages": None, "memory": memory.to_dict()},
-                _metadata=metadata,
+                state={"system": system, "messages": None, "memory": request.memory.to_dict()},
+                _metadata=request.metadata,
             )
 
             agent = Agent(
@@ -769,7 +775,8 @@ class SyncServer(LockingServer):
         except Exception as e:
             logger.exception(e)
             try:
-                self.ms.delete_agent(agent_id=agent.agent_state.id)
+                if agent:
+                    self.ms.delete_agent(agent_id=agent.agent_state.id)
             except Exception as delete_e:
                 logger.exception(f"Failed to delete_agent:\n{delete_e}")
             raise e
@@ -797,43 +804,6 @@ class SyncServer(LockingServer):
         agent = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
         if agent is not None:
             self.ms.delete_agent(agent_id=agent_id)
-
-    def delete_preset(self, user_id: str, preset_id: str) -> Preset:
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-
-        # first get the preset by name
-        preset = self.get_preset(preset_id=preset_id, user_id=user_id)
-        if preset is None:
-            raise ValueError(f"Could not find preset_id {preset_id}")
-        # then delete via name
-        # TODO allow delete-by-id, eg via server.delete_preset function
-        self.ms.delete_preset(name=preset.name, user_id=user_id)
-
-        return preset
-
-    def initialize_default_presets(self, user_id: str):
-        """Add default preset options into the metadata store"""
-        presets.add_default_presets(user_id, self.ms)
-
-    def create_preset(self, preset: Preset):
-        """Create a new preset using a config"""
-        if preset.user_id is not None and self.ms.get_user(user_id=preset.user_id) is None:
-            raise ValueError(f"User user_id={preset.user_id} does not exist")
-
-        self.ms.create_preset(preset)
-        return preset
-
-    def get_preset(self, preset_id: Optional[str] = None, preset_name: Optional[str] = None, user_id: Optional[str] = None) -> Preset:
-        """Get the preset"""
-        return self.ms.get_preset(preset_id=preset_id, name=preset_name, user_id=user_id)
-
-    def list_presets(self, user_id: str) -> List[PresetModel]:
-        # TODO update once we strip Preset in favor of PresetModel
-        presets = self.ms.list_presets(user_id=user_id)
-        presets = [PresetModel(**vars(p)) for p in presets]
-
-        return presets
 
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:
         """Convert AgentState to a dict for a JSON response"""
@@ -932,24 +902,27 @@ class SyncServer(LockingServer):
             "agents": agents_states_dicts,
         }
 
+    # human / personas
+    # TODO: eventually deprecate this to be something more general? (e.g. can have custom labels)
+
     def list_personas(self, user_id: str):
         return self.ms.list_personas(user_id=user_id)
 
     def get_persona(self, name: str, user_id: str):
         return self.ms.get_persona(name=name, user_id=user_id)
 
-    def add_persona(self, persona: PersonaModel):
-        name = persona.name
-        user_id = persona.user_id
+    def create_persona(self, request: CreatePersona, user_id: str) -> Persona:
+        persona = Persona(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
         self.ms.add_persona(persona=persona)
-        persona = self.ms.get_persona(name=name, user_id=user_id)
         return persona
 
-    def update_persona(self, persona: PersonaModel):
-        return self.ms.update_persona(persona=persona)
+    def update_persona(self, request: UpdatePersona, user_id: str) -> Persona:
+        persona = Persona(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
+        self.ms.update_persona(persona=persona)
+        return persona
 
     def delete_persona(self, name: str, user_id: str):
-        return self.ms.delete_persona(name=name, user_id=user_id)
+        return self.ms.delete_persona(name, user_id)
 
     def list_humans(self, user_id: str):
         return self.ms.list_humans(user_id=user_id)
@@ -957,20 +930,28 @@ class SyncServer(LockingServer):
     def get_human(self, name: str, user_id: str):
         return self.ms.get_human(name=name, user_id=user_id)
 
-    def add_human(self, human: HumanModel):
-        name = human.name
-        user_id = human.user_id
+    def create_human(self, request: CreateHuman, user_id: str) -> Human:
+        human = Human(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
         self.ms.add_human(human=human)
-        human = self.ms.get_human(name=name, user_id=user_id)
         return human
 
-    def update_human(self, human: HumanModel):
-        return self.ms.update_human(human=human)
+    def update_human(self, request: UpdateHuman, user_id: str) -> Human:
+        human = Human(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
+        self.ms.update_human(human=human)
+        return human
 
     def delete_human(self, name: str, user_id: str):
         return self.ms.delete_human(name, user_id)
 
-    def get_agent(self, user_id: str, agent_id: str):
+    # convert name->id
+
+    def get_agent_id(self, name: str, user_id: str):
+        return self.ms.get_agent(agent_name=name, user_id=user_id)
+
+    def get_source_id(self, name: str, user_id: str):
+        return self.ms.get_source(source_name=name, user_id=user_id)
+
+    def get_agent(self, user_id: str, agent_id: str, agent_name: Optional[str] = None):
         """Get the agent state"""
         return self.ms.get_agent(agent_id=agent_id, user_id=user_id)
 
@@ -978,15 +959,10 @@ class SyncServer(LockingServer):
         """Get the user"""
         return self.ms.get_user(user_id=user_id)
 
-    def get_agent_memory(self, user_id: str, agent_id: str) -> dict:
-        """Return the memory of an agent (core memory + non-core statistics)"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
-
-        # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+    def get_agent_memory(self, agent_id: str) -> Memory:
+        """Return the memory of an agent (core memory)"""
+        agent = self._get_or_load_agent(agent_id=agent_id)
+        return agent.memory
         core_memory = memgpt_agent.memory
         recall_memory = memgpt_agent.persistence_manager.recall_memory
         archival_memory = memgpt_agent.persistence_manager.archival_memory
@@ -1000,34 +976,24 @@ class SyncServer(LockingServer):
 
         return memory_obj
 
+    def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
+        agent = self._get_or_load_agent(agent_id=agent_id)
+        return ArchivalMemorySummary(num_rows=len(agent.persistence_manager.archival_memory))
+
+    def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
+        agent = self._get_or_load_agent(agent_id=agent_id)
+        return RecallMemorySummary(num_rows=len(agent.persistence_manager.recall_memory))
+
     def get_in_context_message_ids(self, user_id: str, agent_id: str) -> List[str]:
         """Get the message ids of the in-context messages in the agent's memory"""
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
         return [m.id for m in memgpt_agent._messages]
 
-    def get_agent_message(self, agent_id: str, message_id: str) -> Message:
-        """Get message based on agent and message ID"""
-        agent_state = self.ms.get_agent(agent_id=agent_id)
-        if agent_state is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
-        user_id = agent_state.user_id
-
-        # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-
-        message = memgpt_agent.persistence_manager.recall_memory.storage.get(message_id=message_id)
-        return message
-
-    def get_agent_messages(self, user_id: str, agent_id: str, start: int, count: int) -> list:
+    def get_agent_messages(self, agent_id: str, start: int, count: int) -> List[Message]:
         """Paginated query of all messages in agent message queue"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
-
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
 
         if start < 0 or count < 0:
             raise ValueError("Start and count values should be non-negative")
@@ -1045,9 +1011,9 @@ class SyncServer(LockingServer):
             # Slice the list for pagination
             messages = reversed_messages[start:end_index]
 
-            # Convert to json
-            # Add a tag indicating in-context or not
-            json_messages = [{**record.to_json(), "in_context": True} for record in messages]
+            ## Convert to json
+            ## Add a tag indicating in-context or not
+            # json_messages = [{**record.to_json(), "in_context": True} for record in messages]
 
         else:
             # need to access persistence manager for additional messages
@@ -1060,16 +1026,16 @@ class SyncServer(LockingServer):
             # return messages in reverse chronological order
             messages = sorted(page, key=lambda x: x.created_at, reverse=True)
 
-            # Convert to json
-            # Add a tag indicating in-context or not
-            json_messages = [record.to_json() for record in messages]
-            in_context_message_ids = [str(m.id) for m in memgpt_agent._messages]
-            for d in json_messages:
-                d["in_context"] = True if str(d["id"]) in in_context_message_ids else False
+            ## Convert to json
+            ## Add a tag indicating in-context or not
+            # json_messages = [record.to_json() for record in messages]
+            # in_context_message_ids = [str(m.id) for m in memgpt_agent._messages]
+            # for d in json_messages:
+            #    d["in_context"] = True if str(d["id"]) in in_context_message_ids else False
 
-        return json_messages
+        return messages
 
-    def get_agent_archival(self, user_id: str, agent_id: str, start: int, count: int) -> list:
+    def get_agent_archival(self, user_id: str, agent_id: str, start: int, count: int) -> List[Passage]:
         """Paginated query of all messages in agent archival memory"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -1084,8 +1050,7 @@ class SyncServer(LockingServer):
 
         # get a single page of messages
         page = next(db_iterator, [])
-        json_passages = [vars(record) for record in page]
-        return json_passages
+        return page
 
     def get_agent_archival_cursor(
         self,
@@ -1112,22 +1077,7 @@ class SyncServer(LockingServer):
         json_records = [vars(record) for record in records]
         return cursor, json_records
 
-    def get_all_archival_memories(self, user_id: str, agent_id: str) -> list:
-        # TODO deprecate (not safe to be returning an unbounded list)
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
-
-        # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-
-        # Assume passages
-        records = memgpt_agent.persistence_manager.archival_memory.storage.get_all()
-
-        return [dict(id=str(r.id), contents=r.text) for r in records]
-
-    def insert_archival_memory(self, user_id: str, agent_id: str, memory_contents: str) -> str:
+    def insert_archival_memory(self, user_id: str, agent_id: str, memory_contents: str) -> List[Passage]:
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
@@ -1183,7 +1133,7 @@ class SyncServer(LockingServer):
         # TODO: mark what is in-context versus not
         return cursor, json_records
 
-    def get_agent_config(self, user_id: str, agent_id: Optional[str], agent_name: Optional[str] = None) -> AgentState:
+    def get_agent_state(self, user_id: str, agent_id: Optional[str], agent_name: Optional[str] = None) -> AgentState:
         """Return the config of an agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -1230,7 +1180,7 @@ class SyncServer(LockingServer):
 
         return response
 
-    def get_available_models(self) -> list:
+    def get_available_models(self) -> List[LLMConfig]:
         """Poll the LLM endpoint for a list of available models"""
 
         credentials = MemGPTCredentials().load()
@@ -1445,7 +1395,7 @@ class SyncServer(LockingServer):
         warnings.warn("list_data_source_documents is not yet implemented, returning empty list.", category=UserWarning)
         return []
 
-    def list_all_sources(self, user_id: str) -> List[SourceModel]:
+    def list_all_sources(self, user_id: str) -> List[Source]:
         """List all sources (w/ extra metadata) belonging to a user"""
 
         sources = self.ms.list_sources(user_id=user_id)
@@ -1498,50 +1448,73 @@ class SyncServer(LockingServer):
 
         return sources_with_metadata
 
-    def create_tool(
+    def get_tool(self, tool_id: str) -> Tool:
+        """Get tool by ID."""
+        return self.ms.get_tool(tool_id=tool_id)
+
+    def get_tool_id(self, name: str, user_id: str) -> str:
+        """Get tool ID from name and user_id."""
+        tool = self.ms.get_tool(tool_name=name, user_id=user_id)
+        return tool.id
+
+    def update_tool(
         self,
-        json_schema: dict,
-        source_code: str,
-        source_type: str,
-        tags: Optional[List[str]] = None,
-        exists_ok: Optional[bool] = True,
-        user_id: Optional[str] = None,
-    ) -> ToolModel:  # TODO: add other fields
-        """Create a new tool
+        request: ToolUpdate,
+    ) -> Tool:
+        """Update an existing tool"""
+        existing_tool = self.ms.get_tool(request.id)
+        if not existing_tool:
+            raise ValueError(f"Tool does not exist")
 
-        Args:
-            TODO
+        # override updated fields
+        if request.source_code:
+            existing_tool.source_code = request.source_code
+        if request.source_type:
+            existing_tool.source_type = request.source_type
+        if request.tags:
+            existing_tool.tags = request.tags
+        if request.json_schema:
+            existing_tool.json_schema = request.json_schema
 
-        Returns:
-            tool (ToolModel): Tool object
-        """
+        self.ms.update_tool(existing_tool)
+        return self.ms.get_tool(request.id)
 
-        if tags and "memory" in tags:
+    def create_tool(self, request: ToolCreate, user_id: Optional[str] = None, update: bool = False) -> Tool:  # TODO: add other fields
+        """Create a new tool"""
+
+        if request.tags and "memory" in request.tags:
             # special modifications to memory functions
             # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
-            source_code = source_code.replace("self.memory", "self.memory.memory")
+            request.source_code = request.source_code.replace("self.memory", "self.memory.memory")
 
         # check if already exists:
-        tool_name = json_schema["name"]
+        tool_name = request.json_schema["name"]
         existing_tool = self.ms.get_tool(tool_name, user_id)
         if existing_tool:
-            if exists_ok:
-                # update existing tool
-                existing_tool.source_code = source_code
-                existing_tool.source_type = source_type
-                existing_tool.tags = tags
-                existing_tool.json_schema = json_schema
-                self.ms.update_tool(existing_tool)
-                return self.ms.get_tool(tool_name, user_id)
+            if update:
+                self.update_tool(
+                    ToolUpdate(
+                        tool_name,
+                    )
+                )
             else:
                 raise ValueError(f"Tool {tool_name} already exists and update=False")
 
-        tool = ToolModel(
-            name=tool_name, source_code=source_code, source_type=source_type, tags=tags, json_schema=json_schema, user_id=user_id
+        tool = Tool(
+            name=request.name,
+            source_code=request.source_code,
+            source_type=request.source_type,
+            tags=request.tags,
+            json_schema=request.json_schema,
+            user_id=user_id,
         )
         self.ms.add_tool(tool)
         return self.ms.get_tool(tool_name, user_id)
 
-    def delete_tool(self, name: str):
+    def delete_tool(self, tool_id: str):
         """Delete a tool"""
-        self.ms.delete_tool(name)
+        self.ms.delete_tool(tool_id)
+
+    def list_tools(self, user_id: str) -> List[Tool]:
+        """List tools available to user_id"""
+        return self.ms.list_tools(user_id)

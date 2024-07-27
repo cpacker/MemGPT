@@ -7,11 +7,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from memgpt.models.pydantic_models import (
-    AgentStateModel,
-    EmbeddingConfigModel,
-    LLMConfigModel,
-)
+from memgpt.models.pydantic_models import AgentStateModel, EmbeddingConfig, LLMConfig
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -66,13 +62,13 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
             # agent does not exist
             raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found.")
 
-        agent_state = server.get_agent_config(user_id=user_id, agent_id=agent_id)
+        agent_state = server.get_agent_state(user_id=user_id, agent_id=agent_id)
         # get sources
         attached_sources = server.list_attached_sources(agent_id=agent_id)
 
         # configs
-        llm_config = LLMConfigModel(**vars(agent_state.llm_config))
-        embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
+        llm_config = LLMConfig(**vars(agent_state.llm_config))
+        embedding_config = EmbeddingConfig(**vars(agent_state.embedding_config))
 
         return GetAgentResponse(
             agent_state=AgentStateModel(
@@ -115,8 +111,8 @@ def setup_agents_config_router(server: SyncServer, interface: QueuingInterface, 
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
-        llm_config = LLMConfigModel(**vars(agent_state.llm_config))
-        embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
+        llm_config = LLMConfig(**vars(agent_state.llm_config))
+        embedding_config = EmbeddingConfig(**vars(agent_state.embedding_config))
 
         return GetAgentResponse(
             agent_state=AgentStateModel(

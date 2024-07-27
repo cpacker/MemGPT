@@ -23,9 +23,10 @@ from memgpt.interface import AgentInterface
 from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
 from memgpt.memory import ArchivalMemory, BaseMemory, RecallMemory, summarize_messages
 from memgpt.metadata import MetadataStore
-from memgpt.models import chat_completion_response
-from memgpt.models.pydantic_models import OptionState, ToolModel
 from memgpt.persistence_manager import LocalStateManager
+from memgpt.schemas.enums import OptionState
+from memgpt.schemas.openai.chat_completion_response import ChatCompletionResponse
+from memgpt.schemas.tool import Tool
 from memgpt.system import (
     get_initial_boot_messages,
     get_login_event,
@@ -125,7 +126,7 @@ class Agent(object):
         interface: AgentInterface,
         # agents can be created from providing agent_state
         agent_state: AgentState,
-        tools: List[ToolModel],
+        tools: List[Tool],
         # memory: BaseMemory,
         # extras
         messages_total: Optional[int] = None,  # TODO remove?
@@ -315,7 +316,7 @@ class Agent(object):
         first_message: bool = False,  # hint
         stream: bool = False,  # TODO move to config?
         inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
-    ) -> chat_completion_response.ChatCompletionResponse:
+    ) -> ChatCompletionResponse:
         """Get response from LLM API"""
         try:
             response = create(
@@ -347,9 +348,7 @@ class Agent(object):
         except Exception as e:
             raise e
 
-    def _handle_ai_response(
-        self, response_message: chat_completion_response.Message, override_tool_call_id: bool = True
-    ) -> Tuple[List[Message], bool, bool]:
+    def _handle_ai_response(self, response_message: Message, override_tool_call_id: bool = True) -> Tuple[List[Message], bool, bool]:
         """Handles parsing and function execution"""
 
         messages = []  # append these to the history when done

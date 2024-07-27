@@ -23,7 +23,7 @@ class SourceCreate(BaseSource):
 
 
 class Source(BaseSource):
-    id: str = MemGPTBase.generate_id_field()
+    id: str = BaseSource.generate_id_field()
     name: str = Field(..., description="The name of the source.")
 
 

@@ -23,7 +23,7 @@ class PassageBase(MemGPTBase):
 
 
 class Passage(PassageBase):
-    id: str = MemGPTBase.generate_id_field()
+    id: str = PassageBase.generate_id_field()
 
     # passage text
     text: str = Field(..., description="The text of the passage.")

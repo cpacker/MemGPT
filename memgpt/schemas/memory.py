@@ -28,3 +28,11 @@ class Memory(BaseModel):
     def to_dict(self):
         """Convert to dictionary representation"""
         return {key: value.dict() for key, value in self.memory.items()}
+
+
+class ArchivalMemorySummary(BaseModel):
+    num_rows: int = Field(..., description="Number of rows in archival memory")
+
+
+class RecallMemorySummary(BaseModel):
+    num_rows: int = Field(..., description="Number of rows in recall memory")

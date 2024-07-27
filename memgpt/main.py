@@ -34,7 +34,7 @@ from memgpt.constants import (
     REQ_HEARTBEAT_MESSAGE,
 )
 from memgpt.metadata import MetadataStore
-from memgpt.models.pydantic_models import OptionState
+from memgpt.schemas.enums import OptionState
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import AgentRefreshStreamingInterface
