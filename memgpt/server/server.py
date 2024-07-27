@@ -58,8 +58,11 @@ from memgpt.schemas.agent import AgentState
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.message import Message
+
+# openai schemas
+from memgpt.schemas.openai.chat_completion_response import UsageStatistics
 from memgpt.schemas.usage import MemGPTUsageStatistics
-from memgpt.schemas.user import User
+from memgpt.schemas.user import User, UserCreate
 from memgpt.utils import create_random_username
 
 logger = get_logger(__name__)
@@ -381,7 +384,7 @@ class SyncServer(LockingServer):
         no_verify = True
         next_input_message = input_message
         counter = 0
-        total_usage = MemGPTUsageStatistics()
+        total_usage = UsageStatistics()
         step_count = 0
         while True:
             new_messages, heartbeat_request, function_failed, token_warning, usage = memgpt_agent.step(
@@ -665,27 +668,9 @@ class SyncServer(LockingServer):
                 command = command[1:]  # strip the prefix
         return self._command(user_id=user_id, agent_id=agent_id, command=command)
 
-    def create_user(
-        self,
-        user_config: Optional[Union[dict, User]] = {},
-        exists_ok: bool = False,
-    ):
+    def create_user(self, request: UserCreate):
         """Create a new user using a config"""
-        if not isinstance(user_config, dict):
-            raise ValueError(f"user_config must be provided as a dictionary")
-
-        if "id" in user_config:
-            existing_user = self.ms.get_user(user_id=user_config["id"])
-            if existing_user:
-                if exists_ok:
-                    presets.add_default_humans_and_personas(existing_user.id, self.ms)
-                    return existing_user
-                else:
-                    raise ValueError(f"User with ID {existing_user.id} already exists")
-
-        user = User(
-            id=user_config["id"] if "id" in user_config else None,
-        )
+        user = User(request.name)
         self.ms.create_user(user)
         logger.info(f"Created new user from config: {user}")
 
