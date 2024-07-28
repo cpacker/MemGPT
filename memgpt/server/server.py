@@ -1,3 +1,6 @@
+# inspecting tools
+import importlib
+import inspect
 import json
 import warnings
 from abc import abstractmethod
@@ -30,7 +33,7 @@ from memgpt.data_sources.connectors import DataConnector, load_data
 #    Token,
 #    User,
 # )
-from memgpt.functions.functions import parse_source_code
+from memgpt.functions.functions import load_function_set, parse_source_code
 from memgpt.functions.schema_generator import generate_schema
 
 # TODO use custom interface
@@ -282,7 +285,7 @@ class SyncServer(LockingServer):
 
         # TODO: this should be removed
         # add global default tools (for admin)
-        presets.add_default_tools(None, self.ms)
+        self.add_default_tools(module_name="base")
         presets.add_default_humans_and_personas(None, self.ms)
 
     def save_agents(self):
@@ -903,7 +906,7 @@ class SyncServer(LockingServer):
 
     def create_persona(self, request: CreatePersona, user_id: str) -> Persona:
         persona = Persona(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
-        self.ms.create_persona(persona=persona)
+        self.ms.add_persona(persona=persona)
         return persona
 
     def update_persona(self, request: UpdatePersona, user_id: str) -> Persona:
@@ -922,7 +925,7 @@ class SyncServer(LockingServer):
 
     def create_human(self, request: CreateHuman, user_id: str) -> Human:
         human = Human(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
-        self.ms.create_human(human=human)
+        self.ms.add_human(human=human)
         return human
 
     def update_human(self, request: UpdateHuman, user_id: str) -> Human:
@@ -1392,7 +1395,7 @@ class SyncServer(LockingServer):
 
         # TODO don't unpack here, instead list_sources should return a SourceModel
         sources = [
-            SourceModel(  # TODO: fix
+            SourceModel(
                 name=source.name,
                 description=None,  # TODO: actually store descriptions
                 user_id=source.user_id,
@@ -1508,3 +1511,39 @@ class SyncServer(LockingServer):
     def list_tools(self, user_id: str) -> List[Tool]:
         """List tools available to user_id"""
         return self.ms.list_tools(user_id)
+
+    def add_default_tools(self, module_name="base"):
+        """Add default tools in {module_name}.py"""
+        full_module_name = f"memgpt.functions.function_sets.{module_name}"
+        try:
+            module = importlib.import_module(full_module_name)
+        except Exception as e:
+            # Handle other general exceptions
+            raise e
+
+        try:
+            # Load the function set
+            functions_to_schema = load_function_set(module)
+        except ValueError as e:
+            err = f"Error loading function set '{module_name}': {e}"
+            print(err)
+
+        # create tool in db
+        for name, schema in functions_to_schema.items():
+            # print([str(inspect.getsource(line)) for line in schema["imports"]])
+            source_code = inspect.getsource(schema["python_function"])
+            tags = [module_name]
+            if module_name == "base":
+                tags.append("memgpt-base")
+
+            # create to tool
+            self.create_tool(
+                ToolCreate(
+                    name=name,
+                    tags=tags,
+                    source_type="python",
+                    module=schema["module"],
+                    source_code=source_code,
+                    json_schema=schema["json_schema"],
+                )
+            )
