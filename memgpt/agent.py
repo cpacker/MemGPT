@@ -11,6 +11,7 @@ from memgpt.agent_store.storage import StorageConnector
 from memgpt.constants import (
     CLI_WARNING_PREFIX,
     FIRST_MESSAGE_ATTEMPTS,
+    IN_CONTEXT_MEMORY_KEYWORD,
     JSON_ENSURE_ASCII,
     JSON_LOADS_STRICT,
     LLM_MAX_TOKENS,
@@ -86,7 +87,6 @@ def compile_system_message(
     The following are reserved variables:
       - CORE_MEMORY: the in-context memory of the LLM
     """
-    IN_CONTEXT_MEMORY_KEYWORD = "CORE_MEMORY"
 
     if user_defined_variables is not None:
         # TODO eventually support the user defining their own variables to inject
@@ -113,10 +113,10 @@ def compile_system_message(
 
         # Catch the special case where the system prompt is unformatted
         if append_icm_if_missing:
-            # TODO support for mustache and jinja2
             memory_variable_string = "{" + IN_CONTEXT_MEMORY_KEYWORD + "}"
             if memory_variable_string not in system_prompt:
                 # In this case, append it to the end to make sure memory is still injected
+                # warnings.warn(f"{IN_CONTEXT_MEMORY_KEYWORD} variable was missing from system prompt, appending instead")
                 system_prompt += "\n" + memory_variable_string
 
         # render the variables using the built-in templater
@@ -126,6 +126,7 @@ def compile_system_message(
             raise ValueError(f"Failed to format system prompt - {str(e)}. System prompt value:\n{system_prompt}")
 
     else:
+        # TODO support for mustache and jinja2
         raise NotImplementedError(template_format)
 
     return formatted_prompt
