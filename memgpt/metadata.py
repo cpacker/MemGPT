@@ -673,6 +673,62 @@ class MetadataStore:
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0].to_record()
 
+    @enforce_types
+    def get_persona(
+        self, persona_id: Optional[str] = None, user_id: Optional[str] = None, persona_name: Optional[str] = None
+    ) -> Optional[Persona]:
+        with self.session_maker() as session:
+            if persona_id:
+                results = session.query(BlockModel).filter(BlockModel.id == persona_id).filter(BlockModel.label == "persona").all()
+            else:
+                assert persona_name is not None
+                results = (
+                    session.query(BlockModel)
+                    .filter(BlockModel.name == persona_name)
+                    .filter(BlockModel.user_id == None)
+                    .filter(BlockModel.label == "persona")
+                    .all()
+                )
+                if user_id:
+                    results += (
+                        session.query(BlockModel)
+                        .filter(BlockModel.name == persona_name)
+                        .filter(BlockModel.user_id == user_id)
+                        .filter(BlockModel.label == "persona")
+                        .all()
+                    )
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0].to_record()
+
+    @enforce_types
+    def get_human(self, human_id: Optional[str] = None, user_id: Optional[str] = None, human_name: Optional[str] = None) -> Optional[Human]:
+        with self.session_maker() as session:
+            if human_id:
+                results = session.query(BlockModel).filter(BlockModel.id == human_id).filter(BlockModel.label == "human").all()
+            else:
+                assert human_name is not None
+                results = (
+                    session.query(BlockModel)
+                    .filter(BlockModel.name == human_name)
+                    .filter(BlockModel.user_id == None)
+                    .filter(BlockModel.label == "human")
+                    .all()
+                )
+                if user_id:
+                    results += (
+                        session.query(BlockModel)
+                        .filter(BlockModel.name == human_name)
+                        .filter(BlockModel.user_id == user_id)
+                        .filter(BlockModel.label == "human")
+                        .all()
+                    )
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0].to_record()
+
     # agent source metadata
     @enforce_types
     def attach_source(self, user_id: str, agent_id: str, source_id: str):

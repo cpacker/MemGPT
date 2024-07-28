@@ -902,10 +902,10 @@ class SyncServer(LockingServer):
         return self.ms.list_personas(user_id=user_id)
 
     def get_persona(self, name: str, user_id: str):
-        return self.ms.get_persona(name=name, user_id=user_id)
+        return self.ms.get_persona(persona_name=name, user_id=user_id)
 
     def create_persona(self, request: CreatePersona, user_id: str, update: bool = False) -> Persona:
-        existing_persona = self.ms.get_persona(name=request.name, user_id=user_id)
+        existing_persona = self.ms.get_persona(persona_name=request.name, user_id=user_id)
         if existing_persona:  # update
             if update:
                 return self.update_persona(UpdatePersona(id=existing_persona.id, **vars(request)), user_id)
@@ -928,10 +928,10 @@ class SyncServer(LockingServer):
         return self.ms.list_humans(user_id=user_id)
 
     def get_human(self, name: str, user_id: str):
-        return self.ms.get_human(name=name, user_id=user_id)
+        return self.ms.get_human(human_name=name, user_id=user_id)
 
     def create_human(self, request: CreateHuman, user_id: str, update: bool = False) -> Human:
-        existing_human = self.ms.get_human(name=request.name, user_id=user_id)
+        existing_human = self.ms.get_human(human_name=request.name, user_id=user_id)
         if existing_human:  # update
             if update:
                 return self.update_human(UpdateHuman(id=existing_human.id, **vars(request)), user_id)
