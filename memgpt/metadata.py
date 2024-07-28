@@ -99,21 +99,17 @@ class UserModel(Base):
     __table_args__ = {"extend_existing": True}
 
     id = Column(String, primary_key=True)
-    # name = Column(String, nullable=False)
-    default_agent = Column(String)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True))
 
+    # TODO: what is this?
     policies_accepted = Column(Boolean, nullable=False, default=False)
 
     def __repr__(self) -> str:
-        return f"<User(id='{self.id}')>"
+        return f"<User(id='{self.id}' name='{self.name}')>"
 
     def to_record(self) -> User:
-        return User(
-            id=self.id,
-            # name=self.name
-            default_agent=self.default_agent,
-            policies_accepted=self.policies_accepted,
-        )
+        return User(id=self.id, name=self.name, created_at=self.created_at)
 
 
 class APIKeyModel(Base):
@@ -538,6 +534,12 @@ class MetadataStore:
     def update_tool(self, tool: Tool):
         with self.session_maker() as session:
             session.query(ToolModel).filter(ToolModel.id == tool.id).update(vars(tool))
+            session.commit()
+
+    @enforce_types
+    def delete_tool(self, tool_id: str):
+        with self.session_maker() as session:
+            session.query(ToolModel).filter(ToolModel.id == tool_id).delete()
             session.commit()
 
     @enforce_types

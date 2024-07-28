@@ -25,6 +25,7 @@ from memgpt.models.pydantic_models import (
 
 # new schemas
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
+from memgpt.schemas.user import UserCreate
 from memgpt.server.rest_api.agents.command import CommandResponse
 from memgpt.server.rest_api.agents.config import GetAgentResponse
 from memgpt.server.rest_api.agents.index import CreateAgentResponse, ListAgentsResponse
@@ -693,13 +694,15 @@ class LocalClient(AbstractClient):
         if user_id:
             self.user_id = uuid.UUID(user_id)
         else:
-            self.user_id = uuid.UUID(config.anon_clientid)
+            # TODO: find a neater way to do this
+            self.user_id = f"user-{uuid.UUID(config.anon_clientid)}"
 
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
 
         # create user if does not exist
-        self.server.create_user({"id": self.user_id}, exists_ok=True)
+        if not self.server.get_user(self.user_id):
+            self.server.create_user(UserCreate())
 
     # agents
 
@@ -936,7 +939,7 @@ class LocalClient(AbstractClient):
         tool_name = json_schema["name"] if name else name
 
         return self.server.update_tool(
-            ToolUpdate(source_type=source_type, source_code=source_code, tags=tags, json_schema=json_schema, name=tool_name)
+            ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, json_schema=json_schema, name=tool_name)
         )
 
     def list_tools(self):
@@ -955,7 +958,7 @@ class LocalClient(AbstractClient):
         return self.server.delete_tool(id)
 
     def get_tool_id(self, name: str) -> str:
-        return self.server.get_tool_id(name)
+        return self.server.get_tool_id(name, self.user_id)
 
     # data sources
 

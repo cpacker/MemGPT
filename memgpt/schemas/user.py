@@ -16,4 +16,4 @@ class User(UserBase):
 
 
 class UserCreate(UserBase):
-    name: str = Field(..., description="The name of the user.")
+    name: str = Field("default", description="The name of the user.")
