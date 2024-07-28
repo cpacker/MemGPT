@@ -113,7 +113,7 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
                 # new human provided without name identity
                 human_name = f"human_{request.name}_{str(uuid.uuid4())}"
                 human = request.human
-                server.ms.add_human(HumanModel(text=human, name=human_name, user_id=user_id))
+                server.ms.create_human(HumanModel(text=human, name=human_name, user_id=user_id))
             else:
                 human_name = request.human_name if request.human_name else DEFAULT_HUMAN
                 human = request.human if request.human else get_human_text(human_name)
@@ -122,7 +122,7 @@ def setup_presets_index_router(server: SyncServer, interface: QueuingInterface, 
                 # new persona provided without name identity
                 persona_name = f"persona_{request.name}_{str(uuid.uuid4())}"
                 persona = request.persona
-                server.ms.add_persona(PersonaModel(text=persona, name=persona_name, user_id=user_id))
+                server.ms.create_persona(PersonaModel(text=persona, name=persona_name, user_id=user_id))
             else:
                 persona_name = request.persona_name if request.persona_name else DEFAULT_PERSONA
                 persona = request.persona if request.persona else get_persona_text(persona_name)

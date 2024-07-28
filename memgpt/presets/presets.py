@@ -60,7 +60,7 @@ def add_default_tools(user_id: uuid.UUID, ms: MetadataStore):
     for tool in load_module_tools(module_name=module_name):
         existing_tool = ms.get_tool(tool.name)
         if not existing_tool:
-            ms.add_tool(tool)
+            ms.create_tool(tool)
 
 
 def add_default_humans_and_personas(user_id: uuid.UUID, ms: MetadataStore):
@@ -71,7 +71,7 @@ def add_default_humans_and_personas(user_id: uuid.UUID, ms: MetadataStore):
             printd(f"Persona '{name}' already exists for user '{user_id}'")
             continue
         persona = PersonaModel(name=name, text=text, user_id=user_id)
-        ms.add_persona(persona)
+        ms.create_persona(persona)
     for human_file in list_human_files():
         text = open(human_file, "r", encoding="utf-8").read()
         name = os.path.basename(human_file).replace(".txt", "")
@@ -80,7 +80,7 @@ def add_default_humans_and_personas(user_id: uuid.UUID, ms: MetadataStore):
             continue
         human = HumanModel(name=name, text=text, user_id=user_id)
         print(human, user_id)
-        ms.add_human(human)
+        ms.create_human(human)
 
 
 # def create_agent_from_preset(preset_name, agent_config, model, persona, human, interface, persistence_manager):

@@ -39,19 +39,8 @@ from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.log import get_logger
 from memgpt.memory import get_memory_functions
 from memgpt.metadata import MetadataStore
-
-# from memgpt.schemas.openai.chat_completion_response import UsageStatistics
-# from memgpt.models.pydantic_models import (
-#    DocumentModel,
-#    HumanModel,
-#    MemGPTUsageStatistics,
-#    PassageModel,
-#    PersonaModel,
-#    PresetModel,
-#    SourceModel,
-#    ToolModel,
-# )
 from memgpt.schemas.agent import AgentState, CreateAgent
+from memgpt.schemas.api_key import APIKey, APIKeyCreate
 from memgpt.schemas.block import (
     CreateHuman,
     CreatePersona,
@@ -60,6 +49,7 @@ from memgpt.schemas.block import (
     UpdateHuman,
     UpdatePersona,
 )
+from memgpt.schemas.document import Document
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
@@ -913,7 +903,7 @@ class SyncServer(LockingServer):
 
     def create_persona(self, request: CreatePersona, user_id: str) -> Persona:
         persona = Persona(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
-        self.ms.add_persona(persona=persona)
+        self.ms.create_persona(persona=persona)
         return persona
 
     def update_persona(self, request: UpdatePersona, user_id: str) -> Persona:
@@ -932,7 +922,7 @@ class SyncServer(LockingServer):
 
     def create_human(self, request: CreateHuman, user_id: str) -> Human:
         human = Human(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
-        self.ms.add_human(human=human)
+        self.ms.create_human(human=human)
         return human
 
     def update_human(self, request: UpdateHuman, user_id: str) -> Human:
@@ -1299,9 +1289,9 @@ class SyncServer(LockingServer):
         else:
             return user.id
 
-    def create_api_key_for_user(self, user_id: str) -> Token:
+    def create_api_key(self, request: APIKeyCreate) -> APIKey:  # TODO: add other fields
         """Create a new API key for a user"""
-        token = self.ms.create_api_key(user_id=user_id)
+        token = self.ms.create_api_key(user_id=request.user_id, name=request.name)
         return token
 
     def create_source(self, name: str, user_id: str) -> Source:  # TODO: add other fields
@@ -1387,11 +1377,11 @@ class SyncServer(LockingServer):
         # list all attached sources to an agent
         return self.ms.list_attached_sources(agent_id)
 
-    def list_data_source_passages(self, user_id: str, source_id: str) -> List[PassageModel]:
+    def list_data_source_passages(self, user_id: str, source_id: str) -> List[Passage]:
         warnings.warn("list_data_source_passages is not yet implemented, returning empty list.", category=UserWarning)
         return []
 
-    def list_data_source_documents(self, user_id: str, source_id: str) -> List[DocumentModel]:
+    def list_data_source_documents(self, user_id: str, source_id: str) -> List[Document]:
         warnings.warn("list_data_source_documents is not yet implemented, returning empty list.", category=UserWarning)
         return []
 
@@ -1402,7 +1392,7 @@ class SyncServer(LockingServer):
 
         # TODO don't unpack here, instead list_sources should return a SourceModel
         sources = [
-            SourceModel(
+            SourceModel(  # TODO: fix
                 name=source.name,
                 description=None,  # TODO: actually store descriptions
                 user_id=source.user_id,
@@ -1508,7 +1498,7 @@ class SyncServer(LockingServer):
             json_schema=request.json_schema,
             user_id=user_id,
         )
-        self.ms.add_tool(tool)
+        self.ms.create_tool(tool)
         return self.ms.get_tool(tool_name, user_id)
 
     def delete_tool(self, tool_id: str):

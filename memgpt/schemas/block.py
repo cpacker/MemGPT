@@ -23,7 +23,7 @@ class BaseBlock(MemGPTBase, validate_assignment=True):
 
     # metadat
     description: Optional[str] = Field(None, description="Description of the block.")
-    metdata: Optional[dict] = Field({}, description="Metadata of the block.")
+    metadata_: Optional[dict] = Field({}, description="Metadata of the block.")
 
     # associated user/agent
     user_id: Optional[str] = Field(None, description="The unique identifier of the user associated with the block.")
