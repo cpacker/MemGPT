@@ -1,3 +1,4 @@
+import uuid
 from logging import getLogger
 from typing import Optional
 from uuid import UUID
@@ -27,25 +28,39 @@ class MemGPTBase(BaseModel):
 
     @classmethod
     def generate_id_field(cls, prefix: Optional[str] = None) -> "Field":
+        print("class", cls)
         print("PREFIX", prefix, cls.__id_prefix__)
         prefix = prefix or cls.__id_prefix__
+        try:
+            print("name", cls.name)
+        except:
+            print("no name field")
+
+        # TODO: generate ID from regex pattern?
+        def _generate_id() -> str:
+            return f"{prefix}-{uuid.uuid4()}"
+
         return Field(
             ...,
             description=cls._id_description(prefix),
             pattern=cls._id_regex_pattern(prefix),
             examples=[cls._id_example(prefix)],
+            default_factory=_generate_id,
         )
+
+    # def _generate_id(self) -> str:
+    #    return f"{self.__id_prefix__}-{uuid.uuid4()}"
 
     @classmethod
     def _id_regex_pattern(cls, prefix: str):
         """generates the regex pattern for a given id"""
         return (
             r"^" + prefix + r"-"  # prefix string
-            r"[a-fA-F0-9]{8}-"  # 8 hexadecimal characters
-            r"[a-fA-F0-9]{4}-"  # 4 hexadecimal characters
-            r"[a-fA-F0-9]{4}-"  # 4 hexadecimal characters
-            r"[a-fA-F0-9]{4}-"  # 4 hexadecimal characters
-            r"[a-fA-F0-9]{12}$"  # 12 hexadecimal characters
+            r"[a-fA-F0-9]{8}"  # 8 hexadecimal characters
+            # r"[a-fA-F0-9]{4}-"  # 4 hexadecimal characters
+            # r"[a-fA-F0-9]{4}-"  # 4 hexadecimal characters
+            # r"[a-fA-F0-9]{4}-"  # 4 hexadecimal characters
+            # r"[a-fA-F0-9]{12}$"  # 12 hexadecimal characters
         )
 
     @classmethod
