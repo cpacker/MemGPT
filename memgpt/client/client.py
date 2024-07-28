@@ -838,10 +838,10 @@ class LocalClient(AbstractClient):
     # humans / personas
 
     def create_human(self, name: str, text: str):
-        return self.server.add_human(HumanModel(name=name, text=text, user_id=self.user_id))
+        return self.server.create_human(HumanModel(name=name, text=text, user_id=self.user_id))
 
     def create_persona(self, name: str, text: str):
-        return self.server.add_persona(PersonaModel(name=name, text=text, user_id=self.user_id))
+        return self.server.create_persona(PersonaModel(name=name, text=text, user_id=self.user_id))
 
     def list_humans(self):
         return self.server.list_humans(user_id=self.user_id if self.user_id else self.user_id)

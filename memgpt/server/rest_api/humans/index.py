@@ -43,7 +43,7 @@ def setup_humans_index_router(server: SyncServer, interface: QueuingInterface, p
         interface.clear()
         new_human = HumanModel(text=request.text, name=request.name, user_id=user_id)
         human_id = new_human.id
-        server.ms.add_human(new_human)
+        server.ms.create_human(new_human)
         return HumanModel(id=human_id, text=request.text, name=request.name, user_id=user_id)
 
     @router.delete("/humans/{human_name}", tags=["humans"], response_model=HumanModel)
