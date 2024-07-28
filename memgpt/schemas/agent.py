@@ -1,7 +1,7 @@
 import uuid
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
@@ -38,7 +38,7 @@ class AgentState(BaseAgent):
     embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the agent.")
 
 
-class CreateAgent(BaseModel):
+class CreateAgent(BaseAgent):
     # all optional as server can generate defaults
     name: Optional[str] = Field(None, description="The name of the agent.")
     message_ids: Optional[List[uuid.UUID]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
@@ -47,8 +47,14 @@ class CreateAgent(BaseModel):
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
     llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
-    metadata: Optional[Dict] = Field(None, description="The metadata of the agent.", alias="metadata_")
 
 
-class UpdateAgentState(CreateAgent):
+class UpdateAgentState(BaseAgent):
     id: str = Field(..., description="The id of the agent.")
+    name: Optional[str] = Field(None, description="The name of the agent.")
+    message_ids: Optional[List[uuid.UUID]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
+    memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
+    tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
+    system: Optional[str] = Field(None, description="The system prompt used by the agent.")
+    llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
+    embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")

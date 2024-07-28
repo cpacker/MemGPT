@@ -42,7 +42,7 @@ from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.log import get_logger
 from memgpt.memory import get_memory_functions
 from memgpt.metadata import MetadataStore
-from memgpt.schemas.agent import AgentState, CreateAgent
+from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.api_key import APIKey, APIKeyCreate
 from memgpt.schemas.block import (
     CreateHuman,
@@ -781,6 +781,70 @@ class SyncServer(LockingServer):
         # return AgentState
         return agent.agent_state
 
+    def update_agent(
+        self,
+        request: UpdateAgentState,
+        user_id: str,
+    ) -> AgentState:
+        """Update the agents core memory block, return the new state"""
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=request.id) is None:
+            raise ValueError(f"Agent agent_id={request.id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(agent_id=request.id)
+
+        # update the core memory of the agent
+        if request.memory:
+            old_core_memory = self.get_agent_memory(user_id=user_id, agent_id=request.id)["core_memory"]
+            new_memory_contents = request.memory.to_dict()
+
+            # edit memory fields
+            modified = False
+            for key, value in new_memory_contents.items():
+                if value is None:
+                    continue
+                if key in old_core_memory and old_core_memory[key] != value:
+                    memgpt_agent.memory.memory[key].value = value  # update agent memory
+                    modified = True
+
+            # If we modified the memory contents, we need to rebuild the memory block inside the system message
+            if modified:
+                memgpt_agent.rebuild_memory()
+
+        # update the system prompt
+        if request.system:
+            memgpt_agent.system = request
+            memgpt_agent.rebuild_memory()  # rebuild memory
+
+        # update in-context messages
+        if request.message_ids:
+            # TODO: fix this (no idea if correct)
+            memgpt_agent._messages = request.message_ids
+
+        # tools
+        if request.tools:
+            # TODO: need to reset tools (???)
+            memgpt_agent.agent_state.tools = request.tools
+
+        # configs
+        if request.llm_config:
+            memgpt_agent.agent_state.llm_config = request.llm_config
+        if request.embedding_config:
+            memgpt_agent.agent_state.embedding_config = request.embedding_config
+
+        # other minor updates
+        if request.name:
+            memgpt_agent.agent_state.name = request.name
+        if request.metadata:
+            memgpt_agent.agent_state._metadata = request.metadata
+
+        # save the agent
+        save_agent(memgpt_agent, self.ms)
+        # TODO: probably reload the agent somehow?
+        return memgpt_agent.agent_state
+
     def delete_agent(
         self,
         user_id: str,
@@ -792,6 +856,8 @@ class SyncServer(LockingServer):
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # TODO: delete related tables (recall/archival memory)
 
         # TODO: Make sure the user owns the agent
         agent = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
@@ -958,9 +1024,9 @@ class SyncServer(LockingServer):
     def get_source_id(self, name: str, user_id: str):
         return self.ms.get_source(source_name=name, user_id=user_id)
 
-    def get_agent(self, user_id: str, agent_id: str, agent_name: Optional[str] = None):
+    def get_agent(self, agent_id: str):
         """Get the agent state"""
-        return self.ms.get_agent(agent_id=agent_id, user_id=user_id)
+        return self.ms.get_agent(agent_id=agent_id)
 
     def get_user(self, user_id: str) -> User:
         """Get the user"""
