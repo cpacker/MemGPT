@@ -680,7 +680,7 @@ class SyncServer(LockingServer):
 
     def create_user(self, request: UserCreate) -> User:
         """Create a new user using a config"""
-        user = User(request.name)
+        user = User(name=request.name)
         self.ms.create_user(user)
         logger.info(f"Created new user from config: {user}")
 
@@ -902,17 +902,17 @@ class SyncServer(LockingServer):
         return self.ms.list_personas(user_id=user_id)
 
     def get_persona(self, name: str, user_id: str):
-        return self.ms.get_persona(name=name, user_id=user_id)
+        return self.ms.get_persona(persona_name=name, user_id=user_id)
 
     def create_persona(self, request: CreatePersona, user_id: str, update: bool = False) -> Persona:
-        existing_persona = self.ms.get_persona(name=request.name, user_id=user_id)
+        existing_persona = self.ms.get_persona(persona_name=request.name, user_id=user_id)
         if existing_persona:  # update
             if update:
                 return self.update_persona(UpdatePersona(id=existing_persona.id, **vars(request)), user_id)
             else:
                 raise ValueError(f"Persona with name {request.name} already exists")
         persona = Persona(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
-        self.ms.add_persona(persona=persona)
+        self.ms.create_persona(persona=persona)
         return persona
 
     def update_persona(self, request: UpdatePersona, user_id: str) -> Persona:
@@ -928,17 +928,17 @@ class SyncServer(LockingServer):
         return self.ms.list_humans(user_id=user_id)
 
     def get_human(self, name: str, user_id: str):
-        return self.ms.get_human(name=name, user_id=user_id)
+        return self.ms.get_human(human_name=name, user_id=user_id)
 
     def create_human(self, request: CreateHuman, user_id: str, update: bool = False) -> Human:
-        existing_human = self.ms.get_human(name=request.name, user_id=user_id)
+        existing_human = self.ms.get_human(human_name=request.name, user_id=user_id)
         if existing_human:  # update
             if update:
                 return self.update_human(UpdateHuman(id=existing_human.id, **vars(request)), user_id)
             else:
                 raise ValueError(f"Human with name {request.name} already exists")
         human = Human(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
-        self.ms.add_human(human=human)
+        self.ms.create_human(human=human)
         return human
 
     def update_human(self, request: UpdateHuman, user_id: str) -> Human:
@@ -1482,6 +1482,8 @@ class SyncServer(LockingServer):
             existing_tool.tags = request.tags
         if request.json_schema:
             existing_tool.json_schema = request.json_schema
+        if request.name:
+            existing_tool.name = request.name
 
         self.ms.update_tool(existing_tool)
         return self.ms.get_tool(request.id)

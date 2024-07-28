@@ -99,21 +99,17 @@ class UserModel(Base):
     __table_args__ = {"extend_existing": True}
 
     id = Column(String, primary_key=True)
-    # name = Column(String, nullable=False)
-    default_agent = Column(String)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True))
 
+    # TODO: what is this?
     policies_accepted = Column(Boolean, nullable=False, default=False)
 
     def __repr__(self) -> str:
-        return f"<User(id='{self.id}')>"
+        return f"<User(id='{self.id}' name='{self.name}')>"
 
     def to_record(self) -> User:
-        return User(
-            id=self.id,
-            # name=self.name
-            default_agent=self.default_agent,
-            policies_accepted=self.policies_accepted,
-        )
+        return User(id=self.id, name=self.name, created_at=self.created_at)
 
 
 class APIKeyModel(Base):
@@ -541,6 +537,12 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
+    def delete_tool(self, tool_id: str):
+        with self.session_maker() as session:
+            session.query(ToolModel).filter(ToolModel.id == tool_id).delete()
+            session.commit()
+
+    @enforce_types
     def delete_agent(self, agent_id: str):
         with self.session_maker() as session:
 
@@ -668,6 +670,62 @@ class MetadataStore:
                 results = session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == None).all()
                 if user_id:
                     results += session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == user_id).all()
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0].to_record()
+
+    @enforce_types
+    def get_persona(
+        self, persona_id: Optional[str] = None, user_id: Optional[str] = None, persona_name: Optional[str] = None
+    ) -> Optional[Persona]:
+        with self.session_maker() as session:
+            if persona_id:
+                results = session.query(BlockModel).filter(BlockModel.id == persona_id).filter(BlockModel.label == "persona").all()
+            else:
+                assert persona_name is not None
+                results = (
+                    session.query(BlockModel)
+                    .filter(BlockModel.name == persona_name)
+                    .filter(BlockModel.user_id == None)
+                    .filter(BlockModel.label == "persona")
+                    .all()
+                )
+                if user_id:
+                    results += (
+                        session.query(BlockModel)
+                        .filter(BlockModel.name == persona_name)
+                        .filter(BlockModel.user_id == user_id)
+                        .filter(BlockModel.label == "persona")
+                        .all()
+                    )
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0].to_record()
+
+    @enforce_types
+    def get_human(self, human_id: Optional[str] = None, user_id: Optional[str] = None, human_name: Optional[str] = None) -> Optional[Human]:
+        with self.session_maker() as session:
+            if human_id:
+                results = session.query(BlockModel).filter(BlockModel.id == human_id).filter(BlockModel.label == "human").all()
+            else:
+                assert human_name is not None
+                results = (
+                    session.query(BlockModel)
+                    .filter(BlockModel.name == human_name)
+                    .filter(BlockModel.user_id == None)
+                    .filter(BlockModel.label == "human")
+                    .all()
+                )
+                if user_id:
+                    results += (
+                        session.query(BlockModel)
+                        .filter(BlockModel.name == human_name)
+                        .filter(BlockModel.user_id == user_id)
+                        .filter(BlockModel.label == "human")
+                        .all()
+                    )
             if len(results) == 0:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"

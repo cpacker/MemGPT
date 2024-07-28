@@ -49,3 +49,7 @@ class ToolCreate(BaseTool):
 
 class ToolUpdate(ToolCreate):
     id: str = Field(..., description="The unique identifier of the tool.")
+    name: Optional[str] = Field(None, description="The name of the function.")
+    tags: Optional[List[str]] = Field(None, description="Metadata tags.")
+    source_code: Optional[str] = Field(None, description="The source code of the function.")
+    json_schema: Optional[Dict] = Field(None, description="The JSON schema of the function.")
