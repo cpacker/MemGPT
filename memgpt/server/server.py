@@ -1,4 +1,8 @@
+# inspecting tools
+import importlib
+import inspect
 import json
+import os
 import warnings
 from abc import abstractmethod
 from datetime import datetime
@@ -9,7 +13,6 @@ from typing import Callable, List, Optional, Tuple, Union
 from fastapi import HTTPException
 
 import memgpt.constants as constants
-import memgpt.presets.presets as presets
 import memgpt.server.utils as server_utils
 import memgpt.system as system
 from memgpt.agent import Agent, save_agent
@@ -30,7 +33,7 @@ from memgpt.data_sources.connectors import DataConnector, load_data
 #    Token,
 #    User,
 # )
-from memgpt.functions.functions import parse_source_code
+from memgpt.functions.functions import load_function_set, parse_source_code
 from memgpt.functions.schema_generator import generate_schema
 
 # TODO use custom interface
@@ -282,8 +285,8 @@ class SyncServer(LockingServer):
 
         # TODO: this should be removed
         # add global default tools (for admin)
-        presets.add_default_tools(None, self.ms)
-        presets.add_default_humans_and_personas(None, self.ms)
+        self.add_default_tools(module_name="base")
+        self.add_default_blocks()
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
@@ -682,8 +685,8 @@ class SyncServer(LockingServer):
         logger.info(f"Created new user from config: {user}")
 
         # add default for the user
-        presets.add_default_humans_and_personas(user.id, self.ms)
-        presets.add_default_tools(None, self.ms)
+        self.add_default_blocks(user.id)
+        self.add_default_tools(module_name="base", user_id=user.id)
 
         return user
 
@@ -901,12 +904,19 @@ class SyncServer(LockingServer):
     def get_persona(self, name: str, user_id: str):
         return self.ms.get_persona(name=name, user_id=user_id)
 
-    def create_persona(self, request: CreatePersona, user_id: str) -> Persona:
+    def create_persona(self, request: CreatePersona, user_id: str, update: bool = False) -> Persona:
+        existing_persona = self.ms.get_persona(name=request.name, user_id=user_id)
+        if existing_persona:  # update
+            if update:
+                return self.update_persona(UpdatePersona(id=existing_persona.id, **vars(request)), user_id)
+            else:
+                raise ValueError(f"Persona with name {request.name} already exists")
         persona = Persona(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
-        self.ms.create_persona(persona=persona)
+        self.ms.add_persona(persona=persona)
         return persona
 
     def update_persona(self, request: UpdatePersona, user_id: str) -> Persona:
+        # TODO: FIX THIS (should nto override none)
         persona = Persona(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
         self.ms.update_persona(persona=persona)
         return persona
@@ -920,12 +930,19 @@ class SyncServer(LockingServer):
     def get_human(self, name: str, user_id: str):
         return self.ms.get_human(name=name, user_id=user_id)
 
-    def create_human(self, request: CreateHuman, user_id: str) -> Human:
+    def create_human(self, request: CreateHuman, user_id: str, update: bool = False) -> Human:
+        existing_human = self.ms.get_human(name=request.name, user_id=user_id)
+        if existing_human:  # update
+            if update:
+                return self.update_human(UpdateHuman(id=existing_human.id, **vars(request)), user_id)
+            else:
+                raise ValueError(f"Human with name {request.name} already exists")
         human = Human(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
-        self.ms.create_human(human=human)
+        self.ms.add_human(human=human)
         return human
 
     def update_human(self, request: UpdateHuman, user_id: str) -> Human:
+        # TODO: FIX THIS (should nto override none)
         human = Human(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
         self.ms.update_human(human=human)
         return human
@@ -1392,7 +1409,7 @@ class SyncServer(LockingServer):
 
         # TODO don't unpack here, instead list_sources should return a SourceModel
         sources = [
-            SourceModel(  # TODO: fix
+            SourceModel(
                 name=source.name,
                 description=None,  # TODO: actually store descriptions
                 user_id=source.user_id,
@@ -1452,7 +1469,7 @@ class SyncServer(LockingServer):
         request: ToolUpdate,
     ) -> Tool:
         """Update an existing tool"""
-        existing_tool = self.ms.get_tool(request.id)
+        existing_tool = self.ms.get_tool(tool_id=request.id)
         if not existing_tool:
             raise ValueError(f"Tool does not exist")
 
@@ -1479,14 +1496,12 @@ class SyncServer(LockingServer):
 
         # check if already exists:
         tool_name = request.json_schema["name"]
-        existing_tool = self.ms.get_tool(tool_name, user_id)
+        print("creating tool name", tool_name)
+        existing_tool = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
+        print("existing tools", existing_tool, tool_name, user_id)
         if existing_tool:
             if update:
-                self.update_tool(
-                    ToolUpdate(
-                        tool_name,
-                    )
-                )
+                return self.update_tool(ToolUpdate(id=existing_tool.id, **vars(request)))
             else:
                 raise ValueError(f"Tool {tool_name} already exists and update=False")
 
@@ -1498,6 +1513,7 @@ class SyncServer(LockingServer):
             json_schema=request.json_schema,
             user_id=user_id,
         )
+        print("create id", tool.id)
         self.ms.create_tool(tool)
         return self.ms.get_tool(tool_name, user_id)
 
@@ -1508,3 +1524,54 @@ class SyncServer(LockingServer):
     def list_tools(self, user_id: str) -> List[Tool]:
         """List tools available to user_id"""
         return self.ms.list_tools(user_id)
+
+    def add_default_tools(self, module_name="base", user_id: Optional[str] = None):
+        """Add default tools in {module_name}.py"""
+        full_module_name = f"memgpt.functions.function_sets.{module_name}"
+        try:
+            module = importlib.import_module(full_module_name)
+        except Exception as e:
+            # Handle other general exceptions
+            raise e
+
+        try:
+            # Load the function set
+            functions_to_schema = load_function_set(module)
+        except ValueError as e:
+            err = f"Error loading function set '{module_name}': {e}"
+            print(err)
+
+        # create tool in db
+        for name, schema in functions_to_schema.items():
+            # print([str(inspect.getsource(line)) for line in schema["imports"]])
+            source_code = inspect.getsource(schema["python_function"])
+            tags = [module_name]
+            if module_name == "base":
+                tags.append("memgpt-base")
+
+            # create to tool
+            self.create_tool(
+                ToolCreate(
+                    name=name,
+                    tags=tags,
+                    source_type="python",
+                    module=schema["module"],
+                    source_code=source_code,
+                    json_schema=schema["json_schema"],
+                    user_id=user_id,
+                ),
+                update=True,
+            )
+
+    def add_default_blocks(self, user_id: Optional[str] = None):
+        from memgpt.utils import list_human_files, list_persona_files
+
+        for persona_file in list_persona_files():
+            text = open(persona_file, "r", encoding="utf-8").read()
+            name = os.path.basename(persona_file).replace(".txt", "")
+            self.create_persona(CreatePersona(name=name, value=text), user_id=user_id, update=True)
+
+        for human_file in list_human_files():
+            text = open(human_file, "r", encoding="utf-8").read()
+            name = os.path.basename(human_file).replace(".txt", "")
+            self.create_human(CreateHuman(name=name, value=text), user_id=user_id, update=True)

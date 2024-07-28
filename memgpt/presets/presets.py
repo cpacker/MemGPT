@@ -5,13 +5,11 @@ import uuid
 from typing import List
 
 from memgpt.functions.functions import load_function_set
-from memgpt.interface import AgentInterface
 from memgpt.metadata import MetadataStore
 from memgpt.presets.utils import load_all_presets
 
 # from memgpt.data_types import AgentState, Preset
 # from memgpt.models.pydantic_models import HumanModel, PersonaModel, ToolModel
-from memgpt.schemas.agent import AgentState
 from memgpt.schemas.block import Persona
 from memgpt.schemas.tool import Tool
 from memgpt.utils import list_human_files, list_persona_files, printd
@@ -86,11 +84,3 @@ def add_default_humans_and_personas(user_id: uuid.UUID, ms: MetadataStore):
         human = HumanModel(name=name, text=text, user_id=user_id)
         print(human, user_id)
         ms.create_human(human)
-
-
-# def create_agent_from_preset(preset_name, agent_config, model, persona, human, interface, persistence_manager):
-def create_agent_from_preset(
-    agent_state: AgentState, preset: Preset, interface: AgentInterface, persona_is_file: bool = True, human_is_file: bool = True
-):
-    """Initialize a new agent from a preset (combination of system + function)"""
-    raise DeprecationWarning("Function no longer supported - pass a Preset object to Agent.__init__ instead")

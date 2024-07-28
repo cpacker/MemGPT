@@ -290,14 +290,28 @@ class ToolModel(Base):
     id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
     user_id = Column(String)
-    func = Column(String)
+    description = Column(String)
+    source_type = Column(String)
+    source_code = Column(String)
+    json_schema = Column(JSON)
+    module = Column(String)
     tags = Column(JSON)
 
     def __repr__(self) -> str:
         return f"<Tool(id='{self.id}', name='{self.name}')>"
 
     def to_record(self) -> Tool:
-        return Tool(id=self.id, name=self.name, user_id=self.user_id, func=self.func, tags=self.tags)
+        return Tool(
+            id=self.id,
+            name=self.name,
+            user_id=self.user_id,
+            description=self.description,
+            source_type=self.source_type,
+            source_code=self.source_code,
+            json_schema=self.json_schema,
+            module=self.module,
+            tags=self.tags,
+        )
 
 
 class JobModel(Base):
@@ -485,7 +499,7 @@ class MetadataStore:
     @enforce_types
     def create_tool(self, tool: Tool):
         with self.session_maker() as session:
-            if session.query(ToolModel).filter(ToolModel.name == tool.name).count() > 0:
+            if self.get_tool(tool_name=tool.name, user_id=tool.user_id) is not None:
                 raise ValueError(f"Tool with name {tool.name} already exists")
             session.add(ToolModel(**vars(tool)))
             session.commit()
@@ -524,14 +538,6 @@ class MetadataStore:
     def update_tool(self, tool: Tool):
         with self.session_maker() as session:
             session.query(ToolModel).filter(ToolModel.id == tool.id).update(vars(tool))
-            session.commit()
-
-    @enforce_types
-    def create_tool(self, tool: Tool):
-        with self.session_maker() as session:
-            if session.query(ToolModel).filter(ToolModel.name == tool.name).count() > 0:
-                raise ValueError(f"Tool with name {tool.name} already exists")
-            session.add(ToolModel(**vars(tool)))
             session.commit()
 
     @enforce_types
@@ -651,17 +657,21 @@ class MetadataStore:
             return results[0].to_record()
 
     @enforce_types
-    def get_tool(self, tool_name: str, user_id: Optional[str] = None) -> Optional[ToolModel]:
-        # TODO: add user_id when tools can eventually be added by users
+    def get_tool(
+        self, tool_name: Optional[str] = None, tool_id: Optional[str] = None, user_id: Optional[str] = None
+    ) -> Optional[ToolModel]:
         with self.session_maker() as session:
-            results = session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == None).all()
-            if user_id:
-                results += session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == user_id).all()
-
+            if tool_id:
+                results = session.query(ToolModel).filter(ToolModel.id == tool_id).all()
+            else:
+                assert tool_name is not None
+                results = session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == None).all()
+                if user_id:
+                    results += session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == user_id).all()
             if len(results) == 0:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0]
+            return results[0].to_record()
 
     # agent source metadata
     @enforce_types

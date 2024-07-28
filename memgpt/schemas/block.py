@@ -30,11 +30,14 @@ class BaseBlock(MemGPTBase, validate_assignment=True):
 
     @model_validator(mode="after")
     def verify_char_limit(self) -> Self:
+        print("VALIDATE", len(self), self.limit)
         try:
-            assert len(self) >= self.limit
+            assert len(self) <= self.limit
         except AssertionError:
-            error_msg = f"Edit failed: Exereeds {self.limit} character limit (requested {len(self)})."
+            error_msg = f"Edit failed: Exceeds {self.limit} character limit (requested {len(self)})."
             raise ValueError(error_msg)
+        except Exception as e:
+            raise e
         return self
 
     def __len__(self):
@@ -82,12 +85,14 @@ class CreatePersona(CreateBlock):
     """Create a persona block"""
 
     label: str = "persona"
+    template: bool = True
 
 
 class CreateHuman(CreateBlock):
     """Create a human block"""
 
     label: str = "human"
+    template: bool = True
 
 
 class UpdateBlock(BaseBlock):

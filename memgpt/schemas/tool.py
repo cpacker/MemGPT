@@ -14,6 +14,9 @@ class BaseTool(MemGPTBase):
     source_type: Optional[str] = Field(None, description="The type of the source code.")
     module: Optional[str] = Field(None, description="The module of the function.")
 
+    # optional: user_id (user-specific tools)
+    user_id: Optional[str] = Field(None, description="The unique identifier of the user associated with the function.")
+
 
 class Tool(BaseTool):
 
@@ -25,9 +28,6 @@ class Tool(BaseTool):
     # code
     source_code: str = Field(..., description="The source code of the function.")
     json_schema: Dict = Field(default_factory=dict, description="The JSON schema of the function.")
-
-    # optional: user_id (user-specific tools)
-    user_id: str = Field(None, description="The unique identifier of the user associated with the function.")
 
     def to_dict(self):
         """Convert into OpenAI representation"""
@@ -45,11 +45,7 @@ class ToolCreate(BaseTool):
     tags: List[str] = Field(..., description="Metadata tags.")
     source_code: str = Field(..., description="The source code of the function.")
     json_schema: Dict = Field(default_factory=dict, description="The JSON schema of the function.")
-    user_id: str = Field(None, description="The unique identifier of the user associated with the function.")
 
 
-class ToolUpdate(BaseTool):
+class ToolUpdate(ToolCreate):
     id: str = Field(..., description="The unique identifier of the tool.")
-    tags: Optional[List[str]] = Field(None, description="Metadata tags.")
-    source_code: Optional[str] = Field(None, description="The source code of the function.")
-    json_schema: Optional[Dict] = Field(None, description="The JSON schema of the function.")
