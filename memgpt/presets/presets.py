@@ -2,20 +2,25 @@ import importlib
 import inspect
 import os
 import uuid
+from typing import List
 
-from memgpt.data_types import AgentState, Preset
 from memgpt.functions.functions import load_function_set
 from memgpt.interface import AgentInterface
 from memgpt.metadata import MetadataStore
-from memgpt.models.pydantic_models import HumanModel, PersonaModel, ToolModel
 from memgpt.presets.utils import load_all_presets
+
+# from memgpt.data_types import AgentState, Preset
+# from memgpt.models.pydantic_models import HumanModel, PersonaModel, ToolModel
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.block import Persona
+from memgpt.schemas.tool import Tool
 from memgpt.utils import list_human_files, list_persona_files, printd
 
 available_presets = load_all_presets()
 preset_options = list(available_presets.keys())
 
 
-def load_module_tools(module_name="base"):
+def load_module_tools(module_name="base") -> List[Tool]:
     # return List[ToolModel] from base.py tools
     full_module_name = f"memgpt.functions.function_sets.{module_name}"
     try:
@@ -43,7 +48,7 @@ def load_module_tools(module_name="base"):
             tags.append("memgpt-base")
 
         tools.append(
-            ToolModel(
+            Tool(
                 name=name,
                 tags=tags,
                 source_type="python",
@@ -70,7 +75,7 @@ def add_default_humans_and_personas(user_id: uuid.UUID, ms: MetadataStore):
         if ms.get_persona(user_id=user_id, name=name) is not None:
             printd(f"Persona '{name}' already exists for user '{user_id}'")
             continue
-        persona = PersonaModel(name=name, text=text, user_id=user_id)
+        persona = Persona(name=name, text=text, user_id=user_id)
         ms.create_persona(persona)
     for human_file in list_human_files():
         text = open(human_file, "r", encoding="utf-8").read()
