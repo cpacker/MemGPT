@@ -941,7 +941,6 @@ class Agent(object):
         new_messages = [new_system_message_obj] + self._messages[1:]  # swap index 0 (system)
         self._messages = new_messages
 
-    # TODO need to enable running rebuild_memory to keep the old timestamp + still update when the memory is the same (if the sys prompt changed)
     def rebuild_memory(self, force=False, update_timestamp=True):
         """Rebuilds the system message with the latest memory object"""
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
