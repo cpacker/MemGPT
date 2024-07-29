@@ -391,6 +391,10 @@ class Agent(object):
                 # putting inner thoughts in func args or not
                 inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
             )
+
+            if len(response.choices) == 0:
+                raise Exception(f"API call didn't return a message: {response}")
+
             # special case for 'length'
             if response.choices[0].finish_reason == "length":
                 raise Exception("Finish reason was length (maximum context length)")
@@ -926,7 +930,7 @@ class Agent(object):
             agent_id=self.agent_state.id,
             user_id=self.agent_state.user_id,
             model=self.model,
-            openai_message_dict=new_system_message,
+            openai_message_dict={"role": "system", "content": new_system_message},
         )
 
         assert new_system_message_obj.role == "system", new_system_message_obj
@@ -938,21 +942,29 @@ class Agent(object):
         self._messages = new_messages
 
     # TODO need to enable running rebuild_memory to keep the old timestamp + still update when the memory is the same (if the sys prompt changed)
-    def rebuild_memory(self, force=True, update_timestamp=True):
+    def rebuild_memory(self, force=False, update_timestamp=True):
         """Rebuilds the system message with the latest memory object"""
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
 
         # NOTE: This is a hacky way to check if the memory has changed
         memory_repr = str(self.memory)
-        if memory_repr == curr_system_message["content"][-(len(memory_repr)) :]:
+        if not force and memory_repr == curr_system_message["content"][-(len(memory_repr)) :]:
             printd(f"Memory has not changed, not rebuilding system")
             return
+
+        # If the memory didn't update, we probably don't want to update the timestamp inside
+        # For example, if we're doing a system prompt swap, this should probably be False
+        if update_timestamp:
+            memory_edit_timestamp = get_utc_time()
+        else:
+            # NOTE: a bit of a hack - we pull the timestamp from the message created_by
+            memory_edit_timestamp = self._messages[0].created_at
 
         # update memory (TODO: potentially update recall/archival stats seperately)
         new_system_message_str = compile_system_message(
             system_prompt=self.system,
             in_context_memory=self.memory,
-            in_context_memory_last_edit=get_utc_time(),  # NOTE: new timestamp
+            in_context_memory_last_edit=memory_edit_timestamp,
             archival_memory=self.persistence_manager.archival_memory,
             recall_memory=self.persistence_manager.recall_memory,
             user_defined_variables=None,
@@ -968,7 +980,7 @@ class Agent(object):
             printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
 
             # Swap the system message out (only if there is a diff)
-            self._swap_system_message_in_buffer(new_system_message=new_system_message)
+            self._swap_system_message_in_buffer(new_system_message=new_system_message_str)
             assert self.messages[0]["content"] == new_system_message["content"], (
                 self.messages[0]["content"],
                 new_system_message["content"],
@@ -976,13 +988,16 @@ class Agent(object):
 
     def update_system_prompt(self, new_system_prompt: str):
         """Update the system prompt of the agent (requires rebuilding the memory block if there's a difference)"""
+        assert isinstance(new_system_prompt, str)
+
         if new_system_prompt == self.system:
+            input("same???")
             return
 
         self.system = new_system_prompt
 
         # updating the system prompt requires rebuilding the memory block inside the compiled system message
-        self.rebuild_memory()
+        self.rebuild_memory(force=True, update_timestamp=False)
 
         # make sure to persist the change
         _ = self.update_state()
