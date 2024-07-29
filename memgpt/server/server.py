@@ -1301,36 +1301,6 @@ class SyncServer(LockingServer):
             "modified": modified,
         }
 
-    def update_agent_system_prompt(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_system_prompt: str) -> dict:
-        """Update the agents system message, return the new state"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
-
-        # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
-
-        # Cache the old prompt
-        old_system_prompt = str(memgpt_agent.system)
-
-        if new_system_prompt != memgpt_agent.system:
-            memgpt_agent.update_system_prompt(new_system_prompt=new_system_prompt)
-            modified = True
-        else:
-            modified = False
-
-        # If we modified the memory contents, we need to rebuild the memory block inside the system message
-        if modified:
-            # save agent
-            save_agent(memgpt_agent, self.ms)
-
-        return {
-            "old_system_prompt": old_system_prompt,
-            "new_system_prompt": new_system_prompt,
-            "modified": modified,
-        }
-
     def rename_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_agent_name: str) -> AgentState:
         """Update the name of the agent in the database"""
         if self.ms.get_user(user_id=user_id) is None:
