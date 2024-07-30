@@ -1033,8 +1033,8 @@ def save_agent(agent: Agent, ms: MetadataStore):
 
     agent.update_state()
     agent_state = agent.agent_state
-
-    if ms.get_agent(agent_name=agent_state.name, user_id=agent_state.user_id):
+    print("AGENT ID", agent_state.id)
+    if ms.get_agent(agent_id=agent_state.id):
         ms.update_agent(agent_state)
     else:
         ms.create_agent(agent_state)

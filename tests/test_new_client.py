@@ -20,6 +20,8 @@ def agent(client):
 
 def test_agent(client):
 
+    tools = client.list_tools()
+
     # create agent
     agent_state_test = client.create_agent(
         name="test_agent",
@@ -32,6 +34,7 @@ def test_agent(client):
     assert agent_state_test.id in [a.id for a in agents]
 
     # get agent
+    print("TOOLS", [t.name for t in tools])
     agent_state = client.get_agent(agent_state_test.id)
     assert agent_state.name == "test_agent"
 

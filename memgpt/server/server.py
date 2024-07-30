@@ -352,7 +352,7 @@ class SyncServer(LockingServer):
             logger.info(f"Creating an agent object")
             tool_objs = []
             for name in agent_state.tools:
-                tool_obj = self.ms.get_tool(name, user_id)
+                tool_obj = self.ms.get_tool(tool_name=name, user_id=user_id)
                 if not tool_obj:
                     logger.exception(f"Tool {name} does not exist for user {user_id}")
                     raise ValueError(f"Tool {name} does not exist for user {user_id}")
@@ -735,7 +735,7 @@ class SyncServer(LockingServer):
             # get tools + make sure they exist
             tool_objs = []
             for tool_name in request.tools:
-                tool_obj = self.ms.get_tool(tool_name, user_id=user_id)
+                tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
                 assert tool_obj, f"Tool {tool_name} does not exist"
                 tool_objs.append(tool_obj)
 
@@ -852,8 +852,8 @@ class SyncServer(LockingServer):
         # other minor updates
         if request.name:
             memgpt_agent.agent_state.name = request.name
-        if request.metadata:
-            memgpt_agent.agent_state._metadata = request.metadata
+        if request.metadata_:
+            memgpt_agent.agent_state.metadata_ = request.metadata_
 
         # save the agent
         save_agent(memgpt_agent, self.ms)
@@ -940,7 +940,7 @@ class SyncServer(LockingServer):
             # get tool info from agent state
             tools = []
             for tool_name in agent_state.tools:
-                tool = self.ms.get_tool(tool_name, user_id)
+                tool = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
                 tools.append(tool)
             return_dict["tools"] = tools
 

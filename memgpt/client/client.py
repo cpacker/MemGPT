@@ -716,7 +716,8 @@ class LocalClient(AbstractClient):
                 metadata_=metadata,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
-            )
+            ),
+            user_id=self.user_id,
         )
         return agent_state
 
