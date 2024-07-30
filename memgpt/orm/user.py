@@ -38,7 +38,7 @@ class User(SqlalchemyBase, OrganizationMixin):
     @classmethod
     def default(cls, db_session:"Session") -> "User":
         """Get the default user, or create it if it doesn't exist.
-        Note: this is only for local clien use.
+        Note: this is only for local client use.
         """
         try:
             return db_session.query(cls).one().scalar()

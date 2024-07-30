@@ -14,13 +14,14 @@ from memgpt.data_types import Preset  # TODO move to PresetModel
 from memgpt.settings import settings
 
 # replace all this with our FBoy clone
-from memgpt.orm.user import User
-from memgpt.orm.organization import Organization
-from memgpt.orm.token import Token
+from tests.mock_factory.models import (
+    MockUserFactory,
+    MockOrganizationFactory,
+    MockTokenFactory,
+)
 from tests.utils import create_config
 
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
-# test_preset_name = "test_preset"
 test_preset_name = settings.preset
 test_agent_state = None
 client = None
@@ -83,9 +84,9 @@ def client(request, db_session, test_app):
         # create the user directly
 
         # drop in factories here, just doing this to prove the chain works
-        org = Organization(name="some org").create(db_session)
-        requesting_user = User(organization=org, email="emailo@emalle.com").create(db_session)
-        api_token = Token(user=requesting_user, hash=str(uuid.uuid4()), name="test_client_api_token").create(db_session)
+        org = MockOrganizationFactory(db_session=db_session).generate()
+        requesting_user = MockUserFactory(db_session=db_session, organization_id=org.id).generate()
+        api_token = MockTokenFactory(db_session=db_session, user_id=requesting_user.id).generate()
         token = api_token.api_key
         client_args = {
             "base_url": "http://test",

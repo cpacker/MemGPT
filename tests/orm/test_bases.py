@@ -1,10 +1,6 @@
 from pytest import mark as m
-from faker import Faker
+from tests.mock_factory.models import MockUserFactory
 
-from memgpt.orm.user import User
-from memgpt.orm.organization import Organization
-
-faker = Faker()
 
 @m.unit
 class TestORMBases:
@@ -12,13 +8,11 @@ class TestORMBases:
 
     def test_prefixed_ids(self, db_session):
 
-        user = User(
-            email=faker.email(),
-            organization=Organization.default(db_session=db_session),
-        ).create(db_session)
+        user = MockUserFactory(db_session=db_session).generate()
 
         assert user.id.startswith('user-')
         assert str(user._id) in user.id
+        
         with db_session as session:
             session.add(user)
             assert user.organization.id.startswith('organization-'), "Organization id is prefixed incorrectly"
