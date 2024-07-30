@@ -61,7 +61,7 @@ from memgpt.schemas.message import Message
 # openai schemas
 from memgpt.schemas.openai.chat_completion_response import UsageStatistics
 from memgpt.schemas.passage import Passage
-from memgpt.schemas.source import Source
+from memgpt.schemas.source import Source, SourceCreate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
 from memgpt.schemas.usage import MemGPTUsageStatistics
 from memgpt.schemas.user import User, UserCreate
@@ -1376,16 +1376,16 @@ class SyncServer(LockingServer):
         token = self.ms.create_api_key(user_id=request.user_id, name=request.name)
         return token
 
-    def create_source(self, name: str, user_id: str) -> Source:  # TODO: add other fields
+    def create_source(self, request: SourceCreate, user_id: str) -> Source:  # TODO: add other fields
         """Create a new data source"""
         source = Source(
-            name=name,
+            name=request.name,
             user_id=user_id,
             embedding_model=self.config.default_embedding_config.embedding_model,
             embedding_dim=self.config.default_embedding_config.embedding_dim,
         )
         self.ms.create_source(source)
-        assert self.ms.get_source(source_name=name, user_id=user_id) is not None, f"Failed to create source {name}"
+        assert self.ms.get_source(source_name=request.name, user_id=user_id) is not None, f"Failed to create source {request.name}"
         return source
 
     def delete_source(self, source_id: str, user_id: str):
