@@ -42,6 +42,7 @@ from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.log import get_logger
 from memgpt.memory import get_memory_functions
 from memgpt.metadata import MetadataStore
+from memgpt.prompts import gpt_system
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.api_key import APIKey, APIKeyCreate
 from memgpt.schemas.block import (
@@ -716,6 +717,11 @@ class SyncServer(LockingServer):
         if request.name is None:
             request.name = create_random_username()
 
+        # system debug
+        if request.system is None:
+            # TODO: don't hardcode
+            request.system = gpt_system.get_system_text("memgpt_chat")
+
         logger.debug(f"Attempting to find user: {user_id}")
         user = self.ms.get_user(user_id=user_id)
         if not user:
@@ -723,8 +729,8 @@ class SyncServer(LockingServer):
 
         try:
             # model configuration
-            llm_config = llm_config if llm_config else self.server_llm_config
-            embedding_config = embedding_config if embedding_config else self.server_embedding_config
+            llm_config = request.llm_config if request.llm_config else self.server_llm_config
+            embedding_config = request.embedding_config if request.embedding_config else self.server_embedding_config
 
             # get tools + make sure they exist
             tool_objs = []
@@ -759,9 +765,10 @@ class SyncServer(LockingServer):
                 tools=request.tools,  # name=id for tools
                 llm_config=llm_config,
                 embedding_config=embedding_config,
-                system=system,
-                state={"system": system, "messages": None, "memory": request.memory.to_dict()},
-                _metadata=request.metadata,
+                system=request.system,
+                memory=request.memory,
+                description=request.description,
+                metadata_=request.metadata_,
             )
 
             agent = Agent(
@@ -1236,7 +1243,7 @@ class SyncServer(LockingServer):
             agent_id = agent_state.id
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
         return memgpt_agent.agent_state
 
     def get_server_config(self, include_defaults: bool = False) -> dict:

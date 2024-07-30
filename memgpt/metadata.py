@@ -22,6 +22,12 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql import func
 
 from memgpt.config import MemGPTConfig
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.api_key import APIKey
+from memgpt.schemas.block import Block, Human, Persona
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.job import JobStatus
+from memgpt.schemas.llm_config import LLMConfig
 
 ##from memgpt.data_types import (
 ##    AgentState,
@@ -39,12 +45,7 @@ from memgpt.config import MemGPTConfig
 ##    PersonaModel,
 ##    ToolModel,
 ##)
-from memgpt.schemas.agent import AgentState
-from memgpt.schemas.api_key import APIKey
-from memgpt.schemas.block import Block, Human, Persona
-from memgpt.schemas.embedding_config import EmbeddingConfig
-from memgpt.schemas.job import JobStatus
-from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.memory import Memory
 from memgpt.schemas.source import Source
 from memgpt.schemas.tool import Tool
 from memgpt.schemas.user import User
@@ -184,7 +185,7 @@ class AgentModel(Base):
             created_at=self.created_at,
             description=self.description,
             message_ids=self.message_ids,
-            memory=self.memory,
+            memory=Memory.load(self.memory),  # load dictionary
             system=self.system,
             tools=self.tools,
             llm_config=self.llm_config,
@@ -454,12 +455,12 @@ class MetadataStore:
     def create_agent(self, agent: AgentState):
         # insert into agent table
         # make sure agent.name does not already exist for user user_id
-        assert agent.state is not None, "Agent state must be provided"
-        assert len(list(agent.state.keys())) > 0, "Agent state must not be empty"
         with self.session_maker() as session:
             if session.query(AgentModel).filter(AgentModel.name == agent.name).filter(AgentModel.user_id == agent.user_id).count() > 0:
                 raise ValueError(f"Agent with name {agent.name} already exists")
-            session.add(AgentModel(**vars(agent)))
+            fields = vars(agent)
+            fields["memory"] = agent.memory.to_dict()
+            session.add(AgentModel(**fields))
             session.commit()
 
     @enforce_types
