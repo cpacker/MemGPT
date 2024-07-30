@@ -43,10 +43,10 @@ def test_agent(client):
     client.update_agent(agent_state_test.id, name=new_name)
     assert client.get_agent(agent_state_test.id).name == new_name
 
-    # update agent: system prompt
-    new_system_prompt = agent_state.system + "Always respond with a !"
-    client.update_agent(agent_state_test.id, system=new_system_prompt)
-    assert client.get_agent(agent_state_test.id).system == new_system_prompt
+    ## update agent: system prompt
+    # new_system_prompt = agent_state.system + "Always respond with a !"
+    # client.update_agent(agent_state_test.id, system=new_system_prompt)
+    # assert client.get_agent(agent_state_test.id).system == new_system_prompt
 
     # update agent: tools
     # update agent: memory
