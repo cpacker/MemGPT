@@ -973,6 +973,7 @@ class SyncServer(LockingServer):
         existing_persona = self.ms.get_persona(persona_name=request.name, user_id=user_id)
         if existing_persona:  # update
             if update:
+                print(vars(request))
                 return self.update_persona(UpdatePersona(id=existing_persona.id, **vars(request)), user_id)
             else:
                 raise ValueError(f"Persona with name {request.name} already exists")
@@ -1551,7 +1552,7 @@ class SyncServer(LockingServer):
             existing_tool.name = request.name
 
         self.ms.update_tool(existing_tool)
-        return self.ms.get_tool(request.id)
+        return self.ms.get_tool(tool_id=request.id)
 
     def create_tool(self, request: ToolCreate, user_id: Optional[str] = None, update: bool = False) -> Tool:  # TODO: add other fields
         """Create a new tool"""
@@ -1568,7 +1569,9 @@ class SyncServer(LockingServer):
         print("existing tools", existing_tool, tool_name, user_id)
         if existing_tool:
             if update:
-                return self.update_tool(ToolUpdate(id=existing_tool.id, **vars(request)))
+                updated_tool = self.update_tool(ToolUpdate(id=existing_tool.id, **vars(request)))
+                assert updated_tool is not None, f"Failed to update tool {tool_name}"
+                return updated_tool
             else:
                 raise ValueError(f"Tool {tool_name} already exists and update=False")
 
