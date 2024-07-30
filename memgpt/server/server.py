@@ -61,7 +61,15 @@ from memgpt.schemas.message import Message
 # openai schemas
 from memgpt.schemas.openai.chat_completion_response import UsageStatistics
 from memgpt.schemas.passage import Passage
-from memgpt.schemas.source import Source, SourceCreate
+from memgpt.schemas.source import (
+    Source,
+    SourceAttach,
+    SourceCreate,
+    SourceDetach,
+    SourceIdQuery,
+    SourceQuery,
+    SourceUpdate,
+)
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
 from memgpt.schemas.usage import MemGPTUsageStatistics
 from memgpt.schemas.user import User, UserCreate
@@ -1020,8 +1028,16 @@ class SyncServer(LockingServer):
     def get_agent_id(self, name: str, user_id: str):
         return self.ms.get_agent(agent_name=name, user_id=user_id)
 
-    def get_source_id(self, name: str, user_id: str):
-        return self.ms.get_source(source_name=name, user_id=user_id)
+    def get_source(self, request: SourceQuery, user_id: str) -> Source:
+        existing_source = self.ms.get_source(source_name=request.name, source_id=request.id, user_id=user_id)
+        if not existing_source:
+            raise ValueError("Source does not exist")
+        return existing_source
+
+    def get_source_id(self, request: SourceIdQuery, user_id: str) -> str:
+        # TODO why is this necessary? can't we just use the above?
+        existing_source = self.get_source(source_name=request.name, user_id=user_id)
+        return existing_source.id
 
     def get_agent(self, user_id: str, agent_id: str, agent_name: Optional[str] = None):
         """Get the agent state"""
@@ -1388,6 +1404,19 @@ class SyncServer(LockingServer):
         assert self.ms.get_source(source_name=request.name, user_id=user_id) is not None, f"Failed to create source {request.name}"
         return source
 
+    def update_source(self, request: SourceUpdate, user_id: str) -> Source:
+        """Update an existing data source"""
+        existing_source = self.ms.get_source(source_name=request.id, user_id=user_id)
+        if not existing_source:
+            raise ValueError("Source does not exist")
+
+        # override updated fields
+        if request.name:
+            existing_source.name = request.name
+
+        self.ms.update_source(existing_source)
+        return self.ms.get_source(source_name=request.id, user_id=user_id)
+
     def delete_source(self, source_id: str, user_id: str):
         """Delete a data source"""
         source = self.ms.get_source(source_id=source_id, user_id=user_id)
@@ -1424,21 +1453,19 @@ class SyncServer(LockingServer):
 
     def attach_source_to_agent(
         self,
+        request: SourceAttach,
         user_id: str,
-        agent_id: str,
-        source_id: Optional[str] = None,
-        source_name: Optional[str] = None,
-    ):
+    ) -> Source:
         # attach a data source to an agent
-        data_source = self.ms.get_source(source_id=source_id, user_id=user_id, source_name=source_name)
+        data_source = self.ms.get_source(source_id=request.source_id, user_id=user_id, source_name=request.source_name)
         if data_source is None:
-            raise ValueError(f"Data source id={source_id} name={source_name} does not exist for user_id {user_id}")
+            raise ValueError(f"Data source id={request.source_id} name={request.source_name} does not exist for user_id {user_id}")
 
         # get connection to data source storage
         source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
 
         # load agent
-        agent = self._get_or_load_agent(user_id, agent_id)
+        agent = self._get_or_load_agent(agent_id=request.agent_id)
 
         # attach source to agent
         agent.attach_source(data_source.name, source_connector, self.ms)
@@ -1447,10 +1474,8 @@ class SyncServer(LockingServer):
 
     def detach_source_from_agent(
         self,
+        request: SourceDetach,
         user_id: str,
-        agent_id: str,
-        source_id: Optional[str] = None,
-        source_name: Optional[str] = None,
     ):
         # TODO: remove all passages coresponding to source from agent's archival memory
         raise NotImplementedError
@@ -1471,19 +1496,6 @@ class SyncServer(LockingServer):
         """List all sources (w/ extra metadata) belonging to a user"""
 
         sources = self.ms.list_sources(user_id=user_id)
-
-        # TODO don't unpack here, instead list_sources should return a SourceModel
-        sources = [
-            SourceModel(
-                name=source.name,
-                description=None,  # TODO: actually store descriptions
-                user_id=source.user_id,
-                id=source.id,
-                embedding_config=self.server_embedding_config,
-                created_at=source.created_at,
-            )
-            for source in sources
-        ]
 
         # Add extra metadata to the sources
         sources_with_metadata = []
