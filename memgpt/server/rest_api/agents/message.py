@@ -9,7 +9,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
-from memgpt.models.pydantic_models import MemGPTUsageStatistics
+from memgpt.schemas.usage import MemGPTUsageStatistics
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface, StreamingServerInterface
 from memgpt.server.rest_api.utils import sse_async_generator

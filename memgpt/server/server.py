@@ -785,7 +785,7 @@ class SyncServer(LockingServer):
         self,
         request: UpdateAgentState,
         user_id: str,
-    ) -> AgentState:
+    ):
         """Update the agents core memory block, return the new state"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -843,7 +843,6 @@ class SyncServer(LockingServer):
         # save the agent
         save_agent(memgpt_agent, self.ms)
         # TODO: probably reload the agent somehow?
-        return memgpt_agent.agent_state
 
     def delete_agent(
         self,
@@ -1024,9 +1023,9 @@ class SyncServer(LockingServer):
     def get_source_id(self, name: str, user_id: str):
         return self.ms.get_source(source_name=name, user_id=user_id)
 
-    def get_agent(self, agent_id: str):
+    def get_agent(self, user_id: str, agent_id: str, agent_name: Optional[str] = None):
         """Get the agent state"""
-        return self.ms.get_agent(agent_id=agent_id)
+        return self.ms.get_agent(agent_id=agent_id, user_id=user_id)
 
     def get_user(self, user_id: str) -> User:
         """Get the user"""
@@ -1583,7 +1582,9 @@ class SyncServer(LockingServer):
         )
         print("create id", tool.id)
         self.ms.create_tool(tool)
-        return self.ms.get_tool(tool_name, user_id)
+        created_tool = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
+        print("created tool", created_tool)
+        return created_tool
 
     def delete_tool(self, tool_id: str):
         """Delete a tool"""
@@ -1591,7 +1592,9 @@ class SyncServer(LockingServer):
 
     def list_tools(self, user_id: str) -> List[Tool]:
         """List tools available to user_id"""
-        return self.ms.list_tools(user_id)
+        tools = self.ms.list_tools(user_id)
+        print("SERVER LIST", [t.name if t else t for t in tools])
+        return tools
 
     def add_default_tools(self, module_name="base", user_id: Optional[str] = None):
         """Add default tools in {module_name}.py"""

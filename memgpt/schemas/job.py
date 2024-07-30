@@ -14,7 +14,7 @@ class JobBase(MemGPTBase):
     metadata_: Optional[dict] = Field({}, description="The metadata of the job.")
 
 
-class JobModel(JobBase):
+class Job(JobBase):
     """Representation of offline jobs."""
 
     id: str = JobBase.generate_id_field()

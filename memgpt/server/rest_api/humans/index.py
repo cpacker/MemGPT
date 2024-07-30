@@ -5,7 +5,7 @@ from typing import List
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from memgpt.models.pydantic_models import HumanModel
+from memgpt.schemas.block import Human as HumanModel  # TODO: modify
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer

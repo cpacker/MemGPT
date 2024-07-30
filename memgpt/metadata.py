@@ -589,7 +589,9 @@ class MetadataStore:
             results = session.query(ToolModel).filter(ToolModel.user_id == None).all()
             if user_id:
                 results += session.query(ToolModel).filter(ToolModel.user_id == user_id).all()
-            return results
+            res = [r.to_record() for r in results]
+            print("MS LIST", [t.name if t else t for t in res])
+            return res
 
     @enforce_types
     def list_agents(self, user_id: str) -> List[AgentState]:

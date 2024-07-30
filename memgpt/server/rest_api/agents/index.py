@@ -7,12 +7,9 @@ from pydantic import BaseModel, Field
 
 from memgpt.constants import BASE_TOOLS
 from memgpt.memory import ChatMemory
-from memgpt.models.pydantic_models import (
-    AgentStateModel,
-    EmbeddingConfig,
-    LLMConfig,
-    PresetModel,
-)
+from memgpt.schemas.agent import AgentState as AgentStateModel  # TODO: change
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.llm_config import LLMConfig
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -35,7 +32,6 @@ class CreateAgentRequest(BaseModel):
 
 class CreateAgentResponse(BaseModel):
     agent_state: AgentStateModel = Field(..., description="The state of the newly created agent.")
-    preset: PresetModel = Field(..., description="The preset that the agent was created from.")
 
 
 def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, password: str):
