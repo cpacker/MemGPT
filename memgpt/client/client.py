@@ -16,8 +16,13 @@ from memgpt.schemas.block import Human, Persona
 from memgpt.schemas.source import Source, SourceAttach, SourceCreate, SourceQuery
 
 # new schemas
+from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
+from memgpt.schemas.block import Human, Persona
+from memgpt.schemas.memory import ChatMemory, Memory
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
 from memgpt.schemas.user import UserCreate
+
+# TODO: delete
 from memgpt.server.rest_api.agents.command import CommandResponse
 from memgpt.server.rest_api.agents.config import GetAgentResponse
 from memgpt.server.rest_api.agents.index import CreateAgentResponse, ListAgentsResponse
@@ -240,7 +245,7 @@ class RESTClient(AbstractClient):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
-        memory: BaseMemory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
+        memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,
@@ -639,12 +644,15 @@ class LocalClient(AbstractClient):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
-        memory: BaseMemory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
+        memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
+        # system
+        system: Optional[str] = None,
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,
         # metadata
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
+        description: Optional[str] = None,
     ) -> AgentState:
         if name and self.agent_exists(agent_name=name):
             raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
@@ -659,27 +667,57 @@ class LocalClient(AbstractClient):
         # add memory tools
         memory_functions = get_memory_functions(memory)
         for func_name, func in memory_functions.items():
-            tool = self.create_tool(func, name=func_name, tags=["memory", "memgpt-base"])
+            tool = self.create_tool(func, name=func_name, tags=["memory", "memgpt-base"], update=True)
             tool_names.append(tool.name)
 
         self.interface.clear()
 
         # create agent
         agent_state = self.server.create_agent(
+            CreateAgent(
+                name=name,
+                description=description,
+                metadata_=metadata,
+                memory=memory,
+                tools=tool_names,
+                system=system,
+                llm_config=llm_config,
+                embedding_config=embedding_config,
+            ),
             user_id=self.user_id,
-            name=name,
-            memory=memory,
-            llm_config=llm_config,
-            embedding_config=embedding_config,
-            tools=tool_names,
-            metadata=metadata,
         )
         return agent_state
 
-    def rename_agent(self, agent_id: uuid.UUID, new_name: str):
-        # TODO: check valid name
-        agent_state = self.server.rename_agent(user_id=self.user_id, agent_id=agent_id, new_agent_name=new_name)
+    def update_agent(
+        self,
+        agent_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        system: Optional[str] = None,
+        tools: Optional[List[str]] = None,
+        metadata: Optional[Dict] = None,
+        llm_config: Optional[LLMConfig] = None,
+        embedding_config: Optional[EmbeddingConfig] = None,
+    ):
+        self.interface.clear()
+        agent_state = self.server.update_agent(
+            UpdateAgentState(
+                id=agent_id,
+                name=name,
+                system=system,
+                tools=tools,
+                description=description,
+                metadata_=metadata,
+                llm_config=llm_config,
+                embedding_config=embedding_config,
+            )
+        )
         return agent_state
+
+    def update_agent_memory(self, agent_id: str, section: str, value: str):
+        # get agent memory
+        # TODO: implement this (not sure what it should look like)
+        pass
 
     def delete_agent(self, agent_id: uuid.UUID):
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
@@ -688,14 +726,9 @@ class LocalClient(AbstractClient):
         self.interface.clear()
         return self.server.get_agent_state(user_id=self.user_id, agent_id=agent_id)
 
-    # memory
-    def get_agent_memory(self, agent_id: str) -> Dict:
+    def get_agent_memory(self, agent_id: str) -> Memory:
         memory = self.server.get_agent_memory(user_id=self.user_id, agent_id=agent_id)
-        return GetAgentMemoryResponse(**memory)
-
-    def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Dict:
-        self.interface.clear()
-        return self.server.update_agent_core_memory(user_id=self.user_id, agent_id=agent_id, new_memory_contents=new_memory_contents)
+        return memory
 
     # agent interactions
 
@@ -802,6 +835,7 @@ class LocalClient(AbstractClient):
         return self.server.create_tool(
             ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
             user_id=self.user_id,
+            update=update,
         )
 
     def update_tool(

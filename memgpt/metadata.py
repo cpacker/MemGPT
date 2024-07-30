@@ -154,16 +154,21 @@ class AgentModel(Base):
     id = Column(String, primary_key=True)
     user_id = Column(String, nullable=False)
     name = Column(String, nullable=False)
-    system = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    description = Column(String)
+
+    # state (context compilation)
+    message_ids = Column(JSON)
+    memory = Column(JSON)
+    system = Column(String)
+    tools = Column(JSON)
 
     # configs
     llm_config = Column(LLMConfigColumn)
     embedding_config = Column(EmbeddingConfigColumn)
 
     # state
-    state = Column(JSON)
-    _metadata = Column(JSON)
+    metadata_ = Column(JSON)
 
     # tools
     tools = Column(JSON)
@@ -177,12 +182,14 @@ class AgentModel(Base):
             user_id=self.user_id,
             name=self.name,
             created_at=self.created_at,
+            description=self.description,
+            message_ids=self.message_ids,
+            memory=self.memory,
+            system=self.system,
+            tools=self.tools,
             llm_config=self.llm_config,
             embedding_config=self.embedding_config,
-            state=self.state,
-            tools=self.tools,
-            system=self.system,
-            _metadata=self._metadata,
+            metadata_=self.metadata_,
         )
 
 

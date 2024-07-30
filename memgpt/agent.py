@@ -21,10 +21,11 @@ from memgpt.constants import (
 from memgpt.data_types import AgentState, EmbeddingConfig, Message, Passage
 from memgpt.interface import AgentInterface
 from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
-from memgpt.memory import ArchivalMemory, BaseMemory, RecallMemory, summarize_messages
+from memgpt.memory import ArchivalMemory, RecallMemory, summarize_messages
 from memgpt.metadata import MetadataStore
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.schemas.enums import OptionState
+from memgpt.schemas.memory import Memory
 from memgpt.schemas.openai.chat_completion_response import ChatCompletionResponse
 from memgpt.schemas.tool import Tool
 from memgpt.system import (
@@ -52,7 +53,7 @@ from .errors import LLMError
 
 def construct_system_with_memory(
     system: str,
-    memory: BaseMemory,
+    memory: Memory,
     memory_edit_timestamp: str,
     archival_memory: Optional[ArchivalMemory] = None,
     recall_memory: Optional[RecallMemory] = None,
@@ -82,7 +83,7 @@ def construct_system_with_memory(
 def initialize_message_sequence(
     model: str,
     system: str,
-    memory: BaseMemory,
+    memory: Memory,
     archival_memory: Optional[ArchivalMemory] = None,
     recall_memory: Optional[RecallMemory] = None,
     memory_edit_timestamp: Optional[str] = None,
@@ -127,7 +128,7 @@ class Agent(object):
         # agents can be created from providing agent_state
         agent_state: AgentState,
         tools: List[Tool],
-        # memory: BaseMemory,
+        # memory: Memory,
         # extras
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
@@ -163,7 +164,7 @@ class Agent(object):
         self.system = self.agent_state.system
 
         # Initialize the memory object
-        self.memory = BaseMemory.load(self.agent_state.state["memory"])
+        self.memory = Memory.load(self.agent_state.state["memory"])
         printd("Initialized memory object", self.memory)
 
         # Interface must implement:
