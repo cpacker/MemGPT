@@ -1,11 +1,60 @@
 import pytest
 
 from memgpt import create_client
+from memgpt.schemas.memory import ChatMemory
 
 
 @pytest.fixture(scope="module")
 def client():
     yield create_client()
+
+
+@pytest.fixture(scope="module")
+def agent(client):
+    agent_state = client.create_agent(name="test_agent")
+    yield agent_state
+
+    client.delete_agent(agent_state.id)
+    assert client.get_agent(agent_state.id) is None, f"Failed to properly delete agent {agent_state.id}"
+
+
+def test_agent(client):
+
+    tools = client.list_tools()
+
+    # create agent
+    agent_state_test = client.create_agent(
+        name="test_agent",
+        memory=ChatMemory(human="I am a human", persona="I am an agent"),
+        description="This is a test agent",
+    )
+
+    # list agents
+    agents = client.list_agents()
+    assert agent_state_test.id in [a.id for a in agents]
+
+    # get agent
+    print("TOOLS", [t.name for t in tools])
+    agent_state = client.get_agent(agent_state_test.id)
+    assert agent_state.name == "test_agent"
+
+    # update agent: name
+    new_name = "new_agent"
+    client.update_agent(agent_state_test.id, name=new_name)
+    assert client.get_agent(agent_state_test.id).name == new_name
+
+    ## update agent: system prompt
+    # new_system_prompt = agent_state.system + "Always respond with a !"
+    # client.update_agent(agent_state_test.id, system=new_system_prompt)
+    # assert client.get_agent(agent_state_test.id).system == new_system_prompt
+
+    # update agent: tools
+    # update agent: memory
+    # update agent: message_ids
+    # update agent: llm config
+    # update agent: embedding config
+
+    # delete agent
 
 
 def test_tools(client):

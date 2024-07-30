@@ -18,14 +18,20 @@ from memgpt.constants import (
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_WARNING_FRAC,
 )
-from memgpt.data_types import AgentState, EmbeddingConfig, Message, Passage
 from memgpt.interface import AgentInterface
 from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
-from memgpt.memory import ArchivalMemory, BaseMemory, RecallMemory, summarize_messages
+from memgpt.memory import ArchivalMemory, RecallMemory, summarize_messages
 from memgpt.metadata import MetadataStore
 from memgpt.persistence_manager import LocalStateManager
+
+# from memgpt.data_types import AgentState, EmbeddingConfig, Message, Passage
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.enums import OptionState
+from memgpt.schemas.memory import Memory
+from memgpt.schemas.message import Message
 from memgpt.schemas.openai.chat_completion_response import ChatCompletionResponse
+from memgpt.schemas.passage import Passage
 from memgpt.schemas.tool import Tool
 from memgpt.system import (
     get_initial_boot_messages,
@@ -52,7 +58,7 @@ from .errors import LLMError
 
 def construct_system_with_memory(
     system: str,
-    memory: BaseMemory,
+    memory: Memory,
     memory_edit_timestamp: str,
     archival_memory: Optional[ArchivalMemory] = None,
     recall_memory: Optional[RecallMemory] = None,
@@ -82,7 +88,7 @@ def construct_system_with_memory(
 def initialize_message_sequence(
     model: str,
     system: str,
-    memory: BaseMemory,
+    memory: Memory,
     archival_memory: Optional[ArchivalMemory] = None,
     recall_memory: Optional[RecallMemory] = None,
     memory_edit_timestamp: Optional[str] = None,
@@ -127,7 +133,7 @@ class Agent(object):
         # agents can be created from providing agent_state
         agent_state: AgentState,
         tools: List[Tool],
-        # memory: BaseMemory,
+        # memory: Memory,
         # extras
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
@@ -163,7 +169,8 @@ class Agent(object):
         self.system = self.agent_state.system
 
         # Initialize the memory object
-        self.memory = BaseMemory.load(self.agent_state.state["memory"])
+        # TODO: not sure if this will properly handle child classes
+        self.memory = self.agent_state.memory
         printd("Initialized memory object", self.memory)
 
         # Interface must implement:
@@ -192,17 +199,17 @@ class Agent(object):
         self._messages: List[Message] = []
 
         # Once the memory object is initialized, use it to "bake" the system message
-        if "messages" in self.agent_state.state and self.agent_state.state["messages"] is not None:
+        # if "messages" in self.agent_state.state and self.agent_state.state["messages"] is not None:
+        if self.agent_state.message_ids is not None:
             # print(f"Agent.__init__ :: loading, state={agent_state.state['messages']}")
-            if not isinstance(self.agent_state.state["messages"], list):
-                raise ValueError(f"'messages' in AgentState was bad type: {type(self.agent_state.state['messages'])}")
-            assert all([isinstance(msg, str) for msg in self.agent_state.state["messages"]])
+            # if not isinstance(self.agent_state.state["messages"], list):
+            # assert all([isinstance(msg, str) for msg in self.agent_state.state["messages"]])
 
             # Convert to IDs, and pull from the database
             raw_messages = [
-                self.persistence_manager.recall_memory.storage.get(id=uuid.UUID(msg_id)) for msg_id in self.agent_state.state["messages"]
+                self.persistence_manager.recall_memory.storage.get(id=uuid.UUID(msg_id)) for msg_id in self.agent_state.message_ids
             ]
-            assert all([isinstance(msg, Message) for msg in raw_messages]), (raw_messages, self.agent_state.state["messages"])
+            assert all([isinstance(msg, Message) for msg in raw_messages]), (raw_messages, self.agent_state.message_ids)
             self._messages.extend([cast(Message, msg) for msg in raw_messages if msg is not None])
 
             for m in self._messages:
@@ -213,7 +220,7 @@ class Agent(object):
                     m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
 
         else:
-            printd(f"Agent.__init__ :: creating, state={agent_state.state['messages']}")
+            printd(f"Agent.__init__ :: creating, state={agent_state.message_ids}")
             init_messages = initialize_message_sequence(
                 self.model,
                 self.system,
@@ -942,25 +949,33 @@ class Agent(object):
         # return msg
 
     def update_state(self) -> AgentState:
-        memory = {
-            "system": self.system,
-            "memory": self.memory.to_dict(),
-            "messages": [str(msg.id) for msg in self._messages],  # TODO: move out into AgentState.message_ids
-        }
-        self.agent_state = AgentState(
-            name=self.agent_state.name,
-            user_id=self.agent_state.user_id,
-            tools=self.agent_state.tools,
-            system=self.system,
-            ## "model_state"
-            llm_config=self.agent_state.llm_config,
-            embedding_config=self.agent_state.embedding_config,
-            id=self.agent_state.id,
-            created_at=self.agent_state.created_at,
-            ## "agent_state"
-            state=memory,
-            _metadata=self.agent_state._metadata,
-        )
+        # TODO: this function may not be necessary if we jsut directly modify self.agent_state
+        # memory = {
+        #    "system": self.system,
+        #    "memory": self.memory.to_dict(),
+        #    "messages": [str(msg.id) for msg in self._messages],  # TODO: move out into AgentState.message_ids
+        # }
+        message_ids = [msg.id for msg in self._messages]
+
+        # override any fields that may have been updated
+        self.agent_state.message_ids = message_ids
+        self.agent_state.memory = self.memory
+        self.agent_state.system = self.system
+
+        # self.agent_state = AgentState(
+        #    name=self.agent_state.name,
+        #    user_id=self.agent_state.user_id,
+        #    tools=self.agent_state.tools,
+        #    system=self.system,
+        #    ## "model_state"
+        #    llm_config=self.agent_state.llm_config,
+        #    embedding_config=self.agent_state.embedding_config,
+        #    id=self.agent_state.id,
+        #    created_at=self.agent_state.created_at,
+        #    ## "agent_state"
+        #    memory=self.memory,
+        #    _metadata=self.agent_state._metadata,
+        # )
         return self.agent_state
 
     def migrate_embedding(self, embedding_config: EmbeddingConfig):
@@ -1018,8 +1033,8 @@ def save_agent(agent: Agent, ms: MetadataStore):
 
     agent.update_state()
     agent_state = agent.agent_state
-
-    if ms.get_agent(agent_name=agent_state.name, user_id=agent_state.user_id):
+    print("AGENT ID", agent_state.id)
+    if ms.get_agent(agent_id=agent_state.id):
         ms.update_agent(agent_state)
     else:
         ms.create_agent(agent_state)

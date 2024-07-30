@@ -77,29 +77,24 @@ class Persona(Block):
     label: str = "persona"
 
 
-class CreateBlock(BaseBlock):
-    """Create a block"""
-
-
-class CreatePersona(CreateBlock):
+class CreatePersona(BaseBlock):
     """Create a persona block"""
 
-    label: str = "persona"
     template: bool = True
+    label: str = "persona"
 
 
-class CreateHuman(CreateBlock):
+class CreateHuman(BaseBlock):
     """Create a human block"""
 
-    label: str = "human"
     template: bool = True
+    label: str = "human"
 
 
 class UpdateBlock(BaseBlock):
     """Update a block"""
 
     id: str = Field(..., description="The unique identifier of the block.")
-    value: Optional[Union[List[str], str]] = Field(None, description="Value of the block.")
     limit: Optional[int] = Field(None, description="Character limit of the block.")
 
 

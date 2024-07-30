@@ -42,6 +42,7 @@ from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.log import get_logger
 from memgpt.memory import get_memory_functions
 from memgpt.metadata import MetadataStore
+from memgpt.prompts import gpt_system
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.api_key import APIKey, APIKeyCreate
 from memgpt.schemas.block import (
@@ -351,7 +352,7 @@ class SyncServer(LockingServer):
             logger.info(f"Creating an agent object")
             tool_objs = []
             for name in agent_state.tools:
-                tool_obj = self.ms.get_tool(name, user_id)
+                tool_obj = self.ms.get_tool(tool_name=name, user_id=user_id)
                 if not tool_obj:
                     logger.exception(f"Tool {name} does not exist for user {user_id}")
                     raise ValueError(f"Tool {name} does not exist for user {user_id}")
@@ -716,6 +717,11 @@ class SyncServer(LockingServer):
         if request.name is None:
             request.name = create_random_username()
 
+        # system debug
+        if request.system is None:
+            # TODO: don't hardcode
+            request.system = gpt_system.get_system_text("memgpt_chat")
+
         logger.debug(f"Attempting to find user: {user_id}")
         user = self.ms.get_user(user_id=user_id)
         if not user:
@@ -723,13 +729,13 @@ class SyncServer(LockingServer):
 
         try:
             # model configuration
-            llm_config = llm_config if llm_config else self.server_llm_config
-            embedding_config = embedding_config if embedding_config else self.server_embedding_config
+            llm_config = request.llm_config if request.llm_config else self.server_llm_config
+            embedding_config = request.embedding_config if request.embedding_config else self.server_embedding_config
 
             # get tools + make sure they exist
             tool_objs = []
             for tool_name in request.tools:
-                tool_obj = self.ms.get_tool(tool_name, user_id=user_id)
+                tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
                 assert tool_obj, f"Tool {tool_name} does not exist"
                 tool_objs.append(tool_obj)
 
@@ -759,9 +765,10 @@ class SyncServer(LockingServer):
                 tools=request.tools,  # name=id for tools
                 llm_config=llm_config,
                 embedding_config=embedding_config,
-                system=system,
-                state={"system": system, "messages": None, "memory": request.memory.to_dict()},
-                _metadata=request.metadata,
+                system=request.system,
+                memory=request.memory,
+                description=request.description,
+                metadata_=request.metadata_,
             )
 
             agent = Agent(
@@ -845,8 +852,8 @@ class SyncServer(LockingServer):
         # other minor updates
         if request.name:
             memgpt_agent.agent_state.name = request.name
-        if request.metadata:
-            memgpt_agent.agent_state._metadata = request.metadata
+        if request.metadata_:
+            memgpt_agent.agent_state.metadata_ = request.metadata_
 
         # save the agent
         save_agent(memgpt_agent, self.ms)
@@ -933,7 +940,7 @@ class SyncServer(LockingServer):
             # get tool info from agent state
             tools = []
             for tool_name in agent_state.tools:
-                tool = self.ms.get_tool(tool_name, user_id)
+                tool = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
                 tools.append(tool)
             return_dict["tools"] = tools
 
@@ -981,6 +988,7 @@ class SyncServer(LockingServer):
         existing_persona = self.ms.get_persona(persona_name=request.name, user_id=user_id)
         if existing_persona:  # update
             if update:
+                print(vars(request))
                 return self.update_persona(UpdatePersona(id=existing_persona.id, **vars(request)), user_id)
             else:
                 raise ValueError(f"Persona with name {request.name} already exists")
@@ -1235,7 +1243,7 @@ class SyncServer(LockingServer):
             agent_id = agent_state.id
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
         return memgpt_agent.agent_state
 
     def get_server_config(self, include_defaults: bool = False) -> dict:
@@ -1563,7 +1571,7 @@ class SyncServer(LockingServer):
             existing_tool.name = request.name
 
         self.ms.update_tool(existing_tool)
-        return self.ms.get_tool(request.id)
+        return self.ms.get_tool(tool_id=request.id)
 
     def create_tool(self, request: ToolCreate, user_id: Optional[str] = None, update: bool = False) -> Tool:  # TODO: add other fields
         """Create a new tool"""
@@ -1580,7 +1588,9 @@ class SyncServer(LockingServer):
         print("existing tools", existing_tool, tool_name, user_id)
         if existing_tool:
             if update:
-                return self.update_tool(ToolUpdate(id=existing_tool.id, **vars(request)))
+                updated_tool = self.update_tool(ToolUpdate(id=existing_tool.id, **vars(request)))
+                assert updated_tool is not None, f"Failed to update tool {tool_name}"
+                return updated_tool
             else:
                 raise ValueError(f"Tool {tool_name} already exists and update=False")
 

@@ -22,6 +22,12 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql import func
 
 from memgpt.config import MemGPTConfig
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.api_key import APIKey
+from memgpt.schemas.block import Block, Human, Persona
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.job import JobStatus
+from memgpt.schemas.llm_config import LLMConfig
 
 ##from memgpt.data_types import (
 ##    AgentState,
@@ -39,12 +45,7 @@ from memgpt.config import MemGPTConfig
 ##    PersonaModel,
 ##    ToolModel,
 ##)
-from memgpt.schemas.agent import AgentState
-from memgpt.schemas.api_key import APIKey
-from memgpt.schemas.block import Block, Human, Persona
-from memgpt.schemas.embedding_config import EmbeddingConfig
-from memgpt.schemas.job import JobStatus
-from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.memory import Memory
 from memgpt.schemas.source import Source
 from memgpt.schemas.tool import Tool
 from memgpt.schemas.user import User
@@ -154,16 +155,21 @@ class AgentModel(Base):
     id = Column(String, primary_key=True)
     user_id = Column(String, nullable=False)
     name = Column(String, nullable=False)
-    system = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    description = Column(String)
+
+    # state (context compilation)
+    message_ids = Column(JSON)
+    memory = Column(JSON)
+    system = Column(String)
+    tools = Column(JSON)
 
     # configs
     llm_config = Column(LLMConfigColumn)
     embedding_config = Column(EmbeddingConfigColumn)
 
     # state
-    state = Column(JSON)
-    _metadata = Column(JSON)
+    metadata_ = Column(JSON)
 
     # tools
     tools = Column(JSON)
@@ -177,12 +183,14 @@ class AgentModel(Base):
             user_id=self.user_id,
             name=self.name,
             created_at=self.created_at,
+            description=self.description,
+            message_ids=self.message_ids,
+            memory=Memory.load(self.memory),  # load dictionary
+            system=self.system,
+            tools=self.tools,
             llm_config=self.llm_config,
             embedding_config=self.embedding_config,
-            state=self.state,
-            tools=self.tools,
-            system=self.system,
-            _metadata=self._metadata,
+            metadata_=self.metadata_,
         )
 
 
@@ -447,12 +455,12 @@ class MetadataStore:
     def create_agent(self, agent: AgentState):
         # insert into agent table
         # make sure agent.name does not already exist for user user_id
-        assert agent.state is not None, "Agent state must be provided"
-        assert len(list(agent.state.keys())) > 0, "Agent state must not be empty"
         with self.session_maker() as session:
             if session.query(AgentModel).filter(AgentModel.name == agent.name).filter(AgentModel.user_id == agent.user_id).count() > 0:
                 raise ValueError(f"Agent with name {agent.name} already exists")
-            session.add(AgentModel(**vars(agent)))
+            fields = vars(agent)
+            fields["memory"] = agent.memory.to_dict()
+            session.add(AgentModel(**fields))
             session.commit()
 
     @enforce_types
@@ -503,7 +511,10 @@ class MetadataStore:
     @enforce_types
     def update_agent(self, agent: AgentState):
         with self.session_maker() as session:
-            session.query(AgentModel).filter(AgentModel.id == agent.id).update(vars(agent))
+            fields = vars(agent)
+            fields["memory"] = agent.memory.to_dict()
+            print("update", agent.id, fields)
+            session.query(AgentModel).filter(AgentModel.id == agent.id).update(fields)
             session.commit()
 
     @enforce_types
