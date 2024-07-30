@@ -61,5 +61,5 @@ class UpdateAgentState(BaseAgent):
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
 
     # TODO: determine if these should be editable via this schema?
-    # message_ids: Optional[List[uuid.UUID]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
-    # memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
+    message_ids: Optional[List[uuid.UUID]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
+    memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
