@@ -59,7 +59,8 @@ def setup_openai_chat_completions_router(server: SyncServer, interface: QueuingI
                 agent_id=agent_id,
                 user_id=user_id,
                 role=input_message.role,
-                message=input_message.content,
+                message=str(input_message.content),
+                stream_legacy=False,
                 # Turn streaming ON
                 stream_steps=True,
                 stream_tokens=True,
@@ -75,7 +76,8 @@ def setup_openai_chat_completions_router(server: SyncServer, interface: QueuingI
                 agent_id=agent_id,
                 user_id=user_id,
                 role=input_message.role,
-                message=input_message.content,
+                message=str(input_message.content),
+                stream_legacy=False,
                 # Turn streaming OFF
                 stream_steps=False,
                 stream_tokens=False,
