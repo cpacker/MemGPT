@@ -6,22 +6,13 @@ from typing import Dict, List, Optional, Tuple, Union
 import requests
 
 from memgpt.config import MemGPTConfig
-from memgpt.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
+from memgpt.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.data_sources.connectors import DataConnector
-from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, Preset, Source
+from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, Source
 from memgpt.functions.functions import parse_source_code
 from memgpt.functions.schema_generator import generate_schema
 from memgpt.memory import BaseMemory, ChatMemory, get_memory_functions
-from memgpt.models.pydantic_models import (
-    HumanModel,
-    JobModel,
-    JobStatus,
-    LLMConfig,
-    PersonaModel,
-    PresetModel,
-    SourceModel,
-    ToolModel,
-)
+from memgpt.schemas.block import Human, Persona
 
 # new schemas
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
@@ -45,11 +36,6 @@ from memgpt.server.rest_api.humans.index import ListHumansResponse
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.rest_api.models.index import ListModelsResponse
 from memgpt.server.rest_api.personas.index import ListPersonasResponse
-from memgpt.server.rest_api.presets.index import (
-    CreatePresetResponse,
-    CreatePresetsRequest,
-    ListPresetsResponse,
-)
 from memgpt.server.rest_api.sources.index import ListSourcesResponse
 
 # import pydantic response objects from memgpt.server.rest_api
@@ -105,16 +91,6 @@ class AbstractClient(object):
         raise NotImplementedError
 
     def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
-        raise NotImplementedError
-
-    # presets
-    def create_preset(self, preset: Preset):
-        raise NotImplementedError
-
-    def delete_preset(self, preset_id: uuid.UUID):
-        raise NotImplementedError
-
-    def list_presets(self):
         raise NotImplementedError
 
     # memory
@@ -362,76 +338,6 @@ class RESTClient(AbstractClient):
         response_obj = GetAgentResponse(**response.json())
         return self.get_agent_response_to_state(response_obj)
 
-    def get_preset(self, name: str) -> PresetModel:
-        # TODO: remove
-        response = requests.get(f"{self.base_url}/api/presets/{name}", headers=self.headers)
-        assert response.status_code == 200, f"Failed to get preset: {response.text}"
-        return PresetModel(**response.json())
-
-    def create_preset(
-        self,
-        name: str,
-        description: Optional[str] = None,
-        system_name: Optional[str] = None,
-        persona_name: Optional[str] = None,
-        human_name: Optional[str] = None,
-        tools: Optional[List[ToolModel]] = None,
-        default_tools: bool = True,
-    ) -> PresetModel:
-        # TODO: remove
-        """Create an agent preset
-
-        :param name: Name of the preset
-        :type name: str
-        :param system: System prompt (text)
-        :type system: str
-        :param persona: Persona prompt (text)
-        :type persona: Optional[str]
-        :param human: Human prompt (text)
-        :type human: Optional[str]
-        :param tools: List of tools to connect, defaults to None
-        :type tools: Optional[List[Tool]], optional
-        :param default_tools: Whether to automatically include default tools, defaults to True
-        :type default_tools: bool, optional
-        :return: Preset object
-        :rtype: PresetModel
-        """
-        # provided tools
-        schema = []
-        if tools:
-            for tool in tools:
-                schema.append(tool.json_schema)
-
-        # include default tools
-        default_preset = self.get_preset(name=DEFAULT_PRESET)
-        if default_tools:
-            # TODO
-            # from memgpt.functions.functions import load_function_set
-            # load_function_set()
-            # return
-            for function in default_preset.functions_schema:
-                schema.append(function)
-
-        payload = CreatePresetsRequest(
-            name=name,
-            description=description,
-            system_name=system_name,
-            persona_name=persona_name,
-            human_name=human_name,
-            functions_schema=schema,
-        )
-        response = requests.post(f"{self.base_url}/api/presets", json=payload.model_dump(), headers=self.headers)
-        assert response.status_code == 200, f"Failed to create preset: {response.text}"
-        return CreatePresetResponse(**response.json()).preset
-
-    def delete_preset(self, preset_id: uuid.UUID):
-        response = requests.delete(f"{self.base_url}/api/presets/{str(preset_id)}", headers=self.headers)
-        assert response.status_code == 200, f"Failed to delete preset: {response.text}"
-
-    def list_presets(self) -> List[PresetModel]:
-        response = requests.get(f"{self.base_url}/api/presets", headers=self.headers)
-        return ListPresetsResponse(**response.json()).presets
-
     # memory
     def get_agent_memory(self, agent_id: uuid.UUID) -> GetAgentMemoryResponse:
         response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory", headers=self.headers)
@@ -502,39 +408,39 @@ class RESTClient(AbstractClient):
         response = requests.get(f"{self.base_url}/api/humans", headers=self.headers)
         return ListHumansResponse(**response.json())
 
-    def create_human(self, name: str, text: str) -> HumanModel:
+    def create_human(self, name: str, text: str) -> Human:
         data = {"name": name, "text": text}
         response = requests.post(f"{self.base_url}/api/humans", json=data, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create human: {response.text}")
-        return HumanModel(**response.json())
+        return Human(**response.json())
 
     def list_personas(self) -> ListPersonasResponse:
         response = requests.get(f"{self.base_url}/api/personas", headers=self.headers)
         return ListPersonasResponse(**response.json())
 
-    def create_persona(self, name: str, text: str) -> PersonaModel:
+    def create_persona(self, name: str, text: str) -> Persona:
         data = {"name": name, "text": text}
         response = requests.post(f"{self.base_url}/api/personas", json=data, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create persona: {response.text}")
-        return PersonaModel(**response.json())
+        return Persona(**response.json())
 
-    def get_persona(self, name: str) -> PersonaModel:
+    def get_persona(self, name: str) -> Persona:
         response = requests.get(f"{self.base_url}/api/personas/{name}", headers=self.headers)
         if response.status_code == 404:
             return None
         elif response.status_code != 200:
             raise ValueError(f"Failed to get persona: {response.text}")
-        return PersonaModel(**response.json())
+        return Persona(**response.json())
 
-    def get_human(self, name: str) -> HumanModel:
+    def get_human(self, name: str) -> Human:
         response = requests.get(f"{self.base_url}/api/humans/{name}", headers=self.headers)
         if response.status_code == 404:
             return None
         elif response.status_code != 200:
             raise ValueError(f"Failed to get human: {response.text}")
-        return HumanModel(**response.json())
+        return Human(**response.json())
 
     # sources
 
@@ -781,19 +687,6 @@ class LocalClient(AbstractClient):
         self.interface.clear()
         return self.server.get_agent_state(user_id=self.user_id, agent_id=agent_id)
 
-    # presets
-    def create_preset(self, preset: Preset) -> Preset:
-        if preset.user_id is None:
-            preset.user_id = self.user_id
-        preset = self.server.create_preset(preset=preset)
-        return preset
-
-    def delete_preset(self, preset_id: uuid.UUID):
-        preset = self.server.delete_preset(preset_id=preset_id, user_id=self.user_id)
-
-    def list_presets(self) -> List[PresetModel]:
-        return self.server.list_presets(user_id=self.user_id)
-
     # memory
     def get_agent_memory(self, agent_id: str) -> Dict:
         memory = self.server.get_agent_memory(user_id=self.user_id, agent_id=agent_id)
@@ -841,10 +734,10 @@ class LocalClient(AbstractClient):
     # humans / personas
 
     def create_human(self, name: str, text: str):
-        return self.server.create_human(HumanModel(name=name, text=text, user_id=self.user_id))
+        return self.server.create_human(Human(name=name, text=text, user_id=self.user_id))
 
     def create_persona(self, name: str, text: str):
-        return self.server.create_persona(PersonaModel(name=name, text=text, user_id=self.user_id))
+        return self.server.create_persona(Persona(name=name, text=text, user_id=self.user_id))
 
     def list_humans(self):
         return self.server.list_humans(user_id=self.user_id if self.user_id else self.user_id)
@@ -906,9 +799,8 @@ class LocalClient(AbstractClient):
 
         # call server function
         return self.server.create_tool(
-            ToolCreate(
-                source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags, user_id=self.user_id
-            )
+            ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
+            user_id=self.user_id,
         )
 
     def update_tool(
@@ -949,7 +841,9 @@ class LocalClient(AbstractClient):
             tools (List[ToolModel]): A list of available tools.
 
         """
-        return self.server.list_tools(user_id=self.user_id)
+        tools = self.server.list_tools(user_id=self.user_id)
+        print("LIST TOOLS", [t.name for t in tools])
+        return tools
 
     def get_tool(self, id: str) -> Tool:
         return self.server.get_tool(id)

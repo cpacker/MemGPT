@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from memgpt.models.pydantic_models import LLMConfig
+from memgpt.schemas.llm_config import LLMConfig
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer

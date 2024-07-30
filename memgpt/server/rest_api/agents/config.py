@@ -7,7 +7,11 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from memgpt.models.pydantic_models import AgentStateModel, EmbeddingConfig, LLMConfig
+from memgpt.schemas.agent import AgentState as AgentStateModel  # TODO: modify
+
+# from memgpt.models.pydantic_models import AgentStateModel, EmbeddingConfig, LLMConfig
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.llm_config import LLMConfig
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
