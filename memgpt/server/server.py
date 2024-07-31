@@ -669,7 +669,7 @@ class SyncServer(LockingServer):
             message.created_at = timestamp
 
         # Run the agent state forward
-        return self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message, timestamp=None)
+        return self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message, timestamp=timestamp)
 
     # @LockingServer.agent_lock_decorator
     def run_command(self, user_id: str, agent_id: str, command: str) -> Union[MemGPTUsageStatistics, None]:
