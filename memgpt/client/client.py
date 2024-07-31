@@ -771,9 +771,12 @@ class LocalClient(AbstractClient):
     def delete_agent(self, agent_id: uuid.UUID):
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
 
-    def get_agent(self, agent_id: uuid.UUID) -> AgentState:
+    def get_agent_config(self, agent_id: uuid.UUID) -> AgentState:
         self.interface.clear()
         return self.server.get_agent_config(user_id=self.user_id, agent_id=agent_id)
+
+    def get_agent(self, agent_id: Optional[uuid.UUID] = None, agent_name: Optional[str] = None):
+        return self.server.ms.get_agent(user_id=self.user_id, agent_id=agent_id, agent_name=agent_name)
 
     # presets
     def create_preset(self, preset: Preset) -> Preset:
@@ -799,7 +802,19 @@ class LocalClient(AbstractClient):
 
     # agent interactions
 
-    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
+    def send_message(
+        self,
+        message: str,
+        role: str,
+        agent_id: Optional[uuid.UUID] = None,
+        agent_name: Optional[str] = None,
+        stream: Optional[bool] = False,
+    ) -> UserMessageResponse:
+        if not agent_id:
+            assert agent_name, f"Either agent_id or agent_name must be provided"
+            agent_state = self.get_agent(agent_name=agent_name)
+            agent_id = agent_state.id
+
         if stream:
             # TODO: implement streaming with stream=True/False
             raise NotImplementedError
