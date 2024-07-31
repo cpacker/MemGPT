@@ -1396,7 +1396,7 @@ class SyncServer(LockingServer):
             user_id=user_id,
             description=description,
             embedding_model=self.config.default_embedding_config.embedding_model,
-            embedding_dim=self.config.default_embedding_config.embedding_dim
+            embedding_dim=self.config.default_embedding_config.embedding_dim,
         )
         self.ms.update_source(source)
         return source
