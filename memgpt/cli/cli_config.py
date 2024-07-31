@@ -1147,8 +1147,8 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
                 [
                     source.name,
                     source.description,
-                    source.embedding_model,
-                    source.embedding_dim,
+                    source.embedding_config.embedding_model,
+                    source.embedding_config.embedding_dim,
                     utils.format_datetime(source.created_at),
                 ]
             )
