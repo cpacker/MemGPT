@@ -81,7 +81,7 @@ def construct_system_with_memory(
 
 def compile_system_message(
     system_prompt: str,
-    in_context_memory: BaseMemory,
+    in_context_memory: Memory,
     in_context_memory_last_edit: datetime.datetime,  # TODO move this inside of BaseMemory?
     archival_memory: Optional[ArchivalMemory] = None,
     recall_memory: Optional[RecallMemory] = None,
@@ -96,6 +96,7 @@ def compile_system_message(
     The following are reserved variables:
       - CORE_MEMORY: the in-context memory of the LLM
     """
+    # TODO: update this implementation
 
     if user_defined_variables is not None:
         # TODO eventually support the user defining their own variables to inject
@@ -108,6 +109,7 @@ def compile_system_message(
         raise ValueError(f"Found protected variable '{IN_CONTEXT_MEMORY_KEYWORD}' in user-defined vars: {str(user_defined_variables)}")
     else:
         # TODO should this all put into the memory.__repr__ function?
+        # TODO: update this
         memory_metadata_string = compile_memory_metadata_block(
             memory_edit_timestamp=in_context_memory_last_edit,
             archival_memory=archival_memory,
