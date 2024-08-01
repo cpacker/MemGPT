@@ -133,8 +133,9 @@ class Message(Record):
         self.name = name
 
         from memgpt.config import MemGPTConfig
+
         metadata_storage_type = MemGPTConfig.load().metadata_storage_type
-        max_embedding_dim = MAX_EMBEDDING_DIM_POSTGRES if metadata_storage_type == 'postgres' else MAX_EMBEDDING_DIM
+        max_embedding_dim = MAX_EMBEDDING_DIM_POSTGRES if metadata_storage_type == "postgres" else MAX_EMBEDDING_DIM
 
         # pad and store embeddings
         if isinstance(embedding, list):
@@ -685,8 +686,9 @@ class Passage(Record):
         self.metadata_ = metadata_
 
         from memgpt.config import MemGPTConfig
+
         metadata_storage_type = MemGPTConfig.load().metadata_storage_type
-        max_embedding_dim = MAX_EMBEDDING_DIM_POSTGRES if metadata_storage_type == 'postgres' else MAX_EMBEDDING_DIM
+        max_embedding_dim = MAX_EMBEDDING_DIM_POSTGRES if metadata_storage_type == "postgres" else MAX_EMBEDDING_DIM
 
         # pad and store embeddings
         if isinstance(embedding, list):

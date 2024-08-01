@@ -468,14 +468,16 @@ class PostgresStorageConnector(SQLStorageConnector):
 
             # create index
             session.execute(
-                text(f'CREATE INDEX IF NOT EXISTS {self.db_model.__table__}_embedding_idx ON {self.db_model.__table__} USING hnsw (embedding vector_l2_ops);')
+                text(
+                    f"CREATE INDEX IF NOT EXISTS {self.db_model.__table__}_embedding_idx ON {self.db_model.__table__} USING hnsw (embedding vector_l2_ops);"
+                )
             )
             session.commit()
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         filters = self.get_filters(filters)
         with self.session_maker() as session:
-            session.execute(text('SET hnsw.ef_search = 40;'))
+            session.execute(text("SET hnsw.ef_search = 40;"))
             results = session.scalars(
                 select(self.db_model).filter(*filters).order_by(self.db_model.embedding.l2_distance(query_vec)).limit(top_k)
             ).all()

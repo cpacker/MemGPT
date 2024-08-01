@@ -512,7 +512,9 @@ class EmbeddingArchivalMemory(ArchivalMemory):
 
         # create storage backend
         self.storage = StorageConnector.get_archival_storage_connector(user_id=agent_state.user_id, agent_id=agent_state.id)
-        self.max_embedding_dim = MAX_EMBEDDING_DIM_POSTGRES if self.storage.config.metadata_storage_type == 'postgres' else MAX_EMBEDDING_DIM
+        self.max_embedding_dim = (
+            MAX_EMBEDDING_DIM_POSTGRES if self.storage.config.metadata_storage_type == "postgres" else MAX_EMBEDDING_DIM
+        )
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
 

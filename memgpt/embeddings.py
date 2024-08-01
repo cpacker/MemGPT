@@ -148,11 +148,7 @@ def query_embedding(embedding_model, query_text: str, max_embedding_dim: int):
     """Generate padded embedding for querying database"""
     query_vec = embedding_model.get_text_embedding(query_text)
     query_vec = np.array(query_vec)
-    query_vec = np.pad(
-        query_vec,
-        (0, max_embedding_dim - query_vec.shape[0]),
-        mode="constant"
-    ).tolist()
+    query_vec = np.pad(query_vec, (0, max_embedding_dim - query_vec.shape[0]), mode="constant").tolist()
     return query_vec
 
 
