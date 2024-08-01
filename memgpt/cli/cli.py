@@ -542,7 +542,7 @@ def run(
     agent_state = ms.get_agent(agent_name=agent, user_id=user.id) if agent else None
     human = human if human else config.human
     persona = persona if persona else config.persona
-    system_prompt = system if system else agent_state.system
+    system_prompt = system if system else agent_state.system if agent_name else None
     if agent and agent_state:  # use existing agent
         typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
         # agent_config = AgentConfig.load(agent)
