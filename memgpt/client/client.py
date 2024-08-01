@@ -727,7 +727,8 @@ class LocalClient(AbstractClient):
     def delete_agent(self, agent_id: uuid.UUID):
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
 
-    def get_agent_config(self, agent_id: uuid.UUID) -> AgentState:
+    def get_agent(self, agent_id: uuid.UUID) -> AgentState:
+        # TODO: include agent_name
         self.interface.clear()
         return self.server.get_agent_state(user_id=self.user_id, agent_id=agent_id)
 
