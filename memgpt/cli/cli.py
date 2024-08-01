@@ -585,14 +585,15 @@ def run(
             )
             agent_state.llm_config.model_endpoint_type = model_endpoint_type
 
-        # user specified a new system prompt
-        if system:
-            # NOTE: agent_state.system is the ORIGINAL system prompt,
-            #       whereas agent_state.state["system"] is the LATEST system prompt
-            existing_system_prompt = agent_state.state["system"] if "system" in agent_state.state else None
-            if existing_system_prompt != system:
-                # override
-                agent_state.state["system"] = system
+        # NOTE: commented out because this seems dangerous - instead users should use /systemswap when in the CLI
+        # # user specified a new system prompt
+        # if system:
+        #     # NOTE: agent_state.system is the ORIGINAL system prompt,
+        #     #       whereas agent_state.state["system"] is the LATEST system prompt
+        #     existing_system_prompt = agent_state.state["system"] if "system" in agent_state.state else None
+        #     if existing_system_prompt != system:
+        #         # override
+        #         agent_state.state["system"] = system
 
         # Update the agent with any overrides
         ms.update_agent(agent_state)
