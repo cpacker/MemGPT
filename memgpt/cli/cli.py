@@ -395,6 +395,7 @@ def run(
     persona: Annotated[Optional[str], typer.Option(help="Specify persona")] = None,
     agent: Annotated[Optional[str], typer.Option(help="Specify agent name")] = None,
     human: Annotated[Optional[str], typer.Option(help="Specify human")] = None,
+    system: Annotated[Optional[str], typer.Option(help="Specify system prompt (raw text)")] = None,
     # model flags
     model: Annotated[Optional[str], typer.Option(help="Specify the LLM model")] = None,
     model_wrapper: Annotated[Optional[str], typer.Option(help="Specify the LLM model wrapper")] = None,
@@ -541,6 +542,7 @@ def run(
     agent_state = ms.get_agent(agent_name=agent, user_id=user.id) if agent else None
     human = human if human else config.human
     persona = persona if persona else config.persona
+    system_prompt = system if system else agent_state.system
     if agent and agent_state:  # use existing agent
         typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
         # agent_config = AgentConfig.load(agent)
@@ -652,6 +654,7 @@ def run(
             # add tools
             agent_state = client.create_agent(
                 name=agent_name,
+                system_prompt=system_prompt,
                 embedding_config=embedding_config,
                 llm_config=llm_config,
                 memory=memory,
