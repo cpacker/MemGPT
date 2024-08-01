@@ -55,6 +55,19 @@ def test_agent(client):
     # update agent: embedding config
 
     # delete agent
+    client.delete_agent(agent_state_test.id)
+
+
+def test_memory(client, agent):
+    pass
+
+
+def test_archival_memory(client, agent):
+    pass
+
+
+def test_recall_memory(client, agent):
+    pass
 
 
 def test_tools(client):
