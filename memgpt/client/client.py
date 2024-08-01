@@ -260,6 +260,8 @@ class RESTClient(AbstractClient):
         llm_config: Optional[LLMConfig] = None,
         # memory
         memory: BaseMemory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
+        # system prompt (can be templated)
+        system_prompt: Optional[str] = None,
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,
@@ -298,6 +300,7 @@ class RESTClient(AbstractClient):
             "config": {
                 "name": name,
                 "preset": preset,
+                "system": system_prompt,
                 "persona": memory.memory["persona"].value,
                 "human": memory.memory["human"].value,
                 "function_names": tool_names,
@@ -727,6 +730,8 @@ class LocalClient(AbstractClient):
         llm_config: Optional[LLMConfig] = None,
         # memory
         memory: BaseMemory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
+        # system prompt (can be templated)
+        system_prompt: Optional[str] = None,
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,
@@ -756,6 +761,7 @@ class LocalClient(AbstractClient):
             user_id=self.user_id,
             name=name,
             memory=memory,
+            system=system_prompt,
             llm_config=llm_config,
             embedding_config=embedding_config,
             tools=tool_names,
