@@ -19,7 +19,6 @@ from llama_index.core.node_parser import SentenceSplitter
 from memgpt.constants import (
     EMBEDDING_TO_TOKENIZER_DEFAULT,
     EMBEDDING_TO_TOKENIZER_MAP,
-    MAX_EMBEDDING_DIM,
 )
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import EmbeddingConfig
@@ -145,11 +144,15 @@ def default_embedding_model():
     return HuggingFaceEmbedding(model_name=model)
 
 
-def query_embedding(embedding_model, query_text: str):
+def query_embedding(embedding_model, query_text: str, max_embedding_dim: int):
     """Generate padded embedding for querying database"""
     query_vec = embedding_model.get_text_embedding(query_text)
     query_vec = np.array(query_vec)
-    query_vec = np.pad(query_vec, (0, MAX_EMBEDDING_DIM - query_vec.shape[0]), mode="constant").tolist()
+    query_vec = np.pad(
+        query_vec,
+        (0, max_embedding_dim - query_vec.shape[0]),
+        mode="constant"
+    ).tolist()
     return query_vec
 
 
