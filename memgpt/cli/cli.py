@@ -542,7 +542,6 @@ def run(
     agent_state = ms.get_agent(agent_name=agent, user_id=user.id) if agent else None
     human = human if human else config.human
     persona = persona if persona else config.persona
-    system_prompt = system if system else (agent_state.system if agent_state else None)
     if agent and agent_state:  # use existing agent
         typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
         # agent_config = AgentConfig.load(agent)
@@ -585,6 +584,15 @@ def run(
                 fg=typer.colors.YELLOW,
             )
             agent_state.llm_config.model_endpoint_type = model_endpoint_type
+
+        # user specified a new system prompt
+        if system:
+            # NOTE: agent_state.system is the ORIGINAL system prompt,
+            #       whereas agent_state.state["system"] is the LATEST system prompt
+            existing_system_prompt = agent_state.state["system"] if "system" in agent_state.state else None
+            if existing_system_prompt != system:
+                # override
+                agent_state.state["system"] = system
 
         # Update the agent with any overrides
         ms.update_agent(agent_state)
@@ -640,6 +648,9 @@ def run(
             client = create_client()
             human_obj = ms.get_human(human, user.id)
             persona_obj = ms.get_persona(persona, user.id)
+            # TODO pull system prompts from the metadata store
+            # NOTE: will be overriden later to a default
+            system_prompt = system if system else None
             if human_obj is None:
                 typer.secho("Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)
             if persona_obj is None:
