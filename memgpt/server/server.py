@@ -1375,16 +1375,30 @@ class SyncServer(LockingServer):
         token = self.ms.create_api_key(user_id=user_id)
         return token
 
-    def create_source(self, name: str, user_id: uuid.UUID) -> Source:  # TODO: add other fields
+    def create_source(self, name: str, user_id: uuid.UUID, description: str = None) -> Source:  # TODO: add other fields
         """Create a new data source"""
         source = Source(
             name=name,
             user_id=user_id,
+            description=description,
             embedding_model=self.config.default_embedding_config.embedding_model,
             embedding_dim=self.config.default_embedding_config.embedding_dim,
         )
         self.ms.create_source(source)
         assert self.ms.get_source(source_name=name, user_id=user_id) is not None, f"Failed to create source {name}"
+        return source
+
+    def update_source(self, source_id: uuid.UUID, name: str, user_id: uuid.UUID, description: str = None) -> Source:
+        """Updates a data source"""
+        source = Source(
+            id=source_id,
+            name=name,
+            user_id=user_id,
+            description=description,
+            embedding_model=self.config.default_embedding_config.embedding_model,
+            embedding_dim=self.config.default_embedding_config.embedding_dim,
+        )
+        self.ms.update_source(source)
         return source
 
     def delete_source(self, source_id: uuid.UUID, user_id: uuid.UUID):
@@ -1475,7 +1489,7 @@ class SyncServer(LockingServer):
         sources = [
             SourceModel(
                 name=source.name,
-                description=None,  # TODO: actually store descriptions
+                description=source.description,
                 user_id=source.user_id,
                 id=source.id,
                 embedding_config=self.server_embedding_config,
