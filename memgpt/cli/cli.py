@@ -403,6 +403,9 @@ def run(
     context_window: Annotated[
         Optional[int], typer.Option(help="The context window of the LLM you are using (e.g. 8k for most Mistral 7B variants)")
     ] = None,
+    core_memory_limit: Annotated[
+        Optional[int], typer.Option(help="The character limit to each core-memory section (human/persona).")
+    ] = 2000,
     # other
     first: Annotated[bool, typer.Option(help="Use --first to send the first message in the sequence")] = False,
     strip_ui: Annotated[bool, typer.Option(help="Remove all the bells and whistles in CLI output (helpful for testing)")] = False,
@@ -640,7 +643,7 @@ def run(
             if persona_obj is None:
                 typer.secho("Couldn't find persona {persona} in database, please run `memgpt add persona`", fg=typer.colors.RED)
 
-            memory = ChatMemory(human=human_obj.text, persona=persona_obj.text)
+            memory = ChatMemory(human=human_obj.text, persona=persona_obj.text, limit=core_memory_limit)
             metadata = {"human": human_obj.name, "persona": persona_obj.name}
 
             typer.secho(f"->  🤖 Using persona profile: '{persona_obj.name}'", fg=typer.colors.WHITE)
