@@ -395,6 +395,7 @@ def run(
     persona: Annotated[Optional[str], typer.Option(help="Specify persona")] = None,
     agent: Annotated[Optional[str], typer.Option(help="Specify agent name")] = None,
     human: Annotated[Optional[str], typer.Option(help="Specify human")] = None,
+    system: Annotated[Optional[str], typer.Option(help="Specify system prompt (raw text)")] = None,
     # model flags
     model: Annotated[Optional[str], typer.Option(help="Specify the LLM model")] = None,
     model_wrapper: Annotated[Optional[str], typer.Option(help="Specify the LLM model wrapper")] = None,
@@ -584,6 +585,16 @@ def run(
             )
             agent_state.llm_config.model_endpoint_type = model_endpoint_type
 
+        # NOTE: commented out because this seems dangerous - instead users should use /systemswap when in the CLI
+        # # user specified a new system prompt
+        # if system:
+        #     # NOTE: agent_state.system is the ORIGINAL system prompt,
+        #     #       whereas agent_state.state["system"] is the LATEST system prompt
+        #     existing_system_prompt = agent_state.state["system"] if "system" in agent_state.state else None
+        #     if existing_system_prompt != system:
+        #         # override
+        #         agent_state.state["system"] = system
+
         # Update the agent with any overrides
         ms.update_agent(agent_state)
         tools = []
@@ -638,6 +649,9 @@ def run(
             client = create_client()
             human_obj = ms.get_human(human, user.id)
             persona_obj = ms.get_persona(persona, user.id)
+            # TODO pull system prompts from the metadata store
+            # NOTE: will be overriden later to a default
+            system_prompt = system if system else None
             if human_obj is None:
                 typer.secho("Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)
             if persona_obj is None:
@@ -652,6 +666,7 @@ def run(
             # add tools
             agent_state = client.create_agent(
                 name=agent_name,
+                system_prompt=system_prompt,
                 embedding_config=embedding_config,
                 llm_config=llm_config,
                 memory=memory,
