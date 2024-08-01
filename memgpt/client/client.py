@@ -16,7 +16,14 @@ from memgpt.memory import get_memory_functions
 # new schemas
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.block import Human, Persona
-from memgpt.schemas.memory import ChatMemory, Memory
+from memgpt.schemas.memory import (
+    ArchivalMemorySummary,
+    ChatMemory,
+    Memory,
+    RecallMemorySummary,
+)
+from memgpt.schemas.message import Message
+from memgpt.schemas.passage import Passage
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
 from memgpt.schemas.user import UserCreate
 
@@ -732,9 +739,18 @@ class LocalClient(AbstractClient):
         self.interface.clear()
         return self.server.get_agent_state(user_id=self.user_id, agent_id=agent_id)
 
-    def get_agent_memory(self, agent_id: str) -> Memory:
+    def get_memory(self, agent_id: str) -> Memory:
         memory = self.server.get_agent_memory(user_id=self.user_id, agent_id=agent_id)
         return memory
+
+    def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
+        return self.server.get_archival_memory_summary(user_id=self.user_id, agent_id=agent_id)
+
+    def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
+        return self.server.get_recall_memory_summary(user_id=self.user_id, agent_id=agent_id)
+
+    def get_in_context_messages(self, agent_id: str) -> List[Message]:
+        return self.server.get_in_context_messages(agent_id=agent_id)
 
     # agent interactions
 
@@ -954,12 +970,16 @@ class LocalClient(AbstractClient):
 
     def get_messages(
         self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-    ) -> GetAgentMessagesResponse:
+    ) -> List[Message]:
         self.interface.clear()
-        [_, messages] = self.server.get_agent_recall_cursor(
-            user_id=self.user_id, agent_id=agent_id, before=before, limit=limit, reverse=True
+        return self.server.get_agent_recall_cursor(
+            user_id=self.user_id, agent_id=agent_id, before=before, after=after, limit=limit, reverse=True
         )
-        return GetAgentMessagesResponse(messages=messages)
+
+    def get_archival_memory(
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ) -> List[Passage]:
+        return self.server.get_agent_archival_cursor(user_id=self.user_id, agent_id=agent_id, before=before, after=after, limit=limit)
 
     def list_models(self) -> ListModelsResponse:
 
