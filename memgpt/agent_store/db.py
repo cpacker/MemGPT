@@ -103,7 +103,7 @@ class ToolCallColumn(TypeDecorator):
 
     def process_bind_param(self, value, dialect):
         if value:
-            return [vars(v) for v in value]
+            return [dict(v) for v in value]
         return value
 
     def process_result_value(self, value, dialect):
@@ -598,7 +598,9 @@ class SQLLiteStorageConnector(SQLStorageConnector):
             with self.session_maker() as session:
                 iterable = tqdm(records) if show_progress else records
                 for record in iterable:
-                    db_record = self.db_model(**vars(record))
+                    # db_record = self.db_model(**vars(record))
+                    db_record = self.db_model(**record.dict())
+                    print(db_record)
                     session.add(db_record)
                 session.commit()
 

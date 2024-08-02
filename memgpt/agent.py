@@ -2,7 +2,6 @@ import datetime
 import inspect
 import json
 import traceback
-import uuid
 from typing import List, Literal, Optional, Tuple, Union, cast
 
 from tqdm import tqdm
@@ -24,8 +23,6 @@ from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
 from memgpt.memory import ArchivalMemory, RecallMemory, summarize_messages
 from memgpt.metadata import MetadataStore
 from memgpt.persistence_manager import LocalStateManager
-
-# from memgpt.data_types import AgentState, EmbeddingConfig, Message, Passage
 from memgpt.schemas.agent import AgentState
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.enums import OptionState
@@ -57,10 +54,8 @@ from memgpt.utils import (
 from .errors import LLMError
 
 
-def construct_system_with_memory(
-    system: str,
-    memory: Memory,
-    memory_edit_timestamp: str,
+def compile_memory_metadata_block(
+    memory_edit_timestamp: datetime.datetime,
     archival_memory: Optional[ArchivalMemory] = None,
     recall_memory: Optional[RecallMemory] = None,
 ) -> str:
@@ -96,7 +91,6 @@ def compile_system_message(
     The following are reserved variables:
       - CORE_MEMORY: the in-context memory of the LLM
     """
-    # TODO: update this implementation
 
     if user_defined_variables is not None:
         # TODO eventually support the user defining their own variables to inject
@@ -109,7 +103,6 @@ def compile_system_message(
         raise ValueError(f"Found protected variable '{IN_CONTEXT_MEMORY_KEYWORD}' in user-defined vars: {str(user_defined_variables)}")
     else:
         # TODO should this all put into the memory.__repr__ function?
-        # TODO: update this
         memory_metadata_string = compile_memory_metadata_block(
             memory_edit_timestamp=in_context_memory_last_edit,
             archival_memory=archival_memory,
@@ -236,7 +229,6 @@ class Agent(object):
         self.system = self.agent_state.system
 
         # Initialize the memory object
-        # TODO: not sure if this will properly handle child classes
         self.memory = self.agent_state.memory
         printd("Initialized memory object", self.memory)
 
@@ -266,17 +258,12 @@ class Agent(object):
         self._messages: List[Message] = []
 
         # Once the memory object is initialized, use it to "bake" the system message
-        # if "messages" in self.agent_state.state and self.agent_state.state["messages"] is not None:
         if self.agent_state.message_ids is not None:
             # print(f"Agent.__init__ :: loading, state={agent_state.state['messages']}")
-            # if not isinstance(self.agent_state.state["messages"], list):
-            # assert all([isinstance(msg, str) for msg in self.agent_state.state["messages"]])
 
             # Convert to IDs, and pull from the database
-            raw_messages = [
-                self.persistence_manager.recall_memory.storage.get(id=uuid.UUID(msg_id)) for msg_id in self.agent_state.message_ids
-            ]
-            assert all([isinstance(msg, Message) for msg in raw_messages]), (raw_messages, self.agent_state.message_ids)
+            raw_messages = [self.persistence_manager.recall_memory.storage.get(msg_id) for msg_id in self.agent_state.message_ids]
+            assert all([isinstance(msg, Message) for msg in raw_messages])
             self._messages.extend([cast(Message, msg) for msg in raw_messages if msg is not None])
 
             for m in self._messages:
@@ -306,7 +293,9 @@ class Agent(object):
                 )
             assert all([isinstance(msg, Message) for msg in init_messages_objs]), (init_messages_objs, init_messages)
             self.messages_total = 0
-            self._append_to_messages(added_messages=[cast(Message, msg) for msg in init_messages_objs if msg is not None])
+            # self._append_to_messages(added_messages=[cast(Message, msg) for msg in init_messages_objs if msg is not None])
+            print(init_messages_objs)
+            self._append_to_messages(added_messages=init_messages_objs)
 
             for m in self._messages:
                 assert is_utc_datetime(m.created_at), f"created_at on message for agent {self.agent_state.name} isn't UTC:\n{vars(m)}"
@@ -1058,12 +1047,6 @@ class Agent(object):
         # return msg
 
     def update_state(self) -> AgentState:
-        # TODO: this function may not be necessary if we jsut directly modify self.agent_state
-        # memory = {
-        #    "system": self.system,
-        #    "memory": self.memory.to_dict(),
-        #    "messages": [str(msg.id) for msg in self._messages],  # TODO: move out into AgentState.message_ids
-        # }
         message_ids = [msg.id for msg in self._messages]
 
         # override any fields that may have been updated
@@ -1071,20 +1054,6 @@ class Agent(object):
         self.agent_state.memory = self.memory
         self.agent_state.system = self.system
 
-        # self.agent_state = AgentState(
-        #    name=self.agent_state.name,
-        #    user_id=self.agent_state.user_id,
-        #    tools=self.agent_state.tools,
-        #    system=self.system,
-        #    ## "model_state"
-        #    llm_config=self.agent_state.llm_config,
-        #    embedding_config=self.agent_state.embedding_config,
-        #    id=self.agent_state.id,
-        #    created_at=self.agent_state.created_at,
-        #    ## "agent_state"
-        #    memory=self.memory,
-        #    _metadata=self.agent_state._metadata,
-        # )
         return self.agent_state
 
     def migrate_embedding(self, embedding_config: EmbeddingConfig):
@@ -1142,8 +1111,8 @@ def save_agent(agent: Agent, ms: MetadataStore):
 
     agent.update_state()
     agent_state = agent.agent_state
-    print("AGENT ID", agent_state.id)
-    if ms.get_agent(agent_id=agent_state.id):
+
+    if ms.get_agent(agent_name=agent_state.name, user_id=agent_state.user_id):
         ms.update_agent(agent_state)
     else:
         ms.create_agent(agent_state)

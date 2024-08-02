@@ -10,7 +10,7 @@ from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
 from memgpt.schemas.enums import MessageRole
 from memgpt.schemas.memgpt_base import MemGPTBase
 from memgpt.schemas.openai.chat_completions import ToolCall
-from memgpt.utils import is_utc_datetime
+from memgpt.utils import get_utc_time, is_utc_datetime
 
 
 class BaseMessage(MemGPTBase):
@@ -34,7 +34,7 @@ class Message(BaseMessage):
     agent_id: str = Field(None, description="The unique identifier of the agent.")
     model: Optional[str] = Field(None, description="The model used to make the function call.")
     name: Optional[str] = Field(None, description="The name of the participant.")
-    created_at: Optional[datetime] = Field(None, description="The time the message was created.")
+    created_at: datetime = Field(default_factory=get_utc_time, description="The time the message was created.")
     tool_calls: Optional[List[ToolCall]] = Field(None, description="The list of tool calls requested.")
     tool_call_id: Optional[str] = Field(None, description="The id of the tool call.")
 
@@ -57,13 +57,12 @@ class Message(BaseMessage):
         return json_message
 
     @staticmethod
-    def dict_to_message(
+    def dict_to_message(  # TODO: figure out how to handle timestamps
         user_id: uuid.UUID,
         agent_id: uuid.UUID,
         openai_message_dict: dict,
         model: Optional[str] = None,  # model used to make function call
         allow_functions_style: bool = False,  # allow deprecated functions style?
-        created_at: Optional[datetime] = None,
     ):
         """Convert a ChatCompletion message object into a Message object (synced to DB)"""
 
@@ -79,7 +78,6 @@ class Message(BaseMessage):
             # Convert from 'function' response to a 'tool' response
             # NOTE: this does not conventionally include a tool_call_id, it's on the caster to provide it
             return Message(
-                created_at=created_at,
                 user_id=user_id,
                 agent_id=agent_id,
                 model=model,
@@ -111,7 +109,6 @@ class Message(BaseMessage):
             ]
 
             return Message(
-                created_at=created_at,
                 user_id=user_id,
                 agent_id=agent_id,
                 model=model,
@@ -143,7 +140,6 @@ class Message(BaseMessage):
 
             # If we're going from tool-call style
             return Message(
-                created_at=created_at,
                 user_id=user_id,
                 agent_id=agent_id,
                 model=model,
