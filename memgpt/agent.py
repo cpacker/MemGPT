@@ -3,7 +3,7 @@ import inspect
 import json
 import traceback
 import uuid
-from typing import List, Optional, Tuple, Union, cast
+from typing import List, Literal, Optional, Tuple, Union, cast
 
 from tqdm import tqdm
 
@@ -11,6 +11,7 @@ from memgpt.agent_store.storage import StorageConnector
 from memgpt.constants import (
     CLI_WARNING_PREFIX,
     FIRST_MESSAGE_ATTEMPTS,
+    IN_CONTEXT_MEMORY_KEYWORD,
     JSON_ENSURE_ASCII,
     JSON_LOADS_STRICT,
     LLM_MAX_TOKENS,
@@ -49,33 +50,86 @@ from memgpt.utils import (
 from .errors import LLMError
 
 
-def construct_system_with_memory(
-    system: str,
-    memory: BaseMemory,
-    memory_edit_timestamp: str,
+def compile_memory_metadata_block(
+    memory_edit_timestamp: datetime.datetime,
     archival_memory: Optional[ArchivalMemory] = None,
     recall_memory: Optional[RecallMemory] = None,
-    include_char_count: bool = True,
-):
-    # TODO: modify this to be generalized
-    full_system_message = "\n".join(
+) -> str:
+    # Put the timestamp in the local timezone (mimicking get_local_time())
+    timestamp_str = memory_edit_timestamp.astimezone().strftime("%Y-%m-%d %I:%M:%S %p %Z%z").strip()
+
+    # Create a metadata block of info so the agent knows about the metadata of out-of-context memories
+    memory_metadata_block = "\n".join(
         [
-            system,
-            "\n",
-            f"### Memory [last modified: {memory_edit_timestamp.strip()}]",
+            f"### Memory [last modified: {timestamp_str}]",
             f"{len(recall_memory) if recall_memory else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
             f"{len(archival_memory) if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
             "\nCore memory shown below (limited in size, additional information stored in archival / recall memory):",
-            str(memory),
-            # f'<persona characters="{len(memory.persona)}/{memory.persona_char_limit}">' if include_char_count else "<persona>",
-            # memory.persona,
-            # "</persona>",
-            # f'<human characters="{len(memory.human)}/{memory.human_char_limit}">' if include_char_count else "<human>",
-            # memory.human,
-            # "</human>",
         ]
     )
-    return full_system_message
+    return memory_metadata_block
+
+
+def compile_system_message(
+    system_prompt: str,
+    in_context_memory: BaseMemory,
+    in_context_memory_last_edit: datetime.datetime,  # TODO move this inside of BaseMemory?
+    archival_memory: Optional[ArchivalMemory] = None,
+    recall_memory: Optional[RecallMemory] = None,
+    user_defined_variables: Optional[dict] = None,
+    append_icm_if_missing: bool = True,
+    template_format: Literal["f-string", "mustache", "jinja2"] = "f-string",
+) -> str:
+    """Prepare the final/full system message that will be fed into the LLM API
+
+    The base system message may be templated, in which case we need to render the variables.
+
+    The following are reserved variables:
+      - CORE_MEMORY: the in-context memory of the LLM
+    """
+
+    if user_defined_variables is not None:
+        # TODO eventually support the user defining their own variables to inject
+        raise NotImplementedError
+    else:
+        variables = {}
+
+    # Add the protected memory variable
+    if IN_CONTEXT_MEMORY_KEYWORD in variables:
+        raise ValueError(f"Found protected variable '{IN_CONTEXT_MEMORY_KEYWORD}' in user-defined vars: {str(user_defined_variables)}")
+    else:
+        # TODO should this all put into the memory.__repr__ function?
+        memory_metadata_string = compile_memory_metadata_block(
+            memory_edit_timestamp=in_context_memory_last_edit,
+            archival_memory=archival_memory,
+            recall_memory=recall_memory,
+        )
+        full_memory_string = memory_metadata_string + "\n" + str(in_context_memory)
+
+        # Add to the variables list to inject
+        variables[IN_CONTEXT_MEMORY_KEYWORD] = full_memory_string
+
+    if template_format == "f-string":
+
+        # Catch the special case where the system prompt is unformatted
+        if append_icm_if_missing:
+            memory_variable_string = "{" + IN_CONTEXT_MEMORY_KEYWORD + "}"
+            if memory_variable_string not in system_prompt:
+                # In this case, append it to the end to make sure memory is still injected
+                # warnings.warn(f"{IN_CONTEXT_MEMORY_KEYWORD} variable was missing from system prompt, appending instead")
+                system_prompt += "\n" + memory_variable_string
+
+        # render the variables using the built-in templater
+        try:
+            formatted_prompt = system_prompt.format_map(variables)
+        except Exception as e:
+            raise ValueError(f"Failed to format system prompt - {str(e)}. System prompt value:\n{system_prompt}")
+
+    else:
+        # TODO support for mustache and jinja2
+        raise NotImplementedError(template_format)
+
+    return formatted_prompt
 
 
 def initialize_message_sequence(
@@ -84,14 +138,23 @@ def initialize_message_sequence(
     memory: BaseMemory,
     archival_memory: Optional[ArchivalMemory] = None,
     recall_memory: Optional[RecallMemory] = None,
-    memory_edit_timestamp: Optional[str] = None,
+    memory_edit_timestamp: Optional[datetime.datetime] = None,
     include_initial_boot_message: bool = True,
 ) -> List[dict]:
     if memory_edit_timestamp is None:
         memory_edit_timestamp = get_local_time()
 
-    full_system_message = construct_system_with_memory(
-        system, memory, memory_edit_timestamp, archival_memory=archival_memory, recall_memory=recall_memory
+    # full_system_message = construct_system_with_memory(
+    # system, memory, memory_edit_timestamp, archival_memory=archival_memory, recall_memory=recall_memory
+    # )
+    full_system_message = compile_system_message(
+        system_prompt=system,
+        in_context_memory=memory,
+        in_context_memory_last_edit=memory_edit_timestamp,
+        archival_memory=archival_memory,
+        recall_memory=recall_memory,
+        user_defined_variables=None,
+        append_icm_if_missing=True,
     )
     first_user_message = get_login_event()  # event letting MemGPT know the user just logged in
 
@@ -214,9 +277,13 @@ class Agent(object):
         else:
             printd(f"Agent.__init__ :: creating, state={agent_state.state['messages']}")
             init_messages = initialize_message_sequence(
-                self.model,
-                self.system,
-                self.memory,
+                model=self.model,
+                system=self.system,
+                memory=self.memory,
+                archival_memory=None,
+                recall_memory=None,
+                memory_edit_timestamp=get_utc_time(),
+                include_initial_boot_message=True,
             )
             init_messages_objs = []
             for msg in init_messages:
@@ -298,16 +365,6 @@ class Agent(object):
         ]
         self._append_to_messages(added_messages_objs)
 
-    def _swap_system_message(self, new_system_message: Message):
-        assert isinstance(new_system_message, Message)
-        assert new_system_message.role == "system", new_system_message
-        assert self._messages[0].role == "system", self._messages
-
-        self.persistence_manager.swap_system_message(new_system_message)
-
-        new_messages = [new_system_message] + self._messages[1:]  # swap index 0 (system)
-        self._messages = new_messages
-
     def _get_ai_reply(
         self,
         message_sequence: List[Message],
@@ -334,6 +391,10 @@ class Agent(object):
                 # putting inner thoughts in func args or not
                 inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
             )
+
+            if len(response.choices) == 0:
+                raise Exception(f"API call didn't return a message: {response}")
+
             # special case for 'length'
             if response.choices[0].finish_reason == "length":
                 raise Exception("Finish reason was length (maximum context length)")
@@ -862,39 +923,83 @@ class Agent(object):
         elapsed_time = get_utc_time() - self.pause_heartbeats_start
         return elapsed_time.total_seconds() < self.pause_heartbeats_minutes * 60
 
-    def rebuild_memory(self):
+    def _swap_system_message_in_buffer(self, new_system_message: str):
+        """Update the system message (NOT prompt) of the Agent (requires updating the internal buffer)"""
+        assert isinstance(new_system_message, str)
+        new_system_message_obj = Message.dict_to_message(
+            agent_id=self.agent_state.id,
+            user_id=self.agent_state.user_id,
+            model=self.model,
+            openai_message_dict={"role": "system", "content": new_system_message},
+        )
+
+        assert new_system_message_obj.role == "system", new_system_message_obj
+        assert self._messages[0].role == "system", self._messages
+
+        self.persistence_manager.swap_system_message(new_system_message_obj)
+
+        new_messages = [new_system_message_obj] + self._messages[1:]  # swap index 0 (system)
+        self._messages = new_messages
+
+    def rebuild_memory(self, force=False, update_timestamp=True):
         """Rebuilds the system message with the latest memory object"""
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
 
         # NOTE: This is a hacky way to check if the memory has changed
         memory_repr = str(self.memory)
-        if memory_repr == curr_system_message["content"][-(len(memory_repr)) :]:
+        if not force and memory_repr == curr_system_message["content"][-(len(memory_repr)) :]:
             printd(f"Memory has not changed, not rebuilding system")
             return
 
+        # If the memory didn't update, we probably don't want to update the timestamp inside
+        # For example, if we're doing a system prompt swap, this should probably be False
+        if update_timestamp:
+            memory_edit_timestamp = get_utc_time()
+        else:
+            # NOTE: a bit of a hack - we pull the timestamp from the message created_by
+            memory_edit_timestamp = self._messages[0].created_at
+
         # update memory (TODO: potentially update recall/archival stats seperately)
-        new_system_message = initialize_message_sequence(
-            self.model,
-            self.system,
-            self.memory,
+        new_system_message_str = compile_system_message(
+            system_prompt=self.system,
+            in_context_memory=self.memory,
+            in_context_memory_last_edit=memory_edit_timestamp,
             archival_memory=self.persistence_manager.archival_memory,
             recall_memory=self.persistence_manager.recall_memory,
-        )[0]
+            user_defined_variables=None,
+            append_icm_if_missing=True,
+        )
+        new_system_message = {
+            "role": "system",
+            "content": new_system_message_str,
+        }
 
         diff = united_diff(curr_system_message["content"], new_system_message["content"])
         if len(diff) > 0:  # there was a diff
             printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
 
             # Swap the system message out (only if there is a diff)
-            self._swap_system_message(
-                Message.dict_to_message(
-                    agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=new_system_message
-                )
-            )
+            self._swap_system_message_in_buffer(new_system_message=new_system_message_str)
             assert self.messages[0]["content"] == new_system_message["content"], (
                 self.messages[0]["content"],
                 new_system_message["content"],
             )
+
+    def update_system_prompt(self, new_system_prompt: str):
+        """Update the system prompt of the agent (requires rebuilding the memory block if there's a difference)"""
+        assert isinstance(new_system_prompt, str)
+
+        if new_system_prompt == self.system:
+            input("same???")
+            return
+
+        self.system = new_system_prompt
+
+        # updating the system prompt requires rebuilding the memory block inside the compiled system message
+        self.rebuild_memory(force=True, update_timestamp=False)
+
+        # make sure to persist the change
+        _ = self.update_state()
 
     def add_function(self, function_name: str) -> str:
         # TODO: refactor

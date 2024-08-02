@@ -377,6 +377,41 @@ def run_agent_loop(
                         questionary.print(f" {desc}")
                     continue
 
+                elif user_input.lower().startswith("/systemswap"):
+                    if len(user_input) < len("/systemswap "):
+                        print("Missing new system prompt after the command")
+                        continue
+                    old_system_prompt = memgpt_agent.system
+                    new_system_prompt = user_input[len("/systemswap ") :].strip()
+
+                    # Show warning and prompts to user
+                    typer.secho(
+                        "\nWARNING: You are about to change the system prompt.",
+                        # fg=typer.colors.BRIGHT_YELLOW,
+                        bold=True,
+                    )
+                    typer.secho(
+                        f"\nOld system prompt:\n{old_system_prompt}",
+                        fg=typer.colors.RED,
+                        bold=True,
+                    )
+                    typer.secho(
+                        f"\nNew system prompt:\n{new_system_prompt}",
+                        fg=typer.colors.GREEN,
+                        bold=True,
+                    )
+
+                    # Ask for confirmation
+                    confirm = questionary.confirm("Do you want to proceed with the swap?").ask()
+
+                    if confirm:
+                        memgpt_agent.update_system_prompt(new_system_prompt=new_system_prompt)
+                        print("System prompt updated successfully.")
+                    else:
+                        print("System prompt swap cancelled.")
+
+                    continue
+
                 else:
                     print(f"Unrecognized command: {user_input}")
                     continue
