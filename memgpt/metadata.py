@@ -11,6 +11,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Index,
     String,
     TypeDecorator,
     create_engine,
@@ -110,6 +111,9 @@ class APIKeyModel(Base):
     # extra (optional) metadata
     name = Column(String)
 
+    Index(__tablename__ + "_idx_user", user_id),
+    Index(__tablename__ + "_idx_token", token),
+
     def __repr__(self) -> str:
         return f"<APIKey(id='{self.id}', key='{self.key}', name='{self.name}')>"
 
@@ -158,6 +162,8 @@ class AgentModel(Base):
     # tools
     tools = Column(JSON)
 
+    Index(__tablename__ + "_idx_user", user_id),
+
     def __repr__(self) -> str:
         return f"<Agent(id='{self.id}', name='{self.name}')>"
 
@@ -193,6 +199,7 @@ class SourceModel(Base):
     embedding_config = Column(EmbeddingConfigColumn)
     description = Column(String)
     metadata_ = Column(JSON)
+    Index(__tablename__+'_idx_user', user_id),
 
     # TODO: add num passages
 
@@ -220,6 +227,7 @@ class AgentSourceMappingModel(Base):
     user_id = Column(String, nullable=False)
     agent_id = Column(String, nullable=False)
     source_id = Column(String, nullable=False)
+    Index(__tablename__+'_idx_user', user_id, agent_id, source_id),
 
     def __repr__(self) -> str:
         return f"<AgentSourceMapping(user_id='{self.user_id}', agent_id='{self.agent_id}', source_id='{self.source_id}')>"
@@ -238,6 +246,7 @@ class BlockModel(Base):
     metadata_ = Column(JSON)
     description = Column(String)
     user_id = Column(String)
+    Index(__tablename__+'_idx_user', user_id),
 
     def __repr__(self) -> str:
         return f"<Block(id='{self.id}', name='{self.name}')>"
