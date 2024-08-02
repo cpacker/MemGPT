@@ -3,6 +3,9 @@ from logging import CRITICAL, DEBUG, ERROR, INFO, NOTSET, WARN, WARNING
 
 MEMGPT_DIR = os.path.join(os.path.expanduser("~"), ".memgpt")
 
+# System prompt templating
+IN_CONTEXT_MEMORY_KEYWORD = "CORE_MEMORY"
+
 # OpenAI error message: Invalid 'messages[1].tool_calls[0].id': string too long. Expected a string with maximum length 29, but got a string with length 36 instead.
 TOOL_CALL_ID_MAX_LEN = 29
 
