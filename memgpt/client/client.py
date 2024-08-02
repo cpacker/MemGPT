@@ -106,10 +106,10 @@ class AbstractClient(object):
 
     # memory
 
-    def get_agent_memory(self, agent_id: str) -> Dict:
+    def get_core_memory(self, agent_id: str) -> Dict:
         raise NotImplementedError
 
-    def update_agent_core_memory(self, agent_id: str, human: Optional[str] = None, persona: Optional[str] = None) -> Dict:
+    def update_core_memory(self, agent_id: str, human: Optional[str] = None, persona: Optional[str] = None) -> Dict:
         raise NotImplementedError
 
     # agent interactions
@@ -350,11 +350,11 @@ class RESTClient(AbstractClient):
         return self.get_agent_response_to_state(response_obj)
 
     # memory
-    def get_agent_memory(self, agent_id: uuid.UUID) -> GetAgentMemoryResponse:
+    def get_core_memory(self, agent_id: uuid.UUID) -> GetAgentMemoryResponse:
         response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory", headers=self.headers)
         return GetAgentMemoryResponse(**response.json())
 
-    def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> UpdateAgentMemoryResponse:
+    def update_core_memory(self, agent_id: str, new_memory_contents: Dict) -> UpdateAgentMemoryResponse:
         response = requests.post(f"{self.base_url}/api/agents/{agent_id}/memory", json=new_memory_contents, headers=self.headers)
         return UpdateAgentMemoryResponse(**response.json())
 
@@ -726,11 +726,6 @@ class LocalClient(AbstractClient):
         )
         return agent_state
 
-    def update_agent_memory(self, agent_id: str, section: str, value: str):
-        # get agent memory
-        # TODO: implement this (not sure what it should look like)
-        pass
-
     def delete_agent(self, agent_id: uuid.UUID):
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
 
@@ -739,8 +734,14 @@ class LocalClient(AbstractClient):
         self.interface.clear()
         return self.server.get_agent_state(user_id=self.user_id, agent_id=agent_id)
 
-    def get_memory(self, agent_id: str) -> Memory:
-        memory = self.server.get_agent_memory(user_id=self.user_id, agent_id=agent_id)
+    # memory
+    def get_in_context_memory(self, agent_id: uuid.UUID) -> Memory:
+        memory = self.server.get_agent_memory(agent_id=agent_id)
+        return memory
+
+    def update_in_context_memory(self, agent_id: str, section: str, value: Union[List[str], str]) -> Memory:
+        # TODO: implement this (not sure what it should look like)
+        memory = self.server.update_agent_memory(agent_id=agent_id, section=section, value=value)
         return memory
 
     def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
