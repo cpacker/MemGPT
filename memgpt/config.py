@@ -15,8 +15,10 @@ from memgpt.constants import (
     DEFAULT_PRESET,
     MEMGPT_DIR,
 )
-from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig
 from memgpt.log import get_logger
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.llm_config import LLMConfig
 
 logger = get_logger(__name__)
 

@@ -734,6 +734,11 @@ class LocalClient(AbstractClient):
         self.interface.clear()
         return self.server.get_agent_state(user_id=self.user_id, agent_id=agent_id)
 
+    def get_agent_id(self, agent_name: str) -> AgentState:
+        self.interface.clear()
+        assert agent_name, f"Agent name must be provided"
+        return self.server.get_agent_id(name=agent_name, user_id=self.user_id)
+
     # memory
     def get_in_context_memory(self, agent_id: uuid.UUID) -> Memory:
         memory = self.server.get_agent_memory(agent_id=agent_id)
