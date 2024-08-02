@@ -371,6 +371,8 @@ def run(
     persona: Annotated[Optional[str], typer.Option(help="Specify persona")] = None,
     agent: Annotated[Optional[str], typer.Option(help="Specify agent name")] = None,
     human: Annotated[Optional[str], typer.Option(help="Specify human")] = None,
+    system: Annotated[Optional[str], typer.Option(help="Specify system prompt (raw text)")] = None,
+    system_file: Annotated[Optional[str], typer.Option(help="Specify raw text file containing system prompt")] = None,
     # model flags
     model: Annotated[Optional[str], typer.Option(help="Specify the LLM model")] = None,
     model_wrapper: Annotated[Optional[str], typer.Option(help="Specify the LLM model wrapper")] = None,
@@ -614,14 +616,24 @@ def run(
             llm_config.model_endpoint_type = model_endpoint_type
 
         # create agent
-        # try:
-        client = create_client()
-        human_obj = client.get_human(name=human)
-        persona_obj = client.get_persona(name=persona)
-        if human_obj is None:
-            typer.secho("Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)
-        if persona_obj is None:
-            typer.secho("Couldn't find persona {persona} in database, please run `memgpt add persona`", fg=typer.colors.RED)
+        try:
+            client = create_client()
+            human_obj = ms.get_human(human, user.id)
+            persona_obj = ms.get_persona(persona, user.id)
+            # TODO pull system prompts from the metadata store
+            # NOTE: will be overriden later to a default
+            if system_file:
+                try:
+                    with open(system_file, "r", encoding="utf-8") as file:
+                        system = file.read().strip()
+                        printd("Loaded system file successfully.")
+                except FileNotFoundError:
+                    typer.secho(f"System file not found at {system_file}", fg=typer.colors.RED)
+            system_prompt = system if system else None
+            if human_obj is None:
+                typer.secho("Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)
+            if persona_obj is None:
+                typer.secho("Couldn't find persona {persona} in database, please run `memgpt add persona`", fg=typer.colors.RED)
 
         memory = ChatMemory(human=human_obj.value, persona=persona_obj.value, limit=core_memory_limit)
         metadata = {"human": human_obj.name, "persona": persona_obj.name}
