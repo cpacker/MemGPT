@@ -18,6 +18,7 @@ from sqlalchemy import (
     create_engine,
     desc,
     func,
+    Index,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.exc import InterfaceError, OperationalError
@@ -146,6 +147,8 @@ class TokenModel(Base):
     # extra (optional) metadata
     name = Column(String)
 
+    Index(__tablename__+'_idx_user', user_id),
+    Index(__tablename__+'_idx_token',  token),
     def __repr__(self) -> str:
         return f"<Token(id='{self.id}', token='{self.token}', name='{self.name}')>"
 
@@ -189,6 +192,8 @@ class AgentModel(Base):
     # tools
     tools = Column(JSON)
 
+    Index(__tablename__+'_idx_user', user_id),
+
     def __repr__(self) -> str:
         return f"<Agent(id='{self.id}', name='{self.name}')>"
 
@@ -222,6 +227,7 @@ class SourceModel(Base):
     embedding_dim = Column(BIGINT)
     embedding_model = Column(String)
     description = Column(String)
+    Index(__tablename__+'_idx_user', user_id),
 
     # TODO: add num passages
 
@@ -249,6 +255,7 @@ class AgentSourceMappingModel(Base):
     user_id = Column(CommonUUID, nullable=False)
     agent_id = Column(CommonUUID, nullable=False)
     source_id = Column(CommonUUID, nullable=False)
+    Index(__tablename__+'_idx_user', user_id, agent_id, source_id),
 
     def __repr__(self) -> str:
         return f"<AgentSourceMapping(user_id='{self.user_id}', agent_id='{self.agent_id}', source_id='{self.source_id}')>"
@@ -261,6 +268,7 @@ class PresetSourceMapping(Base):
     user_id = Column(CommonUUID, nullable=False)
     preset_id = Column(CommonUUID, nullable=False)
     source_id = Column(CommonUUID, nullable=False)
+    Index(__tablename__+'_idx_user', user_id, preset_id, source_id),
 
     def __repr__(self) -> str:
         return f"<PresetSourceMapping(user_id='{self.user_id}', preset_id='{self.preset_id}', source_id='{self.source_id}')>"
@@ -298,6 +306,7 @@ class PresetModel(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     functions_schema = Column(JSON)
+    Index(__tablename__+'_idx_user', user_id),
 
     def __repr__(self) -> str:
         return f"<Preset(id='{self.id}', name='{self.name}')>"
