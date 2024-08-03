@@ -98,14 +98,13 @@ class ChatMemory(BaseMemory):
             "human": MemoryModule(name="human", value=human, limit=limit),
         }
 
-    def core_memory_append(self, name: str, content: str, subsection: Optional[str] = "None") -> Optional[str]:
+    def core_memory_append(self, name: str, content: str) -> Optional[str]:
         """
         Append to the contents of core memory.
 
         Args:
             name (str): Section of the memory to be edited (persona or human).
             content (str): Content to write to the memory. All unicode (including emojis) are supported.
-            subsection (Optional[str]): Name of sub-section to store memory.  Must be "public", "private", or "relationship". Defaults to "private".
 
         Returns:
             Optional[str]: None is always returned as this function does not produce a response.
