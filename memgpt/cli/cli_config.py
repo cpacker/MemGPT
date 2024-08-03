@@ -1212,7 +1212,7 @@ def delete(option: str, name: str):
             client.delete_source(source_id=source.id)
         elif option == "agent":
             agent = client.get_agent(agent_name=name)
-            assert agent is not None, f"Agent {name} does not exist"        
+            assert agent is not None, f"Agent {name} does not exist"
             client.delete_agent(agent_id=agent.id)
         elif option == "human":
             human = client.get_human(name=name)
