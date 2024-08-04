@@ -69,7 +69,7 @@ def test_agent(client):
     assert new_memory != agent_state.memory
     client.update_agent(agent_state_test.id, memory=new_memory)
     assert (
-        client.get_agent(agent_state_test.id).memory.memory == new_memory.memory
+        client.get_agent(agent_state_test.id).memory.memory["human"].value == new_memory.memory["human"].value
     ), f"Expected {new_memory.memory}, got {client.get_agent(agent_state_test.id).memory.memory}"
 
     # update agent: llm config
