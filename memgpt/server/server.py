@@ -1389,8 +1389,7 @@ class SyncServer(LockingServer):
         source = Source(
             name=request.name,
             user_id=user_id,
-            embedding_model=self.config.default_embedding_config.embedding_model,
-            embedding_dim=self.config.default_embedding_config.embedding_dim,
+            embedding_config=self.config.default_embedding_config,
         )
         self.ms.create_source(source)
         assert self.ms.get_source(source_name=request.name, user_id=user_id) is not None, f"Failed to create source {request.name}"
@@ -1398,7 +1397,10 @@ class SyncServer(LockingServer):
 
     def update_source(self, request: SourceUpdate, user_id: str) -> Source:
         """Update an existing data source"""
-        existing_source = self.ms.get_source(source_name=request.id, user_id=user_id)
+        if not request.id:
+            existing_source = self.ms.get_source(source_name=request.name, user_id=user_id)
+        else:
+            existing_source = self.ms.get_source(source_id=request.id)
         if not existing_source:
             raise ValueError("Source does not exist")
 
@@ -1462,8 +1464,16 @@ class SyncServer(LockingServer):
         # load agent
         agent = self._get_or_load_agent(agent_id=agent_id)
 
+        # get data source name
+        if not data_source.name:
+            source = self.ms.get_source(source_id=source_id)
+            assert source.user_id == agent.agent_state.user_id, "Source does not belong to the agent's user"
+            source_name = source.name
+        else:
+            source_name = data_source.name
+
         # attach source to agent
-        agent.attach_source(data_source.name, source_connector, self.ms)
+        agent.attach_source(source_name, source_connector, self.ms)
 
         return data_source
 
