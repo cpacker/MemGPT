@@ -1,4 +1,3 @@
-import uuid
 from typing import List, Optional
 
 import requests
@@ -22,7 +21,7 @@ class Admin:
         self.token = token
         self.headers = {"accept": "application/json", "content-type": "application/json", "authorization": f"Bearer {token}"}
 
-    def get_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50) -> List[User]:
+    def get_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[User]:
         params = {}
         if cursor:
             params["cursor"] = str(cursor)
@@ -33,14 +32,14 @@ class Admin:
             raise HTTPError(response.json())
         return [User(**user) for user in response.json()]
 
-    def create_key(self, user_id: uuid.UUID, key_name: str) -> APIKey:
+    def create_key(self, user_id: str, key_name: str) -> APIKey:
         request = APIKeyCreate(user_id=user_id, name=key_name)
         response = requests.post(f"{self.base_url}/admin/users/keys", headers=self.headers, json=request.model_dump())
         if response.status_code != 200:
             raise HTTPError(response.json())
         return APIKey(**response.json())
 
-    def get_keys(self, user_id: uuid.UUID) -> List[APIKey]:
+    def get_keys(self, user_id: str) -> List[APIKey]:
         params = {"user_id": str(user_id)}
         response = requests.get(f"{self.base_url}/admin/users/keys", params=params, headers=self.headers)
         if response.status_code != 200:
@@ -62,7 +61,7 @@ class Admin:
         response_json = response.json()
         return User(**response_json)
 
-    def delete_user(self, user_id: uuid.UUID) -> User:
+    def delete_user(self, user_id: str) -> User:
         params = {"user_id": str(user_id)}
         response = requests.delete(f"{self.base_url}/admin/users", params=params, headers=self.headers)
         if response.status_code != 200:
