@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from memgpt import create_client
@@ -89,17 +91,29 @@ def test_archival_memory(client, agent):
 def test_recall_memory(client, agent):
     """Test functions for interacting with recall memory store"""
 
+    # helper function for parsing me
+    def collect_user_messages(messages):
+        user_messages = []
+        for m in messages:
+            if m.role == "user":
+                data = json.loads(m.text)
+                if "message" in data:
+                    user_messages.append(data["message"])
+        return user_messages
+
     # send message to the agent
     message_str = "Hello"
     client.send_message(message_str, "user", agent.id)
 
-    ## list messages
-    # messages = client.get_messages(agent.id)
-    # assert message_str in [m.text for m in messages], f"Missing message {message_str} in {[m.text for m in messages]}"
+    # list messages
+    messages = client.get_messages(agent.id)
+    assert message_str in collect_user_messages(messages), f"Missing message {message_str} in {[m[:100] for m in messages]}"
 
     # get in-context messages
     in_context_messages = client.get_in_context_messages(agent.id)
-    assert message_str in [m.text for m in in_context_messages], f"Missing message {message_str} in {[m.text for m in in_context_messages]}"
+    assert message_str in collect_user_messages(
+        in_context_messages
+    ), f"Missing message {message_str} in {[m[:100] for m in in_context_messages]}"
 
 
 def test_tools(client):
