@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 from fastapi import UploadFile
@@ -5,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.memgpt_base import MemGPTBase
+from memgpt.utils import get_utc_time
 
 
 class BaseSource(MemGPTBase):
@@ -27,10 +29,13 @@ class SourceCreate(BaseSource):
 class Source(BaseSource):
     id: str = BaseSource.generate_id_field()
     name: str = Field(..., description="The name of the source.")
+    embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the source.")
+    created_at: datetime = Field(default_factory=get_utc_time, description="The creation date of the source.")
+    user_id: str = Field(..., description="The ID of the user that created the source.")
 
 
 class SourceUpdate(BaseSource):
-    source_id: str = Field(..., description="The ID of the source.")
+    id: str = Field(..., description="The ID of the source.")
     name: Optional[str] = Field(None, description="The name of the source.")
 
 

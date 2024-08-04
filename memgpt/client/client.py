@@ -967,7 +967,7 @@ class LocalClient(AbstractClient):
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
         # TODO should the arg here just be "source_update: Source"?
-        request = SourceUpdate(source_id=source_id, name=name)
+        request = SourceUpdate(id=source_id, name=name)
         return self.server.update_source(request=request, user_id=self.user_id)
 
     # archival memory

@@ -206,9 +206,9 @@ class SourceModel(Base):
     user_id = Column(String, nullable=False)
     name = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    embedding_dim = Column(BIGINT)
-    embedding_model = Column(String)
+    embedding_config = Column(EmbeddingConfigColumn)
     description = Column(String)
+    metadata_ = Column(JSON)
 
     # TODO: add num passages
 
@@ -221,9 +221,9 @@ class SourceModel(Base):
             user_id=self.user_id,
             name=self.name,
             created_at=self.created_at,
-            embedding_dim=self.embedding_dim,
-            embedding_model=self.embedding_model,
+            embedding_config=self.embedding_config,
             description=self.description,
+            metadata_=self.metadata_,
         )
 
 
@@ -464,16 +464,11 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def create_source(self, source: Source, exists_ok=False):
-        # make sure source.name does not already exist for user
+    def create_source(self, source: Source):
         with self.session_maker() as session:
             if session.query(SourceModel).filter(SourceModel.name == source.name).filter(SourceModel.user_id == source.user_id).count() > 0:
-                if not exists_ok:
-                    raise ValueError(f"Source with name {source.name} already exists for user {source.user_id}")
-                else:
-                    session.update(SourceModel(**vars(source)))
-            else:
-                session.add(SourceModel(**vars(source)))
+                raise ValueError(f"Source with name {source.name} already exists for user {source.user_id}")
+            session.add(SourceModel(**vars(source)))
             session.commit()
 
     @enforce_types
@@ -748,7 +743,9 @@ class MetadataStore:
     @enforce_types
     def attach_source(self, user_id: str, agent_id: str, source_id: str):
         with self.session_maker() as session:
-            session.add(AgentSourceMappingModel(user_id=user_id, agent_id=agent_id, source_id=source_id))
+            # TODO: remove this (is a hack)
+            mapping_id = f"{user_id}-{agent_id}-{source_id}"
+            session.add(AgentSourceMappingModel(id=mapping_id, user_id=user_id, agent_id=agent_id, source_id=source_id))
             session.commit()
 
     @enforce_types

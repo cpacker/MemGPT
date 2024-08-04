@@ -285,7 +285,9 @@ class Agent(object):
                     )
                 )
             assert all([isinstance(msg, Message) for msg in init_messages_objs]), (init_messages_objs, init_messages)
-            printd(init_messages_objs)
+            self.messages_total = 0
+            # self._append_to_messages(added_messages=[cast(Message, msg) for msg in init_messages_objs if msg is not None])
+            self._append_to_messages(added_messages=init_messages_objs)
 
             self.messages_total = 0
             self._append_to_messages(added_messages=init_messages_objs)
@@ -548,7 +550,6 @@ class Agent(object):
                         function_args[name] = spec[name](**function_args[name])
 
                 function_args["self"] = self  # need to attach self to arg since it's dynamically linked
-                print("FUNCTION ARGS", function_args)
 
                 function_response = function_to_call(**function_args)
                 if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search"]:
@@ -1119,6 +1120,7 @@ class Agent(object):
         source = ms.get_source(source_name=source_name, user_id=self.agent_state.user_id)
         assert source is not None, f"source does not exist for source_name={source_name}, user_id={self.agent_state.user_id}"
         source_id = source.id
+        assert source_id is not None, f"source_id is None for source_name={source_name}, user_id={self.agent_state.user_id}"
         ms.attach_source(agent_id=self.agent_state.id, source_id=source_id, user_id=self.agent_state.user_id)
 
         total_agent_passages = self.persistence_manager.archival_memory.storage.size()
