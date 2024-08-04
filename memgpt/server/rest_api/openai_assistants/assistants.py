@@ -5,7 +5,7 @@ from fastapi import APIRouter, Body, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 
 from memgpt.constants import DEFAULT_PRESET
-from memgpt.data_types import Message
+from memgpt.schemas.message import Message
 from memgpt.schemas.openai.openai import (
     AssistantFile,
     MessageFile,

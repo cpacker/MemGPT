@@ -4,11 +4,13 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple, Union
 
 from memgpt.constants import MESSAGE_SUMMARY_REQUEST_ACK, MESSAGE_SUMMARY_WARNING_FRAC
-from memgpt.data_types import AgentState, Message, Passage
 from memgpt.embeddings import embedding_model, parse_and_chunk_text, query_embedding
 from memgpt.llm_api.llm_api_tools import create
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
+from memgpt.schemas.agent import AgentState
 from memgpt.schemas.memory import Memory
+from memgpt.schemas.message import Message
+from memgpt.schemas.passage import Passage
 from memgpt.utils import (
     count_tokens,
     extract_date_from_timestamp,
@@ -529,8 +531,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             agent_id=self.agent_state.id,
             text=text,
             embedding=embedding,
-            embedding_dim=self.agent_state.embedding_config.embedding_dim,
-            embedding_model=self.agent_state.embedding_config.embedding_model,
+            embedding_config=self.agent_state.embedding_config,
         )
 
     def save(self):

@@ -18,12 +18,12 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from memgpt.data_sources.connectors import DirectoryConnector
-from memgpt.data_types import Source
 from memgpt.schemas.document import Document as DocumentModel  # TODO: modify
 from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.job import Job as JobModel  # TODO: modify
 from memgpt.schemas.passage import Passage as PassageModel  # TODO: modify
-from memgpt.schemas.source import Source as SourceModel  # TODO: modify
+from memgpt.schemas.source import Source  # TODO: modify
+from memgpt.schemas.source import Source as SourceModel
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer

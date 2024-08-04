@@ -11,7 +11,6 @@ import requests
 
 from memgpt.constants import CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
 from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import Message
 from memgpt.llm_api.anthropic import anthropic_chat_completions_request
 from memgpt.llm_api.azure_openai import (
     MODEL_TO_AZURE_ENGINE,
@@ -33,6 +32,7 @@ from memgpt.local_llm.constants import (
 )
 from memgpt.schemas.enums import OptionState
 from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.message import Message
 from memgpt.schemas.openai.chat_completion_request import (
     ChatCompletionRequest,
     Tool,

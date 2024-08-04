@@ -384,7 +384,7 @@ class SyncServer(LockingServer):
         logger.debug(f"Got input message: {input_message}")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
         if memgpt_agent is None:
             raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
 
@@ -446,7 +446,7 @@ class SyncServer(LockingServer):
         logger.debug(f"Got command: {command}")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
 
         if command.lower() == "exit":
             # exit not supported on server.py
@@ -1117,7 +1117,7 @@ class SyncServer(LockingServer):
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(gent_id=agent_id)
 
         # iterate over records
         db_iterator = memgpt_agent.persistence_manager.archival_memory.storage.get_all_paginated(page_size=count, offset=start)
@@ -1142,7 +1142,7 @@ class SyncServer(LockingServer):
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
 
         # iterate over recorde
         cursor, records = memgpt_agent.persistence_manager.archival_memory.storage.get_all_cursor(
@@ -1157,13 +1157,13 @@ class SyncServer(LockingServer):
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
 
         # Insert into archival memory
-        # memory_id = uuid.uuid4()
         passage_ids = memgpt_agent.persistence_manager.archival_memory.insert(memory_string=memory_contents, return_ids=True)
 
-        return [str(p_id) for p_id in passage_ids]
+        # TODO: this is gross, fix
+        return [memgpt_agent.persistence_manager.archival_memory.storage.get(id=passage_id) for passage_id in passage_ids]
 
     def delete_archival_memory(self, user_id: str, agent_id: str, memory_id: str):
         if self.ms.get_user(user_id=user_id) is None:
@@ -1172,7 +1172,7 @@ class SyncServer(LockingServer):
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
 
         # Delete by ID
         # TODO check if it exists first, and throw error if not
@@ -1195,7 +1195,7 @@ class SyncServer(LockingServer):
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
 
         # iterate over records
         cursor, records = memgpt_agent.persistence_manager.recall_memory.storage.get_all_cursor(
@@ -1203,13 +1203,13 @@ class SyncServer(LockingServer):
         )
         return records
 
-    def get_agent_state(self, user_id: str, agent_id: Optional[str], agent_name: Optional[str] = None) -> AgentState:
+    def get_agent_state(self, user_id: str, agent_id: Optional[str], agent_name: Optional[str] = None) -> Optional[AgentState]:
         """Return the config of an agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if agent_id:
             if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-                raise ValueError(f"Agent agent_id={agent_id} does not exist")
+                return None
         else:
             agent_state = self.ms.get_agent(agent_name=agent_name, user_id=user_id)
             if agent_state is None:
@@ -1275,7 +1275,7 @@ class SyncServer(LockingServer):
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
 
         old_core_memory = self.get_agent_memory(user_id=user_id, agent_id=agent_id)["core_memory"]
         new_core_memory = old_core_memory.copy()
@@ -1308,7 +1308,7 @@ class SyncServer(LockingServer):
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
 
         current_name = memgpt_agent.agent_state.name
         if current_name == new_agent_name:

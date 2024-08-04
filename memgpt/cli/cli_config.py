@@ -13,7 +13,6 @@ from memgpt import utils
 from memgpt.config import MemGPTConfig
 from memgpt.constants import LLM_MAX_TOKENS, MEMGPT_DIR
 from memgpt.credentials import SUPPORTED_AUTH_TYPES, MemGPTCredentials
-from memgpt.data_types import EmbeddingConfig, LLMConfig, Source, User
 from memgpt.llm_api.anthropic import (
     anthropic_get_model_list,
     antropic_get_model_context_window,
@@ -37,6 +36,10 @@ from memgpt.local_llm.constants import (
 )
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.metadata import MetadataStore
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.source import Source
+from memgpt.schemas.user import User
 from memgpt.server.utils import shorten_key_middle
 
 app = typer.Typer()
