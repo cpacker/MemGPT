@@ -834,8 +834,20 @@ class SyncServer(LockingServer):
 
         # tools
         if request.tools:
-            # TODO: need to reset tools (???)
+            # Replace tools and also re-link
+
+            # (1) get tools + make sure they exist
+            tool_objs = []
+            for tool_name in request.tools:
+                tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
+                assert tool_obj, f"Tool {tool_name} does not exist"
+                tool_objs.append(tool_obj)
+
+            # (2) replace the list of tool names ("ids") inside the agent state
             memgpt_agent.agent_state.tools = request.tools
+
+            # (3) then attempt to link the tools modules
+            memgpt_agent.link_tools(tool_objs)
 
         # configs
         if request.llm_config:
