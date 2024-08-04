@@ -190,10 +190,10 @@ class AbstractClient(object):
     def get_source_id(self, source_name: str) -> str:
         raise NotImplementedError
 
-    def attach_source_to_agent(self, source_id: str, agent_id: str):
+    def attach_source_to_agent(self, agent_id: str, source_id: Optional[str] = None, source_name: Optional[str] = None):
         raise NotImplementedError
 
-    def detach_source_from_agent(self, source_id: str, agent_id: str):
+    def detach_source_from_agent(self, agent_id: str, source_id: Optional[str] = None, source_name: Optional[str] = None):
         raise NotImplementedError
 
     def list_sources(self) -> List[Source]:
@@ -965,11 +965,11 @@ class LocalClient(AbstractClient):
     def get_source_id(self, source_name: str) -> str:
         return self.server.get_source_id(source_name=source_name, user_id=self.user_id)
 
-    def attach_source_to_agent(self, source_id: str, agent_id: str):
-        self.server.attach_source_to_agent(source_id=source_id, agent_id=agent_id, user_id=self.user_id)
+    def attach_source_to_agent(self, agent_id: str, source_id: Optional[str] = None, source_name: Optional[str] = None):
+        self.server.attach_source_to_agent(source_id=source_id, source_name=source_name, agent_id=agent_id, user_id=self.user_id)
 
-    def detach_source_from_agent(self, source_id: str, agent_id: str):
-        self.server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=self.user_id)
+    def detach_source_from_agent(self, agent_id: str, source_id: Optional[str] = None, source_name: Optional[str] = None):
+        self.server.detach_source_from_agent(source_id=source_id, source_name=source_name, agent_id=agent_id, user_id=self.user_id)
 
     def list_sources(self) -> List[Source]:
         return self.server.list_all_sources(user_id=self.user_id)
