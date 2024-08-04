@@ -827,8 +827,10 @@ class SyncServer(LockingServer):
 
         # update in-context messages
         if request.message_ids:
-            # TODO: fix this (no idea if correct)
-            memgpt_agent._messages = request.message_ids
+            # This means the user is trying to change what messages are in the message buffer
+            # Internally this requires (1) pulling from recall,
+            # then (2) setting the attributes ._messages and .state.message_ids
+            memgpt_agent.set_message_buffer(message_ids=request.message_ids)
 
         # tools
         if request.tools:
