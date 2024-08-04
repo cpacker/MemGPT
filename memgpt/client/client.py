@@ -12,12 +12,12 @@ from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig
 from memgpt.functions.functions import parse_source_code
 from memgpt.functions.schema_generator import generate_schema
 from memgpt.memory import get_memory_functions
-from memgpt.schemas.source import Source, SourceAttach, SourceCreate, SourceQuery
 
 # new schemas
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.block import Human, Persona
 from memgpt.schemas.memory import ChatMemory, Memory
+from memgpt.schemas.source import Source, SourceAttach, SourceCreate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
 from memgpt.schemas.user import UserCreate
 
@@ -908,9 +908,11 @@ class LocalClient(AbstractClient):
         # TODO: delete source data
         self.server.delete_source(source_id=source_id, user_id=self.user_id)
 
-    def get_source(self, source_id: Optional[str] = None, source_name: Optional[str] = None) -> Source:
-        request = SourceQuery(id=source_id, name=source_name)
-        return self.server.ms.get_source(request=request, user_id=self.user_id)
+    def get_source(self, source_id: str) -> Source:
+        return self.server.get_source(source_id=source_id, user_id=self.user_id)
+
+    def get_source_id(self, source_name: str) -> str:
+        return self.server.get_source_id(source_name=source_name, user_id=self.user_id)
 
     def attach_source_to_agent(self, source_id: str, agent_id: str):
         request = SourceAttach(agent_id=agent_id, source_id=source_id)

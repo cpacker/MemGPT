@@ -27,16 +27,6 @@ class Source(BaseSource):
     name: str = Field(..., description="The name of the source.")
 
 
-class SourceQuery(BaseSource):
-    id: Optional[str] = Field(None, description="The ID of the source.")
-    name: Optional[str] = Field(None, description="The name of the source.")
-
-
-class SourceIdQuery(BaseSource):
-    # TODO why is this necessary?
-    name: str = Field(..., description="The name of the source.")
-
-
 class SourceUpdate(BaseSource):
     id: str = BaseSource.generate_id_field()  # TODO not sure if this is correct?
     name: Optional[str] = Field(None, description="The name of the source.")

@@ -67,8 +67,6 @@ from memgpt.schemas.source import (
     SourceAttach,
     SourceCreate,
     SourceDetach,
-    SourceIdQuery,
-    SourceQuery,
     SourceUpdate,
 )
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
@@ -1036,15 +1034,16 @@ class SyncServer(LockingServer):
     def get_agent_id(self, name: str, user_id: str):
         return self.ms.get_agent(agent_name=name, user_id=user_id)
 
-    def get_source(self, request: SourceQuery, user_id: str) -> Source:
-        existing_source = self.ms.get_source(source_name=request.name, source_id=request.id, user_id=user_id)
+    def get_source(self, source_id: str, user_id: str) -> Source:
+        existing_source = self.ms.get_source(source_id=source_id, user_id=user_id)
         if not existing_source:
             raise ValueError("Source does not exist")
         return existing_source
 
-    def get_source_id(self, request: SourceIdQuery, user_id: str) -> str:
-        # TODO why is this necessary? can't we just use the above?
-        existing_source = self.get_source(source_name=request.name, user_id=user_id)
+    def get_source_id(self, source_name: str, user_id: str) -> str:
+        existing_source = self.ms.get_source(source_name=source_name, user_id=user_id)
+        if not existing_source:
+            raise ValueError("Source does not exist")
         return existing_source.id
 
     def get_agent(self, user_id: str, agent_id: str, agent_name: Optional[str] = None):
