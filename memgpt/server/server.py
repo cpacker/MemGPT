@@ -813,7 +813,7 @@ class SyncServer(LockingServer):
 
         # update the core memory of the agent
         if request.memory:
-            old_core_memory = self.get_agent_memory(agent_id=request.id)["core_memory"]
+            old_core_memory = self.get_agent_memory(agent_id=request.id)
             new_memory_contents = request.memory.to_dict()
 
             # edit memory fields
