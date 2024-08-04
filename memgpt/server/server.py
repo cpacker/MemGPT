@@ -1420,6 +1420,7 @@ class SyncServer(LockingServer):
             name=request.name,
             user_id=user_id,
             embedding_config=self.config.default_embedding_config,
+            description=request.description,
         )
         self.ms.create_source(source)
         assert self.ms.get_source(source_name=request.name, user_id=user_id) is not None, f"Failed to create source {request.name}"

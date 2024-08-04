@@ -256,6 +256,8 @@ class RESTClient(AbstractClient):
         llm_config: Optional[LLMConfig] = None,
         # memory
         memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
+        # system prompt (can be templated)
+        system: Optional[str] = None,
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,
@@ -294,6 +296,7 @@ class RESTClient(AbstractClient):
             "config": {
                 "name": name,
                 "preset": preset,
+                "system": system,
                 "persona": memory.memory["persona"].value,
                 "human": memory.memory["human"].value,
                 "function_names": tool_names,
