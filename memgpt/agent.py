@@ -527,6 +527,7 @@ class Agent(object):
                         function_args[name] = spec[name](**function_args[name])
 
                 function_args["self"] = self  # need to attach self to arg since it's dynamically linked
+                print("FUNCTION ARGS", function_args)
 
                 function_response = function_to_call(**function_args)
                 if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search"]:
