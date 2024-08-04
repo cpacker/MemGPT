@@ -679,8 +679,17 @@ class SyncServer(LockingServer):
                 command = command[1:]  # strip the prefix
         return self._command(user_id=user_id, agent_id=agent_id, command=command)
 
+    def list_users_paginated(self, cursor: str, limit: int) -> List[User]:
+        """List all users"""
+        # TODO: make this paginated
+        next_cursor, users = self.ms.get_all_users(cursor, limit)
+        return next_cursor, users
+
     def create_user(self, request: UserCreate) -> User:
         """Create a new user using a config"""
+        if not request.name:
+            # auto-generate a name
+            request.name = create_random_username()
         user = User(name=request.name)
         self.ms.create_user(user)
         logger.info(f"Created new user from config: {user}")
@@ -1389,8 +1398,21 @@ class SyncServer(LockingServer):
 
     def create_api_key(self, request: APIKeyCreate) -> APIKey:  # TODO: add other fields
         """Create a new API key for a user"""
+        if request.name is None:
+            request.name = f"API Key {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         token = self.ms.create_api_key(user_id=request.user_id, name=request.name)
         return token
+
+    def list_api_keys(self, user_id: str) -> List[APIKey]:
+        """List all API keys for a user"""
+        return self.ms.get_all_api_keys_for_user(user_id=user_id)
+
+    def delete_api_key(self, api_key: str) -> APIKey:
+        api_key_obj = self.ms.get_api_key(api_key=api_key)
+        if api_key_obj is None:
+            raise ValueError("API key does not exist")
+        self.ms.delete_api_key(api_key=api_key)
+        return api_key_obj
 
     def create_source(self, request: SourceCreate, user_id: str) -> Source:  # TODO: add other fields
         """Create a new data source"""

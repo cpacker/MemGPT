@@ -31,7 +31,6 @@ from memgpt.server.rest_api.openai_chat_completions.chat_completions import (
     setup_openai_chat_completions_router,
 )
 from memgpt.server.rest_api.personas.index import setup_personas_index_router
-from memgpt.server.rest_api.presets.index import setup_presets_index_router
 from memgpt.server.rest_api.sources.index import setup_sources_index_router
 from memgpt.server.rest_api.static_files import mount_static_files
 from memgpt.server.rest_api.tools.index import setup_user_tools_index_router
@@ -100,7 +99,6 @@ app.include_router(setup_personas_index_router(server, interface, password), pre
 app.include_router(setup_models_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_user_tools_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_sources_index_router(server, interface, password), prefix=API_PREFIX)
-app.include_router(setup_presets_index_router(server, interface, password), prefix=API_PREFIX)
 
 # /api/config endpoints
 app.include_router(setup_config_index_router(server, interface, password), prefix=API_PREFIX)

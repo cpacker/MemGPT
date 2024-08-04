@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from pydantic import Field
 
@@ -16,4 +17,4 @@ class User(UserBase):
 
 
 class UserCreate(UserBase):
-    name: str = Field("default", description="The name of the user.")
+    name: Optional[str] = Field(None, description="The name of the user.")

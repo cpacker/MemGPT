@@ -408,7 +408,7 @@ class MetadataStore:
         self.session_maker = sessionmaker(bind=self.engine)
 
     @enforce_types
-    def create_api_key(self, user_id: str, name: Optional[str] = None) -> APIKey:
+    def create_api_key(self, user_id: str, name: str) -> APIKey:
         """Create an API key for a user"""
         new_api_key = generate_api_key()
         with self.session_maker() as session:
@@ -416,7 +416,8 @@ class MetadataStore:
                 # NOTE duplicate API keys / tokens should never happen, but if it does don't allow it
                 raise ValueError(f"Token {new_api_key} already exists")
             # TODO store the API keys as hashed
-            token = APIKey(user_id=user_id, token=new_api_key, name=name)
+            assert user_id and name, "User ID and name must be provided"
+            token = APIKey(user_id=user_id, key=new_api_key, name=name)
             session.add(APIKeyModel(**vars(token)))
             session.commit()
         return self.get_api_key(api_key=new_api_key)
