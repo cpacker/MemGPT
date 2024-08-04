@@ -65,10 +65,20 @@ def test_agent(client):
     assert client.get_agent(agent_state_test.id).tools == new_agent_tools
 
     # update agent: memory
-    # new_memory = ChatMemory(human="My name is Mr Test, 100 percent human.", persona="I am an all-knowing AI.")
-    # assert new_memory != agent_state.memory
-    # client.update_agent(agent_state_test.id, memory=new_memory)
-    # assert client.get_agent(agent_state_test.id).memory == new_memory
+    new_human = "My name is Mr Test, 100 percent human."
+    new_persona = "I am an all-knowing AI."
+    new_memory = ChatMemory(human=new_human, persona=new_persona)
+
+    # TODO this needs to be updated to agent_state.memory.memory
+    # NOTE there is a bug, it should be the uncommented lines
+    assert agent_state.memory["human"]["value"] != new_human
+    assert agent_state.memory["persona"]["value"] != new_persona
+    # assert agent_state.memory["human"].value != new_human
+    # assert agent_state.memory["persona"].value != new_persona
+
+    client.update_agent(agent_state_test.id, memory=new_memory)
+    assert client.get_agent(agent_state_test.id).memory.memory["human"].value == new_human
+    assert client.get_agent(agent_state_test.id).memory.memory["persona"].value == new_persona
 
     # update agent: llm config
     new_llm_config = agent_state.llm_config.model_copy(deep=True)
