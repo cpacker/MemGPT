@@ -1450,7 +1450,7 @@ class SyncServer(LockingServer):
 
     def attach_source_to_agent(
         self,
-        request: SourceAttach,
+        request: SourceAttach,  # TODO: change this to remove pydantic model?
         user_id: str,
     ) -> Source:
         # attach a data source to an agent
@@ -1471,9 +1471,9 @@ class SyncServer(LockingServer):
 
     def detach_source_from_agent(
         self,
-        request: SourceDetach,
+        request: SourceDetach,  # TODO: change this to remove pydantic model?
         user_id: str,
-    ):
+    ) -> Source:
         # TODO: remove all passages coresponding to source from agent's archival memory
         raise NotImplementedError
 
