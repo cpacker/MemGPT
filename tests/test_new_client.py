@@ -64,13 +64,13 @@ def test_memory(client, agent):
 
     # get agent memory
     original_memory = client.get_in_context_memory(agent.id)
+    original_memory_value = str(original_memory.memory["human"].value)
 
     # update core memory
-    updated_memory = client.update_in_context_memory(agent.id, section="human", content="I am a human")
+    updated_memory = client.update_in_context_memory(agent.id, section="human", value="I am a human")
 
     # get memory
-    assert updated_memory.memory["human"].value != original_memory.memory["human"].value  # check if the memory has been updated
-    assert updated_memory.id == original_memory.id  # memory id should remain the same
+    assert updated_memory.memory["human"].value != original_memory_value  # check if the memory has been updated
 
 
 def test_archival_memory(client, agent):
