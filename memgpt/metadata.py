@@ -645,19 +645,20 @@ class MetadataStore:
             return results[0].to_record()
 
     @enforce_types
-    def get_all_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50) -> (Optional[uuid.UUID], List[User]):
+    def get_all_users(
+        self, after: Optional[uuid.UUID] = None, before: Optional[uuid.UUID] = None, limit: Optional[int] = 50
+    ) -> (Optional[uuid.UUID], List[User]):
         with self.session_maker() as session:
             query = session.query(UserModel).order_by(desc(UserModel.id))
-            if cursor:
-                query = query.filter(UserModel.id < cursor)
+            if before:
+                query = query.filter(UserModel.id < before)
+            if after:
+                query = query.filter(UserModel.id > after)
             results = query.limit(limit).all()
             if not results:
                 return None, []
             user_records = [r.to_record() for r in results]
-            next_cursor = user_records[-1].id
-            assert isinstance(next_cursor, uuid.UUID)
-
-            return next_cursor, user_records
+            return user_records
 
     @enforce_types
     def get_source(
