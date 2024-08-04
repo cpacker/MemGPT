@@ -20,7 +20,6 @@ from memgpt.constants import CLI_WARNING_PREFIX, MEMGPT_DIR
 from memgpt.credentials import MemGPTCredentials
 from memgpt.log import get_logger
 from memgpt.metadata import MetadataStore
-from memgpt.migrate import migrate_all_agents, migrate_all_sources
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.enums import OptionState
 from memgpt.schemas.llm_config import LLMConfig
@@ -35,14 +34,6 @@ from memgpt.streaming_interface import (
 from memgpt.utils import open_folder_in_explorer, printd
 
 logger = get_logger(__name__)
-
-
-def migrate(
-    debug: Annotated[bool, typer.Option(help="Print extra tracebacks for failed migrations")] = False,
-):
-    """Migrate old agents (pre 0.2.12) to the new database system"""
-    migrate_all_agents(debug=debug)
-    migrate_all_sources(debug=debug)
 
 
 class QuickstartChoice(Enum):
@@ -427,42 +418,42 @@ def run(
         logger.setLevel(logging.CRITICAL)
         server_logger.setLevel(logging.CRITICAL)
 
-    from memgpt.migrate import (
-        VERSION_CUTOFF,
-        config_is_compatible,
-        wipe_config_and_reconfigure,
-    )
+    # from memgpt.migrate import (
+    #    VERSION_CUTOFF,
+    #    config_is_compatible,
+    #    wipe_config_and_reconfigure,
+    # )
 
-    if not config_is_compatible(allow_empty=True):
-        typer.secho(f"\nYour current config file is incompatible with MemGPT versions later than {VERSION_CUTOFF}\n", fg=typer.colors.RED)
-        choices = [
-            "Run the full config setup (recommended)",
-            "Create a new config using defaults",
-            "Cancel",
-        ]
-        selection = questionary.select(
-            f"To use MemGPT, you must either downgrade your MemGPT version (<= {VERSION_CUTOFF}), or regenerate your config. Would you like to proceed?",
-            choices=choices,
-            default=choices[0],
-        ).ask()
-        if selection == choices[0]:
-            try:
-                wipe_config_and_reconfigure()
-            except Exception as e:
-                typer.secho(f"Fresh config generation failed - error:\n{e}", fg=typer.colors.RED)
-                raise
-        elif selection == choices[1]:
-            try:
-                # Don't create a config, so that the next block of code asking about quickstart is run
-                wipe_config_and_reconfigure(run_configure=False, create_config=False)
-            except Exception as e:
-                typer.secho(f"Fresh config generation failed - error:\n{e}", fg=typer.colors.RED)
-                raise
-        else:
-            typer.secho("MemGPT config regeneration cancelled", fg=typer.colors.RED)
-            raise KeyboardInterrupt()
+    # if not config_is_compatible(allow_empty=True):
+    #    typer.secho(f"\nYour current config file is incompatible with MemGPT versions later than {VERSION_CUTOFF}\n", fg=typer.colors.RED)
+    #    choices = [
+    #        "Run the full config setup (recommended)",
+    #        "Create a new config using defaults",
+    #        "Cancel",
+    #    ]
+    #    selection = questionary.select(
+    #        f"To use MemGPT, you must either downgrade your MemGPT version (<= {VERSION_CUTOFF}), or regenerate your config. Would you like to proceed?",
+    #        choices=choices,
+    #        default=choices[0],
+    #    ).ask()
+    #    if selection == choices[0]:
+    #        try:
+    #            wipe_config_and_reconfigure()
+    #        except Exception as e:
+    #            typer.secho(f"Fresh config generation failed - error:\n{e}", fg=typer.colors.RED)
+    #            raise
+    #    elif selection == choices[1]:
+    #        try:
+    #            # Don't create a config, so that the next block of code asking about quickstart is run
+    #            wipe_config_and_reconfigure(run_configure=False, create_config=False)
+    #        except Exception as e:
+    #            typer.secho(f"Fresh config generation failed - error:\n{e}", fg=typer.colors.RED)
+    #            raise
+    #    else:
+    #        typer.secho("MemGPT config regeneration cancelled", fg=typer.colors.RED)
+    #        raise KeyboardInterrupt()
 
-        typer.secho("Note: if you would like to migrate old agents to the new release, please run `memgpt migrate`!", fg=typer.colors.GREEN)
+    #    typer.secho("Note: if you would like to migrate old agents to the new release, please run `memgpt migrate`!", fg=typer.colors.GREEN)
 
     if not MemGPTConfig.exists():
         # if no config, ask about quickstart
