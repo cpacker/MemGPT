@@ -583,30 +583,21 @@ class SyncServer(LockingServer):
 
             # NOTE: eventually deprecate and only allow passing Message types
             # Convert to a Message object
-            message = Message(
-                user_id=user_id,
-                agent_id=agent_id,
-                role="user",
-                text=packaged_user_message,
-                created_at=timestamp,
-                # name=None,  # TODO handle name via API
-            )
-
-        # TODO: I don't think this does anything because all we care about is packaged_user_message which only exists if message is str
-        if isinstance(message, Message):
-            # Can't have a null text field
-            if len(message.text) == 0 or message.text is None:
-                raise ValueError(f"Invalid input: '{message.text}'")
-            # If the input begins with a command prefix, reject
-            elif message.text.startswith("/"):
-                raise ValueError(f"Invalid input: '{message.text}'")
-
             if timestamp:
-                # Override the timestamp with what the caller provided
-                message.created_at = timestamp
-
-        else:
-            raise TypeError(f"Invalid input: '{message}' - type {type(message)}")
+                message = Message(
+                    user_id=user_id,
+                    agent_id=agent_id,
+                    role="user",
+                    text=packaged_user_message,
+                    created_at=timestamp,
+                )
+            else:
+                message = Message(
+                    user_id=user_id,
+                    agent_id=agent_id,
+                    role="user",
+                    text=packaged_user_message,
+                )
 
         # Run the agent state forward
         usage = self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message, timestamp=timestamp)
@@ -639,13 +630,22 @@ class SyncServer(LockingServer):
 
             # NOTE: eventually deprecate and only allow passing Message types
             # Convert to a Message object
-            message = Message(
-                user_id=user_id,
-                agent_id=agent_id,
-                role="user",
-                text=packaged_system_message,
-                # name=None,  # TODO handle name via API
-            )
+
+            if timestamp:
+                message = Message(
+                    user_id=user_id,
+                    agent_id=agent_id,
+                    role="system",
+                    text=packaged_system_message,
+                    created_at=timestamp,
+                )
+            else:
+                message = Message(
+                    user_id=user_id,
+                    agent_id=agent_id,
+                    role="system",
+                    text=packaged_system_message,
+                )
 
         if isinstance(message, Message):
             # Can't have a null text field

@@ -86,20 +86,20 @@ def test_archival_memory(client, agent):
     client.delete_archival_memory(agent.id, passage.id)
 
 
-# def test_recall_memory(client, agent):
-#    """Test functions for interacting with recall memory store"""
-#
-#    # send message to the agent
-#    message_str = "Hello"
-#    message = client.send_message(agent.id, message_str)
-#
-#    # list messages
-#    messages = client.list_messages(agent.id)
-#    assert message.message_str in [m.message_str for m in messages], f"Missing message {message.message_str} in {messages}"
-#
-#    # get in-context messages
-#    in_context_messages = client.get_in_context_messages(agent.id)
-#    assert message.id in [m.id for m in in_context_messages], f"Missing message {message.id} in {in_context_messages}"
+def test_recall_memory(client, agent):
+    """Test functions for interacting with recall memory store"""
+
+    # send message to the agent
+    message_str = "Hello"
+    client.send_message(message_str, "user", agent.id)
+
+    ## list messages
+    # messages = client.get_messages(agent.id)
+    # assert message_str in [m.text for m in messages], f"Missing message {message_str} in {[m.text for m in messages]}"
+
+    # get in-context messages
+    in_context_messages = client.get_in_context_messages(agent.id)
+    assert message_str in [m.text for m in in_context_messages], f"Missing message {message_str} in {[m.text for m in in_context_messages]}"
 
 
 def test_tools(client):
