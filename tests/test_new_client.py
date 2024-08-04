@@ -150,3 +150,71 @@ def test_tools(client):
     # delete tool
     client.delete_tool(tool.id)
     assert len(client.list_tools()) == orig_tool_length
+
+
+def test_sources(client, agent):
+
+    # list sources (empty)
+    sources = client.list_sources()
+    assert len(sources) == 0
+
+    # create a source
+    test_source_name = "test_source"
+    source = client.create_source(name=test_source_name)
+
+    # list sources
+    sources = client.list_sources()
+    assert len(sources) == 1
+    assert sources[0].metadata_["num_passages"] == 0
+    assert sources[0].metadata_["num_documents"] == 0
+
+    # update the source
+    original_id = source.id
+    original_name = source.name
+    new_name = original_name + "_new"
+    client.update_source(source_id=source.id, name=new_name)
+
+    # get the source name (check that it's been updated)
+    source = client.get_source(source_id=source.id)
+    assert source.name == new_name
+    assert source.id == original_id
+
+    # get the source id (make sure that it's the same)
+    assert str(original_id) == client.get_source_id(source_name=new_name)
+
+    # TODO reenable once archival works
+
+    # # check agent archival memory size
+    # archival_memories = client.get_agent_archival_memory(agent_id=agent.id).archival_memory
+    # print(archival_memories)
+    # assert len(archival_memories) == 0
+
+    # # load a file into a source
+    # filename = "CONTRIBUTING.md"
+    # upload_job = client.load_file_into_source(filename=filename, source_id=source.id)
+    # print("Upload job", upload_job, upload_job.status, upload_job.metadata)
+
+    # # TODO: make sure things run in the right order
+    # archival_memories = client.get_agent_archival_memory(agent_id=agent.id).archival_memory
+    # assert len(archival_memories) == 0
+
+    # attach a source
+    client.attach_source_to_agent(source_id=source.id, agent_id=agent.id)
+
+    # # list archival memory
+    # archival_memories = client.get_agent_archival_memory(agent_id=agent.id).archival_memory
+    # # print(archival_memories)
+    # assert len(archival_memories) == 20 or len(archival_memories) == 21
+
+    # check number of passages
+    # sources = client.list_sources()
+    # assert sources.sources[0].metadata_["num_passages"] > 0
+    # assert sources.sources[0].metadata_["num_documents"] == 0  # TODO: fix this once document store added
+    # print(sources)
+
+    # detach the source
+    # TODO: add when implemented
+    # client.detach_source(source.name, agent.id)
+
+    # delete the source
+    client.delete_source(source.id)
