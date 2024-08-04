@@ -751,7 +751,7 @@ class LocalClient(AbstractClient):
 
     def update_in_context_memory(self, agent_id: str, section: str, value: Union[List[str], str]) -> Memory:
         # TODO: implement this (not sure what it should look like)
-        memory = self.server.update_agent_memory(agent_id=agent_id, section=section, value=value)
+        memory = self.server.update_agent_core_memory(user_id=self.user_id, agent_id=agent_id, new_memory_contents={section: value})
         return memory
 
     def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
