@@ -55,6 +55,51 @@ def test_agent(client):
     # update agent: embedding config
 
     # delete agent
+    client.delete_agent(agent_state_test.id)
+
+
+def test_memory(client, agent):
+
+    # get agent memory
+    original_memory = client.get_in_context_memory(agent.id)
+
+    # update core memory
+    updated_memory = client.update_in_context_memory(agent.id, section="human", content="I am a human")
+
+    # get memory
+    assert updated_memory.memory["human"].value != original_memory.memory["human"].value  # check if the memory has been updated
+    assert updated_memory.id == original_memory.id  # memory id should remain the same
+
+
+def test_archival_memory(client, agent):
+    """Test functions for interacting with archival memory store"""
+
+    # add archival memory
+    memory_str = "I love chats"
+    passage = client.insert_archival_memory(agent.id, memory=memory_str)
+
+    # list archival memory
+    passages = client.list_archival_memory(agent.id)
+    assert passage.message_str in [p.message_str for p in passages], f"Missing passage {passage.message_str} in {passages}"
+
+    # delete archival memory
+    client.delete_archival_memory(agent.id, passage.id)
+
+
+def test_recall_memory(client, agent):
+    """Test functions for interacting with recall memory store"""
+
+    # send message to the agent
+    message_str = "Hello"
+    message = client.send_message(agent.id, message_str)
+
+    # list messages
+    messages = client.list_messages(agent.id)
+    assert message.message_str in [m.message_str for m in messages], f"Missing message {message.message_str} in {messages}"
+
+    # get in-context messages
+    in_context_messages = client.get_in_context_messages(agent.id)
+    assert message.id in [m.id for m in in_context_messages], f"Missing message {message.id} in {in_context_messages}"
 
 
 def test_tools(client):

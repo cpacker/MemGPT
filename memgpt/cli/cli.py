@@ -3,7 +3,6 @@ import logging
 import os
 import subprocess
 import sys
-import uuid
 from enum import Enum
 from pathlib import Path
 from typing import Annotated, Optional
@@ -19,12 +18,12 @@ from memgpt.cli.cli_config import configure
 from memgpt.config import MemGPTConfig
 from memgpt.constants import CLI_WARNING_PREFIX, MEMGPT_DIR
 from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import EmbeddingConfig, LLMConfig, User
+from memgpt.data_types import EmbeddingConfig, LLMConfig
 from memgpt.log import get_logger
-from memgpt.memory import ChatMemory
 from memgpt.metadata import MetadataStore
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
-from memgpt.models.pydantic_models import OptionState
+from memgpt.schemas.enums import OptionState
+from memgpt.schemas.memory import ChatMemory
 from memgpt.server.constants import WS_DEFAULT_PORT
 from memgpt.server.server import logger as server_logger
 
@@ -292,21 +291,6 @@ class ServerChoice(Enum):
     ws_api = "websocket"
 
 
-def create_default_user_or_exit(config: MemGPTConfig, ms: MetadataStore):
-    user_id = uuid.UUID(config.anon_clientid)
-    user = ms.get_user(user_id=user_id)
-    if user is None:
-        ms.create_user(User(id=user_id))
-        user = ms.get_user(user_id=user_id)
-        if user is None:
-            typer.secho(f"Failed to create default user in database.", fg=typer.colors.RED)
-            sys.exit(1)
-        else:
-            return user
-    else:
-        return user
-
-
 def server(
     type: Annotated[ServerChoice, typer.Option(help="Server to run")] = "rest",
     port: Annotated[Optional[int], typer.Option(help="Port to run the server on")] = None,
@@ -323,8 +307,8 @@ def server(
 
         if MemGPTConfig.exists():
             config = MemGPTConfig.load()
-            ms = MetadataStore(config)
-            create_default_user_or_exit(config, ms)
+            MetadataStore(config)
+            client = create_client()  # triggers user creation
         else:
             typer.secho(f"No configuration exists. Run memgpt configure before starting the server.", fg=typer.colors.RED)
             sys.exit(1)
@@ -403,6 +387,9 @@ def run(
     context_window: Annotated[
         Optional[int], typer.Option(help="The context window of the LLM you are using (e.g. 8k for most Mistral 7B variants)")
     ] = None,
+    core_memory_limit: Annotated[
+        Optional[int], typer.Option(help="The character limit to each core-memory section (human/persona).")
+    ] = 2000,
     # other
     first: Annotated[bool, typer.Option(help="Use --first to send the first message in the sequence")] = False,
     strip_ui: Annotated[bool, typer.Option(help="Remove all the bells and whistles in CLI output (helpful for testing)")] = False,
@@ -519,11 +506,12 @@ def run(
 
     # read user id from config
     ms = MetadataStore(config)
-    user = create_default_user_or_exit(config, ms)
+    client = create_client()
+    client.user_id
 
     # determine agent to use, if not provided
     if not yes and not agent:
-        agents = ms.list_agents(user_id=user.id)
+        agents = client.list_agents()
         agents = [a.name for a in agents]
 
         if len(agents) > 0:
@@ -535,7 +523,11 @@ def run(
                 agent = questionary.select("Select agent:", choices=agents).ask()
 
     # create agent config
-    agent_state = ms.get_agent(agent_name=agent, user_id=user.id) if agent else None
+    if agent:
+        agent_id = client.get_agent_id(agent)
+        agent_state = client.get_agent(agent_id)
+    else:
+        agent_state = None
     human = human if human else config.human
     persona = persona if persona else config.persona
     if agent and agent_state:  # use existing agent
@@ -582,13 +574,12 @@ def run(
             agent_state.llm_config.model_endpoint_type = model_endpoint_type
 
         # Update the agent with any overrides
-        ms.update_agent(agent_state)
-        tools = []
-        for tool_name in agent_state.tools:
-            tool = ms.get_tool(tool_name, agent_state.user_id)
-            if tool is None:
-                typer.secho(f"Couldn't find tool {tool_name} in database, please run `memgpt add tool`", fg=typer.colors.RED)
-            tools.append(tool)
+        agent_state = client.update_agent(
+            agent_id=agent_state.id,
+            name=agent_state.name,
+            llm_config=agent_state.llm_config,
+            embedding_config=agent_state.embedding_config,
+        )
 
         # create agent
         memgpt_agent = Agent(agent_state=agent_state, interface=interface(), tools=tools)
@@ -633,14 +624,14 @@ def run(
         # create agent
         try:
             client = create_client()
-            human_obj = ms.get_human(human, user.id)
-            persona_obj = ms.get_persona(persona, user.id)
+            human_obj = client.get_human(name=human)
+            persona_obj = client.get_persona(name=persona)
             if human_obj is None:
                 typer.secho("Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)
             if persona_obj is None:
                 typer.secho("Couldn't find persona {persona} in database, please run `memgpt add persona`", fg=typer.colors.RED)
 
-            memory = ChatMemory(human=human_obj.text, persona=persona_obj.text)
+            memory = ChatMemory(human=human_obj.value, persona=persona_obj.value, limit=core_memory_limit)
             metadata = {"human": human_obj.name, "persona": persona_obj.name}
 
             typer.secho(f"->  🤖 Using persona profile: '{persona_obj.name}'", fg=typer.colors.WHITE)
@@ -693,19 +684,10 @@ def delete_agent(
     """Delete an agent from the database"""
     # use client ID is no user_id provided
     config = MemGPTConfig.load()
-    ms = MetadataStore(config)
-    if user_id is None:
-        user = create_default_user_or_exit(config, ms)
-    else:
-        user = ms.get_user(user_id=uuid.UUID(user_id))
-
-    try:
-        agent = ms.get_agent(agent_name=agent_name, user_id=user.id)
-    except Exception as e:
-        typer.secho(f"Failed to get agent {agent_name}\n{e}", fg=typer.colors.RED)
-        sys.exit(1)
-
-    if agent is None:
+    MetadataStore(config)
+    client = create_client(user_id=user_id)
+    agent = client.get_agent_by_name(agent_name)
+    if not agent:
         typer.secho(f"Couldn't find agent named '{agent_name}' to delete", fg=typer.colors.RED)
         sys.exit(1)
 
@@ -717,7 +699,8 @@ def delete_agent(
         return
 
     try:
-        ms.delete_agent(agent_id=agent.id)
+        # delete the agent
+        client.delete_agent(agent.id)
         typer.secho(f"🕊️ Successfully deleted agent '{agent_name}' (id={agent.id})", fg=typer.colors.GREEN)
     except Exception:
         typer.secho(f"Failed to delete agent '{agent_name}' (id={agent.id})", fg=typer.colors.RED)

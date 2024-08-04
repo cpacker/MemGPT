@@ -16,7 +16,14 @@ from memgpt.memory import get_memory_functions
 # new schemas
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.block import Human, Persona
-from memgpt.schemas.memory import ChatMemory, Memory
+from memgpt.schemas.memory import (
+    ArchivalMemorySummary,
+    ChatMemory,
+    Memory,
+    RecallMemorySummary,
+)
+from memgpt.schemas.message import Message
+from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source, SourceAttach, SourceCreate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
 from memgpt.schemas.user import UserCreate
@@ -100,10 +107,10 @@ class AbstractClient(object):
 
     # memory
 
-    def get_agent_memory(self, agent_id: str) -> Dict:
+    def get_core_memory(self, agent_id: str) -> Dict:
         raise NotImplementedError
 
-    def update_agent_core_memory(self, agent_id: str, human: Optional[str] = None, persona: Optional[str] = None) -> Dict:
+    def update_core_memory(self, agent_id: str, human: Optional[str] = None, persona: Optional[str] = None) -> Dict:
         raise NotImplementedError
 
     # agent interactions
@@ -344,11 +351,11 @@ class RESTClient(AbstractClient):
         return self.get_agent_response_to_state(response_obj)
 
     # memory
-    def get_agent_memory(self, agent_id: uuid.UUID) -> GetAgentMemoryResponse:
+    def get_core_memory(self, agent_id: uuid.UUID) -> GetAgentMemoryResponse:
         response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory", headers=self.headers)
         return GetAgentMemoryResponse(**response.json())
 
-    def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> UpdateAgentMemoryResponse:
+    def update_core_memory(self, agent_id: str, new_memory_contents: Dict) -> UpdateAgentMemoryResponse:
         response = requests.post(f"{self.base_url}/api/agents/{agent_id}/memory", json=new_memory_contents, headers=self.headers)
         return UpdateAgentMemoryResponse(**response.json())
 
@@ -720,25 +727,53 @@ class LocalClient(AbstractClient):
         )
         return agent_state
 
-    def update_agent_memory(self, agent_id: str, section: str, value: str):
-        # get agent memory
-        # TODO: implement this (not sure what it should look like)
-        pass
-
     def delete_agent(self, agent_id: uuid.UUID):
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
 
     def get_agent(self, agent_id: uuid.UUID) -> AgentState:
+        # TODO: include agent_name
         self.interface.clear()
         return self.server.get_agent_state(user_id=self.user_id, agent_id=agent_id)
 
-    def get_agent_memory(self, agent_id: str) -> Memory:
-        memory = self.server.get_agent_memory(user_id=self.user_id, agent_id=agent_id)
+    def get_agent_id(self, agent_name: str) -> AgentState:
+        self.interface.clear()
+        assert agent_name, f"Agent name must be provided"
+        return self.server.get_agent_id(name=agent_name, user_id=self.user_id)
+
+    # memory
+    def get_in_context_memory(self, agent_id: uuid.UUID) -> Memory:
+        memory = self.server.get_agent_memory(agent_id=agent_id)
         return memory
+
+    def update_in_context_memory(self, agent_id: str, section: str, value: Union[List[str], str]) -> Memory:
+        # TODO: implement this (not sure what it should look like)
+        memory = self.server.update_agent_memory(agent_id=agent_id, section=section, value=value)
+        return memory
+
+    def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
+        return self.server.get_archival_memory_summary(user_id=self.user_id, agent_id=agent_id)
+
+    def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
+        return self.server.get_recall_memory_summary(user_id=self.user_id, agent_id=agent_id)
+
+    def get_in_context_messages(self, agent_id: str) -> List[Message]:
+        return self.server.get_in_context_messages(agent_id=agent_id)
 
     # agent interactions
 
-    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
+    def send_message(
+        self,
+        message: str,
+        role: str,
+        agent_id: Optional[uuid.UUID] = None,
+        agent_name: Optional[str] = None,
+        stream: Optional[bool] = False,
+    ) -> UserMessageResponse:
+        if not agent_id:
+            assert agent_name, f"Either agent_id or agent_name must be provided"
+            agent_state = self.get_agent(agent_name=agent_name)
+            agent_id = agent_state.id
+
         if stream:
             # TODO: implement streaming with stream=True/False
             raise NotImplementedError
@@ -956,12 +991,16 @@ class LocalClient(AbstractClient):
 
     def get_messages(
         self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-    ) -> GetAgentMessagesResponse:
+    ) -> List[Message]:
         self.interface.clear()
-        [_, messages] = self.server.get_agent_recall_cursor(
-            user_id=self.user_id, agent_id=agent_id, before=before, limit=limit, reverse=True
+        return self.server.get_agent_recall_cursor(
+            user_id=self.user_id, agent_id=agent_id, before=before, after=after, limit=limit, reverse=True
         )
-        return GetAgentMessagesResponse(messages=messages)
+
+    def get_archival_memory(
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ) -> List[Passage]:
+        return self.server.get_agent_archival_cursor(user_id=self.user_id, agent_id=agent_id, before=before, after=after, limit=limit)
 
     def list_models(self) -> ListModelsResponse:
 

@@ -669,7 +669,7 @@ class SyncServer(LockingServer):
             message.created_at = timestamp
 
         # Run the agent state forward
-        return self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message)
+        return self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message, timestamp=timestamp)
 
     # @LockingServer.agent_lock_decorator
     def run_command(self, user_id: str, agent_id: str, command: str) -> Union[MemGPTUsageStatistics, None]:
@@ -1058,18 +1058,6 @@ class SyncServer(LockingServer):
         """Return the memory of an agent (core memory)"""
         agent = self._get_or_load_agent(agent_id=agent_id)
         return agent.memory
-        core_memory = memgpt_agent.memory
-        recall_memory = memgpt_agent.persistence_manager.recall_memory
-        archival_memory = memgpt_agent.persistence_manager.archival_memory
-
-        # NOTE
-        memory_obj = {
-            "core_memory": {key: value.value for key, value in core_memory.memory.items()},
-            "recall_memory": len(recall_memory) if recall_memory is not None else None,
-            "archival_memory": len(archival_memory) if archival_memory is not None else None,
-        }
-
-        return memory_obj
 
     def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
         agent = self._get_or_load_agent(agent_id=agent_id)
@@ -1079,11 +1067,17 @@ class SyncServer(LockingServer):
         agent = self._get_or_load_agent(agent_id=agent_id)
         return RecallMemorySummary(num_rows=len(agent.persistence_manager.recall_memory))
 
-    def get_in_context_message_ids(self, user_id: str, agent_id: str) -> List[str]:
+    def get_in_context_message_ids(self, agent_id: str) -> List[str]:
         """Get the message ids of the in-context messages in the agent's memory"""
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
         return [m.id for m in memgpt_agent._messages]
+
+    def get_in_context_messages(self, agent_id: str) -> List[Message]:
+        """Get the in-context messages in the agent's memory"""
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+        return memgpt_agent._messages
 
     def get_agent_messages(self, agent_id: str, start: int, count: int) -> List[Message]:
         """Paginated query of all messages in agent message queue"""
@@ -1156,7 +1150,7 @@ class SyncServer(LockingServer):
         limit: Optional[int] = 100,
         order_by: Optional[str] = "created_at",
         reverse: Optional[bool] = False,
-    ):
+    ) -> List[Passage]:
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
@@ -1169,8 +1163,7 @@ class SyncServer(LockingServer):
         cursor, records = memgpt_agent.persistence_manager.archival_memory.storage.get_all_cursor(
             after=after, before=before, limit=limit, order_by=order_by, reverse=reverse
         )
-        json_records = [vars(record) for record in records]
-        return cursor, json_records
+        return records
 
     def insert_archival_memory(self, user_id: str, agent_id: str, memory_contents: str) -> List[Passage]:
         if self.ms.get_user(user_id=user_id) is None:
@@ -1210,7 +1203,7 @@ class SyncServer(LockingServer):
         order_by: Optional[str] = "created_at",
         order: Optional[str] = "asc",
         reverse: Optional[bool] = False,
-    ) -> Tuple[str, List[dict]]:
+    ) -> List[Message]:
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
@@ -1223,10 +1216,7 @@ class SyncServer(LockingServer):
         cursor, records = memgpt_agent.persistence_manager.recall_memory.storage.get_all_cursor(
             after=after, before=before, limit=limit, order_by=order_by, reverse=reverse
         )
-
-        json_records = [record.to_json() for record in records]
-        # TODO: mark what is in-context versus not
-        return cursor, json_records
+        return records
 
     def get_agent_state(self, user_id: str, agent_id: Optional[str], agent_name: Optional[str] = None) -> AgentState:
         """Return the config of an agent"""
