@@ -17,6 +17,7 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
         Get a list of all users in the database
         """
         try:
+            # TODO: make this call a server function
             _, users = server.ms.get_all_users(cursor=cursor, limit=limit)
         except HTTPException:
             raise
