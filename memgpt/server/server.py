@@ -813,7 +813,7 @@ class SyncServer(LockingServer):
 
         # update the core memory of the agent
         if request.memory:
-            old_core_memory = self.get_agent_memory(user_id=user_id, agent_id=request.id)["core_memory"]
+            old_core_memory = self.get_agent_memory(agent_id=request.id)["core_memory"]
             new_memory_contents = request.memory.to_dict()
 
             # edit memory fields
@@ -831,8 +831,7 @@ class SyncServer(LockingServer):
 
         # update the system prompt
         if request.system:
-            memgpt_agent.system = request
-            memgpt_agent.rebuild_memory()  # rebuild memory
+            memgpt_agent.update_system_prompt(request.system)
 
         # update in-context messages
         if request.message_ids:
@@ -1420,7 +1419,6 @@ class SyncServer(LockingServer):
             name=request.name,
             user_id=user_id,
             embedding_config=self.config.default_embedding_config,
-            description=request.description,
         )
         self.ms.create_source(source)
         assert self.ms.get_source(source_name=request.name, user_id=user_id) is not None, f"Failed to create source {request.name}"
