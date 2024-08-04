@@ -513,7 +513,6 @@ class MetadataStore:
         with self.session_maker() as session:
             fields = vars(agent)
             fields["memory"] = agent.memory.to_dict()
-            print("update", agent.id, fields)
             session.query(AgentModel).filter(AgentModel.id == agent.id).update(fields)
             session.commit()
 

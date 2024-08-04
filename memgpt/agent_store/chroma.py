@@ -178,7 +178,6 @@ class ChromaStorageConnector(StorageConnector):
             metadata = {**metadata, **record_metadata}  # merge with metadata
             metadata = {**metadata, **embedding_config}  # merge with embedding config
             metadata = {key: value for key, value in metadata.items() if value is not None}  # null values not allowed
-            print("METADATA", metadata)
 
             # convert uuids to strings
             metadatas.append(metadata)
@@ -266,7 +265,6 @@ class ChromaStorageConnector(StorageConnector):
         print("Warning: hacky implementation with chroma")
         records = self.get_all(filters=filters)
 
-        print("RECORDS", records)
         # sort by custom field
         records = sorted(records, key=lambda x: getattr(x, order_by), reverse=reverse)
         if after:

@@ -177,7 +177,6 @@ def get_db_model(
                 return f"<Message(message_id='{self.id}', text='{self.text}')>"
 
             def to_record(self):
-                print("TOOL", self.tool_calls)
                 calls = (
                     [ToolCall(id=tool_call["id"], function=ToolCallFunction(**tool_call["function"])) for tool_call in self.tool_calls]
                     if self.tool_calls
@@ -550,7 +549,6 @@ class SQLLiteStorageConnector(SQLStorageConnector):
                 for record in iterable:
                     # db_record = self.db_model(**vars(record))
                     db_record = self.db_model(**record.dict())
-                    print(db_record)
                     session.add(db_record)
                 session.commit()
 

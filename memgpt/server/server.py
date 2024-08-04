@@ -980,7 +980,6 @@ class SyncServer(LockingServer):
         existing_persona = self.ms.get_persona(persona_name=request.name, user_id=user_id)
         if existing_persona:  # update
             if update:
-                print(vars(request))
                 return self.update_persona(UpdatePersona(id=existing_persona.id, **vars(request)), user_id)
             else:
                 raise ValueError(f"Persona with name {request.name} already exists")
@@ -1561,9 +1560,7 @@ class SyncServer(LockingServer):
 
         # check if already exists:
         tool_name = request.json_schema["name"]
-        print("creating tool name", tool_name)
         existing_tool = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
-        print("existing tools", existing_tool, tool_name, user_id)
         if existing_tool:
             if update:
                 updated_tool = self.update_tool(ToolUpdate(id=existing_tool.id, **vars(request)))
@@ -1580,10 +1577,8 @@ class SyncServer(LockingServer):
             json_schema=request.json_schema,
             user_id=user_id,
         )
-        print("create id", tool.id)
         self.ms.create_tool(tool)
         created_tool = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
-        print("created tool", created_tool)
         return created_tool
 
     def delete_tool(self, tool_id: str):
@@ -1593,7 +1588,6 @@ class SyncServer(LockingServer):
     def list_tools(self, user_id: str) -> List[Tool]:
         """List tools available to user_id"""
         tools = self.ms.list_tools(user_id)
-        print("SERVER LIST", [t.name if t else t for t in tools])
         return tools
 
     def add_default_tools(self, module_name="base", user_id: Optional[str] = None):
@@ -1610,7 +1604,6 @@ class SyncServer(LockingServer):
             functions_to_schema = load_function_set(module)
         except ValueError as e:
             err = f"Error loading function set '{module_name}': {e}"
-            print(err)
 
         # create tool in db
         for name, schema in functions_to_schema.items():
