@@ -396,6 +396,7 @@ def run(
     agent: Annotated[Optional[str], typer.Option(help="Specify agent name")] = None,
     human: Annotated[Optional[str], typer.Option(help="Specify human")] = None,
     system: Annotated[Optional[str], typer.Option(help="Specify system prompt (raw text)")] = None,
+    system_file: Annotated[Optional[str], typer.Option(help="Specify raw text file containing system prompt")] = None,
     # model flags
     model: Annotated[Optional[str], typer.Option(help="Specify the LLM model")] = None,
     model_wrapper: Annotated[Optional[str], typer.Option(help="Specify the LLM model wrapper")] = None,
@@ -651,6 +652,13 @@ def run(
             persona_obj = ms.get_persona(persona, user.id)
             # TODO pull system prompts from the metadata store
             # NOTE: will be overriden later to a default
+            if system_file:
+                try:
+                    with open(system_file, "r", encoding="utf-8") as file:
+                        system = file.read().strip()
+                        printd("Loaded system file successfully.")
+                except FileNotFoundError:
+                    typer.secho(f"System file not found at {system_file}", fg=typer.colors.RED)
             system_prompt = system if system else None
             if human_obj is None:
                 typer.secho("Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)

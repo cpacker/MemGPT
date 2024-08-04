@@ -1211,7 +1211,9 @@ def delete(option: str, name: str):
             assert source is not None, f"Source {name} does not exist"
             client.delete_source(source_id=source.id)
         elif option == "agent":
-            client.delete_agent(name=name)
+            agent = client.get_agent(agent_name=name)
+            assert agent is not None, f"Agent {name} does not exist"
+            client.delete_agent(agent_id=agent.id)
         elif option == "human":
             human = client.get_human(name=name)
             assert human is not None, f"Human {name} does not exist"
