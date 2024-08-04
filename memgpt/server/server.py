@@ -813,21 +813,29 @@ class SyncServer(LockingServer):
 
         # update the core memory of the agent
         if request.memory:
-            old_core_memory = self.get_agent_memory(agent_id=request.id)["core_memory"]
-            new_memory_contents = request.memory.to_dict()
+            # new_memory_contents = request.memory.to_dict()
+            # _ = self.update_agent_core_memory(user_id=user_id, agent_id=request.id, new_memory_contents=new_memory_contents)
 
-            # edit memory fields
-            modified = False
-            for key, value in new_memory_contents.items():
-                if value is None:
-                    continue
-                if key in old_core_memory and old_core_memory[key] != value:
-                    memgpt_agent.memory.memory[key].value = value  # update agent memory
-                    modified = True
+            new_memory_contents = {k: v.value for k, v in request.memory.memory.items() if v is not None}
+            _ = self.update_agent_core_memory(user_id=user_id, agent_id=request.id, new_memory_contents=new_memory_contents)
+
+            # old_core_memory = self.get_agent_memory(agent_id=request.id)
+            # new_memory_contents = request.memory.to_dict()
+            # print(f"old_core_memory:\n{str(old_core_memory)}")
+            # print(f"new_memory_contents:\n{str(new_memory_contents)}")
+
+            # # edit memory fields
+            # modified = False
+            # for key, value in new_memory_contents.items():
+            #     if value is None:
+            #         continue
+            #     if key in old_core_memory and old_core_memory[key] != value:
+            #         memgpt_agent.memory.memory[key].value = value  # update agent memory
+            #         modified = True
 
             # If we modified the memory contents, we need to rebuild the memory block inside the system message
-            if modified:
-                memgpt_agent.rebuild_memory()
+            # if modified:
+            # memgpt_agent.rebuild_memory()
 
         # update the system prompt
         if request.system:
@@ -1307,7 +1315,7 @@ class SyncServer(LockingServer):
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
 
-        old_core_memory = self.get_agent_memory(agent_id=agent_id)
+        # old_core_memory = self.get_agent_memory(agent_id=agent_id)
 
         modified = False
         for key, value in new_memory_contents.items():
