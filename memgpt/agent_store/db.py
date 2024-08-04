@@ -30,7 +30,7 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.constants import MAX_EMBEDDING_DIM
 
-# from memgpt.data_types import Message, Passage, Record, RecordType, ToolCall
+# from memgpt.schemas.message import Message, Passage, Record, RecordType, ToolCall
 from memgpt.schemas.message import Message
 from memgpt.schemas.openai.chat_completion_request import ToolCall, ToolCallFunction
 from memgpt.schemas.passage import Passage

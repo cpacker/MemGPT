@@ -2,8 +2,9 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List
 
-from memgpt.data_types import AgentState, Message
 from memgpt.memory import BaseRecallMemory, EmbeddingArchivalMemory
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.message import Message
 from memgpt.utils import printd
 
 

@@ -22,7 +22,7 @@ from memgpt.constants import (
     MAX_EMBEDDING_DIM,
 )
 from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import EmbeddingConfig
+from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.utils import is_valid_url, printd
 
 
