@@ -2,7 +2,8 @@ import datetime
 import inspect
 import json
 import traceback
-from typing import List, Literal, Optional, Tuple, Union, cast
+import uuid
+from typing import List, Literal, Optional, Tuple, Union
 
 from tqdm import tqdm
 
@@ -259,22 +260,12 @@ class Agent(object):
 
         # Once the memory object is initialized, use it to "bake" the system message
         if self.agent_state.message_ids is not None:
-            # print(f"Agent.__init__ :: loading, state={agent_state.state['messages']}")
-
-            # Convert to IDs, and pull from the database
-            raw_messages = [self.persistence_manager.recall_memory.storage.get(msg_id) for msg_id in self.agent_state.message_ids]
-            assert all([isinstance(msg, Message) for msg in raw_messages])
-            self._messages.extend([cast(Message, msg) for msg in raw_messages if msg is not None])
-
-            for m in self._messages:
-                # assert is_utc_datetime(m.created_at), f"created_at on message for agent {self.agent_state.name} isn't UTC:\n{vars(m)}"
-                # TODO eventually do casting via an edit_message function
-                if not is_utc_datetime(m.created_at):
-                    printd(f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
-                    m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
+            self.set_message_buffer(message_ids=self.agent_state.message_ids)
 
         else:
             printd(f"Agent.__init__ :: creating, state={agent_state.message_ids}")
+
+            # Generate a sequence of initial messages to put in the buffer
             init_messages = initialize_message_sequence(
                 model=self.model,
                 system=self.system,
@@ -284,6 +275,8 @@ class Agent(object):
                 memory_edit_timestamp=get_utc_time(),
                 include_initial_boot_message=True,
             )
+
+            # Cast the messages to actual Message objects to be synced to the DB
             init_messages_objs = []
             for msg in init_messages:
                 init_messages_objs.append(
@@ -292,17 +285,11 @@ class Agent(object):
                     )
                 )
             assert all([isinstance(msg, Message) for msg in init_messages_objs]), (init_messages_objs, init_messages)
-            self.messages_total = 0
-            # self._append_to_messages(added_messages=[cast(Message, msg) for msg in init_messages_objs if msg is not None])
-            print(init_messages_objs)
-            self._append_to_messages(added_messages=init_messages_objs)
+            printd(init_messages_objs)
 
-            for m in self._messages:
-                assert is_utc_datetime(m.created_at), f"created_at on message for agent {self.agent_state.name} isn't UTC:\n{vars(m)}"
-                # TODO eventually do casting via an edit_message function
-                if not is_utc_datetime(m.created_at):
-                    printd(f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
-                    m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
+            self.messages_total = 0
+            self._append_to_messages(added_messages=init_messages_objs)
+            self._validate_message_buffer_is_utc()
 
         # Keep track of the total number of messages throughout all time
         self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
@@ -320,6 +307,40 @@ class Agent(object):
     @messages.setter
     def messages(self, value):
         raise Exception("Modifying message list directly not allowed")
+
+    def _load_messages_from_recall(self, message_ids: List[uuid.UUID]) -> List[Message]:
+        """Load a list of messages from recall storage"""
+
+        # Pull the message objects from the database
+        message_objs = [self.persistence_manager.recall_memory.storage.get(msg_id) for msg_id in message_ids]
+        assert all([isinstance(msg, Message) for msg in message_objs])
+
+        return message_objs
+
+    def _validate_message_buffer_is_utc(self):
+        """Iterate over the message buffer and force all messages to be UTC stamped"""
+
+        for m in self._messages:
+            # assert is_utc_datetime(m.created_at), f"created_at on message for agent {self.agent_state.name} isn't UTC:\n{vars(m)}"
+            # TODO eventually do casting via an edit_message function
+            if not is_utc_datetime(m.created_at):
+                printd(f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
+                m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
+
+    def set_message_buffer(self, message_ids: List[uuid.UUID], force_utc: bool = True):
+        """Set the messages in the buffer to the message IDs list"""
+
+        message_objs = self._load_messages_from_recall(message_ids=message_ids)
+
+        # set the objects in the buffer
+        self._messages = message_objs
+
+        # bugfix for old agents that may not have had UTC specified in their timestamps
+        if force_utc:
+            self._validate_message_buffer_is_utc()
+
+        # also sync the message IDs attribute
+        self.agent_state.message_ids = message_ids
 
     def _trim_messages(self, num):
         """Trim messages from the front, not including the system message"""
