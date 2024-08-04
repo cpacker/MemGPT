@@ -247,8 +247,22 @@ def test_sources(client, agent):
     sources = client.list_sources()
     print("listed sources", sources)
     assert len(sources.sources) == 1
-    assert sources.sources[0].metadata_["num_passages"] == 0
-    assert sources.sources[0].metadata_["num_documents"] == 0
+    assert sources[0].metadata_["num_passages"] == 0
+    assert sources[0].metadata_["num_documents"] == 0
+
+    # update the source
+    original_id = source.id
+    original_name = source.name
+    new_name = original_name + "_new"
+    client.update_source(source_id=source.id, name=new_name)
+
+    # get the source name (check that it's been updated)
+    source = client.get_source(source_id=source.id)
+    assert source.name == new_name
+    assert source.id == original_id
+
+    # get the source id (make sure that it's the same)
+    assert str(original_id) == client.get_source_id(source_name=new_name)
 
     # check agent archival memory size
     archival_memories = client.get_agent_archival_memory(agent_id=agent.id).archival_memory
