@@ -705,6 +705,8 @@ class LocalClient(AbstractClient):
         metadata: Optional[Dict] = None,
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
+        message_ids: Optional[List[str]] = None,
+        memory: Optional[Memory] = None,
     ):
         self.interface.clear()
         agent_state = self.server.update_agent(
@@ -717,6 +719,8 @@ class LocalClient(AbstractClient):
                 metadata_=metadata,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
+                message_ids=message_ids,
+                memory=memory,
             ),
             user_id=self.user_id,
         )

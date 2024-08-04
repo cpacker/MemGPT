@@ -45,16 +45,48 @@ def test_agent(client):
     client.update_agent(agent_state_test.id, name=new_name)
     assert client.get_agent(agent_state_test.id).name == new_name
 
-    ## update agent: system prompt
-    # new_system_prompt = agent_state.system + "Always respond with a !"
-    # client.update_agent(agent_state_test.id, system=new_system_prompt)
-    # assert client.get_agent(agent_state_test.id).system == new_system_prompt
+    # update agent: system prompt
+    new_system_prompt = agent_state.system + "\nAlways respond with a !"
+    client.update_agent(agent_state_test.id, system=new_system_prompt)
+    assert client.get_agent(agent_state_test.id).system == new_system_prompt
+
+    # update agent: message_ids
+    old_message_ids = agent_state.message_ids
+    new_message_ids = old_message_ids.copy()[:-1]  # pop one
+    assert len(old_message_ids) != len(new_message_ids)
+    client.update_agent(agent_state_test.id, message_ids=new_message_ids)
+    assert client.get_agent(agent_state_test.id).message_ids == new_message_ids
 
     # update agent: tools
+    tool_to_delete = "send_message"
+    assert tool_to_delete in agent_state.tools
+    new_agent_tools = [t_name for t_name in agent_state.tools if t_name != tool_to_delete]
+    client.update_agent(agent_state_test.id, tools=new_agent_tools)
+    assert client.get_agent(agent_state_test.id).tools == new_agent_tools
+
     # update agent: memory
-    # update agent: message_ids
+    # new_memory = ChatMemory(human="My name is Mr Test, 100 percent human.", persona="I am an all-knowing AI.")
+    # assert new_memory != agent_state.memory
+    # client.update_agent(agent_state_test.id, memory=new_memory)
+    # assert client.get_agent(agent_state_test.id).memory == new_memory
+
     # update agent: llm config
+    new_llm_config = agent_state.llm_config.model_copy(deep=True)
+    new_llm_config.model = "fake_new_model"
+    new_llm_config.context_window = 1e6
+    assert agent_state.llm_config != new_llm_config
+    client.update_agent(agent_state_test.id, llm_config=new_llm_config)
+    assert client.get_agent(agent_state_test.id).llm_config == new_llm_config
+    assert client.get_agent(agent_state_test.id).llm_config.model == "fake_new_model"
+    assert client.get_agent(agent_state_test.id).llm_config.context_window == 1e6
+
     # update agent: embedding config
+    new_embed_config = agent_state.embedding_config.model_copy(deep=True)
+    new_embed_config.embedding_model = "fake_embed_model"
+    assert agent_state.embedding_config != new_embed_config
+    client.update_agent(agent_state_test.id, embedding_config=new_embed_config)
+    assert client.get_agent(agent_state_test.id).embedding_config == new_embed_config
+    assert client.get_agent(agent_state_test.id).embedding_config.embedding_model == "fake_embed_model"
 
     # delete agent
     client.delete_agent(agent_state_test.id)
