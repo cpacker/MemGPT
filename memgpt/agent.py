@@ -268,11 +268,10 @@ class Agent(object):
                     )
                 )
             assert all([isinstance(msg, Message) for msg in init_messages_objs]), (init_messages_objs, init_messages)
+
+            # Put the messages inside the message buffer
             self.messages_total = 0
             # self._append_to_messages(added_messages=[cast(Message, msg) for msg in init_messages_objs if msg is not None])
-            self._append_to_messages(added_messages=init_messages_objs)
-
-            self.messages_total = 0
             self._append_to_messages(added_messages=init_messages_objs)
             self._validate_message_buffer_is_utc()
 
