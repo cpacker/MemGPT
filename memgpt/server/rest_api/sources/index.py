@@ -2,7 +2,7 @@ import os
 import tempfile
 import uuid
 from functools import partial
-from typing import List, Optional
+from typing import List
 
 from fastapi import (
     APIRouter,
@@ -18,12 +18,13 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from memgpt.data_sources.connectors import DirectoryConnector
-from memgpt.data_types import Source
+
+# from memgpt.data_types import Source
 from memgpt.schemas.document import Document as DocumentModel  # TODO: modify
 from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.job import Job as JobModel  # TODO: modify
 from memgpt.schemas.passage import Passage as PassageModel  # TODO: modify
-from memgpt.schemas.source import Source as SourceModel  # TODO: modify
+from memgpt.schemas.source import Source, SourceAttach, SourceCreate, SourceDetach
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -40,25 +41,6 @@ Implement the following functions:
 * Paginated get all documents from a source
 * Attach a source to an agent
 """
-
-
-class ListSourcesResponse(BaseModel):
-    sources: List[SourceModel] = Field(..., description="List of available sources.")
-
-
-class CreateSourceRequest(BaseModel):
-    name: str = Field(..., description="The name of the source.")
-    description: Optional[str] = Field(None, description="The description of the source.")
-
-
-class UploadFileToSourceRequest(BaseModel):
-    file: UploadFile = Field(..., description="The file to upload.")
-
-
-class UploadFileToSourceResponse(BaseModel):
-    source: SourceModel = Field(..., description="The source the file was uploaded to.")
-    added_passages: int = Field(..., description="The number of passages added to the source.")
-    added_documents: int = Field(..., description="The number of documents added to the source.")
 
 
 class GetSourcePassagesResponse(BaseModel):
@@ -110,44 +92,34 @@ def load_file_to_source(server: SyncServer, user_id: uuid.UUID, source: Source, 
 def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
-    @router.get("/sources", tags=["sources"], response_model=ListSourcesResponse)
+    @router.get("/sources", tags=["sources"], response_model=List[Source])
     async def list_sources(
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
         List all data sources created by a user.
         """
-        # Clear the interface
         interface.clear()
 
         try:
-            sources = server.list_all_sources(user_id=user_id)
-            return ListSourcesResponse(sources=sources)
+            return server.list_all_sources(user_id=str(user_id))
         except HTTPException:
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
 
-    @router.post("/sources", tags=["sources"], response_model=SourceModel)
+    @router.post("/sources", tags=["sources"], response_model=Source)
     async def create_source(
-        request: CreateSourceRequest = Body(...),
+        request: SourceCreate = Body(...),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
     ):
         """
         Create a new data source.
         """
         interface.clear()
+
         try:
-            # TODO: don't use Source and just use SourceModel once pydantic migration is complete
-            source = server.create_source(name=request.name, user_id=user_id)
-            return SourceModel(
-                name=source.name,
-                description=None,  # TODO: actually store descriptions
-                user_id=source.user_id,
-                id=source.id,
-                embedding_config=server.server_embedding_config,
-                created_at=source.created_at.timestamp(),
-            )
+            return server.create_source(name=request.name, user_id=user_id)
         except HTTPException:
             raise
         except Exception as e:
@@ -162,6 +134,7 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         Delete a data source.
         """
         interface.clear()
+
         try:
             server.delete_source(source_id=source_id, user_id=user_id)
             return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Source source_id={source_id} successfully deleted"})
@@ -170,8 +143,9 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
 
-    @router.post("/sources/{source_id}/attach", tags=["sources"], response_model=SourceModel)
+    @router.post("/sources/{source_id}/attach", tags=["sources"], response_model=Source)
     async def attach_source_to_agent(
+        # request: SourceAttach = Body(...),
         source_id: uuid.UUID,
         agent_id: uuid.UUID = Query(..., description="The unique identifier of the agent to attach the source to."),
         user_id: uuid.UUID = Depends(get_current_user_with_server),
@@ -180,20 +154,17 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         Attach a data source to an existing agent.
         """
         interface.clear()
-        assert isinstance(agent_id, uuid.UUID), f"Expected agent_id to be a UUID, got {agent_id}"
-        assert isinstance(user_id, uuid.UUID), f"Expected user_id to be a UUID, got {user_id}"
-        source = server.ms.get_source(source_id=source_id, user_id=user_id)
-        source = server.attach_source_to_agent(source_name=source.name, agent_id=agent_id, user_id=user_id)
-        return SourceModel(
-            name=source.name,
-            description=None,  # TODO: actually store descriptions
-            user_id=source.user_id,
-            id=source.id,
-            embedding_config=server.server_embedding_config,
-            created_at=source.created_at,
-        )
 
-    @router.post("/sources/{source_id}/detach", tags=["sources"], response_model=SourceModel)
+        try:
+            # TODO remove pydantic model?
+            request = SourceAttach(agent_id=agent_id, source_id=source_id)
+            return server.attach_source_to_agent(source_id=source_id, agent_id=agent_id, user_id=user_id)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{e}")
+
+    @router.post("/sources/{source_id}/detach", tags=["sources"], response_model=Source)
     async def detach_source_from_agent(
         source_id: uuid.UUID,
         agent_id: uuid.UUID = Query(..., description="The unique identifier of the agent to detach the source from."),
@@ -202,7 +173,16 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         """
         Detach a data source from an existing agent.
         """
-        server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=user_id)
+        interface.clear()
+
+        try:
+            # TODO remove pydantic model?
+            request = SourceDetach(agent_id=agent_id, source_id=source_id)
+            return server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=user_id)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{e}")
 
     @router.get("/sources/status/{job_id}", tags=["sources"], response_model=JobModel)
     async def get_job_status(

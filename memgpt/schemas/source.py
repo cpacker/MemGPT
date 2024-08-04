@@ -1,6 +1,7 @@
 from typing import Optional
 
-from pydantic import Field
+from fastapi import UploadFile
+from pydantic import BaseModel, Field
 
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.memgpt_base import MemGPTBase
@@ -20,6 +21,7 @@ class BaseSource(MemGPTBase):
 
 class SourceCreate(BaseSource):
     name: str = Field(..., description="The name of the source.")
+    description: Optional[str] = Field(None, description="The description of the source.")
 
 
 class Source(BaseSource):
@@ -28,13 +30,13 @@ class Source(BaseSource):
 
 
 class SourceUpdate(BaseSource):
-    id: str = BaseSource.generate_id_field()  # TODO not sure if this is correct?
+    source_id: str = Field(..., description="The ID of the source.")
     name: Optional[str] = Field(None, description="The name of the source.")
 
 
 class SourceAttach(BaseSource):
     agent_id: str = Field(..., description="The ID of the agent to attach the source to.")
-    source_id: Optional[str] = Field(None, description="The ID of the source.")
+    source_id: str = Field(..., description="The ID of the source.")
     # source_name: Optional[str] = Field(None, description="The name of the source.")
 
 
@@ -42,3 +44,13 @@ class SourceDetach(BaseSource):
     agent_id: str = Field(..., description="The ID of the agent to detach the source from.")
     source_id: Optional[str] = Field(None, description="The ID of the source.")
     # source_name: Optional[str] = Field(None, description="The name of the source.")
+
+
+class UploadFileToSourceRequest(BaseModel):
+    file: UploadFile = Field(..., description="The file to upload.")
+
+
+class UploadFileToSourceResponse(BaseModel):
+    source: Source = Field(..., description="The source the file was uploaded to.")
+    added_passages: int = Field(..., description="The number of passages added to the source.")
+    added_documents: int = Field(..., description="The number of documents added to the source.")

@@ -496,7 +496,7 @@ class RESTClient(AbstractClient):
         """Detach a source from an agent"""
         payload = SourceDetach(agent_id=agent_id, source_id=source_id)
         # NOTE: this is kind of weird - we pack into SourceDetach, but then because of the REST route construciton we unpack
-        response = requests.post(f"{self.base_url}/api/sources/{source_id}/detach", params=payload.agent_id, headers=self.headers)
+        response = requests.post(f"{self.base_url}/api/sources/{payload.source_id}/detach", params=payload.agent_id, headers=self.headers)
         assert response.status_code == 200, f"Failed to detach source from agent: {response.text}"
 
     def list_sources(self) -> List[Source]:
