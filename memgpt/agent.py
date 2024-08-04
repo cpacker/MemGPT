@@ -2,7 +2,6 @@ import datetime
 import inspect
 import json
 import traceback
-import uuid
 from typing import List, Literal, Optional, Tuple, Union
 
 from tqdm import tqdm
@@ -319,7 +318,7 @@ class Agent(object):
             self.functions.append(tool.json_schema)
         assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
 
-    def _load_messages_from_recall(self, message_ids: List[uuid.UUID]) -> List[Message]:
+    def _load_messages_from_recall(self, message_ids: List[str]) -> List[Message]:
         """Load a list of messages from recall storage"""
 
         # Pull the message objects from the database
@@ -338,7 +337,7 @@ class Agent(object):
                 printd(f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
                 m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
 
-    def set_message_buffer(self, message_ids: List[uuid.UUID], force_utc: bool = True):
+    def set_message_buffer(self, message_ids: List[str], force_utc: bool = True):
         """Set the messages in the buffer to the message IDs list"""
 
         message_objs = self._load_messages_from_recall(message_ids=message_ids)
