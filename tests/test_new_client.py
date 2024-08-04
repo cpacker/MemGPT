@@ -65,10 +65,24 @@ def test_agent(client):
     assert client.get_agent(agent_state_test.id).tools == new_agent_tools
 
     # update agent: memory
-    # new_memory = ChatMemory(human="My name is Mr Test, 100 percent human.", persona="I am an all-knowing AI.")
-    # assert new_memory != agent_state.memory
-    # client.update_agent(agent_state_test.id, memory=new_memory)
+    new_human = "My name is Mr Test, 100 percent human."
+    new_persona = "I am an all-knowing AI."
+    new_memory = ChatMemory(human=new_human, persona=new_persona)
+
+    assert new_memory != agent_state.memory
+    # assert agent_state.memory.memory["human"] != new_human
+    # assert agent_state.memory.memory["persona"] != new_persona
+    # print("XXX", agent_state.memory)
+    # XXX {'persona': {'value': 'I am an agent', 'limit': 2000, 'name': 'persona', 'template': False, 'label': None, 'description': None, 'metadata_': {}, 'user_id': None, 'id': 'block-6aa391d2-72a1-4fa6-9a5e-de83ded5856f'}, 'human': {'value': 'I am a human', 'limit': 2000, 'name': 'human', 'template': False, 'label': None, 'description': None, 'metadata_': {}, 'user_id': None, 'id': 'block-d6f48334-3211-4061-8917-9f902cd96ddc'}}
+
+    # TODO this needs to be updated to agent_state.memory.memory
+    assert agent_state.memory["human"]["value"] != new_human
+    assert agent_state.memory["persona"]["value"] != new_persona
+
+    client.update_agent(agent_state_test.id, memory=new_memory)
     # assert client.get_agent(agent_state_test.id).memory == new_memory
+    assert client.get_agent(agent_state_test.id).memory.memory["human"].value == new_human
+    assert client.get_agent(agent_state_test.id).memory.memory["persona"].value == new_persona
 
     # update agent: llm config
     new_llm_config = agent_state.llm_config.model_copy(deep=True)
