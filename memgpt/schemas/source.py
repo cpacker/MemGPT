@@ -35,10 +35,10 @@ class SourceUpdate(BaseSource):
 class SourceAttach(BaseSource):
     agent_id: str = Field(..., description="The ID of the agent to attach the source to.")
     source_id: Optional[str] = Field(None, description="The ID of the source.")
-    source_name: Optional[str] = Field(None, description="The name of the source.")
+    # source_name: Optional[str] = Field(None, description="The name of the source.")
 
 
 class SourceDetach(BaseSource):
     agent_id: str = Field(..., description="The ID of the agent to detach the source from.")
     source_id: Optional[str] = Field(None, description="The ID of the source.")
-    source_name: Optional[str] = Field(None, description="The name of the source.")
+    # source_name: Optional[str] = Field(None, description="The name of the source.")
