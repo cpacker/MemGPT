@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from memgpt.schemas.block import Block
 
 
-class Memory(BaseModel):
+class Memory(BaseModel, validate_assignment=True):
     """Represents the in-context memory of the agent"""
 
     memory: Dict[str, Block] = Field(default_factory=dict, description="Mapping from memory block section to memory block.")
@@ -67,6 +67,10 @@ class ChatMemory(Memory):
         """
         self.memory[name].value = self.memory[name].value.replace(old_content, new_content)
         return None
+
+
+class UpdateMemory(BaseModel):
+    """Update the memory of the agent"""
 
 
 class ArchivalMemorySummary(BaseModel):

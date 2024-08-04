@@ -198,8 +198,10 @@ class Agent(object):
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
     ):
+        assert isinstance(agent_state.memory, Memory), f"Memory object is not of type Memory: {type(agent_state.memory)}"
         # Hold a copy of the state that was used to init the agent
         self.agent_state = agent_state
+        assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
 
         try:
             self.link_tools(tools)
@@ -214,7 +216,9 @@ class Agent(object):
 
         # Initialize the memory object
         self.memory = self.agent_state.memory
+        assert isinstance(self.memory, Memory), f"Memory object is not of type Memory: {type(self.memory)}"
         printd("Initialized memory object", self.memory)
+        print("Initialized memory object", self.memory)
 
         # Interface must implement:
         # - internal_monologue
@@ -1078,6 +1082,7 @@ class Agent(object):
 
     def update_state(self) -> AgentState:
         message_ids = [msg.id for msg in self._messages]
+        assert isinstance(self.memory, Memory), f"Memory is not a Memory object: {type(self.memory)}"
 
         # override any fields that may have been updated
         self.agent_state.message_ids = message_ids
@@ -1142,8 +1147,13 @@ def save_agent(agent: Agent, ms: MetadataStore):
 
     agent.update_state()
     agent_state = agent.agent_state
+    agent_id = agent_state.id
+    assert isinstance(agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"
 
     if ms.get_agent(agent_id=agent.agent_state.id):
         ms.update_agent(agent_state)
     else:
         ms.create_agent(agent_state)
+
+    agent.agent_state = ms.get_agent(agent_id=agent_id)
+    assert isinstance(agent.agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"

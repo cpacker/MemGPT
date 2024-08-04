@@ -10,7 +10,7 @@ from memgpt.schemas.memgpt_base import MemGPTBase
 from memgpt.schemas.memory import Memory
 
 
-class BaseAgent(MemGPTBase):
+class BaseAgent(MemGPTBase, validate_assignment=True):
     __id_prefix__ = "agent"
     description: Optional[str] = Field(None, description="The description of the agent.")
 
