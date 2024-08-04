@@ -178,6 +178,8 @@ class AgentModel(Base):
         return f"<Agent(id='{self.id}', name='{self.name}')>"
 
     def to_record(self) -> AgentState:
+        print("TO RECORD", self.memory)
+        print(type(Memory.load(self.memory)))
         return AgentState(
             id=self.id,
             user_id=self.user_id,

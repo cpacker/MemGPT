@@ -762,7 +762,6 @@ class SyncServer(LockingServer):
                 description=request.description,
                 metadata_=request.metadata_,
             )
-
             agent = Agent(
                 interface=interface,
                 agent_state=agent_state,
@@ -785,6 +784,7 @@ class SyncServer(LockingServer):
         save_agent(agent, self.ms)
         logger.info(f"Created new agent from config: {agent}")
 
+        assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
         # return AgentState
         return agent.agent_state
 

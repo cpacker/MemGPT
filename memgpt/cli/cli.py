@@ -23,7 +23,7 @@ from memgpt.metadata import MetadataStore
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.enums import OptionState
 from memgpt.schemas.llm_config import LLMConfig
-from memgpt.schemas.memory import ChatMemory
+from memgpt.schemas.memory import ChatMemory, Memory
 from memgpt.server.constants import WS_DEFAULT_PORT
 from memgpt.server.server import logger as server_logger
 
@@ -637,6 +637,7 @@ def run(
             memory=memory,
             metadata=metadata,
         )
+        assert isinstance(agent_state.memory, Memory), f"Expected Memory, got {type(agent_state.memory)}"
         typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
         tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
 
