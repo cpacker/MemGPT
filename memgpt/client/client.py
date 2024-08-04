@@ -459,56 +459,20 @@ class RESTClient(AbstractClient):
 
     # sources
 
-    def create_source(self, name: str) -> Source:
-        """Create a new source"""
-        payload = SourceCreate(name=name)
-        response = requests.post(f"{self.base_url}/api/sources", json=payload.model_dump_json(), headers=self.headers)
-        return Source(**response.json())
-
-    def delete_source(self, source_id: str):
-        """Delete a source and associated data (including attached to agents)"""
-        response = requests.delete(f"{self.base_url}/api/sources/{source_id}", headers=self.headers)
-        assert response.status_code == 200, f"Failed to delete source: {response.text}"
-
-    def get_source(self, source_id: str) -> Source:
-        response = requests.get(f"{self.base_url}/api/sources/{source_id}", headers=self.headers)
-        return Source(**response.json())
-
-    def get_source_id(self, source_name: str) -> str:
-        # TODO add
-        response = requests.get(f"{self.base_url}/api/sources/name/{source_name}", headers=self.headers)
-        # TODO support string return
-        return response.json()
-
-    def attach_source_to_agent(self, source_id: str, agent_id: str):
-        """Attach a source to an agent"""
-        response = requests.post(f"{self.base_url}/api/sources/{source_id}/attach", params={"agent_id": agent_id}, headers=self.headers)
-        assert response.status_code == 200, f"Failed to attach source to agent: {response.text}"
-
-    def detach_source_from_agent(self, source_id: str, agent_id: str):
-        """Detach a source from an agent"""
-        # NOTE: this is kind of weird - we pack into SourceDetach, but then because of the REST route construciton we unpack
-        response = requests.post(f"{self.base_url}/api/sources/{source_id}/detach", params={"agent_id": agent_id}, headers=self.headers)
-        assert response.status_code == 200, f"Failed to detach source from agent: {response.text}"
-
-    def list_sources(self) -> List[Source]:
+    def list_sources(self):
         """List loaded sources"""
         response = requests.get(f"{self.base_url}/api/sources", headers=self.headers)
         response_json = response.json()
-        # TODO should this be List[Source] or ListSourcesResponse?
         return ListSourcesResponse(**response_json)
 
-    def list_attached_sources(self, agent_id: str) -> List[Source]:
-        # NOTE: we're querying the AGENT not the SOURCES route
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/sources", headers=self.headers)
-        response_json = response.json()
-        # TODO should this be List[Source] or ListSourcesResponse?
-        return ListSourcesResponse(**response_json)
+    def delete_source(self, source_id: uuid.UUID):
+        """Delete a source and associated data (including attached to agents)"""
+        response = requests.delete(f"{self.base_url}/api/sources/{str(source_id)}", headers=self.headers)
+        assert response.status_code == 200, f"Failed to delete source: {response.text}"
 
-    def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
-        payload = SourceUpdate(source_id=source_id, name=name)
-        response = requests.put(f"{self.base_url}/api/sources/{source_id}", params=payload.model_dump_json(), headers=self.headers)
-        assert response.status_code == 200, f"Failed to update source: {response.text}"
+    def get_job_status(self, job_id: uuid.UUID):
+        response = requests.get(f"{self.base_url}/api/sources/status/{str(job_id)}", headers=self.headers)
+        return JobModel(**response.json())
 
     def load_file_into_source(self, filename: str, source_id: uuid.UUID, blocking=True):
         """Load {filename} and insert into source"""
@@ -531,9 +495,32 @@ class RESTClient(AbstractClient):
                 time.sleep(1)
         return job
 
-    def get_job_status(self, job_id: uuid.UUID):
-        response = requests.get(f"{self.base_url}/api/sources/status/{str(job_id)}", headers=self.headers)
-        return JobModel(**response.json())
+    def create_source(self, name: str) -> Source:
+        """Create a new source"""
+        payload = {"name": name}
+        response = requests.post(f"{self.base_url}/api/sources", json=payload, headers=self.headers)
+        response_json = response.json()
+        response_obj = SourceModel(**response_json)
+        return Source(
+            id=uuid.UUID(response_obj.id),
+            name=response_obj.name,
+            user_id=uuid.UUID(response_obj.user_id),
+            created_at=response_obj.created_at,
+            embedding_dim=response_obj.embedding_config["embedding_dim"],
+            embedding_model=response_obj.embedding_config["embedding_model"],
+        )
+
+    def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
+        """Attach a source to an agent"""
+        params = {"agent_id": agent_id}
+        response = requests.post(f"{self.base_url}/api/sources/{source_id}/attach", params=params, headers=self.headers)
+        assert response.status_code == 200, f"Failed to attach source to agent: {response.text}"
+
+    def detach_source(self, source_id: uuid.UUID, agent_id: uuid.UUID):
+        """Detach a source from an agent"""
+        params = {"agent_id": str(agent_id)}
+        response = requests.post(f"{self.base_url}/api/sources/{source_id}/detach", params=params, headers=self.headers)
+        assert response.status_code == 200, f"Failed to detach source from agent: {response.text}"
 
     # server configuration commands
 
