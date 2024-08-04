@@ -71,10 +71,10 @@ def test_agent(client):
 
     # TODO this needs to be updated to agent_state.memory.memory
     # NOTE there is a bug, it should be the uncommented lines
-    assert agent_state.memory["human"]["value"] != new_human
-    assert agent_state.memory["persona"]["value"] != new_persona
-    # assert agent_state.memory["human"].value != new_human
-    # assert agent_state.memory["persona"].value != new_persona
+    # assert agent_state.memory["human"]["value"] != new_human
+    # assert agent_state.memory["persona"]["value"] != new_persona
+    assert agent_state.memory["human"].value != new_human
+    assert agent_state.memory["persona"].value != new_persona
 
     client.update_agent(agent_state_test.id, memory=new_memory)
     assert client.get_agent(agent_state_test.id).memory.memory["human"].value == new_human
