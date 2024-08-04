@@ -24,13 +24,7 @@ from memgpt.schemas.memory import (
 )
 from memgpt.schemas.message import Message
 from memgpt.schemas.passage import Passage
-from memgpt.schemas.source import (
-    Source,
-    SourceAttach,
-    SourceCreate,
-    SourceDetach,
-    SourceUpdate,
-)
+from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
 from memgpt.schemas.user import UserCreate
 
@@ -488,15 +482,13 @@ class RESTClient(AbstractClient):
 
     def attach_source_to_agent(self, source_id: str, agent_id: str):
         """Attach a source to an agent"""
-        payload = SourceAttach(agent_id=agent_id, source_id=source_id)
-        response = requests.post(f"{self.base_url}/api/sources/{source_id}/attach", params=payload.model_dump_json(), headers=self.headers)
+        response = requests.post(f"{self.base_url}/api/sources/{source_id}/attach", params={"agent_id": agent_id}, headers=self.headers)
         assert response.status_code == 200, f"Failed to attach source to agent: {response.text}"
 
     def detach_source_from_agent(self, source_id: str, agent_id: str):
         """Detach a source from an agent"""
-        payload = SourceDetach(agent_id=agent_id, source_id=source_id)
         # NOTE: this is kind of weird - we pack into SourceDetach, but then because of the REST route construciton we unpack
-        response = requests.post(f"{self.base_url}/api/sources/{payload.source_id}/detach", params=payload.agent_id, headers=self.headers)
+        response = requests.post(f"{self.base_url}/api/sources/{source_id}/detach", params={"agent_id": agent_id}, headers=self.headers)
         assert response.status_code == 200, f"Failed to detach source from agent: {response.text}"
 
     def list_sources(self) -> List[Source]:
@@ -974,12 +966,10 @@ class LocalClient(AbstractClient):
         return self.server.get_source_id(source_name=source_name, user_id=self.user_id)
 
     def attach_source_to_agent(self, source_id: str, agent_id: str):
-        request = SourceAttach(agent_id=agent_id, source_id=source_id)
-        self.server.attach_source_to_agent(request=request, user_id=self.user_id)
+        self.server.attach_source_to_agent(source_id=source_id, agent_id=agent_id, user_id=self.user_id)
 
     def detach_source_from_agent(self, source_id: str, agent_id: str):
-        request = SourceDetach(agent_id=agent_id, source_id=source_id)
-        self.server.detach_source_from_agent(request=request, user_id=self.user_id)
+        self.server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=self.user_id)
 
     def list_sources(self) -> List[Source]:
         return self.server.list_all_sources(user_id=self.user_id)

@@ -62,13 +62,7 @@ from memgpt.schemas.message import Message
 # openai schemas
 from memgpt.schemas.openai.chat_completion_response import UsageStatistics
 from memgpt.schemas.passage import Passage
-from memgpt.schemas.source import (
-    Source,
-    SourceAttach,
-    SourceCreate,
-    SourceDetach,
-    SourceUpdate,
-)
+from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
 from memgpt.schemas.usage import MemGPTUsageStatistics
 from memgpt.schemas.user import User, UserCreate
@@ -1450,19 +1444,22 @@ class SyncServer(LockingServer):
 
     def attach_source_to_agent(
         self,
-        request: SourceAttach,  # TODO: change this to remove pydantic model?
         user_id: str,
+        agent_id: str,
+        # source_id: str,
+        source_id: Optional[str] = None,
+        source_name: Optional[str] = None,
     ) -> Source:
         # attach a data source to an agent
-        data_source = self.ms.get_source(source_id=request.source_id, user_id=user_id, source_name=request.source_name)
+        data_source = self.ms.get_source(source_id=source_id, user_id=user_id, source_name=source_name)
         if data_source is None:
-            raise ValueError(f"Data source id={request.source_id} name={request.source_name} does not exist for user_id {user_id}")
+            raise ValueError(f"Data source id={source_id} name={source_name} does not exist for user_id {user_id}")
 
         # get connection to data source storage
         source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
 
         # load agent
-        agent = self._get_or_load_agent(agent_id=request.agent_id)
+        agent = self._get_or_load_agent(agent_id=agent_id)
 
         # attach source to agent
         agent.attach_source(data_source.name, source_connector, self.ms)
@@ -1471,8 +1468,11 @@ class SyncServer(LockingServer):
 
     def detach_source_from_agent(
         self,
-        request: SourceDetach,  # TODO: change this to remove pydantic model?
         user_id: str,
+        agent_id: str,
+        # source_id: str,
+        source_id: Optional[str] = None,
+        source_name: Optional[str] = None,
     ) -> Source:
         # TODO: remove all passages coresponding to source from agent's archival memory
         raise NotImplementedError
