@@ -24,7 +24,7 @@ from memgpt.schemas.document import Document as DocumentModel  # TODO: modify
 from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.job import Job as JobModel  # TODO: modify
 from memgpt.schemas.passage import Passage as PassageModel  # TODO: modify
-from memgpt.schemas.source import Source, SourceAttach, SourceCreate, SourceDetach
+from memgpt.schemas.source import Source, SourceCreate
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -156,8 +156,6 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         interface.clear()
 
         try:
-            # TODO remove pydantic model?
-            request = SourceAttach(agent_id=agent_id, source_id=source_id)
             return server.attach_source_to_agent(source_id=source_id, agent_id=agent_id, user_id=user_id)
         except HTTPException:
             raise
