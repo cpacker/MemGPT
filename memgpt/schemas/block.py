@@ -30,7 +30,6 @@ class BaseBlock(MemGPTBase, validate_assignment=True):
 
     @model_validator(mode="after")
     def verify_char_limit(self) -> Self:
-        print("VALIDATE", len(self), self.limit)
         try:
             assert len(self) <= self.limit
         except AssertionError:

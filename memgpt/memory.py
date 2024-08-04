@@ -138,7 +138,6 @@ def get_memory_functions(cls: Memory) -> List[callable]:
         funct = getattr(Memory, func_name)
         if callable(funct):
             base_functions.append(func_name)
-    print("BASE FUNCTIONS", base_functions)
 
     for func_name in dir(cls):
         if func_name.startswith("_") or func_name in ["load", "to_dict"]:  # skip base functions
@@ -149,8 +148,6 @@ def get_memory_functions(cls: Memory) -> List[callable]:
         if not callable(func):  # not a function
             continue
         functions[func_name] = func
-        print("FUNCTION", func_name)
-    print("ALL FUNCTIONS", functions)
     return functions
 
 
