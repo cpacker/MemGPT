@@ -7,8 +7,8 @@ from rich.console import Console
 from rich.live import Live
 from rich.markup import escape
 
-from memgpt.data_types import Message
 from memgpt.interface import CLIInterface
+from memgpt.schemas.message import Message
 from memgpt.schemas.openai.chat_completion_response import (
     ChatCompletionChunkResponse,
     ChatCompletionResponse,

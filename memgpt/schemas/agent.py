@@ -27,7 +27,7 @@ class AgentState(BaseAgent):
     created_at: datetime = Field(..., description="The datetime the agent was created.", default_factory=datetime.now)
 
     # in-context memory
-    message_ids: List[uuid.UUID] = Field(default_factory=list, description="The ids of the messages in the agent's in-context memory.")
+    message_ids: Optional[List[str]] = Field(default=None, description="The ids of the messages in the agent's in-context memory.")
     memory: Memory = Field(default_factory=Memory, description="The in-context memory of the agent.")
 
     # tools

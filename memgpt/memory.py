@@ -4,11 +4,13 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple, Union
 
 from memgpt.constants import MESSAGE_SUMMARY_REQUEST_ACK, MESSAGE_SUMMARY_WARNING_FRAC
-from memgpt.data_types import AgentState, Message, Passage
 from memgpt.embeddings import embedding_model, parse_and_chunk_text, query_embedding
 from memgpt.llm_api.llm_api_tools import create
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
+from memgpt.schemas.agent import AgentState
 from memgpt.schemas.memory import Memory
+from memgpt.schemas.message import Message
+from memgpt.schemas.passage import Passage
 from memgpt.utils import (
     count_tokens,
     extract_date_from_timestamp,
@@ -136,7 +138,6 @@ def get_memory_functions(cls: Memory) -> List[callable]:
         funct = getattr(Memory, func_name)
         if callable(funct):
             base_functions.append(func_name)
-    print("BASE FUNCTIONS", base_functions)
 
     for func_name in dir(cls):
         if func_name.startswith("_") or func_name in ["load", "to_dict"]:  # skip base functions
@@ -147,8 +148,6 @@ def get_memory_functions(cls: Memory) -> List[callable]:
         if not callable(func):  # not a function
             continue
         functions[func_name] = func
-        print("FUNCTION", func_name)
-    print("ALL FUNCTIONS", functions)
     return functions
 
 
@@ -529,8 +528,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             agent_id=self.agent_state.id,
             text=text,
             embedding=embedding,
-            embedding_dim=self.agent_state.embedding_config.embedding_dim,
-            embedding_model=self.agent_state.embedding_config.embedding_model,
+            embedding_config=self.agent_state.embedding_config,
         )
 
     def save(self):

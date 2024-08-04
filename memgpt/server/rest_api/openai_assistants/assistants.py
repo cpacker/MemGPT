@@ -4,10 +4,9 @@ from typing import List, Optional
 from fastapi import APIRouter, Body, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 
-from memgpt.config import MemGPTConfig
 from memgpt.constants import DEFAULT_PRESET
-from memgpt.data_types import Message
-from memgpt.models.openai import (
+from memgpt.schemas.message import Message
+from memgpt.schemas.openai.openai import (
     AssistantFile,
     MessageFile,
     MessageRoleType,
@@ -139,10 +138,6 @@ class SubmitToolOutputsToRunRequest(BaseModel):
 
 # TODO: implement mechanism for creating/authenticating users associated with a bearer token
 def setup_openai_assistant_router(server: SyncServer, interface: QueuingInterface):
-    # TODO: remove this (when we have user auth)
-    user_id = uuid.UUID(MemGPTConfig.load().anon_clientid)
-    print(f"User ID: {user_id}")
-
     # create assistant (MemGPT agent)
     @router.post("/assistants", tags=["assistants"], response_model=OpenAIAssistant)
     def create_assistant(request: CreateAssistantRequest = Body(...)):

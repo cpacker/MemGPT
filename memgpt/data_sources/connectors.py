@@ -4,8 +4,11 @@ import typer
 from llama_index.core import Document as LlamaIndexDocument
 
 from memgpt.agent_store.storage import StorageConnector
-from memgpt.data_types import Document, EmbeddingConfig, Passage, Source
 from memgpt.embeddings import embedding_model
+from memgpt.schemas.document import Document
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.passage import Passage
+from memgpt.schemas.source import Source
 from memgpt.utils import create_uuid_from_string
 
 

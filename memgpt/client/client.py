@@ -8,7 +8,6 @@ import requests
 from memgpt.config import MemGPTConfig
 from memgpt.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.data_sources.connectors import DataConnector
-from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig
 from memgpt.functions.functions import parse_source_code
 from memgpt.functions.schema_generator import generate_schema
 from memgpt.memory import get_memory_functions
@@ -16,6 +15,8 @@ from memgpt.memory import get_memory_functions
 # new schemas
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.block import Human, Persona
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import (
     ArchivalMemorySummary,
     ChatMemory,
@@ -988,9 +989,8 @@ class LocalClient(AbstractClient):
         archival_memory_objects = [ArchivalMemoryObject(id=passage["id"], contents=passage["text"]) for passage in archival_json_records]
         return GetAgentArchivalMemoryResponse(archival_memory=archival_memory_objects)
 
-    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> GetAgentArchivalMemoryResponse:
-        memory_ids = self.server.insert_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_contents=memory)
-        return InsertAgentArchivalMemoryResponse(ids=memory_ids)
+    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> List[Passage]:
+        return self.server.insert_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_contents=memory)
 
     def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
         self.server.delete_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_id=memory_id)

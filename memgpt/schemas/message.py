@@ -1,5 +1,6 @@
+import copy
 import json
-import uuid
+import warnings
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -10,7 +11,29 @@ from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
 from memgpt.schemas.enums import MessageRole
 from memgpt.schemas.memgpt_base import MemGPTBase
 from memgpt.schemas.openai.chat_completions import ToolCall
-from memgpt.utils import is_utc_datetime
+from memgpt.utils import get_utc_time, is_utc_datetime
+
+
+def add_inner_thoughts_to_tool_call(
+    tool_call: ToolCall,
+    inner_thoughts: str,
+    inner_thoughts_key: str,
+) -> ToolCall:
+    """Add inner thoughts (arg + value) to a tool call"""
+    # because the kwargs are stored as strings, we need to load then write the JSON dicts
+    try:
+        # load the args list
+        func_args = json.loads(tool_call.function.arguments)
+        # add the inner thoughts to the args list
+        func_args[inner_thoughts_key] = inner_thoughts
+        # create the updated tool call (as a string)
+        updated_tool_call = copy.deepcopy(tool_call)
+        updated_tool_call.function.arguments = json.dumps(func_args, ensure_ascii=JSON_ENSURE_ASCII)
+        return updated_tool_call
+    except json.JSONDecodeError as e:
+        # TODO: change to logging
+        warnings.warn(f"Failed to put inner thoughts in kwargs: {e}")
+        raise e
 
 
 class BaseMessage(MemGPTBase):
@@ -34,7 +57,7 @@ class Message(BaseMessage):
     agent_id: str = Field(None, description="The unique identifier of the agent.")
     model: Optional[str] = Field(None, description="The model used to make the function call.")
     name: Optional[str] = Field(None, description="The name of the participant.")
-    created_at: Optional[datetime] = Field(None, description="The time the message was created.")
+    created_at: datetime = Field(default_factory=get_utc_time, description="The time the message was created.")
     tool_calls: Optional[List[ToolCall]] = Field(None, description="The list of tool calls requested.")
     tool_call_id: Optional[str] = Field(None, description="The id of the tool call.")
 
@@ -58,14 +81,17 @@ class Message(BaseMessage):
 
     @staticmethod
     def dict_to_message(
-        user_id: uuid.UUID,
-        agent_id: uuid.UUID,
+        user_id: str,
+        agent_id: str,
         openai_message_dict: dict,
         model: Optional[str] = None,  # model used to make function call
         allow_functions_style: bool = False,  # allow deprecated functions style?
         created_at: Optional[datetime] = None,
     ):
         """Convert a ChatCompletion message object into a Message object (synced to DB)"""
+        if not created_at:
+            # timestamp for creation
+            created_at = get_utc_time()
 
         assert "role" in openai_message_dict, openai_message_dict
         assert "content" in openai_message_dict, openai_message_dict
@@ -79,7 +105,6 @@ class Message(BaseMessage):
             # Convert from 'function' response to a 'tool' response
             # NOTE: this does not conventionally include a tool_call_id, it's on the caster to provide it
             return Message(
-                created_at=created_at,
                 user_id=user_id,
                 agent_id=agent_id,
                 model=model,
@@ -89,6 +114,7 @@ class Message(BaseMessage):
                 name=openai_message_dict["name"] if "name" in openai_message_dict else None,
                 tool_calls=openai_message_dict["tool_calls"] if "tool_calls" in openai_message_dict else None,
                 tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
+                created_at=created_at,
             )
 
         elif "function_call" in openai_message_dict and openai_message_dict["function_call"] is not None:
@@ -111,7 +137,6 @@ class Message(BaseMessage):
             ]
 
             return Message(
-                created_at=created_at,
                 user_id=user_id,
                 agent_id=agent_id,
                 model=model,
@@ -121,6 +146,7 @@ class Message(BaseMessage):
                 name=openai_message_dict["name"] if "name" in openai_message_dict else None,
                 tool_calls=tool_calls,
                 tool_call_id=None,  # NOTE: None, since this field is only non-null for role=='tool'
+                created_at=created_at,
             )
 
         else:
@@ -143,7 +169,6 @@ class Message(BaseMessage):
 
             # If we're going from tool-call style
             return Message(
-                created_at=created_at,
                 user_id=user_id,
                 agent_id=agent_id,
                 model=model,
@@ -153,14 +178,19 @@ class Message(BaseMessage):
                 name=openai_message_dict["name"] if "name" in openai_message_dict else None,
                 tool_calls=tool_calls,
                 tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
+                created_at=created_at,
             )
 
-    def to_openai_dict_search_results(self, max_tool_id_length=TOOL_CALL_ID_MAX_LEN) -> dict:
+    def to_openai_dict_search_results(self, max_tool_id_length: int = TOOL_CALL_ID_MAX_LEN) -> dict:
         result_json = self.to_openai_dict()
         search_result_json = {"timestamp": self.created_at, "message": {"content": result_json["content"], "role": result_json["role"]}}
         return search_result_json
 
-    def to_openai_dict(self, max_tool_id_length=TOOL_CALL_ID_MAX_LEN) -> dict:
+    def to_openai_dict(
+        self,
+        max_tool_id_length: int = TOOL_CALL_ID_MAX_LEN,
+        put_inner_thoughts_in_kwargs: bool = True,
+    ) -> dict:
         """Go from Message class to ChatCompletion message object"""
 
         # TODO change to pydantic casting, eg `return SystemMessageModel(self)`
@@ -188,14 +218,25 @@ class Message(BaseMessage):
         elif self.role == "assistant":
             assert self.tool_calls is not None or self.text is not None
             openai_message = {
-                "content": self.text,
+                "content": None if put_inner_thoughts_in_kwargs else self.text,
                 "role": self.role,
             }
             # Optional fields, do not include if null
             if self.name is not None:
                 openai_message["name"] = self.name
             if self.tool_calls is not None:
-                openai_message["tool_calls"] = [tool_call.to_dict() for tool_call in self.tool_calls]
+                if put_inner_thoughts_in_kwargs:
+                    # put the inner thoughts inside the tool call before casting to a dict
+                    openai_message["tool_calls"] = [
+                        add_inner_thoughts_to_tool_call(
+                            tool_call,
+                            inner_thoughts=self.text,
+                            inner_thoughts_key=INNER_THOUGHTS_KWARG,
+                        ).model_dump()
+                        for tool_call in self.tool_calls
+                    ]
+                else:
+                    openai_message["tool_calls"] = [tool_call.model_dump() for tool_call in self.tool_calls]
                 if max_tool_id_length:
                     for tool_call_dict in openai_message["tool_calls"]:
                         tool_call_dict["id"] = tool_call_dict["id"][:max_tool_id_length]
@@ -359,7 +400,7 @@ class Message(BaseMessage):
             assert all([v is not None for v in [self.role, self.tool_call_id]]), vars(self)
 
             if self.name is None:
-                raise UserWarning(f"Couldn't find function name on tool call, defaulting to tool ID instead.")
+                warnings.warn(f"Couldn't find function name on tool call, defaulting to tool ID instead.")
                 function_name = self.tool_call_id
             else:
                 function_name = self.name

@@ -18,11 +18,12 @@ from memgpt.cli.cli_config import configure
 from memgpt.config import MemGPTConfig
 from memgpt.constants import CLI_WARNING_PREFIX, MEMGPT_DIR
 from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import EmbeddingConfig, LLMConfig
 from memgpt.log import get_logger
 from memgpt.metadata import MetadataStore
 from memgpt.migrate import migrate_all_agents, migrate_all_sources
+from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.enums import OptionState
+from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import ChatMemory
 from memgpt.server.constants import WS_DEFAULT_PORT
 from memgpt.server.server import logger as server_logger
@@ -622,44 +623,44 @@ def run(
             llm_config.model_endpoint_type = model_endpoint_type
 
         # create agent
-        try:
-            client = create_client()
-            human_obj = client.get_human(name=human)
-            persona_obj = client.get_persona(name=persona)
-            if human_obj is None:
-                typer.secho("Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)
-            if persona_obj is None:
-                typer.secho("Couldn't find persona {persona} in database, please run `memgpt add persona`", fg=typer.colors.RED)
+        # try:
+        client = create_client()
+        human_obj = client.get_human(name=human)
+        persona_obj = client.get_persona(name=persona)
+        if human_obj is None:
+            typer.secho("Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)
+        if persona_obj is None:
+            typer.secho("Couldn't find persona {persona} in database, please run `memgpt add persona`", fg=typer.colors.RED)
 
-            memory = ChatMemory(human=human_obj.value, persona=persona_obj.value, limit=core_memory_limit)
-            metadata = {"human": human_obj.name, "persona": persona_obj.name}
+        memory = ChatMemory(human=human_obj.value, persona=persona_obj.value, limit=core_memory_limit)
+        metadata = {"human": human_obj.name, "persona": persona_obj.name}
 
-            typer.secho(f"->  🤖 Using persona profile: '{persona_obj.name}'", fg=typer.colors.WHITE)
-            typer.secho(f"->  🧑 Using human profile: '{human_obj.name}'", fg=typer.colors.WHITE)
+        typer.secho(f"->  🤖 Using persona profile: '{persona_obj.name}'", fg=typer.colors.WHITE)
+        typer.secho(f"->  🧑 Using human profile: '{human_obj.name}'", fg=typer.colors.WHITE)
 
-            # add tools
-            agent_state = client.create_agent(
-                name=agent_name,
-                embedding_config=embedding_config,
-                llm_config=llm_config,
-                memory=memory,
-                metadata=metadata,
-            )
-            typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
-            tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
+        # add tools
+        agent_state = client.create_agent(
+            name=agent_name,
+            embedding_config=embedding_config,
+            llm_config=llm_config,
+            memory=memory,
+            metadata=metadata,
+        )
+        typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
+        tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
 
-            memgpt_agent = Agent(
-                interface=interface(),
-                agent_state=agent_state,
-                tools=tools,
-                # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
-            )
-            save_agent(agent=memgpt_agent, ms=ms)
+        memgpt_agent = Agent(
+            interface=interface(),
+            agent_state=agent_state,
+            tools=tools,
+            # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+            first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
+        )
+        save_agent(agent=memgpt_agent, ms=ms)
 
-        except ValueError as e:
-            typer.secho(f"Failed to create agent from provided information:\n{e}", fg=typer.colors.RED)
-            sys.exit(1)
+        # except ValueError as e:
+        #    typer.secho(f"Failed to create agent from provided information:\n{e}", fg=typer.colors.RED)
+        #    sys.exit(1)
         typer.secho(f"🎉 Created new agent '{memgpt_agent.agent_state.name}' (id={memgpt_agent.agent_state.id})", fg=typer.colors.GREEN)
 
     # start event loop
