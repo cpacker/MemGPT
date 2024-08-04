@@ -65,10 +65,12 @@ def test_agent(client):
     assert client.get_agent(agent_state_test.id).tools == new_agent_tools
 
     # update agent: memory
-    # new_memory = ChatMemory(human="My name is Mr Test, 100 percent human.", persona="I am an all-knowing AI.")
-    # assert new_memory != agent_state.memory
-    # client.update_agent(agent_state_test.id, memory=new_memory)
-    # assert client.get_agent(agent_state_test.id).memory == new_memory
+    new_memory = ChatMemory(human="My name is Mr Test, 100 percent human.", persona="I am an all-knowing AI.")
+    assert new_memory != agent_state.memory
+    client.update_agent(agent_state_test.id, memory=new_memory)
+    assert (
+        client.get_agent(agent_state_test.id).memory.memory == new_memory.memory
+    ), f"Expected {new_memory.memory}, got {client.get_agent(agent_state_test.id).memory.memory}"
 
     # update agent: llm config
     new_llm_config = agent_state.llm_config.model_copy(deep=True)

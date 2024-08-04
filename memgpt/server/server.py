@@ -813,22 +813,25 @@ class SyncServer(LockingServer):
 
         # update the core memory of the agent
         if request.memory:
-            old_core_memory = self.get_agent_memory(agent_id=request.id)
-            new_memory_contents = request.memory.to_dict()
-
-            # edit memory fields
-            modified = False
-            for key, value in new_memory_contents.items():
-                if value is None:
-                    continue
-                if key in old_core_memory and old_core_memory[key] != value:
-                    memgpt_agent.memory.memory[key].value = value  # update agent memory
-                    modified = True
-
-            # If we modified the memory contents, we need to rebuild the memory block inside the system message
-            if modified:
-                memgpt_agent.rebuild_memory()
-
+            new_memory_contents = {k: v.value for k, v in request.memory.memory.items() if v is not None}
+            print("NEW MEMORY")
+            self.update_agent_core_memory(user_id=user_id, agent_id=request.id, new_memory_contents=new_memory_contents)
+        #            old_core_memory = self.get_agent_memory(agent_id=request.id)
+        #            new_memory_contents = request.memory.to_dict()
+        #
+        #            # edit memory fields
+        #            modified = False
+        #            for key, value in new_memory_contents.items():
+        #                if value is None:
+        #                    continue
+        #                if key in old_core_memory and old_core_memory[key] != value:
+        #                    memgpt_agent.memory.memory[key].value = value  # update agent memory
+        #                    modified = True
+        #
+        #            # If we modified the memory contents, we need to rebuild the memory block inside the system message
+        #            if modified:
+        #                memgpt_agent.rebuild_memory()
+        #
         # update the system prompt
         if request.system:
             memgpt_agent.update_system_prompt(request.system)
