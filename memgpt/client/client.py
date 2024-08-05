@@ -332,10 +332,9 @@ class RESTClient(AbstractClient):
         assert response.status_code == 200, f"Failed to delete agent: {response.text}"
 
     def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
-        response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/config", headers=self.headers)
+        response = requests.get(f"{self.base_url}/api/agents/{agent_id}", headers=self.headers)
         assert response.status_code == 200, f"Failed to get agent: {response.text}"
-        response_obj = GetAgentResponse(**response.json())
-        return self.get_agent_response_to_state(response_obj)
+        return AgentState(**response.json())
 
     # memory
     def get_core_memory(self, agent_id: uuid.UUID) -> Memory:
@@ -537,7 +536,9 @@ class RESTClient(AbstractClient):
         assert name is None or name == tool_name, f"Tool name {name} does not match schema name {tool_name}"
 
         # call server function
-        request = ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags)
+        request = ToolCreate(
+            source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags, update=update
+        )
         response = requests.post(f"{self.base_url}/api/tools", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
@@ -911,7 +912,7 @@ class LocalClient(AbstractClient):
 
         # call server function
         return self.server.create_tool(
-            ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
+            ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags, update=update),
             user_id=self.user_id,
             update=update,
         )
