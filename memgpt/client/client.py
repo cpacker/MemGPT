@@ -1,4 +1,3 @@
-import datetime
 import time
 import uuid
 from typing import Dict, List, Optional, Tuple, Union
@@ -18,35 +17,21 @@ from memgpt.schemas.source import Source, SourceAttach, SourceCreate, SourceQuer
 # new schemas
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.block import Human, Persona
-from memgpt.schemas.memory import ChatMemory, Memory
-from memgpt.schemas.source import Source, SourceAttach, SourceCreate
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.memgpt_response import MemGPTResponse
+from memgpt.schemas.memory import (
+    ArchivalMemorySummary,
+    ChatMemory,
+    Memory,
+    RecallMemorySummary,
+)
+from memgpt.schemas.message import Message
+from memgpt.schemas.passage import Passage
+from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
 from memgpt.schemas.user import UserCreate
-
-# TODO: delete
-from memgpt.server.rest_api.agents.command import CommandResponse
-from memgpt.server.rest_api.agents.config import GetAgentResponse
-from memgpt.server.rest_api.agents.index import CreateAgentResponse, ListAgentsResponse
-from memgpt.server.rest_api.agents.memory import (
-    ArchivalMemoryObject,
-    GetAgentArchivalMemoryResponse,
-    GetAgentMemoryResponse,
-    InsertAgentArchivalMemoryResponse,
-    UpdateAgentMemoryResponse,
-)
-from memgpt.server.rest_api.agents.message import (
-    GetAgentMessagesResponse,
-    UserMessageResponse,
-)
-from memgpt.server.rest_api.config.index import ConfigResponse
-from memgpt.server.rest_api.humans.index import ListHumansResponse
 from memgpt.server.rest_api.interface import QueuingInterface
-from memgpt.server.rest_api.models.index import ListModelsResponse
-from memgpt.server.rest_api.personas.index import ListPersonasResponse
-from memgpt.server.rest_api.sources.index import ListSourcesResponse
-
-# import pydantic response objects from memgpt.server.rest_api
-from memgpt.server.rest_api.tools.index import CreateToolRequest, ListToolsResponse
 from memgpt.server.server import SyncServer
 from memgpt.utils import get_human_text
 
@@ -219,12 +204,16 @@ class RESTClient(AbstractClient):
         self.base_url = base_url
         self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
 
-    def list_agents(self):
+    def list_agents(self) -> List[AgentState]:
         response = requests.get(f"{self.base_url}/api/agents", headers=self.headers)
-        return ListAgentsResponse(**response.json())
+        return [AgentState(**agent) for agent in response.json()]
 
-    def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
-        response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/config", headers=self.headers)
+    def get_agent_id(self, agent_name: str) -> str:
+        response = requests.get(f"{self.base_url}/api/agents/name/{agent_name}", headers=self.headers)
+        return response.json()
+
+    def agent_exists(self, agent_id: str) -> bool:
+        response = requests.get(f"{self.base_url}/api/agents/{agent_id}", headers=self.headers)
         if response.status_code == 404:
             # not found error
             return False
@@ -233,26 +222,28 @@ class RESTClient(AbstractClient):
         else:
             raise ValueError(f"Failed to check if agent exists: {response.text}")
 
-    def get_tool(self, tool_name: str):
-        response = requests.get(f"{self.base_url}/api/tools/{tool_name}", headers=self.headers)
+    def get_tool(self, tool_id: str):
+        response = requests.get(f"{self.base_url}/api/tools/{tool_id}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get tool: {response.text}")
-        return ToolModel(**response.json())
+        return Tool(**response.json())
 
     def create_agent(
         self,
         name: Optional[str] = None,
-        preset: Optional[str] = None,  # TODO: this should actually be re-named preset_name
+        # model configs
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
         memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
-        # system prompt (can be templated)
+        # system
         system: Optional[str] = None,
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,
+        # metadata
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
+        description: Optional[str] = None,
     ) -> AgentState:
         """
         Create an agent
@@ -265,8 +256,12 @@ class RESTClient(AbstractClient):
         Returns:
             agent_state (AgentState): State of the the created agent.
         """
-        if embedding_config or llm_config:
-            raise ValueError("Cannot override embedding_config or llm_config when creating agent via REST API")
+
+        # TODO: implement this check once name lookup works
+        # if name:
+        #    exist_agent_id = self.get_agent_id(agent_name=name)
+
+        #    raise ValueError(f"Agent with name {name} already exists")
 
         # construct list of tools
         tool_names = []
@@ -281,63 +276,57 @@ class RESTClient(AbstractClient):
             tool = self.create_tool(func, name=func_name, tags=["memory", "memgpt-base"], update=True)
             tool_names.append(tool.name)
 
-        # TODO: distinguish between name and objects
-        # TODO: add metadata
-        payload = {
-            "config": {
-                "name": name,
-                "preset": preset,
-                "system": system,
-                "persona": memory.get_block("persona").value,
-                "human": memory.get_block("human").value,
-                "function_names": tool_names,
-                "metadata": metadata,
-            }
-        }
-        response = requests.post(f"{self.base_url}/api/agents", json=payload, headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Status {response.status_code} - Failed to create agent: {response.text}")
-        response_obj = CreateAgentResponse(**response.json())
-        return self.get_agent_response_to_state(response_obj)
-
-    def get_agent_response_to_state(self, response: Union[GetAgentResponse, CreateAgentResponse]) -> AgentState:
-        # TODO: eventually remove this conversion
-        llm_config = LLMConfig(
-            model=response.agent_state.llm_config.model,
-            model_endpoint_type=response.agent_state.llm_config.model_endpoint_type,
-            model_endpoint=response.agent_state.llm_config.model_endpoint,
-            model_wrapper=response.agent_state.llm_config.model_wrapper,
-            context_window=response.agent_state.llm_config.context_window,
-        )
-        embedding_config = EmbeddingConfig(
-            embedding_endpoint_type=response.agent_state.embedding_config.embedding_endpoint_type,
-            embedding_endpoint=response.agent_state.embedding_config.embedding_endpoint,
-            embedding_model=response.agent_state.embedding_config.embedding_model,
-            embedding_dim=response.agent_state.embedding_config.embedding_dim,
-            embedding_chunk_size=response.agent_state.embedding_config.embedding_chunk_size,
-        )
-        agent_state = AgentState(
-            id=response.agent_state.id,
-            name=response.agent_state.name,
-            user_id=response.agent_state.user_id,
+        # create agent
+        request = CreateAgent(
+            name=name,
+            description=description,
+            metadata_=metadata,
+            memory=memory,
+            tools=tool_names,
+            system=system,
             llm_config=llm_config,
             embedding_config=embedding_config,
-            state=response.agent_state.state,
-            system=response.agent_state.system,
-            tools=response.agent_state.tools,
-            _metadata=response.agent_state.metadata,
-            # load datetime from timestampe
-            created_at=datetime.datetime.fromtimestamp(response.agent_state.created_at, tz=datetime.timezone.utc),
         )
-        return agent_state
 
-    def rename_agent(self, agent_id: uuid.UUID, new_name: str):
-        response = requests.patch(f"{self.base_url}/api/agents/{str(agent_id)}/rename", json={"agent_name": new_name}, headers=self.headers)
-        assert response.status_code == 200, f"Failed to rename agent: {response.text}"
-        response_obj = GetAgentResponse(**response.json())
-        return self.get_agent_response_to_state(response_obj)
+        response = requests.post(f"{self.base_url}/api/agents", json=request.model_dump(), headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Status {response.status_code} - Failed to create agent: {response.text}")
+        return AgentState(**response.json())
 
-    def delete_agent(self, agent_id: uuid.UUID):
+    def update_agent(
+        self,
+        agent_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        system: Optional[str] = None,
+        tools: Optional[List[str]] = None,
+        metadata: Optional[Dict] = None,
+        llm_config: Optional[LLMConfig] = None,
+        embedding_config: Optional[EmbeddingConfig] = None,
+        message_ids: Optional[List[str]] = None,
+        memory: Optional[Memory] = None,
+    ):
+        request = UpdateAgentState(
+            id=agent_id,
+            name=name,
+            system=system,
+            tools=tools,
+            description=description,
+            metadata_=metadata,
+            llm_config=llm_config,
+            embedding_config=embedding_config,
+            message_ids=message_ids,
+            memory=memory,
+        )
+        response = requests.post(f"{self.base_url}/api/agents/{agent_id}", json=request.model_dump(), headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update agent: {response.text}")
+        return AgentState(**response.json())
+
+    def rename_agent(self, agent_id: str, new_name: str):
+        return self.update_agent(agent_id, name=new_name)
+
+    def delete_agent(self, agent_id: str):
         """Delete the agent."""
         response = requests.delete(f"{self.base_url}/api/agents/{str(agent_id)}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete agent: {response.text}"
@@ -349,13 +338,11 @@ class RESTClient(AbstractClient):
         return self.get_agent_response_to_state(response_obj)
 
     # memory
-    def get_agent_memory(self, agent_id: uuid.UUID) -> GetAgentMemoryResponse:
+    def get_core_memory(self, agent_id: uuid.UUID) -> Memory:
         response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory", headers=self.headers)
-        return GetAgentMemoryResponse(**response.json())
 
-    def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> UpdateAgentMemoryResponse:
+    def update_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Memory:
         response = requests.post(f"{self.base_url}/api/agents/{agent_id}/memory", json=new_memory_contents, headers=self.headers)
-        return UpdateAgentMemoryResponse(**response.json())
 
     # agent interactions
 
@@ -382,13 +369,11 @@ class RESTClient(AbstractClient):
             params["after"] = str(after)
         response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/archival", params=params, headers=self.headers)
         assert response.status_code == 200, f"Failed to get archival memory: {response.text}"
-        return GetAgentArchivalMemoryResponse(**response.json())
 
-    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> GetAgentArchivalMemoryResponse:
+    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> Passage:
         response = requests.post(f"{self.base_url}/api/agents/{agent_id}/archival", json={"content": memory}, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to insert archival memory: {response.text}")
-        return InsertAgentArchivalMemoryResponse(**response.json())
 
     def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
         response = requests.delete(f"{self.base_url}/api/agents/{agent_id}/archival?id={memory_id}", headers=self.headers)
@@ -398,25 +383,22 @@ class RESTClient(AbstractClient):
 
     def get_messages(
         self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-    ) -> GetAgentMessagesResponse:
+    ) -> MemGPTResponse:
         params = {"before": before, "after": after, "limit": limit}
         response = requests.get(f"{self.base_url}/api/agents/{agent_id}/messages-cursor", params=params, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get messages: {response.text}")
-        return GetAgentMessagesResponse(**response.json())
 
-    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
+    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> MemGPTResponse:
         data = {"message": message, "role": role, "stream": stream}
         response = requests.post(f"{self.base_url}/api/agents/{agent_id}/messages", json=data, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to send message: {response.text}")
-        return UserMessageResponse(**response.json())
 
     # humans / personas
 
-    def list_humans(self) -> ListHumansResponse:
+    def list_humans(self) -> List[Human]:
         response = requests.get(f"{self.base_url}/api/humans", headers=self.headers)
-        return ListHumansResponse(**response.json())
 
     def create_human(self, name: str, text: str) -> Human:
         data = {"name": name, "text": text}
@@ -425,9 +407,8 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to create human: {response.text}")
         return Human(**response.json())
 
-    def list_personas(self) -> ListPersonasResponse:
+    def list_personas(self) -> List[Persona]:
         response = requests.get(f"{self.base_url}/api/personas", headers=self.headers)
-        return ListPersonasResponse(**response.json())
 
     def create_persona(self, name: str, text: str) -> Persona:
         data = {"name": name, "text": text}
@@ -457,8 +438,7 @@ class RESTClient(AbstractClient):
     def list_sources(self):
         """List loaded sources"""
         response = requests.get(f"{self.base_url}/api/sources", headers=self.headers)
-        response_json = response.json()
-        return ListSourcesResponse(**response_json)
+        response.json()
 
     def delete_source(self, source_id: uuid.UUID):
         """Delete a source and associated data (including attached to agents)"""
@@ -519,24 +499,23 @@ class RESTClient(AbstractClient):
 
     # server configuration commands
 
-    def list_models(self) -> ListModelsResponse:
+    def list_models(self):
         response = requests.get(f"{self.base_url}/api/models", headers=self.headers)
-        return ListModelsResponse(**response.json())
 
-    def get_config(self) -> ConfigResponse:
+    def get_config(self):
         response = requests.get(f"{self.base_url}/api/config", headers=self.headers)
-        return ConfigResponse(**response.json())
 
     # tools
-
+    # tools
     def create_tool(
         self,
         func,
         name: Optional[str] = None,
         update: Optional[bool] = True,  # TODO: actually use this
         tags: Optional[List[str]] = None,
-    ):
-        """Create a tool
+    ) -> Tool:
+        """
+        Create a tool.
 
         Args:
             func (callable): The function to create a tool for.
@@ -544,7 +523,7 @@ class RESTClient(AbstractClient):
             update (bool, optional): Update the tool if it already exists. Defaults to True.
 
         Returns:
-            Tool object
+            tool (ToolModel): The created tool.
         """
 
         # TODO: check if tool already exists
@@ -553,22 +532,90 @@ class RESTClient(AbstractClient):
         source_code = parse_source_code(func)
         json_schema = generate_schema(func, name)
         source_type = "python"
-        json_schema["name"]
+        tool_name = json_schema["name"]
 
-        # create data
-        data = {"source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema, "update": update}
-        try:
-            CreateToolRequest(**data)  # validate data
-        except Exception as e:
-            raise ValueError(f"Failed to create tool: {e}, invalid input {data}")
+        assert name is None or name == tool_name, f"Tool name {name} does not match schema name {tool_name}"
 
-        # make REST request
-        response = requests.post(f"{self.base_url}/api/tools", json=data, headers=self.headers)
+        # call server function
+        request = ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags)
+        response = requests.post(f"{self.base_url}/api/tools", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
-        return ToolModel(**response.json())
+        return Tool(**response.json())
 
-    def list_tools(self) -> ListToolsResponse:
+    def update_tool(
+        self,
+        id: str,
+        name: Optional[str] = None,
+        func: Optional[callable] = None,
+        tags: Optional[List[str]] = None,
+    ) -> Tool:
+        """
+        Update existing tool
+
+        Args:
+            id (str): Unique ID for tool
+
+        Returns:
+            tool (Tool): Updated tool object
+
+        """
+        if func:
+            source_code = parse_source_code(func)
+            json_schema = generate_schema(func, name)
+        else:
+            source_code = None
+            json_schema = None
+
+        source_type = "python"
+        tool_name = json_schema["name"] if name else name
+
+        request = ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, json_schema=json_schema, name=tool_name)
+        response = requests.post(f"{self.base_url}/api/tools/{id}", json=request.model_dump(), headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update tool: {response.text}")
+        return Tool(**response.json())
+
+    # def create_tool(
+    #    self,
+    #    func,
+    #    name: Optional[str] = None,
+    #    update: Optional[bool] = True,  # TODO: actually use this
+    #    tags: Optional[List[str]] = None,
+    # ):
+    #    """Create a tool
+
+    #    Args:
+    #        func (callable): The function to create a tool for.
+    #        tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
+    #        update (bool, optional): Update the tool if it already exists. Defaults to True.
+
+    #    Returns:
+    #        Tool object
+    #    """
+
+    #    # TODO: check if tool already exists
+    #    # TODO: how to load modules?
+    #    # parse source code/schema
+    #    source_code = parse_source_code(func)
+    #    json_schema = generate_schema(func, name)
+    #    source_type = "python"
+    #    json_schema["name"]
+
+    #    # create data
+    #    data = {"source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema, "update": update}
+    #    try:
+    #        CreateToolRequest(**data)  # validate data
+    #    except Exception as e:
+    #        raise ValueError(f"Failed to create tool: {e}, invalid input {data}")
+
+    #    # make REST request
+    #    response = requests.post(f"{self.base_url}/api/tools", json=data, headers=self.headers)
+    #    if response.status_code != 200:
+    #        raise ValueError(f"Failed to create tool: {response.text}")
+    #    return ToolModel(**response.json())
+
+    def list_tools(self) -> List[Tool]:
         response = requests.get(f"{self.base_url}/api/tools", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to list tools: {response.text}")
@@ -755,7 +802,7 @@ class LocalClient(AbstractClient):
         agent_id: Optional[uuid.UUID] = None,
         agent_name: Optional[str] = None,
         stream: Optional[bool] = False,
-    ) -> UserMessageResponse:
+    ) -> MemGPTResponse:
         if not agent_id:
             assert agent_name, f"Either agent_id or agent_name must be provided"
             agent_state = self.get_agent(agent_name=agent_name)
@@ -774,17 +821,20 @@ class LocalClient(AbstractClient):
         if self.auto_save:
             self.save()
         else:
-            return UserMessageResponse(messages=self.interface.to_list(), usage=usage)
+            # TODO: need to make sure date/timestamp is propely passed
+            messages = [Message.dict_to_message(m) for m in self.interface.to_list()]
+            print("MESSAGES", messages)
+            return MemGPTResponse(messages=messages, usage=usage)
 
-    def user_message(self, agent_id: str, message: str) -> UserMessageResponse:
+    def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
         self.interface.clear()
         usage = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
         if self.auto_save:
             self.save()
         else:
-            return UserMessageResponse(messages=self.interface.to_list(), usage=usage)
+            return MemGPTResponse(messages=self.interface.to_list(), usage=usage)
 
-    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
+    def run_command(self, agent_id: str, command: str) -> MemGPTResponse:
         self.interface.clear()
         return self.server.run_command(user_id=self.user_id, agent_id=agent_id, command=command)
 
@@ -952,29 +1002,18 @@ class LocalClient(AbstractClient):
 
     # archival memory
 
-    def get_agent_archival_memory(
-        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-    ):
-        self.interface.clear()
-        # TODO need to add support for non-postgres here
-        # chroma will throw:
-        #     raise ValueError("Cannot run get_all_cursor with chroma")
-        _, archival_json_records = self.server.get_agent_archival_cursor(
-            user_id=self.user_id,
-            agent_id=agent_id,
-            after=after,
-            before=before,
-            limit=limit,
-        )
-        archival_memory_objects = [ArchivalMemoryObject(id=passage["id"], contents=passage["text"]) for passage in archival_json_records]
-        return GetAgentArchivalMemoryResponse(archival_memory=archival_memory_objects)
-
-    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> GetAgentArchivalMemoryResponse:
-        memory_ids = self.server.insert_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_contents=memory)
-        return InsertAgentArchivalMemoryResponse(ids=memory_ids)
+    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> List[Passage]:
+        return self.server.insert_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_contents=memory)
 
     def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
         self.server.delete_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_id=memory_id)
+
+    def get_archival_memory(
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ) -> List[Passage]:
+        return self.server.get_agent_archival_cursor(user_id=self.user_id, agent_id=agent_id, before=before, after=after, limit=limit)
+
+    # recall memory
 
     def get_messages(
         self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
@@ -983,10 +1022,8 @@ class LocalClient(AbstractClient):
         [_, messages] = self.server.get_agent_recall_cursor(
             user_id=self.user_id, agent_id=agent_id, before=before, limit=limit, reverse=True
         )
-        return GetAgentMessagesResponse(messages=messages)
 
-    def list_models(self) -> ListModelsResponse:
-
+    def list_models(self) -> List[LLMConfig]:
         llm_config = LLMConfig(
             model=self.server.server_llm_config.model,
             model_endpoint=self.server.server_llm_config.model_endpoint,
@@ -994,5 +1031,5 @@ class LocalClient(AbstractClient):
             model_wrapper=self.server.server_llm_config.model_wrapper,
             context_window=self.server.server_llm_config.context_window,
         )
-
-        return ListModelsResponse(models=[llm_config])
+        # TODO: support multiple models
+        return [llm_config]

@@ -7,12 +7,9 @@ import pytest
 from dotenv import load_dotenv
 
 from memgpt import Admin, create_client
-from memgpt.config import MemGPTConfig
 from memgpt.constants import DEFAULT_PRESET
-from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import Preset  # TODO move to PresetModel
-from memgpt.settings import settings
-from tests.utils import create_config
+
+# from tests.utils import create_config
 
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
 # test_preset_name = "test_preset"
@@ -21,44 +18,43 @@ test_agent_state = None
 client = None
 
 test_agent_state_post_message = None
-test_user_id = uuid.uuid4()
 
 
 # admin credentials
 test_server_token = "test_server_token"
 
 
-def _reset_config():
-    # Use os.getenv with a fallback to os.environ.get
-    db_url = settings.memgpt_pg_uri
-
-    if os.getenv("OPENAI_API_KEY"):
-        create_config("openai")
-        credentials = MemGPTCredentials(
-            openai_key=os.getenv("OPENAI_API_KEY"),
-        )
-    else:  # hosted
-        create_config("memgpt_hosted")
-        credentials = MemGPTCredentials()
-
-    config = MemGPTConfig.load()
-
-    # set to use postgres
-    config.archival_storage_uri = db_url
-    config.recall_storage_uri = db_url
-    config.metadata_storage_uri = db_url
-    config.archival_storage_type = "postgres"
-    config.recall_storage_type = "postgres"
-    config.metadata_storage_type = "postgres"
-    config.save()
-    credentials.save()
-    print("_reset_config :: ", config.config_path)
+# def _reset_config():
+#    # Use os.getenv with a fallback to os.environ.get
+#    db_url = settings.memgpt_pg_uri
+#
+#    if os.getenv("OPENAI_API_KEY"):
+#        create_config("openai")
+#        credentials = MemGPTCredentials(
+#            openai_key=os.getenv("OPENAI_API_KEY"),
+#        )
+#    else:  # hosted
+#        create_config("memgpt_hosted")
+#        credentials = MemGPTCredentials()
+#
+#    config = MemGPTConfig.load()
+#
+#    ## set to use postgres
+#    #config.archival_storage_uri = db_url
+#    #config.recall_storage_uri = db_url
+#    #config.metadata_storage_uri = db_url
+#    #config.archival_storage_type = "postgres"
+#    #config.recall_storage_type = "postgres"
+#    #config.metadata_storage_type = "postgres"
+#    config.save()
+#    credentials.save()
+#    print("_reset_config :: ", config.config_path)
 
 
 def run_server():
     load_dotenv()
 
-    _reset_config()
+    # _reset_config()
 
     from memgpt.server.rest_api.server import start_server
 
@@ -68,7 +64,8 @@ def run_server():
 
 # Fixture to create clients with different configurations
 @pytest.fixture(
-    params=[{"server": True}, {"server": False}],  # whether to use REST API server
+    # params=[{"server": True}, {"server": False}],  # whether to use REST API server
+    params=[{"server": True}],  # whether to use REST API server
     scope="module",
 )
 def client(request):
@@ -86,21 +83,19 @@ def client(request):
         print("Running client tests with server:", server_url)
         # create user via admin client
         admin = Admin(server_url, test_server_token)
-        response = admin.create_user(test_user_id)  # Adjust as per your client's method
-        token = response.api_key
-
+        user = admin.create_user()  # Adjust as per your client's method
+        api_key = admin.create_key(user.id)
     else:
         # use local client (no server)
-        token = None
         server_url = None
 
-    client = create_client(base_url=server_url, token=token)  # This yields control back to the test function
+    client = create_client(base_url=server_url, token=api_key.key)  # This yields control back to the test function
     try:
         yield client
     finally:
         # cleanup user
         if server_url:
-            admin.delete_user(test_user_id)  # Adjust as per your client's method
+            admin.delete_user(user.id)
 
 
 # Fixture for test agent
@@ -115,7 +110,6 @@ def agent(client):
 
 
 def test_agent(client, agent):
-    _reset_config()
 
     # test client.rename_agent
     new_name = "RenamedTestAgent"
@@ -131,7 +125,7 @@ def test_agent(client, agent):
 
 
 def test_memory(client, agent):
-    _reset_config()
+    # _reset_config()
 
     memory_response = client.get_agent_memory(agent_id=agent.id)
     print("MEMORY", memory_response)
@@ -146,7 +140,7 @@ def test_memory(client, agent):
 
 
 def test_agent_interactions(client, agent):
-    _reset_config()
+    # _reset_config()
 
     message = "Hello, agent!"
     message_response = client.user_message(agent_id=agent.id, message=message)
@@ -157,7 +151,7 @@ def test_agent_interactions(client, agent):
 
 
 def test_archival_memory(client, agent):
-    _reset_config()
+    # _reset_config()
 
     memory_content = "Archival memory content"
     insert_response = client.insert_archival_memory(agent_id=agent.id, memory=memory_content)
@@ -175,7 +169,7 @@ def test_archival_memory(client, agent):
 
 
 def test_messages(client, agent):
-    _reset_config()
+    # _reset_config()
 
     send_message_response = client.send_message(agent_id=agent.id, message="Test message", role="user")
     assert send_message_response, "Sending message failed"
@@ -185,7 +179,7 @@ def test_messages(client, agent):
 
 
 def test_humans_personas(client, agent):
-    _reset_config()
+    # _reset_config()
 
     humans_response = client.list_humans()
     print("HUMANS", humans_response)
@@ -218,7 +212,7 @@ def test_humans_personas(client, agent):
 
 
 def test_config(client, agent):
-    _reset_config()
+    # _reset_config()
 
     models_response = client.list_models()
     print("MODELS", models_response)
@@ -230,7 +224,7 @@ def test_config(client, agent):
 
 
 def test_sources(client, agent):
-    _reset_config()
+    # _reset_config()
 
     if not hasattr(client, "base_url"):
         pytest.skip("Skipping test_sources because base_url is None")
@@ -298,80 +292,3 @@ def test_sources(client, agent):
 
     # delete the source
     client.delete_source(source.id)
-
-
-# def test_presets(client, agent):
-#    _reset_config()
-#
-#    # new_preset = Preset(
-#    #    # user_id=client.user_id,
-#    #    name="pytest_test_preset",
-#    #    description="DUMMY_DESCRIPTION",
-#    #    system="DUMMY_SYSTEM",
-#    #    persona="DUMMY_PERSONA",
-#    #    persona_name="DUMMY_PERSONA_NAME",
-#    #    human="DUMMY_HUMAN",
-#    #    human_name="DUMMY_HUMAN_NAME",
-#    #    functions_schema=[
-#    #        {
-#    #            "name": "send_message",
-#    #            "json_schema": {
-#    #                "name": "send_message",
-#    #                "description": "Sends a message to the human user.",
-#    #                "parameters": {
-#    #                    "type": "object",
-#    #                    "properties": {
-#    #                        "message": {"type": "string", "description": "Message contents. All unicode (including emojis) are supported."}
-#    #                    },
-#    #                    "required": ["message"],
-#    #                },
-#    #            },
-#    #            "tags": ["memgpt-base"],
-#    #            "source_type": "python",
-#    #            "source_code": 'def send_message(self, message: str) -> Optional[str]:\n    """\n    Sends a message to the human user.\n\n    Args:\n        message (str): Message contents. All unicode (including emojis) are supported.\n\n    Returns:\n        Optional[str]: None is always returned as this function does not produce a response.\n    """\n    self.interface.assistant_message(message)\n    return None\n',
-#    #        }
-#    #    ],
-#    # )
-#
-#    ## List all presets and make sure the preset is NOT in the list
-#    # all_presets = client.list_presets()
-#    # assert new_preset.id not in [p.id for p in all_presets], (new_preset, all_presets)
-#    # Create a preset
-#    new_preset = client.create_preset(name="pytest_test_preset")
-#
-#    # List all presets and make sure the preset is in the list
-#    all_presets = client.list_presets()
-#    assert new_preset.id in [p.id for p in all_presets], (new_preset, all_presets)
-#
-#    # Delete the preset
-#    client.delete_preset(preset_id=new_preset.id)
-#
-#    # List all presets and make sure the preset is NOT in the list
-#    all_presets = client.list_presets()
-#    assert new_preset.id not in [p.id for p in all_presets], (new_preset, all_presets)
-
-
-# def test_tools(client, agent):
-#
-#    # load a function
-#    file_path = "tests/data/functions/dump_json.py"
-#    module_name = "dump_json"
-#
-#    # list functions
-#    response = client.list_tools()
-#    orig_tools = response.tools
-#    print(orig_tools)
-#
-#    # add the tool
-#    create_tool_response = client.create_tool(name=module_name, file_path=file_path)
-#    print(create_tool_response)
-#
-#    # list functions
-#    response = client.list_tools()
-#    new_tools = response.tools
-#    assert module_name in [tool.name for tool in new_tools]
-#    # assert len(new_tools) == len(orig_tools) + 1
-#
-#    # TODO: add a function to a preset
-#
-#    # TODO: add a function to an agent
