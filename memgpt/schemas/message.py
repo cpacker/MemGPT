@@ -40,6 +40,14 @@ class BaseMessage(MemGPTBase):
     __id_prefix__ = "message"
 
 
+class MessageCreate(BaseMessage):
+    """Request to create a message"""
+
+    role: MessageRole = Field(..., description="The role of the participant.")
+    text: str = Field(..., description="The text of the message.")
+    name: Optional[str] = Field(None, description="The name of the participant.")
+
+
 class Message(BaseMessage):
     """
     Representation of a message sent.

@@ -32,7 +32,7 @@ class Admin:
             raise HTTPError(response.json())
         return [User(**user) for user in response.json()]
 
-    def create_key(self, user_id: str, key_name: str) -> APIKey:
+    def create_key(self, user_id: str, key_name: Optional[str] = None) -> APIKey:
         request = APIKeyCreate(user_id=user_id, name=key_name)
         response = requests.post(f"{self.base_url}/admin/users/keys", headers=self.headers, json=request.model_dump())
         if response.status_code != 200:

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
@@ -50,6 +50,27 @@ class CreateAgent(BaseAgent):
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
     llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, name: str) -> str:
+        """Validate the requested new agent name (prevent bad inputs)"""
+
+        import re
+
+        # TODO: this check should also be added to other model (e.g. User.name)
+        # Length check
+        if not (1 <= len(name) <= 50):
+            raise ValueError("Name length must be between 1 and 50 characters.")
+
+        # Regex for allowed characters (alphanumeric, spaces, hyphens, underscores)
+        if not re.match("^[A-Za-z0-9 _-]+$", name):
+            raise ValueError("Name contains invalid characters.")
+
+        # Further checks can be added here...
+        # TODO
+
+        return name
 
 
 class UpdateAgentState(BaseAgent):

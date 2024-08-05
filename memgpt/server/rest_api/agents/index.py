@@ -4,7 +4,7 @@ from typing import List
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from memgpt.schemas.agent import AgentState, CreateAgent
+from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -45,5 +45,56 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
             raise HTTPException(status_code=500, detail=str(e))
 
         return agent_state
+
+    @router.post("/agents/{agent_id}", tags=["agents"], response_model=AgentState)
+    def update_agent(
+        agent_id: str,
+        request: UpdateAgentState = Body(...),
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        """Update an exsiting agent"""
+        interface.clear()
+        try:
+            # TODO: should id be moved out of UpdateAgentState?
+            agent_state = server.update_agent(request, user_id=user_id)
+        except Exception as e:
+            print(str(e))
+            raise HTTPException(status_code=500, detail=str(e))
+
+        return agent_state
+
+    @router.get("/agents/{agent_id}", tags=["agents"], response_model=AgentState)
+    def get_agent_state(
+        agent_id: str = None,
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        """
+        Get the state of the agent.
+        """
+
+        interface.clear()
+        if not server.ms.get_agent(user_id=user_id, agent_id=agent_id):
+            # agent does not exist
+            raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found.")
+
+        return server.get_agent_state(user_id=user_id, agent_id=agent_id)
+
+    @router.delete("/agents/{agent_id}", tags=["agents"])
+    def delete_agent(
+        agent_id: uuid.UUID,
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        """
+        Delete an agent.
+        """
+        # agent_id = uuid.UUID(agent_id)
+
+        interface.clear()
+        try:
+            server.delete_agent(user_id=user_id, agent_id=agent_id)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{e}")
 
     return router

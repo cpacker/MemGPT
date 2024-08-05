@@ -797,6 +797,7 @@ class SyncServer(LockingServer):
         logger.info(f"Created new agent from config: {agent}")
 
         assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
+        print("CREATED AGENT", agent.agent_state)
         # return AgentState
         return agent.agent_state
 
@@ -1192,6 +1193,8 @@ class SyncServer(LockingServer):
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # TODO: should return a passage
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
