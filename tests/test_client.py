@@ -87,8 +87,11 @@ def client(request):
         api_key = admin.create_key(user.id)
     else:
         # use local client (no server)
+        assert False, "Local client not implemented"
         server_url = None
 
+    assert server_url is not None
+    assert api_key.key is not None
     client = create_client(base_url=server_url, token=api_key.key)  # This yields control back to the test function
     try:
         yield client
