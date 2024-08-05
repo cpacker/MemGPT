@@ -836,6 +836,7 @@ class LocalClient(AbstractClient):
         if self.auto_save:
             self.save()
         else:
+            # TODO: need to make sure date/timestamp is propely passed
             messages = [Message.dict_to_message(m) for m in self.interface.to_list()]
             print("MESSAGES", messages)
             return MemGPTResponse(messages=messages, usage=usage)
