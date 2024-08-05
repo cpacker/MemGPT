@@ -219,7 +219,7 @@ def test_tools_from_crewai(client):
     tool = Tool.from_crewai(crewai_tool)
 
     print(tool)
-    
+
     # Add the tool
     client.add_tool(tool)
 
@@ -234,13 +234,13 @@ def test_tools_from_crewai(client):
 
     print(source_code)
 
-    # Parse the function and attempt to use it 
+    # Parse the function and attempt to use it
     local_scope = {}
     exec(source_code, {}, local_scope)
     func = local_scope[tool.name]
 
     # Pull a simple HTML website and check that scraping it works
-    # TODO: This is very hacky and can break at any time if the website changes. 
+    # TODO: This is very hacky and can break at any time if the website changes.
     # Host our own websites to test website tool calling on.
     simple_webpage_url = "https://www.york.ac.uk/teaching/cws/wws/webpage1.html"
     expected_content = "There are lots of ways to create web pages using already coded programmes."
