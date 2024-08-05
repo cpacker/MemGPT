@@ -271,4 +271,6 @@ class ChromaStorageConnector(StorageConnector):
             records = [r for r in records if getattr(r, order_by) > getattr(after, order_by)]
         if before:
             records = [r for r in records if getattr(r, order_by) < getattr(before, order_by)]
+        if len(records) == 0:
+            return 0, []
         return records[-1].id, records

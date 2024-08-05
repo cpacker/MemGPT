@@ -5,6 +5,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 
 from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
+from memgpt.schemas.message import Message
 from memgpt.schemas.passage import Passage
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
@@ -15,6 +16,17 @@ router = APIRouter()
 
 def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
+
+    @router.get("/agents/{agent_id}/memory/messages", tags=["agents"], response_model=List[Message])
+    def get_agent_in_context_messages(
+        agent_id: str,
+        user_id: str = Depends(get_current_user_with_server),
+    ):
+        """
+        Retrieve the messages in the context of a specific agent.
+        """
+        interface.clear()
+        return server.get_in_context_messages(agent_id=agent_id)
 
     @router.get("/agents/{agent_id}/memory", tags=["agents"], response_model=Memory)
     def get_agent_memory(
@@ -53,7 +65,7 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
         Retrieve the summary of the recall memory of a specific agent.
         """
         interface.clear()
-        return server.get_agent_recall_memory_summary(user_id=user_id, agent_id=agent_id)
+        return server.get_recall_memory_summary(agent_id=agent_id)
 
     @router.get("/agents/{agent_id}/memory/archival", tags=["agents"], response_model=ArchivalMemorySummary)
     def get_agent_archival_memory_summary(
@@ -64,7 +76,7 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
         Retrieve the summary of the archival memory of a specific agent.
         """
         interface.clear()
-        return server.get_agent_archival_memory_summary(user_id=user_id, agent_id=agent_id)
+        return server.get_archival_memory_summary(agent_id=agent_id)
 
     # @router.get("/agents/{agent_id}/archival/all", tags=["agents"], response_model=List[Passage])
     # def get_agent_archival_memory_all(
@@ -97,7 +109,7 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
             limit=limit,
         )
 
-    @router.post("/agents/{agent_id}/archival/{memory}", tags=["agents"], response_model=Passage)
+    @router.post("/agents/{agent_id}/archival/{memory}", tags=["agents"], response_model=List[Passage])
     def insert_agent_archival_memory(
         agent_id: str,
         memory: str,

@@ -353,13 +353,22 @@ class RESTClient(AbstractClient):
         return Memory(**response.json())
 
     def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
-        return self.server.get_archival_memory_summary(user_id=self.user_id, agent_id=agent_id)
+        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory/archival", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to get archival memory summary: {response.text}")
+        return ArchivalMemorySummary(**response.json())
 
     def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
-        return self.server.get_recall_memory_summary(user_id=self.user_id, agent_id=agent_id)
+        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory/recall", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to get recall memory summary: {response.text}")
+        return RecallMemorySummary(**response.json())
 
     def get_in_context_messages(self, agent_id: str) -> List[Message]:
-        return self.server.get_in_context_messages(agent_id=agent_id)
+        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory/messages", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to get in-context messages: {response.text}")
+        return [Message(**message) for message in response.json()]
 
     # agent interactions
 
@@ -375,9 +384,9 @@ class RESTClient(AbstractClient):
 
     # archival memory
 
-    def get_agent_archival_memory(
+    def get_archival_memory(
         self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-    ):
+    ) -> List[Passage]:
         """Paginated get for the archival memory for an agent"""
         params = {"limit": limit}
         if before:
@@ -386,14 +395,16 @@ class RESTClient(AbstractClient):
             params["after"] = str(after)
         response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/archival", params=params, headers=self.headers)
         assert response.status_code == 200, f"Failed to get archival memory: {response.text}"
+        return [Passage(**passage) for passage in response.json()]
 
-    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> Passage:
-        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/archival", json={"content": memory}, headers=self.headers)
+    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> List[Passage]:
+        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/archival/{memory}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to insert archival memory: {response.text}")
+        return [Passage(**passage) for passage in response.json()]
 
     def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
-        response = requests.delete(f"{self.base_url}/api/agents/{agent_id}/archival?id={memory_id}", headers=self.headers)
+        response = requests.delete(f"{self.base_url}/api/agents/{agent_id}/archival/{memory_id}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete archival memory: {response.text}"
 
     # messages (recall memory)

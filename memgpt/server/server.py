@@ -1088,11 +1088,11 @@ class SyncServer(LockingServer):
 
     def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
         agent = self._get_or_load_agent(agent_id=agent_id)
-        return ArchivalMemorySummary(num_rows=len(agent.persistence_manager.archival_memory))
+        return ArchivalMemorySummary(size=len(agent.persistence_manager.archival_memory))
 
     def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
         agent = self._get_or_load_agent(agent_id=agent_id)
-        return RecallMemorySummary(num_rows=len(agent.persistence_manager.recall_memory))
+        return RecallMemorySummary(size=len(agent.persistence_manager.recall_memory))
 
     def get_in_context_message_ids(self, agent_id: str) -> List[str]:
         """Get the message ids of the in-context messages in the agent's memory"""
@@ -1221,6 +1221,8 @@ class SyncServer(LockingServer):
         # Delete by ID
         # TODO check if it exists first, and throw error if not
         memgpt_agent.persistence_manager.archival_memory.storage.delete({"id": memory_id})
+
+        # TODO: return archival memory
 
     def get_agent_recall_cursor(
         self,
