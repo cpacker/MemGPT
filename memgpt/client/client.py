@@ -337,11 +337,20 @@ class RESTClient(AbstractClient):
         return AgentState(**response.json())
 
     # memory
-    def get_core_memory(self, agent_id: uuid.UUID) -> Memory:
+    def get_in_context_memory(self, agent_id: uuid.UUID) -> Memory:
         response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to get in-context memory: {response.text}")
+        return Memory(**response.json())
 
-    def update_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Memory:
-        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/memory", json=new_memory_contents, headers=self.headers)
+    def update_in_context_memory(self, agent_id: str, section: str, value: Union[List[str], str]) -> Memory:
+        memory_update_dict = {section: value}
+        print()
+        print("MEMORY UPDATE", memory_update_dict)
+        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/memory", json=memory_update_dict, headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update in-context memory: {response.text}")
+        return Memory(**response.json())
 
     # agent interactions
 

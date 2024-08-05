@@ -1,5 +1,5 @@
 from functools import partial
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
@@ -27,12 +27,12 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
         This endpoint fetches the current memory state of the agent identified by the user ID and agent ID.
         """
         interface.clear()
-        return server.get_agent_memory(user_id=user_id, agent_id=agent_id)
+        return server.get_agent_memory(agent_id=agent_id)
 
     @router.post("/agents/{agent_id}/memory", tags=["agents"], response_model=Memory)
     def update_agent_memory(
         agent_id: str,
-        request: Memory = Body(...),
+        request: Dict = Body(...),
         user_id: str = Depends(get_current_user_with_server),
     ):
         """
@@ -41,8 +41,7 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
         This endpoint accepts new memory contents (human and persona) and updates the core memory of the agent identified by the user ID and agent ID.
         """
         interface.clear()
-        new_memory_contents = {k: v.value for k, v in request.memory.items() if v is not None}
-        memory = server.update_agent_core_memory(user_id=user_id, agent_id=agent_id, new_memory_contents=new_memory_contents)
+        memory = server.update_agent_core_memory(user_id=user_id, agent_id=agent_id, new_memory_contents=request)
         return memory
 
     @router.get("/agents/{agent_id}/memory/recall", tags=["agents"], response_model=RecallMemorySummary)
