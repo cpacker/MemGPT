@@ -588,6 +588,50 @@ class RESTClient(AbstractClient):
         elif response.status_code != 200:
             raise ValueError(f"Failed to get tool: {response.text}")
         return response.json()
+    
+    def create_tool(
+        self,
+        func,
+        name: Optional[str] = None,
+        update: Optional[bool] = True,  # TODO: actually use this
+        tags: Optional[List[str]] = None,
+    ) -> Tool:
+        """
+        Create a tool.
+
+        Args:
+            func (callable): The function to create a tool for.
+            tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
+            update (bool, optional): Update the tool if it already exists. Defaults to True.
+
+        Returns:
+            tool (ToolModel): The created tool.
+        """
+
+        # TODO: check if tool already exists
+        # TODO: how to load modules?
+        # parse source code/schema
+        source_code = parse_source_code(func)
+        json_schema = generate_schema(func, name)
+        source_type = "python"
+        tool_name = json_schema["name"]
+
+        assert name is None or name == tool_name, f"Tool name {name} does not match schema name {tool_name}"
+
+        # check if tool exists
+        existing_tool_id = self.get_tool_id(tool_name)
+        if existing_tool_id:
+            if update:
+                return self.update_tool(existing_tool_id, name=name, func=func, tags=tags)
+            else:
+                raise ValueError(f"Tool with name {tool_name} already exists")
+
+        # call server function
+        request = ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags)
+        response = requests.post(f"{self.base_url}/api/tools", json=request.model_dump(), headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create tool: {response.text}")
+        return Tool(**response.json())
 
     def create_tool(
         self,
@@ -971,6 +1015,36 @@ class LocalClient(AbstractClient):
         return self.server.delete_persona(name, self.user_id)
 
     # tools
+    def add_tool(
+        self,
+        tool: Tool,
+        update: Optional[bool] = True
+    ) -> None: 
+        """
+        Adds a tool directly.
+
+        Args:
+            tool (Tool): The tool to add.
+            update (bool, optional): Update the tool if it already exists. Defaults to True.
+
+        Returns:
+            None
+        """
+        existing_tool_id = self.get_tool_id(tool.name)
+        if existing_tool_id:
+            if update:
+                self.server.update_tool(ToolUpdate(id=existing_tool_id, source_type=tool.source_type, source_code=tool.source_code, tags=tool.tags, json_schema=tool.json_schema, name=tool.name))
+            else:
+                raise ValueError(f"Tool with name {tool.name} already exists")
+
+        # call server function
+        return self.server.create_tool(
+            ToolCreate(source_type=tool.source_type, source_code=tool.source_code, name=tool.name, json_schema=tool.json_schema, tags=tool.tags),
+            user_id=self.user_id,
+            update=update,
+        )
+        
+    # TODO: Use the above function `add_tool` here as there is duplicate logic
     def create_tool(
         self,
         func,

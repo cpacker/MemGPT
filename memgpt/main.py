@@ -16,7 +16,7 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 # import benchmark
 from memgpt.benchmark.benchmark import bench
 from memgpt.cli.cli import delete_agent, open_folder, quickstart, run, server, version
-from memgpt.cli.cli_config import add, configure, delete, list
+from memgpt.cli.cli_config import add, add_tool, list_tools, configure, delete, list
 from memgpt.cli.cli_load import app as load_app
 from memgpt.config import MemGPTConfig
 from memgpt.constants import (
@@ -39,6 +39,8 @@ app.command(name="version")(version)
 app.command(name="configure")(configure)
 app.command(name="list")(list)
 app.command(name="add")(add)
+app.command(name="add-tool")(add_tool)
+app.command(name="list-tools")(list_tools)
 app.command(name="delete")(delete)
 app.command(name="server")(server)
 app.command(name="folder")(open_folder)
