@@ -951,7 +951,7 @@ class LocalClient(AbstractClient):
 
         # call server function
         return self.server.create_tool(
-            ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags, update=update),
+            ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
             user_id=self.user_id,
             update=update,
         )
