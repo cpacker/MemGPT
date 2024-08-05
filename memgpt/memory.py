@@ -126,7 +126,10 @@ class ChatMemory(BaseMemory):
         Returns:
             Optional[str]: None is always returned as this function does not produce a response.
         """
-        self.memory[name].value = self.memory[name].value.replace(old_content, new_content)
+        if old_content == "":
+            self.memory[name].value = new_content
+        else:
+            self.memory[name].value = self.memory[name].value.replace(old_content, new_content)
         return None
 
 
