@@ -352,6 +352,15 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to update in-context memory: {response.text}")
         return Memory(**response.json())
 
+    def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
+        return self.server.get_archival_memory_summary(user_id=self.user_id, agent_id=agent_id)
+
+    def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
+        return self.server.get_recall_memory_summary(user_id=self.user_id, agent_id=agent_id)
+
+    def get_in_context_messages(self, agent_id: str) -> List[Message]:
+        return self.server.get_in_context_messages(agent_id=agent_id)
+
     # agent interactions
 
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
@@ -359,7 +368,7 @@ class RESTClient(AbstractClient):
 
     def run_command(self, agent_id: str, command: str) -> Union[str, None]:
         response = requests.post(f"{self.base_url}/api/agents/{str(agent_id)}/command", json={"command": command}, headers=self.headers)
-        return CommandResponse(**response.json())
+        # return CommandResponse(**response.json())
 
     def save(self):
         raise NotImplementedError
@@ -679,19 +688,19 @@ class LocalClient(AbstractClient):
         # determine user_id (pulled from local config)
         config = MemGPTConfig.load()
         if user_id:
-            self.user_id = f"user-{user_id}"
+            self.user_id = user_id
         else:
             # TODO: find a neater way to do this
-            self.user_id = f"user-{config.anon_clientid}"
+            self.user_id = config.anon_clientid
 
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
 
         # create user if does not exist
-        if not self.server.get_user(self.user_id):
+        existing_user = self.server.get_user(self.user_id)
+        if not existing_user:
             self.user = self.server.create_user(UserCreate())
             self.user_id = self.user.id
-            print("Created new user:", self.user_id)
 
             # update config
             config.anon_clientid = str(self.user_id)

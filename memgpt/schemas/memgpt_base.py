@@ -28,13 +28,7 @@ class MemGPTBase(BaseModel):
 
     @classmethod
     def generate_id_field(cls, prefix: Optional[str] = None) -> "Field":
-        print("class", cls)
-        print("PREFIX", prefix, cls.__id_prefix__)
         prefix = prefix or cls.__id_prefix__
-        try:
-            print("name", cls.name)
-        except:
-            print("no name field")
 
         # TODO: generate ID from regex pattern?
         def _generate_id() -> str:
