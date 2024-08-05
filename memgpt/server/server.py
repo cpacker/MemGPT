@@ -1565,9 +1565,11 @@ class SyncServer(LockingServer):
         """Get tool by ID."""
         return self.ms.get_tool(tool_id=tool_id)
 
-    def get_tool_id(self, name: str, user_id: str) -> str:
+    def get_tool_id(self, name: str, user_id: str) -> Optional[str]:
         """Get tool ID from name and user_id."""
         tool = self.ms.get_tool(tool_name=name, user_id=user_id)
+        if not tool:
+            return None
         return tool.id
 
     def update_tool(

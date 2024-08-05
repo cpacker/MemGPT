@@ -42,6 +42,22 @@ def setup_user_tools_index_router(server: SyncServer, interface: QueuingInterfac
             raise HTTPException(status_code=404, detail=f"Tool with id {tool_id} not found.")
         return tool
 
+    @router.get("/tools/name/{tool_name}", tags=["tools"], response_model=str)
+    async def get_tool_id(
+        tool_name: str,
+        user_id: str = Depends(get_current_user_with_server),
+    ):
+        """
+        Get a tool by name
+        """
+        # Clear the interface
+        interface.clear()
+        tool = server.get_tool_id(tool_name)
+        if tool is None:
+            # return 404 error
+            raise HTTPException(status_code=404, detail=f"Tool with name {tool_name} not found.")
+        return tool
+
     @router.get("/tools", tags=["tools"], response_model=List[Tool])
     async def list_all_tools(
         user_id: str = Depends(get_current_user_with_server),
