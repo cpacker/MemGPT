@@ -40,7 +40,7 @@ class Tool(BaseTool):
                 function=self.module,
             )
         )
-    
+
     @classmethod
     def from_crewai(cls, crewai_tool: CrewAiBaseTool) -> "Tool":
         """
@@ -54,8 +54,8 @@ class Tool(BaseTool):
         """
         name = crewai_tool.name
         description = crewai_tool.description
-        source_type = 'python'
-        tags = ['crew-ai']
+        source_type = "python"
+        tags = ["crew-ai"]
         wrapper_func_name, wrapper_function_str = generate_tool_wrapper(crewai_tool.__class__.__name__)
         json_schema = generate_schema_from_args_schema(crewai_tool.args_schema, name=wrapper_func_name, description=description)
 
@@ -65,7 +65,7 @@ class Tool(BaseTool):
             source_type=source_type,
             tags=tags,
             source_code=wrapper_function_str,
-            json_schema=json_schema
+            json_schema=json_schema,
         )
 
 

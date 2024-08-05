@@ -1198,7 +1198,7 @@ def add_tool(
     # compile converts the AST into a code object that can be executed by the Python interpreter
     # The exec function executes the compiled code object in the current context,
     # effectively defining the function within the current namespace
-    exec(compile(ast.Module([func_def], []), filename, 'exec'))
+    exec(compile(ast.Module([func_def], []), filename, "exec"))
     # Retrieve the function object by evaluating its name in the current namespace
     # eval looks up the function name in the current scope and returns the function object
     func = eval(func_def.name)
