@@ -865,6 +865,7 @@ class SyncServer(LockingServer):
         assert isinstance(memgpt_agent.memory, Memory)
         save_agent(memgpt_agent, self.ms)
         # TODO: probably reload the agent somehow?
+        return memgpt_agent.agent_state
 
     def delete_agent(
         self,
@@ -1575,6 +1576,8 @@ class SyncServer(LockingServer):
     def get_tool_id(self, name: str, user_id: str) -> str:
         """Get tool ID from name and user_id."""
         tool = self.ms.get_tool(tool_name=name, user_id=user_id)
+        if not tool:
+            return None
         return tool.id
 
     def update_tool(

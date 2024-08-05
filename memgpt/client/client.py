@@ -332,10 +332,9 @@ class RESTClient(AbstractClient):
         assert response.status_code == 200, f"Failed to delete agent: {response.text}"
 
     def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
-        response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/config", headers=self.headers)
+        response = requests.get(f"{self.base_url}/api/agents/{agent_id}", headers=self.headers)
         assert response.status_code == 200, f"Failed to get agent: {response.text}"
-        response_obj = GetAgentResponse(**response.json())
-        return self.get_agent_response_to_state(response_obj)
+        return AgentState(**response.json())
 
     # memory
     def get_core_memory(self, agent_id: uuid.UUID) -> Memory:
@@ -506,7 +505,15 @@ class RESTClient(AbstractClient):
         response = requests.get(f"{self.base_url}/api/config", headers=self.headers)
 
     # tools
-    # tools
+
+    def get_tool_id(self, tool_name: str):
+        response = requests.get(f"{self.base_url}/api/tools/name/{tool_name}", headers=self.headers)
+        if response.status_code == 404:
+            return None
+        elif response.status_code != 200:
+            raise ValueError(f"Failed to get tool: {response.text}")
+        return response.json()
+
     def create_tool(
         self,
         func,
@@ -535,6 +542,14 @@ class RESTClient(AbstractClient):
         tool_name = json_schema["name"]
 
         assert name is None or name == tool_name, f"Tool name {name} does not match schema name {tool_name}"
+
+        # check if tool exists
+        existing_tool_id = self.get_tool_id(tool_name)
+        if existing_tool_id:
+            if update:
+                return self.update_tool(existing_tool_id, name=name, func=func, tags=tags)
+            else:
+                raise ValueError(f"Tool with name {tool_name} already exists")
 
         # call server function
         request = ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags)
@@ -924,6 +939,14 @@ class LocalClient(AbstractClient):
 
         assert name is None or name == tool_name, f"Tool name {name} does not match schema name {tool_name}"
 
+        # check if tool exists
+        existing_tool_id = self.get_tool_id(tool_name)
+        if existing_tool_id:
+            if update:
+                return self.update_tool(existing_tool_id, name=name, func=func, tags=tags)
+            else:
+                raise ValueError(f"Tool with name {tool_name} already exists")
+
         # call server function
         return self.server.create_tool(
             ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
@@ -979,7 +1002,7 @@ class LocalClient(AbstractClient):
     def delete_tool(self, id: str):
         return self.server.delete_tool(id)
 
-    def get_tool_id(self, name: str) -> str:
+    def get_tool_id(self, name: str) -> Optional[str]:
         return self.server.get_tool_id(name, self.user_id)
 
     # data sources
