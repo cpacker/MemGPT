@@ -552,9 +552,7 @@ class RESTClient(AbstractClient):
                 raise ValueError(f"Tool with name {tool_name} already exists")
 
         # call server function
-        request = ToolCreate(
-            source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags, update=update
-        )
+        request = ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags)
         response = requests.post(f"{self.base_url}/api/tools", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
