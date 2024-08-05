@@ -38,7 +38,6 @@ class Memory(BaseModel, validate_assignment=True):
         """Return a list of the block names held inside the memory object"""
         return list(self.memory.keys())
 
-    # TODO we could also overload '__getitem__(self, key)'
     def get_block(self, name: str) -> Block:
         """Correct way to index into the memory.memory field, returns a Block"""
         if name not in self.memory:
@@ -46,7 +45,6 @@ class Memory(BaseModel, validate_assignment=True):
         else:
             return self.memory[name]
 
-    # TODO we could also overload '__setitem__(self, key)'
     def link_block(self, name: str, block: Block, override: Optional[bool] = False):
         """Link a new block to the memory object"""
         if not isinstance(block, Block):
@@ -75,7 +73,7 @@ class ChatMemory(Memory):
         self.link_block(name="persona", block=Block(name="persona", value=persona, limit=limit))
         self.link_block(name="human", block=Block(name="human", value=human, limit=limit))
 
-    def corememory_append(self, name: str, content: str) -> Optional[str]:
+    def core_memory_append(self, name: str, content: str) -> Optional[str]:
         """
         Append to the contents of core memory.
 
@@ -91,7 +89,7 @@ class ChatMemory(Memory):
         self.update_block_value(name=name, value=new_value)
         return None
 
-    def corememory_replace(self, name: str, old_content: str, new_content: str) -> Optional[str]:
+    def core_memory_replace(self, name: str, old_content: str, new_content: str) -> Optional[str]:
         """
         Replace the contents of core memory. To delete memories, use an empty string for new_content.
 
