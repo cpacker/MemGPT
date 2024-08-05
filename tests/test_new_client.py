@@ -3,7 +3,7 @@ import json
 import pytest
 
 from memgpt import create_client
-from memgpt.schemas.memory import ChatMemory
+from memgpt.schemas.memory import ChatMemory, Memory
 
 
 @pytest.fixture(scope="module")
@@ -30,6 +30,7 @@ def test_agent(client):
         memory=ChatMemory(human="I am a human", persona="I am an agent"),
         description="This is a test agent",
     )
+    assert isinstance(agent_state_test.memory, Memory)
 
     # list agents
     agents = client.list_agents()
@@ -40,16 +41,19 @@ def test_agent(client):
     agent_state = client.get_agent(agent_state_test.id)
     assert agent_state.name == "test_agent2"
 
+    assert isinstance(agent_state.memory, Memory)
     # update agent: name
     new_name = "new_agent"
     client.update_agent(agent_state_test.id, name=new_name)
     assert client.get_agent(agent_state_test.id).name == new_name
 
+    assert isinstance(agent_state.memory, Memory)
     # update agent: system prompt
     new_system_prompt = agent_state.system + "\nAlways respond with a !"
     client.update_agent(agent_state_test.id, system=new_system_prompt)
     assert client.get_agent(agent_state_test.id).system == new_system_prompt
 
+    assert isinstance(agent_state.memory, Memory)
     # update agent: message_ids
     old_message_ids = agent_state.message_ids
     new_message_ids = old_message_ids.copy()[:-1]  # pop one
@@ -57,6 +61,7 @@ def test_agent(client):
     client.update_agent(agent_state_test.id, message_ids=new_message_ids)
     assert client.get_agent(agent_state_test.id).message_ids == new_message_ids
 
+    assert isinstance(agent_state.memory, Memory)
     # update agent: tools
     tool_to_delete = "send_message"
     assert tool_to_delete in agent_state.tools
@@ -64,21 +69,17 @@ def test_agent(client):
     client.update_agent(agent_state_test.id, tools=new_agent_tools)
     assert client.get_agent(agent_state_test.id).tools == new_agent_tools
 
+    assert isinstance(agent_state.memory, Memory)
     # update agent: memory
     new_human = "My name is Mr Test, 100 percent human."
     new_persona = "I am an all-knowing AI."
     new_memory = ChatMemory(human=new_human, persona=new_persona)
-
-    # TODO this needs to be updated to agent_state.memory.memory
-    # NOTE there is a bug, it should be the uncommented lines
-    # assert agent_state.memory["human"]["value"] != new_human
-    # assert agent_state.memory["persona"]["value"] != new_persona
-    assert agent_state.memory["human"].value != new_human
-    assert agent_state.memory["persona"].value != new_persona
+    assert agent_state.memory.get_block("human").value != new_human
+    assert agent_state.memory.get_block("persona").value != new_persona
 
     client.update_agent(agent_state_test.id, memory=new_memory)
-    assert client.get_agent(agent_state_test.id).memory.memory["human"].value == new_human
-    assert client.get_agent(agent_state_test.id).memory.memory["persona"].value == new_persona
+    assert client.get_agent(agent_state_test.id).memory.get_block("human").value == new_human
+    assert client.get_agent(agent_state_test.id).memory.get_block("persona").value == new_persona
 
     # update agent: llm config
     new_llm_config = agent_state.llm_config.model_copy(deep=True)
@@ -106,13 +107,14 @@ def test_memory(client, agent):
 
     # get agent memory
     original_memory = client.get_in_context_memory(agent.id)
-    original_memory_value = str(original_memory.memory["human"].value)
+    assert original_memory is not None
+    original_memory_value = str(original_memory.get_block("human").value)
 
     # update core memory
     updated_memory = client.update_in_context_memory(agent.id, section="human", value="I am a human")
 
     # get memory
-    assert updated_memory.memory["human"].value != original_memory_value  # check if the memory has been updated
+    assert updated_memory.get_block("human").value != original_memory_value  # check if the memory has been updated
 
 
 def test_archival_memory(client, agent):

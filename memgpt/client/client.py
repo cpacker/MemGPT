@@ -297,8 +297,8 @@ class RESTClient(AbstractClient):
                 "name": name,
                 "preset": preset,
                 "system": system,
-                "persona": memory.memory["persona"].value,
-                "human": memory.memory["human"].value,
+                "persona": memory.get_block("persona").value,
+                "human": memory.get_block("human").value,
                 "function_names": tool_names,
                 "metadata": metadata,
             }

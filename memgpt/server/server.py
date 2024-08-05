@@ -350,6 +350,9 @@ class SyncServer(LockingServer):
                     raise ValueError(f"Tool {name} does not exist for user {user_id}")
                 tool_objs.append(tool_obj)
 
+            # Make sure the memory is a memory object
+            assert isinstance(agent_state.memory, Memory)
+
             memgpt_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
 
             # Add the agent to the in-memory store and return its reference
@@ -813,7 +816,8 @@ class SyncServer(LockingServer):
 
         # update the core memory of the agent
         if request.memory:
-            new_memory_contents = {k: v.value for k, v in request.memory.memory.items() if v is not None}
+            assert isinstance(request.memory, Memory), type(request.memory)
+            new_memory_contents = request.memory.to_flat_dict()
             _ = self.update_agent_core_memory(user_id=user_id, agent_id=request.id, new_memory_contents=new_memory_contents)
 
         # update the system prompt
@@ -857,6 +861,7 @@ class SyncServer(LockingServer):
             memgpt_agent.agent_state.metadata_ = request.metadata_
 
         # save the agent
+        assert isinstance(memgpt_agent.memory, Memory)
         save_agent(memgpt_agent, self.ms)
         # TODO: probably reload the agent somehow?
 
@@ -950,7 +955,7 @@ class SyncServer(LockingServer):
             recall_memory = memgpt_agent.persistence_manager.recall_memory
             archival_memory = memgpt_agent.persistence_manager.archival_memory
             memory_obj = {
-                "core_memory": {section: module.value for (section, module) in core_memory.memory.items()},
+                "core_memory": core_memory.to_flat_dict(),
                 "recall_memory": len(recall_memory) if recall_memory is not None else None,
                 "archival_memory": len(archival_memory) if archival_memory is not None else None,
             }
@@ -1235,7 +1240,9 @@ class SyncServer(LockingServer):
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
-        return memgpt_agent.agent_state
+        assert isinstance(memgpt_agent.memory, Memory)
+        assert isinstance(memgpt_agent.agent_state.memory, Memory)
+        return memgpt_agent.agent_state.model_copy(deep=True)
 
     def get_server_config(self, include_defaults: bool = False) -> dict:
         """Return the base config"""
@@ -1298,11 +1305,13 @@ class SyncServer(LockingServer):
 
         modified = False
         for key, value in new_memory_contents.items():
-            assert key in memgpt_agent.memory.memory, f"Key {key} not found in agent memory {list(memgpt_agent.memory.memory.keys())}"
+            if memgpt_agent.memory.get_block(key) is None:
+                # raise ValueError(f"Key {key} not found in agent memory {list(memgpt_agent.memory.list_block_names())}")
+                raise ValueError(f"Key {key} not found in agent memory {str(memgpt_agent.memory.memory)}")
             if value is None:
                 continue
-            if memgpt_agent.memory.memory[key] != value:
-                memgpt_agent.memory.memory[key].value = value  # update agent memory
+            if memgpt_agent.memory.get_block(key) != value:
+                memgpt_agent.memory.update_block_value(name=key, value=value)  # update agent memory
                 modified = True
 
         # If we modified the memory contents, we need to rebuild the memory block inside the system message
