@@ -130,15 +130,16 @@ def test_agent(client, agent):
 def test_memory(client, agent):
     # _reset_config()
 
-    memory_response = client.get_agent_memory(agent_id=agent.id)
+    memory_response = client.get_in_context_memory(agent_id=agent.id)
     print("MEMORY", memory_response)
 
     updated_memory = {"human": "Updated human memory", "persona": "Updated persona memory"}
-    client.update_agent_core_memory(agent_id=agent.id, new_memory_contents=updated_memory)
-    updated_memory_response = client.get_agent_memory(agent_id=agent.id)
+    client.update_in_context_memory(agent_id=agent.id, section="human", value=updated_memory["human"])
+    client.update_in_context_memory(agent_id=agent.id, section="persona", value=updated_memory["persona"])
+    updated_memory_response = client.get_in_context_memory(agent_id=agent.id)
     assert (
-        updated_memory_response.core_memory.human == updated_memory["human"]
-        and updated_memory_response.core_memory.persona == updated_memory["persona"]
+        updated_memory_response.get_block("human").value == updated_memory["human"]
+        and updated_memory_response.get_block("persona").value == updated_memory["persona"]
     ), "Memory update failed"
 
 
