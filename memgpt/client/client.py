@@ -633,50 +633,6 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to create tool: {response.text}")
         return Tool(**response.json())
 
-    def create_tool(
-        self,
-        func,
-        name: Optional[str] = None,
-        update: Optional[bool] = True,  # TODO: actually use this
-        tags: Optional[List[str]] = None,
-    ) -> Tool:
-        """
-        Create a tool.
-
-        Args:
-            func (callable): The function to create a tool for.
-            tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
-            update (bool, optional): Update the tool if it already exists. Defaults to True.
-
-        Returns:
-            tool (ToolModel): The created tool.
-        """
-
-        # TODO: check if tool already exists
-        # TODO: how to load modules?
-        # parse source code/schema
-        source_code = parse_source_code(func)
-        json_schema = generate_schema(func, name)
-        source_type = "python"
-        tool_name = json_schema["name"]
-
-        assert name is None or name == tool_name, f"Tool name {name} does not match schema name {tool_name}"
-
-        # check if tool exists
-        existing_tool_id = self.get_tool_id(tool_name)
-        if existing_tool_id:
-            if update:
-                return self.update_tool(existing_tool_id, name=name, func=func, tags=tags)
-            else:
-                raise ValueError(f"Tool with name {tool_name} already exists")
-
-        # call server function
-        request = ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags)
-        response = requests.post(f"{self.base_url}/api/tools", json=request.model_dump(), headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to create tool: {response.text}")
-        return Tool(**response.json())
-
     def update_tool(
         self,
         id: str,
