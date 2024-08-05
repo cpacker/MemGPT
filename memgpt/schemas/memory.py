@@ -112,8 +112,8 @@ class UpdateMemory(BaseModel):
 
 
 class ArchivalMemorySummary(BaseModel):
-    num_rows: int = Field(..., description="Number of rows in archival memory")
+    size: int = Field(..., description="Number of rows in archival memory")
 
 
 class RecallMemorySummary(BaseModel):
-    num_rows: int = Field(..., description="Number of rows in recall memory")
+    size: int = Field(..., description="Number of rows in recall memory")

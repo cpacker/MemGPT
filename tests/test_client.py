@@ -158,18 +158,34 @@ def test_archival_memory(client, agent):
     # _reset_config()
 
     memory_content = "Archival memory content"
-    insert_response = client.insert_archival_memory(agent_id=agent.id, memory=memory_content)
+    insert_response = client.insert_archival_memory(agent_id=agent.id, memory=memory_content)[0]
+    print("Inserted memory", insert_response.text, insert_response.id)
     assert insert_response, "Inserting archival memory failed"
 
-    archival_memory_response = client.get_agent_archival_memory(agent_id=agent.id, limit=1)
-    print("MEMORY")
-    archival_memories = [memory.contents for memory in archival_memory_response.archival_memory]
+    archival_memory_response = client.get_archival_memory(agent_id=agent.id, limit=1)
+    archival_memories = [memory.text for memory in archival_memory_response]
     assert memory_content in archival_memories, f"Retrieving archival memory failed: {archival_memories}"
 
-    memory_id_to_delete = archival_memory_response.archival_memory[0].id
+    memory_id_to_delete = archival_memory_response[0].id
     client.delete_archival_memory(agent_id=agent.id, memory_id=memory_id_to_delete)
 
+    # add archival memory
+    memory_str = "I love chats"
+    passage = client.insert_archival_memory(agent.id, memory=memory_str)[0]
+
+    # list archival memory
+    passages = client.get_archival_memory(agent.id)
+    assert passage.text in [p.text for p in passages], f"Missing passage {passage.text} in {passages}"
+
+    # get archival memory summary
+    archival_summary = client.get_archival_memory_summary(agent.id)
+    assert archival_summary.size == 1, f"Archival memory summary size is {archival_summary.size}"
+
+    # delete archival memory
+    client.delete_archival_memory(agent.id, passage.id)
+
     # TODO: check deletion
+    client.get_archival_memory(agent.id)
 
 
 def test_messages(client, agent):
