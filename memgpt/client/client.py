@@ -505,7 +505,15 @@ class RESTClient(AbstractClient):
         response = requests.get(f"{self.base_url}/api/config", headers=self.headers)
 
     # tools
-    # tools
+
+    def get_tool_id(self, tool_name: str):
+        response = requests.get(f"{self.base_url}/api/tools/name/{tool_name}", headers=self.headers)
+        if response.status_code == 404:
+            return None
+        elif response.status_code != 200:
+            raise ValueError(f"Failed to get tool: {response.text}")
+        return response.json()
+
     def create_tool(
         self,
         func,
@@ -534,6 +542,14 @@ class RESTClient(AbstractClient):
         tool_name = json_schema["name"]
 
         assert name is None or name == tool_name, f"Tool name {name} does not match schema name {tool_name}"
+
+        # check if tool exists
+        existing_tool_id = self.get_tool_id(tool_name)
+        if existing_tool_id:
+            if update:
+                return self.update_tool(existing_tool_id, name=name, func=func, tags=tags)
+            else:
+                raise ValueError(f"Tool with name {tool_name} already exists")
 
         # call server function
         request = ToolCreate(
@@ -910,6 +926,14 @@ class LocalClient(AbstractClient):
 
         assert name is None or name == tool_name, f"Tool name {name} does not match schema name {tool_name}"
 
+        # check if tool exists
+        existing_tool_id = self.get_tool_id(tool_name)
+        if existing_tool_id:
+            if update:
+                return self.update_tool(existing_tool_id, name=name, func=func, tags=tags)
+            else:
+                raise ValueError(f"Tool with name {tool_name} already exists")
+
         # call server function
         return self.server.create_tool(
             ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags, update=update),
@@ -965,7 +989,7 @@ class LocalClient(AbstractClient):
     def delete_tool(self, id: str):
         return self.server.delete_tool(id)
 
-    def get_tool_id(self, name: str) -> str:
+    def get_tool_id(self, name: str) -> Optional[str]:
         return self.server.get_tool_id(name, self.user_id)
 
     # data sources
