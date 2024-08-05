@@ -178,8 +178,6 @@ class AgentModel(Base):
         return f"<Agent(id='{self.id}', name='{self.name}')>"
 
     def to_record(self) -> AgentState:
-        print("TO RECORD", self.memory)
-        print(type(Memory.load(self.memory)))
         return AgentState(
             id=self.id,
             user_id=self.user_id,
@@ -599,7 +597,6 @@ class MetadataStore:
             if user_id:
                 results += session.query(ToolModel).filter(ToolModel.user_id == user_id).all()
             res = [r.to_record() for r in results]
-            print("MS LIST", [t.name if t else t for t in res])
             return res
 
     @enforce_types
