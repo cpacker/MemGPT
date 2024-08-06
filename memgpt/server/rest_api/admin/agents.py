@@ -18,5 +18,4 @@ def setup_agents_admin_router(server: SyncServer, interface: QueuingInterface):
 
         return ListAgentsResponse(**agents_data)
 
-
     return router

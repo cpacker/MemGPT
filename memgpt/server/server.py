@@ -886,7 +886,6 @@ class SyncServer(LockingServer):
     ) -> dict:
         """List all available agents to a user"""
 
-
         if user_id is None:
             agents_states = self.ms.list_all_agents()
         else:
