@@ -19,6 +19,7 @@ from memgpt.server.rest_api.agents.config import setup_agents_config_router
 from memgpt.server.rest_api.agents.index import setup_agents_index_router
 from memgpt.server.rest_api.agents.memory import setup_agents_memory_router
 from memgpt.server.rest_api.agents.message import setup_agents_message_router
+from memgpt.server.rest_api.admin.agents import setup_agents_admin_router
 from memgpt.server.rest_api.auth.index import setup_auth_router
 from memgpt.server.rest_api.config.index import setup_config_index_router
 from memgpt.server.rest_api.humans.index import setup_humans_index_router
@@ -69,6 +70,7 @@ def verify_password(credentials: HTTPAuthorizationCredentials = Depends(security
 
 
 ADMIN_PREFIX = "/admin"
+ADMIN_API_PREFIX = "/api/admin"
 API_PREFIX = "/api"
 OPENAI_API_PREFIX = "/v1"
 
@@ -88,6 +90,9 @@ app.include_router(setup_auth_router(server, interface, password), prefix=API_PR
 # /admin/users endpoints
 app.include_router(setup_admin_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
 app.include_router(setup_tools_index_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
+
+# /api/admin/agents endpoints
+app.include_router(setup_agents_admin_router(server, interface), prefix=ADMIN_API_PREFIX, dependencies=[Depends(verify_password)])
 
 # /api/agents endpoints
 app.include_router(setup_agents_command_router(server, interface, password), prefix=API_PREFIX)
