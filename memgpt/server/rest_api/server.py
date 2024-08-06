@@ -10,11 +10,11 @@ import uvicorn
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.utils import is_body_allowed_for_status_code
-from memgpt.log import get_logger
+from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-from starlette.middleware.cors import CORSMiddleware
 
+from memgpt.log import get_logger
 from memgpt.server.constants import REST_DEFAULT_PORT
 from memgpt.server.rest_api.admin.tools import setup_tools_index_router
 from memgpt.server.rest_api.admin.users import setup_admin_router
