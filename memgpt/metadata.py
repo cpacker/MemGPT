@@ -13,12 +13,12 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Index,
     String,
     TypeDecorator,
     create_engine,
     desc,
     func,
-    Index,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.exc import InterfaceError, OperationalError

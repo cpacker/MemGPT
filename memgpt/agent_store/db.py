@@ -12,6 +12,7 @@ from sqlalchemy import (
     JSON,
     Column,
     DateTime,
+    Index,
     String,
     TypeDecorator,
     and_,
@@ -21,7 +22,6 @@ from sqlalchemy import (
     or_,
     select,
     text,
-    Index,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base, mapped_column, sessionmaker
