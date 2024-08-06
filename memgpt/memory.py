@@ -17,9 +17,6 @@ from memgpt.utils import (
     printd,
     validate_date_format,
 )
-from memgpt.constants import (
-    MAX_EMBEDDING_DIM,
-)
 
 
 class MemoryModule(BaseModel):
