@@ -56,7 +56,7 @@ class Tool(SqlalchemyBase, OrganizationMixin):
             ).create(db_session)
 
     @classmethod
-    def _load_function_set(target_module: ModuleType) -> dict:
+    def _load_function_set(cls, target_module: ModuleType) -> dict:
         """Load the functions and generate schema for them, given a module object"""
         function_dict = {}
 
@@ -65,10 +65,10 @@ class Tool(SqlalchemyBase, OrganizationMixin):
             attr = getattr(target_module, attr_name)
 
             # Check if it's a callable function and not a built-in or special method
-            if isfunction(attr) and attr.__target_module__ == target_module.__name__:
+            if isfunction(attr) and attr.__module__ == target_module.__name__:
                 generated_schema = generate_schema(attr)
                 function_dict[attr_name] = {
-                    "target_module": getsource(target_module),
+                    "module": getsource(target_module),
                     "python_function": attr,
                     "json_schema": generated_schema,
                 }

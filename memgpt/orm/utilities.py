@@ -25,7 +25,11 @@ def create_engine(
 
 
 def get_db_session() -> "Generator":
+    """The raw session"""
+    return sessionmaker(bind=create_engine())
+
+def get_db_session_generator() -> "Generator":
     """dependency primarily for FastAPI"""
-    bound_session = sessionmaker(bind=create_engine())
+    bound_session = get_db_session()
     with bound_session() as session:
         yield session

@@ -16,6 +16,7 @@ from sqlalchemy import select
 
 from fastapi import HTTPException
 
+from memgpt.orm.utilities import get_db_session
 import memgpt.constants as constants
 import memgpt.presets.presets as presets
 import memgpt.server.utils as server_utils
@@ -27,6 +28,7 @@ from memgpt.config import MemGPTConfig
 from memgpt.constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_sources.connectors import DataConnector, load_data
+from memgpt.orm.user import User as SQLUser
 from memgpt.data_types import (
     AgentState,
     EmbeddingConfig,
@@ -138,7 +140,7 @@ class SyncServer(Server):
         db_session: Optional["Session"] = None,
     ):
         """Server process holds in-memory agents that are being run"""
-
+        self.db_session = db_session or get_db_session()
         # List of {'user_id': user_id, 'agent_id': agent_id, 'agent': agent_obj} dicts
         self.active_agents = []
 
@@ -188,13 +190,13 @@ class SyncServer(Server):
         # add global default tools
         #presets.add_default_tools(None, self.ms)
 
-    def get_current_user(self) -> User:
+    def get_current_user(self) -> SQLUser:
         """ returns the currently authed user.
         since server is the core gateway this needs to pass through server as the
         first touchpoint.
         """
         # TODO: this is not real auth code! that is the next PR.
-        return User.default(self.db_session)
+        return SQLUser.default(self.db_session)
 
 
     def save_agents(self):
@@ -216,7 +218,7 @@ class SyncServer(Server):
     def _add_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, agent_obj: Agent) -> None:
         """Put an agent object inside the in-memory object store"""
         # Make sure the agent doesn't already exist
-        if self._get_agent(user_id=user_id, agent_id=agent_id) is not None:
+        if self._get_agent(user_id, agent_id=agent_id) is not None:
             # Can be triggered on concucrent request, so don't throw a full error
             logger.exception(f"Agent (user={user_id}, agent={agent_id}) is already loaded")
             return
@@ -239,8 +241,8 @@ class SyncServer(Server):
             interface = self.default_interface_factory()
 
         try:
-            logger.info(f"Grabbing agent user_id={user_id} agent_id={agent_id} from database")
-            agent_state = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
+            logger.info(f"Grabbing agent {user_id} agent_id={agent_id} from database")
+            agent_state = self.ms.get_agent(agent_id=agent_id, user_it=user_id)
             if not agent_state:
                 logger.exception(f"agent_id {agent_id} does not exist")
                 raise ValueError(f"agent_id {agent_id} does not exist")
@@ -249,7 +251,7 @@ class SyncServer(Server):
             logger.info(f"Creating an agent object")
             tool_objs = []
             for name in agent_state.tools:
-                tool_obj = self.ms.get_tool(name, user_id)
+                tool_obj = self.ms.get_tool(name, user_id=user_id)
                 if not tool_obj:
                     logger.exception(f"Tool {name} does not exist for user {user_id}")
                     raise ValueError(f"Tool {name} does not exist for user {user_id}")
@@ -258,8 +260,8 @@ class SyncServer(Server):
             memgpt_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
 
             # Add the agent to the in-memory store and return its reference
-            logger.info(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
-            self._add_agent(user_id=user_id, agent_id=agent_id, agent_obj=memgpt_agent)
+            logger.info(f"Adding agent to the agent cache: {user_id}, agent_id={agent_id}")
+            self._add_agent(user_id, agent_id=agent_id, agent_obj=memgpt_agent)
             return memgpt_agent
 
         except Exception as e:
@@ -268,12 +270,12 @@ class SyncServer(Server):
 
     def _get_or_load_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> Agent:
         """Check if the agent is in-memory, then load"""
-        logger.debug(f"Checking for agent user_id={user_id} agent_id={agent_id}")
+        logger.debug(f"Checking for agent {user_id} agent_id={agent_id}")
         # TODO: consider disabling loading cached agents due to potential concurrency issues
-        memgpt_agent = self._get_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_agent(user_id, agent_id=agent_id)
         if not memgpt_agent:
-            logger.debug(f"Agent not loaded, loading agent user_id={user_id} agent_id={agent_id}")
-            memgpt_agent = self._load_agent(user_id=user_id, agent_id=agent_id)
+            logger.debug(f"Agent not loaded, loading agent {user_id} agent_id={agent_id}")
+            memgpt_agent = self._load_agent(user_id, agent_id=agent_id)
         return memgpt_agent
 
     def _step(
@@ -284,7 +286,7 @@ class SyncServer(Server):
         logger.debug(f"Got input message: {input_message}")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
         if memgpt_agent is None:
             raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
 
@@ -346,7 +348,7 @@ class SyncServer(Server):
         logger.debug(f"Got command: {command}")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
 
         if command.lower() == "exit":
             # exit not supported on server.py
@@ -447,11 +449,11 @@ class SyncServer(Server):
 
         elif command.lower() == "heartbeat":
             input_message = system.get_heartbeat()
-            self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
+            self._step(user_id, agent_id=agent_id, input_message=input_message)
 
         elif command.lower() == "memorywarning":
             input_message = system.get_token_limit_warning()
-            self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
+            self._step(user_id, agent_id=agent_id, input_message=input_message)
 
     def user_message(
         self,
@@ -461,8 +463,8 @@ class SyncServer(Server):
         timestamp: Optional[datetime] = None,
     ) -> MemGPTUsageStatistics:
         """Process an incoming user message and feed it through the MemGPT agent"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
@@ -483,7 +485,7 @@ class SyncServer(Server):
             # NOTE: eventually deprecate and only allow passing Message types
             # Convert to a Message object
             message = Message(
-                user_id=user_id,
+                user_id,
                 agent_id=agent_id,
                 role="user",
                 text=packaged_user_message,
@@ -508,7 +510,7 @@ class SyncServer(Server):
             raise TypeError(f"Invalid input: '{message}' - type {type(message)}")
 
         # Run the agent state forward
-        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message, timestamp=timestamp)
+        usage = self._step(user_id, agent_id=agent_id, input_message=packaged_user_message, timestamp=timestamp)
         return usage
 
     def system_message(
@@ -519,8 +521,8 @@ class SyncServer(Server):
         timestamp: Optional[datetime] = None,
     ) -> MemGPTUsageStatistics:
         """Process an incoming system message and feed it through the MemGPT agent"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
@@ -538,7 +540,7 @@ class SyncServer(Server):
             # NOTE: eventually deprecate and only allow passing Message types
             # Convert to a Message object
             message = Message(
-                user_id=user_id,
+                user_id,
                 agent_id=agent_id,
                 role="user",
                 text=packaged_system_message,
@@ -561,13 +563,13 @@ class SyncServer(Server):
             message.created_at = timestamp
 
         # Run the agent state forward
-        return self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message)
+        return self._step(user_id, agent_id=agent_id, input_message=packaged_system_message)
 
     # @LockingServer.agent_lock_decorator
     def run_command(self, user_id: uuid.UUID, agent_id: uuid.UUID, command: str) -> Union[MemGPTUsageStatistics, None]:
         """Run a command on the agent"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
@@ -575,7 +577,7 @@ class SyncServer(Server):
         if command.startswith("/"):
             if len(command) > 1:
                 command = command[1:]  # strip the prefix
-        return self._command(user_id=user_id, agent_id=agent_id, command=command)
+        return self._command(user_id, agent_id=agent_id, command=command)
 
     def create_user(
         self,
@@ -587,7 +589,7 @@ class SyncServer(Server):
             raise ValueError(f"user_config must be provided as a dictionary")
 
         if "id" in user_config:
-            existing_user = self.ms.get_user(user_id=user_config["id"])
+            existing_user = self.ms.get_user(user_config["id"])
             if existing_user:
                 if exists_ok:
                     presets.add_default_humans_and_personas(existing_user.id, self.ms)
@@ -621,8 +623,8 @@ class SyncServer(Server):
         interface: Union[AgentInterface, None] = None,
     ) -> AgentState:
         """Create a new agent using a config"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
 
         if interface is None:
             interface = self.default_interface_factory()
@@ -636,7 +638,7 @@ class SyncServer(Server):
             name = create_random_username()
 
         logger.debug(f"Attempting to find user: {user_id}")
-        user = self.ms.get_user(user_id=user_id)
+        user = self.ms.get_user(user_id)
         if not user:
             raise ValueError(f"cannot find user with associated client id: {user_id}")
 
@@ -691,19 +693,19 @@ class SyncServer(Server):
         user_id: uuid.UUID,
         agent_id: uuid.UUID,
     ):
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # TODO: Make sure the user owns the agent
-        agent = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
+        agent = self.ms.get_agent(agent_id=agent_id, id=user_id)
         if agent is not None:
             self.ms.delete_agent(agent_id=agent_id)
 
     def delete_preset(self, user_id: uuid.UUID, preset_id: uuid.UUID) -> Preset:
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
 
         # first get the preset by name
         preset = self.get_preset(preset_id=preset_id, user_id=user_id)
@@ -721,8 +723,8 @@ class SyncServer(Server):
 
     def create_preset(self, preset: Preset):
         """Create a new preset using a config"""
-        if preset.user_id is not None and self.ms.get_user(user_id=preset.user_id) is None:
-            raise ValueError(f"User user_id={preset.user_id} does not exist")
+        if preset.user_id is not None and self.ms.get_user(preset.user_id) is None:
+            raise ValueError(f"User {preset.user_id} does not exist")
 
         self.ms.create_preset(preset)
         return preset
@@ -735,7 +737,7 @@ class SyncServer(Server):
 
     def list_presets(self, user_id: uuid.UUID) -> List[PresetModel]:
         # TODO update once we strip Preset in favor of PresetModel
-        presets = self.ms.list_presets(user_id=user_id)
+        presets = self.ms.list_presets(user_id)
         presets = [PresetModel(**vars(p)) for p in presets]
 
         return presets
@@ -759,21 +761,21 @@ class SyncServer(Server):
         user_id: uuid.UUID,
     ) -> dict:
         """List all available agents to a user"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_user(id=user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
 
-        agents_states = self.ms.list_agents(user_id=user_id)
+        agents_states = self.ms.list_agents(id=user_id)
         agents_states_dicts = [self._agent_state_to_config(state) for state in agents_states]
 
         # TODO add a get_message_obj_from_message_id(...) function
         #      this would allow grabbing Message.created_by without having to load the agent object
-        # all_available_tools = self.ms.list_tools(user_id=user_id) # TODO: add back when user-specific
+        # all_available_tools = self.ms.list_tools(user_id) # TODO: add back when user-specific
         all_available_tools = self.ms.list_tools()
 
         for agent_state, return_dict in zip(agents_states, agents_states_dicts):
 
             # Get the agent object (loaded in memory)
-            memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
+            memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_state.id)
 
             # TODO remove this eventually when return type get pydanticfied
             # this is to add persona_name and human_name so that the columns in UI can populate
@@ -820,7 +822,7 @@ class SyncServer(Server):
         }
 
     def list_personas(self, user_id: uuid.UUID):
-        return self.ms.list_personas(user_id=user_id)
+        return self.ms.list_personas(user_id)
 
     def get_persona(self, name: str, user_id: uuid.UUID):
         return self.ms.get_persona(name=name, user_id=user_id)
@@ -839,7 +841,7 @@ class SyncServer(Server):
         return self.ms.delete_persona(name=name, user_id=user_id)
 
     def list_humans(self, user_id: uuid.UUID):
-        return self.ms.list_humans(user_id=user_id)
+        return self.ms.list_humans(user_id)
 
     def get_human(self, name: str, user_id: uuid.UUID):
         return self.ms.get_human(name=name, user_id=user_id)
@@ -855,7 +857,7 @@ class SyncServer(Server):
         return self.ms.update_human(human=human)
 
     def delete_human(self, name: str, user_id: uuid.UUID):
-        return self.ms.delete_human(name, user_id)
+        return self.ms.delete_human(name, user_id=user_id)
 
     def get_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
         """Get the agent state"""
@@ -863,17 +865,17 @@ class SyncServer(Server):
 
     def get_user(self, user_id: uuid.UUID) -> User:
         """Get the user"""
-        return self.ms.get_user(user_id=user_id)
+        return self.ms.get_user(user_id)
 
     def get_agent_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> dict:
         """Return the memory of an agent (core memory + non-core statistics)"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
         core_memory = memgpt_agent.memory
         recall_memory = memgpt_agent.persistence_manager.recall_memory
         archival_memory = memgpt_agent.persistence_manager.archival_memory
@@ -890,7 +892,7 @@ class SyncServer(Server):
     def get_in_context_message_ids(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> List[uuid.UUID]:
         """Get the message ids of the in-context messages in the agent's memory"""
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
         return [m.id for m in memgpt_agent._messages]
 
     def get_agent_message(self, agent_id: uuid.UUID, message_id: uuid.UUID) -> Message:
@@ -901,20 +903,20 @@ class SyncServer(Server):
         user_id = agent_state.user_id
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
 
         message = memgpt_agent.persistence_manager.recall_memory.storage.get(message_id=message_id)
         return message
 
     def get_agent_messages(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
         """Paginated query of all messages in agent message queue"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
 
         if start < 0 or count < 0:
             raise ValueError("Start and count values should be non-negative")
@@ -958,13 +960,13 @@ class SyncServer(Server):
 
     def get_agent_archival(self, user_id: uuid.UUID, agent_id: uuid.UUID, start: int, count: int) -> list:
         """Paginated query of all messages in agent archival memory"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
 
         # iterate over records
         db_iterator = memgpt_agent.persistence_manager.archival_memory.storage.get_all_paginated(page_size=count, offset=start)
@@ -984,13 +986,13 @@ class SyncServer(Server):
         order_by: Optional[str] = "created_at",
         reverse: Optional[bool] = False,
     ):
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
 
         # iterate over recorde
         cursor, records = memgpt_agent.persistence_manager.archival_memory.storage.get_all_cursor(
@@ -1001,13 +1003,13 @@ class SyncServer(Server):
 
     def get_all_archival_memories(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> list:
         # TODO deprecate (not safe to be returning an unbounded list)
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
 
         # Assume passages
         records = memgpt_agent.persistence_manager.archival_memory.storage.get_all()
@@ -1015,13 +1017,13 @@ class SyncServer(Server):
         return [dict(id=str(r.id), contents=r.text) for r in records]
 
     def insert_archival_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, memory_contents: str) -> uuid.UUID:
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
 
         # Insert into archival memory
         # memory_id = uuid.uuid4()
@@ -1030,13 +1032,13 @@ class SyncServer(Server):
         return [str(p_id) for p_id in passage_ids]
 
     def delete_archival_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, memory_id: uuid.UUID):
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
 
         # Delete by ID
         # TODO check if it exists first, and throw error if not
@@ -1053,13 +1055,13 @@ class SyncServer(Server):
         order: Optional[str] = "asc",
         reverse: Optional[bool] = False,
     ) -> Tuple[uuid.UUID, List[dict]]:
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_agent=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
 
         # iterate over records
         cursor, records = memgpt_agent.persistence_manager.recall_memory.storage.get_all_cursor(
@@ -1072,13 +1074,13 @@ class SyncServer(Server):
 
     def get_agent_config(self, user_id: uuid.UUID, agent_id: uuid.UUID) -> AgentState:
         """Return the config of an agent"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
         return memgpt_agent.agent_state
 
     def get_server_config(self, include_defaults: bool = False) -> dict:
@@ -1126,15 +1128,15 @@ class SyncServer(Server):
 
     def update_agent_core_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_memory_contents: dict) -> dict:
         """Update the agents core memory block, return the new state"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
 
-        old_core_memory = self.get_agent_memory(user_id=user_id, agent_id=agent_id)["core_memory"]
+        old_core_memory = self.get_agent_memory(user_id, agent_id=agent_id)["core_memory"]
         new_core_memory = old_core_memory.copy()
 
         modified = False
@@ -1159,13 +1161,13 @@ class SyncServer(Server):
 
     def rename_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID, new_agent_name: str) -> AgentState:
         """Update the name of the agent in the database"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
 
         current_name = memgpt_agent.agent_state.name
         if current_name == new_agent_name:
@@ -1187,17 +1189,17 @@ class SyncServer(Server):
 
     def delete_agent(self, user_id: uuid.UUID, agent_id: uuid.UUID):
         """Delete an agent in the database"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_user(user_id) is None:
+            raise ValueError(f"User {user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Verify that the agent exists and is owned by the user
         agent_state = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
         if not agent_state:
-            raise ValueError(f"Could not find agent_id={agent_id} under user_id={user_id}")
+            raise ValueError(f"Could not find agent_id={agent_id} under {user_id}")
         if agent_state.user_id != user_id:
-            raise ValueError(f"Could not authorize agent_id={agent_id} with user_id={user_id}")
+            raise ValueError(f"Could not authorize agent_id={agent_id} with {user_id}")
 
         # First, if the agent is in the in-memory cache we should remove it
         # List of {'user_id': user_id, 'agent_id': agent_id, 'agent': agent_obj} dicts
@@ -1228,7 +1230,7 @@ class SyncServer(Server):
 
     def create_api_key_for_user(self, user_id: uuid.UUID) -> Token:
         """Create a new API key for a user"""
-        token = self.ms.create_api_key(user_id=user_id)
+        token = self.ms.create_api_key(user_id)
         return token
 
     def create_source(self, name: str, user_id: uuid.UUID) -> Source:  # TODO: add other fields
@@ -1325,7 +1327,7 @@ class SyncServer(Server):
     def list_all_sources(self, user_id: uuid.UUID) -> List[SourceModel]:
         """List all sources (w/ extra metadata) belonging to a user"""
 
-        sources = self.ms.list_sources(user_id=user_id)
+        sources = self.ms.list_sources(user_id)
 
         # TODO don't unpack here, instead list_sources should return a SourceModel
         sources = [
@@ -1354,7 +1356,7 @@ class SyncServer(Server):
             attached_agents = [
                 {
                     "id": str(a_id),
-                    "name": self.ms.get_agent(user_id=user_id, agent_id=a_id).name,
+                    "name": self.ms.get_agent(user_id, agent_id=a_id).name,
                 }
                 for a_id in agent_ids
             ]
