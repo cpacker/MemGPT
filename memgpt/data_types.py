@@ -17,7 +17,6 @@ from memgpt.constants import (
     JSON_ENSURE_ASCII,
     LLM_MAX_TOKENS,
     MAX_EMBEDDING_DIM,
-    MAX_EMBEDDING_DIM_POSTGRES,
     TOOL_CALL_ID_MAX_LEN,
 )
 from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
@@ -132,16 +131,11 @@ class Message(Record):
         self.role = role  # role (agent/user/function)
         self.name = name
 
-        from memgpt.config import MemGPTConfig
-
-        metadata_storage_type = MemGPTConfig.load().metadata_storage_type
-        max_embedding_dim = MAX_EMBEDDING_DIM_POSTGRES if metadata_storage_type == "postgres" else MAX_EMBEDDING_DIM
-
         # pad and store embeddings
         if isinstance(embedding, list):
             embedding = np.array(embedding)
         self.embedding = (
-            np.pad(embedding, (0, max_embedding_dim - embedding.shape[0]), mode="constant").tolist() if embedding is not None else None
+            np.pad(embedding, (0, MAX_EMBEDDING_DIM - embedding.shape[0]), mode="constant").tolist() if embedding is not None else None
         )
         self.embedding_dim = embedding_dim
         self.embedding_model = embedding_model
@@ -149,7 +143,7 @@ class Message(Record):
         if self.embedding is not None:
             assert self.embedding_dim, f"Must specify embedding_dim if providing an embedding"
             assert self.embedding_model, f"Must specify embedding_model if providing an embedding"
-            assert len(self.embedding) == max_embedding_dim, f"Embedding must be of length {max_embedding_dim}"
+            assert len(self.embedding) == MAX_EMBEDDING_DIM, f"Embedding must be of length {MAX_EMBEDDING_DIM}"
 
         # tool (i.e. function) call info (optional)
 
@@ -685,16 +679,11 @@ class Passage(Record):
         self.doc_id = doc_id
         self.metadata_ = metadata_
 
-        from memgpt.config import MemGPTConfig
-
-        metadata_storage_type = MemGPTConfig.load().metadata_storage_type
-        max_embedding_dim = MAX_EMBEDDING_DIM_POSTGRES if metadata_storage_type == "postgres" else MAX_EMBEDDING_DIM
-
         # pad and store embeddings
         if isinstance(embedding, list):
             embedding = np.array(embedding)
         self.embedding = (
-            np.pad(embedding, (0, max_embedding_dim - embedding.shape[0]), mode="constant").tolist() if embedding is not None else None
+            np.pad(embedding, (0, MAX_EMBEDDING_DIM - embedding.shape[0]), mode="constant").tolist() if embedding is not None else None
         )
         self.embedding_dim = embedding_dim
         self.embedding_model = embedding_model
@@ -704,7 +693,7 @@ class Passage(Record):
         if self.embedding is not None:
             assert self.embedding_dim, f"Must specify embedding_dim if providing an embedding"
             assert self.embedding_model, f"Must specify embedding_model if providing an embedding"
-            assert len(self.embedding) == max_embedding_dim, f"Embedding must be of length {max_embedding_dim}"
+            assert len(self.embedding) == MAX_EMBEDDING_DIM, f"Embedding must be of length {MAX_EMBEDDING_DIM}"
 
         assert isinstance(self.user_id, uuid.UUID), f"UUID {self.user_id} must be a UUID type"
         assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"

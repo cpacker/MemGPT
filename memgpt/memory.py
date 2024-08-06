@@ -19,7 +19,6 @@ from memgpt.utils import (
 )
 from memgpt.constants import (
     MAX_EMBEDDING_DIM,
-    MAX_EMBEDDING_DIM_POSTGRES,
 )
 
 
@@ -512,9 +511,6 @@ class EmbeddingArchivalMemory(ArchivalMemory):
 
         # create storage backend
         self.storage = StorageConnector.get_archival_storage_connector(user_id=agent_state.user_id, agent_id=agent_state.id)
-        self.max_embedding_dim = (
-            MAX_EMBEDDING_DIM_POSTGRES if self.storage.config.metadata_storage_type == "postgres" else MAX_EMBEDDING_DIM
-        )
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
 
@@ -579,7 +575,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         try:
             if query_string not in self.cache:
                 # self.cache[query_string] = self.retriever.retrieve(query_string)
-                query_vec = query_embedding(self.embed_model, query_string, self.max_embedding_dim)
+                query_vec = query_embedding(self.embed_model, query_string)
                 self.cache[query_string] = self.storage.query(query_string, query_vec, top_k=self.top_k)
 
             start = int(start if start else 0)

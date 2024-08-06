@@ -31,7 +31,7 @@ from tqdm import tqdm
 
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
-from memgpt.constants import MAX_EMBEDDING_DIM_POSTGRES
+from memgpt.constants import MAX_EMBEDDING_DIM
 from memgpt.data_types import Message, Passage, Record, RecordType, ToolCall
 from memgpt.settings import settings
 
@@ -154,7 +154,7 @@ def get_db_model(
             else:
                 from pgvector.sqlalchemy import Vector
 
-                embedding = mapped_column(Vector(MAX_EMBEDDING_DIM_POSTGRES))
+                embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
             embedding_dim = Column(BIGINT)
             embedding_model = Column(String)
 
@@ -222,7 +222,7 @@ def get_db_model(
             else:
                 from pgvector.sqlalchemy import Vector
 
-                embedding = mapped_column(Vector(MAX_EMBEDDING_DIM_POSTGRES))
+                embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
             embedding_dim = Column(BIGINT)
             embedding_model = Column(String)
 
