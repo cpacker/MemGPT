@@ -9,6 +9,10 @@ import typer
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.utils import is_body_allowed_for_status_code
+from memgpt.log import get_logger
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
 from starlette.middleware.cors import CORSMiddleware
 
 from memgpt.server.constants import REST_DEFAULT_PORT
@@ -73,6 +77,40 @@ API_PREFIX = "/api"
 OPENAI_API_PREFIX = "/v1"
 
 app = FastAPI()
+
+
+logger_exception = get_logger(__name__)
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException) -> Response:
+    """
+
+    Args:
+        request:
+        exc:
+
+    Returns:
+
+    """
+    method = request.method
+    url = request.url
+    query_params = request.query_params
+    logger_exception.error(
+        f" URL: {url}"
+        f" Method: {method}"
+        f" HTTP: {exc.status_code}"
+        f" Query Params: {query_params}"
+        f" ERROR triggered: {exc.detail}"
+    )
+
+    headers = getattr(exc, "headers", None)
+    if not is_body_allowed_for_status_code(exc.status_code):
+        return Response(status_code=exc.status_code, headers=headers)
+    return JSONResponse(
+        {"detail": exc.detail}, status_code=exc.status_code, headers=headers
+    )
+
 
 app.add_middleware(
     CORSMiddleware,
