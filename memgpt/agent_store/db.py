@@ -477,7 +477,7 @@ class PostgresStorageConnector(SQLStorageConnector):
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         filters = self.get_filters(filters)
         with self.session_maker() as session:
-            session.execute(text("SET hnsw.ef_search = 40;"))
+            session.execute(text(f"SET hnsw.ef_search = {min([top_k, 40])};"))
             results = session.scalars(
                 select(self.db_model).filter(*filters).order_by(self.db_model.embedding.l2_distance(query_vec)).limit(top_k)
             ).all()
