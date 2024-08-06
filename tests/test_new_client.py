@@ -218,8 +218,6 @@ def test_tools_from_crewai(client):
     # Translate to memGPT Tool
     tool = Tool.from_crewai(crewai_tool)
 
-    print(tool)
-
     # Add the tool
     client.add_tool(tool)
 
