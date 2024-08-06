@@ -17,7 +17,6 @@ preset_options = list(available_presets.keys())
 
 
 def load_module_tools(module_name="base"):
-    # return List[ToolModel] from base.py tools
     full_module_name = f"memgpt.functions.function_sets.{module_name}"
     try:
         module = importlib.import_module(full_module_name)
@@ -57,8 +56,7 @@ def load_module_tools(module_name="base"):
 
 
 def add_default_tools(user_id: uuid.UUID, ms: MetadataStore):
-    module_name = "base"
-    for tool in load_module_tools(module_name=module_name):
+    for tool in load_module_tools(module_name="base"):
         existing_tool = ms.get_tool(tool.name)
         if not existing_tool:
             ms.add_tool(tool)

@@ -79,6 +79,7 @@ class ToolModel(PersistedBase):
 
     organization: Optional[OrganizationSummary] = Field(None, description="The organization this function belongs to.")
 
+
 class AgentStateModel(PersistedBase):
     name: str = Field(..., description="The name of the agent.")
     description: Optional[str] = Field(None, description="The description of the agent.")

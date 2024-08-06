@@ -42,6 +42,11 @@ app = create_application()
 
 @app.on_event("startup")
 def on_startup():
+    # load the default tools
+    from memgpt.orm.tool import Tool
+    from memgpt.orm.utilities import get_db_session
+    Tool.load_default_tools(get_db_session())
+
     # Update the OpenAPI schema
     if not app.openapi_schema:
         app.openapi_schema = app.openapi()

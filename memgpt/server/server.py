@@ -185,9 +185,8 @@ class SyncServer(Server):
 
         # Initialize the metadata store
         self.ms = MetadataStore(db_session=db_session)
-
         # add global default tools
-        presets.add_default_tools(None, self.ms)
+        #presets.add_default_tools(None, self.ms)
 
     def get_current_user(self) -> User:
         """ returns the currently authed user.
