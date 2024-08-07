@@ -885,6 +885,8 @@ class SyncServer(LockingServer):
         # TODO: delete related tables (recall/archival memory)
 
         # TODO: Make sure the user owns the agent
+        # TODO: consider clean up any blocks associated with this agent
+        # and no other agents (e.g. not templates, but not used as shared blocks either)
         agent = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
         if agent is not None:
             self.ms.delete_agent(agent_id=agent_id)

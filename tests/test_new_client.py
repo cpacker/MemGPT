@@ -41,6 +41,7 @@ def test_agent(client):
     print("TOOLS", [t.name for t in tools])
     agent_state = client.get_agent(agent_state_test.id)
     assert agent_state.name == "test_agent2"
+    # TODO: we should test that the blocks were persisted correctly here
 
     assert isinstance(agent_state.memory, Memory)
     # update agent: name

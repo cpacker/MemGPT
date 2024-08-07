@@ -24,6 +24,7 @@ from memgpt.memory import ArchivalMemory, RecallMemory, summarize_messages
 from memgpt.metadata import MetadataStore
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.schemas.agent import AgentState
+from memgpt.schemas.block import Block
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.enums import OptionState
 from memgpt.schemas.memory import Memory
@@ -1142,6 +1143,8 @@ class Agent(object):
         )
 
 
+# FIXME: I believe this is called on every agent interaction, but if not we'll need to call save_agent_memory in
+# a few other places.
 def save_agent(agent: Agent, ms: MetadataStore):
     """Save agent to metadata store"""
 
@@ -1150,6 +1153,10 @@ def save_agent(agent: Agent, ms: MetadataStore):
     agent_id = agent_state.id
     assert isinstance(agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"
 
+    # NOTE: we're saving agent memory before persisting the agent to ensure
+    # that allocated block_ids for each memory block are present in the agent model
+    save_agent_memory(agent=agent, ms=ms)
+
     if ms.get_agent(agent_id=agent.agent_state.id):
         ms.update_agent(agent_state)
     else:
@@ -1157,3 +1164,20 @@ def save_agent(agent: Agent, ms: MetadataStore):
 
     agent.agent_state = ms.get_agent(agent_id=agent_id)
     assert isinstance(agent.agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"
+
+
+# FIXME: decide whether we want this to live in update_state or not (would require plumbing metadata_store)
+def save_agent_memory(agent: Agent, ms: MetadataStore):
+    """
+    Save agent memory to metadata store. Memory is a collection of blocks and each block is persisted to the block table.
+
+    NOTE: we are assuming agent.update_state has already been called.
+    """
+
+    for block_dict in agent.memory.to_dict().values():
+        block = Block(**block_dict)
+        # FIXME: should we expect for block values to be None? If not, we need to figure out why that is
+        # the case in some tests, if so we should relax the DB constraint.
+        if block.value is None:
+            block.value = ""
+        ms.update_or_create_block(block)
