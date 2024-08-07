@@ -290,7 +290,6 @@ class SyncServer(LockingServer):
         # TODO: this should be removed
         # add global default tools (for admin)
         self.add_default_tools(module_name="base")
-        self.add_default_blocks()
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
@@ -701,6 +700,7 @@ class SyncServer(LockingServer):
         logger.info(f"Created new user from config: {user}")
 
         # add default for the user
+        assert user.id is not None, f"User id is None: {user}"
         self.add_default_blocks(user.id)
         self.add_default_tools(module_name="base", user_id=user.id)
 
@@ -1003,7 +1003,7 @@ class SyncServer(LockingServer):
                 return self.update_persona(UpdatePersona(id=existing_persona.id, **vars(request)), user_id)
             else:
                 raise ValueError(f"Persona with name {request.name} already exists")
-        persona = Persona(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
+        persona = Persona(**vars(request))
         self.ms.create_persona(persona=persona)
         return persona
 
@@ -1070,7 +1070,7 @@ class SyncServer(LockingServer):
                 return self.update_human(UpdateHuman(id=existing_human.id, **vars(request)), user_id)
             else:
                 raise ValueError(f"Human with name {request.name} already exists")
-        human = Human(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
+        human = Human(**vars(request))
         self.ms.create_human(human=human)
         return human
 
@@ -1728,15 +1728,18 @@ class SyncServer(LockingServer):
                 update=True,
             )
 
-    def add_default_blocks(self, user_id: Optional[str] = None):
+    def add_default_blocks(self, user_id: str):
         from memgpt.utils import list_human_files, list_persona_files
+
+        assert user_id is not None, "User ID must be provided"
 
         for persona_file in list_persona_files():
             text = open(persona_file, "r", encoding="utf-8").read()
             name = os.path.basename(persona_file).replace(".txt", "")
-            self.create_persona(CreatePersona(name=name, value=text), user_id=user_id, update=True)
+            self.create_persona(CreatePersona(name=name, value=text, template=True), user_id=user_id, update=True)
+            print("added", name, user_id)
 
         for human_file in list_human_files():
             text = open(human_file, "r", encoding="utf-8").read()
             name = os.path.basename(human_file).replace(".txt", "")
-            self.create_human(CreateHuman(name=name, value=text), user_id=user_id, update=True)
+            self.create_human(CreateHuman(name=name, value=text, template=True), user_id=user_id, update=True)
