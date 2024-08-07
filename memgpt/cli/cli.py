@@ -630,9 +630,11 @@ def run(
         human_obj = client.get_human(name=human)
         persona_obj = client.get_persona(name=persona)
         if human_obj is None:
-            typer.secho("Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)
+            typer.secho(f"Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)
+            sys.exit(1)
         if persona_obj is None:
-            typer.secho("Couldn't find persona {persona} in database, please run `memgpt add persona`", fg=typer.colors.RED)
+            typer.secho(f"Couldn't find persona {persona} in database, please run `memgpt add persona`", fg=typer.colors.RED)
+            sys.exit(1)
 
         if system_file:
             try:
