@@ -74,7 +74,7 @@ class ToolModel(SQLModel, table=True):
     json_schema: Dict = Field(default_factory=dict, sa_column=Column(JSON), description="The JSON schema of the function.")
 
     # optional: user_id (user-specific tools)
-    user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user associated with the function.")
+    user_id: Optional[uuid.UUID] = Field(None, description="The unique identifier of the user associated with the function.", index=True)
 
     # Needed for Column(JSON)
     class Config:
@@ -128,14 +128,14 @@ class HumanModel(SQLModel, table=True):
     text: str = Field(default=get_human_text(DEFAULT_HUMAN), description="The human text.")
     name: str = Field(..., description="The name of the human.")
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the human.", primary_key=True)
-    user_id: Optional[uuid.UUID] = Field(..., description="The unique identifier of the user associated with the human.")
+    user_id: Optional[uuid.UUID] = Field(..., description="The unique identifier of the user associated with the human.", index=True)
 
 
 class PersonaModel(SQLModel, table=True):
     text: str = Field(default=get_persona_text(DEFAULT_PERSONA), description="The persona text.")
     name: str = Field(..., description="The name of the persona.")
     id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the persona.", primary_key=True)
-    user_id: Optional[uuid.UUID] = Field(..., description="The unique identifier of the user associated with the persona.")
+    user_id: Optional[uuid.UUID] = Field(..., description="The unique identifier of the user associated with the persona.", index=True)
 
 
 class SourceModel(SQLModel, table=True):
@@ -167,7 +167,7 @@ class JobModel(SQLModel, table=True):
     status: JobStatus = Field(default=JobStatus.created, description="The status of the job.", sa_column=Column(ChoiceType(JobStatus)))
     created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the job was created.")
     completed_at: Optional[datetime] = Field(None, description="The unix timestamp of when the job was completed.")
-    user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the job.")
+    user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the job.", index=True)
     metadata_: Optional[dict] = Field({}, sa_column=Column(JSON), description="The metadata of the job.")
 
 
