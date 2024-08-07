@@ -213,8 +213,7 @@ class RESTClient(AbstractClient):
         return [AgentState(**agent) for agent in response.json()]
 
     def get_agent_id(self, agent_name: str) -> str:
-        response = requests.get(f"{self.base_url}/api/agents/name/{agent_name}", headers=self.headers)
-        return response.json()
+        raise NotImplementedError
 
     def agent_exists(self, agent_id: str) -> bool:
         response = requests.get(f"{self.base_url}/api/agents/{agent_id}", headers=self.headers)
@@ -513,10 +512,24 @@ class RESTClient(AbstractClient):
 
     # sources
 
+    def get_source(self, source_id: str) -> Source:
+        response = requests.get(f"{self.base_url}/api/sources/{source_id}", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to get source: {response.text}")
+        return Source(**response.json())
+
+    def get_source_id(self, source_name: str) -> str:
+        response = requests.get(f"{self.base_url}/api/sources/name/{source_name}", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to get source ID: {response.text}")
+        return response.json()
+
     def list_sources(self):
         """List loaded sources"""
         response = requests.get(f"{self.base_url}/api/sources", headers=self.headers)
-        response.json()
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list sources: {response.text}")
+        return [Source(**source) for source in response.json()]
 
     def delete_source(self, source_id: uuid.UUID):
         """Delete a source and associated data (including attached to agents)"""
@@ -554,6 +567,13 @@ class RESTClient(AbstractClient):
         response = requests.post(f"{self.base_url}/api/sources", json=payload, headers=self.headers)
         response_json = response.json()
         return Source(**response_json)
+
+    def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
+        request = SourceUpdate(id=source_id, name=name)
+        response = requests.post(f"{self.base_url}/api/sources/{source_id}", json=request.model_dump(), headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update source: {response.text}")
+        return Source(**response.json())
 
     def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
         """Attach a source to an agent"""

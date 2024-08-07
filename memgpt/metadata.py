@@ -794,6 +794,11 @@ class MetadataStore:
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0].to_record()
 
+    def list_jobs(self, user_id: str) -> List[Job]:
+        with self.session_maker() as session:
+            results = session.query(JobModel).filter(JobModel.user_id == user_id).all()
+            return [r.to_record() for r in results]
+
     def update_job(self, job: Job) -> Job:
         with self.session_maker() as session:
             session.query(JobModel).filter(JobModel.id == job.id).update(vars(job))
