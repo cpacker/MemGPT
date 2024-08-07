@@ -46,10 +46,13 @@ from memgpt.prompts import gpt_system
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.api_key import APIKey, APIKeyCreate
 from memgpt.schemas.block import (
+    Block,
+    CreateBlock,
     CreateHuman,
     CreatePersona,
     Human,
     Persona,
+    UpdateBlock,
     UpdateHuman,
     UpdatePersona,
 )
@@ -994,6 +997,7 @@ class SyncServer(LockingServer):
 
     def create_persona(self, request: CreatePersona, user_id: str, update: bool = False) -> Persona:
         existing_persona = self.ms.get_persona(persona_name=request.name, user_id=user_id)
+        print("UDPATE", update)
         if existing_persona:  # update
             if update:
                 return self.update_persona(UpdatePersona(id=existing_persona.id, **vars(request)), user_id)
@@ -1005,7 +1009,7 @@ class SyncServer(LockingServer):
 
     def update_persona(self, request: UpdatePersona, user_id: str) -> Persona:
         # TODO: FIX THIS (should nto override none)
-        persona = Persona(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
+        persona = Persona(name=request.name, user_id=user_id, value=request.value, limit=request.limit, id=request.id)
         self.ms.update_persona(persona=persona)
         return persona
 
@@ -1017,6 +1021,43 @@ class SyncServer(LockingServer):
 
     def get_human(self, name: str, user_id: str):
         return self.ms.get_human(human_name=name, user_id=user_id)
+
+    def get_blocks(
+        self,
+        user_id: Optional[str] = None,
+        label: Optional[str] = None,
+        template: Optional[bool] = True,
+        name: Optional[str] = None,
+        id: Optional[str] = None,
+    ):
+        return self.ms.get_blocks(user_id=user_id, label=label, template=template, name=name, id=id)
+
+    def get_block(self, block_id: str):
+        blocks = self.get_blocks(id=block_id)
+        if len(blocks) == 0:
+            return None
+        elif len(blocks) > 1:
+            raise ValueError("Multiple blocks with the same id")
+        return blocks[0]
+
+    def create_block(self, request: CreateBlock, user_id: str, update: bool = False) -> Block:
+        existing_block = self.ms.get_block(block_name=request.name, user_id=user_id)
+        if existing_block:
+            if update:
+                return self.update_block(UpdateBlock(id=existing_block.id, **vars(request)), user_id)
+            else:
+                raise ValueError(f"Block with name {request.name} already exists")
+        return self.ms.create_block(Block(name=request.name, user_id=user_id, value=request.value, limit=request.limit))
+
+    def update_block(self, request: UpdateBlock, user_id: str) -> Block:
+        block = Block(name=request.name, user_id=user_id, value=request.value, limit=request.limit, id=request.id)
+        self.ms.update_block(block=block)
+        return block
+
+    def delete_block(self, block_id: str):
+        block = self.get_block(block_id)
+        self.ms.delete_block(block_id)
+        return block
 
     def create_human(self, request: CreateHuman, user_id: str, update: bool = False) -> Human:
         existing_human = self.ms.get_human(human_name=request.name, user_id=user_id)
@@ -1031,7 +1072,7 @@ class SyncServer(LockingServer):
 
     def update_human(self, request: UpdateHuman, user_id: str) -> Human:
         # TODO: FIX THIS (should nto override none)
-        human = Human(name=request.name, user_id=user_id, value=request.value, limit=request.limit)
+        human = Human(name=request.name, user_id=user_id, value=request.value, limit=request.limit, id=request.id)
         self.ms.update_human(human=human)
         return human
 

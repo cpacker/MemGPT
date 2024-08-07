@@ -13,7 +13,7 @@ from memgpt.memory import get_memory_functions
 
 # new schemas
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
-from memgpt.schemas.block import Human, Persona
+from memgpt.schemas.block import Block, CreateBlock, Human, Persona
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memgpt_response import MemGPTResponse
@@ -425,41 +425,72 @@ class RESTClient(AbstractClient):
 
     # humans / personas
 
+    def list_blocks(self, label: Optional[str] = None, templates_only: Optional[bool] = True) -> List[Block]:
+        params = {"label": label, "templates_only": templates_only}
+        response = requests.get(f"{self.base_url}/api/blocks", params=params, headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list blocks: {response.text}")
+
+        if label == "human":
+            return [Human(**human) for human in response.json()]
+        elif label == "persona":
+            return [Persona(**persona) for persona in response.json()]
+        else:
+            return [Block(**block) for block in response.json()]
+
+    def create_block(self, label: str, name: str, text: str) -> Block:  #
+        request = CreateBlock(label=label, name=name, text=text)
+        response = requests.post(f"{self.base_url}/api/blocks", json=request.model_dump(), headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create block: {response.text}")
+        if request.label == "human":
+            return Human(**response.json())
+        elif request.label == "persona":
+            return Persona(**response.json())
+        else:
+            return Block(**response.json())
+
+    def get_block(self, block_id: str) -> Block:
+        response = requests.get(f"{self.base_url}/api/blocks/{block_id}", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to get block: {response.text}")
+        return Block(**response.json())
+
+    def get_block_id(self, name: str, label: str) -> str:
+        params = {"name": name, "label": label}
+        response = requests.get(f"{self.base_url}/api/blocks", params=params, headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to get block ID: {response.text}")
+        blocks = [Block(**block) for block in response.json()]
+        if len(blocks) == 0:
+            return None
+        elif len(blocks) > 1:
+            raise ValueError(f"Multiple blocks found with name {name}")
+        return blocks[0].id
+
     def list_humans(self) -> List[Human]:
-        response = requests.get(f"{self.base_url}/api/humans", headers=self.headers)
+        return self.list_blocks(label="human")
 
     def create_human(self, name: str, text: str) -> Human:
-        data = {"name": name, "text": text}
-        response = requests.post(f"{self.base_url}/api/humans", json=data, headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to create human: {response.text}")
-        return Human(**response.json())
+        return self.create_block(label="human", name=name, text=text)
 
     def list_personas(self) -> List[Persona]:
-        response = requests.get(f"{self.base_url}/api/personas", headers=self.headers)
+        return self.list_blocks(label="persona")
 
     def create_persona(self, name: str, text: str) -> Persona:
-        data = {"name": name, "text": text}
-        response = requests.post(f"{self.base_url}/api/personas", json=data, headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to create persona: {response.text}")
-        return Persona(**response.json())
+        return self.create_block(label="persona", name=name, text=text)
 
     def get_persona(self, name: str) -> Persona:
-        response = requests.get(f"{self.base_url}/api/personas/{name}", headers=self.headers)
-        if response.status_code == 404:
+        block_id = self.get_block_id(name, "persona")
+        if block_id is None:
             return None
-        elif response.status_code != 200:
-            raise ValueError(f"Failed to get persona: {response.text}")
-        return Persona(**response.json())
+        return self.get_block(block_id)
 
     def get_human(self, name: str) -> Human:
-        response = requests.get(f"{self.base_url}/api/humans/{name}", headers=self.headers)
-        if response.status_code == 404:
+        block_id = self.get_block_id(name, "human")
+        if block_id is None:
             return None
-        elif response.status_code != 200:
-            raise ValueError(f"Failed to get human: {response.text}")
-        return Human(**response.json())
+        return self.get_block(block_id)
 
     # sources
 

@@ -76,6 +76,13 @@ class Persona(Block):
     label: str = "persona"
 
 
+class CreateBlock(BaseBlock):
+    """Create a block"""
+
+    template: bool = True
+    label: str = Field(..., description="Label of the block.")
+
+
 class CreatePersona(BaseBlock):
     """Create a persona block"""
 
