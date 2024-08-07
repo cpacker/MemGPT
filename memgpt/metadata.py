@@ -715,6 +715,15 @@ class MetadataStore:
             return results[0].to_record()
 
     @enforce_types
+    def get_block(self, block_id: str) -> Optional[Block]:
+        with self.session_maker() as session:
+            results = session.query(BlockModel).filter(BlockModel.id == block_id).all()
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0].to_record()
+
+    @enforce_types
     def get_blocks(
         self,
         user_id: Optional[str],
