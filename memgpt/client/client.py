@@ -10,11 +10,13 @@ from memgpt.data_sources.connectors import DataConnector
 from memgpt.functions.functions import parse_source_code
 from memgpt.functions.schema_generator import generate_schema
 from memgpt.memory import get_memory_functions
-
-# new schemas
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.block import Block, CreateBlock, Human, Persona
 from memgpt.schemas.embedding_config import EmbeddingConfig
+
+# new schemas
+from memgpt.schemas.enums import JobStatus
+from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memgpt_response import MemGPTResponse
 from memgpt.schemas.memory import (
@@ -103,7 +105,7 @@ class AbstractClient(object):
 
     # archival memory
 
-    def get_agent_archival_memory(
+    def get_archival_memory(
         self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
     ):
         """Paginated get for the archival memory for an agent"""
@@ -521,7 +523,7 @@ class RESTClient(AbstractClient):
 
     def get_job_status(self, job_id: uuid.UUID):
         response = requests.get(f"{self.base_url}/api/sources/status/{str(job_id)}", headers=self.headers)
-        return JobModel(**response.json())
+        return Job(**response.json())
 
     def load_file_into_source(self, filename: str, source_id: uuid.UUID, blocking=True):
         """Load {filename} and insert into source"""
@@ -532,7 +534,7 @@ class RESTClient(AbstractClient):
         if response.status_code != 200:
             raise ValueError(f"Failed to upload file to source: {response.text}")
 
-        job = JobModel(**response.json())
+        job = Job(**response.json())
         if blocking:
             # wait until job is completed
             while True:
@@ -549,15 +551,7 @@ class RESTClient(AbstractClient):
         payload = {"name": name}
         response = requests.post(f"{self.base_url}/api/sources", json=payload, headers=self.headers)
         response_json = response.json()
-        response_obj = SourceModel(**response_json)
-        return Source(
-            id=uuid.UUID(response_obj.id),
-            name=response_obj.name,
-            user_id=uuid.UUID(response_obj.user_id),
-            created_at=response_obj.created_at,
-            embedding_dim=response_obj.embedding_config["embedding_dim"],
-            embedding_model=response_obj.embedding_config["embedding_model"],
-        )
+        return Source(**response_json)
 
     def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
         """Attach a source to an agent"""
@@ -1122,6 +1116,14 @@ class LocalClient(AbstractClient):
 
     def load_data(self, connector: DataConnector, source_name: str):
         self.server.load_data(user_id=self.user_id, connector=connector, source_name=source_name)
+
+    def load_file_into_source(self, filename: str, source_id: uuid.UUID, blocking=True):
+        """Load {filename} and insert into source"""
+        job = self.server.create_job(user_id=self.user_id)
+
+        # TODO: implement blocking vs. non-blocking
+        self.server.load_file_to_source(source_id=source_id, file_path=filename, job_id=job.id)
+        return job
 
     def create_source(self, name: str) -> Source:
         request = SourceCreate(name=name)

@@ -13,9 +13,7 @@ from fastapi import (
     UploadFile,
 )
 
-from memgpt.data_sources.connectors import DirectoryConnector
 from memgpt.schemas.document import Document
-from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.job import Job
 from memgpt.schemas.passage import Passage
 
@@ -66,42 +64,14 @@ Implement the following functions:
 #    documents: List[DocumentModel] = Field(..., description="List of documents from the source.")
 
 
-def load_file_to_source(server: SyncServer, user_id: str, source: Source, job_id: str, file: UploadFile, bytes: bytes):
-    # update job status
-    job = server.ms.get_job(job_id=job_id)
-    job.status = JobStatus.running
-    server.ms.update_job(job)
+def load_file_to_source_async(server: SyncServer, source_id: str, job_id: str, file: UploadFile, bytes: bytes):
+    # write the file to a temporary directory (deleted after the context manager exits)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        file_path = os.path.join(tmpdirname, file.filename)
+        with open(file_path, "wb") as buffer:
+            buffer.write(bytes)
 
-    try:
-        # write the file to a temporary directory (deleted after the context manager exits)
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            file_path = os.path.join(tmpdirname, file.filename)
-            with open(file_path, "wb") as buffer:
-                buffer.write(bytes)
-
-            # read the file
-            connector = DirectoryConnector(input_files=[file_path])
-
-            # TODO: pre-compute total number of passages?
-
-            # load the data into the source via the connector
-            num_passages, num_documents = server.load_data(user_id=user_id, source_name=source.name, connector=connector)
-    except Exception as e:
-        # job failed with error
-        error = str(e)
-        print(error)
-        job.status = JobStatus.failed
-        job.metadata_["error"] = error
-        server.ms.update_job(job)
-        # TODO: delete any associated passages/documents?
-        return 0, 0
-
-    # update job status
-    job.status = JobStatus.completed
-    job.metadata_["num_passages"] = num_passages
-    job.metadata_["num_documents"] = num_documents
-    print("job completed", job.metadata_, job.id)
-    server.ms.update_job(job)
+        server.load_file_to_source(source_id, file_path, job_id)
 
 
 def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, password: str):
@@ -236,7 +206,7 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         server.ms.create_job(job)
 
         # create background task
-        background_tasks.add_task(load_file_to_source, server, user_id, source, job_id, file, bytes)
+        background_tasks.add_task(load_file_to_source_async, server, source_id=source.id, job_id=job.id, file=file, bytes=bytes)
 
         # return job information
         job = server.ms.get_job(job_id=job_id)

@@ -39,7 +39,6 @@ from memgpt.system import (
 )
 from memgpt.utils import (
     count_tokens,
-    create_uuid_from_string,
     get_local_time,
     get_tool_call_id,
     get_utc_time,
@@ -1098,18 +1097,20 @@ class Agent(object):
         # TODO: recall memory
         raise NotImplementedError()
 
-    def attach_source(self, source_name, source_connector: StorageConnector, ms: MetadataStore):
+    def attach_source(self, source_id: str, source_connector: StorageConnector, ms: MetadataStore):
         """Attach data with name `source_name` to the agent from source_connector."""
         # TODO: eventually, adding a data source should just give access to the retriever the source table, rather than modifying archival memory
 
-        filters = {"user_id": self.agent_state.user_id, "data_source": source_name}
+        filters = {"user_id": self.agent_state.user_id, "source_id": source_id}
         size = source_connector.size(filters)
-        # typer.secho(f"Ingesting {size} passages into {agent.name}", fg=typer.colors.GREEN)
+        print(f"Ingesting {size} passages into {self.agent_state.name}")
         page_size = 100
         generator = source_connector.get_all_paginated(filters=filters, page_size=page_size)  # yields List[Passage]
         all_passages = []
         for i in tqdm(range(0, size, page_size)):
             passages = next(generator)
+
+            print("getting passage", len(passages))
 
             # need to associated passage with agent (for filtering)
             for passage in passages:
@@ -1117,7 +1118,8 @@ class Agent(object):
                 passage.agent_id = self.agent_state.id
 
                 # regenerate passage ID (avoid duplicates)
-                passage.id = create_uuid_from_string(f"{source_name}_{str(passage.agent_id)}_{passage.text}")
+                # TODO: need to find another solution to the text duplication issue
+                # passage.id = create_uuid_from_string(f"{source_id}_{str(passage.agent_id)}_{passage.text}")
 
             # insert into agent archival memory
             self.persistence_manager.archival_memory.storage.insert_many(passages)
@@ -1129,16 +1131,14 @@ class Agent(object):
         self.persistence_manager.archival_memory.storage.save()
 
         # attach to agent
-        source = ms.get_source(source_name=source_name, user_id=self.agent_state.user_id)
-        assert source is not None, f"source does not exist for source_name={source_name}, user_id={self.agent_state.user_id}"
-        source_id = source.id
-        assert source_id is not None, f"source_id is None for source_name={source_name}, user_id={self.agent_state.user_id}"
+        source = ms.get_source(source_id=source_id)
+        assert source is not None, f"Source {source_id} not found in metadata store"
         ms.attach_source(agent_id=self.agent_state.id, source_id=source_id, user_id=self.agent_state.user_id)
 
         total_agent_passages = self.persistence_manager.archival_memory.storage.size()
 
         printd(
-            f"Attached data source {source_name} to agent {self.agent_state.name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
+            f"Attached data source {source.name} to agent {self.agent_state.name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
         )
 
 
