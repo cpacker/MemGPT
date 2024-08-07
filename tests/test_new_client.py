@@ -2,7 +2,8 @@ import pytest
 from crewai_tools import ScrapeWebsiteTool
 
 from memgpt import create_client
-from memgpt.schemas.memory import ChatMemory, Memory
+from memgpt.schemas.block import Block
+from memgpt.schemas.memory import BlockChatMemory, ChatMemory, Memory
 from memgpt.schemas.tool import Tool
 
 
@@ -105,6 +106,31 @@ def test_agent(client):
 
     # delete agent
     client.delete_agent(agent_state_test.id)
+
+
+def test_agent_with_shared_blocks(client):
+    persona_block = Block(name="persona", value="Here to test things!", label="persona", user_id=client.user_id)
+    human_block = Block(name="human", value="Me Human, I swear. Beep boop.", label="human", user_id=client.user_id)
+    existing_non_template_blocks = [persona_block, human_block]
+    for block in existing_non_template_blocks:
+        # ensure that previous chat blocks are persisted, as if another agent already produced them.
+        client.server.ms.create_block(block)
+
+    # create agent
+    agent_state_test = None
+    try:
+        agent_state_test = client.create_agent(
+            name="test_agent_shared_memory_blocks",
+            memory=BlockChatMemory(blocks=existing_non_template_blocks),
+            description="This is a test agent using shared memory blocks",
+        )
+        assert isinstance(agent_state_test.memory, Memory)
+        blocks_dict = agent_state_test.memory.to_dict()
+        assert persona_block.id == blocks_dict.get("persona", {}).get("id")
+        assert human_block.id == blocks_dict.get("human", {}).get("id")
+    finally:
+        if agent_state_test:
+            client.delete_agent(agent_state_test.id)
 
 
 def test_memory(client, agent):
