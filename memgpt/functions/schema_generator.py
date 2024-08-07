@@ -1,7 +1,6 @@
 import inspect
 import typing
-from typing import Optional, get_args, get_origin, Type, Dict, Any
-
+from typing import Any, Dict, Optional, Type, get_args, get_origin
 
 from docstring_parser import parse
 from pydantic import BaseModel
@@ -11,7 +10,6 @@ from memgpt.constants import (
     FUNCTION_PARAM_NAME_REQ_HEARTBEAT,
     FUNCTION_PARAM_TYPE_REQ_HEARTBEAT,
 )
-
 
 NO_HEARTBEAT_FUNCTIONS = ["send_message", "pause_heartbeats"]
 
