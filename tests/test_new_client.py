@@ -40,7 +40,10 @@ def test_agent(client):
     print("TOOLS", [t.name for t in tools])
     agent_state = client.get_agent(agent_state_test.id)
     assert agent_state.name == "test_agent2"
-    # TODO: we should test that the blocks were persisted correctly here
+    for block in agent_state.memory.to_dict().values():
+        db_block = client.server.ms.get_block(block.get("id"))
+        assert db_block is not None, "memory block not persisted on agent create"
+        assert db_block.value == block.get("value"), "persisted block data does not match in-memory data"
 
     assert isinstance(agent_state.memory, Memory)
     # update agent: name
