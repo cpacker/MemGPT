@@ -28,10 +28,12 @@ class MemoryModule(BaseModel):
 
     def __setattr__(self, name, value):
         """Run validation if self.value is updated"""
-        super().__setattr__(name, value)
         if name == "value":
-            # run validation
-            self.__class__.validate(self.dict(exclude_unset=True))
+            # Temporarily set the attribute to run validation
+            temp = self.copy(update={name: value})
+            self.__class__.validate(temp.dict(exclude_unset=True))
+
+        super().__setattr__(name, value)
 
     @validator("value", always=True)
     def check_value_length(cls, v, values):
@@ -124,7 +126,10 @@ class ChatMemory(BaseMemory):
         Returns:
             Optional[str]: None is always returned as this function does not produce a response.
         """
-        self.memory[name].value = self.memory[name].value.replace(old_content, new_content)
+        if old_content == "":
+            raise ValueError(f"old_content can not be empty")
+        else:
+            self.memory[name].value = self.memory[name].value.replace(old_content, new_content)
         return None
 
 
