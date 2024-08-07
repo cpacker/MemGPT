@@ -1,7 +1,8 @@
-from memgpt.config import MemGPTConfig
+from sqlalchemy import text
 from sqlalchemy.engine import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import text
+
+from memgpt.config import MemGPTConfig
 
 
 def update_pgvector_dim(uri: str, table_name: str) -> None:
