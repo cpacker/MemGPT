@@ -757,6 +757,7 @@ class LocalClient(AbstractClient):
         existing_user = self.server.get_user(self.user_id)
         if not existing_user:
             self.user = self.server.create_user(UserCreate())
+            print("existing user", self.user.id)
             self.user_id = self.user.id
 
             # update config
