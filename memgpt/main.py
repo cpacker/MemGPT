@@ -424,6 +424,7 @@ def run_agent_loop(
                 inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
             )
 
+            agent.save_agent(memgpt_agent, ms)
             skip_next_user_input = False
             if token_warning:
                 user_message = system.get_token_limit_warning()
