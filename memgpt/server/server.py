@@ -6,6 +6,7 @@ from datetime import datetime
 from functools import wraps
 from threading import Lock
 from typing import Callable, List, Optional, Tuple, Union
+
 from fastapi import HTTPException
 
 import memgpt.constants as constants

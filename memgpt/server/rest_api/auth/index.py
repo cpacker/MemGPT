@@ -1,8 +1,8 @@
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
-from typing import Optional
 
 from memgpt.log import get_logger
 from memgpt.server.rest_api.interface import QueuingInterface

@@ -12,6 +12,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.middleware.cors import CORSMiddleware
 
 from memgpt.server.constants import REST_DEFAULT_PORT
+from memgpt.server.rest_api.admin.agents import setup_agents_admin_router
 from memgpt.server.rest_api.admin.tools import setup_tools_index_router
 from memgpt.server.rest_api.admin.users import setup_admin_router
 from memgpt.server.rest_api.agents.command import setup_agents_command_router
@@ -19,7 +20,6 @@ from memgpt.server.rest_api.agents.config import setup_agents_config_router
 from memgpt.server.rest_api.agents.index import setup_agents_index_router
 from memgpt.server.rest_api.agents.memory import setup_agents_memory_router
 from memgpt.server.rest_api.agents.message import setup_agents_message_router
-from memgpt.server.rest_api.admin.agents import setup_agents_admin_router
 from memgpt.server.rest_api.auth.index import setup_auth_router
 from memgpt.server.rest_api.config.index import setup_config_index_router
 from memgpt.server.rest_api.humans.index import setup_humans_index_router

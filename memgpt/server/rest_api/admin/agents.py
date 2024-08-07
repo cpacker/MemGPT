@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Body, HTTPException, Query
-from memgpt.server.rest_api.interface import QueuingInterface
+from fastapi import APIRouter
 
 from memgpt.server.rest_api.agents.index import ListAgentsResponse
+from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
 
 router = APIRouter()
