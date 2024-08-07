@@ -4,6 +4,7 @@ from sqlalchemy import UniqueConstraint, JSON # TODO: jsonb for pg
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
+from memgpt.orm.tools_presets import ToolsPresets
 from memgpt.orm.mixins import OrganizationMixin, HumanMemoryTemplateMixin, PersonaMemoryTemplateMixin, SystemMemoryTemplateMixin
 
 if TYPE_CHECKING:

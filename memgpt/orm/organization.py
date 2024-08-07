@@ -5,13 +5,13 @@ from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.models.pydantic_models import OrganizationSummary
+from memgpt.orm.document import Document
 if TYPE_CHECKING:
     from memgpt.orm.user import User
     from memgpt.orm.agent import Agent
     from memgpt.orm.source import Source
     from memgpt.orm.tool import Tool
     from memgpt.orm.preset import Preset
-    from memgpt.orm.document import Document
     from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTemplate
     from sqlalchemy.orm import Session
 
