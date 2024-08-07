@@ -1,8 +1,9 @@
 import builtins
+import ast
 import os
 import uuid
 from enum import Enum
-from typing import Annotated, Optional
+from typing import Annotated, Optional, List
 
 import questionary
 import typer
@@ -1160,6 +1161,67 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
     else:
         raise ValueError(f"Unknown argument {arg}")
     return table
+
+
+@app.command()
+def add_tool(
+    filename: str = typer.Option(..., help="Path to the Python file containing the function"),
+    name: Optional[str] = typer.Option(None, help="Name of the tool"),
+    update: bool = typer.Option(True, help="Update the tool if it already exists"),
+    tags: Optional[List[str]] = typer.Option(None, help="Tags for the tool"),
+):
+    """Add or update a tool from a Python file."""
+    from memgpt.client.client import create_client
+
+    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
+
+    # 1. Parse the Python file
+    with open(filename, "r", encoding="utf-8") as file:
+        source_code = file.read()
+
+    # 2. Parse the source code to extract the function
+    # Note: here we assume it is one function only in the file.
+    module = ast.parse(source_code)
+    func_def = None
+    for node in module.body:
+        if isinstance(node, ast.FunctionDef):
+            func_def = node
+            break
+
+    if not func_def:
+        raise ValueError("No function found in the provided file")
+
+    # 3. Compile the function to make it callable
+    # Explanation courtesy of GPT-4:
+    # Compile the AST (Abstract Syntax Tree) node representing the function definition into a code object
+    # ast.Module creates a module node containing the function definition (func_def)
+    # compile converts the AST into a code object that can be executed by the Python interpreter
+    # The exec function executes the compiled code object in the current context,
+    # effectively defining the function within the current namespace
+    exec(compile(ast.Module([func_def], []), filename, "exec"))
+    # Retrieve the function object by evaluating its name in the current namespace
+    # eval looks up the function name in the current scope and returns the function object
+    func = eval(func_def.name)
+
+    # 4. Add or update the tool
+    tool = client.create_tool(func=func, name=name, tags=tags, update=update)
+    print(tool)
+
+    tools = client.list_tools()
+    for tool in tools:
+        print(f"Tool: {tool.name}")
+
+
+@app.command()
+def list_tools():
+    """List all available tools."""
+    from memgpt.client.client import create_client
+
+    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
+
+    tools = client.list_tools()
+    for tool in tools:
+        print(f"Tool: {tool.name}")
 
 
 @app.command()

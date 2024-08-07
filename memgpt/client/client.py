@@ -986,6 +986,43 @@ class LocalClient(AbstractClient):
         return self.server.delete_persona(name, self.user_id)
 
     # tools
+    def add_tool(self, tool: Tool, update: Optional[bool] = True) -> None:
+        """
+        Adds a tool directly.
+
+        Args:
+            tool (Tool): The tool to add.
+            update (bool, optional): Update the tool if it already exists. Defaults to True.
+
+        Returns:
+            None
+        """
+        existing_tool_id = self.get_tool_id(tool.name)
+        if existing_tool_id:
+            if update:
+                self.server.update_tool(
+                    ToolUpdate(
+                        id=existing_tool_id,
+                        source_type=tool.source_type,
+                        source_code=tool.source_code,
+                        tags=tool.tags,
+                        json_schema=tool.json_schema,
+                        name=tool.name,
+                    )
+                )
+            else:
+                raise ValueError(f"Tool with name {tool.name} already exists")
+
+        # call server function
+        return self.server.create_tool(
+            ToolCreate(
+                source_type=tool.source_type, source_code=tool.source_code, name=tool.name, json_schema=tool.json_schema, tags=tool.tags
+            ),
+            user_id=self.user_id,
+            update=update,
+        )
+
+    # TODO: Use the above function `add_tool` here as there is duplicate logic
     def create_tool(
         self,
         func,

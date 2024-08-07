@@ -1,7 +1,10 @@
 import pytest
 
+from crewai_tools import ScrapeWebsiteTool
+
 from memgpt import create_client
 from memgpt.schemas.memory import ChatMemory, Memory
+from memgpt.schemas.tool import Tool
 
 
 @pytest.fixture(scope="module")
@@ -206,6 +209,40 @@ def test_tools(client):
     # delete tool
     client.delete_tool(tool.id)
     assert len(client.list_tools()) == orig_tool_length
+
+
+def test_tools_from_crewai(client):
+    # create crewAI tool
+    crewai_tool = ScrapeWebsiteTool()
+
+    # Translate to memGPT Tool
+    tool = Tool.from_crewai(crewai_tool)
+
+    # Add the tool
+    client.add_tool(tool)
+
+    # list tools
+    tools = client.list_tools()
+    assert tool.name in [t.name for t in tools]
+
+    # get tool
+    tool_id = client.get_tool_id(name=tool.name)
+    retrieved_tool = client.get_tool(tool_id)
+    source_code = retrieved_tool.source_code
+
+    print(source_code)
+
+    # Parse the function and attempt to use it
+    local_scope = {}
+    exec(source_code, {}, local_scope)
+    func = local_scope[tool.name]
+
+    # Pull a simple HTML website and check that scraping it works
+    # TODO: This is very hacky and can break at any time if the website changes.
+    # Host our own websites to test website tool calling on.
+    simple_webpage_url = "https://www.york.ac.uk/teaching/cws/wws/webpage1.html"
+    expected_content = "There are lots of ways to create web pages using already coded programmes."
+    assert expected_content in func(website_url=simple_webpage_url)
 
 
 def test_sources(client, agent):
