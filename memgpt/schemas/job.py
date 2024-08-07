@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -21,10 +20,6 @@ class Job(JobBase):
     status: JobStatus = Field(default=JobStatus.created, description="The status of the job.")
     created_at: datetime = Field(default_factory=get_utc_time, description="The unix timestamp of when the job was created.")
     completed_at: Optional[datetime] = Field(None, description="The unix timestamp of when the job was completed.")
-    user_id: uuid.UUID = Field(..., description="The unique identifier of the user associated with the job.")
-
-
-class JobCreate(JobBase):
     user_id: str = Field(..., description="The unique identifier of the user associated with the job.")
 
 

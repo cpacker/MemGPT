@@ -58,11 +58,13 @@ from memgpt.schemas.block import (
 )
 from memgpt.schemas.document import Document
 from memgpt.schemas.embedding_config import EmbeddingConfig
+
+# openai schemas
+from memgpt.schemas.enums import JobStatus
+from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
 from memgpt.schemas.message import Message
-
-# openai schemas
 from memgpt.schemas.openai.chat_completion_response import UsageStatistics
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
@@ -1516,6 +1518,49 @@ class SyncServer(LockingServer):
 
         # TODO: delete data from agent passage stores (?)
 
+    def create_job(self, user_id: str) -> Job:
+        """Create a new job"""
+        job = Job(
+            user_id=user_id,
+            status=JobStatus.created,
+        )
+        self.ms.create_job(job)
+        return job
+
+    def load_file_to_source(self, source_id: str, file_path: str, job_id: str) -> Job:
+
+        # update job
+        job = self.ms.get_job(job_id)
+        job.status = JobStatus.running
+        self.ms.update_job(job)
+
+        # try:
+        from memgpt.data_sources.connectors import DirectoryConnector
+
+        source = self.ms.get_source(source_id=source_id)
+        connector = DirectoryConnector(input_files=[file_path])
+        num_passages, num_documents = self.load_data(user_id=source.user_id, source_name=source.name, connector=connector)
+        # except Exception as e:
+        #    # job failed with error
+        #    error = str(e)
+        #    print(error)
+        #    job.status = JobStatus.failed
+        #    job.metadata_["error"] = error
+        #    self.ms.update_job(job)
+        #    # TODO: delete any associated passages/documents?
+
+        #    # return failed job
+        #    return job
+
+        # update job status
+        job.status = JobStatus.completed
+        job.metadata_["num_passages"] = num_passages
+        job.metadata_["num_documents"] = num_documents
+        print("job completed", job.metadata_, job.id)
+        self.ms.update_job(job)
+
+        return job
+
     def load_data(
         self,
         user_id: str,
@@ -1536,7 +1581,7 @@ class SyncServer(LockingServer):
         document_store = None  # StorageConnector.get_storage_connector(TableType.DOCUMENTS, self.config, user_id=user_id)
 
         # load data into the document store
-        passage_count, document_count = load_data(connector, source, self.config.default_embedding_config, passage_store, document_store)
+        passage_count, document_count = load_data(connector, source, passage_store, document_store)
         return passage_count, document_count
 
     def attach_source_to_agent(
@@ -1558,16 +1603,8 @@ class SyncServer(LockingServer):
         # load agent
         agent = self._get_or_load_agent(agent_id=agent_id)
 
-        # get data source name
-        if not data_source.name:
-            source = self.ms.get_source(source_id=source_id)
-            assert source.user_id == agent.agent_state.user_id, "Source does not belong to the agent's user"
-            source_name = source.name
-        else:
-            source_name = data_source.name
-
         # attach source to agent
-        agent.attach_source(source_name, source_connector, self.ms)
+        agent.attach_source(data_source.id, source_connector, self.ms)
 
         return data_source
 

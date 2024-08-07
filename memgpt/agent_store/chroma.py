@@ -94,6 +94,8 @@ class ChromaStorageConnector(StorageConnector):
                         args[field] = metadata[field]
                         del metadata[field]
                 embedding_config = EmbeddingConfig(**args)
+                print("METADATA", metadatas)
+                print("embedding fields", EmbeddingConfig.__fields__.keys())
                 passages.append(Passage(text=text, embedding=embedding, id=record_id, embedding_config=embedding_config, **metadatas))
             # return [
             #    Passage(text=text, embedding=embedding, id=record_id, embedding_config=EmbeddingConfig(), **metadatas)
@@ -166,7 +168,7 @@ class ChromaStorageConnector(StorageConnector):
             metadata.pop("text")
             metadata.pop("embedding")
             metadata.pop("embedding_config")
-            metadata.pop("metadata")
+            metadata.pop("metadata_")
             if "created_at" in metadata:
                 metadata["created_at"] = datetime_to_timestamp(metadata["created_at"])
             if "metadata_" in metadata and metadata["metadata_"] is not None:

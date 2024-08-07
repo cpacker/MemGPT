@@ -26,25 +26,9 @@ from memgpt.schemas.agent import AgentState
 from memgpt.schemas.api_key import APIKey
 from memgpt.schemas.block import Block, Human, Persona
 from memgpt.schemas.embedding_config import EmbeddingConfig
-from memgpt.schemas.job import JobStatus
+from memgpt.schemas.enums import JobStatus
+from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
-
-##from memgpt.data_types import (
-##    AgentState,
-##    EmbeddingConfig,
-##    LLMConfig,
-##    Preset,
-##    Source,
-##    Token,
-##    User,
-##)
-##from memgpt.models.pydantic_models import (
-##    HumanModel,
-##    JobModel,
-##    JobStatus,
-##    PersonaModel,
-##    ToolModel,
-##)
 from memgpt.schemas.memory import Memory
 from memgpt.schemas.source import Source
 from memgpt.schemas.tool import Tool
@@ -323,32 +307,24 @@ class JobModel(Base):
     __table_args__ = {"extend_existing": True}
 
     id = Column(String, primary_key=True)
-    user_id = Column(String, nullable=False)
-    agent_id = Column(String, nullable=False)
-    source_id = Column(String, nullable=False)
-    preset_id = Column(String, nullable=False)
-    tool_id = Column(String, nullable=False)
+    user_id = Column(String)
     status = Column(String, default=JobStatus.pending)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    completed_at = Column(DateTime(timezone=True), onupdate=func.now())
+    metadata_ = Column(JSON)
 
     def __repr__(self) -> str:
         return f"<Job(id='{self.id}', status='{self.status}')>"
 
     def to_record(self):
-        # TODO: implement
-        pass
-        # return Job(
-        #    id=self.id,
-        #    user_id=self.user_id,
-        #    agent_id=self.agent_id,
-        #    source_id=self.source_id,
-        #    preset_id=self.preset_id,
-        #    tool_id=self.tool_id,
-        #    status=self.status,
-        #    created_at=self.created_at,
-        #    updated_at=self.updated_at,
-        # )
+        return Job(
+            id=self.id,
+            user_id=self.user_id,
+            status=self.status,
+            created_at=self.created_at,
+            completed_at=self.completed_at,
+            metadata_=self.metadata_,
+        )
 
 
 class MetadataStore:
@@ -798,6 +774,31 @@ class MetadataStore:
                 AgentSourceMappingModel.agent_id == agent_id, AgentSourceMappingModel.source_id == source_id
             ).delete()
             session.commit()
+
+    @enforce_types
+    def create_job(self, job: Job):
+        with self.session_maker() as session:
+            session.add(JobModel(**vars(job)))
+            session.commit()
+
+    def delete_job(self, job_id: str):
+        with self.session_maker() as session:
+            session.query(JobModel).filter(JobModel.id == job_id).delete()
+            session.commit()
+
+    def get_job(self, job_id: str) -> Optional[Job]:
+        with self.session_maker() as session:
+            results = session.query(JobModel).filter(JobModel.id == job_id).all()
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0].to_record()
+
+    def update_job(self, job: Job) -> Job:
+        with self.session_maker() as session:
+            session.query(JobModel).filter(JobModel.id == job.id).update(vars(job))
+            session.commit()
+        return Job
 
     def update_job_status(self, job_id: str, status: JobStatus):
         with self.session_maker() as session:
