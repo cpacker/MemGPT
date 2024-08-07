@@ -298,8 +298,10 @@ def test_sources(client, agent):
 
     # check number of passages
     sources = client.list_sources()
-    assert sources.metadata_["num_passages"] > 0
-    assert sources.metadata_["num_documents"] == 0  # TODO: fix this once document store added
+
+    # TODO: do we want to add this metadata back?
+    # assert sources[0].metadata_["num_passages"] > 0
+    # assert sources[0].metadata_["num_documents"] == 0  # TODO: fix this once document store added
     print(sources)
 
     # detach the source

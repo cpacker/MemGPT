@@ -85,7 +85,7 @@ class ChromaStorageConnector(StorageConnector):
                 metadata["created_at"] = timestamp_to_datetime(metadata["created_at"])
         if results["embeddings"]:  # may not be returned, depending on table type
             passages = []
-            for text, record_id, embedding, metadatas in zip(
+            for text, record_id, embedding, metadata in zip(
                 results["documents"], results["ids"], results["embeddings"], results["metadatas"]
             ):
                 args = {}
@@ -94,9 +94,9 @@ class ChromaStorageConnector(StorageConnector):
                         args[field] = metadata[field]
                         del metadata[field]
                 embedding_config = EmbeddingConfig(**args)
-                print("METADATA", metadatas)
+                print("METADATA", metadata)
                 print("embedding fields", EmbeddingConfig.__fields__.keys())
-                passages.append(Passage(text=text, embedding=embedding, id=record_id, embedding_config=embedding_config, **metadatas))
+                passages.append(Passage(text=text, embedding=embedding, id=record_id, embedding_config=embedding_config, **metadata))
             # return [
             #    Passage(text=text, embedding=embedding, id=record_id, embedding_config=EmbeddingConfig(), **metadatas)
             #    for (text, record_id, embedding, metadatas) in zip(
@@ -107,14 +107,14 @@ class ChromaStorageConnector(StorageConnector):
         else:
             # no embeddings
             passages = []
-            for text, id, metadatas in zip(results["documents"], results["ids"], results["metadatas"]):
+            for text, id, metadata in zip(results["documents"], results["ids"], results["metadatas"]):
                 args = {}
                 for field in EmbeddingConfig.__fields__.keys():
                     if field in metadata:
                         args[field] = metadata[field]
                         del metadata[field]
                 embedding_config = EmbeddingConfig(**args)
-                passages.append(Passage(text=text, embedding=None, id=id, embedding_config=embedding_config, **metadatas))
+                passages.append(Passage(text=text, embedding=None, id=id, embedding_config=embedding_config, **metadata))
             return passages
 
             # return [
