@@ -899,14 +899,16 @@ class LocalClient(AbstractClient):
         self,
         message: str,
         role: str,
-        agent_id: Optional[uuid.UUID] = None,
+        agent_id: Optional[str] = None,
         agent_name: Optional[str] = None,
         stream: Optional[bool] = False,
     ) -> MemGPTResponse:
         if not agent_id:
             assert agent_name, f"Either agent_id or agent_name must be provided"
-            agent_state = self.get_agent(agent_name=agent_name)
-            agent_id = agent_state.id
+            raise NotImplementedError
+            # agent_state = self.get_agent(agent_name=agent_name)
+            # agent_id = agent_state.id
+        agent_state = self.get_agent(agent_id=agent_id)
 
         if stream:
             # TODO: implement streaming with stream=True/False
@@ -922,7 +924,12 @@ class LocalClient(AbstractClient):
             self.save()
         else:
             # TODO: need to make sure date/timestamp is propely passed
-            messages = [Message.dict_to_message(m) for m in self.interface.to_list()]
+            # TODO: update self.interface.to_list() to return actual Message objects
+            #       here, the message objects will have faulty created_by timestamps
+            messages = [
+                Message.dict_to_message(user_id=agent_state.user_id, agent_id=agent_id, openai_message_dict=m)
+                for m in self.interface.to_list()
+            ]
             print("MESSAGES", messages)
             return MemGPTResponse(messages=messages, usage=usage)
 
