@@ -1143,8 +1143,6 @@ class Agent(object):
         )
 
 
-# FIXME: I believe this is called on every agent interaction, but if not we'll need to call save_agent_memory in
-# a few other places.
 def save_agent(agent: Agent, ms: MetadataStore):
     """Save agent to metadata store"""
 
@@ -1166,7 +1164,6 @@ def save_agent(agent: Agent, ms: MetadataStore):
     assert isinstance(agent.agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"
 
 
-# FIXME: decide whether we want this to live in update_state or not (would require plumbing metadata_store)
 def save_agent_memory(agent: Agent, ms: MetadataStore):
     """
     Save agent memory to metadata store. Memory is a collection of blocks and each block is persisted to the block table.
@@ -1175,6 +1172,9 @@ def save_agent_memory(agent: Agent, ms: MetadataStore):
     """
 
     for block_dict in agent.memory.to_dict().values():
+        # TODO: block creation should happen in one place to enforce these sort of constraints consistently.
+        if block_dict.get("user_id", None) is None:
+            block_dict["user_id"] = agent.agent_state.user_id
         block = Block(**block_dict)
         # FIXME: should we expect for block values to be None? If not, we need to figure out why that is
         # the case in some tests, if so we should relax the DB constraint.
