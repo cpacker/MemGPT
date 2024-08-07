@@ -1485,9 +1485,13 @@ class SyncServer(LockingServer):
         # override updated fields
         if request.name:
             existing_source.name = request.name
+        if request.metadata_:
+            existing_source.metadata_ = request.metadata_
+        if request.description:
+            existing_source.description = request.description
 
         self.ms.update_source(existing_source)
-        return self.ms.get_source(source_name=request.id, user_id=user_id)
+        return existing_source
 
     def delete_source(self, source_id: str, user_id: str):
         """Delete a data source"""
@@ -1508,6 +1512,18 @@ class SyncServer(LockingServer):
         )
         self.ms.create_job(job)
         return job
+
+    def delete_job(self, job_id: str):
+        """Delete a job"""
+        self.ms.delete_job(job_id)
+
+    def get_job(self, job_id: str) -> Job:
+        """Get a job"""
+        return self.ms.get_job(job_id)
+
+    def list_jobs(self, user_id: str) -> List[Job]:
+        """List all jobs for a user"""
+        return self.ms.list_jobs(user_id=user_id)
 
     def load_file_to_source(self, source_id: str, file_path: str, job_id: str) -> Job:
 
@@ -1624,7 +1640,7 @@ class SyncServer(LockingServer):
 
             # count number of passages
             passage_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
-            num_passages = passage_conn.size({"data_source": source.name})
+            num_passages = passage_conn.size({"source_id": source.id})
 
             # TODO: add when documents table implemented
             ## count number of documents
