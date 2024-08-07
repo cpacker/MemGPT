@@ -439,7 +439,7 @@ class RESTClient(AbstractClient):
             return [Block(**block) for block in response.json()]
 
     def create_block(self, label: str, name: str, text: str) -> Block:  #
-        request = CreateBlock(label=label, name=name, text=text)
+        request = CreateBlock(label=label, name=name, value=text)
         response = requests.post(f"{self.base_url}/api/blocks", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create block: {response.text}")
@@ -468,6 +468,13 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Multiple blocks found with name {name}")
         return blocks[0].id
 
+    def delete_block(self, id: str) -> Block:
+        response = requests.delete(f"{self.base_url}/api/blocks/{id}", headers=self.headers)
+        assert response.status_code == 200, f"Failed to delete block: {response.text}"
+        if response.status_code != 200:
+            raise ValueError(f"Failed to delete block: {response.text}")
+        return Block(**response.json())
+
     def list_humans(self) -> List[Human]:
         return self.list_blocks(label="human")
 
@@ -491,6 +498,14 @@ class RESTClient(AbstractClient):
         if block_id is None:
             return None
         return self.get_block(block_id)
+
+    def delete_persona(self, name: str) -> Persona:
+        block_id = self.get_block_id(name, "persona")
+        return self.delete_block(block_id)
+
+    def delete_human(self, name: str) -> Human:
+        block_id = self.get_block_id(name, "human")
+        return self.delete_block(block_id)
 
     # sources
 

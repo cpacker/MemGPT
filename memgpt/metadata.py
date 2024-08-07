@@ -738,11 +738,19 @@ class MetadataStore:
     def get_persona(
         self, persona_id: Optional[str] = None, user_id: Optional[str] = None, persona_name: Optional[str] = None
     ) -> Optional[Persona]:
-        return self.get_blocks(id=persona_id, user_id=user_id, label="persona", name=persona_name)
+        personas = self.get_blocks(id=persona_id, user_id=user_id, label="persona", name=persona_name)
+        if personas:
+            assert len(personas) == 1, f"Expected 1 result, got {len(personas)}"
+            return personas[0]
+        return None
 
     @enforce_types
     def get_human(self, human_id: Optional[str] = None, user_id: Optional[str] = None, human_name: Optional[str] = None) -> Optional[Human]:
-        return self.get_blocks(id=human_id, user_id=user_id, label="human", name=human_name)
+        humans = self.get_blocks(id=human_id, user_id=user_id, label="human", name=human_name)
+        if humans:
+            assert len(humans) == 1, f"Expected 1 result, got {len(humans)}"
+            return humans[0]
+        return None
 
     # agent source metadata
     @enforce_types

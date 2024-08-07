@@ -1041,13 +1041,17 @@ class SyncServer(LockingServer):
         return blocks[0]
 
     def create_block(self, request: CreateBlock, user_id: str, update: bool = False) -> Block:
-        existing_block = self.ms.get_block(block_name=request.name, user_id=user_id)
-        if existing_block:
+        existing_blocks = self.ms.get_blocks(name=request.name, user_id=user_id, template=request.template, label=request.label)
+        if existing_blocks is not None:
+            existing_block = existing_blocks[0]
+            assert len(existing_blocks) == 1
             if update:
                 return self.update_block(UpdateBlock(id=existing_block.id, **vars(request)), user_id)
             else:
                 raise ValueError(f"Block with name {request.name} already exists")
-        return self.ms.create_block(Block(name=request.name, user_id=user_id, value=request.value, limit=request.limit))
+        block = Block(**vars(request))
+        self.ms.create_block(block)
+        return block
 
     def update_block(self, request: UpdateBlock, user_id: str) -> Block:
         block = Block(name=request.name, user_id=user_id, value=request.value, limit=request.limit, id=request.id)
