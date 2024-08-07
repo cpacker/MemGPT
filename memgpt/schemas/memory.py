@@ -70,8 +70,8 @@ class ChatMemory(Memory):
 
     def __init__(self, persona: str, human: str, limit: int = 2000):
         super().__init__()
-        self.link_block(name="persona", block=Block(name="persona", value=persona, limit=limit))
-        self.link_block(name="human", block=Block(name="human", value=human, limit=limit))
+        self.link_block(name="persona", block=Block(name="persona", value=persona, limit=limit, label="persona"))
+        self.link_block(name="human", block=Block(name="human", value=human, limit=limit, label="human"))
 
     def core_memory_append(self, name: str, content: str) -> Optional[str]:
         """
