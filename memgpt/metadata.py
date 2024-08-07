@@ -483,7 +483,7 @@ class MetadataStore:
     @enforce_types
     def create_human(self, human: Human):
         with self.session_maker() as session:
-            if session.query(BlockModel).filter(BlockModel.name == human.name).filter(BlockModel.user_id == human.user_id).count() > 0:
+            if self.get_human(human_id=human.id, user_id=human.user_id, human_name=human.name):
                 raise ValueError(f"Human with name {human.name} already exists")
             session.add(BlockModel(**vars(human)))
             session.commit()
@@ -491,9 +491,18 @@ class MetadataStore:
     @enforce_types
     def create_persona(self, persona: Persona):
         with self.session_maker() as session:
-            if session.query(BlockModel).filter(BlockModel.name == persona.name).filter(BlockModel.user_id == persona.user_id).count() > 0:
+            if self.get_persona(persona_id=persona.id, user_id=persona.user_id, persona_name=persona.name):
                 raise ValueError(f"Persona with name {persona.name} already exists")
             session.add(BlockModel(**vars(persona)))
+            session.commit()
+
+    @enforce_types
+    def create_block(self, block: Block):
+        with self.session_maker() as session:
+            # TODO: fix?
+            if session.query(BlockModel).filter(BlockModel.name == block.name).filter(BlockModel.user_id == block.user_id).count() > 0:
+                raise ValueError(f"Block with name {block.name} already exists")
+            session.add(BlockModel(**vars(block)))
             session.commit()
 
     @enforce_types
@@ -538,6 +547,12 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
+    def update_block(self, block: Block):
+        with self.session_maker() as session:
+            session.query(BlockModel).filter(BlockModel.id == block.id).update(vars(block))
+            session.commit()
+
+    @enforce_types
     def update_tool(self, tool: Tool):
         with self.session_maker() as session:
             session.query(ToolModel).filter(ToolModel.id == tool.id).update(vars(tool))
@@ -547,6 +562,12 @@ class MetadataStore:
     def delete_tool(self, tool_id: str):
         with self.session_maker() as session:
             session.query(ToolModel).filter(ToolModel.id == tool_id).delete()
+            session.commit()
+
+    @enforce_types
+    def delete_block(self, block_id: str):
+        with self.session_maker() as session:
+            session.query(BlockModel).filter(BlockModel.id == block_id).delete()
             session.commit()
 
     @enforce_types
@@ -684,60 +705,44 @@ class MetadataStore:
             return results[0].to_record()
 
     @enforce_types
+    def get_blocks(
+        self,
+        user_id: Optional[str],
+        label: Optional[str] = None,
+        template: bool = True,
+        name: Optional[str] = None,
+        id: Optional[str] = None,
+    ) -> List[Block]:
+        """List available blocks"""
+        with self.session_maker() as session:
+            query = session.query(BlockModel).filter(BlockModel.template == template)
+
+            if user_id:
+                query.filter(BlockModel.user_id == user_id)
+
+            if label:
+                query.filter(BlockModel.label == label)
+
+            if name:
+                query.filter(BlockModel.name == name)
+
+            if id:
+                query.filter(BlockModel.id == id)
+
+            results = query.all()
+            if len(results) == 0:
+                return None
+            return [r.to_record() for r in results]
+
+    @enforce_types
     def get_persona(
         self, persona_id: Optional[str] = None, user_id: Optional[str] = None, persona_name: Optional[str] = None
     ) -> Optional[Persona]:
-        with self.session_maker() as session:
-            if persona_id:
-                results = session.query(BlockModel).filter(BlockModel.id == persona_id).filter(BlockModel.label == "persona").all()
-            else:
-                assert persona_name is not None
-                results = (
-                    session.query(BlockModel)
-                    .filter(BlockModel.name == persona_name)
-                    .filter(BlockModel.user_id == None)
-                    .filter(BlockModel.label == "persona")
-                    .all()
-                )
-                if user_id:
-                    results += (
-                        session.query(BlockModel)
-                        .filter(BlockModel.name == persona_name)
-                        .filter(BlockModel.user_id == user_id)
-                        .filter(BlockModel.label == "persona")
-                        .all()
-                    )
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
+        return self.get_blocks(id=persona_id, user_id=user_id, label="persona", name=persona_name)
 
     @enforce_types
     def get_human(self, human_id: Optional[str] = None, user_id: Optional[str] = None, human_name: Optional[str] = None) -> Optional[Human]:
-        with self.session_maker() as session:
-            if human_id:
-                results = session.query(BlockModel).filter(BlockModel.id == human_id).filter(BlockModel.label == "human").all()
-            else:
-                assert human_name is not None
-                results = (
-                    session.query(BlockModel)
-                    .filter(BlockModel.name == human_name)
-                    .filter(BlockModel.user_id == None)
-                    .filter(BlockModel.label == "human")
-                    .all()
-                )
-                if user_id:
-                    results += (
-                        session.query(BlockModel)
-                        .filter(BlockModel.name == human_name)
-                        .filter(BlockModel.user_id == user_id)
-                        .filter(BlockModel.label == "human")
-                        .all()
-                    )
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
+        return self.get_blocks(id=human_id, user_id=user_id, label="human", name=human_name)
 
     # agent source metadata
     @enforce_types
