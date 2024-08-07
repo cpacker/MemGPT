@@ -538,6 +538,16 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
+    def update_or_create_block(self, block: Block):
+        with self.session_maker() as session:
+            existing_block = session.query(BlockModel).filter(BlockModel.id == block.id).first()
+            if existing_block:
+                session.query(BlockModel).filter(BlockModel.id == block.id).update(vars(block))
+            else:
+                session.add(BlockModel(**vars(block)))
+            session.commit()
+
+    @enforce_types
     def update_tool(self, tool: Tool):
         with self.session_maker() as session:
             session.query(ToolModel).filter(ToolModel.id == tool.id).update(vars(tool))

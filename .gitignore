@@ -1012,6 +1012,7 @@ FodyWeavers.xsd
 ## cached db data
 pgdata/
 !pgdata/.gitkeep
+.persist/
 
 ## pytest mirrors
 memgpt/.pytest_cache/
