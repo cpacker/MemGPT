@@ -74,6 +74,7 @@ class AbstractClient(object):
         human: Optional[str] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
+        memory: Optional[Memory] = None,
     ) -> AgentState:
         """Create a new agent with the specified configuration."""
         raise NotImplementedError
