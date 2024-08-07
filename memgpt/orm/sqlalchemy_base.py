@@ -53,6 +53,18 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             return session.query(cls).all()
 
     @classmethod
+    def to_uid(cls, identifier) -> "UUID":
+        try:
+            return UUID(identifier)
+        except AttributeError:
+            return identifier
+        except:
+            try:
+                return UUID(identifier.replace(cls.__prefix__,"").strip("-"))
+            except ValueError as e:
+                raise ValueError(f"{identifier} is not a valid identifier for class {cls.__name__}") from e
+
+    @classmethod
     def read(
         cls,
         db_session: "Session",

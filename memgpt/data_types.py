@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, TypeVar
 
 import numpy as np
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from memgpt.settings import settings
 from memgpt.constants import (
@@ -724,29 +724,12 @@ class AzureEmbeddingConfig(EmbeddingConfig):
         self.azure_deployment = azure_deployment
 
 
-class User:
+class User(BaseModel):
     """Defines user and default configurations"""
-
-    # TODO: make sure to encrypt/decrypt keys before storing in DB
-
-    def __init__(
-        self,
-        # name: str,
-        id: Optional[uuid.UUID] = None,
-        default_agent=None,
-        # other
-        policies_accepted=False,
-    ):
-        if id is None:
-            self.id = uuid.uuid4()
-        else:
-            self.id = id
-        assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
-
-        self.default_agent = default_agent
-
-        # misc
-        self.policies_accepted = policies_accepted
+    model_config = ConfigDict(from_attributes=True)
+    id: str = Field(..., description="the stripe identifier of the user")
+    default_agent: Optional[str] = Field(default=None)
+    policies_accepted: Optional[bool] = Field(default=None)
 
 
 class AgentState:

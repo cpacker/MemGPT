@@ -66,7 +66,8 @@ def create_client(base_url: Optional[str] = None,
                   app: Optional[str] = None,
                   debug: Optional[bool] = False) -> Union["RESTClient", "LocalClient"]:
     """factory method to create either a local or rest api enabled client.
-    # TODO: link to docs on the difference between the two.
+    _TODO: link to docs on the difference between the two._
+
     base_url: str if provided, the url to the rest api server
     token: str if provided, the token to authenticate to the rest api server
     config: MemGPTConfig if provided, the configuration settings to use for the local client
@@ -268,7 +269,7 @@ class RESTClient(AbstractClient):
         response = await self.httpx_client.get("/agents/")
         if response.status_code != 200:
             raise ValueError(f"Failed to list agents: {response.text}")
-        for agent in response.json():
+        for agent in response.json()["agents"]:
             if agent_id and agent["id"] == agent_id:
                 return True
             if agent_name and agent["name"] == agent_name:
@@ -282,7 +283,7 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to get tool: {response.text}")
         return ToolModel(**response.json())
 
-    def create_agent(
+    async def create_agent(
         self,
         name: Optional[str] = None,
         preset: Optional[str] = None,  # TODO: this should actually be re-named preset_name
@@ -319,7 +320,7 @@ class RESTClient(AbstractClient):
         # add memory tools
         memory_functions = get_memory_functions(memory)
         for func_name, func in memory_functions.items():
-            tool = self.create_tool(func, name=func_name, tags=["memory", "memgpt-base"], update=True)
+            tool = await self.create_tool(func, name=func_name, tags=["memory", "memgpt-base"], update=True)
             tool_names.append(tool.name)
 
         # TODO: distinguish between name and objects
@@ -639,7 +640,7 @@ class RESTClient(AbstractClient):
 
     # tools
 
-    def create_tool(
+    async def create_tool(
         self,
         func,
         name: Optional[str] = None,
@@ -673,7 +674,7 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to create tool: {e}, invalid input {data}")
 
         # make REST request
-        response = self.httpx_client.post("/api/tools", json=data)
+        response = await self.httpx_client.post("/tools/", json=data)
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
         return ToolModel(**response.json())

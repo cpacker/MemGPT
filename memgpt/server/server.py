@@ -12,6 +12,7 @@ from threading import Lock
 
 # temporary for the fake auth
 from sqlalchemy import select
+from sqlalchemy.exc import NoResultFound
 
 
 from fastapi import HTTPException
@@ -764,7 +765,7 @@ class SyncServer(Server):
         if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User {user_id} does not exist")
 
-        agents_states = self.ms.list_agents(id=user_id)
+        agents_states = self.ms.list_agents(user_id=user_id)
         agents_states_dicts = [self._agent_state_to_config(state) for state in agents_states]
 
         # TODO add a get_message_obj_from_message_id(...) function
@@ -1390,18 +1391,17 @@ class SyncServer(Server):
             tool (ToolModel): Tool object
         """
         name = json_schema["name"]
-        tool = self.ms.get_tool(name, user_id=user_id)
-        if tool:  # check if function already exists
-            if exists_ok:
-                # update existing tool
-                tool.json_schema = json_schema
-                tool.tags = tags
-                tool.source_code = source_code
-                tool.source_type = source_type
-                self.ms.update_tool(tool)
-            else:
+        try:
+            tool = self.ms.get_tool(name, user_id=user_id)
+            # update existing tool
+            tool.json_schema = json_schema
+            tool.tags = tags
+            tool.source_code = source_code
+            tool.source_type = source_type
+            self.ms.update_tool(tool)
+            if not exists_ok:
                 raise ValueError(f"[server] Tool with name {name} already exists.")
-        else:
+        except NoResultFound:
             # create new tool
             tool = ToolModel(
                 name=name, json_schema=json_schema, tags=tags, source_code=source_code, source_type=source_type, user_id=user_id

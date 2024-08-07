@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Literal
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 from memgpt.settings import settings
 from memgpt.orm.enums import JobStatus
@@ -19,6 +19,7 @@ class MemGPTUsageStatistics(BaseModel):
 
 class PersistedBase(BaseModel):
     """shared elements that all models coming from the ORM will support"""
+    model_config = ConfigDict(from_attributes=True)
     id: str = Field(description="The unique identifier of the object prefixed with the object type (Stripe pattern).")
     uuid: UUID = Field(description="The unique identifier of the object stored as a raw uuid (for legacy support).")
     deleted: Optional[bool] = Field(default=False, description="Is this record deleted? Used for universal soft deletes.")
@@ -26,6 +27,15 @@ class PersistedBase(BaseModel):
     updated_at: datetime = Field(description="The unix timestamp of when the object was last updated.")
     created_by_id: Optional[str] = Field(description="The unique identifier of the user who created the object.")
     last_updated_by_id: Optional[str] = Field(description="The unique identifier of the user who last updated the object.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def assign_uuid(cls, data):
+        """Assign a uuid to the object"""
+        if hasattr(data, "_id"):
+            data.uuid = data._id
+        return data
+
 
 class LLMConfigModel(BaseModel):
     # TODO: 🤮 don't default to a vendor! bug city!

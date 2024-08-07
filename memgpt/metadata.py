@@ -14,6 +14,7 @@ from memgpt.orm.source import Source
 from memgpt.orm.preset import Preset
 from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTemplate
 from memgpt.orm.user import User
+from memgpt.orm.tool import Tool
 
 
 if TYPE_CHECKING:
@@ -102,31 +103,47 @@ class MetadataStore:
         "here is one example longhand to demonstrate the meta pattern"
         return Agent.create(self.db_session, agent.model_dump(exclude_none=True))
 
+    def list_agents(self, user_id: uuid.UUID) -> List[DataAgentState]:
+        return [a.to_record() for a in User.read(self.db_session, user_id).agents]
+
+    def list_tools(self) -> List[DataAgentState]:
+        return [a.to_record() for a in Tool.list(self.db_session)]
+
+    def get_tool(self, name: str, user_id: uuid.UUID) -> Optional[DataAgentState]:
+        return Tool.read(self.db_session, name=name).to_record()
+
+
     def __getattr__(self, name):
         """temporary metaprogramming to clean up all the getters and setters here.
 
         __getattr__ is always the last-ditch effort, so you can override it by declaring any method (ie `get_hamburger`) to handle the call instead.
         """
         action, raw_model_name = name.split("_",1)
-        Model = globals().get(pascalize(raw_model_name)) # gross, but nessary for now
+        Model = globals().get(pascalize(raw_model_name).capitalize()) # gross, but nessary for now
+        if Model is None:
+            raise AttributeError(f"Model {raw_model_name} action {action} not found")
+
+        def pluralize(name):
+            return name if name[-1] == "s" else name + "s"
+
         match action:
             case "add":
                 return self.getattr("_".join(["create",raw_model_name]))
             case "get":
                 # this has no support for scoping, but we won't keep this pattern long
                 try:
-                    def get(self, id):
+                    def get(id, user_id = None):
                         return Model.read(self.db_session, id).to_record()
                     return get
                 except IndexError:
-                    raise NoResultFound(f"No {raw_model_name} found with id {args[0]}")
+                    raise NoResultFound(f"No {raw_model_name} found with id {id}")
             case "create":
-                def create(self, schema):
+                def create(schema):
                     splatted_pydantic = schema.model_dump(exclude_none=True)
                     return Model.create(self.db_session, splatted_pydantic).to_record()
                 return create
             case "update":
-                def update(self, schema):
+                def update(schema):
                     instance = Model.read(self.db_session, schema.id)
                     splatted_pydantic = schema.model_dump(exclude_none=True, exclude=["id"])
                     for k,v in splatted_pydantic.items():
@@ -135,11 +152,11 @@ class MetadataStore:
                     return instance.to_record()
                 return update
             case "delete":
-                def delete(self, *args):
+                def delete(*args):
                 # hacky temp. look up the org for the user, get all the plural (related set) for that org and delete by name
                     if user_uuid := (args[1] if len(args) > 1 else None):
-                        org = User.read(user_uuid).organization
-                        related_set = getattr(org, (raw_model_name + "s"))
+                        org = User.read(self.db_session, user_uuid).organization
+                        related_set = getattr(org, pluralize(raw_model_name)) or []
                         related_set.filter(name=name).scalar().delete()
                         return
                     instance = Model.read(self.db_session, args[0])
@@ -147,10 +164,10 @@ class MetadataStore:
                 return delete
             case "list":
                 # hacky temp. look up the org for the user, get all the plural (related set) for that org
-                def list(self, *args):
-                    if user_uuid := (args[1] if len(args) > 1 else None):
-                        org = User.read(user_uuid).organization
-                        return [r.to_record() for r in getattr(org, (raw_model_name + "s"))]
+                def list(*args, **kwargs):
+                    if user_uuid := kwargs.get("id"):
+                        org = User.read(self.db_session, user_uuid).organization
+                        return [r.to_record() for r in getattr(org, pluralize(raw_model_name)) or []]
                     # TODO: this has no scoping, no pagination, and no filtering. it's a placeholder.
                     return [r.to_record() for r in Model.list(self.db_session)]
                 return list

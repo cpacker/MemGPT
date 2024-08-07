@@ -41,8 +41,8 @@ class User(SqlalchemyBase, OrganizationMixin):
         Note: this is only for local client use.
         """
         try:
-            with db_session.begin() as session:
-                return session.query(cls).one()
+            return db_session.query(cls).one()
         except NoResultFound:
+            org = Organization.default(db_session)
             return cls(name="Default User",
-                       organization=Organization.default(db_session)).create(db_session)
+                       organization=org).create(db_session)

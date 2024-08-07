@@ -23,7 +23,7 @@ def delete_tool(
     interface.clear()
     server.ms.delete_tool(name=tool_name, user_id=actor._id)
 
-@router.get("/tools/{tool_name}", tags=["tools"], response_model=ToolModel)
+@router.get("/{tool_name}", tags=["tools"], response_model=ToolModel)
 def get_tool(
     tool_name: str,
     interface: QueuingInterface = Depends(get_current_interface),
@@ -41,7 +41,7 @@ def get_tool(
     # TODO issue #13 in the big spreadsheet: Standardize errors and correct error codes
     raise HTTPException(status_code=404, detail=f"Tool with name {tool_name} not found.")
 
-@router.get("/tools", tags=["tools"])
+@router.get("/", tags=["tools"])
 def list_all_tools(
     interface: QueuingInterface = Depends(get_current_interface),
     server: SyncServer = Depends(get_memgpt_server),
@@ -54,7 +54,7 @@ def list_all_tools(
     interface.clear()
     return ListToolsResponse(tools=server.ms.list_tools(user_id=actor._id))
 
-@router.post("/tools", tags=["tools"], response_model=ToolModel)
+@router.post("/", tags=["tools"], response_model=ToolModel)
 def create_tool(
     tool: CreateToolRequest = Body(...),
     server: SyncServer = Depends(get_memgpt_server),
