@@ -448,11 +448,11 @@ class PostgresStorageConnector(SQLStorageConnector):
             if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
                 self.uri = self.config.archival_storage_uri
                 if self.config.archival_storage_uri is None:
-                    raise ValueError(f"Must specifiy archival_storage_uri in config {self.config.config_path}")
+                    raise ValueError(f"Must specify archival_storage_uri in config {self.config.config_path}")
             elif table_type == TableType.RECALL_MEMORY:
                 self.uri = self.config.recall_storage_uri
                 if self.config.recall_storage_uri is None:
-                    raise ValueError(f"Must specifiy recall_storage_uri in config {self.config.config_path}")
+                    raise ValueError(f"Must specify recall_storage_uri in config {self.config.config_path}")
             else:
                 raise ValueError(f"Table type {table_type} not implemented")
 
@@ -467,12 +467,21 @@ class PostgresStorageConnector(SQLStorageConnector):
         with self.session_maker() as session:
             session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
 
-        # create table
-        Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
+            # create table
+            Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
+
+            # create index
+            session.execute(
+                text(
+                    f"CREATE INDEX IF NOT EXISTS {self.db_model.__table__}_embedding_idx ON {self.db_model.__table__} USING hnsw (embedding vector_l2_ops);"
+                )
+            )
+            session.commit()
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         filters = self.get_filters(filters)
         with self.session_maker() as session:
+            session.execute(text(f"SET hnsw.ef_search = {min([top_k, 40])};"))
             results = session.scalars(
                 select(self.db_model).filter(*filters).order_by(self.db_model.embedding.l2_distance(query_vec)).limit(top_k)
             ).all()
