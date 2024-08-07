@@ -84,9 +84,9 @@ class ChatMemory(Memory):
         Returns:
             Optional[str]: None is always returned as this function does not produce a response.
         """
-        current_value = str(self.get_block(name).value)
+        current_value = str(self.memory.get_block(name).value)
         new_value = current_value + "\n" + str(content)
-        self.update_block_value(name=name, value=new_value)
+        self.memory.update_block_value(name=name, value=new_value)
         return None
 
     def core_memory_replace(self, name: str, old_content: str, new_content: str) -> Optional[str]:
@@ -101,9 +101,9 @@ class ChatMemory(Memory):
         Returns:
             Optional[str]: None is always returned as this function does not produce a response.
         """
-        current_value = str(self.get_block(name).value)
+        current_value = str(self.memory.get_block(name).value)
         new_value = current_value.replace(str(old_content), str(new_content))
-        self.update_block_value(name=name, value=new_value)
+        self.memory.update_block_value(name=name, value=new_value)
         return None
 
 

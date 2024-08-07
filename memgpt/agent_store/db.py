@@ -531,7 +531,7 @@ class SQLLiteStorageConnector(SQLStorageConnector):
         # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
         print(f"Inserting {len(records)} records")
         for record in records:
-            print(record.text[:100])
+            print(record.text[:500])
         if len(records) == 0:
             return
         if isinstance(records[0], Passage):
