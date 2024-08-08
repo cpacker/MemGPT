@@ -20,8 +20,8 @@ from memgpt.data_sources.connectors import (
     VectorDBConnector,
     load_data,
 )
-from memgpt.data_types import Source
 from memgpt.metadata import MetadataStore
+from memgpt.schemas.source import Source
 
 app = typer.Typer()
 

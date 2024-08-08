@@ -2,8 +2,7 @@ import datetime
 import inspect
 import json
 import traceback
-import uuid
-from typing import List, Literal, Optional, Tuple, Union, cast
+from typing import List, Literal, Optional, Tuple, Union
 
 from tqdm import tqdm
 
@@ -19,14 +18,19 @@ from memgpt.constants import (
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_WARNING_FRAC,
 )
-from memgpt.data_types import AgentState, EmbeddingConfig, Message, Passage
 from memgpt.interface import AgentInterface
 from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
-from memgpt.memory import ArchivalMemory, BaseMemory, RecallMemory, summarize_messages
+from memgpt.memory import ArchivalMemory, RecallMemory, summarize_messages
 from memgpt.metadata import MetadataStore
-from memgpt.models import chat_completion_response
-from memgpt.models.pydantic_models import OptionState, ToolModel
 from memgpt.persistence_manager import LocalStateManager
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.enums import OptionState
+from memgpt.schemas.memory import Memory
+from memgpt.schemas.message import Message
+from memgpt.schemas.openai.chat_completion_response import ChatCompletionResponse
+from memgpt.schemas.passage import Passage
+from memgpt.schemas.tool import Tool
 from memgpt.system import (
     get_initial_boot_messages,
     get_login_event,
@@ -35,7 +39,6 @@ from memgpt.system import (
 )
 from memgpt.utils import (
     count_tokens,
-    create_uuid_from_string,
     get_local_time,
     get_tool_call_id,
     get_utc_time,
@@ -72,7 +75,7 @@ def compile_memory_metadata_block(
 
 def compile_system_message(
     system_prompt: str,
-    in_context_memory: BaseMemory,
+    in_context_memory: Memory,
     in_context_memory_last_edit: datetime.datetime,  # TODO move this inside of BaseMemory?
     archival_memory: Optional[ArchivalMemory] = None,
     recall_memory: Optional[RecallMemory] = None,
@@ -135,7 +138,7 @@ def compile_system_message(
 def initialize_message_sequence(
     model: str,
     system: str,
-    memory: BaseMemory,
+    memory: Memory,
     archival_memory: Optional[ArchivalMemory] = None,
     recall_memory: Optional[RecallMemory] = None,
     memory_edit_timestamp: Optional[datetime.datetime] = None,
@@ -188,35 +191,21 @@ class Agent(object):
         interface: AgentInterface,
         # agents can be created from providing agent_state
         agent_state: AgentState,
-        tools: List[ToolModel],
-        # memory: BaseMemory,
+        tools: List[Tool],
+        # memory: Memory,
         # extras
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
     ):
-        # tools
-        for tool in tools:
-            assert tool, f"Tool is None - must be error in querying tool from DB"
-            assert tool.name in agent_state.tools, f"Tool {tool} not found in agent_state.tools"
-        for tool_name in agent_state.tools:
-            assert tool_name in [tool.name for tool in tools], f"Tool name {tool_name} not included in agent tool list"
-        # Store the functions schemas (this is passed as an argument to ChatCompletion)
-        self.functions = []
-        self.functions_python = {}
-        env = {}
-        env.update(globals())
-        for tool in tools:
-            # WARNING: name may not be consistent?
-            if tool.module:  # execute the whole module
-                exec(tool.module, env)
-            else:
-                exec(tool.source_code, env)
-            self.functions_python[tool.name] = env[tool.name]
-            self.functions.append(tool.json_schema)
-        assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
-
+        assert isinstance(agent_state.memory, Memory), f"Memory object is not of type Memory: {type(agent_state.memory)}"
         # Hold a copy of the state that was used to init the agent
         self.agent_state = agent_state
+        assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
+
+        try:
+            self.link_tools(tools)
+        except Exception as e:
+            raise ValueError(f"Encountered an error while trying to link agent tools during initialization:\n{str(e)}")
 
         # gpt-4, gpt-3.5-turbo, ...
         self.model = self.agent_state.llm_config.model
@@ -225,8 +214,10 @@ class Agent(object):
         self.system = self.agent_state.system
 
         # Initialize the memory object
-        self.memory = BaseMemory.load(self.agent_state.state["memory"])
+        self.memory = self.agent_state.memory
+        assert isinstance(self.memory, Memory), f"Memory object is not of type Memory: {type(self.memory)}"
         printd("Initialized memory object", self.memory)
+        print("Initialized memory object", self.memory)
 
         # Interface must implement:
         # - internal_monologue
@@ -254,28 +245,13 @@ class Agent(object):
         self._messages: List[Message] = []
 
         # Once the memory object is initialized, use it to "bake" the system message
-        if "messages" in self.agent_state.state and self.agent_state.state["messages"] is not None:
-            # print(f"Agent.__init__ :: loading, state={agent_state.state['messages']}")
-            if not isinstance(self.agent_state.state["messages"], list):
-                raise ValueError(f"'messages' in AgentState was bad type: {type(self.agent_state.state['messages'])}")
-            assert all([isinstance(msg, str) for msg in self.agent_state.state["messages"]])
-
-            # Convert to IDs, and pull from the database
-            raw_messages = [
-                self.persistence_manager.recall_memory.storage.get(id=uuid.UUID(msg_id)) for msg_id in self.agent_state.state["messages"]
-            ]
-            assert all([isinstance(msg, Message) for msg in raw_messages]), (raw_messages, self.agent_state.state["messages"])
-            self._messages.extend([cast(Message, msg) for msg in raw_messages if msg is not None])
-
-            for m in self._messages:
-                # assert is_utc_datetime(m.created_at), f"created_at on message for agent {self.agent_state.name} isn't UTC:\n{vars(m)}"
-                # TODO eventually do casting via an edit_message function
-                if not is_utc_datetime(m.created_at):
-                    printd(f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
-                    m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
+        if self.agent_state.message_ids is not None:
+            self.set_message_buffer(message_ids=self.agent_state.message_ids)
 
         else:
-            printd(f"Agent.__init__ :: creating, state={agent_state.state['messages']}")
+            printd(f"Agent.__init__ :: creating, state={agent_state.message_ids}")
+
+            # Generate a sequence of initial messages to put in the buffer
             init_messages = initialize_message_sequence(
                 model=self.model,
                 system=self.system,
@@ -285,6 +261,8 @@ class Agent(object):
                 memory_edit_timestamp=get_utc_time(),
                 include_initial_boot_message=True,
             )
+
+            # Cast the messages to actual Message objects to be synced to the DB
             init_messages_objs = []
             for msg in init_messages:
                 init_messages_objs.append(
@@ -293,15 +271,12 @@ class Agent(object):
                     )
                 )
             assert all([isinstance(msg, Message) for msg in init_messages_objs]), (init_messages_objs, init_messages)
-            self.messages_total = 0
-            self._append_to_messages(added_messages=[cast(Message, msg) for msg in init_messages_objs if msg is not None])
 
-            for m in self._messages:
-                assert is_utc_datetime(m.created_at), f"created_at on message for agent {self.agent_state.name} isn't UTC:\n{vars(m)}"
-                # TODO eventually do casting via an edit_message function
-                if not is_utc_datetime(m.created_at):
-                    printd(f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
-                    m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
+            # Put the messages inside the message buffer
+            self.messages_total = 0
+            # self._append_to_messages(added_messages=[cast(Message, msg) for msg in init_messages_objs if msg is not None])
+            self._append_to_messages(added_messages=init_messages_objs)
+            self._validate_message_buffer_is_utc()
 
         # Keep track of the total number of messages throughout all time
         self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
@@ -319,6 +294,65 @@ class Agent(object):
     @messages.setter
     def messages(self, value):
         raise Exception("Modifying message list directly not allowed")
+
+    def link_tools(self, tools: List[Tool]):
+        """Bind a tool object (schema + python function) to the agent object"""
+
+        # tools
+        for tool in tools:
+            assert tool, f"Tool is None - must be error in querying tool from DB"
+            assert tool.name in self.agent_state.tools, f"Tool {tool} not found in agent_state.tools"
+        for tool_name in self.agent_state.tools:
+            assert tool_name in [tool.name for tool in tools], f"Tool name {tool_name} not included in agent tool list"
+
+        # Store the functions schemas (this is passed as an argument to ChatCompletion)
+        self.functions = []
+        self.functions_python = {}
+        env = {}
+        env.update(globals())
+        for tool in tools:
+            # WARNING: name may not be consistent?
+            if tool.module:  # execute the whole module
+                exec(tool.module, env)
+            else:
+                exec(tool.source_code, env)
+            self.functions_python[tool.name] = env[tool.name]
+            self.functions.append(tool.json_schema)
+        assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
+
+    def _load_messages_from_recall(self, message_ids: List[str]) -> List[Message]:
+        """Load a list of messages from recall storage"""
+
+        # Pull the message objects from the database
+        message_objs = [self.persistence_manager.recall_memory.storage.get(msg_id) for msg_id in message_ids]
+        assert all([isinstance(msg, Message) for msg in message_objs])
+
+        return message_objs
+
+    def _validate_message_buffer_is_utc(self):
+        """Iterate over the message buffer and force all messages to be UTC stamped"""
+
+        for m in self._messages:
+            # assert is_utc_datetime(m.created_at), f"created_at on message for agent {self.agent_state.name} isn't UTC:\n{vars(m)}"
+            # TODO eventually do casting via an edit_message function
+            if not is_utc_datetime(m.created_at):
+                printd(f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
+                m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
+
+    def set_message_buffer(self, message_ids: List[str], force_utc: bool = True):
+        """Set the messages in the buffer to the message IDs list"""
+
+        message_objs = self._load_messages_from_recall(message_ids=message_ids)
+
+        # set the objects in the buffer
+        self._messages = message_objs
+
+        # bugfix for old agents that may not have had UTC specified in their timestamps
+        if force_utc:
+            self._validate_message_buffer_is_utc()
+
+        # also sync the message IDs attribute
+        self.agent_state.message_ids = message_ids
 
     def _trim_messages(self, num):
         """Trim messages from the front, not including the system message"""
@@ -372,7 +406,7 @@ class Agent(object):
         first_message: bool = False,  # hint
         stream: bool = False,  # TODO move to config?
         inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
-    ) -> chat_completion_response.ChatCompletionResponse:
+    ) -> ChatCompletionResponse:
         """Get response from LLM API"""
         try:
             response = create(
@@ -408,9 +442,7 @@ class Agent(object):
         except Exception as e:
             raise e
 
-    def _handle_ai_response(
-        self, response_message: chat_completion_response.Message, override_tool_call_id: bool = True
-    ) -> Tuple[List[Message], bool, bool]:
+    def _handle_ai_response(self, response_message: Message, override_tool_call_id: bool = True) -> Tuple[List[Message], bool, bool]:
         """Handles parsing and function execution"""
 
         messages = []  # append these to the history when done
@@ -1048,25 +1080,14 @@ class Agent(object):
         # return msg
 
     def update_state(self) -> AgentState:
-        memory = {
-            "system": self.system,
-            "memory": self.memory.to_dict(),
-            "messages": [str(msg.id) for msg in self._messages],  # TODO: move out into AgentState.message_ids
-        }
-        self.agent_state = AgentState(
-            name=self.agent_state.name,
-            user_id=self.agent_state.user_id,
-            tools=self.agent_state.tools,
-            system=self.system,
-            ## "model_state"
-            llm_config=self.agent_state.llm_config,
-            embedding_config=self.agent_state.embedding_config,
-            id=self.agent_state.id,
-            created_at=self.agent_state.created_at,
-            ## "agent_state"
-            state=memory,
-            _metadata=self.agent_state._metadata,
-        )
+        message_ids = [msg.id for msg in self._messages]
+        assert isinstance(self.memory, Memory), f"Memory is not a Memory object: {type(self.memory)}"
+
+        # override any fields that may have been updated
+        self.agent_state.message_ids = message_ids
+        self.agent_state.memory = self.memory
+        self.agent_state.system = self.system
+
         return self.agent_state
 
     def migrate_embedding(self, embedding_config: EmbeddingConfig):
@@ -1076,18 +1097,20 @@ class Agent(object):
         # TODO: recall memory
         raise NotImplementedError()
 
-    def attach_source(self, source_name, source_connector: StorageConnector, ms: MetadataStore):
+    def attach_source(self, source_id: str, source_connector: StorageConnector, ms: MetadataStore):
         """Attach data with name `source_name` to the agent from source_connector."""
         # TODO: eventually, adding a data source should just give access to the retriever the source table, rather than modifying archival memory
 
-        filters = {"user_id": self.agent_state.user_id, "data_source": source_name}
+        filters = {"user_id": self.agent_state.user_id, "source_id": source_id}
         size = source_connector.size(filters)
-        # typer.secho(f"Ingesting {size} passages into {agent.name}", fg=typer.colors.GREEN)
+        print(f"Ingesting {size} passages into {self.agent_state.name}")
         page_size = 100
         generator = source_connector.get_all_paginated(filters=filters, page_size=page_size)  # yields List[Passage]
         all_passages = []
         for i in tqdm(range(0, size, page_size)):
             passages = next(generator)
+
+            print("getting passage", len(passages))
 
             # need to associated passage with agent (for filtering)
             for passage in passages:
@@ -1095,7 +1118,8 @@ class Agent(object):
                 passage.agent_id = self.agent_state.id
 
                 # regenerate passage ID (avoid duplicates)
-                passage.id = create_uuid_from_string(f"{source_name}_{str(passage.agent_id)}_{passage.text}")
+                # TODO: need to find another solution to the text duplication issue
+                # passage.id = create_uuid_from_string(f"{source_id}_{str(passage.agent_id)}_{passage.text}")
 
             # insert into agent archival memory
             self.persistence_manager.archival_memory.storage.insert_many(passages)
@@ -1107,15 +1131,14 @@ class Agent(object):
         self.persistence_manager.archival_memory.storage.save()
 
         # attach to agent
-        source = ms.get_source(source_name=source_name, user_id=self.agent_state.user_id)
-        assert source is not None, f"source does not exist for source_name={source_name}, user_id={self.agent_state.user_id}"
-        source_id = source.id
+        source = ms.get_source(source_id=source_id)
+        assert source is not None, f"Source {source_id} not found in metadata store"
         ms.attach_source(agent_id=self.agent_state.id, source_id=source_id, user_id=self.agent_state.user_id)
 
         total_agent_passages = self.persistence_manager.archival_memory.storage.size()
 
         printd(
-            f"Attached data source {source_name} to agent {self.agent_state.name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
+            f"Attached data source {source.name} to agent {self.agent_state.name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
         )
 
 
@@ -1124,8 +1147,13 @@ def save_agent(agent: Agent, ms: MetadataStore):
 
     agent.update_state()
     agent_state = agent.agent_state
+    agent_id = agent_state.id
+    assert isinstance(agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"
 
-    if ms.get_agent(agent_name=agent_state.name, user_id=agent_state.user_id):
+    if ms.get_agent(agent_id=agent.agent_state.id):
         ms.update_agent(agent_state)
     else:
         ms.create_agent(agent_state)
+
+    agent.agent_state = ms.get_agent(agent_id=agent_id)
+    assert isinstance(agent.agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"

@@ -15,8 +15,10 @@ from memgpt.constants import (
     DEFAULT_PRESET,
     MEMGPT_DIR,
 )
-from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig
 from memgpt.log import get_logger
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.llm_config import LLMConfig
 
 logger = get_logger(__name__)
 
@@ -101,17 +103,17 @@ class MemGPTConfig:
     @classmethod
     def load(cls) -> "MemGPTConfig":
         # avoid circular import
-        from memgpt.migrate import VERSION_CUTOFF, config_is_compatible
         from memgpt.utils import printd
 
-        if not config_is_compatible(allow_empty=True):
-            error_message = " ".join(
-                [
-                    f"\nYour current config file is incompatible with MemGPT versions later than {VERSION_CUTOFF}.",
-                    f"\nTo use MemGPT, you must either downgrade your MemGPT version (<= {VERSION_CUTOFF}) or regenerate your config using `memgpt configure`, or `memgpt migrate` if you would like to migrate old agents.",
-                ]
-            )
-            raise ValueError(error_message)
+        # from memgpt.migrate import VERSION_CUTOFF, config_is_compatible
+        # if not config_is_compatible(allow_empty=True):
+        #    error_message = " ".join(
+        #        [
+        #            f"\nYour current config file is incompatible with MemGPT versions later than {VERSION_CUTOFF}.",
+        #            f"\nTo use MemGPT, you must either downgrade your MemGPT version (<= {VERSION_CUTOFF}) or regenerate your config using `memgpt configure`, or `memgpt migrate` if you would like to migrate old agents.",
+        #        ]
+        #    )
+        #    raise ValueError(error_message)
 
         config = configparser.ConfigParser()
 

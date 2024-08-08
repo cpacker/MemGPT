@@ -15,16 +15,8 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 
 # import benchmark
 from memgpt.benchmark.benchmark import bench
-from memgpt.cli.cli import (
-    delete_agent,
-    migrate,
-    open_folder,
-    quickstart,
-    run,
-    server,
-    version,
-)
-from memgpt.cli.cli_config import add, configure, delete, list
+from memgpt.cli.cli import delete_agent, open_folder, quickstart, run, server, version
+from memgpt.cli.cli_config import add, add_tool, list_tools, configure, delete, list
 from memgpt.cli.cli_load import app as load_app
 from memgpt.config import MemGPTConfig
 from memgpt.constants import (
@@ -34,7 +26,7 @@ from memgpt.constants import (
     REQ_HEARTBEAT_MESSAGE,
 )
 from memgpt.metadata import MetadataStore
-from memgpt.models.pydantic_models import OptionState
+from memgpt.schemas.enums import OptionState
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import AgentRefreshStreamingInterface
@@ -47,14 +39,14 @@ app.command(name="version")(version)
 app.command(name="configure")(configure)
 app.command(name="list")(list)
 app.command(name="add")(add)
+app.command(name="add-tool")(add_tool)
+app.command(name="list-tools")(list_tools)
 app.command(name="delete")(delete)
 app.command(name="server")(server)
 app.command(name="folder")(open_folder)
 app.command(name="quickstart")(quickstart)
 # load data commands
 app.add_typer(load_app, name="load")
-# migration command
-app.command(name="migrate")(migrate)
 # benchmark command
 app.command(name="benchmark")(bench)
 # delete agents
