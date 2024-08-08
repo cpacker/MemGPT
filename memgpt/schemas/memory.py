@@ -6,7 +6,7 @@ from memgpt.schemas.block import Block
 
 
 class Memory(BaseModel, validate_assignment=True):
-    """Represents the in-context memory of the agent"""
+    """Represents the whole in-context memory of the agent"""
 
     # Private variable to avoid assignments with incorrect types
     memory: Dict[str, Block] = Field(default_factory=dict, description="Mapping from memory block section to memory block.")

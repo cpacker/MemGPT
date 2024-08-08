@@ -48,7 +48,7 @@ class Tool(SqlalchemyBase, OrganizationMixin):
     @classmethod
     def load_default_tools(cls, db_session:"Session") -> None:
         """populates the db with default tools"""
-        target_module = importlib.import_module("memgpt.functions.function_sets.base")
+        target_module = importlib.import_module("memgpt.seeds.functions.function_sets.base")
         functions_to_schema = cls._load_function_set(target_module)
         tags = ["base", "memgpt-base"]
 
