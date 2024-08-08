@@ -649,6 +649,7 @@ class Agent(object):
         stream: bool = False,  # TODO move to config?
         timestamp: Optional[datetime.datetime] = None,
         inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
+        ms: Optional[MetadataStore] = None,
     ) -> Tuple[List[Union[dict, Message]], bool, bool, bool]:
         """Top-level event message handler for the MemGPT agent"""
 
@@ -678,7 +679,20 @@ class Agent(object):
                     raise e
 
         try:
-            # Step 0: add user message
+            # Step 0: update core memory
+            # only pulling latest block data if shared memory is being used
+            # TODO: ensure we're passing in metadata store from all surfaces
+            if ms is not None:
+                should_update = False
+                for block in self.agent_state.memory.to_dict().values():
+                    if not block.get("template", False):
+                        should_update = True
+                if should_update:
+                    # TODO: the force=True can be optimized away
+                    # once we ensure we're correctly comparing whether in-memory core
+                    # data is different than persisted core data.
+                    self.rebuild_memory(force=True, ms=ms)
+            # Step 1: add user message
             if user_message is not None:
                 if isinstance(user_message, Message):
                     # Validate JSON via save/load
@@ -724,7 +738,7 @@ class Agent(object):
             if len(input_message_sequence) > 1 and input_message_sequence[-1].role != "user":
                 printd(f"{CLI_WARNING_PREFIX}Attempting to run ChatCompletion without user as the last message in the queue")
 
-            # Step 1: send the conversation and available functions to GPT
+            # Step 2: send the conversation and available functions to GPT
             if not skip_verify and (first_message or self.messages_total == self.messages_total_init):
                 printd(f"This is the first message. Running extra verifier on AI response.")
                 counter = 0
@@ -749,9 +763,9 @@ class Agent(object):
                     inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
                 )
 
-            # Step 2: check if LLM wanted to call a function
-            # (if yes) Step 3: call the function
-            # (if yes) Step 4: send the info on the function call and function response to LLM
+            # Step 3: check if LLM wanted to call a function
+            # (if yes) Step 4: call the function
+            # (if yes) Step 5: send the info on the function call and function response to LLM
             response_message = response.choices[0].message
             response_message.model_copy()  # TODO why are we copying here?
             all_response_messages, heartbeat_request, function_failed = self._handle_ai_response(response_message)
@@ -767,7 +781,7 @@ class Agent(object):
             #     "functions": self.functions,
             # }
 
-            # Step 4: extend the message history
+            # Step 6: extend the message history
             if user_message is not None:
                 if isinstance(user_message, Message):
                     all_new_messages = [user_message] + all_response_messages
@@ -827,6 +841,7 @@ class Agent(object):
                     stream=stream,
                     timestamp=timestamp,
                     inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+                    ms=ms,
                 )
 
             else:
@@ -975,8 +990,8 @@ class Agent(object):
         new_messages = [new_system_message_obj] + self._messages[1:]  # swap index 0 (system)
         self._messages = new_messages
 
-    def rebuild_memory(self, force=False, update_timestamp=True):
-        """Rebuilds the system message with the latest memory object"""
+    def rebuild_memory(self, force=False, update_timestamp=True, ms: Optional[MetadataStore] = None):
+        """Rebuilds the system message with the latest memory object and any shared memory block updates"""
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
 
         # NOTE: This is a hacky way to check if the memory has changed
@@ -984,6 +999,28 @@ class Agent(object):
         if not force and memory_repr == curr_system_message["content"][-(len(memory_repr)) :]:
             printd(f"Memory has not changed, not rebuilding system")
             return
+
+        if ms:
+            for block in self.memory.to_dict().values():
+                if block.get("templates", False):
+                    # we don't expect to update shared memory blocks that
+                    # are templates. this is something we could update in the
+                    # future if we expect templates to change often.
+                    continue
+                block_id = block.get("id")
+                db_block = ms.get_block(block_id=block_id)
+                if db_block is None:
+                    # this case covers if someone has deleted a shared block by interacting
+                    # with some other agent.
+                    # in that case we should remove this shared block from the agent currently being
+                    # evaluated.
+                    printd(f"removing block: {block_id=}")
+                    continue
+                if not isinstance(db_block.value, str):
+                    printd(f"skipping block update, unexpected value: {block_id=}")
+                    continue
+                # TODO: we may want to update which columns we're updating from shared memory e.g. the limit
+                self.memory.update_block_value(name=block.get("name", ""), value=db_block.value)
 
         # If the memory didn't update, we probably don't want to update the timestamp inside
         # For example, if we're doing a system prompt swap, this should probably be False

@@ -66,13 +66,8 @@ class Memory(BaseModel, validate_assignment=True):
         self.memory[name].value = value
 
 
-class ChatMemory(Memory):
-
-    def __init__(self, persona: str, human: str, limit: int = 2000):
-        super().__init__()
-        self.link_block(name="persona", block=Block(name="persona", value=persona, limit=limit, label="persona"))
-        self.link_block(name="human", block=Block(name="human", value=human, limit=limit, label="human"))
-
+# TODO: ideally this is refactored into ChatMemory and the subclasses are given more specific names.
+class BaseChatMemory(Memory):
     def core_memory_append(self, name: str, content: str) -> Optional[str]:
         """
         Append to the contents of core memory.
@@ -105,6 +100,30 @@ class ChatMemory(Memory):
         new_value = current_value.replace(str(old_content), str(new_content))
         self.memory.update_block_value(name=name, value=new_value)
         return None
+
+
+class ChatMemory(BaseChatMemory):
+    """
+    ChatMemory initializes a BaseChatMemory with two default blocks
+    """
+
+    def __init__(self, persona: str, human: str, limit: int = 2000):
+        super().__init__()
+        self.link_block(name="persona", block=Block(name="persona", value=persona, limit=limit, label="persona"))
+        self.link_block(name="human", block=Block(name="human", value=human, limit=limit, label="human"))
+
+
+class BlockChatMemory(BaseChatMemory):
+    """
+    BlockChatMemory is a subclass of BaseChatMemory which uses shared memory blocks specified at initialization-time.
+    """
+
+    def __init__(self, blocks: List[Block] = []):
+        super().__init__()
+        for block in blocks:
+            # TODO: centralize these internal schema validations
+            assert block.name is not None and block.name != "", "each existing chat block must have a name"
+            self.link_block(name=block.name, block=block)
 
 
 class UpdateMemory(BaseModel):

@@ -500,7 +500,16 @@ class MetadataStore:
     def create_block(self, block: Block):
         with self.session_maker() as session:
             # TODO: fix?
-            if session.query(BlockModel).filter(BlockModel.name == block.name).filter(BlockModel.user_id == block.user_id).count() > 0:
+            # we are only validating that more than one template block
+            # with a given name doesn't exist.
+            if (
+                session.query(BlockModel)
+                .filter(BlockModel.name == block.name)
+                .filter(BlockModel.user_id == block.user_id)
+                .filter(BlockModel.template == True)
+                .count()
+                > 0
+            ):
                 raise ValueError(f"Block with name {block.name} already exists")
             session.add(BlockModel(**vars(block)))
             session.commit()
