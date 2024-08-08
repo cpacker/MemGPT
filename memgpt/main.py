@@ -15,16 +15,8 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 
 # import benchmark
 from memgpt.benchmark.benchmark import bench
-from memgpt.cli.cli import (
-    delete_agent,
-    migrate,
-    open_folder,
-    quickstart,
-    run,
-    server,
-    version,
-)
-from memgpt.cli.cli_config import add, configure, delete, list
+from memgpt.cli.cli import delete_agent, open_folder, quickstart, run, server, version
+from memgpt.cli.cli_config import add, add_tool, list_tools, configure, delete, list
 from memgpt.cli.cli_load import app as load_app
 from memgpt.config import MemGPTConfig
 from memgpt.constants import (
@@ -34,6 +26,7 @@ from memgpt.constants import (
     REQ_HEARTBEAT_MESSAGE,
 )
 from memgpt.metadata import MetadataStore
+from memgpt.schemas.enums import OptionState
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import AgentRefreshStreamingInterface
@@ -46,14 +39,14 @@ app.command(name="version")(version)
 app.command(name="configure")(configure)
 app.command(name="list")(list)
 app.command(name="add")(add)
+app.command(name="add-tool")(add_tool)
+app.command(name="list-tools")(list_tools)
 app.command(name="delete")(delete)
 app.command(name="server")(server)
 app.command(name="folder")(open_folder)
 app.command(name="quickstart")(quickstart)
 # load data commands
 app.add_typer(load_app, name="load")
-# migration command
-app.command(name="migrate")(migrate)
 # benchmark command
 app.command(name="benchmark")(bench)
 # delete agents
@@ -71,7 +64,14 @@ def clear_line(console, strip_ui=False):
 
 
 def run_agent_loop(
-    memgpt_agent: agent.Agent, config: MemGPTConfig, first, ms: MetadataStore, no_verify=False, cfg=None, strip_ui=False, stream=False
+    memgpt_agent: agent.Agent,
+    config: MemGPTConfig,
+    first: bool,
+    ms: MetadataStore,
+    no_verify: bool = False,
+    strip_ui: bool = False,
+    stream: bool = False,
+    inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
 ):
     if isinstance(memgpt_agent.interface, AgentRefreshStreamingInterface):
         # memgpt_agent.interface.toggle_streaming(on=stream)
@@ -369,6 +369,41 @@ def run_agent_loop(
                         questionary.print(f" {desc}")
                     continue
 
+                elif user_input.lower().startswith("/systemswap"):
+                    if len(user_input) < len("/systemswap "):
+                        print("Missing new system prompt after the command")
+                        continue
+                    old_system_prompt = memgpt_agent.system
+                    new_system_prompt = user_input[len("/systemswap ") :].strip()
+
+                    # Show warning and prompts to user
+                    typer.secho(
+                        "\nWARNING: You are about to change the system prompt.",
+                        # fg=typer.colors.BRIGHT_YELLOW,
+                        bold=True,
+                    )
+                    typer.secho(
+                        f"\nOld system prompt:\n{old_system_prompt}",
+                        fg=typer.colors.RED,
+                        bold=True,
+                    )
+                    typer.secho(
+                        f"\nNew system prompt:\n{new_system_prompt}",
+                        fg=typer.colors.GREEN,
+                        bold=True,
+                    )
+
+                    # Ask for confirmation
+                    confirm = questionary.confirm("Do you want to proceed with the swap?").ask()
+
+                    if confirm:
+                        memgpt_agent.update_system_prompt(new_system_prompt=new_system_prompt)
+                        print("System prompt updated successfully.")
+                    else:
+                        print("System prompt swap cancelled.")
+
+                    continue
+
                 else:
                     print(f"Unrecognized command: {user_input}")
                     continue
@@ -386,6 +421,7 @@ def run_agent_loop(
                 first_message=False,
                 skip_verify=no_verify,
                 stream=stream,
+                inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
             )
 
             skip_next_user_input = False
@@ -419,7 +455,7 @@ def run_agent_loop(
                 retry = questionary.confirm("Retry agent.step()?").ask()
                 if not retry:
                     break
-            except Exception as e:
+            except Exception:
                 print("An exception occurred when running agent.step(): ")
                 traceback.print_exc()
                 retry = questionary.confirm("Retry agent.step()?").ask()

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pymemgpt"
-version = "0.3.18"
+version = "0.3.22"
 packages = [
     {include = "memgpt"}
 ]
@@ -28,14 +28,13 @@ pgvector = { version = "^0.2.3", optional = true }
 pre-commit = {version = "^3.5.0", optional = true }
 pg8000 = {version = "^1.30.3", optional = true}
 websockets = {version = "^12.0", optional = true}
-docstring-parser = "^0.15"
-lancedb = "^0.3.3"
+docstring-parser = ">=0.16,<0.17"
 httpx = "^0.25.2"
 numpy = "^1.26.2"
 demjson3 = "^3.0.6"
-tiktoken = "^0.5.1"
+tiktoken = ">=0.7.0,<0.8.0"
 pyyaml = "^6.0.1"
-chromadb = "^0.5.0"
+chromadb = ">=0.4.24,<0.5.0"
 sqlalchemy-json = "^0.7.0"
 fastapi = {version = "^0.104.1", optional = true}
 uvicorn = {version = "^0.24.0.post1", optional = true}
@@ -59,7 +58,6 @@ python-multipart = "^0.0.9"
 sqlalchemy-utils = "^0.41.2"
 pytest-order = {version = "^1.2.0", optional = true}
 pytest-asyncio = {version = "^0.23.2", optional = true}
-pytest = { version = "^7.4.4", optional = true }
 pydantic-settings = "^2.2.1"
 httpx-sse = "^0.4.0"
 isort = { version = "^5.13.2", optional = true }
@@ -67,6 +65,7 @@ llama-index-embeddings-ollama = {version = "^0.1.2", optional = true}
 protobuf = "3.20.0"
 alembic = "^1.13.2"
 pyhumps = "^3.8.0"
+crewai = {extras = ["tools"], version = "^0.41.1"}
 
 [tool.poetry.extras]
 local = ["llama-index-embeddings-huggingface"]

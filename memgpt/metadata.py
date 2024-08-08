@@ -34,6 +34,17 @@ from memgpt.models.pydantic_models import (
     PersonaModel,
 )
 from memgpt.orm.enums import JobStatus
+from memgpt.config import MemGPTConfig
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.api_key import APIKey
+from memgpt.schemas.block import Block, Human, Persona
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.job import JobStatus
+from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.memory import Memory
+from memgpt.schemas.source import Source
+from memgpt.schemas.tool import Tool
+from memgpt.schemas.user import User
 
 class MetadataStore:
     """Metadatastore acts as a bridge between the ORM and the rest of the application. Ideally it will be removed in coming PRs and

@@ -4,9 +4,9 @@ import queue
 from collections import deque
 from typing import AsyncGenerator, Optional
 
-from memgpt.data_types import Message
 from memgpt.interface import AgentInterface
-from memgpt.models.chat_completion_response import ChatCompletionChunkResponse
+from memgpt.schemas.message import Message
+from memgpt.schemas.openai.chat_completion_response import ChatCompletionChunkResponse
 from memgpt.streaming_interface import AgentChunkStreamingInterface
 from memgpt.utils import get_utc_time, is_utc_datetime
 

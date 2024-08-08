@@ -11,8 +11,8 @@ from memgpt.constants import (
     MESSAGE_CHATGPT_FUNCTION_MODEL,
     MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
 )
-from memgpt.data_types import Message
 from memgpt.llm_api.llm_api_tools import create
+from memgpt.schemas.message import Message
 
 
 def message_chatgpt(self, message: str):
