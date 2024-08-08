@@ -116,21 +116,47 @@ def test_agent_with_shared_blocks(client):
         # ensure that previous chat blocks are persisted, as if another agent already produced them.
         client.server.ms.create_block(block)
 
+    existing_non_template_blocks_no_values = []
+    for block in existing_non_template_blocks:
+        block_copy = block.copy()
+        block_copy.value = None
+        existing_non_template_blocks_no_values.append(block_copy)
+
     # create agent
-    agent_state_test = None
+    first_agent_state_test = None
+    second_agent_state_test = None
     try:
-        agent_state_test = client.create_agent(
-            name="test_agent_shared_memory_blocks",
+        first_agent_state_test = client.create_agent(
+            name="first_test_agent_shared_memory_blocks",
             memory=BlockChatMemory(blocks=existing_non_template_blocks),
             description="This is a test agent using shared memory blocks",
         )
-        assert isinstance(agent_state_test.memory, Memory)
-        blocks_dict = agent_state_test.memory.to_dict()
-        assert persona_block.id == blocks_dict.get("persona", {}).get("id")
-        assert human_block.id == blocks_dict.get("human", {}).get("id")
+        assert isinstance(first_agent_state_test.memory, Memory)
+
+        first_blocks_dict = first_agent_state_test.memory.to_dict()
+        assert persona_block.id == first_blocks_dict.get("persona", {}).get("id")
+        assert human_block.id == first_blocks_dict.get("human", {}).get("id")
+        client.update_in_context_memory(first_agent_state_test.id, section="human", value="I'm an analyst therapist.")
+
+        # when this agent is created with the shared block references this agent's in-memory blocks should
+        # have this latest value set by the other agent.
+        second_agent_state_test = client.create_agent(
+            name="second_test_agent_shared_memory_blocks",
+            memory=BlockChatMemory(blocks=existing_non_template_blocks_no_values),
+            description="This is a test agent using shared memory blocks",
+        )
+
+        assert isinstance(second_agent_state_test.memory, Memory)
+        second_blocks_dict = second_agent_state_test.memory.to_dict()
+        assert persona_block.id == second_blocks_dict.get("persona", {}).get("id")
+        assert human_block.id == second_blocks_dict.get("human", {}).get("id")
+        assert second_blocks_dict.get("human", {}).get("value") == "I'm an analyst therapist."
+
     finally:
-        if agent_state_test:
-            client.delete_agent(agent_state_test.id)
+        if first_agent_state_test:
+            client.delete_agent(first_agent_state_test.id)
+        if second_agent_state_test:
+            client.delete_agent(second_agent_state_test.id)
 
 
 def test_memory(client, agent):
