@@ -4,6 +4,7 @@ import uuid
 
 from memgpt import create_client
 from memgpt.agent import Agent
+from memgpt.config import MemGPTConfig
 from memgpt.embeddings import embedding_model
 from memgpt.llm_api.llm_api_tools import create
 from memgpt.prompts import gpt_system
@@ -27,6 +28,12 @@ def run_llm_endpoint(filename):
     print(config_data)
     llm_config = LLMConfig(**config_data)
     embedding_config = EmbeddingConfig(**json.load(open(embedding_config_path)))
+
+    # setup config
+    config = MemGPTConfig()
+    config.default_llm_config = llm_config
+    config.default_embedding_config = embedding_config
+    config.save()
 
     client = create_client()
     agent_state = client.create_agent(name="test_agent", llm_config=llm_config, embedding_config=embedding_config)
