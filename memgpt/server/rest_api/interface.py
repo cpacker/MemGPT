@@ -2,7 +2,7 @@ import asyncio
 import json
 import queue
 from collections import deque
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator, Literal, Optional, Union
 
 from memgpt.interface import AgentInterface
 from memgpt.schemas.message import Message
@@ -18,12 +18,66 @@ class QueuingInterface(AgentInterface):
         self.buffer = queue.Queue()
         self.debug = debug
 
-    def to_list(self):
+    def _queue_push(self, message_api: Union[str, dict], message_obj: Union[Message, None]):
+        """Wrapper around self.buffer.queue.put() that ensures the types are safe
+
+        Data will be in the format: {
+            "message_obj": ...
+            "message_string": ...
+        }
+        """
+
+        # Check the string first
+
+        if isinstance(message_api, str):
+            # check that it's the stop word
+            if message_api == "STOP":
+                assert message_obj is None
+                self.buffer.put(
+                    {
+                        "message_api": message_api,
+                        "message_obj": None,
+                    }
+                )
+            else:
+                raise ValueError(f"Unrecognized string pushed to buffer: {message_api}")
+
+        elif isinstance(message_api, dict):
+            # check if it's the error message style
+            if len(message_api.keys()) == 1 and "internal_error" in message_api:
+                assert message_obj is None
+                self.buffer.put(
+                    {
+                        "message_api": message_api,
+                        "message_obj": None,
+                    }
+                )
+            else:
+                assert message_obj is not None, message_api
+                self.buffer.put(
+                    {
+                        "message_api": message_api,
+                        "message_obj": message_obj,
+                    }
+                )
+
+        else:
+            raise ValueError(f"Unrecognized type pushed to buffer: {type(message_api)}")
+
+    def to_list(self, style: Literal["obj", "api"] = "obj"):
         """Convert queue to a list (empties it out at the same time)"""
         items = []
         while not self.buffer.empty():
             try:
-                items.append(self.buffer.get_nowait())
+                # items.append(self.buffer.get_nowait())
+                item_to_push = self.buffer.get_nowait()
+                if style == "obj":
+                    if item_to_push["message_obj"] is not None:
+                        items.append(item_to_push["message_obj"])
+                elif style == "api":
+                    items.append(item_to_push["message_api"])
+                else:
+                    raise ValueError(style)
             except queue.Empty:
                 break
         if len(items) > 1 and items[-1] == "STOP":
@@ -36,20 +90,30 @@ class QueuingInterface(AgentInterface):
             # Empty the queue
             self.buffer.queue.clear()
 
-    async def message_generator(self):
+    async def message_generator(self, style: Literal["obj", "api"] = "obj"):
         while True:
             if not self.buffer.empty():
                 message = self.buffer.get()
-                if message == "STOP":
+                message_obj = message["message_obj"]
+                message_api = message["message_api"]
+
+                if message_api == "STOP":
                     break
-                # yield message | {"date": datetime.now(tz=pytz.utc).isoformat()}
-                yield message
+
+                # yield message
+                if style == "obj":
+                    yield message_obj
+                elif style == "api":
+                    yield message_api
+                else:
+                    raise ValueError(style)
+
             else:
                 await asyncio.sleep(0.1)  # Small sleep to prevent a busy loop
 
     def step_yield(self):
         """Enqueue a special stop message"""
-        self.buffer.put("STOP")
+        self._queue_push(message_api="STOP", message_obj=None)
 
     @staticmethod
     def step_complete():
@@ -57,8 +121,8 @@ class QueuingInterface(AgentInterface):
 
     def error(self, error: str):
         """Enqueue a special stop message"""
-        self.buffer.put({"internal_error": error})
-        self.buffer.put("STOP")
+        self._queue_push(message_api={"internal_error": error}, message_obj=None)
+        self._queue_push(message_api="STOP", message_obj=None)
 
     def user_message(self, msg: str, msg_obj: Optional[Message] = None):
         """Handle reception of a user message"""
@@ -84,7 +148,7 @@ class QueuingInterface(AgentInterface):
             assert is_utc_datetime(msg_obj.created_at), msg_obj.created_at
             new_message["date"] = msg_obj.created_at.isoformat()
 
-        self.buffer.put(new_message)
+        self._queue_push(message_api=new_message, message_obj=msg_obj)
 
     def assistant_message(self, msg: str, msg_obj: Optional[Message] = None) -> None:
         """Handle the agent sending a message"""
@@ -108,11 +172,13 @@ class QueuingInterface(AgentInterface):
             assert self.buffer.qsize() > 1, "Tried to reach back to grab function call data, but couldn't find a buffer message."
             # TODO also should not be accessing protected member here
 
-            new_message["id"] = self.buffer.queue[-1]["id"]
+            new_message["id"] = self.buffer.queue[-1]["message_api"]["id"]
             # assert is_utc_datetime(msg_obj.created_at), msg_obj.created_at
-            new_message["date"] = self.buffer.queue[-1]["date"]
+            new_message["date"] = self.buffer.queue[-1]["message_api"]["date"]
 
-        self.buffer.put(new_message)
+            msg_obj = self.buffer.queue[-1]["message_obj"]
+
+        self._queue_push(message_api=new_message, message_obj=msg_obj)
 
     def function_message(self, msg: str, msg_obj: Optional[Message] = None, include_ran_messages: bool = False) -> None:
         """Handle the agent calling a function"""
@@ -152,7 +218,7 @@ class QueuingInterface(AgentInterface):
             assert is_utc_datetime(msg_obj.created_at), msg_obj.created_at
             new_message["date"] = msg_obj.created_at.isoformat()
 
-        self.buffer.put(new_message)
+        self._queue_push(message_api=new_message, message_obj=msg_obj)
 
 
 class FunctionArgumentsStreamHandler:
